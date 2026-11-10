@@ -246,6 +246,7 @@ export const STRINGS = {
         card_add_title: { en: "Add {name}", ar: "إضافة {name}", ku: "زیادکردنی {name}" },
         card_invalid_title: { en: "{name} can't be placed on this page", ar: "{name} لا يمكن وضعه في هذه الصفحة", ku: "{name} ناتوانرێت لەم پەڕەیەدا دابنرێت" },
         presets_empty_title: { en: "No saved presets yet", ar: "لا توجد قوالب محفوظة بعد", ku: "هێشتا هیچ قاڵبێکی پاشەکەوتکراو نییە" },
+        presets_empty_hint_simple: { en: "Switch to advanced mode, then choose “Save as preset” from any section’s menu to reuse it here.", ar: "انتقل إلى الوضع المتقدم، ثم اختر «حفظ كقالب جاهز» من قائمة أي قسم لاستخدامه هنا.", ku: "بگۆڕە بۆ دۆخی پێشکەوتوو، پاشان “هەڵیبگرە وەکو قاڵبی ئامادە” لە مێنیوی هەر بەشێک هەڵبژێرە." },
         presets_empty_hint: { en: "Configure any section on a page, then choose “Save as preset” from its menu to reuse it here.", ar: "اضبط أي قسم في صفحة، ثم اختر «حفظ كقالب جاهز» من قائمته لاستخدامه هنا.", ku: "هەر بەشێک لە پەڕەیەکدا ڕێکبخە، پاشان “هەڵیبگرە وەکو قاڵبی ئامادە” لە مێنیوەکەی هەڵبژێرە بۆ بەکارهێنانەوەی لێرە." },
         // tFormat: {name}
         delete_preset_aria: { en: "Delete preset {name}", ar: "حذف القالب {name}", ku: "سڕینەوەی قاڵبی {name}" },
@@ -1485,8 +1486,8 @@ export const STRINGS = {
         disc_restore: { en: "Restore code", ar: "استعادة الكود", ku: "گەڕاندنەوەی کۆد" },
         nav_removed: { en: "Menu link removed", ar: "حُذف الرابط", ku: "بەستەرەکە لابرا" },
         nav_restore: { en: "Restore link", ar: "استعادة الرابط", ku: "گەڕاندنەوەی بەستەر" },
-        redir_removed: { en: "Redirect removed", ar: "حُذف التحويل", ku: "ئاراستەکردنەکە لابرا" },
-        redir_restore: { en: "Restore redirect", ar: "استعادة التحويل", ku: "گەڕاندنەوەی ئاراستەکردن" },
+        redir_removed: { en: "Redirect removed", ar: "حُذفت القاعدة", ku: "ئاراستەکردنەکە لابرا" },
+        redir_restore: { en: "Restore redirect", ar: "استعادة القاعدة", ku: "گەڕاندنەوەی ئاراستەکردن" },
         bun_removed: { en: "Bundle removed", ar: "حُذفت الحزمة", ku: "کۆمەڵەکە لابرا" },
         bun_removed_hint: { en: "You have 5 seconds to bring it back.", ar: "يمكنك استعادتها خلال 5 ثوانٍ.", ku: "٥ چرکەت هەیە بۆ گەڕاندنەوەی." },
         bun_restore: { en: "Restore bundle", ar: "استعادة الحزمة", ku: "گەڕاندنەوەی کۆمەڵە" },
@@ -1628,8 +1629,8 @@ export const STRINGS = {
         vh_diff_after: { en: "After restoring:", ar: "بعد الاسترجاع:", ku: "دوای گەڕاندنەوە:" },
 
         // Nav-builder screen
-        nav_close_aria: { en: "Close navigation", ar: "إغلاق التنقل", ku: "داخستنی ناڤیگەیشن" },
-        nav_heading: { en: "Navigation", ar: "التنقل", ku: "ناڤیگەیشن" },
+        nav_close_aria: { en: "Close navigation", ar: "إغلاق التنقّل", ku: "داخستنی ناڤیگەیشن" },
+        nav_heading: { en: "Navigation", ar: "التنقّل", ku: "ناڤیگەیشن" },
         nav_add_link: { en: "Add link", ar: "إضافة رابط", ku: "زیادکردنی بەستەر" },
         nav_intro_prefix: { en: "Header menu links. Point each at a path like", ar: "روابط قائمة الترويسة. وجّه كل رابط إلى مسار مثل", ku: "بەستەرەکانی مێنیوی سەرەوە. هەریەکەیان ئاراستەی ڕێچکەیەک بکە وەکو" },
         nav_intro_suffix: { en: ", or a full URL.", ar: "، أو رابط كامل.", ku: "، یان بەستەری تەواو." },

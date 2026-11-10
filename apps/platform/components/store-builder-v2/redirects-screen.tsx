@@ -79,7 +79,8 @@ export function RedirectsScreen({
     const removeRow = (i: number): void =>
         removeWithUndo(redirects, i, setRedirects, {
             title: t(STRINGS.advanced_chrome.redir_removed, locale),
-            hint: t(STRINGS.advanced_chrome.row_removed_hint, locale),
+            // «القاعدة» is feminine: the bundle hint's «استعادتها» fits it.
+            hint: t(STRINGS.advanced_chrome.bun_removed_hint, locale),
             restoreLabel: t(STRINGS.advanced_chrome.redir_restore, locale),
         });
 

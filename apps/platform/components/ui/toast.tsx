@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { X, Check, AlertTriangle, XCircle, Info, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ToastVariant } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 
 /* ============================================
    Toast Viewport
@@ -83,6 +84,7 @@ export const Toast = React.forwardRef<
     ToastProps
 >(({ className, variant = "default", index = 0, children, ...props }, ref) => {
     const config = variantConfig[variant];
+    const { t } = useLanguage();
 
     return (
         <ToastPrimitive.Root ref={ref} asChild forceMount {...props}>
@@ -142,12 +144,13 @@ export const Toast = React.forwardRef<
                     className={cn(
                         "absolute right-2.5 top-1/2 -translate-y-1/2",
                         "rounded-lg p-1.5 opacity-0 transition-all duration-200",
-                        "hover:bg-[#F5F0E8] group-hover:opacity-100",
-                        "text-[#9A9A9A] hover:text-[#1E1E1E]",
+                        "hover:bg-[#F5F0E8] group-hover:opacity-100 dark:hover:bg-white/10",
+                        "text-[#9A9A9A] hover:text-[#1E1E1E] dark:text-zinc-500 dark:hover:text-zinc-100",
                         "focus-visible:opacity-100 focus-visible:outline-none"
                     )}
+                    aria-label={t("common.close", "Close")}
                 >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </ToastPrimitive.Close>
             </motion.li>
         </ToastPrimitive.Root>
@@ -165,7 +168,7 @@ export const ToastTitle = React.forwardRef<
     <ToastPrimitive.Title
         ref={ref}
         className={cn(
-            "text-[13px] font-semibold text-[#1E1E1E] leading-tight tracking-[-0.01em]",
+            "text-[13px] font-semibold text-[#1E1E1E] dark:text-zinc-100 leading-tight tracking-[-0.01em]",
             className
         )}
         {...props}
@@ -183,7 +186,7 @@ export const ToastDescription = React.forwardRef<
     <ToastPrimitive.Description
         ref={ref}
         className={cn(
-            "text-[12px] text-[#6B6B6B] mt-0.5 leading-relaxed line-clamp-1",
+            "text-[12px] text-[#6B6B6B] dark:text-zinc-400 mt-0.5 leading-relaxed line-clamp-1",
             className
         )}
         {...props}
@@ -203,7 +206,7 @@ export const ToastAction = React.forwardRef<
         className={cn(
             "shrink-0 mt-1.5 inline-flex h-7 items-center justify-center rounded-lg px-3",
             "text-[12px] font-medium transition-all duration-200",
-            "bg-[#F5F0E8] hover:bg-[#E8E2D8] text-[#1E1E1E]",
+            "bg-[#F5F0E8] hover:bg-[#E8E2D8] text-[#1E1E1E] dark:bg-white/10 dark:hover:bg-white/15 dark:text-zinc-100",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FBE38E]",
             "active:scale-[0.97]",
             className

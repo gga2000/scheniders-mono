@@ -9,11 +9,12 @@ import {
     ToastViewport,
 } from "@/components/ui/toast";
 import { useToast, dismissToast, updateToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { AnimatePresence } from "framer-motion";
 
 export function Toaster() {
     const { toasts } = useToast();
+    // dir="auto" per line: an Arabic toast keeps its full stop and numbers in
+    // order, an English one stays LTR; text-left keeps the app's alignment.
 
     return (
         <ToastProvider swipeDirection="right" duration={5000}>
@@ -37,7 +38,7 @@ export function Toaster() {
                     >
                         <div className="flex-1 w-full">
                             <ToastTitle className="flex items-center gap-2">
-                                {t.title}
+                                <span dir="auto" className="text-left">{t.title}</span>
                                 {t.count && t.count > 1 && (
                                     <span className="flex items-center justify-center rounded-full bg-zinc-200/80 dark:bg-zinc-800/80 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
                                         {t.count}
@@ -45,7 +46,7 @@ export function Toaster() {
                                 )}
                             </ToastTitle>
                             {t.description && (
-                                <ToastDescription>{t.description}</ToastDescription>
+                                <ToastDescription dir="auto" className="text-left">{t.description}</ToastDescription>
                             )}
                             {t.action && (
                                 <ToastAction
