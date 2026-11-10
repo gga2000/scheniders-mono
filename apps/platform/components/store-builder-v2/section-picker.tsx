@@ -145,7 +145,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
     } = props;
 
     const locale = useEditorLocale();
-    const { mode } = useEditorMode();
+    const { mode, setMode } = useEditorMode();
     const manifest = manifestOverride ?? SECTIONS_MANIFEST;
 
     const [query, setQuery] = useState<string>("");
@@ -465,6 +465,16 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                                 <p className="max-w-sm text-xs text-foreground/80">
                                     {t(mode === "simple" ? STRINGS.section_picker.presets_empty_hint_simple : STRINGS.section_picker.presets_empty_hint, locale)}
                                 </p>
+                                {mode === "simple" && (
+                                    <button
+                                        type="button"
+                                        data-testid="section-picker-presets-go-advanced"
+                                        onClick={() => setMode("advanced")}
+                                        className="mt-1 inline-flex h-8 items-center rounded-lg border border-(--card-border) px-3 text-xs font-semibold text-foreground transition-colors hover:bg-black/5"
+                                    >
+                                        {t(STRINGS.section_picker.presets_go_advanced, locale)}
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <ul

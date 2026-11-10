@@ -205,7 +205,7 @@ export function BundlesScreen({
                                         // in the cart; with fewer than two it is not a bundle.
                                         <span
                                             data-testid={`bundle-needs-products-${i}`}
-                                            className="mb-[7px] rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                            className="mb-[7px] rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
                                         >
                                             {t(STRINGS.advanced_chrome.bun_needs_products, locale)}
                                         </span>

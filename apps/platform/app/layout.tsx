@@ -109,6 +109,9 @@ export default function RootLayout({
                             <MerchantGuide />
                           </Suspense>
                         </DashboardLayout>
+                        {/* Inside the language provider so toast chrome
+                            (the close button's name) follows the app language. */}
+                        <Toaster />
                       </LanguageProvider>
                     </FinancialVisibilityProvider>
                   </RoleProvider>
@@ -117,7 +120,6 @@ export default function RootLayout({
             </QueryProvider>
           </AuthProvider>
         </ErrorBoundary>
-        <Toaster />
         <SpeedInsights />
         <DevServiceWorkerCleanup />
       </body>
