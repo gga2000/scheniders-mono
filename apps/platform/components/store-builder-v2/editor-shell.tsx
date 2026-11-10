@@ -1058,13 +1058,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         [sectionPresets],
     );
 
-    /** Toggle inline expansion of a section row inside the Inspector. */
+    /** Toggle inline expansion of a section row inside the Inspector.
+     *  Opening a row also selects that section and scrolls the canvas to
+     *  it, so the merchant always sees the section whose fields they edit. */
     const handleToggleExpanded = useCallback(
         (id: string): void => {
-            set_editing_section_id((curr) => (curr === id ? null : id));
+            const opening = editing_section_id !== id;
+            set_editing_section_id(opening ? id : null);
+            if (opening) {
+                set_selected_section_id(id);
+                bridge.scrollToSection(id);
+                bridge.requestRect(id);
+            }
             onEditSection?.(id);
         },
-        [onEditSection],
+        [bridge, editing_section_id, onEditSection],
     );
 
     /* ── Overlay → config mutations ────────────────────────────── */
@@ -1765,8 +1773,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 publishBusy={publishBusy}
                 publishBlockedReason={publishBlockedReason}
                 modeIntro={
-                    // One-time Advanced-mode intro (first manual switch)
-                    mode_intro_open ? (
+                    // One-time Advanced-mode intro (first manual switch).
+                    // Held back while a picker dialog is open (the presets
+                    // empty state can switch modes) so it never opens under
+                    // the dialog; it shows once the dialog closes.
+                    mode_intro_open && !picker_open && !template_picker_open ? (
                         <ModeIntroPopover
                             locale={builder.active_locale}
                             onDismiss={dismiss_mode_intro}

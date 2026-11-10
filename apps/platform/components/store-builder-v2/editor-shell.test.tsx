@@ -785,6 +785,41 @@ describe("EditorShell", () => {
         expect(screen.getByTestId("editor-shell-main")).toBeTruthy();
     });
 
+    it("scrolls the canvas to a section when its row is opened in the inspector", async () => {
+        setViewportWidth(1440);
+        // jsdom has no layout, so scrollIntoView is missing.
+        Element.prototype.scrollIntoView = vi.fn();
+        const cfg = emptyStoreConfigV2();
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        if (home) {
+            home.sections = [
+                { id: "h1", type: "hero_image", enabled: true, base: { title: "x", image_url: "https://x" } },
+                { id: "h2", type: "promo_banner", enabled: true, base: {} },
+            ];
+        }
+        render(
+            <EditorShell
+                tenant={TENANT}
+                initialConfig={cfg}
+                hasPublished
+                builderOverride={makeBuilder({ config: cfg })}
+                storefrontUrlOverride="http://localhost:3001/s/test-store"
+                initialSystemScreen={null}
+            />,
+        );
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 30));
+        });
+        const bridge = getBridgeSpies();
+        fireEvent.click(screen.getByTestId("section-row-h2-chevron"));
+        expect(bridge.scrollToSection).toHaveBeenCalledWith("h2");
+        expect(bridge.requestRect).toHaveBeenCalledWith("h2");
+        bridge.scrollToSection.mockClear();
+        // Closing the row leaves the canvas where it is.
+        fireEvent.click(screen.getByTestId("section-row-h2-chevron"));
+        expect(bridge.scrollToSection).not.toHaveBeenCalled();
+    });
+
     it("renders the mobile bottom-bar layout at ≤768px and hides the inspector by default", async () => {
         setViewportWidth(390);
         const builder = makeBuilder();

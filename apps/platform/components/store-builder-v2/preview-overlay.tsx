@@ -299,7 +299,12 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
 
             {/* Hover ring (mint, dashed) — hidden during scroll */}
             {hovered_rect && !scrolling ? (
-                <Ring rect={hovered_rect} kind="hover" testId="preview-overlay-hover-ring" />
+                <Ring
+                    rect={hovered_rect}
+                    bounds={iframeBounds}
+                    kind="hover"
+                    testId="preview-overlay-hover-ring"
+                />
             ) : null}
 
             {/* Selected ring (pink, solid) + toolbar */}
@@ -307,6 +312,7 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                 <>
                     <Ring
                         rect={selected_rect}
+                        bounds={iframeBounds}
                         kind="selected"
                         testId="preview-overlay-selected-ring"
                     />
@@ -443,11 +449,22 @@ function SpacingHandle({
 
 interface RingProps {
     rect: PreviewRect;
+    /** The preview frame's box: the ring never draws outside it. */
+    bounds: { width: number; height: number };
     kind: "hover" | "selected";
     testId: string;
 }
 
-function Ring({ rect, kind, testId }: RingProps): ReactElement {
+/** Breathing room between a section and its ring. */
+const RING_GAP = 6;
+
+function Ring({ rect, bounds, kind, testId }: RingProps): ReactElement {
+    // Clamp to the frame so a full-width or tall section keeps its ring on
+    // the canvas instead of spilling over the canvas edge and zoom controls.
+    const top = Math.max(rect.top - RING_GAP, 0);
+    const left = Math.max(rect.left - RING_GAP, 0);
+    const right = Math.min(rect.left + rect.width + RING_GAP, bounds.width);
+    const bottom = Math.min(rect.top + rect.height + RING_GAP, bounds.height);
     return (
         <div
             data-testid={testId}
@@ -459,10 +476,10 @@ function Ring({ rect, kind, testId }: RingProps): ReactElement {
                     : "border-2 border-solid border-pink-500",
             )}
             style={{
-                top: rect.top - 6,
-                left: rect.left - 6,
-                width: rect.width + 12,
-                height: rect.height + 12,
+                top,
+                left,
+                width: Math.max(right - left, 0),
+                height: Math.max(bottom - top, 0),
             }}
         />
     );
