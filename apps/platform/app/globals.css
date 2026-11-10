@@ -3492,6 +3492,34 @@ html[lang="ar"] .till-screen .tracking-wide {
 @keyframes merchant-guide-in {
   from { opacity: 0; transform: translateY(6px); }
 }
+/* The guide's mark on the welcome: rings ripple out while the guide talks. */
+.merchant-guide-mark {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: #171717;
+  flex: none;
+}
+.merchant-guide-mark::before,
+.merchant-guide-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid #EFFF00;
+  opacity: 0;
+}
+.merchant-guide-mark[data-speaking="true"]::before { animation: merchant-guide-ripple 1.6s ease-out infinite; }
+.merchant-guide-mark[data-speaking="true"]::after { animation: merchant-guide-ripple 1.6s ease-out 0.8s infinite; }
+@keyframes merchant-guide-ripple {
+  0% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+/* A phase the merchant's answer just added to their path. */
+.merchant-guide-path-in { animation: merchant-guide-in 0.35s ease both; }
 .merchant-guide-word { opacity: 0.38; transition: opacity 0.18s ease; }
 .merchant-guide-word[data-lit="true"] { opacity: 1; }
 .merchant-guide-wave i {
@@ -3533,6 +3561,9 @@ html[lang="ar"] .till-screen .tracking-wide {
   .merchant-guide-card,
   .merchant-guide-card[data-placed="true"] { transition: none; animation: none; }
   .merchant-guide-spot::after,
-  .merchant-guide-wave[data-speaking="true"] i { animation: none; }
+  .merchant-guide-wave[data-speaking="true"] i,
+  .merchant-guide-mark::before,
+  .merchant-guide-mark::after,
+  .merchant-guide-path-in { animation: none; }
   .merchant-guide-word { transition: none; }
 }

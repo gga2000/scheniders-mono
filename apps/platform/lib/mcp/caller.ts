@@ -32,7 +32,8 @@ export type McpCaller = {
 /** The claims we read from a token Supabase Auth has already verified. */
 const oauthClaimsSchema = z.object({
     sub: z.string().uuid(),
-    client_id: z.string().min(1),
+    // Supabase OAuth client ids are uuids; anything else is not one of ours.
+    client_id: z.string().uuid(),
 });
 
 function decodeClaims(token: string): unknown {
