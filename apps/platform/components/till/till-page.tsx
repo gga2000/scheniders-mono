@@ -446,6 +446,7 @@ export function TillPage() {
                     payQr={{ fib: shop.fib_qr_url ?? undefined, zaincash: shop.zaincash_qr_url ?? undefined }}
                     onShown={onPayShown}
                     failed={failed?.ticketId === ticket.id && !sale.isPending ? failed.message : null}
+                    onParts={(payments) => updateTicket({ ...ticket, payments })}
                     onBack={() => setView("sell")}
                     onComplete={complete}
                 />
@@ -623,7 +624,8 @@ function TillFrame({
                     {today && onHistory && (
                         <button type="button" onClick={onHistory} className={chip} title={t("till.history.title")}>
                             <Receipt className="h-4 w-4" aria-hidden="true" />
-                            <span className="tabular-nums">{formatIqd(today.total)}</span>
+                            {/* "No sales yet" already says it; a lone 0 beside it is noise. */}
+                            {today.count > 0 && <span className="tabular-nums">{formatIqd(today.total)}</span>}
                             <span className="whitespace-nowrap text-xs font-medium tabular-nums text-white/75" dir="auto">
                                 {t("till.top.today", { n: today.count, count: today.count })}
                             </span>

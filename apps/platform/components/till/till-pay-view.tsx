@@ -10,6 +10,7 @@ import {
     formatIqd,
     IQD_NOTES,
     leftToPay,
+    paidSoFar,
     PAY_METHODS,
     parseDinars,
     type PayMethod,
@@ -33,6 +34,8 @@ interface Props {
     onShown: (shown: PayShown) => void;
     /** Why the last Complete press did not save; stays on screen until the next try. */
     failed: string | null;
+    /** Parts paid so far live on the ticket, so they survive going back to the cart or a lock. */
+    onParts: (payments: PaymentLine[]) => void;
     onBack: () => void;
     onComplete: (payments: PaymentLine[], change: number) => void;
 }
@@ -40,15 +43,17 @@ interface Props {
 const KEY_NOTES = IQD_NOTES;
 
 /** Taking the money: method, note keys, change as the hero, split when asked. */
-export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, failed, onBack, onComplete }: Props) {
+export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, failed, onParts, onBack, onComplete }: Props) {
     const { t } = useLanguage();
     // null after a part payment: the cashier picks how the rest is paid (Ali, split option B), nothing is guessed.
-    const [chosen, setMethod] = useState<PayMethod | null>("cash");
-    const picking = chosen === null;
+    const parts = ticket.payments;
+    const setParts = onParts;
+    // Coming back with parts already paid, the cashier picks again how the rest is paid.
+    const [chosen, setMethod] = useState<PayMethod | null>(() => (parts.length > 0 ? null : "cash"));
+    const picking = chosen === null && leftToPay(total, ticket.payments) > 0;
     const method: PayMethod = chosen ?? "cash";
     // The method of the part just taken; the other methods glow as the likely next pick.
-    const [lastPart, setLastPart] = useState<PayMethod | null>(null);
-    const [parts, setParts] = useState<PaymentLine[]>([]);
+    const [lastPart, setLastPart] = useState<PayMethod | null>(() => parts.at(-1)?.method ?? null);
     // Notes tapped so far, by note value.
     const [notes, setNotes] = useState<Record<number, number>>({});
     const [typed, setTyped] = useState<string | null>(null);
@@ -58,6 +63,12 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     const rest = leftToPay(total, parts);
     const fromNotes = Object.entries(notes).reduce((s, [note, n]) => s + Number(note) * n, 0);
     const given = typed !== null ? parseDinars(typed) : fromNotes;
+    // Lines taken out of the cart after a part was paid can leave more paid than the sale is worth.
+    const overPaid = paidSoFar(parts) > total;
+    // "Part only" with no amount typed yet: nothing is due by this method until the cashier types it.
+    const partEmpty = method !== "cash" && typed !== null && parseDinars(typed) <= 0;
+    // A typed part below the rest can only be split off; finishing the sale is not possible with it.
+    const partial = method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest;
     const result = finishPayment(total, parts, method, given);
     // Same "saved" figure the customer screen and the receipt show: price cuts plus the discount.
     const saved = ticket.discount + ticket.cart.reduce((s, l) => s + Math.max(0, l.list_price - l.price) * l.quantity, 0);
@@ -101,7 +112,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     }, [onShown, method, picking, due, given, change]);
 
     const complete = () => {
-        if (result.ok && !picking) onComplete(result.payments, result.change);
+        if (result.ok && !picking && !overPaid && !partEmpty) onComplete(result.payments, result.change);
     };
 
     return (
@@ -166,7 +177,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     ))}
                 </div>
 
-                {picking ? (
+                {overPaid ? (
+                    <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 rounded-[24px] bg-red-50 p-5 text-center text-red-900 dark:bg-red-500/15 dark:text-red-100">
+                        <AlertTriangle className="h-8 w-8" aria-hidden="true" />
+                        <p className="text-xl font-semibold" dir="auto">{t("till.pay.overPaid", { paid: formatIqd(paidSoFar(parts)), total: formatIqd(total) })}</p>
+                        <p className="text-base" dir="auto">{t("till.pay.overPaidHint")}</p>
+                    </div>
+                ) : picking ? (
                     <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-[24px] bg-[var(--card-border)]/30 p-5 text-center">
                         <p className="text-xl font-semibold text-foreground" dir="auto">{t("till.pay.pickRest")}</p>
                         <p className="text-7xl font-bold tabular-nums tracking-tight text-foreground">
@@ -253,7 +270,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             )}
                             aria-live="polite"
                         >
-                            <span className="text-lg font-semibold">
+                            <span className="text-lg font-semibold" dir="auto">
                                 {result.ok ? t("till.pay.giveBack") : given > 0 ? t("till.pay.shortBy") : t("till.pay.short")}
                                 <span className="font-normal opacity-80"> · {given > 0 ? t("till.pay.gave", { amount: formatIqd(given) }) : t("till.pay.tapNotes")}</span>
                             </span>
@@ -280,11 +297,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                         )}
                         <div className="flex flex-col items-center gap-1">
                             <p className="text-base text-muted" dir="auto">
-                                {payQr[method]
-                                    ? t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })
-                                    : t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}
+                                {partEmpty
+                                    ? t("till.pay.typePartHint")
+                                    : payQr[method]
+                                      ? t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })
+                                      : t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}
                             </p>
-                            <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(due)}</p>
+                            <p className={cn("text-5xl font-bold tabular-nums tracking-tight", partEmpty ? "text-muted-foreground" : "text-foreground")}>{partEmpty ? "—" : formatIqd(due)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div role="radiogroup" className="flex rounded-2xl border border-stone-400 dark:border-white/25 p-1">
@@ -330,8 +349,10 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             role="checkbox"
                             aria-checked={noticeIn}
                             onClick={() => setNoticeIn((v) => !v)}
+                            // Nothing to confirm until the part's amount is typed.
+                            disabled={partEmpty}
                             className={cn(
-                                "flex h-14 items-center gap-3 rounded-2xl border px-5 text-base font-semibold",
+                                "flex h-14 items-center gap-3 rounded-2xl border px-5 text-base font-semibold disabled:opacity-40",
                                 noticeIn ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200" : "border-stone-400 dark:border-white/25 bg-[var(--card-bg)] text-foreground",
                             )}
                         >
@@ -365,32 +386,38 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             // When the money given falls short, splitting is the only way on, so it becomes the main button.
                             className={cn(
                                 "h-16 min-w-0 flex-1 rounded-2xl px-4 text-base font-semibold leading-tight",
-                                result.ok ? "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground" : INK_BUTTON,
+                                result.ok && !partial ? "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground" : INK_BUTTON,
                                 "disabled:border-transparent disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70",
                             )}
                         >
                             <span dir="auto">{t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`), rest: formatIqd(rest - partAmount) })}</span>
                         </button>
                     )}
-                    <button
-                        type="button"
-                        onClick={complete}
-                        disabled={picking || !result.ok || pending || (needsNotice && !noticeIn) || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
-                        // Not ready yet is a state the cashier reads ("waiting for the FIB notice"), so it stays legible instead of fading.
-                        className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70", INK_BUTTON)}
-                    >
-                        {pending
-                            ? t("till.pay.saving")
-                            : picking
-                              ? t("till.pay.pickFirst")
-                              : change > 0
-                              ? t("till.pay.completeChange", { change: formatIqd(change) })
-                              : needsNotice
-                                ? noticeIn
-                                    ? <span dir="auto">{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
-                                    : <span dir="auto">{t(method === "card" ? "till.pay.waitCard" : "till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })}</span>
-                                : t("till.pay.complete")}
-                    </button>
+                    {!partial && (
+                        <button
+                            type="button"
+                            onClick={complete}
+                            disabled={picking || !result.ok || pending || overPaid || partEmpty || (needsNotice && !noticeIn)}
+                            // Not ready yet is a state the cashier reads ("waiting for the FIB notice"), so it stays legible instead of fading.
+                            className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70", INK_BUTTON)}
+                        >
+                            {pending
+                                ? t("till.pay.saving")
+                                : overPaid
+                                  ? t("till.pay.overPaidShort")
+                                  : partEmpty
+                                    ? t("till.pay.typePart")
+                                    : picking
+                                  ? t("till.pay.pickFirst")
+                                  : change > 0
+                                  ? t("till.pay.completeChange", { change: formatIqd(change) })
+                                  : needsNotice
+                                    ? noticeIn
+                                        ? <span dir="auto">{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
+                                        : <span dir="auto">{t(method === "card" ? "till.pay.waitCard" : "till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })}</span>
+                                    : t("till.pay.complete")}
+                        </button>
+                    )}
                 </div>
             </div>
 

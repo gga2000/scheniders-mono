@@ -7,7 +7,7 @@ import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
 import type { TillMember } from "@/hooks/use-shops";
-import { dateLocale, discountGiven, formatIqd, itemCount, listSubtotalOf, maxDiscount, parseDinars, setLinePrice, setQuantity, subtotalOf, type CartLine } from "@/lib/till/cart";
+import { dateLocale, discountGiven, formatIqd, itemCount, leftToPay, listSubtotalOf, maxDiscount, parseDinars, setLinePrice, setQuantity, subtotalOf, type CartLine } from "@/lib/till/cart";
 import { CART_TARGET_ID } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
@@ -49,6 +49,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const limit = maxDiscount(listSubtotalOf(ticket.cart), discountLimitPct, isManager);
     const given = discountGiven(ticket.cart, ticket.discount);
     const total = Math.max(0, subtotal - ticket.discount);
+    const rest = leftToPay(total, ticket.payments);
     const [customerOpen, setCustomerOpen] = useState(false);
     const [discountOpen, setDiscountOpen] = useState(false);
     const [discountText, setDiscountText] = useState("");
@@ -375,11 +376,27 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         {formatIqd(total)} <span className="text-lg font-semibold text-muted">{t("till.iqd")}</span>
                     </span>
                 </div>
+                {ticket.payments.length > 0 && (
+                    // Money already taken on the pay screen (a card slip, a FIB notice) stays visible here.
+                    <div className="flex flex-col gap-1 rounded-2xl bg-[var(--card-border)]/40 px-3 py-2 text-sm">
+                        {ticket.payments.map((p, i) => (
+                            <p key={i} className="flex justify-between text-foreground">
+                                <span dir="auto">{t("till.pay.paidBy", { method: t(`till.pay.method.${p.method}`) })}</span>
+                                <span className="tabular-nums">−{formatIqd(p.amount)}</span>
+                            </p>
+                        ))}
+                        <p className="flex justify-between font-bold text-foreground">
+                            <span dir="auto">{t("till.pay.leftToPay")}</span>
+                            <span className="tabular-nums">{formatIqd(rest)}</span>
+                        </p>
+                    </div>
+                )}
                 <div className="grid grid-cols-[auto_1fr] gap-2">
                 <button
                     type="button"
                     onClick={onKeepAside}
-                    disabled={ticket.cart.length === 0 || phoneBad}
+                    // A sale with money already taken can't wait on the shelf: the part would be lost.
+                    disabled={ticket.cart.length === 0 || phoneBad || ticket.payments.length > 0}
                     title={t("till.hold.title")}
                     className="flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[var(--card-border)] px-4 text-xs font-semibold text-foreground disabled:opacity-40"
                 >
@@ -401,6 +418,8 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                             {t("till.manager.ask")}
                         </span>
+                    ) : ticket.payments.length > 0 ? (
+                        <span dir="auto">{t("till.cart.payRest", { rest: formatIqd(rest) })}</span>
                     ) : (
                         t("till.cart.pay", { total: formatIqd(total) })
                     )}
