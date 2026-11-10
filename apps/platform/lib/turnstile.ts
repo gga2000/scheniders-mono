@@ -17,12 +17,16 @@ export type TurnstileResult =
  * account work with the service role (sign-up) need this, because Supabase's
  * CAPTCHA protection only covers requests that reach Supabase Auth directly.
  *
- * Skipped when TURNSTILE_SECRET_KEY is unset (local dev and previews: the key
- * is set for Production only). A token passes once; reusing it is "rejected".
+ * Skipped when TURNSTILE_SECRET_KEY is unset outside Production (local dev
+ * and previews). In Production a missing secret refuses every sign-up rather
+ * than silently letting bots through. A token passes once; reusing it is
+ * "rejected".
  */
 export async function verifyTurnstile(token: string | undefined, remoteIp: string | null): Promise<TurnstileResult> {
     const secret = env.TURNSTILE_SECRET_KEY;
-    if (!secret) return { ok: true, skipped: true };
+    if (!secret) {
+        return env.VERCEL_ENV === "production" ? { ok: false, reason: "unavailable" } : { ok: true, skipped: true };
+    }
     if (!token) return { ok: false, reason: "missing" };
 
     const form = new URLSearchParams({ secret, response: token });

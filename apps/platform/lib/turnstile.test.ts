@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const envState = vi.hoisted((): { TURNSTILE_SECRET_KEY?: string } => ({}));
+const envState = vi.hoisted((): { TURNSTILE_SECRET_KEY?: string; VERCEL_ENV?: string } => ({}));
 vi.mock("@/lib/env", () => ({ env: envState }));
 
 import { verifyTurnstile } from "./turnstile";
@@ -14,6 +14,7 @@ function reply(body: unknown, status = 200) {
 describe("verifyTurnstile", () => {
     beforeEach(() => {
         envState.TURNSTILE_SECRET_KEY = "secret-x";
+        envState.VERCEL_ENV = undefined;
         fetchMock.mockReset();
         vi.stubGlobal("fetch", fetchMock);
     });
@@ -22,6 +23,13 @@ describe("verifyTurnstile", () => {
     it("skips when no secret is configured", async () => {
         envState.TURNSTILE_SECRET_KEY = undefined;
         expect(await verifyTurnstile(undefined, null)).toEqual({ ok: true, skipped: true });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses everything in Production when the secret is missing", async () => {
+        envState.TURNSTILE_SECRET_KEY = undefined;
+        envState.VERCEL_ENV = "production";
+        expect(await verifyTurnstile("tok", null)).toEqual({ ok: false, reason: "unavailable" });
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
