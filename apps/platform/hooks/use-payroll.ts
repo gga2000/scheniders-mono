@@ -7,6 +7,27 @@ import type { PayrollRecord, PayrollCalculation } from "@/types/salary";
 import { generatePayslipPDF, type PayslipData } from "@/lib/payroll-pdf-generator";
 import { downloadPayslipBlob } from "@/lib/payslip-download";
 
+const PAYSLIP_BUCKET = "payroll-pdfs";
+/** Payslips hold salary details: links last one hour and are made fresh on every read. */
+const PAYSLIP_LINK_SECONDS = 60 * 60;
+
+/**
+ * `payroll_records.pdf_url` stores the storage path (`<payroll id>.pdf`), never
+ * a link. Swap each path for a short-lived signed link the page can open.
+ */
+async function withPayslipLinks(rows: PayrollRecord[]): Promise<PayrollRecord[]> {
+    const paths = rows.flatMap((r) => (r.pdf_url ? [r.pdf_url] : []));
+    if (paths.length === 0) return rows;
+    const { data, error } = await supabase.storage.from(PAYSLIP_BUCKET).createSignedUrls(paths, PAYSLIP_LINK_SECONDS);
+    if (error || !data) {
+        // The records still show; only the payslip button is hidden until the next load.
+        console.error("[Payroll] Could not sign payslip links:", error?.message);
+        return rows.map((r) => ({ ...r, pdf_url: undefined }));
+    }
+    const links = new Map(data.flatMap((d) => (d.path && d.signedUrl ? [[d.path, d.signedUrl] as const] : [])));
+    return rows.map((r) => ({ ...r, pdf_url: r.pdf_url ? links.get(r.pdf_url) : undefined }));
+}
+
 export function usePayroll() {
     const { tenantId } = useAuth();
     const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([]);
@@ -25,7 +46,7 @@ export function usePayroll() {
         const { data, error } = await query;
         // A failed read must not look like "no payroll yet": keep what was shown and say so.
         setHistoryFailed(!!error);
-        if (!error) setPayrollHistory(data ?? []);
+        if (!error) setPayrollHistory(await withPayslipLinks(data ?? []));
         setIsLoading(false);
     }, []);
 
@@ -66,7 +87,7 @@ export function usePayroll() {
             let record = created as PayrollRecord;
             const payrollId = record.id;
 
-            // 5. Generate PDF, upload to storage, save signed URL
+            // 5. Generate PDF, upload to storage, save its path
             if (payslipMeta) {
                 try {
                     const fullRecord: PayrollRecord = { ...(record as PayrollRecord), ...calculation };
@@ -85,23 +106,13 @@ export function usePayroll() {
                     // Upload to Supabase Storage
                     const fileName = `${payrollId}.pdf`;
                     const { error: uploadError } = await supabase.storage
-                        .from("payroll-pdfs")
+                        .from(PAYSLIP_BUCKET)
                         .upload(fileName, blob, { contentType: "application/pdf", upsert: true });
 
                     if (!uploadError) {
-                        // Private bucket — use a signed URL (10-year expiry) instead of getPublicUrl
-                        const { data: signedData } = await supabase.storage
-                            .from("payroll-pdfs")
-                            .createSignedUrl(fileName, 315360000);
-
-                        if (signedData?.signedUrl) {
-                            await supabase
-                                .from("payroll_records")
-                                .update({ pdf_url: signedData.signedUrl })
-                                .eq("id", payrollId);
-
-                            record = { ...record, pdf_url: signedData.signedUrl };
-                        }
+                        // Store the path only; links are signed on read (withPayslipLinks).
+                        await supabase.from("payroll_records").update({ pdf_url: fileName }).eq("id", payrollId);
+                        record = (await withPayslipLinks([{ ...record, pdf_url: fileName }]))[0] ?? record;
 
                         // Also trigger download in browser
                         downloadPayslipBlob(blob, payslipMeta.employeeName, calculation.periodEnd);
