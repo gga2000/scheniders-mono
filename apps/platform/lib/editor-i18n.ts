@@ -195,7 +195,7 @@ export const STRINGS = {
         row_save_preset: { en: "Save as preset", ar: "حفظ كقالب جاهز", ku: "هەڵیبگرە وەکو قاڵبی ئامادە" },
         row_delete: { en: "Delete", ar: "حذف", ku: "سڕینەوە" },
         // Delete-toast (uses tFormat: {name})
-        toast_deleted: { en: "“{name}” deleted", ar: "تم حذف “{name}”", ku: "“{name}” سڕایەوە" },
+        toast_deleted: { en: "“{name}” deleted", ar: "تم حذف «{name}»", ku: "“{name}” سڕایەوە" },
         toast_undo_hint: { en: "Undo within 5 seconds to bring it back.", ar: "تراجع خلال 5 ثوانٍ لاستعادته.", ku: "لە ماوەی ٥ چرکەدا پاشگەزبوەوە بۆ گەڕاندنەوەی." },
         toast_undo: { en: "Undo", ar: "تراجع", ku: "پاشگەزبوەوە" },
     },
@@ -1245,7 +1245,7 @@ export const STRINGS = {
         },
         funnel_of_previous: { en: "Share of the previous step", ar: "نسبة من الخطوة السابقة", ku: "ڕێژە لە هەنگاوی پێشوو" },
         funnel_conversion: { en: "Visitors who ordered:", ar: "من الزوّار طلبوا:", ku: "لە سەردانکەران داوایان کرد:" },
-        funnel_top_products: { en: "Most viewed → bought", ar: "الأكثر مشاهدة ← شراء", ku: "زۆرترین بینراو ← کڕدراو" },
+        funnel_top_products: { en: "Most viewed → bought", ar: "الأكثر مشاهدة، وكم منها اشتُري", ku: "زۆرترین بینراو ← کڕدراو" },
         funnel_empty: { en: "No visits recorded yet. Once the store is live, visitors, product views, checkout starts and orders show here.", ar: "لا توجد زيارات مسجلة بعد. عندما يبدأ المتجر بالعمل سترى هنا الزوار ومشاهدات المنتجات وبدايات الطلب والطلبات.", ku: "هێشتا سەردان تۆمار نەکراوە. کاتێک فرۆشگاکە کارا بوو، لێرە دەردەکەون." },
         funnel_error: { en: "Couldn't load the funnel. Refresh the page to try again.", ar: "تعذّر تحميل أرقام المسار. حدّث الصفحة وحاول مجدداً.", ku: "نەتوانرا ژمارەکانی ڕێڕەوەکە باربکرێن. پەڕەکە نوێ بکەرەوە." },
 
@@ -1480,6 +1480,7 @@ export const STRINGS = {
         bun_count: { en: "Products: {n}", ar: "المنتجات: {n}", ku: "بەرهەمەکان: {n}" },
         bun_needs_products: { en: "Pick at least 2 products", ar: "اختر منتجين على الأقل", ku: "لانیکەم 2 بەرهەم هەڵبژێرە" },
         bun_remove_aria: { en: "Remove bundle", ar: "إزالة الحزمة", ku: "لابردنی کۆمەڵە" },
+        bun_removed: { en: "Bundle removed", ar: "حُذفت الحزمة", ku: "کۆمەڵەکە لابرا" },
         bun_no_products: { en: "No products to add.", ar: "لا توجد منتجات لإضافتها.", ku: "هیچ بەرهەمێک نییە بۆ زیادکردن." },
         bun_products_error: { en: "Couldn't load your products. Refresh the page to try again.", ar: "تعذّر تحميل منتجاتك. حدّث الصفحة وحاول مجدداً.", ku: "نەتوانرا بەرهەمەکانت باربکرێن. پەڕەکە نوێ بکەرەوە." },
         bun_products_loading: { en: "Loading products…", ar: "جارٍ تحميل المنتجات…", ku: "بەرهەمەکان باردەکرێن…" },
@@ -1753,17 +1754,19 @@ export const STRINGS = {
     /* ── Page templates ───────────────────────────────────────── */
     page_template: {
         title: { en: "Start from a template", ar: "ابدأ من قالب", ku: "لە قاڵبێکەوە دەستپێبکە" },
-        subtitle: { en: "Pick a starter pack — sections drop in and you can edit each one after.", ar: "اختر باقة بداية — ستُضاف الأقسام ويمكنك تعديل كل منها لاحقاً.", ku: "پاکێجێکی دەستپێک هەڵبژێرە — بەشەکان زیاددەکرێن و دەتوانی هەریەکیان دەستکاری بکەیت." },
+        subtitle: { en: "Pick a starter pack, then edit each of its sections as you like.", ar: "اختر باقة بداية، ثم عدّل كل قسم فيها كما تريد.", ku: "پاکێجێکی دەستپێک هەڵبژێرە، پاشان هەر بەشێکی دەستکاری بکە." },
         close: { en: "Close template picker", ar: "إغلاق منتقي القوالب", ku: "داخستنی هەڵبژێرەری قاڵب" },
         // tFormat: {name}
-        apply_title: { en: "Apply “{name}”?", ar: "تطبيق “{name}”؟", ku: "“{name}” جێبەجێبکرێت؟" },
+        apply_title: { en: "Apply “{name}”?", ar: "تطبيق «{name}»؟", ku: "“{name}” جێبەجێبکرێت؟" },
         // tFormat: {n}
-        warning_replace_one: { en: "This will replace 1 section already on this page. The original will be discarded.", ar: "سيستبدل هذا قسماً واحداً على هذه الصفحة. سيتم تجاهل الأصلي.", ku: "ئەمە بەشێکی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییە لاندەبرێت." },
-        warning_replace_many: { en: "This will replace {n} sections already on this page. The originals will be discarded.", ar: "سيحلّ هذا محل الأقسام الموجودة على هذه الصفحة (عددها: {n}). سيتم تجاهل الأصلية.", ku: "ئەمە {n} بەشی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییەکان لاندەبرێن." },
+        warning_replace_one: { en: "The template replaces the section already on this page. You can undo right after.", ar: "سيحلّ القالب محل القسم الموجود في هذه الصفحة. يمكنك التراجع بعد التطبيق.", ku: "ئەمە بەشێکی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییە لاندەبرێت." },
+        warning_replace_many: { en: "The template replaces the {n} sections already on this page. You can undo right after.", ar: "سيحلّ القالب محل أقسام هذه الصفحة الحالية (عددها: {n}). يمكنك التراجع بعد التطبيق.", ku: "ئەمە {n} بەشی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییەکان لاندەبرێن." },
         includes_count_one: { en: "Includes 1 section", ar: "يحتوي على قسم واحد", ku: "بەشێک لەخۆدەگرێت" },
         includes_count_many: { en: "Includes {n} sections", ar: "عدد الأقسام: {n}", ku: "{n} بەش لەخۆدەگرێت" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
         apply: { en: "Apply template", ar: "تطبيق القالب", ku: "جێبەجێکردنی قاڵب" },
+        toast_applied: { en: "Template applied", ar: "طُبّق القالب", ku: "قاڵبەکە جێبەجێکرا" },
+        toast_applied_hint: { en: "Undo within 5 seconds to bring back the previous sections.", ar: "تراجع خلال 5 ثوانٍ لاستعادة الأقسام السابقة.", ku: "لە ماوەی ٥ چرکەدا پاشگەزبوەوە بۆ گەڕاندنەوەی بەشەکانی پێشوو." },
         start_blank: { en: "Or start blank ↓", ar: "أو ابدأ من الصفر ↓", ku: "یان بەتاڵ دەستپێبکە ↓" },
     },
 

@@ -20,6 +20,7 @@ import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
 import { BundleProductPicker } from "./bundle-product-picker";
+import { toast } from "@/hooks/use-toast";
 
 export interface BundlesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -60,20 +61,42 @@ export function BundlesScreen({
     const addRow = (): void =>
         setBundles([
             ...bundles,
-            { id: newId(), product_ids: [], kind: "percent", value: 10, enabled: true },
+            // Starts off: it can only go live once it holds two products, and
+            // then only when the merchant turns it on.
+            { id: newId(), product_ids: [], kind: "percent", value: 10, enabled: false },
         ]);
     const updateRow = (i: number, patch: Partial<Bundle>): void =>
         setBundles(bundles.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
-    const removeRow = (i: number): void =>
-        setBundles(bundles.filter((_, idx) => idx !== i));
+    const removeRow = (i: number): void => {
+        const removed = bundles[i];
+        const next = bundles.filter((_, idx) => idx !== i);
+        setBundles(next);
+        const name = removed.name?.[locale]?.trim();
+        toast({
+            title: name
+                ? tFormat(STRINGS.section_list.toast_deleted, locale, { name })
+                : t(STRINGS.advanced_chrome.bun_removed, locale),
+            description: t(STRINGS.section_list.toast_undo_hint, locale),
+            duration: 5000,
+            action: {
+                label: t(STRINGS.section_list.toast_undo, locale),
+                onClick: () => {
+                    const restored = [...next];
+                    restored.splice(i, 0, removed);
+                    setBundles(restored);
+                },
+            },
+        });
+    };
     const toggleProduct = (i: number, productId: string): void => {
         const b = bundles[i];
         const has = b.product_ids.includes(productId);
-        updateRow(i, {
-            product_ids: has
-                ? b.product_ids.filter((id) => id !== productId)
-                : [...b.product_ids, productId],
-        });
+        const product_ids = has
+            ? b.product_ids.filter((id) => id !== productId)
+            : [...b.product_ids, productId];
+        // Dropping under two products switches the bundle off for good, so
+        // picking a second product later never turns it back on unasked.
+        updateRow(i, product_ids.length < 2 ? { product_ids, enabled: false } : { product_ids });
     };
 
     return (
@@ -126,8 +149,8 @@ export function BundlesScreen({
                             >
                                 <label className="mb-2.5 flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                     <span>
-                                        {t(STRINGS.advanced_chrome.bun_name, locale)}
-                                        <span className="ms-1 text-muted-foreground/80">{t(STRINGS.advanced_chrome.bun_name_hint, locale)}</span>
+                                        {t(STRINGS.advanced_chrome.bun_name, locale)}{" "}
+                                        <span className="text-muted-foreground/80">{t(STRINGS.advanced_chrome.bun_name_hint, locale)}</span>
                                     </span>
                                     <input
                                         type="text"

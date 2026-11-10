@@ -18,8 +18,8 @@ export const brandStoryTemplate: PageTemplate = {
     id: "brand_story",
     name_i18n: { en: "Brand story", ar: "قصة العلامة" },
     description_i18n: {
-        en: "About block, founder note, gallery, stats, and customer testimonials.",
-        ar: "بطاقة تعريف، كلمة المؤسس، ألبوم، أرقام، وآراء الزبائن.",
+        en: "About block, founder note, gallery, press quotes, and customer testimonials.",
+        ar: "بطاقة تعريف، كلمة المؤسس، ألبوم صور، آراء الصحافة، وآراء الزبائن.",
     },
     page_id: "home",
     sections: [
