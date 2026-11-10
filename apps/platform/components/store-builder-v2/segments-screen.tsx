@@ -293,7 +293,7 @@ export function SegmentsScreen({
                                                 className={cn(
                                                     "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
                                                     s.rules.length === 0
-                                                        ? "bg-amber-500/15 text-amber-700"
+                                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                                                         : "bg-muted/60 text-muted-foreground",
                                                 )}
                                             >

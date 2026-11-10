@@ -247,6 +247,7 @@ export const STRINGS = {
         card_invalid_title: { en: "{name} can't be placed on this page", ar: "{name} لا يمكن وضعه في هذه الصفحة", ku: "{name} ناتوانرێت لەم پەڕەیەدا دابنرێت" },
         presets_empty_title: { en: "No saved presets yet", ar: "لا توجد قوالب محفوظة بعد", ku: "هێشتا هیچ قاڵبێکی پاشەکەوتکراو نییە" },
         presets_empty_hint_simple: { en: "Switch to advanced mode, then choose “Save as preset” from any section’s menu to reuse it here.", ar: "انتقل إلى الوضع المتقدم، ثم اختر «حفظ كقالب جاهز» من قائمة أي قسم لاستخدامه هنا.", ku: "بگۆڕە بۆ دۆخی پێشکەوتوو، پاشان “هەڵیبگرە وەکو قاڵبی ئامادە” لە مێنیوی هەر بەشێک هەڵبژێرە." },
+        presets_go_advanced: { en: "Switch to advanced mode", ar: "انتقل إلى الوضع المتقدم", ku: "بگۆڕە بۆ دۆخی پێشکەوتوو" },
         presets_empty_hint: { en: "Configure any section on a page, then choose “Save as preset” from its menu to reuse it here.", ar: "اضبط أي قسم في صفحة، ثم اختر «حفظ كقالب جاهز» من قائمته لاستخدامه هنا.", ku: "هەر بەشێک لە پەڕەیەکدا ڕێکبخە، پاشان “هەڵیبگرە وەکو قاڵبی ئامادە” لە مێنیوەکەی هەڵبژێرە بۆ بەکارهێنانەوەی لێرە." },
         // tFormat: {name}
         delete_preset_aria: { en: "Delete preset {name}", ar: "حذف القالب {name}", ku: "سڕینەوەی قاڵبی {name}" },
