@@ -3,6 +3,7 @@ import {
     INTERAKT_DELIVERY_STATUSES,
     recordWhatsAppDeliveryReceipt,
 } from "@/lib/whatsapp-delivery-receipts";
+import { maskIraqiMobile } from "@scheniders/shared";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
 import { sharedSenderAllows } from "@/lib/interakt";
@@ -135,7 +136,8 @@ function extractResponseText(data: any): string | null {
         return msg.message.trim();
     }
 
-    console.warn("[Interakt Webhook] Could not extract response text from payload:", JSON.stringify(data, null, 2));
+    // Field names only: the values carry the customer's name, phone and text.
+    console.warn("[Interakt Webhook] Could not extract response text, message fields:", Object.keys(msg).join(","));
     return null;
 }
 
@@ -245,13 +247,13 @@ async function findOrder(
             const tenants = new Set(mine.map(o => o.tenant_id));
             if (tenants.size > 1) {
                 console.error(
-                    `[Interakt Webhook] Refusing to guess: phone ${phone} has contacted orders in ${tenants.size} tenants`,
+                    `[Interakt Webhook] Refusing to guess: phone ${maskIraqiMobile(phone) ?? "unknown"} has contacted orders in ${tenants.size} tenants`,
                 );
                 return null;
             }
             return mine[0];
         }
-        console.warn(`[Interakt Webhook] No contacted order found for phone: ${phone}`);
+        console.warn(`[Interakt Webhook] No contacted order found for phone: ${maskIraqiMobile(phone) ?? "unknown"}`);
     }
 
     return null;
@@ -349,12 +351,6 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const payload = (await request.json()) as any;
 
-        // Log ALL webhook payloads for debugging (we can disable this later)
-        console.log(
-            "[Interakt Webhook] Received:",
-            JSON.stringify(payload, null, 2)
-        );
-
         // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
 
@@ -400,7 +396,6 @@ export async function POST(request: NextRequest) {
 
         // 4. Extract response text
         const responseText = extractResponseText(payload.data);
-        console.error(`[Interakt Webhook] 🔍 Step 4 - Extracted response text: "${responseText}"`);
 
         if (!responseText) {
             console.error(`[Interakt Webhook] ⚠️ No response text found in payload`);
@@ -412,13 +407,13 @@ export async function POST(request: NextRequest) {
 
         // 5. Match response to action
         const action = matchResponse(responseText);
-        console.error(`[Interakt Webhook] 🔍 Step 5 - Matched action: ${action || 'none'} (from text: "${responseText}")`);
+        console.log(`[Interakt Webhook] Matched action: ${action || "none"}`);
 
         if (!action) {
             // Customer sent something other than confirm/cancel
             // Leave for team to handle manually
             console.error(
-                `[Interakt Webhook] ⚠️ Unmatched response: "${responseText}" from ${payload.data?.customer?.phone_number}`
+                `[Interakt Webhook] Unmatched response from ${maskIraqiMobile(payload.data?.customer?.phone_number) ?? "unknown"}`
             );
             return NextResponse.json(
                 { success: true, message: "Response does not match confirm/cancel — manual handling required" },
@@ -429,13 +424,12 @@ export async function POST(request: NextRequest) {
         // 6. Find the order
         const callbackData = extractCallbackData(payload.data);
         const phone = extractPhone(payload.data);
-        console.error(`[Interakt Webhook] 🔍 Step 6 - Looking for order with callback_data: "${callbackData}", phone: "${phone}"`);
 
         const order = await findOrder(callbackData, phone);
 
         if (!order) {
             console.warn(
-                `[Interakt Webhook] ❌ No matching order found. callback_data: ${callbackData}, phone: ${phone}`
+                `[Interakt Webhook] No matching order found. callback_data: ${callbackData}, phone: ${maskIraqiMobile(phone) ?? "unknown"}`
             );
             return NextResponse.json(
                 { success: false, error: "No matching order found" },

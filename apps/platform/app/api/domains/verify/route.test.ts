@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
     row: null as { id: string; domain: string; verified: boolean; verification_token: string } | null,
     eqs: [] as Array<[string, unknown]>,
     updated: false,
+    takenBy: 0,
     resolve: vi.fn(),
     resolveTxt: vi.fn(),
     resolve4: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/lib/supabase-server", () => ({
             select: () => {
                 const q = {
                     eq: (c: string, v: unknown) => (state.eqs.push([c, v]), q),
+                    neq: async () => ({ count: state.takenBy, error: null }),
                     maybeSingle: async () => ({ data: state.row, error: null }),
                 };
                 return q;
@@ -54,6 +56,7 @@ beforeEach(() => {
     state.row = { id: ID, domain: "shop.example.com", verified: false, verification_token: "tok123" };
     state.eqs = [];
     state.updated = false;
+    state.takenBy = 0;
     state.resolve.mockReset();
     state.resolveTxt.mockReset();
     state.resolveTxt.mockResolvedValue([["scheniders-verify=tok123"]]);
@@ -99,6 +102,15 @@ describe("POST /api/domains/verify", () => {
         vercel.provision.mockResolvedValue("not_configured");
         expect(await (await POST(req({ domain_id: ID }))).json()).toEqual({ verified: true, ssl: "not_configured" });
         expect(state.updated).toBe(true);
+    });
+
+    it("refuses a domain another store has already verified, before touching Vercel", async () => {
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com"]);
+        state.takenBy = 1;
+        const body = await (await POST(req({ domain_id: ID }))).json();
+        expect(body).toEqual({ verified: false, error: "This domain is already connected to another store." });
+        expect(vercel.provision).not.toHaveBeenCalled();
+        expect(state.updated).toBe(false);
     });
 
     it("refuses a domain another Vercel project already owns", async () => {

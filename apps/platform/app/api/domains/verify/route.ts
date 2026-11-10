@@ -79,6 +79,25 @@ export async function POST(request: Request): Promise<NextResponse> {
         });
     }
 
+    // Another store may hold an unverified claim on the same name; only one store
+    // can own it once verified (partial unique index on verified domains).
+    const { count: takenBy, error: takenError } = await supabase
+        .from("tenant_domains")
+        .select("id", { count: "exact", head: true })
+        .eq("domain", domain.domain)
+        .eq("verified", true)
+        .neq("tenant_id", caller.tenantId);
+    if (takenError) {
+        console.error("[domains/verify] ownership check failed:", takenError);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+    if (takenBy) {
+        return NextResponse.json({
+            verified: false,
+            error: "This domain is already connected to another store.",
+        });
+    }
+
     // Route the domain to the storefront before telling the shopper it works.
     const ssl = await provision(domain.domain);
     if (!ssl.ok && ssl.conflict) {

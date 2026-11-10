@@ -90,13 +90,13 @@ function b64url(s: string): string {
 
 /** A QStash signature as QStash mints it: an HS256 JWT, issuer "Upstash",
  *  with the body's SHA-256 in the `body` claim. Real crypto, no mock. */
-function qstashSignature(body: string, key: string): string {
+function qstashSignature(body: string, key: string, sub: string = URL): string {
     const now = Math.floor(Date.now() / 1000);
     const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
     const payload = b64url(
         JSON.stringify({
             iss: "Upstash",
-            sub: URL,
+            sub,
             iat: now,
             nbf: now,
             exp: now + 300,
@@ -108,14 +108,14 @@ function qstashSignature(body: string, key: string): string {
     return `${header}.${payload}.${sig}`;
 }
 
-function delivery(body: unknown, opts: { key?: string; signedBody?: string } = {}): Request {
+function delivery(body: unknown, opts: { key?: string; signedBody?: string; signedFor?: string } = {}): Request {
     const raw = typeof body === "string" ? body : JSON.stringify(body);
     return new Request(URL, {
         method: "POST",
         body: raw,
         headers: {
             "content-type": "application/json",
-            "upstash-signature": qstashSignature(opts.signedBody ?? raw, opts.key ?? CURRENT_KEY),
+            "upstash-signature": qstashSignature(opts.signedBody ?? raw, opts.key ?? CURRENT_KEY, opts.signedFor),
         },
     });
 }
@@ -181,6 +181,21 @@ describe("POST /api/webhooks/storefront-order — who may call", () => {
         );
         expect(res.status).toBe(401);
         expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
+    });
+
+    it("refuses a message QStash signed for another route", async () => {
+        const res = await POST(
+            delivery({ order_id: ORDER }, { signedFor: "https://platform.example.com/api/cron/auto-follow-up" }),
+        );
+        expect(res.status).toBe(401);
+        expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
+    });
+
+    it("accepts this route signed on another of our domains", async () => {
+        const res = await POST(
+            delivery({ order_id: ORDER }, { signedFor: "https://other-domain.example/api/webhooks/storefront-order" }),
+        );
+        expect(res.status).toBe(200);
     });
 
     it("accepts the next signing key (QStash key rotation)", async () => {
