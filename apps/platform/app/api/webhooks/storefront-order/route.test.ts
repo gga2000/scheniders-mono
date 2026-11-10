@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     env: {} as Record<string, string | undefined>,
     triggerImmediateConfirmation: vi.fn(),
     sendNewOrderAlertToStaff: vi.fn(),
+    flagOrderForWhatsAppFailure: vi.fn(),
     consumeRateLimit: vi.fn(async (): Promise<{
         allowed: boolean; remaining: number; resetAt: null; retryAfterSeconds: number; error?: string;
     }> => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
@@ -29,6 +30,9 @@ vi.mock("@/lib/whatsapp-dispatcher", () => ({
 }));
 vi.mock("@/lib/staff-alerts", () => ({ sendNewOrderAlertToStaff: mocks.sendNewOrderAlertToStaff }));
 vi.mock("@/lib/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
+vi.mock("@/lib/whatsapp-error-handler", () => ({
+    flagOrderForWhatsAppFailure: mocks.flagOrderForWhatsAppFailure,
+}));
 // A PostgREST double that APPLIES the filters, so the claim only matches
 // when the route really scoped it to the row, its tenant, and NULL.
 vi.mock("@/lib/supabase-server", () => ({
@@ -154,6 +158,7 @@ beforeEach(() => {
     mocks.db.claims = [];
     mocks.triggerImmediateConfirmation.mockReset().mockResolvedValue(undefined);
     mocks.sendNewOrderAlertToStaff.mockReset().mockResolvedValue({ attempted: 0, succeeded: 0, failed: 0 });
+    mocks.flagOrderForWhatsAppFailure.mockReset().mockResolvedValue(undefined);
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -306,6 +311,12 @@ describe("POST /api/webhooks/storefront-order — what gets sent", () => {
         const res = await POST(delivery({ order_id: ORDER }));
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({ skipped: "store_burst" });
+        expect(mocks.flagOrderForWhatsAppFailure).toHaveBeenCalledWith(
+            ORDER,
+            { success: false, statusCode: 429, error: "rate limit: store_burst" },
+            "4261021001",
+            expect.any(String),
+        );
         expect(mocks.consumeRateLimit).toHaveBeenCalledWith(`wa-confirm:${TENANT}`, 30, 600);
         expect(mocks.db.claims).toHaveLength(0);
         expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
@@ -318,6 +329,12 @@ describe("POST /api/webhooks/storefront-order — what gets sent", () => {
         const res = await POST(delivery({ order_id: ORDER }));
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({ skipped: "store_daily" });
+        expect(mocks.flagOrderForWhatsAppFailure).toHaveBeenCalledWith(
+            ORDER,
+            { success: false, statusCode: 429, error: "rate limit: store_daily" },
+            "4261021001",
+            expect.any(String),
+        );
         expect(mocks.consumeRateLimit).toHaveBeenCalledWith(`wa-confirm-day:${TENANT}`, 200, 86_400);
         expect(mocks.db.claims).toHaveLength(0);
         expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
