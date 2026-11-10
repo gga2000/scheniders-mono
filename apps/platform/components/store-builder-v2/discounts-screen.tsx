@@ -14,10 +14,11 @@ import { Switch } from "@scheniders/ui/switch";
 import { Plus, Trash2, Ticket } from "lucide-react";
 import type { DiscountCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
+import { removeWithUndo } from "./undo-toast";
 
 export interface DiscountsScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -49,10 +50,10 @@ export function DiscountsScreen({
                     ...prev,
                     commerce: { ...prev.commerce, discounts: next },
                 }),
-                "Edited discount codes",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(STRINGS.advanced_chrome.disc_heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale],
     );
 
     const addRow = (): void =>
@@ -63,7 +64,11 @@ export function DiscountsScreen({
     const updateRow = (i: number, patch: Partial<DiscountCode>): void =>
         setDiscounts(discounts.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
     const removeRow = (i: number): void =>
-        setDiscounts(discounts.filter((_, idx) => idx !== i));
+        removeWithUndo(discounts, i, setDiscounts, {
+            title: t(STRINGS.advanced_chrome.disc_removed, locale),
+            hint: t(STRINGS.advanced_chrome.row_removed_hint, locale),
+            restoreLabel: t(STRINGS.advanced_chrome.disc_restore, locale),
+        });
 
     return (
         <div

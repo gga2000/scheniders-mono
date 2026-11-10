@@ -187,7 +187,7 @@ export function PageTemplatePicker(
                                     ? tx(STRINGS.page_template.includes_count_one, locale)
                                     : tFormat(STRINGS.page_template.includes_count_many, locale, { n: pending.sections.length })}
                             </p>
-                            <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                            <ol className="mt-2 flex flex-col gap-1">
                                 {pending.sections.map((s, i) => (
                                     <li
                                         key={`${s.type}-${i}`}
@@ -200,7 +200,7 @@ export function PageTemplatePicker(
                                         <span>{sectionName(s.type, locale)}</span>
                                     </li>
                                 ))}
-                            </ul>
+                            </ol>
                         </div>
                         <footer className="mt-2 flex items-center justify-end gap-2">
                             <button

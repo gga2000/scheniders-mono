@@ -34,7 +34,7 @@ import {
     type PreviewPageConfig,
 } from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrlState } from "@/hooks/use-storefront-url";
-import { toast } from "@/hooks/use-toast";
+import { showUndoToast } from "./undo-toast";
 import { useEditorCoEditors } from "@/hooks/use-editor-co-editors";
 import { healthContextFor, type TenantContactFields } from "@/lib/health-context";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
@@ -1032,14 +1032,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             set_editing_section_id(null);
             set_selected_section_id(null);
             if (previous.length === 0) return;
-            toast({
+            showUndoToast({
                 title: t(STRINGS.page_template.toast_applied, builder.active_locale),
-                description: t(STRINGS.page_template.toast_applied_hint, builder.active_locale),
-                duration: 5000,
-                action: {
-                    label: t(STRINGS.page_template.toast_restore, builder.active_locale),
-                    onClick: () => handleSectionsChange(previous),
-                },
+                hint: t(STRINGS.page_template.toast_applied_hint, builder.active_locale),
+                restoreLabel: t(STRINGS.page_template.toast_restore, builder.active_locale),
+                onRestore: () => handleSectionsChange(previous),
             });
         },
         [handleSectionsChange, builder.config, builder.active_locale, editTarget],

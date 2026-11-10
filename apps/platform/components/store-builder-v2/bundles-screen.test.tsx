@@ -6,7 +6,7 @@ import type { StoreConfigV2, Bundle } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 
 const toastMock = vi.fn();
-vi.mock("@/hooks/use-toast", () => ({ toast: (arg: unknown) => toastMock(arg) }));
+vi.mock("@/hooks/use-toast", () => ({ toast: (arg: unknown) => toastMock(arg), dismissToast: vi.fn() }));
 
 vi.mock("@/hooks/use-products-query", () => ({
     useProductsQuery: () => ({

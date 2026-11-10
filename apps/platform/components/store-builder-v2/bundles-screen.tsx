@@ -20,7 +20,7 @@ import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
 import { BundleProductPicker } from "./bundle-product-picker";
-import { toast } from "@/hooks/use-toast";
+import { removeWithUndo } from "./undo-toast";
 
 export interface BundlesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -68,24 +68,13 @@ export function BundlesScreen({
     const updateRow = (i: number, patch: Partial<Bundle>): void =>
         setBundles(bundles.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
     const removeRow = (i: number): void => {
-        const removed = bundles[i];
-        const next = bundles.filter((_, idx) => idx !== i);
-        setBundles(next);
-        const name = removed.name?.[locale]?.trim();
-        toast({
+        const name = bundles[i].name?.[locale]?.trim();
+        removeWithUndo(bundles, i, setBundles, {
             title: name
                 ? tFormat(STRINGS.section_list.toast_deleted, locale, { name })
                 : t(STRINGS.advanced_chrome.bun_removed, locale),
-            description: t(STRINGS.advanced_chrome.bun_removed_hint, locale),
-            duration: 5000,
-            action: {
-                label: t(STRINGS.advanced_chrome.bun_restore, locale),
-                onClick: () => {
-                    const restored = [...next];
-                    restored.splice(i, 0, removed);
-                    setBundles(restored);
-                },
-            },
+            hint: t(STRINGS.advanced_chrome.bun_removed_hint, locale),
+            restoreLabel: t(STRINGS.advanced_chrome.bun_restore, locale),
         });
     };
     const toggleProduct = (i: number, productId: string): void => {

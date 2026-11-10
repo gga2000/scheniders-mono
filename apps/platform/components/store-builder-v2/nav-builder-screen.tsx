@@ -14,10 +14,11 @@ import { Plus, Trash2, Menu, ArrowUp, ArrowDown } from "lucide-react";
 import { getSection } from "@scheniders/sections";
 import type { I18nString } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
+import { removeWithUndo } from "./undo-toast";
 
 export interface NavBuilderScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -70,7 +71,7 @@ export function NavBuilderScreen({
                     ...prev,
                     globals: { ...prev.globals, header: nextHeader },
                 };
-            }, "Edited navigation");
+            }, tFormat(STRINGS.history.edit_named, locale, { name: t(STRINGS.advanced_chrome.nav_heading, locale) }));
         },
         [builder],
     );
@@ -80,7 +81,11 @@ export function NavBuilderScreen({
     const updateLink = (i: number, patch: Partial<NavLink>): void =>
         setLinks(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
     const removeLink = (i: number): void =>
-        setLinks(links.filter((_, idx) => idx !== i));
+        removeWithUndo(links, i, setLinks, {
+            title: t(STRINGS.advanced_chrome.nav_removed, locale),
+            hint: t(STRINGS.advanced_chrome.row_removed_hint, locale),
+            restoreLabel: t(STRINGS.advanced_chrome.nav_restore, locale),
+        });
     const move = (i: number, dir: -1 | 1): void => {
         const j = i + dir;
         if (j < 0 || j >= links.length) return;
