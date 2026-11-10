@@ -6,7 +6,7 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import type { PlanLimitsData, SubscriptionData, WalletTransaction } from "@/hooks/use-billing";
 import type { TenantSummary } from "@/hooks/use-tenant";
 import type { TopupPaymentDetails, TopupRequest } from "@/hooks/use-wallet-topup";
-import { receiptProblem } from "@/hooks/use-wallet-topup";
+import { hasRoomForTopup, receiptProblem } from "@/hooks/use-wallet-topup";
 
 const state: {
     tenant: TenantSummary;
@@ -161,6 +161,13 @@ describe("BillingSettings", () => {
 });
 
 describe("receiptProblem", () => {
+    it("allows at most 3 receipts waiting for review", () => {
+        const waiting = { outcome: null };
+        const done = { outcome: "approved" as const };
+        expect(hasRoomForTopup([waiting, waiting, done, done])).toBe(true);
+        expect(hasRoomForTopup([waiting, waiting, waiting, done])).toBe(false);
+    });
+
     it("takes photos and PDFs up to 5 MB only", () => {
         expect(receiptProblem({ type: "image/jpeg", size: 1000 })).toBeNull();
         expect(receiptProblem({ type: "application/pdf", size: 5 * 1024 * 1024 })).toBeNull();

@@ -12,6 +12,16 @@ export type TopupMethod = (typeof TOPUP_METHODS)[number];
 export const TOPUP_MIN_IQD = 1_000;
 export const TOPUP_MAX_IQD = 10_000_000;
 export const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
+/** Requests a shop may have waiting for review at once (database trigger enforces it). */
+export const TOPUP_MAX_WAITING = 3;
+
+/** Thrown when the shop already has TOPUP_MAX_WAITING requests waiting. */
+export class TopupWaitingLimitError extends Error {
+    constructor() {
+        super("topup_pending_limit");
+        this.name = "TopupWaitingLimitError";
+    }
+}
 
 const RECEIPT_EXT: Readonly<Record<string, string>> = {
     "image/jpeg": "jpg",
@@ -42,6 +52,11 @@ export interface TopupRequest {
     created_at: string;
     decided_at: string | null;
     outcome: "approved" | "rejected" | null;
+}
+
+/** Whether the shop may send another request, given its recent ones. */
+export function hasRoomForTopup(requests: readonly Pick<TopupRequest, "outcome">[]): boolean {
+    return requests.filter((r) => r.outcome === null).length < TOPUP_MAX_WAITING;
 }
 
 export function useWalletTopup() {
@@ -79,6 +94,8 @@ export function useWalletTopup() {
             if (!tenantId) throw new Error("No shop selected");
             const ext = RECEIPT_EXT[input.file.type];
             if (!ext) throw new Error("Unsupported receipt type");
+            // Checked before the upload so a refused request leaves no stray receipt behind.
+            if (!hasRoomForTopup(requests.data ?? [])) throw new TopupWaitingLimitError();
             // The folder must be the shop's id: storage and the table both check it.
             const path = `${tenantId}/${crypto.randomUUID()}.${ext}`;
             const upload = await supabase.storage
@@ -91,6 +108,7 @@ export function useWalletTopup() {
                 method: input.method,
                 receipt_path: path,
             });
+            if (error?.message === "topup_pending_limit") throw new TopupWaitingLimitError();
             if (error) throw error;
         },
         onSuccess: () => {

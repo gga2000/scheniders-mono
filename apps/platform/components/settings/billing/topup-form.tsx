@@ -9,6 +9,7 @@ import {
     TOPUP_MAX_IQD,
     TOPUP_METHODS,
     TOPUP_MIN_IQD,
+    TopupWaitingLimitError,
     receiptProblem,
     useWalletTopup,
     type TopupMethod,
@@ -61,7 +62,10 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                     toast.success(t("billing.topup.sent"));
                     onDone();
                 },
-                onError: (err) => toast.error(t("billing.topup.failed"), err.message),
+                onError: (err) =>
+                    err instanceof TopupWaitingLimitError
+                        ? toast.error(t("billing.topup.tooManyWaiting"))
+                        : toast.error(t("billing.topup.failed"), err.message),
             },
         );
     };
