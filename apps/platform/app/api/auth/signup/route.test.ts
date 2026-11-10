@@ -64,8 +64,8 @@ describe("POST /api/auth/signup", () => {
         expect(res.status).toBe(201);
         const tenant = tableInserts.find((i) => i.table === "tenants");
         const sub = tableInserts.find((i) => i.table === "subscriptions");
-        expect(tenant?.row.plan).toBe("growth");
-        expect(sub?.row.plan).toBe("growth");
+        expect(tenant?.row.plan).toBe("starter");
+        expect(sub?.row.plan).toBe("starter");
     });
 
     it("rate limits per client IP before creating any account", async () => {
