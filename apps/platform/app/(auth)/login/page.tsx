@@ -4,10 +4,10 @@ import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 
 /** Smooth two-tone ring spinner — replaces the default Loader2 for a more premium feel. */
@@ -47,6 +47,7 @@ function SuccessCheck() {
 
 function LoginForm() {
     const { t } = useLanguage();
+    const dir = useTextDir();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { signIn, signInWithGoogle, user, isLoading: authLoading } = useAuth();
@@ -411,8 +412,9 @@ function LoginForm() {
                     transition={{ delay: 0.8 }}
                     className="px-8 py-6 bg-[#F5F0E8]/50 border-t border-[#E8E4DC]/50 text-center"
                 >
-                    <p className="text-sm text-[#6B6B6B]">
-                        Protected by Schenider Security
+                    <p className="flex items-center justify-center gap-2 text-sm text-[#6B6B6B]">
+                        <ShieldCheck className="w-4 h-4 shrink-0" />
+                        <span dir={dir} className="text-left">{t("login.footerSecure")}</span>
                     </p>
                 </motion.div>
             </div>
