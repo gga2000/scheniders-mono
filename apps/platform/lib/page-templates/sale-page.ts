@@ -18,7 +18,7 @@ export const salePageTemplate: PageTemplate = {
     name_i18n: { en: "Sale page", ar: "صفحة تخفيضات" },
     description_i18n: {
         en: "Promo banner, hero, sale product grid, countdown, and trust strip.",
-        ar: "بانر، غلاف، منتجات بالتخفيض، عدّاد تنازلي، وشريط ثقة.",
+        ar: "لافتة عرض، غلاف، شبكة منتجات، عدّاد تنازلي، وشريط الثقة.",
     },
     page_id: "home",
     sections: [

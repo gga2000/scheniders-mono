@@ -127,4 +127,12 @@ describe("BundlesScreen", () => {
         arg.action.onClick();
         expect(applyLast(setConfig, config).commerce?.bundles).toEqual([a, b]);
     });
+
+    it("a ready bundle that is off says customers don't see it", () => {
+        const { builder } = makeBuilder([
+            { id: "x", product_ids: ["p1", "p2"], kind: "percent", value: 10, enabled: false },
+        ]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        expect(screen.getByTestId("bundle-off-hint-0")).toBeTruthy();
+    });
 });

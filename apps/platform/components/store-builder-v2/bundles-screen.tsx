@@ -76,10 +76,10 @@ export function BundlesScreen({
             title: name
                 ? tFormat(STRINGS.section_list.toast_deleted, locale, { name })
                 : t(STRINGS.advanced_chrome.bun_removed, locale),
-            description: t(STRINGS.section_list.toast_undo_hint, locale),
+            description: t(STRINGS.advanced_chrome.bun_removed_hint, locale),
             duration: 5000,
             action: {
-                label: t(STRINGS.section_list.toast_undo, locale),
+                label: t(STRINGS.advanced_chrome.bun_restore, locale),
                 onClick: () => {
                     const restored = [...next];
                     restored.splice(i, 0, removed);
@@ -219,6 +219,15 @@ export function BundlesScreen({
                                             className="mb-[7px] rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                                         >
                                             {t(STRINGS.advanced_chrome.bun_needs_products, locale)}
+                                        </span>
+                                    ) : b.enabled === false ? (
+                                        // Ready but off (by hand, or because it once dropped
+                                        // under two products): say customers don't see it.
+                                        <span
+                                            data-testid={`bundle-off-hint-${i}`}
+                                            className="mb-[7px] rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-foreground/80"
+                                        >
+                                            {tFormat(STRINGS.advanced_chrome.bun_off_hint, locale, { n: b.product_ids.length })}
                                         </span>
                                     ) : (
                                         <span className="mb-[9px] text-xs text-muted-foreground">

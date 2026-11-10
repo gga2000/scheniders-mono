@@ -1037,7 +1037,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 description: t(STRINGS.page_template.toast_applied_hint, builder.active_locale),
                 duration: 5000,
                 action: {
-                    label: t(STRINGS.section_list.toast_undo, builder.active_locale),
+                    label: t(STRINGS.page_template.toast_restore, builder.active_locale),
                     onClick: () => handleSectionsChange(previous),
                 },
             });

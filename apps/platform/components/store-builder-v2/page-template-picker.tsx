@@ -52,6 +52,13 @@ function sectionName(type: string, locale: LocaleCode): string {
     return entry ? sectionDisplayName(entry, locale) : type;
 }
 
+/** The card's summary is its real section list, so it can never promise
+ *  a section the template does not hold. */
+function sectionList(template: PageTemplate, locale: LocaleCode): string {
+    const names = template.sections.map((s) => sectionName(s.type, locale));
+    return new Intl.ListFormat(locale, { type: "conjunction" }).format(names);
+}
+
 /** The editor language's text, falling back to English. */
 function pickText(text: Partial<Record<string, string>>, locale: string): string {
     return text[locale] ?? text.en ?? "";
@@ -164,9 +171,6 @@ export function PageTemplatePicker(
                         <h3 className="text-base font-semibold">
                             {tFormat(STRINGS.page_template.apply_title, locale, { name: pickText(pending.name_i18n, locale) || pending.id })}
                         </h3>
-                        <p className="text-sm text-foreground/80">
-                            {pickText(pending.description_i18n, locale)}
-                        </p>
                         {currentSectionCount > 0 && (
                             <div
                                 data-testid="page-template-picker-warning"
@@ -248,7 +252,7 @@ export function PageTemplatePicker(
                                             </span>
                                         </div>
                                         <p className="line-clamp-2 text-xs text-foreground/80">
-                                            {pickText(t.description_i18n, locale)}
+                                            {sectionList(t, locale)}
                                         </p>
                                     </button>
                                 </li>
