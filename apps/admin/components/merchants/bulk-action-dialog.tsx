@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle, Bell, MessageSquare, Mail, Sparkles } from "lucide-react";
 
 const NOTIFICATION_TEMPLATES: Array<{
@@ -79,14 +80,7 @@ interface BulkActionDialogProps {
   onSuccess: () => void;
 }
 
-type PlanOption = "starter" | "growth" | "professional" | "enterprise";
-
-const PLAN_OPTIONS: { value: PlanOption; label: string }[] = [
-  { value: "starter", label: "Starter" },
-  { value: "growth", label: "Growth" },
-  { value: "professional", label: "Professional" },
-  { value: "enterprise", label: "Enterprise" },
-];
+const PLAN_OPTIONS = PLAN_TIERS.map((value) => ({ value, label: PLAN_LABELS[value] }));
 
 const DAY_PRESETS = [3, 7, 14, 30];
 const TOPUP_PRESETS = [5_000, 10_000, 25_000, 50_000];
@@ -127,7 +121,7 @@ export function BulkActionDialog({
   const queryClient = useQueryClient();
 
   // Local form state
-  const [selectedPlan, setSelectedPlan] = useState<PlanOption>("starter");
+  const [selectedPlan, setSelectedPlan] = useState<PlanTier>("starter");
   const [extensionDays, setExtensionDays] = useState<number>(7);
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationTemplate, setNotificationTemplate] = useState<string | null>(null);

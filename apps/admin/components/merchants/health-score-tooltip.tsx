@@ -58,17 +58,6 @@ function getHealthBreakdown(merchant: AdminTenant): ScoreComponent[] {
     maxBar: 15,
   });
 
-  // Plan
-  let planScore = 0;
-  if (merchant.plan === "enterprise") planScore = 5;
-  else if (merchant.plan === "professional") planScore = 3;
-  components.push({
-    label: "Plan",
-    value: planScore,
-    color: planScore > 0 ? "bg-purple-500" : "bg-gray-300",
-    maxBar: 5,
-  });
-
   return components;
 }
 

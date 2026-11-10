@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Filter, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import type { FilterCondition, FilterGroup, AdvancedFilters } from "@/types/admin";
+import { PLAN_TIERS, type FilterCondition, type FilterGroup, type AdvancedFilters } from "@/types/admin";
 
 // ── Field definitions ──────────────────────────────────────────────────
 const FIELDS = [
   { id: "status", label: "Status", type: "enum", options: ["trial", "active", "suspended", "cancelled"] },
-  { id: "plan", label: "Plan", type: "enum", options: ["starter", "growth", "professional", "enterprise"] },
+  { id: "plan", label: "Plan", type: "enum", options: [...PLAN_TIERS] },
   { id: "city", label: "City", type: "string" },
   { id: "balance", label: "Balance (IQD)", type: "number" },
   { id: "orders", label: "Orders", type: "number" },

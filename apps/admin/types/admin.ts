@@ -1,6 +1,12 @@
 export type AdminRole = "super_admin" | "support_staff";
 
-export type PlanTier = "starter" | "growth" | "professional" | "enterprise";
+/** The one paid plan, plus "internal" for our own shops (never billed). */
+export const PLAN_TIERS = ["starter", "internal"] as const;
+export type PlanTier = (typeof PLAN_TIERS)[number];
+export const PLAN_LABELS: Readonly<Record<PlanTier, string>> = {
+  starter: "Starter",
+  internal: "Internal (no billing)",
+};
 export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
 
 export interface TenantRestrictions {
