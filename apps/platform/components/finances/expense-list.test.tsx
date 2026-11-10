@@ -31,6 +31,13 @@ describe("ExpenseList", () => {
         expect(EXPENSE_CATEGORIES).toHaveLength(9);
     });
 
+    it("shows no edit or delete menu to staff who may only view finances", () => {
+        const { container, rerender } = render(<ExpenseList expenses={[expense({ id: "a" })]} onEdit={() => {}} onDelete={() => {}} />);
+        const withMenu = container.querySelectorAll("button").length;
+        rerender(<ExpenseList expenses={[expense({ id: "a" })]} onEdit={() => {}} onDelete={() => {}} canEdit={false} />);
+        expect(container.querySelectorAll("button").length).toBe(withMenu - 1);
+    });
+
     it("filters by category and shows the Arabic empty state when nothing matches", () => {
         render(<ExpenseList expenses={[expense({ id: "a" })]} onEdit={() => {}} onDelete={() => {}} />);
         fireEvent.click(screen.getByRole("button", { name: "التسويق" }));
