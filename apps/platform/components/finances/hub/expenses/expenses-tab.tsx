@@ -7,6 +7,8 @@ import {
     Plus, AlertCircle, Download, Wallet,
 } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useLanguage } from "@/hooks/use-language";
 import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { supabase } from "@/lib/supabase";
@@ -50,6 +52,8 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
     const [prevExpenses, setPrevExpenses] = useState<Expense[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Expense | null>(null);
+    const { can } = usePermission();
+    const canEdit = can(PERMISSIONS.EDIT_FINANCIALS);
 
     // Fetch previous-period expenses for comparison
     const prevStartDay = comparePeriod ? fmtDate(comparePeriod.start) : null;
@@ -233,6 +237,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                         <Download className="w-4 h-4" />
                         {t("finances.expense.exportCsv")}
                     </button>
+                    {canEdit && (
                     <button data-guide="add-expense"
                         onClick={() => { setEditing(null); setModalOpen(true); }}
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--ink)] text-white hover:opacity-90 transition-opacity"
@@ -240,6 +245,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                         <Plus className="w-4 h-4" />
                         {t("finances.expense.add")}
                     </button>
+                    )}
                 </div>
             </div>
 
@@ -266,6 +272,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                         <p className="text-sm text-muted mb-4 max-w-md mx-auto">
                             {t("finances.expense.emptyBody")}
                         </p>
+                        {canEdit && (
                         <button
                             onClick={() => { setEditing(null); setModalOpen(true); }}
                             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[var(--ink)] text-white hover:opacity-90"
@@ -273,6 +280,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                             <Plus className="w-4 h-4" />
                             {t("finances.expense.logFirst")}
                         </button>
+                        )}
                     </div>
                 </SectionCard>
             ) : (
@@ -328,6 +336,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                             expenses={expenses}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            canEdit={canEdit}
                         />
                     </SectionCard>
                 </>

@@ -92,7 +92,8 @@ export const PERMISSIONS = {
     // System
     MANAGE_USERS: "system.users.manage",
     VIEW_ANALYTICS: "system.analytics.view",
-    VIEW_FINANCIALS: "system.financials.view", // PROPOSAL: New permission for cost/profit data
+    VIEW_FINANCIALS: "system.financials.view", // see cost/profit data
+    EDIT_FINANCIALS: "system.financials.edit", // add, change and delete expenses
     ACCESS_SETTINGS: "system.settings.access",
 
     // Shop till (in-store selling)
@@ -199,6 +200,7 @@ export const PERMISSION_CATEGORIES: readonly { id: string; items: readonly { key
             { key: PERMISSIONS.ACCESS_SETTINGS },
             { key: PERMISSIONS.VIEW_ANALYTICS },
             { key: PERMISSIONS.VIEW_FINANCIALS },
+            { key: PERMISSIONS.EDIT_FINANCIALS },
         ],
     },
 ];

@@ -7,6 +7,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
     DollarSign,
     Plus,
@@ -173,6 +175,8 @@ function AnalyticsContent() {
     const [isDeliveryImportOpen, setIsDeliveryImportOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const actionsMenuRef = useRef<HTMLDivElement>(null);
+    const { can } = usePermission();
+    const canEditExpenses = can(PERMISSIONS.EDIT_FINANCIALS);
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -458,6 +462,7 @@ function AnalyticsContent() {
                                         transition={{ duration: 0.15 }}
                                         className="absolute right-0 top-full mt-2 z-50 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] overflow-hidden min-w-[240px] py-1"
                                     >
+                                        {canEditExpenses && (
                                         <button
                                             role="menuitem"
                                             onClick={() => { setIsMarketingModalOpen(true); setActionsMenuOpen(false); }}
@@ -466,6 +471,7 @@ function AnalyticsContent() {
                                             <Target className="w-4 h-4 text-violet-600" />
                                             <span>{t("analytics.marketing")}</span>
                                         </button>
+                                        )}
                                         <button
                                             role="menuitem"
                                             onClick={() => { setIsDeliveryImportOpen(true); setActionsMenuOpen(false); }}
@@ -525,7 +531,8 @@ function AnalyticsContent() {
                             </AnimatePresence>
                         </div>
 
-                        {/* Primary CTA — always visible */}
+                        {/* Primary CTA: only for staff who may write expenses */}
+                        {canEditExpenses && (
                         <button
                             onClick={handleAddExpense}
                             className="flex items-center gap-2 px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-sm"
@@ -533,6 +540,7 @@ function AnalyticsContent() {
                             <Plus className="w-4 h-4" />
                             <span className="hidden md:inline">{t("analytics.addExpense")}</span>
                         </button>
+                        )}
                     </div>
                 </div>
 
@@ -713,6 +721,7 @@ function AnalyticsContent() {
                                     expenses={expenses}
                                     onEdit={handleEditExpense}
                                     onDelete={handleDeleteExpense}
+                                    canEdit={canEditExpenses}
                                 />
                             </div>
                         </div>
