@@ -71,4 +71,35 @@ describe("BundlesScreen", () => {
         });
         expect(applyLast(setConfig, config).commerce?.bundles?.[0].value).toBe(25);
     });
+
+    it("names a bundle in the editor's language and clears it when emptied", () => {
+        const { builder, setConfig, config } = makeBuilder([
+            { id: "x", product_ids: [], kind: "percent", value: 10, enabled: true },
+        ]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        fireEvent.change(screen.getByTestId("bundle-name-0"), { target: { value: "Summer duo" } });
+        expect(Object.values(applyLast(setConfig, config).commerce?.bundles?.[0].name ?? {})).toEqual(["Summer duo"]);
+    });
+
+    it("search narrows the list, picked products stay visible as chips", () => {
+        const { builder, setConfig, config } = makeBuilder([
+            { id: "x", product_ids: ["p2"], kind: "percent", value: 10, enabled: true },
+        ]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        fireEvent.change(screen.getByTestId("bundle-0-search"), { target: { value: "alp" } });
+        expect(screen.getByTestId("bundle-0-product-p1")).toBeTruthy();
+        expect(screen.queryByTestId("bundle-0-product-p2")).toBeNull();
+        expect(screen.getByTestId("bundle-0-picked").textContent).toContain("Beta");
+        fireEvent.click(screen.getByTestId("bundle-0-unpick-p2"));
+        expect(applyLast(setConfig, config).commerce?.bundles?.[0].product_ids).toEqual([]);
+    });
+
+    it("says so when nothing matches the search", () => {
+        const { builder } = makeBuilder([
+            { id: "x", product_ids: [], kind: "percent", value: 10, enabled: true },
+        ]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        fireEvent.change(screen.getByTestId("bundle-0-search"), { target: { value: "zzz" } });
+        expect(screen.getByTestId("bundle-0-no-match")).toBeTruthy();
+    });
 });

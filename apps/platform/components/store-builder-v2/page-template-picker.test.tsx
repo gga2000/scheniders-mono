@@ -6,6 +6,8 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { PageTemplatePicker } from "./page-template-picker";
 import { PAGE_TEMPLATES } from "@/lib/page-templates";
 import type { SectionInstance } from "@scheniders/shared";
+import { EditorLocaleProvider } from "@/lib/editor-locale-context";
+import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 
 afterEach(() => {
     cleanup();
@@ -122,5 +124,33 @@ describe("PageTemplatePicker", () => {
         expect(screen.queryByTestId("page-template-picker-confirm")).toBeNull();
         expect(screen.getByTestId("page-template-picker-list")).toBeTruthy();
         expect(onApply).not.toHaveBeenCalled();
+    });
+
+    it("each card sketches its own sections, top to bottom", () => {
+        render(
+            <PageTemplatePicker open onClose={() => {}} currentSectionCount={0} onApply={() => {}} />,
+        );
+        for (const t of PAGE_TEMPLATES) {
+            const card = screen.getByTestId(`page-template-picker-card-${t.id}`);
+            const drawn = Array.from(card.querySelectorAll("[data-sketch]")).map((el) => el.getAttribute("data-sketch"));
+            expect(drawn).toEqual(t.sections.map((s) => s.type));
+        }
+    });
+
+    it("the confirm list names sections in the editor language, never by code", () => {
+        render(
+            <EditorLocaleProvider value="ar">
+                <PageTemplatePicker open onClose={() => {}} currentSectionCount={0} onApply={() => {}} />
+            </EditorLocaleProvider>,
+        );
+        const t = PAGE_TEMPLATES[0];
+        fireEvent.click(screen.getByTestId(`page-template-picker-card-${t.id}`));
+        const confirm = screen.getByTestId("page-template-picker-confirm");
+        for (const s of t.sections) {
+            const entry = getManifestEntry(s.type);
+            expect(entry).toBeDefined();
+            if (entry) expect(confirm.textContent).toContain(sectionDisplayName(entry, "ar"));
+            expect(confirm.textContent).not.toContain(s.type);
+        }
     });
 });

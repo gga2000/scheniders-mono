@@ -11,6 +11,7 @@
 
 import type { PageId } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { ScreenSaveStateProvider } from "./screen-save-state";
 import type { BrandKit } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
 import { BrandKitEditor } from "./brand-kit-editor";
@@ -58,8 +59,14 @@ export function SystemScreenRouter({
     onI18nSelectSection,
     trackingContact,
 }: SystemScreenRouterProps): React.ReactElement {
+    const saveState = {
+        failed: builder.save_state === "error",
+        retry: () => {
+            void builder.save_draft();
+        },
+    };
     return (
-        <>
+        <ScreenSaveStateProvider value={saveState}>
             {screen === "brand_kit" ? (
                 <BrandKitEditor
                     value={builder.config.brand_kit}
@@ -114,6 +121,6 @@ export function SystemScreenRouter({
                 // inspector tab and the ?screen= whitelist excludes it.
                 <RedirectsScreen builder={builder} onClose={onClose} />
             )}
-        </>
+        </ScreenSaveStateProvider>
     );
 }

@@ -57,6 +57,7 @@ function BundleCard({
   ).total_amount_iqd;
   const bundlePrice = regular - saving;
   const t = locale !== "en";
+  const name = resolveI18n(bundle.name, locale);
 
   function addAll(): void {
     for (const p of products) {
@@ -80,6 +81,9 @@ function BundleCard({
 
   return (
     <div className="rounded-bk-card border-2 border-bk-ink/10 bg-bk-surface-alt p-bk-md">
+      {name && (
+        <p className="mb-bk-sm font-display text-lg font-bold text-bk-ink">{name}</p>
+      )}
       <div className="flex flex-wrap items-center gap-bk-sm">
         {products.map((p, i) => (
           <React.Fragment key={p.id}>
