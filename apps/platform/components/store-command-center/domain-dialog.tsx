@@ -54,7 +54,7 @@ const verifyResponse = z.object({
 });
 
 class DomainInputError extends Error {
-    constructor(readonly reason: "invalid" | "taken" | "failed") {
+    constructor(readonly reason: "invalid" | "taken" | "limit" | "failed") {
         super(reason);
     }
 }
@@ -108,8 +108,10 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                 .select()
                 .single();
             if (error) {
-                // 23505 = unique_violation on tenant_domains.domain
-                throw new DomainInputError(error.code === "23505" ? "taken" : "failed");
+                // 23505: this store already added it. domain_claim_limit: 5 unverified domains per store.
+                if (error.code === "23505") throw new DomainInputError("taken");
+                if (error.message === "domain_claim_limit") throw new DomainInputError("limit");
+                throw new DomainInputError("failed");
             }
             return data;
         },
@@ -126,7 +128,9 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                     ? t(STRINGS.command_center.domain_invalid, locale)
                     : reason === "taken"
                       ? t(STRINGS.command_center.domain_taken, locale)
-                      : t(STRINGS.command_center.domain_toast_add_failed, locale),
+                      : reason === "limit"
+                        ? t(STRINGS.command_center.domain_limit, locale)
+                        : t(STRINGS.command_center.domain_toast_add_failed, locale),
             );
         },
     });

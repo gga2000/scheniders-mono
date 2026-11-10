@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Receiver } from "@upstash/qstash";
+import { verifyQstashCallback } from "@/lib/qstash-verify";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const rawBody = await request.text();
     const signature = request.headers.get("upstash-signature") ?? "";
     try {
-        await new Receiver({ currentSigningKey, nextSigningKey }).verify({ signature, body: rawBody });
+        await verifyQstashCallback({ currentSigningKey, nextSigningKey, signature, body: rawBody, requestUrl: request.url });
     } catch (verifyErr) {
         console.error(`${LOG} Invalid QStash signature:`, verifyErr);
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });

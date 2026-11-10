@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const state = vi.hoisted(() => ({
     rows: [] as unknown[],
-    insertError: null as { code: string } | null,
+    insertError: null as { code: string; message?: string } | null,
     inserted: [] as unknown[],
     toasts: { success: vi.fn(), error: vi.fn() },
 }));
@@ -83,6 +83,18 @@ describe("DomainDialog", () => {
         expect(state.inserted).toEqual([]);
     });
 
+    it("says when the store already has 5 domains waiting", async () => {
+        state.rows = [];
+        state.insertError = { code: "P0001", message: "domain_claim_limit" };
+        render(wrap(<DomainDialog tenantId="t1" slug="demo" locale="en" onClose={() => undefined} />));
+        fireEvent.click(await screen.findByText("Connect Custom Domain"));
+        fireEvent.change(screen.getByLabelText("Domain Name"), { target: { value: "shop.example.com" } });
+        fireEvent.click(screen.getByText("Connect"));
+        await waitFor(() =>
+            expect(state.toasts.error).toHaveBeenCalledWith("You have 5 domains waiting to be verified. Remove one first."),
+        );
+    });
+
     it("adds a cleaned domain and reports a duplicate as taken", async () => {
         state.rows = [];
         state.insertError = { code: "23505" };
@@ -90,7 +102,7 @@ describe("DomainDialog", () => {
         fireEvent.click(await screen.findByText("Connect Custom Domain"));
         fireEvent.change(screen.getByLabelText("Domain Name"), { target: { value: "https://Shop.Example.com/x" } });
         fireEvent.click(screen.getByText("Connect"));
-        await waitFor(() => expect(state.toasts.error).toHaveBeenCalledWith("This domain is already connected to a store."));
+        await waitFor(() => expect(state.toasts.error).toHaveBeenCalledWith("This domain is already added to your store."));
         expect(state.inserted).toEqual([{ tenant_id: "t1", domain: "shop.example.com" }]);
     });
 });
