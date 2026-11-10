@@ -25,6 +25,7 @@ import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
+import { removeWithUndo } from "./undo-toast";
 
 export interface RedirectsScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -75,9 +76,12 @@ export function RedirectsScreen({
             redirects.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
         );
     };
-    const removeRow = (i: number): void => {
-        setRedirects(redirects.filter((_, idx) => idx !== i));
-    };
+    const removeRow = (i: number): void =>
+        removeWithUndo(redirects, i, setRedirects, {
+            title: t(STRINGS.advanced_chrome.redir_removed, locale),
+            hint: t(STRINGS.advanced_chrome.row_removed_hint, locale),
+            restoreLabel: t(STRINGS.advanced_chrome.redir_restore, locale),
+        });
 
     return (
         <div

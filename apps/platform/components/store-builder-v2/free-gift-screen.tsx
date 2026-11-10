@@ -17,7 +17,7 @@ import { Switch } from "@scheniders/ui/switch";
 import { resolveFreeGift, type FreeGiftRewardConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
-import { STRINGS, t as tx } from "@/lib/editor-i18n";
+import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ProductPickerField } from "./resource-picker";
 import { ScreenHeader, settingSwitchCls } from "./screen-header";
@@ -54,10 +54,10 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                         free_gift: { ...prev.commerce?.free_gift, ...patch },
                     },
                 }),
-                "Edited free gift",
+                tFormat(STRINGS.history.edit_named, locale, { name: tx(STRINGS.page_tree.setting_free_gift, locale) }),
             );
         },
-        [builder],
+        [builder, locale],
     );
 
     return (
