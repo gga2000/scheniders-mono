@@ -228,12 +228,12 @@ export function PageTemplatePicker(
                             className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                         >
                             {templates.map((t) => (
-                                <li key={t.id}>
+                                <li key={t.id} className="h-full">
                                     <button
                                         type="button"
                                         data-testid={`page-template-picker-card-${t.id}`}
                                         onClick={() => setPendingId(t.id)}
-                                        className="sb-row flex w-full flex-col gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) p-3 text-left shadow-(--card-shadow)"
+                                        className="sb-row flex h-full w-full flex-col gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) p-3 text-left shadow-(--card-shadow)"
                                     >
                                         <TemplateSketch types={t.sections.map((s) => s.type)} />
                                         <div className="flex items-center justify-between gap-2">

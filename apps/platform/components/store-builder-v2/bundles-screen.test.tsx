@@ -5,6 +5,9 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2, Bundle } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 
+const toastMock = vi.fn();
+vi.mock("@/hooks/use-toast", () => ({ toast: (arg: unknown) => toastMock(arg) }));
+
 vi.mock("@/hooks/use-products-query", () => ({
     useProductsQuery: () => ({
         data: [
@@ -39,7 +42,7 @@ describe("BundlesScreen", () => {
         fireEvent.click(screen.getByTestId("bundles-empty-add"));
         const next = applyLast(setConfig, config).commerce?.bundles;
         expect(next).toHaveLength(1);
-        expect(next?.[0]).toMatchObject({ kind: "percent", enabled: true, product_ids: [] });
+        expect(next?.[0]).toMatchObject({ kind: "percent", enabled: false, product_ids: [] });
     });
 
     it("a bundle with fewer than two products cannot read as switched on", () => {
@@ -101,5 +104,27 @@ describe("BundlesScreen", () => {
         render(<BundlesScreen builder={builder} onClose={() => {}} />);
         fireEvent.change(screen.getByTestId("bundle-0-search"), { target: { value: "zzz" } });
         expect(screen.getByTestId("bundle-0-no-match")).toBeTruthy();
+    });
+
+    it("dropping under two products switches the bundle off, so a new pick never turns it on", () => {
+        const { builder, setConfig, config } = makeBuilder([
+            { id: "x", product_ids: ["p1", "p2"], kind: "percent", value: 10, enabled: true },
+        ]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        fireEvent.click(screen.getByTestId("bundle-0-product-p2"));
+        expect(applyLast(setConfig, config).commerce?.bundles?.[0]).toMatchObject({ product_ids: ["p1"], enabled: false });
+    });
+
+    it("removing a bundle offers an undo that puts it back in place", () => {
+        toastMock.mockClear();
+        const a: Bundle = { id: "a", product_ids: [], kind: "percent", value: 10, enabled: false };
+        const b: Bundle = { id: "b", product_ids: [], kind: "percent", value: 5, enabled: false };
+        const { builder, setConfig, config } = makeBuilder([a, b]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        fireEvent.click(screen.getByTestId("bundle-remove-0"));
+        expect(applyLast(setConfig, config).commerce?.bundles).toEqual([b]);
+        const arg = toastMock.mock.calls[0][0] as { action: { onClick: () => void } };
+        arg.action.onClick();
+        expect(applyLast(setConfig, config).commerce?.bundles).toEqual([a, b]);
     });
 });

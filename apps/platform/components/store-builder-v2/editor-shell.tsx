@@ -34,6 +34,7 @@ import {
     type PreviewPageConfig,
 } from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrlState } from "@/hooks/use-storefront-url";
+import { toast } from "@/hooks/use-toast";
 import { useEditorCoEditors } from "@/hooks/use-editor-co-editors";
 import { healthContextFor, type TenantContactFields } from "@/lib/health-context";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
@@ -1024,14 +1025,24 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleApplyTemplate = useCallback(
         (sections: SectionInstance[]): void => {
-            // Replace the current page's sections wholesale. Originals
-            // are discarded — the picker confirmation warned the
-            // merchant.
+            // Replace the current page's sections wholesale. The picker
+            // warned the merchant; the toast lets them put the old ones back.
+            const previous = activePageSections(builder.config, editTarget);
             handleSectionsChange(sections);
             set_editing_section_id(null);
             set_selected_section_id(null);
+            if (previous.length === 0) return;
+            toast({
+                title: t(STRINGS.page_template.toast_applied, builder.active_locale),
+                description: t(STRINGS.page_template.toast_applied_hint, builder.active_locale),
+                duration: 5000,
+                action: {
+                    label: t(STRINGS.section_list.toast_undo, builder.active_locale),
+                    onClick: () => handleSectionsChange(previous),
+                },
+            });
         },
-        [handleSectionsChange],
+        [handleSectionsChange, builder.config, builder.active_locale, editTarget],
     );
 
     const handleSaveSectionAsPreset = useCallback(
