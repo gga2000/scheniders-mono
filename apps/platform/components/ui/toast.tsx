@@ -145,7 +145,7 @@ export const Toast = React.forwardRef<
                         "absolute right-2.5 top-1/2 -translate-y-1/2",
                         "rounded-lg p-1.5 opacity-0 transition-all duration-200",
                         "hover:bg-[#F5F0E8] group-hover:opacity-100 dark:hover:bg-white/10",
-                        "text-[#9A9A9A] hover:text-[#1E1E1E] dark:text-zinc-500 dark:hover:text-zinc-100",
+                        "text-[#6B6B6B] hover:text-[#1E1E1E] dark:text-zinc-400 dark:hover:text-zinc-100",
                         "focus-visible:opacity-100 focus-visible:outline-none"
                     )}
                     aria-label={t("common.close", "Close")}

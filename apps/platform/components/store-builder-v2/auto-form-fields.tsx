@@ -175,7 +175,9 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
             <div
                 // group/field lets the adornment reveal on hover anywhere
                 // in the field cluster (3.4).
-                className="group/field space-y-1"
+                // relative: the hover-only device strip floats above the
+                // field instead of reserving an empty row inside it.
+                className="group/field relative flex flex-col gap-1"
                 data-testid={`${testIdBase}-with-adornment`}
             >
                 {adornment}
