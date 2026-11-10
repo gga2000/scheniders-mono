@@ -4,28 +4,22 @@ import { useState, useRef, useEffect, memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PlanTier } from "@/types/admin";
+import { PLAN_LABELS, type PlanTier } from "@/types/admin";
 
 const PLAN_OPTIONS: Array<{
   value: PlanTier;
   label: string;
   color: string;
 }> = [
-  { value: "starter", label: "Starter", color: "bg-gradient-to-r from-sky-400 to-cyan-400 text-white" },
-  { value: "growth", label: "Growth", color: "bg-gradient-to-r from-emerald-400 to-teal-500 text-white" },
-  { value: "professional", label: "Pro", color: "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white" },
-  { value: "enterprise", label: "Enterprise", color: "bg-gradient-to-r from-amber-400 to-orange-500 text-white" },
+  { value: "starter", label: PLAN_LABELS.starter, color: "bg-gradient-to-r from-sky-400 to-cyan-400 text-white" },
+  { value: "internal", label: PLAN_LABELS.internal, color: "bg-gradient-to-r from-slate-400 to-slate-500 text-white" },
 ];
 
 const planBadgeStyle: Record<PlanTier, string> = {
   starter:
     "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20",
-  growth:
-    "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/30 ring-1 ring-white/20",
-  professional:
-    "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30 ring-1 ring-white/20",
-  enterprise:
-    "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 ring-1 ring-white/20",
+  internal:
+    "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20",
 };
 
 interface MerchantPlanDropdownProps {

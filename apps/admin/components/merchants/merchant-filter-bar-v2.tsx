@@ -7,7 +7,7 @@ import { useAdminStore } from "@/store/use-admin-store";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
-import type { AdminTenant } from "@/types/admin";
+import { PLAN_LABELS, PLAN_TIERS, type AdminTenant } from "@/types/admin";
 
 const DateRangePicker = dynamic(
   () => import("@scheniders/ui/date-range-picker").then((m) => m.DateRangePicker),
@@ -57,10 +57,7 @@ const STATUS_PILLS: Array<{
 
 const PLAN_OPTIONS = [
   { value: "", label: "All Plans" },
-  { value: "starter", label: "Starter" },
-  { value: "growth", label: "Growth" },
-  { value: "professional", label: "Pro" },
-  { value: "enterprise", label: "Enterprise" },
+  ...PLAN_TIERS.map((value) => ({ value, label: PLAN_LABELS[value] })),
 ];
 
 const BALANCE_OPTIONS = [

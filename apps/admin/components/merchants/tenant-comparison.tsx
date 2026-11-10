@@ -72,12 +72,7 @@ function computeHealthDimensions(tenant: ComparisonTenant) {
   else if (tenant.order_count > 10) ordersScore = 10;
   else if (tenant.order_count > 0) ordersScore = 5;
 
-  // Plan: enterprise=5, professional=3, else=0
-  let planScore = 0;
-  if (tenant.plan === "enterprise") planScore = 5;
-  else if (tenant.plan === "professional") planScore = 3;
-
-  return { Status: statusScore, Wallet: walletScore, Orders: ordersScore, Plan: planScore };
+  return { Status: statusScore, Wallet: walletScore, Orders: ordersScore };
 }
 
 function SparklineOverlay({ tenants }: { tenants: ComparisonTenant[] }) {
@@ -219,7 +214,7 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
   }
 
   // Radar chart data
-  const radarData = ["Status", "Wallet", "Orders", "Plan"].map((dimension) => {
+  const radarData = ["Status", "Wallet", "Orders"].map((dimension) => {
     const entry: Record<string, string | number> = { dimension };
     allTenants.forEach((tenant, idx) => {
       const dims = computeHealthDimensions(tenant);

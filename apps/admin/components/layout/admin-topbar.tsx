@@ -46,10 +46,8 @@ interface MerchantResult {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  free: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
   starter: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  pro: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-  enterprise: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+  internal: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
 };
 
 const STATUS_COLORS: Record<string, string> = {

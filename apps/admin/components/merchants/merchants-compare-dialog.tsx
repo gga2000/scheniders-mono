@@ -37,9 +37,7 @@ const STATUS_GRADIENTS: Record<string, string> = {
 
 const PLAN_GRADIENTS: Record<string, string> = {
   starter: "from-sky-400 to-cyan-500 shadow-sky-500/30",
-  growth: "from-emerald-400 to-teal-500 shadow-emerald-500/30",
-  professional: "from-violet-500 to-fuchsia-500 shadow-violet-500/30",
-  enterprise: "from-amber-400 to-orange-500 shadow-amber-500/30",
+  internal: "from-slate-400 to-slate-500 shadow-slate-500/30",
 };
 
 function fmtCompactIQD(amount: number): string {

@@ -336,7 +336,6 @@ function computeHealthScore(merchant: Record<string, unknown>): number {
   const status = merchant.status as string;
   const wallet = merchant.wallet as { balance_iqd: number } | null;
   const usage = merchant.usage as { orders_count: number } | null;
-  const plan = merchant.plan as string;
 
   if (status === "active") score += 15;
   else if (status === "trial") score += 5;
@@ -351,9 +350,6 @@ function computeHealthScore(merchant: Record<string, unknown>): number {
   if (orders > 50) score += 15;
   else if (orders > 10) score += 10;
   else if (orders > 0) score += 5;
-
-  if (plan === "enterprise") score += 5;
-  else if (plan === "professional") score += 3;
 
   return Math.max(0, Math.min(100, score));
 }
