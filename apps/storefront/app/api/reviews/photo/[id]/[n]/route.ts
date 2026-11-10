@@ -4,6 +4,7 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceClient,
 } from "@/lib/supabase/server";
+import { isReviewPhotoPath } from "@/lib/review-photo-url";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,8 +37,8 @@ export async function GET(
     .maybeSingle<{ tenant_id: string; photo_paths: string[] }>();
   if (error) return new NextResponse(null, { status: 503 });
   const path = review?.photo_paths[n];
-  // A path outside the review's own store folder is never served.
-  if (!review || !path || !path.startsWith(`${review.tenant_id}/`)) {
+  // Only the exact upload shape inside the review's own store folder is served.
+  if (!review || !path || !isReviewPhotoPath(review.tenant_id, path)) {
     return new NextResponse(null, { status: 404 });
   }
 
