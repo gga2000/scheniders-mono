@@ -18,7 +18,7 @@ export const productLaunchTemplate: PageTemplate = {
     name_i18n: { en: "Product launch", ar: "إطلاق منتج" },
     description_i18n: {
         en: "Hero, brand story, fresh product grid, testimonials, and a newsletter signup.",
-        ar: "غلاف، قصة العلامة، شبكة منتجات، آراء الزبائن، وتسجيل النشرة.",
+        ar: "غلاف، قصة العلامة، شبكة منتجات، آراء الزبائن، واشتراك النشرة.",
     },
     page_id: "home",
     sections: [

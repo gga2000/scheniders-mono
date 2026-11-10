@@ -153,4 +153,19 @@ describe("PageTemplatePicker", () => {
             expect(confirm.textContent).not.toContain(s.type);
         }
     });
+
+    it("each card's summary is its own section names", () => {
+        render(
+            <EditorLocaleProvider value="ar">
+                <PageTemplatePicker open onClose={() => {}} currentSectionCount={0} onApply={() => {}} />
+            </EditorLocaleProvider>,
+        );
+        for (const t of PAGE_TEMPLATES) {
+            const card = screen.getByTestId(`page-template-picker-card-${t.id}`);
+            for (const s of t.sections) {
+                const entry = getManifestEntry(s.type);
+                if (entry) expect(card.textContent).toContain(sectionDisplayName(entry, "ar"));
+            }
+        }
+    });
 });

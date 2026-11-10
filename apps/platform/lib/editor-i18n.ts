@@ -1069,7 +1069,7 @@ export const STRINGS = {
         // Inline delivery-fee capture (S3-09 — moved out of the wizard)
         launch_step_delivery: { en: "Set your delivery fee", ar: "حدد رسوم التوصيل", ku: "کرێی گەیاندن دیاری بکە" },
         // tFormat: {page}
-        on_page: { en: "On the {page} page", ar: "في صفحة {page}", ku: "لە پەڕەی {page}" },
+        on_page: { en: "Page: {page}", ar: "الصفحة: {page}", ku: "پەڕە: {page}" },
         // Finished launch steps read as a fact, not a crossed-out order.
         launch_done_logo: { en: "Logo uploaded", ar: "تم رفع الشعار", ku: "لۆگۆ بارکرا" },
         launch_done_whatsapp: { en: "WhatsApp number added", ar: "تمت إضافة رقم الواتساب", ku: "ژمارەی واتساپ زیادکرا" },
@@ -1481,6 +1481,10 @@ export const STRINGS = {
         bun_needs_products: { en: "Pick at least 2 products", ar: "اختر منتجين على الأقل", ku: "لانیکەم 2 بەرهەم هەڵبژێرە" },
         bun_remove_aria: { en: "Remove bundle", ar: "إزالة الحزمة", ku: "لابردنی کۆمەڵە" },
         bun_removed: { en: "Bundle removed", ar: "حُذفت الحزمة", ku: "کۆمەڵەکە لابرا" },
+        bun_removed_hint: { en: "You have 5 seconds to bring it back.", ar: "يمكنك استعادتها خلال 5 ثوانٍ.", ku: "٥ چرکەت هەیە بۆ گەڕاندنەوەی." },
+        bun_restore: { en: "Restore bundle", ar: "استعادة الحزمة", ku: "گەڕاندنەوەی کۆمەڵە" },
+        // tFormat: {n}
+        bun_off_hint: { en: "Products: {n} · Off, customers don't see it", ar: "المنتجات: {n} · متوقفة، لا يراها الزبون", ku: "بەرهەمەکان: {n} · وەستاوە، کڕیار نایبینێت" },
         bun_no_products: { en: "No products to add.", ar: "لا توجد منتجات لإضافتها.", ku: "هیچ بەرهەمێک نییە بۆ زیادکردن." },
         bun_products_error: { en: "Couldn't load your products. Refresh the page to try again.", ar: "تعذّر تحميل منتجاتك. حدّث الصفحة وحاول مجدداً.", ku: "نەتوانرا بەرهەمەکانت باربکرێن. پەڕەکە نوێ بکەرەوە." },
         bun_products_loading: { en: "Loading products…", ar: "جارٍ تحميل المنتجات…", ku: "بەرهەمەکان باردەکرێن…" },
@@ -1766,7 +1770,8 @@ export const STRINGS = {
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
         apply: { en: "Apply template", ar: "تطبيق القالب", ku: "جێبەجێکردنی قاڵب" },
         toast_applied: { en: "Template applied", ar: "طُبّق القالب", ku: "قاڵبەکە جێبەجێکرا" },
-        toast_applied_hint: { en: "Undo within 5 seconds to bring back the previous sections.", ar: "تراجع خلال 5 ثوانٍ لاستعادة الأقسام السابقة.", ku: "لە ماوەی ٥ چرکەدا پاشگەزبوەوە بۆ گەڕاندنەوەی بەشەکانی پێشوو." },
+        toast_restore: { en: "Restore previous sections", ar: "استعادة الأقسام السابقة", ku: "گەڕاندنەوەی بەشەکانی پێشوو" },
+        toast_applied_hint: { en: "You have 5 seconds to bring back the previous sections.", ar: "يمكنك استعادة الأقسام السابقة خلال 5 ثوانٍ.", ku: "٥ چرکەت هەیە بۆ گەڕاندنەوەی بەشەکانی پێشوو." },
         start_blank: { en: "Or start blank ↓", ar: "أو ابدأ من الصفر ↓", ku: "یان بەتاڵ دەستپێبکە ↓" },
     },
 

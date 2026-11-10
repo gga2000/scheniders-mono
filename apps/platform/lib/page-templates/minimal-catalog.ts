@@ -18,7 +18,7 @@ export const minimalCatalogTemplate: PageTemplate = {
     name_i18n: { en: "Minimal catalog", ar: "كتالوج بسيط" },
     description_i18n: {
         en: "Just the essentials — hero, product grid, FAQ, and newsletter signup.",
-        ar: "الأساسيات فقط — غلاف، شبكة منتجات، أسئلة شائعة، وتسجيل النشرة.",
+        ar: "الأساسيات فقط: غلاف، شبكة منتجات، أسئلة شائعة، واشتراك النشرة.",
     },
     page_id: "home",
     sections: [
