@@ -7,6 +7,7 @@ import { EASE_CHROME } from "@/lib/animation-constants";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
+import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
 
 interface Notification {
   id: string;
@@ -106,8 +107,9 @@ export function NotificationBell() {
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: PRIME_REQUESTS_KEY }),
   });
-  // Open Prime requests always count: they wait on the team, not on a read mark.
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length;
+  const openTopups = useTopupRequests().data ?? [];
+  // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length + openTopups.length;
 
   const markAllRead = useCallback(() => {
     setReadIds(new Set(notifications.map((n) => n.id)));
@@ -167,6 +169,9 @@ export function NotificationBell() {
               )}
             </div>
 
+            {/* Top-up receipts: shops waiting for our team to add their money */}
+            <TopupRequestsSection requests={openTopups} timeAgo={timeAgo} />
+
             {/* Prime link requests: shops waiting for our team */}
             {openPrime.length > 0 && (
               <div className="border-b border-[var(--card-border)]" data-testid="prime-link-requests">
@@ -196,7 +201,7 @@ export function NotificationBell() {
 
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
-              {notifications.length === 0 && openPrime.length === 0 ? (
+              {notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/40">
                   No notifications yet
                 </div>

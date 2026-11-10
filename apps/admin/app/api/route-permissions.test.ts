@@ -103,6 +103,13 @@ type Case = {
 /** Mutations support_staff must NOT be able to perform. */
 const SUPER_ADMIN_ONLY: Case[] = [
   {
+    name: "POST /api/wallet-topup-requests/[id] (top_up_wallet)",
+    call: async (t) => {
+      const { POST } = await import("./wallet-topup-requests/[id]/route");
+      return POST(req(`/api/wallet-topup-requests/${TENANT}`, "POST", t, { approve: true }), idParams);
+    },
+  },
+  {
     name: "POST /api/billing/topup (top_up_wallet)",
     call: async (t) => {
       const { POST } = await import("./billing/topup/route");
