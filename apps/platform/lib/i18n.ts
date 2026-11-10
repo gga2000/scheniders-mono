@@ -1238,6 +1238,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.tpl.bulkAllFailedTitle": "Error",
         "orders.tpl.bulkAllFailedBody": "Failed for all {count} customers",
         "orders.tpl.bulkPartial": "{ok} sent, {failed} failed",
+        "orders.tpl.limitReachedTitle": "Hourly WhatsApp limit reached",
+        "orders.tpl.limitReached": "{ok} sent, {left} not sent. Send the rest in an hour.",
         "orders.tpl.bulkPartialTitle": "Partly sent",
         "orders.tpl.singleSent": "{label} template sent",
         "orders.tpl.singleSentTitle": "Sent",
@@ -7242,6 +7244,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "Opening your store",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
+        "login.footerSecure": "Protected by a security check and encrypted passwords.",
         "login.subtitle": "Sign in to Schenider Order Management",
         "login.email": "Email Address",
         "login.password": "Password",
@@ -8481,6 +8484,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.tpl.bulkAllFailedTitle": "خطأ",
         "orders.tpl.bulkAllFailedBody": "فشل الإرسال لجميع {count} عملاء",
         "orders.tpl.bulkPartial": "نجح {ok}، وفشل {failed}",
+        "orders.tpl.limitReachedTitle": "وصلت إلى حد الإرسال بالساعة",
+        "orders.tpl.limitReached": "أُرسل {ok}، ولم يُرسل {left}. أرسل الباقي بعد ساعة.",
         "orders.tpl.bulkPartialTitle": "إرسال جزئي",
         "orders.tpl.singleSent": "تم إرسال قالب {label} بنجاح",
         "orders.tpl.singleSentTitle": "نجاح",
@@ -14531,6 +14536,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "جارِ فتح متجرك",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",
+        "login.footerSecure": "حسابك محمي بفحص أمان وكلمة مرور مشفّرة.",
         "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",
         "login.email": "البريد الإلكتروني",
         "login.password": "كلمة المرور",

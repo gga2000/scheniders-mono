@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { PLAN_TIERS } from "@/types/admin";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
@@ -47,14 +48,12 @@ export async function POST(request: NextRequest) {
         const plan = params?.plan;
         if (
           !plan ||
-          !["starter", "growth", "professional", "enterprise"].includes(
-            plan as string
-          )
+          !(PLAN_TIERS as readonly unknown[]).includes(plan)
         ) {
           return NextResponse.json(
             {
               error:
-                'params.plan is required and must be one of: starter, growth, professional, enterprise',
+                `params.plan is required and must be one of: ${PLAN_TIERS.join(", ")}`,
             },
             { status: 400 }
           );

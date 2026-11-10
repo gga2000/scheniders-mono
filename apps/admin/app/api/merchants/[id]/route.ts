@@ -3,11 +3,12 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
+import { PLAN_TIERS } from "@/types/admin";
 
 const patchSchema = z
   .object({
     status: z.enum(["active", "trial", "limited", "suspended", "cancelled"]).optional(),
-    plan: z.enum(["starter", "growth", "professional", "enterprise"]).optional(),
+    plan: z.enum(PLAN_TIERS).optional(),
     auto_renew: z.boolean().optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {

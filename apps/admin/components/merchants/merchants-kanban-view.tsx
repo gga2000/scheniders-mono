@@ -73,9 +73,7 @@ const STAGES: Stage[] = [
 
 const PLAN_GRADIENTS: Record<string, string> = {
   starter: "from-sky-400 to-cyan-500",
-  growth: "from-emerald-400 to-teal-500",
-  professional: "from-violet-500 to-fuchsia-500",
-  enterprise: "from-amber-400 to-orange-500",
+  internal: "from-slate-400 to-slate-500",
 };
 
 function fmtCompactIQD(amount: number): string {

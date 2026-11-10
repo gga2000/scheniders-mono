@@ -12,6 +12,7 @@ import {
 } from "@/lib/storefront-order-confirmation";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 import type { Order } from "@/types/order";
 
 export const dynamic = "force-dynamic";
@@ -136,6 +137,14 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
         if (!result.allowed) {
             console.warn(`${LOG} order ${orderId}: skipped (${cap.name}) tenant=${verdict.tenantId}`);
+            // Staff see the order was not confirmed by WhatsApp ("send limit
+            // hit" on the card), instead of it waiting silently.
+            await flagOrderForWhatsAppFailure(
+                orderId,
+                { success: false, statusCode: 429, error: `rate limit: ${cap.name}` },
+                row.order_id ?? orderId,
+                gateRow.data.phone ?? "",
+            );
             return NextResponse.json({ skipped: cap.name });
         }
     }

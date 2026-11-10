@@ -214,7 +214,9 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
         order.address_details,
     ].filter(Boolean);
     const address = shopperText(addressParts.join(" - "), ADDRESS_MAX) || "غير محدد";
-    const customerName = shopperText(order.customer_name ?? "", NAME_MAX);
+    // A template variable may not be empty; a name that was only digits or
+    // symbols cleans down to nothing.
+    const customerName = shopperName(order.customer_name ?? "") || "عميلنا العزيز";
 
     const displayPhone = formatPhoneForDisplay(targetPhone);
     const displaySecondaryPhone = order.secondary_phone
@@ -249,6 +251,15 @@ export function shopperText(value: string, max: number): string {
         .replace(/\s+/g, " ")
         .trim();
     return cleaned.length > max ? `${cleaned.slice(0, max - 1).trimEnd()}…` : cleaned;
+}
+
+/**
+ * A shopper's name for a template variable: shopperText without any digits,
+ * so a "name" like «اتصل 07701234567» cannot carry a phone number to every
+ * customer the store messages. Addresses keep their digits (house numbers).
+ */
+export function shopperName(value: string): string {
+    return shopperText(value.normalize("NFKC").replace(/\p{N}/gu, " "), NAME_MAX);
 }
 
 // =============================================
@@ -604,7 +615,7 @@ function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplate
     const totalPrice = `IQD ${templateTotal(order).toLocaleString("en-US")}`;
     const addressParts = [order.city || order.governorate_code, order.address_details].filter(Boolean);
     const address = shopperText(addressParts.join(" - "), ADDRESS_MAX) || "غير محدد";
-    const customerName = shopperText(order.customer_name ?? "", NAME_MAX);
+    const customerName = shopperName(order.customer_name ?? "");
 
     const governorate = order.governorate_code || order.city || "غير محدد";
     const displayPhone = formatPhoneForDisplay(order.phone);

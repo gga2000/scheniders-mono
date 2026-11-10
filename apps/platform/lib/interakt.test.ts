@@ -23,7 +23,7 @@ vi.mock("@/lib/env", () => ({
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
 }));
 
-import { sendTemplateMessage, shopperText } from "./interakt";
+import { sendTemplateMessage, shopperName, shopperText } from "./interakt";
 
 const fetchMock = vi.fn();
 
@@ -125,5 +125,17 @@ describe("shopperText: typed name/address cannot carry a link to the recipient",
         const out = shopperText("أ".repeat(300), 60);
         expect(out.length).toBe(60);
         expect(out.endsWith("…")).toBe(true);
+    });
+});
+
+describe("shopperName", () => {
+    it("drops digits so a name cannot carry a phone number, in any script", () => {
+        expect(shopperName("اتصل 07701234567 علي")).toBe("اتصل علي");
+        expect(shopperName("Ali ٠٧٧٠١٢٣٤٥٦٧")).toBe("Ali");
+        expect(shopperName("Ali ０７７０")).toBe("Ali");
+    });
+
+    it("keeps a normal name", () => {
+        expect(shopperName("علي حسن")).toBe("علي حسن");
     });
 });

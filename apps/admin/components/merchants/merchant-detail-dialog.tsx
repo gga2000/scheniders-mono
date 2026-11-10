@@ -204,8 +204,6 @@ function calculateHealthScore(t: AdminTenant): number {
   if (orders > 50) score += 15;
   else if (orders > 10) score += 10;
   else if (orders > 0) score += 5;
-  if (t.plan === "enterprise") score += 5;
-  else if (t.plan === "professional") score += 3;
   return Math.max(0, Math.min(100, score));
 }
 

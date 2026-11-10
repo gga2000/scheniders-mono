@@ -119,6 +119,8 @@ function ForgotPasswordForm() {
                                 </div>
                             </div>
 
+                            <AuthCaptcha captcha={captcha} className="empty:hidden" />
+
                             <button
                                 type="submit"
                                 disabled={isLoading || !email.trim() || !captcha.ready}
@@ -176,7 +178,9 @@ function ForgotPasswordForm() {
                             </div>
                         )}
 
-                        <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
+                        <AuthCaptcha captcha={captcha} className="mt-5 empty:hidden" />
+
+                        <div className="mt-6 grid gap-2.5">
                             <button
                                 type="button"
                                 onClick={() => void send(sentTo)}
@@ -197,8 +201,6 @@ function ForgotPasswordForm() {
                     </motion.div>
                 )}
             </AnimatePresence>
-            {/* Outside the two states so "send again" still has a token. */}
-            <AuthCaptcha captcha={captcha} className="px-6 sm:px-8 pb-6 empty:hidden" />
         </AuthCardShell>
     );
 }

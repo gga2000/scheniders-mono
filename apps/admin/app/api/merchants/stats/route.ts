@@ -27,13 +27,6 @@ interface Aggregates {
   buckets: BucketCounts;
 }
 
-const PLAN_BASE_PRICE_FALLBACK: Record<string, number> = {
-  starter: 10000,
-  growth: 30000,
-  professional: 70000,
-  enterprise: 100000,
-};
-
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
@@ -117,17 +110,16 @@ export async function GET(request: NextRequest) {
     const tenantIds = balancedTenants.map((t) => t.id);
 
     // Subscription MRR — real recurring revenue from active subscriptions.
-    // Joins plan_limits.base_price_iqd by plan tier; falls back to the
-    // hardcoded defaults from the migration if plan_limits is unavailable.
-    const { data: planLimits } = await supabase
+    // Prices come from plan_limits only; a failed read fails the request
+    // rather than showing made-up prices.
+    const { data: planLimits, error: planLimitsError } = await supabase
       .from("plan_limits")
       .select("plan, base_price_iqd");
+    if (planLimitsError) throw planLimitsError;
 
-    const planPrice: Record<string, number> = { ...PLAN_BASE_PRICE_FALLBACK };
-    if (planLimits) {
-      for (const row of planLimits) {
-        planPrice[row.plan as string] = row.base_price_iqd;
-      }
+    const planPrice: Record<string, number> = {};
+    for (const row of planLimits) {
+      planPrice[row.plan] = row.base_price_iqd;
     }
 
     // 30-day rolling usage charges across the filtered set.

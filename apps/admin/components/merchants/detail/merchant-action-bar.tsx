@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { cn } from "@/lib/utils";
 import { PauseButton } from "./pause-button";
 import { ConvertTrialButton } from "./convert-trial-button";
-import type { TenantStatus, PlanTier } from "@/types/admin";
+import { PLAN_LABELS, type TenantStatus, type PlanTier } from "@/types/admin";
 
 interface MerchantActionBarProps {
   merchantId: string;
@@ -31,23 +31,13 @@ const TOPUP_PRESETS = [5_000, 10_000, 50_000, 100_000];
 const PLAN_OPTIONS: Array<{ value: PlanTier; label: string; gradient: string }> = [
   {
     value: "starter",
-    label: "Starter",
+    label: PLAN_LABELS.starter,
     gradient: "bg-gradient-to-br from-sky-400 to-cyan-500",
   },
   {
-    value: "growth",
-    label: "Growth",
-    gradient: "bg-gradient-to-br from-emerald-400 to-teal-500",
-  },
-  {
-    value: "professional",
-    label: "Pro",
-    gradient: "bg-gradient-to-br from-violet-500 to-fuchsia-500",
-  },
-  {
-    value: "enterprise",
-    label: "Enterprise",
-    gradient: "bg-gradient-to-br from-amber-400 to-orange-500",
+    value: "internal",
+    label: PLAN_LABELS.internal,
+    gradient: "bg-gradient-to-br from-slate-400 to-slate-500",
   },
 ];
 
