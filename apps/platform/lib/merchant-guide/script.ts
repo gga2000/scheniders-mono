@@ -16,8 +16,8 @@ export interface GuideLine {
 
 export const GUIDE_LINES = {
     "welcome.hello": {
-        ar: "هلا بيك بشنايدر! راح نجهز محلك سوه، خطوة بخطوة.",
-        en: "Welcome to Schenider! Let's set up your shop together, one step at a time.",
+        ar: "راح نجهز محلك سوه. جاوبني على سؤالين، وأرسملك طريقك.",
+        en: "Let's set up your shop together. Answer two questions and I'll draw your path.",
     },
     "welcome.channel": {
         ar: "تشتغل بس أونلاين، لو عندك محل هم؟",
