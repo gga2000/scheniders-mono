@@ -24,7 +24,8 @@ const orderStatusBreakdownSchema = z.object({
 });
 
 const recordSchema = z.object({
-    id: z.string().min(1),
+    // A saved record's uuid, or "preview-<ms>" before payroll is run. Printed as the payslip reference.
+    id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/),
     employee_id: z.string().uuid(),
     period_start: z.string(),
     period_end: z.string(),

@@ -2,26 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer-core';
 import { z } from 'zod';
 import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
+import { isAllowedPdfRequest } from "@/lib/pdf-request-allowlist";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Allow up to 60s for large batches
 
 const IS_DEV = process.env.NODE_ENV === 'development';
-
-// Labels only ever load Google Fonts (see lib/shipping-labels.ts) and inline
-// data. Everything else is refused, so a caller cannot make our server fetch
-// internal or third-party URLs and read the answer back in the PDF.
-const ALLOWED_REQUEST_ORIGINS = new Set(['https://fonts.googleapis.com', 'https://fonts.gstatic.com']);
-
-function isAllowedLabelRequest(url: string): boolean {
-  if (url.startsWith('data:') || url === 'about:blank') return true;
-  try {
-    return ALLOWED_REQUEST_ORIGINS.has(new URL(url).origin);
-  } catch {
-    return false;
-  }
-}
 
 const CSS_LENGTH = /^\d{1,4}(\.\d{1,2})?(mm|cm|in|px)$/;
 const bodySchema = z.object({
@@ -86,7 +73,7 @@ export async function POST(req: NextRequest) {
       const page = await browser.newPage();
       await page.setRequestInterception(true);
       page.on('request', (request) => {
-        if (isAllowedLabelRequest(request.url())) void request.continue();
+        if (isAllowedPdfRequest(request.url())) void request.continue();
         else void request.abort('blockedbyclient');
       });
 
