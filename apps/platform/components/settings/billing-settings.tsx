@@ -90,7 +90,10 @@ export function BillingSettings() {
                             </p>
                             {plan && !exempt && (
                                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                                    {t("billing.wallet.pays", { amount: formatIQD(plan.order_price_iqd) })}
+                                    {t("billing.wallet.pays", {
+                                        amount: formatIQD(plan.order_price_iqd),
+                                        wa: formatIQD(plan.whatsapp_message_price_iqd),
+                                    })}
                                 </p>
                             )}
                         </div>

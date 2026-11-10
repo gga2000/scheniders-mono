@@ -32,6 +32,7 @@ export interface PlanLimitsData {
     base_price_iqd: number;
     trial_days: number;
     trial_order_cap: number;
+    whatsapp_message_price_iqd: number;
     features: Record<string, boolean>;
 }
 

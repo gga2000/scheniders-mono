@@ -13,6 +13,7 @@ import { env, providerBaseUrls } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { SHOP_WALLET_EMPTY, shopCanPayForWhatsApp } from "@/lib/whatsapp-wallet";
 
 // =============================================
 // TYPES
@@ -414,8 +415,12 @@ export async function sendTemplateMessage(
     discountPercent?: number,
     customPrice?: number,
 ): Promise<SendTemplateResult> {
-    if (!sharedSenderAllows(order.tenant_id)) {
+    const tenantId = order.tenant_id;
+    if (!tenantId || !sharedSenderAllows(tenantId)) {
         return { success: false, error: SENDER_NOT_ALLOWED };
+    }
+    if (!(await shopCanPayForWhatsApp(tenantId))) {
+        return { success: false, error: SHOP_WALLET_EMPTY };
     }
     const apiKey = env.INTERAKT_API_KEY;
 
@@ -561,6 +566,7 @@ export interface NamedTemplateInput {
 /** Send a template that is not one of TEMPLATE_NAMES (lib/prime/failed-notice). */
 export async function sendNamedTemplate(input: NamedTemplateInput): Promise<SendTemplateResult> {
     if (!sharedSenderAllows(input.tenantId)) return { success: false, error: SENDER_NOT_ALLOWED };
+    if (!(await shopCanPayForWhatsApp(input.tenantId))) return { success: false, error: SHOP_WALLET_EMPTY };
     const apiKey = env.INTERAKT_API_KEY;
     if (!apiKey) return { success: false, error: "Interakt API key not configured" };
     const { countryCode, phoneNumber } = formatPhoneForInterakt(input.phone);
