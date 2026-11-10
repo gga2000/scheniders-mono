@@ -3,9 +3,15 @@ import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { reportOrderError } from '@/lib/order-telemetry';
+import { verifyTurnstile } from '@/lib/turnstile';
 
-/** Every self-serve signup starts a 14-day trial on this plan. The plan is never taken from the request. */
-const TRIAL_PLAN = 'growth';
+/**
+ * Every self-serve signup starts a trial on the one plan (Ali, 9 Nov): 7 days
+ * or 50 orders, whichever comes first. The 50-order end is enforced in the
+ * database (end_trial_at_order_cap). The plan is never taken from the request.
+ */
+const TRIAL_PLAN = 'starter';
+const TRIAL_DAYS = 7;
 
 // Each signup creates an auth user, a tenant and four supporting rows with the
 // service role. Vercel sets the client IP; mobile carriers share NATs, so the
@@ -26,7 +32,8 @@ function clientIp(request: NextRequest): string {
 
 export async function POST(request: NextRequest) {
     try {
-        const limit = await consumeRateLimit(`signup:${clientIp(request)}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
+        const ip = clientIp(request);
+        const limit = await consumeRateLimit(`signup:${ip}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
         if (limit.error) {
             // Fails open so signup keeps working, but never silently.
             reportOrderError(new Error(`Rate limiter unavailable: ${limit.error}`), { operation: 'signup-rate-limit' });
@@ -39,7 +46,27 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { email, password, business_name, contact_phone, city } = body;
+        const { email, password, business_name, contact_phone, city, captcha_token } = body;
+
+        // This route creates the account with the service role, so Supabase's
+        // own CAPTCHA never sees it: check the Turnstile token here first.
+        const captcha = await verifyTurnstile(
+            typeof captcha_token === 'string' ? captcha_token : undefined,
+            ip === 'unknown' ? null : ip,
+        );
+        if (!captcha.ok) {
+            if (captcha.reason === 'unavailable') {
+                reportOrderError(new Error('Turnstile siteverify unavailable'), { operation: 'signup-captcha' });
+                return NextResponse.json(
+                    { error: 'Security check unavailable. Try again in a minute.', code: 'captcha_unavailable' },
+                    { status: 503 },
+                );
+            }
+            return NextResponse.json(
+                { error: 'Security check failed. Try again.', code: 'captcha_failed' },
+                { status: 403 },
+            );
+        }
         const plan = TRIAL_PLAN;
 
         // Validate required fields
@@ -84,7 +111,7 @@ export async function POST(request: NextRequest) {
         const userId = authData.user.id;
 
         // ── 2. Create tenant ──
-        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days
+        const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
         const { data: tenant, error: tenantError } = await adminClient
             .from('tenants')
@@ -238,7 +265,7 @@ export async function POST(request: NextRequest) {
             trial_ends_at: trialEndsAt,
             message: partialFailure
                 ? `Account created but some setup steps failed. An admin will review your account shortly.`
-                : `Account created! You have a 14-day free trial on the ${plan} plan.`,
+                : `Account created! You have a ${TRIAL_DAYS}-day free trial.`,
         }, { status: 201 });
 
     } catch (err) {

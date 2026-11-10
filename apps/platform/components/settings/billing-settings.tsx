@@ -5,24 +5,19 @@ import {
     Wallet,
     CreditCard,
     BarChart3,
-    TrendingUp,
     ArrowUpRight,
     ArrowDownRight,
     Crown,
     Zap,
-    Shield,
     Clock,
     AlertTriangle,
     Loader2,
-    Check,
-    ChevronRight,
     Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBilling, PlanLimitsData } from "@/hooks/use-billing";
+import { useBilling } from "@/hooks/use-billing";
 import { useAuth } from "@/components/auth/auth-provider";
 import { topUpWalletAction } from "@/app/actions/wallet";
-import { changePlanAction } from "@/app/actions/billing";
 import { toast } from "@/hooks/use-toast";
 
 function formatIQD(amount: number): string {
@@ -52,15 +47,6 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     incomplete: { label: "Incomplete", color: "bg-orange-100 text-orange-700" },
 };
 
-const FEATURE_LABELS: Record<string, string> = {
-    whatsapp_automation: "WhatsApp Automation",
-    custom_branding: "Custom Branding",
-    api_access: "API Access",
-    priority_support: "Priority Support",
-    advanced_analytics: "Advanced Analytics",
-    custom_storefront: "Custom Storefront",
-};
-
 const TOP_UP_PRESETS = [25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000];
 
 export function BillingSettings() {
@@ -69,21 +55,6 @@ export function BillingSettings() {
     const [showTopUp, setShowTopUp] = useState(false);
     const [topUpAmount, setTopUpAmount] = useState<number>(100_000);
     const [isTopping, setIsTopping] = useState(false);
-    const [switchingPlan, setSwitchingPlan] = useState<string | null>(null);
-
-    const handleSwitchPlan = async (plan: string) => {
-        if (!tenantId) return;
-        setSwitchingPlan(plan);
-        const result = await changePlanAction(tenantId, plan, session?.access_token ?? "");
-        setSwitchingPlan(null);
-        if (result.success) {
-            toast.success(`Plan change scheduled to ${plan}`);
-            refetch();
-        } else {
-            toast.error("Plan change failed", result.error);
-        }
-    };
-
     const handleTopUp = async () => {
         if (!tenantId || topUpAmount <= 0) return;
         setIsTopping(true);
@@ -192,10 +163,7 @@ export function BillingSettings() {
                             <div className="p-3 rounded-xl border border-(--card-border) bg-muted/20">
                                 <p className="text-xs text-muted-foreground mb-1">Per-order charge</p>
                                 <p className="text-sm font-medium">
-                                    {formatIQD(currentPlan.order_price_iqd)} per order
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                        ({formatIQD(currentPlan.overage_price_iqd)} over limit)
-                                    </span>
+                                    {formatIQD(currentPlan.order_price_iqd)} per delivered order
                                 </p>
                             </div>
                         )}
@@ -344,28 +312,6 @@ export function BillingSettings() {
                 </div>
             </div>
 
-            {/* Plans Comparison */}
-            <div className="pastel-card p-6">
-                <div className="flex items-center gap-2 mb-5">
-                    <div className="w-8 h-8 rounded-lg bg-(--pastel-yellow) flex items-center justify-center">
-                        <TrendingUp className="h-4 w-4 text-amber-700" />
-                    </div>
-                    <h3 className="text-base font-semibold text-foreground">Available Plans</h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {allPlans.map((plan) => (
-                        <PlanCard
-                            key={plan.plan}
-                            plan={plan}
-                            isCurrent={plan.plan === subscription?.plan}
-                            onSwitch={() => handleSwitchPlan(plan.plan)}
-                            isSwitching={switchingPlan === plan.plan}
-                        />
-                    ))}
-                </div>
-            </div>
-
             {/* Transaction History */}
             <div className="pastel-card p-6">
                 <div className="flex items-center gap-2 mb-5">
@@ -487,74 +433,6 @@ function UsageMeter({
                     </p>
                 )}
             </div>
-        </div>
-    );
-}
-
-function PlanCard({ plan, isCurrent, onSwitch, isSwitching }: { plan: PlanLimitsData; isCurrent: boolean; onSwitch: () => void; isSwitching: boolean }) {
-    const color = PLAN_COLORS[plan.plan] ?? PLAN_COLORS.starter;
-
-    return (
-        <div className={cn(
-            "relative p-4 rounded-xl border-2 transition-all",
-            isCurrent
-                ? "border-primary shadow-md"
-                : "border-(--card-border) hover:border-primary/30"
-        )}>
-            {isCurrent && (
-                <div className="absolute -top-2.5 left-3 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold uppercase tracking-wide">
-                    Current
-                </div>
-            )}
-
-            <div className="mb-3 mt-1">
-                <h4 className={cn("font-bold capitalize", color.text)}>{plan.plan}</h4>
-                <p className="text-lg font-bold mt-1">{formatIQD(plan.base_price_iqd)}<span className="text-xs text-muted-foreground font-normal">/mo</span></p>
-            </div>
-
-            <div className="space-y-1.5 text-xs">
-                <div className="flex items-center gap-1.5">
-                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                    <span>{plan.max_orders_per_month === -1 ? "Unlimited" : plan.max_orders_per_month.toLocaleString()} orders/mo</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                    <span>{plan.max_team_members === -1 ? "Unlimited" : plan.max_team_members} team members</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                    <span>{formatIQD(plan.order_price_iqd)}/order</span>
-                </div>
-            </div>
-
-            {/* Features */}
-            <div className="mt-3 pt-3 border-t border-(--card-border) space-y-1">
-                {Object.entries(plan.features).map(([key, enabled]) => (
-                    <div key={key} className="flex items-center gap-1.5 text-xs">
-                        {enabled ? (
-                            <Check className="w-3 h-3 text-green-600" />
-                        ) : (
-                            <Shield className="w-3 h-3 text-muted-foreground/40" />
-                        )}
-                        <span className={enabled ? "text-foreground" : "text-muted-foreground/50 line-through"}>
-                            {FEATURE_LABELS[key] ?? key}
-                        </span>
-                    </div>
-                ))}
-            </div>
-
-            {!isCurrent && (
-                <button
-                    onClick={onSwitch}
-                    disabled={isSwitching}
-                    className={cn(
-                        "w-full mt-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                        "border border-(--card-border) hover:bg-muted/40 text-foreground disabled:opacity-50"
-                    )}
-                >
-                    {isSwitching ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "Switch Plan"}
-                </button>
-            )}
         </div>
     );
 }

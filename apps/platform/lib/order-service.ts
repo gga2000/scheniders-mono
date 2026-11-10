@@ -1,7 +1,7 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import type { CreateOrderInput } from "@/types/order";
 import { Order } from "@/lib/supabase";
-import { canCreateOrder, getCurrentUsage, getPlanLimits, getWallet } from "@/lib/tenant";
+import { canCreateOrder } from "@/lib/tenant";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { findForeignCatalogRefs, hasNegativeQuantity } from "@/lib/order-items-tenant";
@@ -98,11 +98,9 @@ export async function createOrderForTenant(
             throw insertError;
         }
 
-        // ── 3. Post-creation: charge wallet + increment usage (fire-and-forget) ──
-        if (!isTake) chargeAndTrack(tenantId, supabase).catch((err) => {
-            // Fire-and-forget, but a failure here means the order exists and was
-            // never billed — silent revenue drift. Report it.
-            reportOrderError(err, { operation: "chargeAndTrack", tenantId });
+        // ── 3. Post-creation: count the order in this month's usage ──
+        if (!isTake) trackOrderUsage(tenantId, supabase).catch((err) => {
+            reportOrderError(err, { operation: "trackOrderUsage", tenantId });
         });
 
         // ── 4. Staff WhatsApp alerts (fire-and-forget, tenant-scoped) ──
@@ -142,71 +140,18 @@ export async function createOrderForTenant(
 }
 
 // =============================================
-// POST-CREATION: Charge wallet + increment usage
+// POST-CREATION: count the order in this month's usage.
+// Money is not taken here: the one plan (Ali, 9 Nov) charges 55 IQD when an
+// order is DELIVERED, in the database (charge_delivered_order trigger), so
+// every path that delivers an order bills the same way, exactly once.
 // =============================================
 
-export async function chargeAndTrack(tenantId: string, supabase: SupabaseAdmin) {
+export async function trackOrderUsage(tenantId: string, supabase: SupabaseAdmin) {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-
-    // Get current usage + plan limits to determine price
-    const [usage, wallet] = await Promise.all([
-        getCurrentUsage(tenantId),
-        getWallet(tenantId),
-    ]);
-    void wallet;
-
-    // Determine per-order price
-    // We need plan info from the tenant
-    const { data: tenant } = await supabase
-        .from('tenants')
-        .select('plan')
-        .eq('id', tenantId)
-        .single();
-
-    const limits = tenant ? await getPlanLimits(tenant.plan) : null;
-    const isOverLimit = limits && limits.max_orders_per_month !== -1 && usage.orders_count >= limits.max_orders_per_month;
-    const chargeAmount = isOverLimit
-        ? (limits?.overage_price_iqd ?? 500)
-        : (limits?.order_price_iqd ?? 100);
-
-    // ── Increment usage_tracking atomically ──
-    await supabase.rpc('increment_usage_tracking', {
+    const { error } = await supabase.rpc('increment_usage_tracking', {
         _tenant_id: tenantId,
-        _year: year,
-        _month: month,
+        _year: now.getFullYear(),
+        _month: now.getMonth() + 1,
     });
-
-    // ── Charge wallet atomically (prevents race conditions) ──
-    // A zero price (the 'internal' plan) means nothing to charge;
-    // charge_wallet_atomic refuses non-positive amounts.
-    if (chargeAmount <= 0) return;
-    try {
-        const { data: chargeResult, error: chargeError } = await supabase
-            .rpc('charge_wallet_atomic', {
-                _tenant_id: tenantId,
-                _amount: chargeAmount,
-                _description: `Order charge${isOverLimit ? ' (overage)' : ''}`,
-                _order_id: null,
-            });
-
-        if (chargeError) {
-            reportOrderError(chargeError, {
-                operation: "chargeWallet",
-                tenantId,
-                extra: { amount: chargeAmount, isOverLimit },
-            });
-        } else if (chargeResult && !chargeResult.success) {
-            // The RPC ran but declined the charge (e.g. insufficient balance).
-            // Not an exception, but the tenant is now un-billed for this order.
-            reportOrderError(new Error(`Wallet charge declined: ${chargeResult.error}`), {
-                operation: "chargeWallet",
-                tenantId,
-                extra: { amount: chargeAmount, isOverLimit },
-            });
-        }
-    } catch (err) {
-        reportOrderError(err, { operation: "chargeWallet", tenantId, extra: { amount: chargeAmount } });
-    }
+    if (error) reportOrderError(error, { operation: "trackOrderUsage", tenantId });
 }
