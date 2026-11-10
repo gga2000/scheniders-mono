@@ -102,8 +102,12 @@ export function BreakpointAdornment(p: BreakpointAdornmentProps): ReactElement {
             data-always-visible={alwaysVisible ? "true" : "false"}
             className={cn(
                 "flex flex-col gap-1 transition-opacity duration-150",
+                // While hidden the strip takes no room: it floats just above
+                // the field's top-right corner (over the gap between fields)
+                // and ignores the pointer until its field is hovered/focused.
+                // Once an override or its editor exists it joins the flow.
                 !alwaysVisible &&
-                    "opacity-0 focus-within:opacity-100 group-hover/field:opacity-100",
+                    "pointer-events-none absolute bottom-full right-0 z-10 opacity-0 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/field:pointer-events-auto group-hover/field:opacity-100",
             )}
         >
             <div className="flex items-center justify-end gap-1">

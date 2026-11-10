@@ -480,6 +480,11 @@ function Ring({ rect, bounds, kind, testId }: RingProps): ReactElement {
                 left,
                 width: Math.max(right - left, 0),
                 height: Math.max(bottom - top, 0),
+                // A side cut by the frame draws no edge: the section goes on
+                // past it, so a closing line there would read as its end.
+                borderTopWidth: rect.top - RING_GAP < 0 ? 0 : undefined,
+                borderBottomWidth:
+                    rect.top + rect.height + RING_GAP > bounds.height ? 0 : undefined,
             }}
         />
     );
@@ -530,7 +535,9 @@ function Toolbar(props: ToolbarProps): ReactElement {
     const flip_below = placement === "below";
     const top =
         placement === "inside"
-            ? rect.top + TOOLBAR_GAP
+            ? // Pinned to the frame top while the section's own top is
+              // scrolled away, so its actions stay reachable.
+              Math.max(rect.top, 0) + TOOLBAR_GAP
             : placement === "below"
               ? rect.top + rect.height + TOOLBAR_GAP
               : rect.top - TOOLBAR_HEIGHT - TOOLBAR_GAP;

@@ -128,6 +128,31 @@ describe("PreviewOverlay", () => {
         expect(ring.style.width).toBe("800px");
         expect(ring.style.top).toBe("394px");
         expect(ring.style.height).toBe("206px"); // clipped at the frame bottom (600)
+        // The cut side draws no closing edge: the section goes on below.
+        expect(ring.style.borderBottomWidth).toBe("0px");
+        expect(ring.style.borderTopWidth).toBe("");
+    });
+
+    it("pins the toolbar to the frame top while a tall section's top is scrolled away", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    rect_updates: {
+                        "sec-T": { top: -300, left: 0, width: 800, height: 900 },
+                    },
+                })}
+                selected_section_id="sec-T"
+                selected_section_label="Tall"
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+            />,
+        );
+        const toolbar = screen.getByTestId("preview-overlay-toolbar") as HTMLDivElement;
+        expect(toolbar.style.top).toBe("8px");
+        const ring = screen.getByTestId("preview-overlay-selected-ring") as HTMLDivElement;
+        expect(ring.style.borderTopWidth).toBe("0px");
     });
 
     it("renders the selected ring + toolbar at the right coords", () => {
