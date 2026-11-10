@@ -7242,6 +7242,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "Opening your store",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
+        "login.footerSecure": "Protected by a security check and encrypted passwords.",
         "login.subtitle": "Sign in to Schenider Order Management",
         "login.email": "Email Address",
         "login.password": "Password",
@@ -14531,6 +14532,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "جارِ فتح متجرك",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",
+        "login.footerSecure": "حسابك محمي بفحص أمان وكلمة مرور مشفّرة.",
         "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",
         "login.email": "البريد الإلكتروني",
         "login.password": "كلمة المرور",
