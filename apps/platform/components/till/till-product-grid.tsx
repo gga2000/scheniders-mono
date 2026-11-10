@@ -179,7 +179,8 @@ export function TillProductGrid({ products, loading, overview, sound, compact, o
                     {best.length > 0 && (
                         <Chip on={filter === "best"} onClick={() => setFilter("best")}>
                             <Flame className="h-4 w-4" aria-hidden="true" />
-                            {t("till.sell.best")}
+                            {/* A store category can carry the same name; then this chip says it counts the last 30 days so the two never read alike. */}
+                            {chips.some((c) => c.name.trim() === t("till.sell.best")) ? t("till.sell.best30") : t("till.sell.best")}
                         </Chip>
                     )}
                     {low.length > 0 && (

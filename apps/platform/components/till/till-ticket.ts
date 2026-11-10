@@ -1,4 +1,4 @@
-import type { CartLine } from "@/lib/till/cart";
+import type { CartLine, PaymentLine } from "@/lib/till/cart";
 
 /** One customer's sale in progress. Held sales are tickets waiting in tabs. */
 export interface Ticket {
@@ -11,6 +11,8 @@ export interface Ticket {
     discount: number;
     /** A manager's PIN OK for going over the cashier's discount limit, used by this sale. */
     approval: TicketApproval | null;
+    /** Parts already paid (a card slip, a FIB notice). Kept on the ticket so going back to the cart or locking never drops money already taken. */
+    payments: PaymentLine[];
     createdAt: number;
 }
 
@@ -44,5 +46,5 @@ export function approvalTone(ms: number): string {
 }
 
 export function newTicket(): Ticket {
-    return { id: crypto.randomUUID(), cart: [], customerName: "", phone: "", discount: 0, approval: null, createdAt: Date.now() };
+    return { id: crypto.randomUUID(), cart: [], customerName: "", phone: "", discount: 0, approval: null, payments: [], createdAt: Date.now() };
 }
