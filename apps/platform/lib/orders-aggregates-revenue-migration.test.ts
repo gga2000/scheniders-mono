@@ -26,13 +26,19 @@ describe("get_orders_aggregates revenue", () => {
     const stat = (key: string) => {
         const start = body.indexOf(`'${key}'`);
         expect(start).toBeGreaterThan(-1);
-        return body.slice(start, start + 260);
+        return body.slice(start, start + 360);
     };
 
     it.each(["totalRevenue", "todayRevenue"])("%s counts delivered and completed, not returns", (key) => {
         const s = stat(key);
         expect(s).toMatch(/status IN \('delivered', 'completed'\)/);
-        expect(s).toMatch(/is_return = false/);
+        expect(s).toMatch(/NOT coalesce\(is_return, false\)/);
+        expect(s).toMatch(/NOT is_test/);
+    });
+
+    it("buckets todayRevenue on the day the money was earned, not the order day", () => {
+        expect(body).toMatch(/coalesce\(o\.delivered_at, o\.completed_at\) AS realized_at/);
+        expect(stat("todayRevenue")).toMatch(/timezone\('Asia\/Baghdad', realized_at\)/);
     });
 
     it("keeps totalProcessed as delivered only", () => {

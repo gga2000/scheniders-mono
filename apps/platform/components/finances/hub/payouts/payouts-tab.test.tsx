@@ -2,10 +2,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render as rtlRender, screen, cleanup, waitFor } from "@testing-library/react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import type { WaseetInvoice } from "@/types/waseet";
-import type { Order } from "@/types/order";
 
 const state = vi.hoisted(() => ({
     invoices: null as unknown,
@@ -19,13 +19,24 @@ vi.mock("@/hooks/use-waseet", () => {
     const fetchInvoices = async () => state.invoices;
     return { useWaseet: () => ({ fetchInvoices }) };
 });
-vi.mock("@/components/providers/orders-provider", () => ({
-    useOrdersContext: () => ({ orders: state.orders }),
+vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ tenantId: "tenant-1" }) }));
+vi.mock("@/lib/supabase", () => ({ supabase: {} }));
+// The tab reads the orders linked to the listed invoices, not the /orders window.
+vi.mock("@/lib/repositories/fetch-all-pages", () => ({
+    fetchAllPages: async () => state.orders,
 }));
 
 import { PayoutsTab } from "./payouts-tab";
 
-const render = (ui: ReactElement) => rtlRender(ui, { wrapper: LanguageProvider });
+function Wrapper({ children }: { children: ReactNode }) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return (
+        <QueryClientProvider client={client}>
+            <LanguageProvider>{children}</LanguageProvider>
+        </QueryClientProvider>
+    );
+}
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: Wrapper });
 
 afterEach(() => {
     cleanup();
@@ -46,9 +57,9 @@ describe("PayoutsTab", () => {
     it("matches an invoice to the orders linked to it and flags a difference", async () => {
         state.invoices = [invoice({ id: "11", merchant_price: "100000" }), invoice({ id: "12", merchant_price: "150000" })];
         state.orders = [
-            { id: "a", price: 100000, waseet_invoice_id: "11" },
-            { id: "b", price: 100000, waseet_invoice_id: "12" },
-        ] as unknown as Order[];
+            { price: 100000, waseet_invoice_id: "11" },
+            { price: 100000, waseet_invoice_id: "12" },
+        ];
         render(<PayoutsTab />);
         await waitFor(() => expect(screen.getByText("مطابقة")).toBeTruthy());
         expect(screen.getByText("فرق")).toBeTruthy();

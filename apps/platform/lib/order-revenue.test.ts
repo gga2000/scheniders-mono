@@ -1,3 +1,4 @@
+import { toBaghdadDayKey } from "@/lib/order-window";
 import { describe, it, expect } from "vitest";
 import type { Order } from "@/types/order";
 import {
@@ -5,7 +6,6 @@ import {
     isRealizedRevenue,
     isSaleOrder,
     realizedAt,
-    baghdadDayKey,
     sumRealizedRevenue,
     sumRealizedRevenueForDay,
     countRealizedForDay,
@@ -49,21 +49,22 @@ describe("isRealizedRevenue", () => {
     });
 });
 
-describe("baghdadDayKey", () => {
+// The one Baghdad-day helper (lib/order-window) the revenue rules bucket with.
+describe("toBaghdadDayKey", () => {
     it("uses the Baghdad day, not UTC", () => {
         // 22:30 UTC is already the next day in Baghdad (UTC+3).
-        expect(baghdadDayKey("2026-09-07T22:30:00.000Z")).toBe("2026-09-08");
+        expect(toBaghdadDayKey("2026-09-07T22:30:00.000Z")).toBe("2026-09-08");
         // 20:59 UTC is still the same Baghdad day.
-        expect(baghdadDayKey("2026-09-07T20:59:00.000Z")).toBe("2026-09-07");
+        expect(toBaghdadDayKey("2026-09-07T20:59:00.000Z")).toBe("2026-09-07");
     });
 
     it("handles the exact Baghdad midnight boundary", () => {
-        expect(baghdadDayKey("2026-09-07T21:00:00.000Z")).toBe("2026-09-08");
-        expect(baghdadDayKey("2026-09-07T20:59:59.999Z")).toBe("2026-09-07");
+        expect(toBaghdadDayKey("2026-09-07T21:00:00.000Z")).toBe("2026-09-08");
+        expect(toBaghdadDayKey("2026-09-07T20:59:59.999Z")).toBe("2026-09-07");
     });
 
     it("returns null for an unparseable instant", () => {
-        expect(baghdadDayKey("not-a-date")).toBeNull();
+        expect(toBaghdadDayKey("not-a-date")).toBeNull();
     });
 });
 

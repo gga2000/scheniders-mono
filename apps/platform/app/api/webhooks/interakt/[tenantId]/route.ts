@@ -3,6 +3,13 @@ import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import {
+    extractCallbackData,
+    extractPhone,
+    extractResponseText,
+    matchResponse,
+    parseInteraktInbound,
+} from "@/lib/interakt-inbound";
+import {
     enforceWebhookAuth,
     resolveWebhookAuthMode,
     verifyWebhookAuth,
@@ -21,50 +28,6 @@ import {
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
-
-const CONFIRM_PATTERNS = ["تأكيد", "تاكيد", "confirm", "تأكيد ✅"];
-const CANCEL_PATTERNS = ["إلغاء", "الغاء", "cancel", "إلغاء ❌"];
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractResponseText(data: any): string | null {
-    if (!data) return null;
-    const msg = data.message || data.msg || {};
-    if (msg.button_reply?.title) return msg.button_reply.title.trim();
-    if (msg.interactive_reply?.title) return msg.interactive_reply.title.trim();
-    if (msg.button_text) return msg.button_text.trim();
-    if (msg.button?.text) return msg.button.text.trim();
-    if (msg.button_title) return msg.button_title.trim();
-    if (data.button_text) return data.button_text.trim();
-    if (data.button_reply?.title) return data.button_reply.title.trim();
-    if (msg.text && typeof msg.text === "string") return msg.text.trim();
-    return null;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractCallbackData(data: any): string | null {
-    const msg = data?.message;
-    if (!msg) return null;
-    return msg.context?.callback_data || msg.meta_data?.source_data?.callback_data || null;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractPhone(data: any): string | null {
-    const c = data?.customer;
-    if (!c?.phone_number) return null;
-    let phone = c.phone_number.replace(/\D/g, "");
-    if (c.country_code) {
-        const cc = c.country_code.replace(/\D/g, "");
-        if (!phone.startsWith(cc)) phone = cc + phone;
-    }
-    return phone || null;
-}
-
-function matchResponse(text: string): "confirmed" | "cancelled" | null {
-    const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
-    for (const p of CONFIRM_PATTERNS) { if (normalized.includes(p.toLowerCase())) return "confirmed"; }
-    for (const p of CANCEL_PATTERNS) { if (normalized.includes(p.toLowerCase())) return "cancelled"; }
-    return null;
-}
 
 export async function POST(
     request: NextRequest,
@@ -121,8 +84,7 @@ export async function POST(
         } catch {
             return NextResponse.json({ error: "Body is not valid JSON" }, { status: 400 });
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const payload = parsed as any;
+        const payload = parseInteraktInbound(parsed);
         const webhookType = payload.type || payload.eventType || "";
 
         // Delivery status events. OBS-3: this branch answered "logged" and wrote
@@ -197,12 +159,20 @@ export async function POST(
             return NextResponse.json({ success: true, message: `Order already "${order.status}"` });
         }
 
-        // Update order
-        await supabaseAdmin().from("orders").update({
+        // Only while the order is still `contacted`: a second tap, or staff moving
+        // the order on since it was read, must not be overwritten by this reply.
+        const { data: moved, error: updateError } = await supabaseAdmin().from("orders").update({
             status: action,
             updated_at: new Date().toISOString(),
             ...(action === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
-        }).eq("id", order.id);
+        }).eq("id", order.id).eq("tenant_id", tenantId).eq("status", "contacted").select("id");
+        if (updateError) {
+            console.error("[Interakt Webhook] Failed to update order:", updateError.message);
+            return NextResponse.json({ success: false, error: "Order update failed" }, { status: 500 });
+        }
+        if (!moved || moved.length === 0) {
+            return NextResponse.json({ success: true, message: "Order was already handled" });
+        }
 
         await supabaseAdmin().from("order_status_history").insert({
             order_id: order.id,

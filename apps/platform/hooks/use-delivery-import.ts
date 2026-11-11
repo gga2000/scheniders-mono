@@ -170,10 +170,8 @@ export function useDeliveryImport() {
                     orderId: string;
                     matchCategory: string;
                     matchDetails: string;
-                    previousStatus: string;
                     resolutionAction?: ResolutionAction;
                     resolutionNote?: string;
-                    pdfAmount?: number;
                 }> = [];
 
                 const skippedItems: Array<{
@@ -197,10 +195,8 @@ export function useDeliveryImport() {
                             orderId: match.order.id,
                             matchCategory: match.category,
                             matchDetails: match.matchDetails,
-                            previousStatus: match.order.status,
                             resolutionAction: resolution?.action,
                             resolutionNote: resolution?.note,
-                            pdfAmount: match.pdfRow.shipmentAmount,
                         });
                     } else {
                         skippedItems.push({

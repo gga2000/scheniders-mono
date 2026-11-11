@@ -4,6 +4,9 @@ const createUser = vi.fn();
 const tableInserts: { table: string; row: Record<string, unknown> }[] = [];
 const consumeRateLimit = vi.fn();
 const verifyTurnstile = vi.fn();
+/** Results for the tenants insert, in call order; empty means success. */
+const tenantResults: { data: unknown; error: unknown }[] = [];
+const slugs = vi.fn();
 
 function table(name: string) {
     const chain: Record<string, unknown> = {};
@@ -13,7 +16,10 @@ function table(name: string) {
     };
     chain.upsert = () => Promise.resolve({ error: null });
     chain.select = () => chain;
-    chain.single = () => Promise.resolve({ data: { id: "tenant-1", slug: "shop" }, error: null });
+    chain.single = () =>
+        Promise.resolve(
+            (name === "tenants" && tenantResults.shift()) || { data: { id: "tenant-1", slug: "shop" }, error: null },
+        );
     chain.then = (resolve: (v: { error: null }) => unknown) => resolve({ error: null });
     return chain;
 }
@@ -26,7 +32,7 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 vi.mock("@/lib/tenant", () => ({
     generateSlug: () => "shop",
-    ensureUniqueSlug: async () => "shop",
+    ensureUniqueSlug: (...args: unknown[]) => slugs(...args),
 }));
 vi.mock("@/lib/rate-limit", () => ({
     consumeRateLimit: (...args: unknown[]) => consumeRateLimit(...args),
@@ -54,6 +60,8 @@ describe("POST /api/auth/signup", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         tableInserts.length = 0;
+        tenantResults.length = 0;
+        slugs.mockResolvedValueOnce("shop").mockResolvedValueOnce("shop-1").mockResolvedValue("shop-2");
         consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: null, retryAfterSeconds: 0 });
         createUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
         verifyTurnstile.mockResolvedValue({ ok: true, skipped: false });
@@ -96,5 +104,33 @@ describe("POST /api/auth/signup", () => {
         const res = await POST(request({ ...base, captcha_token: "tok-1" }));
         expect(res.status).toBe(503);
         expect(createUser).not.toHaveBeenCalled();
+    });
+
+    it("creates the account unconfirmed, so the owner must open the emailed link", async () => {
+        const res = await POST(request(base));
+        expect(res.status).toBe(201);
+        expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ email: "a@b.co", email_confirm: false }));
+        expect(await res.json()).toMatchObject({ confirm_email: true });
+    });
+
+    it("refuses a malformed body with 400 and creates nothing", async () => {
+        for (const body of [{ ...base, email: 42 }, { ...base, email: "not-an-email" }, { ...base, password: "short" }, { ...base, business_name: "  " }]) {
+            const res = await POST(request(body));
+            expect(res.status).toBe(400);
+        }
+        expect(createUser).not.toHaveBeenCalled();
+    });
+
+    it("normalises the email before creating the account", async () => {
+        await POST(request({ ...base, email: "  A@B.Co " }));
+        expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ email: "a@b.co" }));
+    });
+
+    it("picks the next slug when a concurrent sign-up took the same one", async () => {
+        tenantResults.push({ data: null, error: { code: "23505", message: "duplicate key" } });
+        const res = await POST(request(base));
+        expect(res.status).toBe(201);
+        const slugsTried = tableInserts.filter((i) => i.table === "tenants").map((i) => i.row.slug);
+        expect(slugsTried).toEqual(["shop", "shop-1"]);
     });
 });

@@ -121,7 +121,7 @@ interface TenantRow extends TenantOrderGateRow {
 async function loadTenant(svc: Svc, tenantId: string): Promise<TenantRow | null> {
   const { data, error } = await svc
     .from("tenants")
-    .select("status, restrictions, store_config_v2")
+    .select("status, is_prospect, restrictions, store_config_v2")
     .eq("id", tenantId)
     .maybeSingle();
   if (error) throw new UpsellReadError(`tenant read failed: ${error.message}`);

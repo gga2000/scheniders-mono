@@ -1,75 +1,58 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { recordingSupabase, respond, resetRecording, queriesOn } from "@/lib/__fixtures__/recording-supabase";
 
 /*
- * The rollback selected previous_price, previous_delivered_source, previous_delivered_at and
- * previous_delivery_order_id from delivery_import_items. Only previous_status exists, so the
- * select errored and no import could ever be rolled back. Those other columns were never
- * captured, so restoring them would also have written NULL prices over real ones.
- * The rollback restores the one thing that was captured: the status.
+ * The undo runs in one database transaction (rollback_delivery_import): it restores
+ * the fields captured on the server at import time, only on orders that still have
+ * the status the import set. The route passes the caller's tenant, never one from
+ * the body, and maps the function's errors to HTTP answers.
  */
 
 const TENANT = "99999999-9999-4999-8999-999999999999";
+const IMPORT_ID = "11111111-1111-4111-8111-111111111111";
 
-vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
+const rpc = vi.fn();
+vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => ({ rpc }) }));
 vi.mock("@/lib/auth/require-request-caller", () => ({
     requireRequestCaller: async () => ({ ok: true, userId: "user-1", tenantId: TENANT, role: "admin", platformAdmin: false }),
 }));
 
 import { POST } from "./route";
 
-const LIVE_COLUMNS = new Set(["order_id", "previous_status", "action", "import_id"]);
-
-beforeEach(() => {
-    resetRecording();
-    respond((q) => {
-        if (q.target === "delivery_imports" && q.ops.some((o) => o.op === "select")) {
-            return { data: { id: "imp-1", status: "confirmed" }, error: null };
-        }
-        if (q.target === "delivery_import_items") {
-            const cols = String(q.ops.find((o) => o.op === "select")?.args[0] ?? "").split(",").map((c) => c.trim());
-            const missing = cols.find((c) => !LIVE_COLUMNS.has(c));
-            if (missing) return { data: null, error: { message: `column delivery_import_items.${missing} does not exist` } };
-            return {
-                data: [
-                    { order_id: "o1", previous_status: "in_transit" },
-                    { order_id: "o2", previous_status: "confirmed" },
-                    { order_id: "o3", previous_status: null },
-                ],
-                error: null,
-            };
-        }
-        return { data: null, error: null };
-    });
-    vi.spyOn(console, "error").mockImplementation(() => {});
-});
-afterEach(() => vi.restoreAllMocks());
-
-const call = () =>
+const call = (body: unknown) =>
     POST(
         new NextRequest("https://app.example.com/api/delivery-import/rollback", {
             method: "POST",
             headers: { authorization: "Bearer t" },
-            body: JSON.stringify({ importId: "imp-1" }),
+            body: JSON.stringify(body),
         }),
     );
 
-describe("POST /api/delivery-import/rollback", () => {
-    it("reads only columns that exist and restores each order's status, nothing else", async () => {
-        const res = await call();
-        expect(res.status).toBe(200);
+beforeEach(() => {
+    rpc.mockResolvedValue({ data: { restored: 2, changed_since: 1, skipped: 0 }, error: null });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+});
+afterEach(() => vi.restoreAllMocks());
 
-        const updates = queriesOn("orders").flatMap((q) => q.ops.filter((o) => o.op === "update").map((o) => o.args[0]));
-        expect(updates).toEqual([{ status: "in_transit" }, { status: "confirmed" }]);
+describe("POST /api/delivery-import/rollback", () => {
+    it("undoes through the transactional function with the caller's tenant", async () => {
+        const res = await call({ importId: IMPORT_ID, tenantId: "someone-else" });
+        expect(res.status).toBe(200);
+        expect(rpc).toHaveBeenCalledWith("rollback_delivery_import", { p_tenant_id: TENANT, p_import_id: IMPORT_ID });
+        expect((await res.json()).data).toEqual({ importId: IMPORT_ID, restored: 2, changedSince: 1, skipped: 0 });
     });
 
-    it("reports orders with no captured status as skipped, not restored, and cancels the import", async () => {
-        const body = await (await call()).json();
-        expect(body.data).toMatchObject({ restored: 2, skipped: 1, failed: 0 });
-        const cancelled = queriesOn("delivery_imports").some((q) =>
-            q.ops.some((o) => o.op === "update" && (o.args[0] as { status?: string }).status === "cancelled"),
-        );
-        expect(cancelled).toBe(true);
+    it("refuses a missing or malformed import id without calling the database", async () => {
+        for (const body of [{}, { importId: "imp-1" }]) {
+            expect((await call(body)).status).toBe(400);
+        }
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("answers 404 for another store's or an unknown import, 400 when it is not confirmed", async () => {
+        rpc.mockResolvedValueOnce({ data: null, error: { code: "P0002", message: "import not found" } });
+        expect((await call({ importId: IMPORT_ID })).status).toBe(404);
+        rpc.mockResolvedValueOnce({ data: null, error: { code: "22023", message: "only a confirmed import can be undone" } });
+        expect((await call({ importId: IMPORT_ID })).status).toBe(400);
     });
 });

@@ -1,3 +1,4 @@
+import { baghdadDayKey } from "@/lib/order-window";
 import type { PrintBatch } from "@/lib/supabase";
 
 /** Pure batch maths for the Reports page; the hook only fetches. */
@@ -92,7 +93,7 @@ export function summarizeBatches(batches: BatchMetrics[]): BatchAnalyticsSummary
 
     const byDay: Record<string, { count: number; value: number }> = {};
     batches.forEach(b => {
-        const day = b.createdAt.toISOString().split("T")[0];
+        const day = baghdadDayKey(b.createdAt);
         if (!byDay[day]) byDay[day] = { count: 0, value: 0 };
         byDay[day].count++;
         byDay[day].value += b.totalValue;
