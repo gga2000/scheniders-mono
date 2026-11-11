@@ -4,14 +4,14 @@
 // the SDK finishes loading are not reported; server and edge errors are
 // unaffected (instrumentation.ts). Session Replay is left out for the same
 // reason.
-void import("@sentry/nextjs").then((Sentry) => {
-    Sentry.init({
-        dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-
-        // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-        tracesSampleRate: 0.1,
-
-        // Setting this option to true will print useful information to the console while you're setting up Sentry.
-        debug: false,
-    });
-});
+void Promise.all([import("@sentry/nextjs"), import("@scheniders/shared/sentry-scrub")]).then(
+    ([Sentry, { baseSentryOptions }]) => {
+        Sentry.init({
+            ...baseSentryOptions({
+                dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+                vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV,
+                tracesSampleRate: 0.1,
+            }),
+        });
+    },
+);

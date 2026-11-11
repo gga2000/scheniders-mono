@@ -18,6 +18,7 @@ import {
     INTERAKT_DELIVERY_STATUSES,
     recordWhatsAppDeliveryReceipt,
 } from "@/lib/whatsapp-delivery-receipts";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Tenant-specific Interakt Webhook Endpoint
@@ -29,7 +30,7 @@ import {
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ tenantId: string }> }
 ) {
@@ -222,3 +223,5 @@ export async function POST(
         );
     }
 }
+
+export const POST = withFailureReport("webhook-interakt-tenant", handlePost);

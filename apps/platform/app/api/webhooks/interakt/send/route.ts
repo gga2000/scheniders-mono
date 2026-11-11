@@ -9,6 +9,7 @@ import { createSupabaseServiceClient, createSupabaseServerClientWithToken } from
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { followUpStamp, senderDisplayName } from "@/lib/follow-up-state";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Hand sends per store per hour. The busiest real hour so far was 33
@@ -48,7 +49,7 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
  *     endpoint stays an open relay for anyone with a login, which is a smaller
  *     hole but the same hole.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         // A paid send: only a store member who may edit orders (viewers are
         // refused before anything is charged), metered per store, failing
@@ -240,3 +241,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("webhook-interakt-send", handlePost);

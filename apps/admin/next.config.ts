@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // The internal admin app is never embedded anywhere.
 const SECURITY_HEADERS = [
@@ -32,4 +33,18 @@ const nextConfig: NextConfig = {
   turbopack: {},
 };
 
-export default nextConfig;
+// org, project and the upload key come from SENTRY_ORG, SENTRY_PROJECT and
+// SENTRY_AUTH_TOKEN, which the Sentry Vercel integration sets per project.
+// With them, every production build creates a release named after the git
+// commit and uploads source maps (then deletes them from the deploy).
+export default withSentryConfig(nextConfig, {
+  silent: !process.env.CI,
+  telemetry: false,
+  widenClientFileUpload: true,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+  // A Sentry outage or an expired upload key must not block a deploy: the
+  // build still ships, and the warning is in the Vercel build log.
+  errorHandler: (err) => {
+    console.warn(`[sentry] release or source map upload failed: ${err.message}`);
+  },
+});

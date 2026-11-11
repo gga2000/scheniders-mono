@@ -4,6 +4,7 @@ import { fetchOrdersByIdsBulk } from "@/lib/waseet-api";
 import type { WaseetMerchantOrder } from "@/types/waseet";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { waseetAccountAllows } from "@/lib/waseet-caller";
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,7 +18,7 @@ export const maxDuration = 60;
  * Uses GET /get-orders-by-ids-bulk (max 25 per request) to check
  * status changes and update our orders accordingly.
  */
-export async function GET(request: NextRequest) {
+async function runScheduled(request: NextRequest) {
     try {
         const denied = requireCronAuth(request);
         if (denied) return denied;
@@ -215,3 +216,5 @@ function mapWaseetStatusToOurs(waseetOrder: WaseetMerchantOrder): { ourStatus: s
     // don't change our status — just record the waseet_status_text
     return { ourStatus: null };
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.waseetSync, runScheduled);

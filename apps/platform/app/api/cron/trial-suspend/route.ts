@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { EXEMPT_PLANS_SQL_LIST } from "@/lib/billing-exempt";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -19,7 +20,7 @@ export const maxDuration = 30;
  * a trial that ended between 03:00 and 06:00 was locked out instead of billed.
  * So this job only catches trials with no subscription to renew.
  */
-export async function GET(request: Request) {
+async function runScheduled(request: Request) {
     const denied = requireCronAuth(request);
     if (denied) return denied;
 
@@ -86,3 +87,5 @@ export async function GET(request: Request) {
         suspended: expired?.map(t => t.business_name) ?? [],
     });
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.trialSuspend, runScheduled);

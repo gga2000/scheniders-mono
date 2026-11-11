@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getPrimeClient, primeConfigFromEnv } from "@/lib/prime/client";
 import { syncPrimeCases } from "@/lib/prime/sync";
 import { isPrimeWebhookCall, parsePrimeWebhookBody, PRIME_WEBHOOK_HEADER, primeUpdateNotes, primeWebhookSecret } from "@/lib/prime/webhook";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -19,7 +20,7 @@ export const maxDuration = 30;
  * a failure answers 500 so Prime tries again, and the 15-minute read catches
  * up either way.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const config = primeConfigFromEnv();
     const client = getPrimeClient();
     if (!config || !client) return NextResponse.json({ success: false, error: "Prime is not configured" }, { status: 503 });
@@ -78,3 +79,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "failed" }, { status: 500 });
     }
 }
+
+export const POST = withFailureReport("webhook-prime", handlePost);

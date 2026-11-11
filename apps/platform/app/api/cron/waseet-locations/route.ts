@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncLocationCatalog } from "@/lib/waseet-api";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -13,7 +14,7 @@ export const maxDuration = 300;
  * but an order can only use an id that already exists upstream, so the cost of
  * being a few days stale is a missing new neighbourhood, never a failed order.
  */
-export async function GET(request: NextRequest) {
+async function runScheduled(request: NextRequest) {
     const denied = requireCronAuth(request);
     if (denied) return denied;
 
@@ -34,3 +35,5 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: result.data });
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.waseetLocations, runScheduled);

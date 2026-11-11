@@ -9,6 +9,7 @@ import { announcePrimeDeliveries, syncPrimeTenant, type PrimeSyncOutcome } from 
 import { ensurePrimeWebhook } from "@/lib/prime/webhook";
 import { sendPrimeDaily, watchPrimePayments, type PrimePaymentsOutcome } from "@/lib/prime/money-watch";
 import { sendPrimeFailedNotices, type PrimeFailedNoticeOutcome } from "@/lib/prime/failed-notice";
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -46,7 +47,7 @@ type WebhookResult = "unchanged" | "saved" | "not_production" | "not_due" | "fai
  * once a store's link is on. One tenant failing does not stop the others;
  * its error is kept on its prime_connections row.
  */
-export async function GET(request: NextRequest) {
+async function runScheduled(request: NextRequest) {
     const denied = requireCronAuth(request);
     if (denied) return denied;
 
@@ -161,3 +162,5 @@ async function stamp(
     const { error } = await db.from("prime_connections").update({ ...fields, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId);
     if (error) Sentry.captureException(new Error(`prime_connections stamp failed: ${error.message}`), { extra: { tenantId } });
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.primeSync, runScheduled);
