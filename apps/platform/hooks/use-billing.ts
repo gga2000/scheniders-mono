@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import type { PlanTier } from "@/lib/tenant";
 
 export interface WalletData {
     balance_iqd: number;
@@ -150,5 +151,24 @@ export function useTrialOrderCount(enabled: boolean) {
             return count ?? 0;
         },
         enabled: enabled && !!tenantId,
+    });
+}
+
+/** The plan's free-trial order cap (plan_limits.trial_order_cap), read where the trial banner needs it. */
+export function useTrialOrderCap(plan: PlanTier | null, enabled: boolean) {
+    return useQuery({
+        queryKey: ["trial_order_cap", plan],
+        queryFn: async () => {
+            if (!plan) return null;
+            const { data, error } = await supabase
+                .from("plan_limits")
+                .select("trial_order_cap")
+                .eq("plan", plan)
+                .maybeSingle();
+            if (error) throw error;
+            return data?.trial_order_cap ?? null;
+        },
+        enabled: enabled && !!plan,
+        staleTime: 60 * 60 * 1000,
     });
 }
