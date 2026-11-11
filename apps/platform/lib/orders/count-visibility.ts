@@ -68,10 +68,10 @@ export function countVisibility(c: CountContext): CountVisibility {
     return {
         chips: base && !refined(),
         dueTodayBadge: base && !refined({ exceptDue: true }),
-        // Turning the risk filter on also clears status and dates, so with it
-        // off the badge equals that list only when they are already clear.
+        // Turning the risk filter on also clears the status (dates stay), so
+        // with it off the badge equals that list only on the All tab.
         riskBadge: base && !c.primeQueue && !refined({ exceptRisk: true }) &&
-            (c.riskLevel !== undefined || (c.facts.statusIsAll && c.facts.windowIsAll)),
+            (c.riskLevel !== undefined || c.facts.statusIsAll),
         flaggedCard: base && !c.primeQueue && !refined({ exceptRisk: true }),
     };
 }
