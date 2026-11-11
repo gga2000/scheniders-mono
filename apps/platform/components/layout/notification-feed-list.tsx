@@ -8,12 +8,13 @@
 import {
     Bell, Bot, Check, Clock, Plus, Package, RefreshCw, Sparkles, ArrowRight,
     AtSign, X, Loader2, Layers, BellMinus, PackageX, Truck, Wallet, Star, Users,
-    TimerReset,
+    TimerReset, ChevronDown,
 } from "lucide-react";
+import { useState } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ar as arLocale, enUS as enLocale } from "date-fns/locale";
 import type { FeedNotification } from "@/hooks/use-notification-feed";
-import type { FeedSection } from "@/lib/notification-feed-sections";
+import type { FeedGroup, FeedSection } from "@/lib/notification-feed-sections";
 import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { getStatusBadgeStyle, isSystemActor } from "@/lib/order-format-utils";
@@ -43,8 +44,9 @@ export interface NotificationFeedListProps {
     /** Id of the row whose entity is being fetched, if any. */
     openingId: string | null;
     onOpen: (n: FeedNotification) => void;
-    onMarkRead: (id: string) => void;
-    onDismiss: (id: string) => void;
+    /** One id, or every id of a grouped line. */
+    onMarkRead: (ids: string | string[]) => void;
+    onDismiss: (ids: string | string[]) => void;
     onMute: (entityType: string, entityId: string) => void;
 }
 
@@ -59,6 +61,15 @@ export function NotificationFeedList({
 }: NotificationFeedListProps) {
     const { t, language } = useLanguage();
     const { revealed } = useFinancialVisibility();
+    // Hour groups the reader has opened, by group key (stable across updates).
+    const [openHours, setOpenHours] = useState<ReadonlySet<string>>(() => new Set());
+    const toggleHour = (key: string) =>
+        setOpenHours((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
     const money = (n: number) => (revealed ? formatIQD(n) : FINANCIAL_MASK);
     const orderStatusLabel = useStatusLabel();
     const dateLocale = language === "ar" ? arLocale : enLocale;
@@ -238,6 +249,141 @@ export function NotificationFeedList({
     const oldStatus = (n: FeedNotification) => payloadText(n, "old_status");
     const newStatus = (n: FeedNotification) => payloadText(n, "new_status");
 
+    const statusPill = (status: string) => (
+        <div data-status={status} className={cn(
+            "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
+            getStatusBadgeStyle(status as Order["status"]),
+        )}>
+            {status === "new" && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
+            {orderStatusLabel(status)}
+        </div>
+    );
+
+    const statusPills = (n: FeedNotification) => {
+        const from = oldStatus(n);
+        const to = newStatus(n);
+        if (!from || !to) return null;
+        return (
+            <div className="flex items-center gap-2 mt-2">
+                {statusPill(from)}
+                <ArrowRight className="w-3 h-3 text-muted-foreground opacity-50" />
+                {statusPill(to)}
+            </div>
+        );
+    };
+
+    /** "9:00 – 10:00 AM", in the reader's language. */
+    const hourRange = (start: Date) => {
+        const end = new Date(start.getTime() + 3_600_000);
+        return `${format(start, "h:mm", { locale: dateLocale })} – ${format(end, "h:mm a", { locale: dateLocale })}`;
+    };
+
+    /**
+     * An hour of order status changes, folded into one line ("14 orders
+     * changed status"). Opening it lists every change; each still opens its
+     * order. Mark read and dismiss act on the whole hour.
+     */
+    const renderStatusHour = (group: FeedGroup & { statusHour: Date }) => {
+        const members = [group.head, ...group.rest];
+        const ids = members.map((m) => m.id);
+        const unreadIds = members.filter((m) => !m.is_read).map((m) => m.id);
+        const orders = new Set(members.map((m) => m.entity_id ?? m.id)).size;
+        const expanded = openHours.has(group.key);
+        return (
+            <div
+                key={group.key}
+                data-group-key={group.key}
+                data-status-hour=""
+                className={cn("relative", group.unread && "bg-primary/5")}
+            >
+                {group.key === unreadBoundary && (
+                    <div className="absolute -top-px inset-x-0 flex items-center gap-2 px-4">
+                        <span className="h-px flex-1 bg-primary/40" />
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-primary">
+                            {t("notifications.newSince", "New")}
+                        </span>
+                        <span className="h-px flex-1 bg-primary/40" />
+                    </div>
+                )}
+                <div className="group/row relative px-4 py-3 hover:bg-[var(--background)] transition-colors">
+                    {group.unread && (
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary" />
+                    )}
+                    <button
+                        type="button"
+                        aria-expanded={expanded}
+                        onClick={() => toggleHour(group.key)}
+                        className="flex w-full items-start gap-3 pl-3 text-left"
+                    >
+                        <div className="p-2 rounded-lg shrink-0 mt-0.5 bg-muted/50">
+                            <RefreshCw className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-20 sm:pr-0">
+                            <p className="text-sm text-foreground font-medium">
+                                {t("notifications.statusHour", "{count} orders changed status", { count: orders })}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span className="whitespace-nowrap">{hourRange(group.statusHour)}</span>
+                                <span className="shrink-0">•</span>
+                                <span className="inline-flex items-center gap-0.5 font-medium">
+                                    {expanded
+                                        ? t("notifications.statusHourHide", "Hide")
+                                        : t("notifications.statusHourShow", "Show {count}", { count: members.length })}
+                                    <ChevronDown className={cn("w-3 h-3 transition-transform", expanded && "rotate-180")} />
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                    <div className="absolute top-2 right-2 flex items-start gap-0.5 rounded-full transition-opacity sm:border sm:border-[var(--card-border)] sm:bg-[var(--card-bg)] sm:px-0.5 sm:shadow-sm sm:opacity-0 sm:group-hover/row:opacity-100 sm:focus-within:opacity-100">
+                        {unreadIds.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => onMarkRead(unreadIds)}
+                                className="p-1 rounded-full hover:bg-muted transition-colors"
+                                title={t("notifications.markRead")}
+                            >
+                                <Check className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => onDismiss(ids)}
+                            className="p-1 rounded-full hover:bg-muted transition-colors"
+                            title={t("notifications.dismiss", "Dismiss")}
+                        >
+                            <X className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                    </div>
+                </div>
+                {expanded && (
+                    <ul className="pb-2">
+                        {members.map((m) => (
+                            <li key={m.id}>
+                                <button
+                                    type="button"
+                                    onClick={() => onOpen(m)}
+                                    className="flex w-full items-start gap-2 py-2 pl-[4.25rem] pr-4 text-left hover:bg-[var(--background)] transition-colors"
+                                >
+                                    {!m.is_read && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="truncate text-xs font-medium text-foreground">{describe(m)}</span>
+                                            {openingId === m.id
+                                                ? <Loader2 className="w-3 h-3 shrink-0 animate-spin text-muted-foreground" />
+                                                : <span className="shrink-0 text-[11px] text-muted-foreground">{ago(m.created_at)}</span>}
+                                        </div>
+                                        {statusPills(m)}
+                                    </div>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        );
+    };
+
     return (
         <>
             {sections.map((section) => (
@@ -256,6 +402,9 @@ export function NotificationFeedList({
 
                     <div className="divide-y divide-border">
                         {section.groups.map((group) => {
+                            if (group.statusHour && group.rest.length > 0) {
+                                return renderStatusHour({ ...group, statusHour: group.statusHour });
+                            }
                             const n = group.head;
                             return (
                                 <div
@@ -335,25 +484,7 @@ export function NotificationFeedList({
                                                 </div>
                                             </div>
 
-                                            {oldStatus(n) && newStatus(n) && (
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <div data-status={oldStatus(n) as string} className={cn(
-                                                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
-                                                        getStatusBadgeStyle(oldStatus(n) as Order["status"]),
-                                                    )}>
-                                                        {oldStatus(n) === "new" && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
-                                                        {orderStatusLabel(oldStatus(n) as string)}
-                                                    </div>
-                                                    <ArrowRight className="w-3 h-3 text-muted-foreground opacity-50" />
-                                                    <div data-status={newStatus(n) as string} className={cn(
-                                                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
-                                                        getStatusBadgeStyle(newStatus(n) as Order["status"]),
-                                                    )}>
-                                                        {newStatus(n) === "new" && <Sparkles className="w-2.5 h-2.5 opacity-70" />}
-                                                        {orderStatusLabel(newStatus(n) as string)}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            {statusPills(n)}
                                         </div>
 
                                         {/*

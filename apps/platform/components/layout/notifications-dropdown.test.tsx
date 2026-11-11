@@ -87,7 +87,7 @@ const hoursAgo = (hours: number) =>
     new Date(middayToday() - hours * 3_600_000).toISOString();
 
 const note = (over: Partial<FeedNotification> & { id: string; created_at: string }): FeedNotification => ({
-    type: "order.status_changed",
+    type: "order.updated",
     category: "orders",
     actor_name: "WhatsApp Bot",
     actor_avatar: "bot",
@@ -142,6 +142,38 @@ describe("NotificationsDropdown", () => {
         // Same element, not a replacement: React kept the row, so nothing jumps.
         expect(after).toBe(before);
         expect(after?.textContent).toContain("+2 more updates");
+    });
+
+    it("shows an hour of status changes as one line that opens to list them", () => {
+        const hourStart = middayToday() - 3 * 3_600_000; // 9:00 local, whole-hour zone
+        const at = (min: number) => new Date(hourStart + min * 60_000).toISOString();
+        const status = (id: string, min: number, is_read = false) => note({
+            id, type: "order.status_changed", created_at: at(min), entity_id: id, entity_label: `#${id}`,
+            payload: { old_status: "new", new_status: "confirmed" }, is_read,
+        });
+        feedState.markAsRead = vi.fn();
+        feedState.dismiss = vi.fn();
+        feedState.notifications = [
+            status("s3", 50),
+            note({ id: "x", type: "order.created", created_at: at(40), entity_label: "#900" }),
+            status("s2", 30),
+            status("s1", 5, true),
+        ];
+
+        const { container } = render(<NotificationsDropdown />);
+        const hour = container.querySelector("[data-status-hour]");
+        expect(hour?.textContent).toContain("3 orders changed status");
+        // Other alerts keep their own line.
+        expect(screen.getByText("New order #900 created")).toBeDefined();
+        expect(screen.queryByText("Order #s2 status changed")).toBeNull();
+
+        fireEvent.click(screen.getByText("Show 3"));
+        expect(screen.getByText("Order #s2 status changed")).toBeDefined();
+
+        fireEvent.click(hour?.querySelector("button[title='notifications.markRead']") as Element);
+        expect(feedState.markAsRead).toHaveBeenCalledWith(["s3", "s2"]);
+        fireEvent.click(hour?.querySelector("button[title='Dismiss']") as Element);
+        expect(feedState.dismiss).toHaveBeenCalledWith(["s3", "s2", "s1"]);
     });
 
     it("holds new arrivals behind a pill rather than splicing them into the list", () => {
