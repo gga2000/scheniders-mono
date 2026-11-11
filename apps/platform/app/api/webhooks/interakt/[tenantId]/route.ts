@@ -197,12 +197,20 @@ export async function POST(
             return NextResponse.json({ success: true, message: `Order already "${order.status}"` });
         }
 
-        // Update order
-        await supabaseAdmin().from("orders").update({
+        // Only while the order is still `contacted`: a second tap, or staff moving
+        // the order on since it was read, must not be overwritten by this reply.
+        const { data: moved, error: updateError } = await supabaseAdmin().from("orders").update({
             status: action,
             updated_at: new Date().toISOString(),
             ...(action === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
-        }).eq("id", order.id);
+        }).eq("id", order.id).eq("tenant_id", tenantId).eq("status", "contacted").select("id");
+        if (updateError) {
+            console.error("[Interakt Webhook] Failed to update order:", updateError.message);
+            return NextResponse.json({ success: false, error: "Order update failed" }, { status: 500 });
+        }
+        if (!moved || moved.length === 0) {
+            return NextResponse.json({ success: true, message: "Order was already handled" });
+        }
 
         await supabaseAdmin().from("order_status_history").insert({
             order_id: order.id,

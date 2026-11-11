@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
@@ -18,6 +19,22 @@ const TRIAL_DAYS = 7;
 // cap is generous for people and still stops scripted tenant creation.
 const SIGNUP_LIMIT = 10;
 const SIGNUP_WINDOW_SECONDS = 60 * 60;
+
+const optionalText = z.string().trim().max(200).optional().transform((v) => v || null);
+
+const signupSchema = z.object({
+    email: z.string().trim().toLowerCase().pipe(z.email()),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(72),
+    business_name: z.string().trim().min(1).max(120),
+    contact_phone: optionalText,
+    city: optionalText,
+    captcha_token: z.string().optional(),
+});
+
+// Two sign-ups picking the same free slug at once: the loser's insert hits the
+// unique index, and the next lookup sees the winner and picks the next slug.
+const SLUG_ATTEMPTS = 3;
+const UNIQUE_VIOLATION = '23505';
 
 function clientIp(request: NextRequest): string {
     const real = request.headers.get('x-real-ip');
@@ -45,15 +62,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const body = await request.json();
-        const { email, password, business_name, contact_phone, city, captcha_token } = body;
+        const parsed = signupSchema.safeParse(await request.json().catch(() => null));
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: parsed.error.issues[0]?.message ?? 'Invalid sign-up details' },
+                { status: 400 },
+            );
+        }
+        const { email, password, business_name, contact_phone, city, captcha_token } = parsed.data;
 
         // This route creates the account with the service role, so Supabase's
         // own CAPTCHA never sees it: check the Turnstile token here first.
-        const captcha = await verifyTurnstile(
-            typeof captcha_token === 'string' ? captcha_token : undefined,
-            ip === 'unknown' ? null : ip,
-        );
+        const captcha = await verifyTurnstile(captcha_token, ip === 'unknown' ? null : ip);
         if (!captcha.ok) {
             if (captcha.reason === 'unavailable') {
                 reportOrderError(new Error('Turnstile siteverify unavailable'), { operation: 'signup-captcha' });
@@ -69,33 +89,20 @@ export async function POST(request: NextRequest) {
         }
         const plan = TRIAL_PLAN;
 
-        // Validate required fields
-        if (!email || !password || !business_name) {
-            return NextResponse.json(
-                { error: 'email, password, and business_name are required' },
-                { status: 400 }
-            );
-        }
-
-        if (password.length < 8) {
-            return NextResponse.json(
-                { error: 'Password must be at least 8 characters' },
-                { status: 400 }
-            );
-        }
-
         const adminClient = createSupabaseServiceClient();
 
         // The store's slug is chosen before any account exists: ensureUniqueSlug
         // throws when its lookup fails, and failing here leaves nothing behind.
         const baseSlug = generateSlug(business_name);
-        const slug = await ensureUniqueSlug(baseSlug);
+        const firstSlug = await ensureUniqueSlug(baseSlug);
 
         // ── 1. Create Supabase auth user ──
+        // Unconfirmed: the browser then asks Supabase to send the confirm mail, and
+        // the account cannot sign in until its owner opens that link.
         const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-            email: email.trim().toLowerCase(),
+            email,
             password,
-            email_confirm: true, // Auto-confirm for now (can add email verification later)
+            email_confirm: false,
         });
 
         if (authError) {
@@ -113,27 +120,27 @@ export async function POST(request: NextRequest) {
         // ── 2. Create tenant ──
         const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-        const { data: tenant, error: tenantError } = await adminClient
+        const insertTenant = async (slug: string) => adminClient
             .from('tenants')
             .insert({
-                business_name: business_name.trim(),
+                business_name,
                 slug,
                 plan,
                 status: 'trial',
                 trial_ends_at: trialEndsAt,
-                contact_email: email.trim().toLowerCase(),
-                contact_phone: contact_phone?.trim() ?? null,
-                city: city?.trim() ?? null,
+                contact_email: email,
+                contact_phone,
+                city,
                 store_config: {
                     template: 'general',
                     hero: {
-                        title: business_name.trim(),
+                        title: business_name,
                         subtitle: '',
                         cta_text: 'تسوق الآن',
                         image_url: null,
                     },
                     contact: {
-                        whatsapp_number: contact_phone?.trim() ?? null,
+                        whatsapp_number: contact_phone,
                         instagram: null,
                         facebook: null,
                         tiktok: null,
@@ -145,6 +152,18 @@ export async function POST(request: NextRequest) {
             })
             .select()
             .single();
+
+        let created = await insertTenant(firstSlug);
+        for (let attempt = 1; attempt < SLUG_ATTEMPTS && created.error?.code === UNIQUE_VIOLATION; attempt++) {
+            // A failed lookup keeps the unique-violation error, which rolls the user back below.
+            const nextSlug = await ensureUniqueSlug(baseSlug).catch((lookupErr: unknown) => {
+                reportOrderError(lookupErr, { operation: 'signup-slug-retry' });
+                return null;
+            });
+            if (!nextSlug) break;
+            created = await insertTenant(nextSlug);
+        }
+        const { data: tenant, error: tenantError } = created;
 
         if (tenantError) {
             // Rollback: delete the auth user
@@ -160,8 +179,8 @@ export async function POST(request: NextRequest) {
             .from('user_profiles')
             .insert({
                 id: userId,
-                email: email.trim().toLowerCase(),
-                display_name: business_name.trim(),
+                email,
+                display_name: business_name,
                 role: 'admin',
                 current_tenant_id: tenant.id,
             });
@@ -263,6 +282,7 @@ export async function POST(request: NextRequest) {
             tenant_id: tenant.id,
             tenant_slug: tenant.slug,
             trial_ends_at: trialEndsAt,
+            confirm_email: true,
             message: partialFailure
                 ? `Account created but some setup steps failed. An admin will review your account shortly.`
                 : `Account created! You have a ${TRIAL_DAYS}-day free trial.`,

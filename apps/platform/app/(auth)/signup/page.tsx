@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
 import {
     Eye,
     EyeOff,
@@ -25,7 +24,6 @@ import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shel
 function SignupForm() {
     const { t } = useLanguage();
     const dir = useTextDir();
-    const router = useRouter();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -36,7 +34,36 @@ function SignupForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    /** The address the confirm link went to; the form is replaced by "check your email". */
+    const [sentTo, setSentTo] = useState<string | null>(null);
     const captcha = useAuthCaptcha();
+
+    /**
+     * The account is created unconfirmed, so it cannot sign in until its owner
+     * opens the link Supabase mails. The sign-up call spent the first CAPTCHA
+     * token; Supabase checks its own.
+     */
+    const sendConfirmMail = async (address: string): Promise<boolean> => {
+        const captchaToken = await captcha.fresh();
+        const { error: resendError } = await supabase.auth.resend({
+            type: "signup",
+            email: address,
+            options: { captchaToken, emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/store` },
+        });
+        captcha.reset();
+        return !resendError;
+    };
+
+    const handleResend = async () => {
+        if (!sentTo) return;
+        setError(null);
+        setSuccess(null);
+        setIsLoading(true);
+        const sent = await sendConfirmMail(sentTo);
+        setIsLoading(false);
+        if (sent) setSuccess(t("signup.confirmResent"));
+        else setError(t("signup.confirmSendFailed"));
+    };
 
     const isFormValid =
         email.length > 0 &&
@@ -77,7 +104,6 @@ function SignupForm() {
                 return;
             }
 
-            setSuccess(data.message || t("signup.success"));
             // UX2-18: if this browser still holds a session for a DIFFERENT
             // account, it must be cleared before signing in as the new one.
             // supabase-js reports a missing session as success, so an error
@@ -85,29 +111,15 @@ function SignupForm() {
             // say so rather than signing in on top of another tenant.
             const { error: signOutError } = await supabase.auth.signOut();
             if (signOutError) {
-                setSuccess(null);
                 setError(t("signup.signOutFailed"));
                 setIsLoading(false);
                 return;
             }
-            // S3-02: the account is auto-confirmed server-side, so sign the
-            // merchant straight in and land them on the store builder — no
-            // silent bounce through an empty /login form.
-            // The sign-up call spent the first token; Supabase needs its own.
-            const signInToken = await captcha.fresh();
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-                email: email.trim(),
-                password,
-                options: { captchaToken: signInToken },
-            });
-            captcha.reset();
-            if (signInError) {
-                // Extremely unlikely (account was just created) — fall back to
-                // the login screen rather than stranding them here.
-                router.push("/login");
-                return;
-            }
-            router.push("/store");
+            const address = email.trim();
+            const sent = await sendConfirmMail(address);
+            setSentTo(address);
+            if (!sent) setError(t("signup.confirmSendFailed"));
+            setIsLoading(false);
         } catch {
             setError("Network error. Please check your connection and try again.");
             setIsLoading(false);
@@ -118,6 +130,47 @@ function SignupForm() {
         <div className="px-6 sm:px-8 pt-3 pb-8">
             <AuthCardHeading icon={<Store className="w-5 h-5" />} title={t("signup.title")} subtitle={t("signup.subtitle")} />
 
+                {sentTo ? (
+                    <div className="mt-6 space-y-4">
+                        <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD]">
+                            <Mail className="w-5 h-5 mt-0.5 text-[#1E1E1E] flex-shrink-0" />
+                            <div dir={dir} className="text-left">
+                                <p className="text-sm font-semibold text-[#1E1E1E]">{t("signup.checkEmailTitle")}</p>
+                                <p className="mt-1 text-sm text-[#5F5A52]">
+                                    {t("signup.checkEmailBody")} <span dir="ltr" className="font-medium text-[#1E1E1E]">{sentTo}</span>
+                                </p>
+                            </div>
+                        </div>
+                        {error && (
+                            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF]">
+                                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                                <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{error}</p>
+                            </div>
+                        )}
+                        {success && (
+                            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#E8F8E0] border border-[#C0EBA6]">
+                                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{success}</p>
+                            </div>
+                        )}
+                        <AuthCaptcha captcha={captcha} />
+                        <button
+                            type="button"
+                            onClick={handleResend}
+                            disabled={isLoading}
+                            className="w-full h-12 rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#ECE8DD] hover:border-[#1E1E1E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {isLoading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    {t("signup.confirmSending")}
+                                </span>
+                            ) : (
+                                t("signup.confirmResend")
+                            )}
+                        </button>
+                    </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                     {/* Status Messages */}
                     <AnimatePresence mode="wait">
@@ -263,6 +316,7 @@ function SignupForm() {
                         </button>
                     </motion.div>
                 </form>
+                )}
 
             <p className="mt-5 text-center text-[13px] text-[#8A847A]">
                 <span dir={dir}>{t("signup.haveAccount")}</span>{" "}

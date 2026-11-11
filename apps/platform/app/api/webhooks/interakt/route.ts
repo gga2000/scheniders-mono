@@ -6,6 +6,7 @@ import {
 import { maskIraqiMobile } from "@scheniders/shared";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
+import { constantTimeEqual } from "@/lib/webhook-auth";
 import { sharedSenderAllows } from "@/lib/interakt";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
@@ -265,25 +266,30 @@ async function findOrder(
 async function updateOrderStatus(
     orderId: string,
     orderIdDisplay: string,
-    tenantId: string | null,
+    tenantId: string,
     newStatus: "confirmed" | "cancelled",
     phone: string | null,
     payload: InteraktWebhookPayload
-): Promise<{ success: boolean; error?: string }> {
-    // Update the order status
-    const { error: updateError } = await supabaseAdmin()
+): Promise<{ success: true; updated: boolean } | { success: false; error: string }> {
+    // Only while the order is still `contacted`: a second tap, or staff moving the
+    // order on since it was read, must not be overwritten by this reply.
+    const { data: moved, error: updateError } = await supabaseAdmin()
         .from("orders")
         .update({
             status: newStatus,
             updated_at: new Date().toISOString(),
             ...(newStatus === "cancelled" ? { cancelled_at: new Date().toISOString() } : {}),
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .eq("tenant_id", tenantId)
+        .eq("status", "contacted")
+        .select("id");
 
     if (updateError) {
         console.error(`[Interakt Webhook] Failed to update order ${orderIdDisplay}:`, updateError);
         return { success: false, error: updateError.message };
     }
+    if (!moved || moved.length === 0) return { success: true, updated: false };
 
     // Log status change in order_status_history
     await supabaseAdmin().from("order_status_history").insert({
@@ -317,7 +323,7 @@ async function updateOrderStatus(
         `[Interakt Webhook] ✅ Order ${orderIdDisplay} status updated: contacted → ${newStatus}`
     );
 
-    return { success: true };
+    return { success: true, updated: true };
 }
 
 // =============================================
@@ -338,9 +344,8 @@ export async function POST(request: NextRequest) {
         const providedSecret =
             request.headers.get("x-webhook-secret") ||
             request.headers.get("x-interakt-secret");
-        if (!providedSecret || providedSecret !== webhookSecret) {
+        if (!providedSecret || !constantTimeEqual(providedSecret, webhookSecret)) {
             console.error("[Interakt Webhook] Secret missing or mismatch:", {
-                providedSecretPrefix: providedSecret ? providedSecret.substring(0, 3) + "***" : "none",
                 hasWebhookSecret: !!request.headers.get("x-webhook-secret"),
                 hasInteraktSecret: !!request.headers.get("x-interakt-secret"),
             });
@@ -376,17 +381,17 @@ export async function POST(request: NextRequest) {
             !webhookType.toLowerCase().includes("button") &&
             !webhookType.toLowerCase().includes("click")
         ) {
-            // Log unrecognized types to database for debugging
-            try {
-                await supabaseAdmin().from("whatsapp_logs").insert({
-                    order_id: "debug",
-                    phone: payload.data?.customer?.phone_number || "unknown",
-                    template_name: "cod_order_confirm",
-                    direction: "webhook_debug",
-                    status: webhookType || "unknown_type",
-                    payload: payload as unknown as Record<string, unknown>,
-                });
-            } catch (_) { /* ignore logging errors */ }
+            // Record that an unrecognised type arrived: its type only, never the
+            // customer's phone, name or message.
+            const { error: debugLogError } = await supabaseAdmin().from("whatsapp_logs").insert({
+                order_id: "debug",
+                phone: "unknown",
+                template_name: "cod_order_confirm",
+                direction: "webhook_debug",
+                status: webhookType || "unknown_type",
+                payload: { type: webhookType || null },
+            });
+            if (debugLogError) console.warn("[Interakt Webhook] Failed to log unrecognised type:", debugLogError.message);
 
             return NextResponse.json(
                 { success: true, message: `Webhook type "${webhookType}" acknowledged` },
@@ -427,7 +432,7 @@ export async function POST(request: NextRequest) {
 
         const order = await findOrder(callbackData, phone);
 
-        if (!order) {
+        if (!order || !order.tenant_id) {
             console.warn(
                 `[Interakt Webhook] No matching order found. callback_data: ${callbackData}, phone: ${maskIraqiMobile(phone) ?? "unknown"}`
             );
@@ -468,6 +473,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { success: false, error: result.error },
                 { status: 500 }
+            );
+        }
+        if (!result.updated) {
+            return NextResponse.json(
+                { success: true, message: "Order was already handled", order_id: order.order_id },
+                { status: 200 }
             );
         }
 

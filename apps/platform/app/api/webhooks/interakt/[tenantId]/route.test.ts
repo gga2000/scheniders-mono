@@ -10,6 +10,9 @@ const state = vi.hoisted(() => ({
     credentials: {} as Record<string, unknown>,
     updates: [] as Array<Record<string, unknown>>,
     inserts: [] as Array<Record<string, unknown>>,
+    /** Filters the order update was conditioned on, and whether a row still matches them. */
+    updateFilters: [] as Array<[string, unknown]>,
+    stillContacted: true,
 }));
 
 /**
@@ -32,7 +35,14 @@ function fakeClient() {
                 },
                 update: (values: Record<string, unknown>) => {
                     state.updates.push({ table, ...values });
-                    return { eq: async () => ({ error: null }) };
+                    const chain = {
+                        eq: (column: string, value: unknown) => {
+                            state.updateFilters.push([column, value]);
+                            return chain;
+                        },
+                        select: async () => ({ data: state.stillContacted ? [{ id: "order-uuid" }] : [], error: null }),
+                    };
+                    return chain;
                 },
                 single: async () => {
                     if (table === "tenant_integrations") {
@@ -83,6 +93,8 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     beforeEach(() => {
         state.updates = [];
         state.inserts = [];
+        state.updateFilters = [];
+        state.stillContacted = true;
         vi.spyOn(console, "info").mockImplementation(() => {});
         vi.spyOn(console, "warn").mockImplementation(() => {});
         vi.spyOn(console, "error").mockImplementation(() => {});
@@ -163,6 +175,23 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
         expect(history).toHaveLength(1);
         expect(logs).toHaveLength(1);
         for (const row of [...history, ...logs]) expect(row.tenant_id).toBe(TENANT);
+    });
+
+    it("updates only while the order is still contacted in this tenant", async () => {
+        configure({ WEBHOOK_AUTH_MODE: "monitor" }, { api_key: "k" });
+        await call();
+        expect(state.updateFilters).toEqual(
+            expect.arrayContaining([["tenant_id", TENANT], ["status", "contacted"]]),
+        );
+    });
+
+    it("a reply after the order moved on writes no history or log", async () => {
+        configure({ WEBHOOK_AUTH_MODE: "monitor" }, { api_key: "k" });
+        state.stillContacted = false;
+        const res = await call();
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ message: "Order was already handled" });
+        expect(state.inserts.filter(i => i.table !== "security_logs")).toHaveLength(0);
     });
 
     it("enforce: the legacy x-interakt-secret header is accepted", async () => {
