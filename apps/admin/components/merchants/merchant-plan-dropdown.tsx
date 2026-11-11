@@ -1,5 +1,6 @@
 "use client";
 
+import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
 import { useState, useRef, useEffect, memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
@@ -56,21 +57,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
     },
     onMutate: async (newPlan) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      queryClient.setQueriesData(
-        { queryKey: ["admin", "merchants"] },
-        (old: any) => {
-          if (!old?.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              merchants: page.merchants.map((m: any) =>
-                m.id === merchantId ? { ...m, plan: newPlan } : m
-              ),
-            })),
-          };
-        }
-      );
+      patchMerchantInCache(queryClient, merchantId, { plan: newPlan });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });

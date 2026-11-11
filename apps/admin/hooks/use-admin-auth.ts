@@ -72,8 +72,7 @@ function makeBrowserClient() {
  */
 async function fetchAdminRole(
   userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: ReturnType<typeof createBrowserClient<any>>
+  supabase: ReturnType<typeof makeBrowserClient>
 ): Promise<AdminRole | null> {
   const { data, error } = await supabase
     .from("admin_users")
@@ -98,8 +97,7 @@ async function fetchAdminRole(
  */
 async function fetchProfile(
   userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: ReturnType<typeof createBrowserClient<any>>
+  supabase: ReturnType<typeof makeBrowserClient>
 ): Promise<AdminProfile | null> {
   const { data, error } = await supabase
     .from("user_profiles")

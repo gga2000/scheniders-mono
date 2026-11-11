@@ -719,7 +719,7 @@ export function ImageControl(p: ImageControlProps): ReactElement {
                     data-testid={`${p.testIdBase}-preview`}
                 >
                     {p.value ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                        // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
                         <img src={p.value} alt={p.label} className="h-full w-full object-cover" />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center text-muted-foreground">

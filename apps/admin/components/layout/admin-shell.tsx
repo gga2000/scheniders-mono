@@ -43,6 +43,12 @@ export function useAdminSidebar() {
 // AdminShell
 // ---------------------------------------------------------------------------
 
+/** The name a Google sign-in leaves in the user's metadata, if any. */
+function metadataName(metadata: Record<string, unknown> | undefined): string | null {
+  const name = metadata?.full_name;
+  return typeof name === "string" && name ? name : null;
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, profile, role, signOut } = useAdminAuth();
@@ -94,7 +100,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const sidebarUser = user
     ? {
         email: user.email ?? "",
-        full_name: profile?.display_name ?? (user as any).full_name ?? null,
+        full_name: profile?.display_name ?? metadataName(user.user_metadata) ?? null,
         avatar_url: profile?.avatar_url ?? null,
       }
     : null;
@@ -102,7 +108,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const topbarUser = user
     ? {
         email: user.email ?? "",
-        full_name: profile?.display_name ?? (user as any).full_name ?? null,
+        full_name: profile?.display_name ?? metadataName(user.user_metadata) ?? null,
         avatar_url: profile?.avatar_url ?? null,
         // The real admin-console role (super_admin / support_staff), NOT the
         // Supabase JWT role which is always "authenticated".

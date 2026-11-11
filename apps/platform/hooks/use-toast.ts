@@ -218,7 +218,7 @@ toast.promise = async <T>(
     msgs: {
         loading: string;
         success: string | ((data: T) => string);
-        error: string | ((err: any) => string);
+        error: string | ((err: unknown) => string);
     }
 ) => {
     const id = toast.loading(msgs.loading);

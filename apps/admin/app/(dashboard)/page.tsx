@@ -166,17 +166,7 @@ export default function CommandCenterPage() {
           <div className="lg:col-span-2">
           <ActivityFeed
             activities={
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ((data as any)?.recentActivity ?? []) as Array<{
-                id: string;
-                admin_user_id: string | null;
-                admin_label: string | null;
-                actor_email: string | null;
-                action: string;
-                details: Record<string, unknown> | null;
-                tenant_id: string | null;
-                created_at: string;
-              }>
+              data?.recentActivity ?? []
             }
             isLoading={false}
           />

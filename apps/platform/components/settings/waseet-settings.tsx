@@ -78,9 +78,9 @@ export function WaseetSettingsPanel() {
             waseet_default_region_name: "",
             regions: [],
         }));
-        setMappings(rows); // eslint-disable-line react-hooks/set-state-in-effect
+        setMappings(rows); // eslint-disable-line react-hooks/set-state-in-effect -- seeds the empty table once before the saved mappings load
         loadExistingMappings(rows);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps -- runs once on mount
 
     const handleTestConnection = async () => {
         setTestingConnection(true);

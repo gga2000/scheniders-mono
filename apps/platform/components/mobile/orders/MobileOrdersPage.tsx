@@ -179,7 +179,7 @@ export function MobileOrdersPage() {
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1); // eslint-disable-line react-hooks/set-state-in-effect
+        setCurrentPage(1); // eslint-disable-line react-hooks/set-state-in-effect -- back to page 1 when the filtered list changes
     }, [filteredOrders.length]);
 
     const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
