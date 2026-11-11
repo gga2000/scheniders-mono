@@ -819,7 +819,7 @@ function ExperimentEditor({
         <div
             data-testid="experiment-editor"
             role="dialog"
-            className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40"
+            className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm"
         >
             <aside className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
@@ -1102,7 +1102,7 @@ function ExperimentViewer({
                     onClose();
                 }
             }}
-            className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40"
+            className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm"
         >
             <aside
                 ref={sheetRef}
@@ -1173,6 +1173,13 @@ function ExperimentViewer({
                             {t(STRINGS.advanced_chrome.exp_no_data, locale)}
                         </p>
                     ) : (
+                        <>
+                        <p
+                            data-testid="experiment-viewer-counts-note"
+                            className="mb-2 text-[11px] leading-relaxed text-muted-foreground"
+                        >
+                            {t(STRINGS.advanced_chrome.exp_counts_note, locale)}
+                        </p>
                         <ul className="space-y-3" data-testid="experiment-viewer-arms">
                             {experiment.arms.map((arm) => {
                                 const controlVisitors = controlId ? (stats.per_arm[controlId]?.visitors ?? 0) : 0;
@@ -1297,6 +1304,7 @@ function ExperimentViewer({
                                 );
                             })}
                         </ul>
+                        </>
                     )}
                 </div>
             </aside>

@@ -558,7 +558,7 @@ export function VersionHistoryScreen({
                 <div
                     data-testid="version-history-restore-dialog"
                     role="dialog"
-                    className="sb-bidi fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                    className="sb-bidi fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
                 >
                     <div className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-xl">
                         <h4 className="text-base font-semibold tracking-tight">{t(STRINGS.version_history.restore_title, locale)}</h4>
@@ -614,7 +614,7 @@ export function VersionHistoryScreen({
                 <div
                     data-testid="version-history-promote-dialog"
                     role="dialog"
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
                 >
                     <div className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-xl">
                         <h4 className="text-base font-semibold tracking-tight">{t(STRINGS.version_history.save_as_named, locale)}</h4>
