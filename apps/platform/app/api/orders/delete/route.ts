@@ -3,10 +3,8 @@ import { verifyAccessToken, createSupabaseServiceClient } from '@/lib/supabase-s
 import { orderIdsBodySchema, toOrderUuids } from '@/lib/order-api-schemas';
 import { reportOrderError } from '@/lib/order-telemetry';
 import { resolveActiveTenant } from '@/lib/auth/resolve-active-tenant';
-
-/** Roles allowed to delete orders. Anything else — including `viewer` and a
- *  user with no profile row — is denied. */
-const DELETE_ALLOWED_ROLES = ['admin', 'super_admin', 'employee'];
+import { callerHasPermission } from '@/lib/auth/caller-has-permission';
+import { PERMISSIONS } from '@/lib/permissions';
 
 /**
  * POST /api/orders/delete
@@ -45,14 +43,10 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: active.error }, { status: active.status });
         }
 
-        // Positive allow-list: a missing profile (role === '') must not
-        // fall through the gate the way a `!== 'viewer'` check would.
-        if (!DELETE_ALLOWED_ROLES.includes(active.role)) {
-            return NextResponse.json(
-                { success: false, error: 'You do not have permission to delete orders' },
-                { status: 403 }
-            );
-        }
+        // The store's own permission, not the role name: a member whose
+        // orders.delete was switched off must be refused even as an employee.
+        const permission = await callerHasPermission(request, active, PERMISSIONS.DELETE_ORDERS, 'orders-delete');
+        if (!permission.ok) return permission.response;
         const tenantId = active.tenantId;
 
         const parsedBody = orderIdsBodySchema.safeParse(await request.json());
