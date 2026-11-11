@@ -7198,6 +7198,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.captchaRejected": "The security check expired. Press the button again.",
         "signup.signOutFailed": "Your account was created, but this browser is still signed in to another account and we could not sign it out. Sign out of it, then sign in with your new account.",
         // ── Password reset flow ──
+        "auth.captcha.prompt": "Quick security check",
         "auth.captcha.failed": "The security check did not load. Refresh the page, or try another browser.",
         "pwreset.role.superAdmin": "Super admin",
         "pwreset.backToSignIn": "Back to sign in",
@@ -7244,7 +7245,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "Opening your store",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
-        "login.footerSecure": "Protected by a security check and encrypted passwords.",
         "login.subtitle": "Sign in to Schenider Order Management",
         "login.email": "Email Address",
         "login.password": "Password",
@@ -14490,6 +14490,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",
         "signup.signOutFailed": "تم إنشاء حسابك، لكن هذا المتصفح ما زال مسجلاً بحساب آخر ولم نتمكن من تسجيل الخروج منه. سجّل الخروج منه ثم سجّل الدخول بحسابك الجديد.",
         // ── Password reset flow ──
+        "auth.captcha.prompt": "فحص أمان سريع",
         "auth.captcha.failed": "فحص الأمان ما اشتغل. حدّث الصفحة أو جرّب متصفح ثاني.",
         "pwreset.role.superAdmin": "مدير عام",
         "pwreset.backToSignIn": "رجوع لتسجيل الدخول",
@@ -14536,7 +14537,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "جارِ فتح متجرك",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "أهلاً بعودتك",
-        "login.footerSecure": "حسابك محمي بفحص أمان وكلمة مرور مشفّرة.",
         "login.subtitle": "سجّل الدخول إلى نظام شنايدر لإدارة الطلبات",
         "login.email": "البريد الإلكتروني",
         "login.password": "كلمة المرور",
