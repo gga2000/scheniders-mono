@@ -51,7 +51,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
       setShowSuccess(false);
       convertLead.reset();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
   }, [isOpen]);
 
   // Build checklist

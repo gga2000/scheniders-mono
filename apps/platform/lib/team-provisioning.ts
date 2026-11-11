@@ -26,15 +26,19 @@ export async function provisionInvitedUserIfNeeded(
         if (!user?.id) return { provisioned: false, reason: "no-user" };
         const admin = createSupabaseServiceClient();
 
-        // Already provisioned? (common path — one fast lookup)
+        const email = (user.email ?? "").trim().toLowerCase();
+
+        // Already has an account? (common path — one fast lookup)
         const { data: existing } = await admin
             .from("user_profiles")
             .select("id")
             .eq("id", user.id)
             .maybeSingle();
-        if (existing) return { provisioned: false, reason: "already-provisioned" };
+        if (existing) {
+            if (!email) return { provisioned: false, reason: "already-provisioned" };
+            return acceptPendingInvitesForExistingUser(admin, user.id, email);
+        }
 
-        const email = (user.email ?? "").trim().toLowerCase();
         if (!email) return { provisioned: false, reason: "no-email" };
 
         // Pending invite for this email?
@@ -104,4 +108,60 @@ export async function provisionInvitedUserIfNeeded(
         console.error("[Provision] unexpected error:", err);
         return { provisioned: false, reason: "error" };
     }
+}
+
+/**
+ * Someone who already has an account (their own store, or another store's
+ * team) was invited by email. Signing in with the verified email is the
+ * acceptance: each pending invite for that email becomes an active membership,
+ * and the newest invited store becomes the one they land in.
+ */
+async function acceptPendingInvitesForExistingUser(
+    admin: ReturnType<typeof createSupabaseServiceClient>,
+    userId: string,
+    email: string,
+): Promise<{ provisioned: boolean; reason: string }> {
+    const { data: invites, error: inviteErr } = await admin
+        .from("team_invites")
+        .select("id, tenant_id, role, invited_by, created_at")
+        .eq("email", email)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+    if (inviteErr) {
+        console.error("[Provision] team_invites read failed:", inviteErr.message);
+        return { provisioned: false, reason: "invite-read-failed" };
+    }
+    if (!invites || invites.length === 0) return { provisioned: false, reason: "already-provisioned" };
+
+    const now = new Date().toISOString();
+    let joinedTenant: string | null = null;
+    for (const invite of invites) {
+        const { error: memberErr } = await admin.from("tenant_members").insert({
+            tenant_id: invite.tenant_id,
+            user_id: userId,
+            role: tenantMemberRoleFor(invite.role),
+            status: "active",
+            joined_at: now,
+            invited_by: invite.invited_by,
+            invited_at: invite.created_at,
+        });
+        // 23505 = they are already a member of that store (joined another way
+        // since the invite went out): the invite is done, and their existing
+        // role is never overwritten by an older invite's role.
+        if (memberErr && memberErr.code !== "23505") {
+            console.error("[Provision] tenant_members insert failed:", memberErr.message);
+            return { provisioned: false, reason: "member-insert-failed" };
+        }
+        await admin
+            .from("team_invites")
+            .update({ status: "accepted", accepted_user_id: userId, accepted_at: now, updated_at: now })
+            .eq("id", invite.id);
+        joinedTenant = invite.tenant_id;
+    }
+
+    if (joinedTenant) {
+        await admin.from("user_profiles").update({ current_tenant_id: joinedTenant }).eq("id", userId);
+    }
+    console.log(`[Provision] existing user ${userId} accepted ${invites.length} invite(s)`);
+    return { provisioned: true, reason: "accepted-existing" };
 }

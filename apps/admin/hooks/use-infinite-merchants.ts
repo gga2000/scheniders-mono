@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import type { AdminTenant } from "@/types/admin";
 import { useAdminStore } from "@/store/use-admin-store";
 import {
@@ -15,6 +15,25 @@ interface MerchantsPage {
   total: number;
   page: number;
   limit: number;
+}
+
+/** Optimistically change one merchant in every loaded merchants list. */
+export function patchMerchantInCache(
+  queryClient: QueryClient,
+  merchantId: string,
+  patch: Partial<AdminTenant>,
+) {
+  queryClient.setQueriesData<InfiniteData<MerchantsPage>>({ queryKey: ["admin", "merchants"] }, (old) => {
+    // Other queries share the key prefix; only the paged list has `pages`.
+    if (!old?.pages) return old;
+    return {
+      ...old,
+      pages: old.pages.map((page) => ({
+        ...page,
+        merchants: page.merchants.map((m) => (m.id === merchantId ? { ...m, ...patch } : m)),
+      })),
+    };
+  });
 }
 
 export function useInfiniteMerchants(limit = 50) {

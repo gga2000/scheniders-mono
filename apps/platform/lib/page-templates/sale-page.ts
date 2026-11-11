@@ -1,7 +1,8 @@
 // =====================================================================
 // Page template — Sale page
 // =====================================================================
-// Promo banner + hero + sale-tagged product grid + countdown + trust.
+// Promo banner + hero + sale-tagged product grid + trust. No countdown: a
+// template cannot know the merchant's real sale end date.
 // =====================================================================
 
 import { getManifestEntry } from "@/lib/sections-manifest";
@@ -17,8 +18,8 @@ export const salePageTemplate: PageTemplate = {
     id: "sale_page",
     name_i18n: { en: "Sale page", ar: "صفحة تخفيضات" },
     description_i18n: {
-        en: "Promo banner, hero, sale product grid, countdown, and trust strip.",
-        ar: "لافتة عرض، غلاف، شبكة منتجات، عدّاد تنازلي، وشريط الثقة.",
+        en: "Promo banner, hero, sale product grid, and trust strip.",
+        ar: "لافتة عرض، غلاف، شبكة منتجات، وشريط الثقة.",
     },
     page_id: "home",
     sections: [
@@ -47,12 +48,6 @@ export const salePageTemplate: PageTemplate = {
         },
         {
             id: tplId(4),
-            type: "countdown_card",
-            enabled: true,
-            base: defaults("countdown_card"),
-        },
-        {
-            id: tplId(5),
             type: "trust_strip",
             enabled: true,
             base: defaults("trust_strip"),

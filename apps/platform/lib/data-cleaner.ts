@@ -4,7 +4,7 @@ import { extractGovernorate } from "@/lib/address-validator";
  * Enhanced phone number cleaner that standardizes numbers
  * specifically for the data import tool.
  */
-export function cleanImportedPhone(phone: any): { clean: string; isValid: boolean } {
+export function cleanImportedPhone(phone: unknown): { clean: string; isValid: boolean } {
     if (!phone) return { clean: '', isValid: false };
 
     // Convert to string and ensure we trim whitespace
@@ -39,7 +39,7 @@ export type ParsedAddress = {
  * Parses raw address text into structural components.
  * Uses the existing address-validator logic.
  */
-export function parseRawAddress(rawAddress: any): ParsedAddress {
+export function parseRawAddress(rawAddress: unknown): ParsedAddress {
     if (!rawAddress || typeof rawAddress !== 'string') {
         return {
             governorate_code: '',
@@ -55,15 +55,9 @@ export function parseRawAddress(rawAddress: any): ParsedAddress {
     const extracted = extractGovernorate(text);
 
     if (extracted.governorate) {
-        // Find the index of the district or governorate match to remove it from details
+        // Drop the governorate name from the details.
         let remainingDetails = text;
-        const matchStr = (extracted as any).matched_district || extracted.governorate.nameEn || ''; // A simple heuristic, can be improved
-
-        // Simple removal (case insensitive), this isn't perfect but helps clean it up
-        if ((extracted as any).matched_district) {
-            const regex = new RegExp((extracted as any).matched_district, 'i');
-            remainingDetails = remainingDetails.replace(regex, '').trim();
-        } else if (extracted.governorate.nameAr) {
+        if (extracted.governorate.nameAr) {
             const regex = new RegExp(extracted.governorate.nameAr, 'g');
             remainingDetails = remainingDetails.replace(regex, '').trim();
         }
@@ -73,7 +67,7 @@ export function parseRawAddress(rawAddress: any): ParsedAddress {
 
         return {
             governorate_code: extracted.governorate.code,
-            city: (extracted as any).matched_district || text, // Give sensible default if strict district matching failed
+            city: text,
             address_details: remainingDetails || text,
             status: 'valid'
         };
@@ -90,11 +84,14 @@ export function parseRawAddress(rawAddress: any): ParsedAddress {
 /**
  * Merges backup data into primary dataset based on a match criterion.
  */
+/** One spreadsheet row, keyed by its header. */
+export type SheetRow = Record<string, unknown>;
+
 export function mergeBackupIds(
-    primaryData: any[],
-    backupData: any[],
+    primaryData: SheetRow[],
+    backupData: SheetRow[],
     matchFields: { primary: string; backup: string; target: string; backupTarget: string }
-): { merged: any[]; matchCount: number } {
+): { merged: SheetRow[]; matchCount: number } {
     let matchCount = 0;
 
     // Create an index of backup data for O(1) lookups

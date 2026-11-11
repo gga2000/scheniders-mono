@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { StoreConfigV2 } from "@scheniders/shared";
+import { needsStoreOnboarding } from "@/lib/store-onboarding-state";
 import { env } from "@/lib/env";
 import { OnboardingWizard } from "@/components/store-onboarding/onboarding-wizard";
 import { FALLBACK_INDUSTRIES, type WizardIndustry } from "@/lib/wizard-industry-types";
@@ -60,8 +61,8 @@ export default async function StoreOnboardingPage() {
 
     const t = member.tenants;
 
-    // Already has a store (published or draft) → onboarding is done.
-    if (t.store_config_v2 || t.store_config_v2_draft) {
+    // Already built (a draft, or anything beyond the sign-up default) → onboarding is done.
+    if (!needsStoreOnboarding(t.store_config_v2, t.store_config_v2_draft)) {
         redirect("/store/edit");
     }
 

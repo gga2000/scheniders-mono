@@ -1,5 +1,6 @@
 "use client";
 
+import type { Table } from "jspdf-autotable";
 import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatOrderNamedDayMonth } from "@/lib/order-format-utils";
@@ -167,7 +168,7 @@ function calculateStats(orders: Order[]) {
 // ============================================
 
 export async function generatePDFReport(options: PDFReportOptions): Promise<void> {
-    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    const [{ default: jsPDF, GState }, { default: autoTable }] = await Promise.all([
         import("jspdf"),
         import("jspdf-autotable"),
     ]);
@@ -175,6 +176,8 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
     const { title, dateRange, reportType, orders } = options;
     const stats = calculateStats(orders);
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    // autoTable records where its last table ended on the doc, outside jsPDF's types.
+    const lastTableEnd = () => (doc as unknown as { lastAutoTable: Pick<Table, "finalY"> }).lastAutoTable.finalY ?? 0;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 15;
@@ -194,9 +197,9 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
 
     // Accent stripe decorative element
     doc.setFillColor(...COLORS.accent);
-    doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+    doc.setGState(new GState({ opacity: 0.08 }));
     doc.rect(0, 80, pageWidth, 60, "F");
-    doc.setGState(new (doc as any).GState({ opacity: 1 }));
+    doc.setGState(new GState({ opacity: 1 }));
 
     // Company name
     doc.setFont("helvetica", "bold");
@@ -379,7 +382,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
         },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 12;
+    y = lastTableEnd() + 12;
 
     // Payment Status Breakdown
     if (y < pageHeight - 80) {
@@ -565,7 +568,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
         });
 
         // Summary row
-        const finalY = (doc as any).lastAutoTable.finalY + 8;
+        const finalY = lastTableEnd() + 8;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.text);

@@ -409,7 +409,7 @@ function CustomerLoveCard({ schn }: { schn: ResolvedSchneiders }) {
     <div className="md:col-span-2 bg-white chunky-border-bold rounded-2xl p-8 flex flex-col md:flex-row gap-8 items-center shadow-bento-lg">
       <div className="w-24 h-24 rounded-full chunky-border-bold overflow-hidden shrink-0 bg-bk-decor-b flex items-center justify-center font-display font-black text-3xl">
         {t.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
+          // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
           <img src={t.avatar_url} alt={name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           avatarLetter

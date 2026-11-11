@@ -302,7 +302,7 @@ export interface ProductActivityLog {
     product_id: string;
     user_id?: string | null;
     action: 'created' | 'updated' | 'status_changed' | 'price_changed' | 'image_added' | 'variant_added' | 'variant_removed' | 'inventory_adjusted' | 'published' | 'archived';
-    changes_json?: Record<string, { before: any; after: any }> | null;
+    changes_json?: Record<string, { before: unknown; after: unknown }> | null;
     tenant_id?: string;
     created_at: string;
 }

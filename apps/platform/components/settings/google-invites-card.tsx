@@ -19,9 +19,9 @@ interface Invite {
 const ROLES = ["employee", "viewer", "admin"] as const;
 
 /**
- * Admin card: invite a teammate by their email (typically a Google address).
- * Creates a pending allowlist entry — when they "Continue with Google" the auth
- * callback auto-provisions them into this workspace. No password needed.
+ * Admin card: invite a teammate by email. The server records a pending invite
+ * and emails a join link; opening it, or "Continue with Google" on that email,
+ * adds them to this store.
  */
 export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () => void }) {
     const { tenantId } = useAuth();

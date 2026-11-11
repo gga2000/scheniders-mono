@@ -115,7 +115,7 @@ const BottomSheetContent = forwardRef<
     // Threshold for dismissal (in pixels)
     const DISMISS_THRESHOLD = 150;
 
-    const handleDragEnd = (_: any, info: PanInfo) => {
+    const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         setIsDragging(false);
 
         // If dragged down past threshold or with high velocity, dismiss

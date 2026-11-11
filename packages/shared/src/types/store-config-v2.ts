@@ -599,6 +599,12 @@ export interface StoreTemplateStamp {
   version: number;
   /** ISO timestamp of the seed. */
   applied_at?: string;
+  /**
+   * "signup": the default look every new store is published with, so its
+   * address is never blank. The merchant has not run onboarding yet; the
+   * wizard may still seed over it (seed_store_config_v2_draft).
+   */
+  source?: "signup";
 }
 
 /**

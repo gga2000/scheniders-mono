@@ -9,6 +9,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CommandCenter } from "@/components/store-command-center";
 import type { StoreConfigV2 } from "@scheniders/shared";
+import { needsStoreOnboarding } from "@/lib/store-onboarding-state";
 
 export default function StoreBuilderPage() {
     const { tenantId } = useAuth();
@@ -42,7 +43,7 @@ export default function StoreBuilderPage() {
     // built yet — send the merchant through the onboarding wizard instead of
     // an empty Command Center. Mirrors the wizard's own seed guard.
     const isFreshStore =
-        !!tenant && !tenant.store_config_v2 && !tenant.store_config_v2_draft;
+        !!tenant && needsStoreOnboarding(tenant.store_config_v2, tenant.store_config_v2_draft);
 
     useEffect(() => {
         if (isFreshStore) router.replace("/store/onboarding");

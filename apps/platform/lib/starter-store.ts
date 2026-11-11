@@ -90,6 +90,8 @@ export interface StarterStoreInput {
     logoUrl?: string;
     /** Optional WhatsApp number → enables WhatsApp ordering. */
     whatsappNumber?: string;
+    /** "signup" marks the default store published at sign-up (see StoreTemplateStamp.source). */
+    source?: "signup";
     /**
      * Standard COD delivery fee (IQD). When > 0 it seeds the per-governorate
      * shipping engine's `default_rate`; otherwise the store falls back to the
@@ -226,6 +228,7 @@ export function buildStarterStoreConfigV2(
             pack_id: pack.id,
             version: template.version,
             applied_at: new Date().toISOString(),
+            ...(input.source ? { source: input.source } : {}),
         };
     }
 
@@ -252,3 +255,7 @@ export function starterTaxonomy(packId: string | undefined): {
     const pack = resolveContentPack(packId);
     return { pack, categories: packCategoryRows(pack), attribute_defs: pack.attributes };
 }
+
+/** The direction a brand-new store is published with at sign-up. */
+export const SIGNUP_TEMPLATE_ID = STORE_TEMPLATES[0].id;
+

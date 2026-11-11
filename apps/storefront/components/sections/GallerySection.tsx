@@ -34,7 +34,7 @@ export default function GallerySection({ data }: GallerySectionProps) {
                 layout === "masonry" ? "break-inside-avoid" : "aspect-square"
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts */}
               <img
                 src={url}
                 alt=""
@@ -81,7 +81,7 @@ export default function GallerySection({ data }: GallerySectionProps) {
               </button>
             )}
 
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts */}
             <img
               src={images[lightboxIndex]}
               alt=""

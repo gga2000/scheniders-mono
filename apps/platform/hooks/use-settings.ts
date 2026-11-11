@@ -3,12 +3,12 @@
 import { useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 
 export interface AppSetting {
     key: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any;
+    value: unknown;
     description?: string;
     updated_at?: string;
     updated_by?: string;
@@ -25,6 +25,35 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
     quick_actions: { show_cancel: true, show_reject: true, show_whatsapp: true, show_print: true },
     notification_settings: { toast_enabled: true },
 };
+
+// Stored as free JSON per tenant: a field of the wrong type reads as unset, and
+// fields a form does not know are kept so saving it does not drop them.
+const str = z.string().optional().catch(undefined);
+const num = z.number().optional().catch(undefined);
+const flag = z.boolean().optional().catch(undefined);
+type Loose<T> = T & { [field: string]: unknown };
+interface SettingValues {
+    store_profile: Loose<{ name?: string; currency?: string; timezone?: string }>;
+    inventory_rules: Loose<{ low_stock_threshold?: number; enable_stock_alerts?: boolean }>;
+    print_settings: Loose<{ label_size?: string; show_price?: boolean; show_phone?: boolean; batch_grouping?: string }>;
+    auto_archive: Loose<{ enabled?: boolean; days?: number; archive_canceled?: boolean; archive_delivered?: boolean }>;
+    quick_actions: Loose<{ show_cancel?: boolean; show_reject?: boolean; show_whatsapp?: boolean; show_print?: boolean }>;
+    notification_settings: Loose<{ toast_enabled?: boolean }>;
+}
+const SETTING_SCHEMAS: { [K in keyof SettingValues]: z.ZodType<SettingValues[K]> } = {
+    store_profile: z.looseObject({ name: str, currency: str, timezone: str }).catch({}),
+    inventory_rules: z.looseObject({ low_stock_threshold: num, enable_stock_alerts: flag }).catch({}),
+    print_settings: z.looseObject({ label_size: str, show_price: flag, show_phone: flag, batch_grouping: str }).catch({}),
+    auto_archive: z.looseObject({ enabled: flag, days: num, archive_canceled: flag, archive_delivered: flag }).catch({}),
+    quick_actions: z.looseObject({ show_cancel: flag, show_reject: flag, show_whatsapp: flag, show_print: flag }).catch({}),
+    notification_settings: z.looseObject({ toast_enabled: flag }).catch({}),
+};
+export type SettingValue<K extends keyof SettingValues> = SettingValues[K];
+
+/** One setting, typed; an unreadable stored value reads as empty. */
+export function readSetting<K extends keyof SettingValues>(settings: Record<string, unknown>, key: K): SettingValue<K> {
+    return SETTING_SCHEMAS[key].parse(settings[key]);
+}
 
 export function useSettings() {
     const queryClient = useQueryClient();

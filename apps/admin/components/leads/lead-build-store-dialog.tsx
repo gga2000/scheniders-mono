@@ -96,7 +96,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
       setProducts([emptyProduct()]);
       buildStore.reset();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
   }, [isOpen, lead]);
 
   // Product row helpers

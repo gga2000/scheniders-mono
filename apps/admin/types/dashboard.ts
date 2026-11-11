@@ -192,4 +192,17 @@ export interface DashboardV2Stats {
   };
   timeToFirstOrder: TimeToFirstOrderBucket[];
   onboarding: TenantOnboarding[];
+  recentActivity: DashboardActivity[];
+}
+
+/** One admin action in the dashboard's activity feed. */
+export interface DashboardActivity {
+  id: string;
+  admin_user_id: string | null;
+  admin_label: string | null;
+  actor_email: string | null;
+  action: string;
+  details: Record<string, unknown> | null;
+  tenant_id: string | null;
+  created_at: string;
 }

@@ -37,41 +37,9 @@ type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   heading_i18n: { en: "What customers say", ar: "ماذا يقول الزبائن" },
-  items: [
-    {
-      author_name: "Hadeel M.",
-      author_city: "Baghdad",
-      avatar_url: undefined,
-      rating: 5,
-      quote_i18n: {
-        en: "Same-day delivery, exactly as described. I'm reordering today.",
-        ar: "وصلني بنفس اليوم وبنفس الوصف. سأطلب مرة ثانية اليوم.",
-      },
-      verified: true,
-    },
-    {
-      author_name: "Ahmed K.",
-      author_city: "Basra",
-      avatar_url: undefined,
-      rating: 5,
-      quote_i18n: {
-        en: "Quality is way beyond the price. The fabric is unreal.",
-        ar: "الجودة أكبر بكثير من السعر. الخامة خرافية.",
-      },
-      verified: true,
-    },
-    {
-      author_name: "Sara A.",
-      author_city: "Erbil",
-      avatar_url: undefined,
-      rating: 4,
-      quote_i18n: {
-        en: "Cash on delivery worked great. Will buy again.",
-        ar: "الدفع عند الاستلام راحة كاملة. أعيدُها بالتأكيد.",
-      },
-      verified: true,
-    },
-  ],
+  // Empty on purpose: sample reviews, press quotes or numbers would show
+  // invented proof on a real store. Empty -> the section renders nothing.
+  items: [],
 };
 
 function Stars({ rating }: { rating: number }) {

@@ -14,7 +14,7 @@ export function CartView() {
   const total = useCart((s) => s.getTotal());
   const [mounted, setMounted] = useState(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- the cart lives in localStorage; render it after mount to avoid a hydration mismatch
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {

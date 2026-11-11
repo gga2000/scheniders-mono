@@ -26,7 +26,7 @@ export function CheckoutForm({ tenantId }: Props) {
   // order instead of creating a duplicate; cleared once the order succeeds.
   const idempotencyKeyRef = useRef<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- the cart lives in localStorage; render it after mount to avoid a hydration mismatch
   useEffect(() => setMounted(true), []);
 
   const [form, setForm] = useState({
