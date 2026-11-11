@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
 
     let userId: string | null = existingProfile?.id ?? null;
     if (!userId) userId = await findAuthUserIdByEmail(supabase, email);
+    const existingAccount = userId !== null;
 
     // 2. Brand-new person → create the auth user (needs a password).
     if (!userId) {
@@ -162,7 +163,38 @@ export async function POST(request: NextRequest) {
           },
           { onConflict: "id" },
         );
-    } else if (password) {
+    } else {
+      // An existing login can belong to someone other than the mailbox owner:
+      // store admins create staff logins with a password they choose, and
+      // those emails are not verified. Binding admin-console rights to such a
+      // login would hand platform access to whoever knows its password, so a
+      // login that belongs to any store is refused unless it is already
+      // admin-console staff (a role change).
+      const [{ data: alreadyStaff, error: staffErr }, { count: memberships, error: memberErr }] =
+        await Promise.all([
+          supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle(),
+          supabase
+            .from("tenant_members")
+            .select("user_id", { count: "exact", head: true })
+            .eq("user_id", userId),
+        ]);
+      if (staffErr || memberErr) {
+        return NextResponse.json(
+          { error: (staffErr ?? memberErr)?.message || "Could not check this account" },
+          { status: 500 },
+        );
+      }
+      if (!alreadyStaff && (memberships ?? 0) > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "This email already signs in to a store. Use a different email for the admin console.",
+          },
+          { status: 409 },
+        );
+      }
+    }
+    if (userId && existingAccount && password) {
       // Existing user and a password was supplied → reset it as a convenience.
       await supabase.auth.admin.updateUserById(userId, { password });
     }

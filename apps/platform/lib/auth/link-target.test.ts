@@ -7,13 +7,21 @@ const OTHER = "22222222-2222-4222-8222-222222222222";
 
 type Membership = { tenant_id: string; role: string; status: string };
 
-function fakeAdmin(memberships: Membership[] | null, profile: { role: string } | null, fail = false): SupabaseClient {
+function fakeAdmin(
+    memberships: Membership[] | null,
+    profile: { role: string } | null,
+    fail = false,
+    consoleStaff: { user_id: string } | null = null,
+    consoleStaffFail = false,
+): SupabaseClient {
     const from = (table: string) => ({
         select: () => ({
             eq: () =>
                 table === "tenant_members"
                     ? Promise.resolve({ data: memberships, error: fail ? { message: "boom" } : null })
-                    : { maybeSingle: () => Promise.resolve({ data: profile, error: null }) },
+                    : table === "admin_users"
+                      ? { maybeSingle: () => Promise.resolve({ data: consoleStaff, error: consoleStaffFail ? { message: "boom" } : null }) }
+                      : { maybeSingle: () => Promise.resolve({ data: profile, error: null }) },
         }),
     });
     return { from } as unknown as SupabaseClient;
@@ -42,5 +50,10 @@ describe("linkTargetAllowed", () => {
         expect(await linkTargetAllowed(fakeAdmin([{ tenant_id: HERE, role: "employee", status: "suspended" }], { role: "employee" }), "u", HERE)).toBe(false);
         expect(await linkTargetAllowed(fakeAdmin(null, { role: "employee" }, true), "u", HERE)).toBe(false);
         expect(await linkTargetAllowed(fakeAdmin([], { role: "employee" }), "u", HERE)).toBe(false);
+    });
+    it("refuses admin-console staff, and fails closed when that read fails", async () => {
+        const employee: Membership[] = [{ tenant_id: HERE, role: "employee", status: "active" }];
+        expect(await linkTargetAllowed(fakeAdmin(employee, { role: "employee" }, false, { user_id: "u" }), "u", HERE)).toBe(false);
+        expect(await linkTargetAllowed(fakeAdmin(employee, { role: "employee" }, false, null, true), "u", HERE)).toBe(false);
     });
 });
