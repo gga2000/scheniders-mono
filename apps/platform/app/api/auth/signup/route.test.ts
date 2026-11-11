@@ -133,4 +133,19 @@ describe("POST /api/auth/signup", () => {
         const slugsTried = tableInserts.filter((i) => i.table === "tenants").map((i) => i.row.slug);
         expect(slugsTried).toEqual(["shop", "shop-1"]);
     });
+
+    it("publishes a designed default store so the new subdomain is never blank", async () => {
+        const res = await POST(request({ ...base, contact_phone: "07701234567" }));
+        expect(res.status).toBe(201);
+        const tenant = tableInserts.find((i) => i.table === "tenants")?.row as {
+            config_version: number;
+            store_config_v2: { schema_version: number; template: { source: string }; pages: { page_id: string; sections: unknown[] }[]; brand_kit: { identity: { name: string } } };
+        };
+        expect(tenant.config_version).toBe(2);
+        expect(tenant.store_config_v2.schema_version).toBe(2);
+        expect(tenant.store_config_v2.template.source).toBe("signup");
+        expect(tenant.store_config_v2.brand_kit.identity.name).toBe("Shop");
+        const home = tenant.store_config_v2.pages.find((p) => p.page_id === "home");
+        expect(home?.sections.length).toBeGreaterThan(0);
+    });
 });

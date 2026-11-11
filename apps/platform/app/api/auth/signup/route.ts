@@ -5,6 +5,8 @@ import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { buildStarterStoreConfigV2, SIGNUP_TEMPLATE_ID } from '@/lib/starter-store';
+import { DEFAULT_PACK_ID } from '@/lib/store-templates/content-packs';
 
 /**
  * Every self-serve signup starts a trial on the one plan (Ali, 9 Nov): 7 days
@@ -120,6 +122,17 @@ export async function POST(request: NextRequest) {
         // ── 2. Create tenant ──
         const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
+        // Published from day one so the store's own address shows a designed
+        // store, not a blank page. Stamped "signup": the onboarding wizard
+        // still runs and seeds the merchant's real choice over it.
+        const starterConfig = buildStarterStoreConfigV2({
+            templateId: SIGNUP_TEMPLATE_ID,
+            packId: DEFAULT_PACK_ID,
+            businessName: business_name,
+            whatsappNumber: contact_phone ?? undefined,
+            source: 'signup',
+        });
+
         const insertTenant = async (slug: string) => adminClient
             .from('tenants')
             .insert({
@@ -128,6 +141,8 @@ export async function POST(request: NextRequest) {
                 plan,
                 status: 'trial',
                 trial_ends_at: trialEndsAt,
+                store_config_v2: starterConfig,
+                config_version: 2,
                 contact_email: email,
                 contact_phone,
                 city,
