@@ -17,6 +17,29 @@ import type { FeedNotification } from "@/hooks/use-notification-feed";
  */
 const localDayKey = (date: Date) => date.toLocaleDateString("en-CA");
 
+const STATUS_CHANGED = "order.status_changed";
+const HOUR_MS = 3_600_000;
+
+/**
+ * What the bell counts as one. Order status changes in the same hour are one
+ * (they show as one line, "14 orders changed"); everything else is itself.
+ *
+ * The hour is the UTC hour. Iraq is UTC+3 with no daylight saving, so it is
+ * the hour the reader sees. `notification_unread_count()` uses the same key
+ * (migration 20261111132409); keep the two in step.
+ */
+export function unreadUnitKey(n: Pick<FeedNotification, "id" | "type" | "created_at">): string {
+    if (n.type !== STATUS_CHANGED) return n.id;
+    return `status-hour:${Math.floor(new Date(n.created_at).getTime() / HOUR_MS)}`;
+}
+
+/** How many separate unread things the loaded feed holds, as the bell counts them. */
+export function countUnreadUnits(items: FeedNotification[]): number {
+    const units = new Set<string>();
+    for (const n of items) if (!n.is_read) units.add(unreadUnitKey(n));
+    return units.size;
+}
+
 export interface FeedGroup {
     /** Stable across live updates — the id of the oldest entry in the run. */
     key: string;
@@ -25,6 +48,12 @@ export interface FeedGroup {
     /** Everything collapsed underneath it, newest first. */
     rest: FeedNotification[];
     unread: boolean;
+    /**
+     * Set when this group is an hour of order status changes: the start of
+     * that hour. Such a group shows as one summary line once it holds two or
+     * more changes, and opens to list them.
+     */
+    statusHour?: Date;
 }
 
 export type DayBucket = "today" | "yesterday" | "earlier";
@@ -46,6 +75,12 @@ export interface FeedSection {
  * Only consecutive rows are folded, so a busy order cannot swallow unrelated
  * activity that happened in between — the feed stays chronological, it just
  * stops repeating itself.
+ *
+ * Order status changes are the exception: about 2 of every 3 notifications
+ * are one, so all the status changes of one hour become one group, wherever
+ * they sit in that hour. The group stays where its newest change is; other
+ * alerts in between keep their own lines. Its key is the hour itself, so it
+ * survives live updates and older pages loading in.
  */
 export function buildFeedSections(
     items: FeedNotification[],
@@ -57,6 +92,8 @@ export function buildFeedSections(
     const yesterdayKey = localDayKey(yesterday);
 
     const sections: FeedSection[] = [];
+    // Hour groups of the current section, by unit key.
+    let hours = new Map<string, FeedGroup>();
 
     for (const n of items) {
         const date = new Date(n.created_at);
@@ -74,12 +111,30 @@ export function buildFeedSections(
                 unread: 0,
             };
             sections.push(section);
+            hours = new Map();
+        }
+
+        if (n.type === STATUS_CHANGED) {
+            const unit = unreadUnitKey(n);
+            const hour = hours.get(unit);
+            if (hour) {
+                hour.rest.push(n);
+                if (!n.is_read && !hour.unread) section.unread += 1;
+                hour.unread = hour.unread || !n.is_read;
+                continue;
+            }
+            const start = new Date(Math.floor(date.getTime() / HOUR_MS) * HOUR_MS);
+            const group: FeedGroup = { key: unit, head: n, rest: [], unread: !n.is_read, statusHour: start };
+            if (!n.is_read) section.unread += 1;
+            hours.set(unit, group);
+            section.groups.push(group);
+            continue;
         }
 
         if (!n.is_read) section.unread += 1;
 
         const prev = section.groups[section.groups.length - 1];
-        if (prev && n.group_key && prev.head.group_key === n.group_key) {
+        if (prev && !prev.statusHour && n.group_key && prev.head.group_key === n.group_key) {
             prev.rest.push(n);
             prev.unread = prev.unread || !n.is_read;
             // The run's anchor is its oldest member, which is the one that

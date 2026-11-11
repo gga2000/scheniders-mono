@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
     buildFeedSections,
+    countUnreadUnits,
     firstUnreadBoundary,
+    unreadUnitKey,
 } from "@/lib/notification-feed-sections";
 import type { FeedNotification } from "@/hooks/use-notification-feed";
 
@@ -10,7 +12,7 @@ const NOW = new Date("2026-10-03T12:00:00");
 const at = (iso: string): string => new Date(iso).toISOString();
 
 const note = (over: Partial<FeedNotification> & { id: string; created_at: string }): FeedNotification => ({
-    type: "order.status_changed",
+    type: "order.updated",
     category: "orders",
     actor_name: "Automation",
     actor_avatar: "bot",
@@ -165,5 +167,65 @@ describe("firstUnreadBoundary", () => {
         );
 
         expect(firstUnreadBoundary(sections)).toBeNull();
+    });
+});
+
+describe("hour groups of order status changes", () => {
+    const status = (id: string, iso: string, over: Partial<FeedNotification> = {}) =>
+        note({ id, type: "order.status_changed", created_at: at(iso), entity_id: id, group_key: `order:${id}`, ...over });
+
+    it("folds every status change of one hour into one group, around other alerts", () => {
+        const sections = buildFeedSections(
+            [
+                status("a", "2026-10-03T09:50:00"),
+                note({ id: "x", type: "order.created", created_at: at("2026-10-03T09:40:00") }),
+                status("b", "2026-10-03T09:30:00"),
+                status("c", "2026-10-03T09:05:00"),
+                status("d", "2026-10-03T08:55:00"),
+            ],
+            NOW,
+        );
+        const groups = sections[0].groups;
+        expect(groups.map((g) => g.head.id)).toEqual(["a", "x", "d"]);
+        expect(groups[0].rest.map((n) => n.id)).toEqual(["b", "c"]);
+        expect(groups[0].statusHour).toBeInstanceOf(Date);
+        expect(groups[1].statusHour).toBeUndefined();
+    });
+
+    it("keys the group by its hour, so older pages loading in keep it in place", () => {
+        const first = buildFeedSections([status("a", "2026-10-03T09:50:00"), status("b", "2026-10-03T09:30:00")], NOW);
+        const more = buildFeedSections(
+            [status("a", "2026-10-03T09:50:00"), status("b", "2026-10-03T09:30:00"), status("c", "2026-10-03T09:01:00")],
+            NOW,
+        );
+        expect(more[0].groups[0].key).toBe(first[0].groups[0].key);
+    });
+
+    it("counts an unread hour once in the day's number", () => {
+        const sections = buildFeedSections(
+            [
+                status("a", "2026-10-03T09:50:00", { is_read: false }),
+                status("b", "2026-10-03T09:30:00", { is_read: false }),
+                note({ id: "x", type: "order.created", created_at: at("2026-10-03T09:40:00"), is_read: false }),
+            ],
+            NOW,
+        );
+        expect(sections[0].unread).toBe(2);
+    });
+});
+
+describe("countUnreadUnits", () => {
+    it("counts an hour of status changes once and every other alert alone", () => {
+        const sc = "order.status_changed";
+        const items = [
+            note({ id: "a", type: sc, created_at: at("2026-10-03T09:50:00"), is_read: false }),
+            note({ id: "b", type: sc, created_at: at("2026-10-03T09:10:00"), is_read: false }),
+            note({ id: "c", type: sc, created_at: at("2026-10-03T08:10:00"), is_read: false }),
+            note({ id: "x", type: "order.created", created_at: at("2026-10-03T09:40:00"), is_read: false }),
+            note({ id: "y", type: "order.created", created_at: at("2026-10-03T09:41:00"), is_read: true }),
+        ];
+        expect(countUnreadUnits(items)).toBe(3);
+        expect(unreadUnitKey(items[0])).toBe(unreadUnitKey(items[1]));
+        expect(unreadUnitKey(items[3])).toBe("x");
     });
 });
