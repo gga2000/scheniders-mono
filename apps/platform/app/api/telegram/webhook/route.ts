@@ -15,6 +15,7 @@ import {
     matchProductReply,
     type CatalogProduct,
 } from "@/lib/telegram-product-match";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -77,7 +78,7 @@ interface EmployeeLink {
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
     // Fails closed: without the secret anyone could post a fake update as a
     // linked employee and create orders in that employee's store.
     const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -576,3 +577,5 @@ function helpText(): string {
         "<b>بعد إرسال الصورة</b>، جاوب برقم المنتج (مثلاً <code>3</code>)، أو اسم المنتج، أو <code>3 x 2</code> للكميات.",
     ].join("\n");
 }
+
+export const POST = withFailureReport("webhook-telegram", handlePost);

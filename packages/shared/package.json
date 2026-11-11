@@ -17,7 +17,8 @@
     "./provider-base-url": "./src/provider-base-url.ts",
     "./font-stack": "./src/font-stack.ts",
     "./ad-attribution": "./src/ad-attribution.ts",
-    "./safe-redirect-path": "./src/safe-redirect-path.ts"
+    "./safe-redirect-path": "./src/safe-redirect-path.ts",
+    "./sentry-scrub": "./src/sentry-scrub.ts"
   },
   "scripts": {
     "test": "vitest run"

@@ -47,7 +47,8 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         // Run on page navigations only. Exclude API routes (they authenticate via
-        // the Authorization header) and static assets.
-        '/((?!api|_next/static|_next/image|favicon.ico|icons|manifest.json|till.webmanifest|sw.js|whatsapp).*)',
+        // the Authorization header), static assets, and the Sentry tunnel
+        // (/monitoring), which must accept error reports from signed-out pages.
+        '/((?!api|monitoring|_next/static|_next/image|favicon.ico|icons|manifest.json|till.webmanifest|sw.js|whatsapp).*)',
     ],
 };

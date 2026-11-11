@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { autoBackupFoldersToPrune } from '@/lib/vault-retention';
 import { generateBackupCsv, type CsvRow } from '@/lib/backup-csv';
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 // We need to bypass RLS for a background cron job using the Service Role Key
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
@@ -105,7 +106,7 @@ async function pruneOldBackups(supabase: { storage: SupabaseClient['storage'] },
     }
 }
 
-export async function GET(request: Request) {
+async function runScheduled(request: Request) {
     // Check Authorization if a cron secret is set, to prevent unauthorized triggering
     const denied = requireCronAuth(request);
     if (denied) return denied;
@@ -203,3 +204,5 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "Backup failed" }, { status: 500 });
     }
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.backup, runScheduled);

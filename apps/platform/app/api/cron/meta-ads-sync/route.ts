@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { syncMetaAdsForTenant } from "@/lib/meta-ads-sync";
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,14 +29,14 @@ async function syncAllTenants(): Promise<NextResponse> {
 }
 
 /** Daily Vercel cron (Bearer CRON_SECRET). */
-export async function GET(request: Request) {
+async function runScheduled(request: Request) {
     const denied = requireCronAuth(request);
     if (denied) return denied;
     return syncAllTenants();
 }
 
 /** QStash schedule (every 5 min): the Upstash signature proves the caller. */
-export async function POST(request: Request) {
+async function runQueued(request: Request) {
     const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
     const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
     if (!currentSigningKey || !nextSigningKey) {
@@ -50,3 +51,6 @@ export async function POST(request: Request) {
     }
     return syncAllTenants();
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.metaAdsSync, runScheduled);
+export const POST = withCronMonitor(CRON_MONITORS.metaAdsSyncQstash, runQueued);

@@ -15,6 +15,7 @@
     "@scheniders/sections": "workspace:*",
     "@scheniders/shared": "workspace:*",
     "@scheniders/supabase": "workspace:*",
+    "@sentry/nextjs": "^10.78.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.1",
     "@upstash/qstash": "^2.9.0",

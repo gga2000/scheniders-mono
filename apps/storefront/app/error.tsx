@@ -10,7 +10,11 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[storefront error]", error);
+    // Imported here, not at the top: a static import would put the whole SDK
+    // in every page's bundle. Same module instance instrumentation-client inits.
+    void import("@sentry/nextjs").then((Sentry) =>
+      Sentry.captureException(error, { tags: { boundary: "app-error" } }),
+    );
   }, [error]);
 
   return (

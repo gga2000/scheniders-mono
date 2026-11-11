@@ -10,6 +10,7 @@ import {
 import { resolveCartRecovery } from "@scheniders/shared";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import type { AbandonedCartItem, StoreConfigV2 } from "@scheniders/shared";
+import { CRON_MONITORS, withCronMonitor, withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -188,7 +189,7 @@ async function runSweeps() {
     return { ...reminders, checkoutsRemoved: checkouts };
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+async function runScheduled(request: Request): Promise<NextResponse> {
     const denied = requireCronAuth(request);
     if (denied) return denied;
     try {
@@ -202,7 +203,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function runQueued(request: Request): Promise<NextResponse> {
     const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
     const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
     if (!currentSigningKey || !nextSigningKey) {
@@ -228,3 +229,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         );
     }
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.abandonedCartRecovery, runScheduled);
+export const POST = withFailureReport("abandoned-cart-recovery-qstash", runQueued);

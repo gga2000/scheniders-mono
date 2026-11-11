@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 // Opt out of caching
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ const CLEANUP_BATCH_SIZE = 1000;
  * Scheduled job to permanently delete orders that have been soft-deleted
  * for more than 30 days. Uses the service_role key to bypass RLS.
  */
-export async function GET(request: Request) {
+async function runScheduled(request: Request) {
     try {
         // Verify authorization if it's hitting the endpoint directly (optional depending on your Vercel setup,
         // but it's good practice. Vercel Cron sends a Bearer token matching CRON_SECRET)
@@ -124,3 +125,5 @@ export async function GET(request: Request) {
         );
     }
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.cleanupDeletedOrders, runScheduled);
