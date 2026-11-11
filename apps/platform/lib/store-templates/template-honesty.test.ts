@@ -48,4 +48,10 @@ describe("template honesty", () => {
         const props = getManifestEntry("countdown_card")?.defaultProps as { target_iso: string };
         expect(props.target_iso).toBe("");
     });
+
+    it("the fallback top bar makes no offer the merchant did not set", () => {
+        const props = getManifestEntry("announcement_bar")?.defaultProps as { messages_i18n: { ar?: string; en?: string }[] };
+        const text = JSON.stringify(props.messages_i18n);
+        expect(text).not.toMatch(/%|٪|off|خصم|hour|ساعة/i);
+    });
 });
