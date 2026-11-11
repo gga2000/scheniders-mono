@@ -736,6 +736,34 @@ describe("ExperimentsScreen", () => {
         expect(screen.queryByTestId("experiment-editor")).toBeNull();
     });
 
+    it("cancelling the drawer's end-test confirm keeps focus in the sheet; Escape closes the confirm first", () => {
+        const handle = makeBuilder({
+            experiments: [
+                {
+                    id: "exp_f",
+                    name: "Focus",
+                    status: "running",
+                    primary_metric: "orders",
+                    arms: [
+                        { id: "control", label: "Today", traffic_pct: 50 },
+                        { id: "arm_b", label: "New", traffic_pct: 50 },
+                    ],
+                },
+            ],
+        });
+        renderScreen(handle);
+        fireEvent.click(screen.getByTestId("experiment-row-exp_f-edit"));
+        const chip = screen.getByTestId("experiment-editor-status-completed");
+        fireEvent.click(chip);
+        fireEvent.click(screen.getByTestId("experiment-editor-stop-cancel"));
+        expect(document.activeElement).toBe(chip);
+        fireEvent.click(chip);
+        fireEvent.keyDown(screen.getByTestId("experiment-editor"), { key: "Escape" });
+        expect(screen.queryByTestId("experiment-editor-stop-confirm")).toBeNull();
+        expect(screen.getByTestId("experiment-editor")).toBeTruthy();
+        expect(handle.getConfig().experiments[0]?.status).toBe("running");
+    });
+
     it("shows each running arm's orders and visitors on the card", async () => {
         const handle = makeBuilder(
             {
