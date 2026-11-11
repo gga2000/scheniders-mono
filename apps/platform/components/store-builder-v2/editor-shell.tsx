@@ -81,6 +81,7 @@ import {
     MobileDesktopOnlyStub,
 } from "./mobile-editor-shell";
 import { SectionEditPanel } from "./section-edit-panel";
+import { slotForSectionId, type SitewideSlot } from "./sitewide-parts";
 import { SystemScreenRouter } from "./system-screen-router";
 import { EditorToolbar } from "./editor-toolbar";
 import {
@@ -537,8 +538,33 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     }, [builder.active_breakpoint, bridge]);
 
     // Subscribe to iframe clicks → mark selected.
+    // Site-wide part (top bar / header / footer) open in the Blocks tab.
+    const [editing_global, set_editing_global] = useState<SitewideSlot | null>(null);
+    const globals_ref = useRef(builder.config.globals);
+    useEffect(() => {
+        globals_ref.current = builder.config.globals;
+    }, [builder.config.globals]);
+    const handleGlobalChange = useCallback(
+        (slot: SitewideSlot, next: SectionInstance): void => {
+            builder.setConfig(
+                (prev) => ({ ...prev, globals: { ...prev.globals, [slot]: next } }),
+                t(STRINGS.history.edit_section, builder.active_locale),
+            );
+        },
+        [builder],
+    );
+
     useEffect(() => {
         return bridge.onSectionClicked((e) => {
+            // A click on the top bar / header / footer opens its site-wide
+            // form instead of selecting a page section.
+            const slot = slotForSectionId(globals_ref.current, e.section_id);
+            if (slot) {
+                set_inspector_tab("blocks");
+                set_editing_global(slot);
+            } else {
+                set_editing_global(null);
+            }
             set_selected_section_id(e.section_id);
             // When another section's fields are open, follow the click so the
             // panel never shows section A's fields while B is selected.
@@ -2033,6 +2059,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 onFocusFieldDone={clearFocusField}
                                 activeTab={inspector_tab}
                                 onChangeTab={set_inspector_tab}
+                                globals={builder.config.globals}
+                                onChangeGlobal={handleGlobalChange}
+                                editingGlobal={editing_global}
+                                onEditGlobal={set_editing_global}
                                 pageId={builder.active_page}
                                 pageLabel={getPageLabel(builder.active_page, builder.active_locale)}
                                 sections={activeSections}
