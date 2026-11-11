@@ -24,7 +24,8 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
-import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
+import { Switch } from "@scheniders/ui/switch";
+import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
 import { removeWithUndo } from "./undo-toast";
 
 export interface RedirectsScreenProps {
@@ -170,18 +171,16 @@ export function RedirectsScreen({
                                         />
                                         </label>
                                         <div className="flex h-[38px] shrink-0 items-center gap-2">
-                                            <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                                                <input
-                                                    type="checkbox"
+                                            <label className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                                {t(STRINGS.advanced_chrome.redir_permanent, locale)}
+                                                <Switch
+                                                    className={settingSwitchCls}
                                                     data-testid={`redirect-permanent-${i}`}
                                                     checked={rule.permanent !== false}
-                                                    onChange={(e) =>
-                                                        updateRow(i, {
-                                                            permanent: e.target.checked,
-                                                        })
+                                                    onCheckedChange={(on) =>
+                                                        updateRow(i, { permanent: on })
                                                     }
                                                 />
-                                                {t(STRINGS.advanced_chrome.redir_permanent, locale)}
                                             </label>
                                             <button
                                                 type="button"

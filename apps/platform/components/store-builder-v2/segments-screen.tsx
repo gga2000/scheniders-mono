@@ -508,7 +508,7 @@ function SegmentEditor({
                 {segment.rules.length === 0 ? (
                     <p
                         data-testid="segment-editor-rules-empty"
-                        className="rounded-md border border-dashed border-(--card-border) px-3 py-4 text-center text-[12px] text-muted-foreground"
+                        className="rounded-md border border-dashed border-(--card-border) px-3 py-4 text-left! text-[12px] text-muted-foreground"
                     >
                         {t(STRINGS.advanced_chrome.seg_rules_empty, locale)}
                     </p>

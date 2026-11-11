@@ -1805,7 +1805,7 @@ export const STRINGS = {
 
     /* ── Preview-as controls ──────────────────────────────────── */
     preview_as: {
-        button: { en: "Preview as", ar: "معاينة كـ", ku: "پێشبینین وەکو" },
+        button: { en: "Preview as a visitor", ar: "معاينة كزائر", ku: "پێشبینین وەک سەردانکەر" },
         heading: { en: "Simulate visitor", ar: "محاكاة زائر", ku: "لاسایی سەردانکەر" },
         reset: { en: "Reset", ar: "إعادة", ku: "ڕێکخستنەوە" },
         governorate: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },

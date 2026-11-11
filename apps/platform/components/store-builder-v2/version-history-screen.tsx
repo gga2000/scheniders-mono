@@ -452,19 +452,19 @@ export function VersionHistoryScreen({
                                                 {v.diff_summary && (
                                                     <div className="mt-1 flex flex-wrap gap-1">
                                                         {v.diff_summary.added > 0 && (
-                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800 dark:text-emerald-300">
+                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
                                                                 <Plus className="h-2.5 w-2.5" />
                                                                 {tFormat(STRINGS.advanced_chrome.vh_chip_added, locale, { n: String(v.diff_summary.added) })}
                                                             </span>
                                                         )}
                                                         {v.diff_summary.changed > 0 && (
-                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
                                                                 <Pencil className="h-2.5 w-2.5" />
                                                                 {tFormat(STRINGS.advanced_chrome.vh_chip_changed, locale, { n: String(v.diff_summary.changed) })}
                                                             </span>
                                                         )}
                                                         {v.diff_summary.removed > 0 && (
-                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-medium text-rose-800 dark:text-rose-300">
+                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:text-rose-300">
                                                                 <Minus className="h-2.5 w-2.5" />
                                                                 {tFormat(STRINGS.advanced_chrome.vh_chip_removed, locale, { n: String(v.diff_summary.removed) })}
                                                             </span>
