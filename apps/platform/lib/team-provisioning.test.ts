@@ -47,3 +47,39 @@ describe("provisionInvitedUserIfNeeded — membership role", () => {
         expect(profile).toMatchObject({ role });
     });
 });
+
+describe("provisionInvitedUserIfNeeded — someone who already has an account", () => {
+    const OTHER = "22222222-2222-4222-8222-222222222222";
+    let memberInsertError: { message: string; code?: string } | null = null;
+
+    beforeEach(() => {
+        memberInsertError = null;
+        fake = fakeServiceClient((call) => {
+            if (call.table === "user_profiles" && call.op === "select") return { data: { id: "user-1" } };
+            if (call.table === "team_invites" && call.op === "select") {
+                return { data: [{ id: "invite-7", tenant_id: OTHER, role: "employee", invited_by: "admin-2", created_at: "2026-11-11T10:00:00.000Z" }] };
+            }
+            if (call.table === "tenant_members" && call.op === "insert") return { error: memberInsertError };
+            return {};
+        });
+    });
+
+    it("joins the invited store, accepts the invite and lands them there", async () => {
+        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "Owner@Example.com" });
+        expect(result).toEqual({ provisioned: true, reason: "accepted-existing" });
+        expect(fake.calls.find((c) => c.table === "tenant_members" && c.op === "insert")?.payload)
+            .toMatchObject({ tenant_id: OTHER, user_id: "user-1", role: "employee", status: "active" });
+        expect(fake.calls.find((c) => c.table === "team_invites" && c.op === "update")?.payload)
+            .toMatchObject({ status: "accepted", accepted_user_id: "user-1" });
+        expect(fake.calls.find((c) => c.table === "user_profiles" && c.op === "update")?.payload)
+            .toEqual({ current_tenant_id: OTHER });
+        expect(fake.calls.some((c) => c.table === "user_profiles" && c.op === "insert")).toBe(false);
+    });
+
+    it("treats an existing membership as accepted without touching its role", async () => {
+        memberInsertError = { message: "duplicate", code: "23505" };
+        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "owner@example.com" });
+        expect(result.provisioned).toBe(true);
+        expect(fake.calls.some((c) => c.table === "tenant_members" && (c.op === "update" || c.op === "upsert"))).toBe(false);
+    });
+});
