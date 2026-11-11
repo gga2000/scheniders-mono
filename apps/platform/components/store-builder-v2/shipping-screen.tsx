@@ -267,21 +267,22 @@ export function ShippingScreen({
                                 aria-pressed={active}
                                 onClick={() => chooseMode(m.id)}
                                 className={cn(
-                                    "rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                    "relative rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                     active
                                         ? "border-primary bg-primary/5"
                                         : "border-(--card-border) bg-(--card-bg) hover:border-primary/40",
                                 )}
                             >
-                                <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                                    {/* The tick carries the selection too: border
-                                        and tint alone are colour-only meaning. */}
-                                    {active && (
-                                        <Check
-                                            className="h-3.5 w-3.5 shrink-0 text-primary"
-                                            aria-hidden="true"
-                                        />
-                                    )}
+                                {/* The tick carries the selection too: border
+                                    and tint alone are colour-only meaning. It sits
+                                    in the corner so title and hint keep one edge. */}
+                                {active && (
+                                    <Check
+                                        className="absolute right-3 top-3.5 h-3.5 w-3.5 text-primary"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                <span className="block pr-5 text-sm font-semibold text-foreground">
                                     {m.label}
                                 </span>
                                 <span className="mt-0.5 block text-xs text-foreground/70">
