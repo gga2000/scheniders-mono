@@ -201,6 +201,8 @@ export function sentryEnvironment(vercelEnv: string | undefined): string {
 }
 
 export interface BaseSentryOptionsInput {
+    /** Which app sent the event. All three apps share one Sentry project and are told apart by this tag. */
+    app: "platform" | "storefront" | "admin";
     /** NEXT_PUBLIC_SENTRY_DSN, read with a literal `process.env.` so Next inlines it. */
     dsn: string | undefined;
     /** VERCEL_ENV on the server, NEXT_PUBLIC_VERCEL_ENV in the browser. */
@@ -213,13 +215,14 @@ export interface BaseSentryOptionsInput {
  * add only runtime-specific integrations. No DSN means Sentry stays off
  * (local dev, CI) instead of erroring.
  */
-export function baseSentryOptions({ dsn, vercelEnv, tracesSampleRate }: BaseSentryOptionsInput) {
+export function baseSentryOptions({ app, dsn, vercelEnv, tracesSampleRate }: BaseSentryOptionsInput) {
     return {
         dsn,
         enabled: Boolean(dsn),
         environment: sentryEnvironment(vercelEnv),
         sendDefaultPii: false,
         tracesSampleRate,
+        initialScope: { tags: { app } },
         ignoreErrors: SENTRY_IGNORE_ERRORS,
         denyUrls: SENTRY_DENY_URLS,
         beforeSend: scrubSentryEvent,

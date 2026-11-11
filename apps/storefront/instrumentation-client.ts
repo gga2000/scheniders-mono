@@ -16,6 +16,7 @@ function loadSentry() {
     ([Sentry, { baseSentryOptions }]) => {
       Sentry.init({
         ...baseSentryOptions({
+          app: "storefront",
           dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
           vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV,
           // Enough page loads for real-phone Web Vitals (LCP, INP) per store.

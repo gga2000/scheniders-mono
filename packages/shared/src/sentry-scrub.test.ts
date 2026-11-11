@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSensitiveKey, redactText, scrubSentryEvent, scrubValue } from "./sentry-scrub";
+import { baseSentryOptions, isSensitiveKey, redactText, scrubSentryEvent, scrubValue } from "./sentry-scrub";
 
 describe("redactText", () => {
     it.each([
@@ -103,5 +103,18 @@ describe("scrubSentryEvent", () => {
     it("keeps tenant and role tags but redacts personal ones", () => {
         const event = scrubSentryEvent({ tags: { tenant_id: "t1", user_role: "owner", customer_phone: "07701234567" } });
         expect(event.tags).toEqual({ tenant_id: "t1", user_role: "owner", customer_phone: "[redacted]" });
+    });
+});
+
+describe("baseSentryOptions", () => {
+    it("stays off without a DSN and tags every event with its app", () => {
+        const off = baseSentryOptions({ app: "storefront", dsn: undefined, vercelEnv: undefined, tracesSampleRate: 0.05 });
+        expect(off.enabled).toBe(false);
+        expect(off.environment).toBe("development");
+        expect(off.sendDefaultPii).toBe(false);
+        const on = baseSentryOptions({ app: "platform", dsn: "https://k@o1.ingest.sentry.io/1", vercelEnv: "production", tracesSampleRate: 0.2 });
+        expect(on.enabled).toBe(true);
+        expect(on.environment).toBe("production");
+        expect(on.initialScope).toEqual({ tags: { app: "platform" } });
     });
 });

@@ -8,6 +8,7 @@ void Promise.all([import("@sentry/nextjs"), import("@scheniders/shared/sentry-sc
     ([Sentry, { baseSentryOptions }]) => {
         Sentry.init({
             ...baseSentryOptions({
+                app: "platform",
                 dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
                 vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV,
                 tracesSampleRate: 0.1,
