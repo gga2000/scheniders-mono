@@ -3,7 +3,8 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useCart } from "@/lib/cart-store";
 import type { Product } from "@/lib/types";
-import { PreviewSampleCart, sampleCartLines } from "./preview-sample-cart";
+import { sampleCartLines } from "@/lib/preview-sample-cart-lines";
+import { PreviewSampleCart } from "./preview-sample-cart";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

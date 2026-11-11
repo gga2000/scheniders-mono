@@ -69,7 +69,8 @@ import { StoreBaseProvider } from "@/lib/store-context";
 import { toSectionTenant } from "@scheniders/sections"; // also registers all built-in sections (barrel side effect)
 import { SchneidersPreviewBridge } from "@/components/schneiders-preview-bridge";
 import { SchneidersPreviewLiveRenderer } from "@/components/schneiders-preview-live-renderer";
-import { PreviewSampleCart, sampleCartLines } from "@/components/preview-sample-cart";
+import { PreviewSampleCart } from "@/components/preview-sample-cart";
+import { sampleCartLines } from "@/lib/preview-sample-cart-lines";
 import { PreviewBrandSurface } from "@/components/preview-brand-surface";
 import { getTemplate } from "@/templates/registry";
 import type { Tenant, Product, Category } from "@/lib/types";
