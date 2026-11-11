@@ -17,7 +17,7 @@ import type { EditorString } from "@/lib/editor-i18n";
 export const CATALOGUE_FIELD_LABELS: Record<string, EditorString> = {
     // ── Text ──────────────────────────────────────────────────────
     headline: { en: "Headline", ar: "العنوان الرئيسي", ku: "ناونیشانی سەرەکی" },
-    sub: { en: "Line under the title", ar: "السطر تحت العنوان", ku: "دێڕی ژێر ناونیشان" },
+    sub: { en: "Subheading", ar: "العنوان الفرعي", ku: "ژێرسەردێڕ" },
     lead: { en: "Opening line", ar: "السطر الافتتاحي", ku: "دێڕی سەرەتا" },
     facts: { en: "Short facts", ar: "معلومات قصيرة", ku: "زانیاری کورت" },
     context: { en: "Who said it (detail)", ar: "تفاصيل صاحب الرأي", ku: "وردەکاری خاوەنی ڕا" },
