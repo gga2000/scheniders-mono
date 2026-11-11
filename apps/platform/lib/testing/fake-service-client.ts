@@ -19,8 +19,17 @@ export interface FakeCall {
 
 const WRITES = new Set(["insert", "upsert", "update", "delete"]);
 
-export function fakeServiceClient(respond: (call: FakeCall) => FakeResult) {
+export interface FakeAuthOptions {
+    /** Error inviteUserByEmail answers with (e.g. `{ code: "email_exists" }`). */
+    inviteError?: { message: string; code?: string } | null;
+    /** Error signInWithOtp answers with. */
+    otpError?: { message: string; code?: string } | null;
+}
+
+export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authOptions: FakeAuthOptions = {}) {
     const calls: FakeCall[] = [];
+    const invited: string[] = [];
+    const otps: { email: string; options?: { shouldCreateUser?: boolean } }[] = [];
     const created: { email?: string }[] = [];
     const deletedUsers: string[] = [];
 
@@ -48,7 +57,15 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult) {
     const client = {
         from,
         auth: {
+            signInWithOtp: async (input: { email: string; options?: { shouldCreateUser?: boolean } }) => {
+                otps.push(input);
+                return { data: null, error: authOptions.otpError ?? null };
+            },
             admin: {
+                inviteUserByEmail: async (email: string) => {
+                    invited.push(email);
+                    return { data: null, error: authOptions.inviteError ?? null };
+                },
                 createUser: async (input: { email?: string }) => {
                     created.push(input);
                     return { data: { user: { id: "new-user-id" } }, error: null };
@@ -61,5 +78,5 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult) {
         },
     };
 
-    return { client, calls, created, deletedUsers };
+    return { client, calls, created, deletedUsers, invited, otps };
 }

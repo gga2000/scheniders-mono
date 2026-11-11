@@ -314,6 +314,48 @@ describe("SchneidersPreviewBridge", () => {
     expect(clickCall).toBeTruthy();
   });
 
+  it("opens a cmd-clicked store link on the real store page through draft view", () => {
+    window.history.replaceState(null, "", "/_preview/shop-a/home?token=tok1");
+    document.body.setAttribute("data-tenant-slug", "shop-a");
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    mountBridge();
+    const section = makeSection("sec-store-link");
+    const link = document.createElement("a");
+    link.setAttribute("href", "/_preview/shop-a/categories/work");
+    section.appendChild(link);
+
+    const evt = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+    link.dispatchEvent(evt);
+
+    expect(evt.defaultPrevented).toBe(true);
+    expect(open).toHaveBeenCalledTimes(1);
+    const opened = String(open.mock.calls[0]?.[0]);
+    const q = new URLSearchParams(opened.split("?")[1]);
+    expect(opened.startsWith("/api/draft-view?")).toBe(true);
+    expect(q.get("to")).toBe("/categories/work");
+    expect(q.get("token")).toBe("tok1");
+    document.body.removeAttribute("data-tenant-slug");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps a plain click on a store link outside any section on the editor page", () => {
+    window.history.replaceState(null, "", "/_preview/shop-a/home?token=tok1");
+    document.body.setAttribute("data-tenant-slug", "shop-a");
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    mountBridge();
+    const link = document.createElement("a");
+    link.setAttribute("href", "/_preview/shop-a/products/envoy");
+    document.body.appendChild(link);
+
+    const evt = new MouseEvent("click", { bubbles: true, cancelable: true });
+    link.dispatchEvent(evt);
+
+    expect(evt.defaultPrevented).toBe(true);
+    expect(open).not.toHaveBeenCalled();
+    document.body.removeAttribute("data-tenant-slug");
+    window.history.replaceState(null, "", "/");
+  });
+
   it("DOES call preventDefault on regular click", () => {
     mountBridge();
     const section = makeSection("sec-normal");

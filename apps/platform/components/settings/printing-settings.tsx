@@ -2,17 +2,17 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { useEffect, useState } from "react";
-import { useSettings } from "@/hooks/use-settings";
+import { readSetting, useSettings, type SettingValue } from "@/hooks/use-settings";
 import { Save, Printer } from "lucide-react";
 
 export function PrintingSettings() {
     const { settings, updateSetting, loading } = useSettings();
     const { t } = useLanguage();
-    const [printSettings, setPrintSettings] = useState<any>({});
+    const [printSettings, setPrintSettings] = useState<SettingValue<"print_settings">>({});
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (settings.print_settings) setPrintSettings(settings.print_settings);
+        if (settings.print_settings) setPrintSettings(readSetting(settings, "print_settings"));
     }, [settings]);
 
     const handleSave = async () => {

@@ -94,7 +94,7 @@ function BundleCard({
             )}
             <div className="flex flex-col items-center gap-1 text-center" style={{ width: 92 }}>
               {p.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
                 <img
                   src={p.image_url}
                   alt=""

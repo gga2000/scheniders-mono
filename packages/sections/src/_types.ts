@@ -124,6 +124,12 @@ export interface SectionDefinition<Props> {
    * this, a section that depends on them silently renders nothing.
    */
   needsProductAttributes?: boolean;
+  /**
+   * What some unset settings read as when that depends on other settings,
+   * so the editor shows a switch the way the render treats it. Settings
+   * whose unset meaning never changes belong in `defaultProps` instead.
+   */
+  unsetReads?: (props: Props) => Partial<Props>;
 }
 
 /** Convenience alias for the registry — props are erased to `unknown`. */

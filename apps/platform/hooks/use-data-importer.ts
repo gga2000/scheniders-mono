@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as xlsx from 'xlsx';
-import { cleanImportedPhone, mergeBackupIds, parseRawAddress } from '@/lib/data-cleaner';
+import { cleanImportedPhone, mergeBackupIds, parseRawAddress, type SheetRow } from '@/lib/data-cleaner';
 
 export type ImportStep = 'upload' | 'map' | 'review' | 'export';
 
@@ -24,15 +24,15 @@ export type CleanedRecord = {
     order_id: string;
     needs_review: boolean;
     review_reasons: string[];
-    raw_reference: any; // keep original data
+    raw_reference: SheetRow; // keep original data
 };
 
 export function useDataImporter() {
     const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
 
     // File State
-    const [primaryData, setPrimaryData] = useState<any[]>([]);
-    const [backupData, setBackupData] = useState<any[]>([]);
+    const [primaryData, setPrimaryData] = useState<SheetRow[]>([]);
+    const [backupData, setBackupData] = useState<SheetRow[]>([]);
     const [headers, setHeaders] = useState<string[]>([]);
     const [backupHeaders, setBackupHeaders] = useState<string[]>([]);
 
@@ -43,7 +43,7 @@ export function useDataImporter() {
     // Cleaned State
     const [cleanedData, setCleanedData] = useState<CleanedRecord[]>([]);
 
-    const parseFile = async (file: File): Promise<{ data: any[], headers: string[] }> => {
+    const parseFile = async (file: File): Promise<{ data: SheetRow[], headers: string[] }> => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -52,10 +52,10 @@ export function useDataImporter() {
                     const workbook = xlsx.read(data, { type: 'binary' });
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-                    const json = xlsx.utils.sheet_to_json(worksheet);
+                    const json = xlsx.utils.sheet_to_json<SheetRow>(worksheet);
 
                     if (json.length > 0) {
-                        const fileHeaders = Object.keys(json[0] as object);
+                        const fileHeaders = Object.keys(json[0]);
                         resolve({ data: json, headers: fileHeaders });
                     } else {
                         resolve({ data: [], headers: [] });

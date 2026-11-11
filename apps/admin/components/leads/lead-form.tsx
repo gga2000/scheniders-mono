@@ -486,7 +486,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebinds on the values submit reads; submit itself is new every render
   }, [open, form, submitting]);
 
   const PlatformIcon = PLATFORM_ICONS[form.platform];

@@ -44,7 +44,7 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
       setPassword("");
       addAdminUser.reset();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
   }, [isOpen]);
 
   const handleSubmit = () => {

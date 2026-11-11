@@ -430,7 +430,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
             };
         }
         return proxy as typeof latestFn;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- built once; it reads the latest functions through apiRef
     }, []);
 
     return {

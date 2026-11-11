@@ -81,7 +81,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
 
     // Time-based follow-up cue logic
     const contactCount = order.contact_count || 0;
-    /* eslint-disable react-hooks/purity */
+    /* eslint-disable react-hooks/purity -- the follow-up cue reads the clock at render on purpose */
     const hoursSinceCreated = order.created_at
         ? (Date.now() - new Date(order.created_at).getTime()) / 3600000
         : 0;

@@ -381,6 +381,11 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     activeLocale={activeLocale}
                     testIdBase={testIdBase}
                     flat={inline}
+                    unsetDefaults={
+                        unsetDefault !== null && typeof unsetDefault === "object" && !Array.isArray(unsetDefault)
+                            ? (unsetDefault as Record<string, unknown>)
+                            : undefined
+                    }
                 />
             );
             break;
@@ -714,7 +719,7 @@ export function ImageControl(p: ImageControlProps): ReactElement {
                     data-testid={`${p.testIdBase}-preview`}
                 >
                     {p.value ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                        // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
                         <img src={p.value} alt={p.label} className="h-full w-full object-cover" />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -1275,6 +1280,8 @@ interface ObjectControlProps {
     testIdBase: string;
     /** No titled card — the parent (a repeater row) already frames it. */
     flat?: boolean;
+    /** What each unset field means, keyed like `shape`. */
+    unsetDefaults?: Record<string, unknown>;
 }
 
 export function ObjectControl(p: ObjectControlProps): ReactElement {
@@ -1311,6 +1318,7 @@ export function ObjectControl(p: ObjectControlProps): ReactElement {
                     fieldKey={key}
                     tenantId={p.tenantId}
                     activeLocale={p.activeLocale}
+                    unsetDefault={p.unsetDefaults?.[key]}
                 />
             ))}
         </div>

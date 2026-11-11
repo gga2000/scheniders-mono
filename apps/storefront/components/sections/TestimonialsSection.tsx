@@ -51,7 +51,7 @@ export default function TestimonialsSection({ data }: TestimonialsSectionProps) 
             >
               <div className="flex items-center gap-3 mb-4">
                 {item.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                  // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
                   <img
                     src={item.photo}
                     alt={item.name}

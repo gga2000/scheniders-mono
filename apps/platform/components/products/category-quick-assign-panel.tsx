@@ -170,7 +170,7 @@ export function CategoryQuickAssignPanel({
                 </span>
                 <div className="w-12 h-12 rounded-lg bg-[var(--background)] border border-[var(--card-border)] overflow-hidden shrink-0 flex items-center justify-center">
                     {p.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                        // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
                         <img src={p.image_url} alt="" className="w-full h-full object-cover" />
                     ) : (
                         <Package className="w-5 h-5 text-muted" />

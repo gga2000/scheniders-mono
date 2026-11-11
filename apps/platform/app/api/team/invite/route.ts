@@ -2,14 +2,14 @@ import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-s
 import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { NextResponse } from "next/server";
 import { assertNotBlocked, blockedResponseBody, TenantBlockedError } from "@/lib/restrictions";
+import { sendTeamInviteEmail } from "@/lib/team-invite-email";
 
 const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
 
 /**
- * Admin endpoint: pre-invite a person by email (e.g. their Google address).
- * Creates a pending row in team_invites; on that email's first sign-in the auth
- * callback auto-provisions them into this tenant. No auth user is created here —
- * that happens when they sign in (with Google or password).
+ * Admin endpoint: invite a person by email.
+ * Creates a pending row in team_invites and emails them a join link. Opening
+ * the link (or signing in with Google on that email) adds them to this store.
  */
 export async function POST(request: Request) {
     try {
@@ -111,7 +111,19 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: insertErr.message }, { status: 400 });
         }
 
-        return NextResponse.json({ success: true, invite });
+        // The invite is useless if the person never hears of it: without the
+        // email, a password user had no way in at all.
+        const mail = await sendTeamInviteEmail(admin, email);
+        if (!mail.sent) {
+            console.error("[team-invite] email failed:", mail.error);
+            await admin
+                .from("team_invites")
+                .update({ status: "revoked", updated_at: new Date().toISOString() })
+                .eq("id", invite.id);
+            return NextResponse.json({ error: "تعذر إرسال بريد الدعوة. حاول مرة أخرى." }, { status: 502 });
+        }
+
+        return NextResponse.json({ success: true, invite, email_kind: mail.kind });
     } catch {
         return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
     }

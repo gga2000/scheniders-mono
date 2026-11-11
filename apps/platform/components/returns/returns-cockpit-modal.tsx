@@ -116,7 +116,7 @@ export function ReturnsCockpitModal({
 
     useEffect(() => {
         if (open && session.selectedKey) session.refreshItem(session.selectedKey);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when the selection changes only; the session object is new every render
     }, [open, session.selectedKey]);
 
     const selected = session.items.find((i) => i.key === session.selectedKey) || null;

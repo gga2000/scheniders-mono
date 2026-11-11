@@ -305,11 +305,13 @@ export const useProductStore = create<ProductStore>()(
                 gridGroupByCategory: state.gridGroupByCategory,
                 showInsights: state.showInsights,
             }),
-            merge: (persisted: any, current) => ({
+            merge: (persisted, current) => ({
                 ...current,
                 ...(persisted as object),
                 // Restore Set from array
-                collapsedCategories: new Set(persisted?.collapsedCategories || []),
+                collapsedCategories: new Set(
+                    (persisted as { collapsedCategories?: string[] } | undefined)?.collapsedCategories ?? [],
+                ),
                 // Always reset transient state
                 selectedIds: new Set(),
                 editingCell: null,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSettings } from "@/hooks/use-settings";
+import { readSetting, useSettings, type SettingValue } from "@/hooks/use-settings";
 import { useEffect, useState } from "react";
 import { Save, Store, Bell, Boxes, Volume2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
@@ -28,16 +28,16 @@ function previewSound(url: string): void {
 
 export function GeneralSettings() {
     const { settings, updateSetting, loading } = useSettings();
-    const [profile, setProfile] = useState<any>({});
-    const [inventory, setInventory] = useState<any>({});
+    const [profile, setProfile] = useState<SettingValue<"store_profile">>({});
+    const [inventory, setInventory] = useState<SettingValue<"inventory_rules">>({});
     const [isSaving, setIsSaving] = useState(false);
-    const [notifications, setNotifications] = useState<any>({});
+    const [notifications, setNotifications] = useState<SettingValue<"notification_settings">>({});
     const { t } = useLanguage();
 
     useEffect(() => {
-        if (settings.store_profile) setProfile(settings.store_profile);
-        if (settings.inventory_rules) setInventory(settings.inventory_rules);
-        if (settings.notification_settings) setNotifications(settings.notification_settings);
+        if (settings.store_profile) setProfile(readSetting(settings, "store_profile"));
+        if (settings.inventory_rules) setInventory(readSetting(settings, "inventory_rules"));
+        if (settings.notification_settings) setNotifications(readSetting(settings, "notification_settings"));
     }, [settings]);
 
     const handleSave = async () => {
