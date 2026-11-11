@@ -27,7 +27,6 @@ describe("platform provider base URLs (lib/env.ts)", () => {
         expect(parsePlatformProviderBaseUrls({})).toEqual({
             INTERAKT_API_BASE_URL: "https://api.interakt.ai",
             QSTASH_URL: "https://qstash-us-east-1.upstash.io",
-            LIGHTFUNNELS_API_BASE_URL: "https://services.lightfunnels.com",
             TELEGRAM_API_BASE_URL: "https://api.telegram.org",
             WASEET_API_BASE_URL: "https://api.alwaseet-iq.net",
             GEMINI_API_BASE_URL: "https://generativelanguage.googleapis.com",
@@ -96,12 +95,6 @@ describe("platform provider clients reach the host from env (against the provide
         ]);
     });
 
-    it("LightFunnels", async () => {
-        const { testConnection } = await import("./lightfunnels-api");
-        await expect(testConnection("lf-token")).resolves.toMatchObject({ success: true });
-        expect(paths()).toEqual(["lightfunnels POST /api/v2"]);
-    });
-
     it("Al-Waseet", async () => {
         const { fetchCities } = await import("./waseet-api");
         await expect(fetchCities()).resolves.toMatchObject({ success: true, data: [{ id: "1" }] });
@@ -143,9 +136,9 @@ describe("platform provider clients reach the host from env (against the provide
         const appUrl = typeof address === "object" && address ? `http://127.0.0.1:${address.port}` : "";
 
         try {
-            const { scheduleCheckoutProcessing } = await import("./qstash");
-            await expect(scheduleCheckoutProcessing(30, appUrl)).resolves.toBe(true);
-            expect(paths()).toEqual([`qstash POST /v2/publish/${appUrl}/api/cron/process-checkouts`]);
+            const { scheduleFollowUp } = await import("./qstash");
+            await expect(scheduleFollowUp("order-1", "reminder", 30, appUrl)).resolves.toBe(true);
+            expect(paths()).toEqual([`qstash POST /v2/publish/${appUrl}/api/cron/auto-follow-up`]);
 
             await mock.flushQStash();
             expect(verified).toEqual([true]);

@@ -168,7 +168,7 @@ export async function dispatchWhatsAppEvent({
             contact_count: newContactCount,
             last_contacted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            // Only automation reaches this function (the LightFunnels webhook's
+            // Only automation reaches this function (the store order's
             // immediate confirmation), so the card shows the bot rather than a
             // contacted order with nobody behind it.
             ...automationFollowUpStamp(templateType),
@@ -198,7 +198,7 @@ export async function dispatchWhatsAppEvent({
 }
 
 /**
- * Fire the immediate order-confirmation send. Called from the LightFunnels
+ * Fire the immediate order-confirmation send. Called from the storefront-order
  * webhook right after an order is created. Runs in-process and never throws to
  * its caller — failures are logged so the webhook response is unaffected.
  */

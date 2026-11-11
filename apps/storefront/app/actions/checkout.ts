@@ -278,8 +278,8 @@ export async function submitCheckout(
     return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(productsErr) };
   }
   // The orders page draws each line from the order's own items (photo and
-  // chip colour), so they are snapshotted like every other order source does
-  // (apps/platform/lib/webhook-handler.ts). The free gift adds its own below.
+  // chip colour), so they are snapshotted with the order. The free gift adds
+  // its own below.
   const lineLooks = new Map<string, { image_url: string | null; tag_color: string | null }>(
     products.map((p) => [p.id, { image_url: p.image_url, tag_color: p.tag_color }]),
   );

@@ -164,8 +164,8 @@ export function verifyWebhookAuth(
  * Resolve the mode for one provider: a provider-specific override wins over the
  * global flag, and with neither set the default is `enforce`: an unsigned
  * webhook is only accepted while someone has explicitly chosen `monitor` to
- * watch a new sender's traffic. Both live providers run `enforce` (LightFunnels
- * and Interakt, 2026-11-08), so the safe default costs nothing. The values are
+ * watch a new sender's traffic. Interakt runs `enforce` (2026-11-08), so the
+ * safe default costs nothing. The values are
  * validated as an enum in env.ts, so a typo fails the build rather than
  * silently meaning "monitor".
  */
