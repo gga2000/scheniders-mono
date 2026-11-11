@@ -128,27 +128,20 @@ export function useBilling() {
 }
 
 /**
- * Real customer orders so far, the number the free trial is capped on. Same
- * rule as the database (order_is_billable): no test, guide practice, staff
- * "taken" stock, till sales, abandoned carts or unfinished checkouts.
+ * Real customer orders so far, the number the free trial is capped on.
+ * Counted in the database by the billing rule itself (order_is_billable via
+ * trial_order_count): a direct orders query here filtered on till_session_id,
+ * which members may not read, so it always failed with 403.
  */
 export function useTrialOrderCount(enabled: boolean) {
     const { tenantId } = useAuth();
     return useQuery({
         queryKey: ["trial_order_count", tenantId],
         queryFn: async () => {
-            const { count, error } = await supabase
-                .from("orders")
-                .select("id", { count: "exact", head: true })
-                .eq("tenant_id", tenantId!)
-                .not("is_test", "is", true)
-                .not("guide_practice", "is", true)
-                .is("take_kind", null)
-                .is("till_session_id", null)
-                .is("abandoned_cart_at", null)
-                .neq("status", "pending_checkout");
+            if (!tenantId) return null;
+            const { data, error } = await supabase.rpc("trial_order_count", { p_tenant_id: tenantId });
             if (error) throw error;
-            return count ?? 0;
+            return data;
         },
         enabled: enabled && !!tenantId,
     });

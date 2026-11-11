@@ -9773,6 +9773,7 @@ export type Database = {
         Returns: boolean
       }
       toggle_seed_automation: { Args: { _active: boolean }; Returns: Json }
+      trial_order_count: { Args: { p_tenant_id: string }; Returns: number }
       undo_return: {
         Args: { _order_id: string; _tenant_id: string }
         Returns: undefined
