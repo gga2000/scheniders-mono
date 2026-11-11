@@ -1329,7 +1329,7 @@ export const STRINGS = {
         },
         domain_toast_ssl_misconfigured: {
             en: "Domain verified, but its DNS does not point to Scheniders yet.",
-            ar: "تم التحقق من النطاق، لكن إعدادات DNS لا تشير إلى Scheniders بعد.",
+            ar: "تم التحقق من النطاق، لكن إعدادات DNS لا تشير إلى شنايدر بعد.",
             ku: "دۆمەین پشتڕاست کرایەوە، بەڵام DNS هێشتا ئاماژە بە Scheniders ناکات.",
         },
         domain_toast_verify_failed: { en: "Verification failed", ar: "فشل التحقق", ku: "پشتڕاستکردنەوە سەرکەوتوو نەبوو" },

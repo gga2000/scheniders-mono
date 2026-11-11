@@ -26,7 +26,7 @@ const en: Record<string, string> = {
     "guide.soundOff": "Turn the voice off",
     "guide.waiting": "Waiting for this step…",
     "guide.stepDone": "Done",
-    "guide.welcome.title": "Welcome to Schenider",
+    "guide.welcome.title": "Welcome to Scheniders",
     "guide.welcome.online": "Online only",
     "guide.welcome.onlineAndShop": "Online and a shop",
     "guide.welcome.justMe": "Just me",
