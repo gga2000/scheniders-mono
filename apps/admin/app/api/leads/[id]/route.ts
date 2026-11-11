@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireBearerAdmin } from "@/lib/api-auth";
+import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 
 export async function GET(
   _request: NextRequest,
@@ -113,7 +113,7 @@ export async function PATCH(
           activity_type: "status_change",
           title: `Status changed from ${current.status} to ${body.status}`,
           metadata: { from: current.status, to: body.status },
-          created_by: body._updated_by || null,
+          created_by: admin.user.id,
         });
 
         // Update last_contacted_at if moving to contacted
@@ -156,7 +156,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireBearerAdmin(_request);
+    const admin = await requireAdminPermission(_request, "delete_leads");
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireBearerAdmin } from "@/lib/api-auth";
+import { z } from "zod";
+import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
+
+const createSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  name_ar: z.string().trim().max(100).nullish(),
+  icon: z.string().trim().min(1).max(60).default("Building2"),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#6B7280"),
+  avg_order_value_iqd: z.number().int().min(0).default(25000),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,21 +34,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = await requireBearerAdmin(request);
+    const admin = await requireAdminPermission(request, "update_settings");
     if (admin instanceof NextResponse) return admin;
 
-    const body = await request.json();
+    const parsed = createSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid industry" }, { status: 400 });
+    }
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from("industries")
-      .insert({
-        name: body.name,
-        name_ar: body.name_ar || null,
-        icon: body.icon || "Building2",
-        color: body.color || "#6B7280",
-        avg_order_value_iqd: body.avg_order_value_iqd || 25000,
-      })
+      .insert({ ...parsed.data, name_ar: parsed.data.name_ar || null })
       .select()
       .single();
 
