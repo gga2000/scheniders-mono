@@ -1,5 +1,6 @@
 "use client";
 
+import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -153,21 +154,7 @@ export function MerchantCard({
     onMutate: async (newTags) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
       const previous = queryClient.getQueriesData({ queryKey: ["admin", "merchants"] });
-      queryClient.setQueriesData(
-        { queryKey: ["admin", "merchants"] },
-        (old: any) => {
-          if (!old?.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              merchants: page.merchants.map((m: any) =>
-                m.id === merchant.id ? { ...m, tags: newTags } : m
-              ),
-            })),
-          };
-        }
-      );
+      patchMerchantInCache(queryClient, merchant.id, { tags: newTags });
       return { previous };
     },
     onError: (_err, _newTags, context) => {

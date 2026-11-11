@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         .from("tenants")
         .select(`
           id, business_name, slug, plan, status, city, created_at, branding, contact_email,
-          settings, trial_ends_at,
+          settings, trial_ends_at, config_version,
           wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd),
           subscriptions(plan, status, pending_plan),
           usage_tracking(orders_count, team_members_count)
@@ -138,8 +138,6 @@ export async function GET(request: NextRequest) {
       const wallet = Array.isArray(t.wallet) ? t.wallet[0] : t.wallet;
       const usage = Array.isArray(t.usage_tracking) ? t.usage_tracking[0] : t.usage_tracking;
       const branding = t.branding as { logo_url?: string; primary_color?: string } | null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const storeConfig = ((t as any).store_config as Record<string, unknown>) ?? {};
 
       return {
         id: t.id,
@@ -155,7 +153,9 @@ export async function GET(request: NextRequest) {
         orders_count: Number(usage?.orders_count) || 0,
         team_members_count: memberCountByTenant[t.id] || 0,
         has_branding: !!(branding?.logo_url || (branding?.primary_color && branding.primary_color !== "#1E1E1E")),
-        has_storefront: !!(storeConfig as Record<string, unknown>)?.store_enabled,
+        // Publishing the store builder sets config_version 2; the old
+        // store_config.store_enabled flag was never selected, so this read false.
+        has_storefront: t.config_version === 2,
         wallet_funded: (Number(wallet?.total_topped_up_iqd) || 0) > 0,
       };
     });
