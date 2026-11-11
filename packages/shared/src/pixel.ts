@@ -38,8 +38,15 @@ export function pixelVisitorExternalIdSource(tenantId: string, visitorId: string
   return `${tenantId}:v:${visitorId}`;
 }
 
-/** sessionStorage key: the Purchase the checkout hands to the next page. */
-export const PENDING_PURCHASE_KEY = "schn:pending-purchase";
+/**
+ * sessionStorage key: the Purchase the checkout hands to the next page.
+ * Per store, because path-mode stores (/s/<slug>) share one origin and so
+ * one sessionStorage: one store's order and buyer hashes must never fire into
+ * another store's pixel.
+ */
+export function pendingPurchaseKey(tenantId: string): string {
+  return `schn:pending-purchase:${tenantId}`;
+}
 
 /**
  * A Purchase the order form could not safely fire itself: it navigates to
@@ -61,7 +68,7 @@ export interface PendingPurchase {
   ts: number;
 }
 
-const PENDING_PURCHASE_TTL_MS = 60 * 60 * 1000;
+export const PENDING_PURCHASE_TTL_MS = 60 * 60 * 1000;
 const HEX64 = /^[a-f0-9]{64}$/;
 
 function hashOrNull(v: unknown): string | null {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 
@@ -146,6 +147,8 @@ export async function PATCH(
 
     return NextResponse.json({ lead });
   } catch (error) {
+    const locked = leadConvertedLockResponse(error);
+    if (locked) return locked;
     console.error("Lead PATCH error:", error);
     return NextResponse.json({ error: "Failed to update lead" }, { status: 500 });
   }
