@@ -11,15 +11,42 @@ import { clearPersistedBooks } from "@/lib/orders/persisted-book";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
 import { applyPermissionOverrides, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
+import { revokeDevicePush } from "@/lib/chat/revoke-device-push";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Browser-storage keys that hold the signed-in user's store data. */
+const DEVICE_KEY_PREFIXES = ["returns:", "chat-drafts"];
+
 /**
  * Delete what the app keeps on the device for the signed-in user: the saved
- * order books hold customer names, phones and addresses.
+ * order books and the returns cockpit's scanned orders hold customer names,
+ * phones and addresses; chat drafts hold message text.
  */
 function forgetDeviceData(): void {
     clearPersistedBooks().catch((err: unknown) => reportOrderError(err, { operation: "orders-book-clear" }));
+    try {
+        for (const key of Object.keys(window.localStorage)) {
+            if (DEVICE_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) window.localStorage.removeItem(key);
+        }
+    } catch (err) {
+        reportOrderError(err, { operation: "device-storage-clear" });
+    }
+}
+
+/**
+ * Sign out, first revoking this device's push alerts while the token still
+ * works. A failed revoke is reported and never blocks the sign-out.
+ */
+async function signOutDevice(): Promise<void> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) await revokeDevicePush(session.access_token);
+    } catch (err) {
+        reportOrderError(err, { operation: "push-revoke-on-signout" });
+    } finally {
+        await supabase.auth.signOut();
+    }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -157,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const { error: refreshErr } = await supabase.auth.refreshSession();
                 if (refreshErr) {
                     diag.error("[Auth] Refresh FAILED — signing out");
-                    await supabase.auth.signOut();
+                    await signOutDevice();
                 }
             }
         };
@@ -326,7 +353,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = useCallback(async () => {
         setIsLoading(true);
         try {
-            await supabase.auth.signOut();
+            await signOutDevice();
         } finally {
             setIsLoading(false);
         }

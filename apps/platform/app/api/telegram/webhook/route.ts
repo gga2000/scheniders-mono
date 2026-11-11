@@ -9,6 +9,8 @@ import {
 } from "@/lib/telegram";
 import { createOrderForTenant } from "@/lib/order-service";
 import { activeTenantRole } from "@/lib/auth/active-tenant-role";
+import { memberHasPermission } from "@/lib/auth/member-has-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { constantTimeEqual } from "@/lib/webhook-auth";
 import type { Order, OrderItem } from "@/types/order";
 import {
@@ -144,6 +146,15 @@ async function handleMessage(msg: TgMessage) {
         return sendMessage(
             msg.chat.id,
             "🚫 حسابك معطّل في هذا المتجر. تواصل مع الأدمن."
+        );
+    }
+
+    // The bot only creates orders, so it needs the same orders.create the web
+    // app checks: a demoted or revoked member keeps their link but not this.
+    if (!(await canCreateOrders(link))) {
+        return sendMessage(
+            msg.chat.id,
+            "🚫 صلاحيتك في هذا المتجر لا تسمح بإنشاء الطلبات. تواصل مع الأدمن."
         );
     }
 
@@ -495,6 +506,13 @@ async function getLink(telegramUserId: number): Promise<EmployeeLink | null> {
  */
 async function getActiveMembership(link: EmployeeLink): Promise<boolean> {
     return (await activeTenantRole(link.user_profile_id, link.tenant_id)) !== null;
+}
+
+/** orders.create for the linked member, with the store's per-user overrides. */
+async function canCreateOrders(link: EmployeeLink): Promise<boolean> {
+    const role = await activeTenantRole(link.user_profile_id, link.tenant_id);
+    if (role === null) return false;
+    return memberHasPermission({ userId: link.user_profile_id, tenantId: link.tenant_id, role }, PERMISSIONS.CREATE_ORDERS);
 }
 
 async function loadProducts(tenantId: string): Promise<CatalogProduct[]> {

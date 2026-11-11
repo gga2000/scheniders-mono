@@ -6,6 +6,12 @@ import type { McpCaller } from "@/lib/mcp/caller";
 const resolveMcpCaller = vi.fn();
 vi.mock("@/lib/mcp/caller", () => ({ resolveMcpCaller: (...a: unknown[]) => resolveMcpCaller(...a) }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+// The store's permission rule (member_has_permission): role defaults, unless a
+// test switches a permission off for the caller.
+const memberHasPermission = vi.fn(async (member: { role: string }) => member.role !== "viewer");
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: (...a: [{ role: string }]) => memberHasPermission(...a),
+}));
 
 import { registerCatalogWriteTools } from "./catalog-write";
 
@@ -124,7 +130,7 @@ describe("update_product", () => {
     it("refuses a viewer", async () => {
         asCaller("viewer");
         const res = await call("update_product", { product: "SR-1", visible: false, confirm: false });
-        expect(res).toEqual({ isError: true, text: "Your role in this store is read-only." });
+        expect(res).toEqual({ isError: true, text: "Your role in this store cannot do this." });
     });
 });
 

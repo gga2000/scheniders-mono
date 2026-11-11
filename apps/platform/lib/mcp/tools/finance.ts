@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { McpCaller } from "@/lib/mcp/caller";
 import { McpToolError, actorName, canSeeMoney, registerTool, requireWriter } from "@/lib/mcp/tool";
+import { PERMISSIONS } from "@/lib/permissions";
 import { baghdadDayEnd, baghdadDayStart, baghdadToday, iqd } from "@/lib/mcp/format";
 import { summarizeProfit, type CostedProduct, type CostedVariant, type ProfitOrder } from "@/lib/finance/profit";
 import { EXPENSE_CATEGORIES } from "@/types/expense";
@@ -295,7 +296,7 @@ export function registerFinanceTools(server: McpServer): void {
             confirm: z.boolean().default(false),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_FINANCIALS);
             requireMoney(caller);
             const date = input.date ?? baghdadToday();
             const summary = `${date} | ${input.category} | ${iqd(input.amount)} | ${input.description}${input.notes ? ` | note: ${input.notes}` : ""}`;
@@ -353,7 +354,7 @@ export function registerFinanceTools(server: McpServer): void {
             })
             .refine((v) => v.date || v.category || v.amount !== undefined || v.description || v.notes !== undefined, "Give something to change"),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_FINANCIALS);
             requireMoney(caller);
             const { data: found, error: findError } = await caller.db
                 .from("expenses")

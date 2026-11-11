@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Order } from "@/types/order";
 import { formatOrderRow, ORDER_EXPORT_HEADERS } from "./order-export-utils";
+import { csvCell, tsvCell } from "./customer-csv";
 
 /**
  * ARCH-4 guard for the CSV export.
@@ -11,13 +12,9 @@ import { formatOrderRow, ORDER_EXPORT_HEADERS } from "./order-export-utils";
  * why it had not surfaced — but 11 real orders contain newlines, which survive
  * only because the value is quoted, so the quoting has to be right.
  *
- * `toCsvCell` is module-private, so these tests exercise the same rule the CSV
- * builder applies.
+ * The export uses the shared `csvCell` / `tsvCell` (lib/customer-csv), which
+ * also stop a shopper-typed value from running as a spreadsheet formula.
  */
-function toCsvCell(cell: string | number): string {
-    return `"${String(cell).replace(/"/g, '""')}"`;
-}
-
 function order(partial: Partial<Order>): Order {
     return {
         id: "id",
@@ -37,25 +34,38 @@ function order(partial: Partial<Order>): Order {
 
 describe("CSV cell quoting", () => {
     it("doubles an embedded quote instead of ending the field", () => {
-        expect(toCsvCell('احمد "ابو علي"')).toBe('"احمد ""ابو علي"""');
+        expect(csvCell('احمد "ابو علي"')).toBe('"احمد ""ابو علي"""');
     });
 
     it("keeps a comma inside one field", () => {
-        const cell = toCsvCell("شارع الرشيد, قرب الجامع");
+        const cell = csvCell("شارع الرشيد, قرب الجامع");
         expect(cell.split('","').length).toBe(1);
         expect(cell).toBe('"شارع الرشيد, قرب الجامع"');
     });
 
+    it("turns a shopper-typed formula into plain text", () => {
+        expect(csvCell("=HYPERLINK(\"http://x\",\"click\")")).toBe('"\'=HYPERLINK(""http://x"",""click"")"');
+        expect(csvCell("@SUM(A1)")).toBe("'@SUM(A1)");
+        expect(csvCell("-2+3")).toBe("'-2+3");
+        // A phone in +964 form is data, not a formula.
+        expect(csvCell("+9647701234567")).toBe("+9647701234567");
+    });
+
+    it("keeps a TSV cell on one cell and one row, formula-safe", () => {
+        expect(tsvCell("=1+1")).toBe("'=1+1");
+        expect(tsvCell("سطر\nثاني\tثالث")).toBe("سطر ثاني ثالث");
+    });
+
     it("keeps a newline inside one quoted field", () => {
-        expect(toCsvCell("سطر\nثاني")).toBe('"سطر\nثاني"');
+        expect(csvCell("سطر\nثاني")).toBe('"سطر\nثاني"');
     });
 
     it("renders a row with the same column count as the header", () => {
         const row = formatOrderRow(order({ customer_name: 'اسم "مقتبس"', address_details: "شارع, رقم 5" }));
         expect(row.length).toBe(ORDER_EXPORT_HEADERS.length);
-        // Quoted, the row still parses as exactly that many fields.
-        const line = row.map(toCsvCell).join(",");
-        const fields = line.match(/"(?:[^"]|"")*"/g) ?? [];
+        // The line still parses back as exactly that many fields.
+        const line = row.map(csvCell).join(",");
+        const fields = line.match(/("(?:[^"]|"")*"|[^,]*)(,|$)/g)?.filter((f) => f !== "") ?? [];
         expect(fields.length).toBe(ORDER_EXPORT_HEADERS.length);
     });
 

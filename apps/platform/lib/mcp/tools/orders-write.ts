@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { McpCaller } from "@/lib/mcp/caller";
 import { McpToolError, actorName, registerTool, requireWriter } from "@/lib/mcp/tool";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
     findOrder,
     findOrders,
@@ -193,7 +194,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             confirm: z.boolean().default(false),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_ORDERS);
             const refs = [...new Set(input.orders)];
             const orders = await findOrders(caller, refs);
             // Same rule as the orders page: a return order is delivered as refund_delivered.
@@ -270,7 +271,7 @@ export function registerOrderWriteTools(server: McpServer): void {
                 "Give at least one field to change",
             ),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_ORDERS);
             const order = await findOrder(caller, input.order);
 
             const changesItems = input.items !== undefined;
@@ -368,7 +369,7 @@ export function registerOrderWriteTools(server: McpServer): void {
         description: "Add a note to an order's notes thread (visible to the team on the order page).",
         input: z.object({ order: orderRefSchema, note: z.string().trim().min(1).max(2000) }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_ORDERS);
             const order = await findOrder(caller, input.order);
             const { error } = await caller.db.from("order_notes").insert({
                 order_id: order.id,
@@ -411,7 +412,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             confirm: z.boolean().default(false).describe("false returns a preview; true creates the order"),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.CREATE_ORDERS);
             const gov = resolveOrderGovernorate(input.governorate);
             const addressDetails = stripLeadingGovernorate(input.address_details, gov.governorate_code);
             const phone = orderPhone(input.phone, "Phone");

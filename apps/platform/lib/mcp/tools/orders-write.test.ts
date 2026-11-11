@@ -11,6 +11,12 @@ const createOrderForTenant = vi.fn();
 vi.mock("@/lib/order-service", () => ({ createOrderForTenant: (...a: unknown[]) => createOrderForTenant(...a) }));
 
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+// The store's permission rule (member_has_permission): role defaults, unless a
+// test switches a permission off for the caller.
+const memberHasPermission = vi.fn(async (member: { role: string }) => member.role !== "viewer");
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: (...a: [{ role: string }]) => memberHasPermission(...a),
+}));
 
 import { registerOrderWriteTools } from "./orders-write";
 
@@ -134,7 +140,16 @@ describe("update_order_status", () => {
     it("refuses a viewer", async () => {
         asCaller("viewer");
         const res = await call("update_order_status", { orders: ["1001"], status: "cancelled", confirm: true });
-        expect(res).toEqual({ isError: true, text: "Your role in this store is read-only." });
+        expect(res).toEqual({ isError: true, text: "Your role in this store cannot do this." });
+        expect(env.tables.orders[0].status).toBe("confirmed");
+    });
+
+    it("refuses an employee whose orders.edit the store switched off", async () => {
+        asCaller("employee");
+        memberHasPermission.mockResolvedValueOnce(false);
+        const res = await call("update_order_status", { orders: ["1001"], status: "cancelled", confirm: true });
+        expect(res).toEqual({ isError: true, text: "Your role in this store cannot do this." });
+        expect(memberHasPermission).toHaveBeenCalledWith(expect.objectContaining({ tenantId: STORE }), "orders.edit");
         expect(env.tables.orders[0].status).toBe("confirmed");
     });
 

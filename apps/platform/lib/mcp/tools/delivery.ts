@@ -7,7 +7,7 @@ import { findProduct, pickVariant, productRefSchema, variantRefSchema } from "@/
 import { baghdadTime, baghdadToday, iqd, statusText } from "@/lib/mcp/format";
 import { COURIER_LABELS, courierSheet, type CourierCompany } from "@/lib/shipping/courier-sheets";
 import { computeCodAmount } from "@/lib/order-money";
-import { isAdminRole } from "@/lib/permissions";
+import { isAdminRole, PERMISSIONS } from "@/lib/permissions";
 import { partitionByShipDay } from "@/lib/order-bulk-scope";
 import { loadAfterSaleState } from "@/lib/after-sale/state";
 import { createAfterSaleOrder, receiveAfterSaleItem } from "@/lib/after-sale/create";
@@ -110,7 +110,7 @@ export function registerDeliveryTools(server: McpServer): void {
             confirm: z.boolean().default(false),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_ORDERS);
             const found = await findOrders(caller, [...new Set(input.orders)]);
             // Test orders (the guide's practice orders) never go to a courier.
             const unique = [...new Map(found.filter((o) => !o.is_test).map((o) => [o.id, o])).values()];
@@ -201,7 +201,7 @@ export function registerDeliveryTools(server: McpServer): void {
             })
             .refine((v) => !v.customer_keeps || !!v.note, { message: "A note is required when the customer keeps the items", path: ["note"] }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.CREATE_ORDERS);
             // Paying out with nothing coming back is for owners and admins (the app's rule).
             if (input.customer_keeps && !isAdminRole(caller.role)) {
                 throw new McpToolError("Only an owner or admin can refund without a pickup.");
@@ -262,7 +262,7 @@ export function registerDeliveryTools(server: McpServer): void {
             confirm: z.boolean().default(false),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.CREATE_ORDERS);
             const { order, lines, defaultPickupFee } = await originalSale(caller, input.order);
             const selection = selectLines(order, lines, input.lines);
 
@@ -379,7 +379,7 @@ export function registerDeliveryTools(server: McpServer): void {
             note: z.string().trim().max(500).optional(),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_ORDERS);
             const { data: item, error } = await caller.db
                 .from("after_sale_items")
                 .select("id, name, qty, child:orders!after_sale_items_order_id_fkey!inner(order_id)")

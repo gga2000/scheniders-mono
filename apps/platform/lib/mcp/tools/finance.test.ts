@@ -6,6 +6,12 @@ import type { McpCaller } from "@/lib/mcp/caller";
 const resolveMcpCaller = vi.fn();
 vi.mock("@/lib/mcp/caller", () => ({ resolveMcpCaller: (...a: unknown[]) => resolveMcpCaller(...a) }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+// The store's permission rule (member_has_permission): role defaults, unless a
+// test switches a permission off for the caller.
+const memberHasPermission = vi.fn(async (member: { role: string }) => member.role !== "viewer");
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: (...a: [{ role: string }]) => memberHasPermission(...a),
+}));
 
 import { firstNonNullWithin, registerFinanceTools } from "./finance";
 
@@ -145,7 +151,7 @@ describe("expenses", () => {
         );
         asCaller("viewer");
         expect((await call("add_expense", { category: "other", amount: 1, description: "x", confirm: true })).text).toBe(
-            "Your role in this store is read-only.",
+            "Your role in this store cannot do this.",
         );
         expect(env.tables.expenses).toHaveLength(2);
     });
