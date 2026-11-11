@@ -4,12 +4,13 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/supabase-server", () => ({
     verifyAccessToken: vi.fn(),
     createSupabaseServiceClient: vi.fn(),
+    createSupabaseServerClientWithToken: vi.fn(),
 }));
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({ resolveActiveTenant: vi.fn() }));
 vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
 
 import { POST } from "./route";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { verifyAccessToken, createSupabaseServiceClient, createSupabaseServerClientWithToken } from "@/lib/supabase-server";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { reportOrderError } from "@/lib/order-telemetry";
 
@@ -61,9 +62,17 @@ function request(ids: string[]) {
     });
 }
 
-function signedInAs(role: string) {
+/** has_tenant_permission as the caller: the role default unless `grant` overrides it. */
+function signedInAs(
+    role: string,
+    grant: { data: unknown; error: unknown } = { data: role !== "viewer", error: null },
+    platformAdmin = false,
+) {
     vi.mocked(verifyAccessToken).mockResolvedValue({ user: { id: "u1", email: "a@b.c" }, error: null } as unknown as Awaited<ReturnType<typeof verifyAccessToken>>);
-    vi.mocked(resolveActiveTenant).mockResolvedValue({ ok: true, tenantId: TENANT, role } as unknown as Awaited<ReturnType<typeof resolveActiveTenant>>);
+    vi.mocked(resolveActiveTenant).mockResolvedValue({ ok: true, tenantId: TENANT, role, platformAdmin } as unknown as Awaited<ReturnType<typeof resolveActiveTenant>>);
+    const rpc = vi.fn().mockResolvedValue(grant);
+    vi.mocked(createSupabaseServerClientWithToken).mockReturnValue({ rpc } as unknown as ReturnType<typeof createSupabaseServerClientWithToken>);
+    return rpc;
 }
 
 describe("POST /api/orders/delete", () => {
@@ -121,5 +130,29 @@ describe("POST /api/orders/delete", () => {
         const res = await POST(request([A]));
         expect(res.status).toBe(403);
         expect(calls).toHaveLength(0);
+    });
+
+    it("asks the store's permission as the caller, so a revoked orders.delete wins over the role", async () => {
+        const rpc = signedInAs("employee", { data: false, error: null });
+        const calls = serviceClient({ data: [], error: null });
+        const res = await POST(request([A]));
+        expect(res.status).toBe(403);
+        expect(rpc).toHaveBeenCalledWith("has_tenant_permission", { p_tenant_id: TENANT, p_permission: "orders.delete" });
+        expect(createSupabaseServerClientWithToken).toHaveBeenCalledWith("token");
+        expect(calls).toHaveLength(0);
+    });
+
+    it("answers 503, and deletes nothing, when the permission check fails", async () => {
+        signedInAs("admin", { data: null, error: { message: "down" } });
+        const calls = serviceClient({ data: [], error: null });
+        expect((await POST(request([A]))).status).toBe(503);
+        expect(calls).toHaveLength(0);
+    });
+
+    it("lets a platform admin through without a store permission", async () => {
+        const rpc = signedInAs("super_admin", { data: false, error: null }, true);
+        serviceClient({ data: [], error: null });
+        expect((await POST(request([A]))).status).toBe(200);
+        expect(rpc).not.toHaveBeenCalled();
     });
 });

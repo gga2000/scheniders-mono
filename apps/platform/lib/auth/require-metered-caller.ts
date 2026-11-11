@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-request-caller";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { createSupabaseServerClientWithToken } from "@/lib/supabase-server";
+import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import type { PermissionKey } from "@/lib/permissions";
 
 type Meter = {
@@ -35,25 +35,8 @@ export async function requireMeteredCaller(
     if (!caller.ok) return caller;
 
     if (meter.permission) {
-        // has_tenant_permission reads auth.uid(), so it runs as the caller.
-        const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-        const { data: allowed, error } = await createSupabaseServerClientWithToken(token).rpc("has_tenant_permission", {
-            p_tenant_id: caller.tenantId,
-            p_permission: meter.permission,
-        });
-        if (error) {
-            console.error(`[${meter.bucket}] permission check failed: ${error.message}`);
-            return {
-                ok: false,
-                response: NextResponse.json({ error: "Busy right now. Try again in a minute." }, { status: 503 }),
-            };
-        }
-        if (allowed !== true) {
-            return {
-                ok: false,
-                response: NextResponse.json({ success: false, error: "Your role cannot do this." }, { status: 403 }),
-            };
-        }
+        const check = await callerHasPermission(request, caller, meter.permission, meter.bucket);
+        if (!check.ok) return check;
     }
 
     const result = await consumeRateLimit(

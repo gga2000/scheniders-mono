@@ -7,9 +7,12 @@ import { consumeRateLimit, phoneBucket, type RateLimitResult } from "@/lib/rate-
 // =====================================================================
 // Points are read and spent with the service role (customer_points is
 // member-RLS), so whoever asks must first show they are that customer. The
-// proof is the one a returning shopper can give and a stranger cannot: an
-// order number of THIS store placed with THIS phone, checked by lookup_order
-// (the same match order tracking uses).
+// proof is the one a returning shopper can give and a stranger cannot: the
+// number of a DELIVERED order of THIS store placed with THIS phone, checked by
+// lookup_order (the same match order tracking uses). It must be delivered:
+// checkout hands anyone a fresh order number for any phone, so an order still
+// in progress proves nothing. Points are only earned on delivery, so every
+// shopper with points has such an order.
 //
 // Both places that act on a phone's points use this one check, with the same
 // buckets: /api/loyalty/balance (before it shows a balance) and
@@ -24,7 +27,7 @@ import { consumeRateLimit, phoneBucket, type RateLimitResult } from "@/lib/rate-
 // it cannot either.
 // =====================================================================
 
-const lookupRowsSchema = z.array(z.object({ order_number: z.string() }));
+const lookupRowsSchema = z.array(z.object({ order_number: z.string(), status: z.string() }));
 
 const WINDOW_SECONDS = 600;
 /** Loose per IP: Iraqi carriers put many shoppers behind one CGNAT address. */
@@ -44,7 +47,7 @@ export interface LoyaltyProofInput {
 
 export type LoyaltyProof =
   | { kind: "owned" }
-  /** No order of that number with that phone in that store. */
+  /** No delivered order of that number with that phone in that store. */
   | { kind: "not_owned" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   /** lookup_order itself failed: no answer either way. */
@@ -80,5 +83,6 @@ export async function verifyLoyaltyProof(input: LoyaltyProofInput): Promise<Loya
     return { kind: "unavailable" };
   }
   const rows = lookupRowsSchema.safeParse(data);
-  return rows.success && rows.data.length > 0 ? { kind: "owned" } : { kind: "not_owned" };
+  // lookup_order's coarse status is 'delivered' for delivered, completed and refund_delivered.
+  return rows.success && rows.data.some((row) => row.status === "delivered") ? { kind: "owned" } : { kind: "not_owned" };
 }
