@@ -101,7 +101,7 @@ export function ScreenHeader({
                     role="alert"
                     data-testid="screen-save-failed"
                     className={cn(
-                        "flex w-full items-center gap-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400",
+                        "flex w-full items-center gap-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-800 dark:bg-red-500/10 dark:text-red-400",
                         !wide && "max-w-3xl",
                     )}
                 >

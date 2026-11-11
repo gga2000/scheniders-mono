@@ -193,14 +193,14 @@ body {
   border-radius: 10px;
   transition: transform 160ms ease;
 }
-.sb-tile--hero       { background: rgba(166, 200, 255, 0.32); color: #2563EB; }
-.sb-tile--trust      { background: rgba(150, 219, 130, 0.34); color: #15803D; }
-.sb-tile--products   { background: rgba(228, 193, 249, 0.42); color: #9333EA; }
-.sb-tile--story      { background: rgba(244, 199, 207, 0.52); color: #DB2777; }
-.sb-tile--content    { background: rgba(160, 225, 215, 0.46); color: #0E7490; }
-.sb-tile--conversion { background: rgba(251, 227, 142, 0.55); color: #B45309; }
-.sb-tile--page       { background: rgba(148, 163, 184, 0.24); color: #475569; }
-.sb-tile--unknown    { background: rgba(148, 163, 184, 0.24); color: #475569; }
+.sb-tile--hero       { background: rgba(166, 200, 255, 0.32); color: #1D4ED8; }
+.sb-tile--trust      { background: rgba(150, 219, 130, 0.34); color: #166534; }
+.sb-tile--products   { background: rgba(228, 193, 249, 0.42); color: #7E22CE; }
+.sb-tile--story      { background: rgba(244, 199, 207, 0.52); color: #BE185D; }
+.sb-tile--content    { background: rgba(160, 225, 215, 0.46); color: #155E75; }
+.sb-tile--conversion { background: rgba(251, 227, 142, 0.55); color: #92400E; }
+.sb-tile--page       { background: rgba(148, 163, 184, 0.24); color: #334155; }
+.sb-tile--unknown    { background: rgba(148, 163, 184, 0.24); color: #334155; }
 
 /* Brighter glyphs so tiles stay legible on the charcoal dark surface. */
 .dark .sb-tile--hero       { background: rgba(37, 99, 235, 0.18);  color: #93C5FD; }

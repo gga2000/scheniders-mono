@@ -123,7 +123,7 @@ export function WelcomeCard({
                 className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-800 dark:text-emerald-400">
                     <PartyPopper aria-hidden="true" className="h-6 w-6" />
                 </div>
                 <h2 className="text-lg font-bold text-foreground">
@@ -279,7 +279,7 @@ export function PublishSuccessDialog({
                 className="w-full max-w-sm rounded-2xl border border-(--card-border) bg-(--card-bg) p-6 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-800 dark:text-emerald-400">
                     <PartyPopper aria-hidden="true" className="h-7 w-7" />
                 </div>
                 <h2 className="text-lg font-bold text-foreground">
@@ -325,7 +325,7 @@ export function PublishSuccessDialog({
                         target="_blank"
                         rel="noopener noreferrer"
                         data-testid="publish-success-whatsapp"
-                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-800 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
                     >
                         {t(STRINGS.publish.success_whatsapp, locale)}
                     </a>

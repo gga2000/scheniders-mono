@@ -137,7 +137,7 @@ export function CapiKeyField({ network, label, status, pending, onSave }: CapiKe
                         type="button"
                         data-testid={`${id}-delete`}
                         onClick={() => setConfirmDelete(true)}
-                        className={cn(quietBtnCls, "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10")}
+                        className={cn(quietBtnCls, "text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10")}
                     >
                         {t(P.key_delete, locale)}
                     </button>

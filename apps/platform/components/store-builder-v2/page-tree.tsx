@@ -413,7 +413,7 @@ export function PageTree({
                     {typeof badge === "number" && badge > 0 && (
                         <span
                             data-testid={`page-tree-setting-${item.id}-badge`}
-                            className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300"
+                            className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums text-emerald-800 dark:bg-emerald-400/20 dark:text-emerald-300"
                         >
                             {badge}
                         </span>

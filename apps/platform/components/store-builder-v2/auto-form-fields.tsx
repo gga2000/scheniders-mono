@@ -1150,7 +1150,7 @@ export function ArrayControl(p: ArrayControlProps): ReactElement {
                                         aria-label={tx(STRINGS.auto_form.remove_item, arrayLocale)}
                                         data-testid={`${p.testIdBase}-item-${i}-remove`}
                                         onClick={() => handleRemove(i)}
-                                        className="inline-flex h-6 w-6 items-center justify-center rounded text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                                        className="inline-flex h-6 w-6 items-center justify-center rounded text-red-800 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                     </button>

@@ -619,10 +619,10 @@ export function ContrastBadge({ label, fg, bg, testId }: ContrastBadgeProps): Re
     );
     const tone =
         grade === "AAA"
-            ? "bg-emerald-500/15 text-emerald-700"
+            ? "bg-emerald-500/15 text-emerald-800"
             : grade === "AA"
                 ? "bg-amber-500/15 text-amber-700"
-                : "bg-red-500/15 text-red-700";
+                : "bg-red-500/15 text-red-800";
     return (
         <div
             data-testid={testId}

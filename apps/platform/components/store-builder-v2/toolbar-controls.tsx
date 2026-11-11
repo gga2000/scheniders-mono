@@ -292,7 +292,7 @@ export function SaveStatePill({
                     data-testid="save-state-retry"
                     title={t(STRINGS.save_state.retry_hint, locale)}
                     onClick={onRetry}
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-red-800 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                 >
                     <RefreshCw className="h-3 w-3" aria-hidden="true" />
                 </button>

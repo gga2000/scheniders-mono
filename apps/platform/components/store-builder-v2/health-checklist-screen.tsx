@@ -113,7 +113,7 @@ const BAND_TEXT: Record<HealthBand, string> = {
     needs_work: "text-red-700 dark:text-red-400",
     almost: "text-amber-800 dark:text-amber-300",
     ready: "text-teal-700 dark:text-teal-300",
-    great: "text-green-700 dark:text-green-400",
+    great: "text-green-800 dark:text-green-400",
 };
 
 function scoreBand(score: number): HealthBand {
@@ -674,7 +674,7 @@ export function HealthChecklistScreen(
             {blocking.length > 0 ? (
                 <div
                     data-testid="health-blocks-publish"
-                    className="sticky top-0 z-10 mx-6 mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                    className="sticky top-0 z-10 mx-6 mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
                 >
                     <AlertTriangle className="h-4 w-4" />
                     <span className="font-semibold">
@@ -847,7 +847,7 @@ function HealthCheckRow({
                         {t(CATEGORY_LABEL[check.category], locale)}
                     </span>
                     {check.blocks_publish && check.status === "fail" ? (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:bg-red-500/15 dark:text-red-300">
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800 dark:bg-red-500/15 dark:text-red-300">
                             {t(STRINGS.health.blocks_publish_chip, locale)}
                         </span>
                     ) : null}

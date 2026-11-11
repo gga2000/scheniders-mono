@@ -671,7 +671,7 @@ function ExperimentRow({
                         type="button"
                         onClick={onDelete}
                         data-testid={`experiment-row-${experiment.id}-delete`}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
+                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                     >
                         <Trash2 className="h-3 w-3" />
                         {t(STRINGS.common.delete, locale)}
@@ -719,7 +719,7 @@ function StatusBadge({
     const locale = useEditorLocale();
     const tone =
         status === "running"
-            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+            ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300"
             : status === "paused"
               ? "bg-amber-500/20 text-amber-800 dark:text-amber-300"
               : status === "completed"
@@ -978,8 +978,8 @@ function ExperimentEditor({
                             className={cn(
                                 "rounded-md border px-3 py-1.5 text-[12px]",
                                 sumsTo100
-                                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
-                                    : "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400",
+                                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-800 dark:text-emerald-400"
+                                    : "border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-400",
                             )}
                         >
                             {t(STRINGS.advanced_chrome.exp_total_traffic, locale)}{" "}
@@ -1029,7 +1029,7 @@ function ExperimentEditor({
                         type="button"
                         onClick={onDelete}
                         data-testid="experiment-editor-delete"
-                        className="inline-flex h-9 items-center gap-1 rounded-md border border-rose-500/40 px-3 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
+                        className="inline-flex h-9 items-center gap-1 rounded-md border border-rose-500/40 px-3 text-[12px] font-medium text-rose-800 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                         {t(STRINGS.common.delete, locale)}
@@ -1158,7 +1158,7 @@ function ExperimentViewer({
                         <div
                             role="alert"
                             data-testid="experiment-viewer-error"
-                            className="mb-3 flex items-center gap-2 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300"
+                            className="mb-3 flex items-center gap-2 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-800 dark:text-rose-300"
                         >
                             <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                             <span className="min-w-0 flex-1">{t(STRINGS.advanced_chrome.exp_stats_error_body, locale)}</span>
@@ -1362,7 +1362,7 @@ function SignificanceBadge({
         return (
             <span
                 data-testid="experiment-verdict-winning"
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400"
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-400"
                 title={t(STRINGS.experiment.verdict_winning_hint, locale)}
             >
                 <Trophy className="h-3 w-3" />
@@ -1374,7 +1374,7 @@ function SignificanceBadge({
         return (
             <span
                 data-testid="experiment-verdict-losing"
-                className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400"
+                className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-800 dark:text-rose-400"
                 title={t(STRINGS.experiment.verdict_losing_hint, locale)}
             >
                 {t(STRINGS.experiment.verdict_losing, locale)}
