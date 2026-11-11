@@ -204,7 +204,7 @@ export async function submitCheckout(
   // the column / 'limited' enum value were added.
   const { data: tenantRaw, error: tenantErr } = await supabase
     .from("tenants")
-    .select("id, status, restrictions, store_config_v2")
+    .select("id, status, is_prospect, restrictions, store_config_v2")
     .eq("id", payload.tenantId)
     .maybeSingle();
 
@@ -278,8 +278,8 @@ export async function submitCheckout(
     return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(productsErr) };
   }
   // The orders page draws each line from the order's own items (photo and
-  // chip colour), so they are snapshotted like every other order source does
-  // (apps/platform/lib/webhook-handler.ts). The free gift adds its own below.
+  // chip colour), so they are snapshotted with the order. The free gift adds
+  // its own below.
   const lineLooks = new Map<string, { image_url: string | null; tag_color: string | null }>(
     products.map((p) => [p.id, { image_url: p.image_url, tag_color: p.tag_color }]),
   );

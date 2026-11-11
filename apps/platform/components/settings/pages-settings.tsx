@@ -19,7 +19,6 @@ export const ROUTE_LABEL_KEYS: Readonly<Record<string, string>> = {
     "/ads": "nav.ads",
     "/salaries": "nav.financesSalaries",
     "/vault": "nav.vault",
-    "/analytics": "nav.analytics",
     "/reports": "nav.reports",
     "/team": "nav.team",
     "/settings": "nav.settings",

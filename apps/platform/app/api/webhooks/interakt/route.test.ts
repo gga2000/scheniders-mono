@@ -5,6 +5,7 @@ import {
     respond,
     resetRecording,
     queriesOn,
+    hasEq,
 } from "@/lib/__fixtures__/recording-supabase";
 
 /*
@@ -17,6 +18,8 @@ import {
 const state = vi.hoisted(() => ({
     env: { INTERAKT_WEBHOOK_SECRET: "legacy-secret" } as Record<string, string>,
     allowed: true,
+    /** Whether the conditional update still finds the order `contacted`. */
+    stillContacted: true,
 }));
 
 vi.mock("@/lib/env", () => ({ env: state.env }));
@@ -38,10 +41,12 @@ const insertedRows = (table: string) =>
 
 beforeEach(() => {
     state.allowed = true;
+    state.stillContacted = true;
     resetRecording();
     respond((q) => {
         if (q.target === "orders") {
             const row = { id: ORDER_UUID, order_id: "#1001", status: "contacted", tenant_id: TENANT };
+            if (q.ops.some((o) => o.op === "update")) return { data: state.stillContacted ? [{ id: ORDER_UUID }] : [], error: null };
             // .single() answers one row; the phone fallback (.limit) answers a list.
             return { data: q.ops.some((o) => o.op === "limit") ? [row] : row, error: null };
         }
@@ -98,5 +103,39 @@ describe("POST /api/webhooks/interakt (legacy) tenant stamping", () => {
         expect(res.status).toBe(404);
         expect(insertedRows("order_status_history")).toHaveLength(0);
         expect(queriesOn("orders").some((q) => q.ops.some((o) => o.op === "update"))).toBe(false);
+    });
+
+    it("updates only while the order is still contacted, and skips the rest when it moved on", async () => {
+        state.stillContacted = false;
+        const res = await POST(
+            new NextRequest("https://app.example.com/api/webhooks/interakt", {
+                method: "POST",
+                headers: { "x-webhook-secret": "legacy-secret" },
+                body: JSON.stringify({
+                    type: "message_api_clicked",
+                    data: {
+                        customer: { phone_number: "7700000000", country_code: "+964" },
+                        message: { button_text: "إلغاء", context: { callback_data: ORDER_UUID } },
+                    },
+                }),
+            }),
+        );
+
+        expect(res.status).toBe(200);
+        const update = queriesOn("orders").find((q) => q.ops.some((o) => o.op === "update"));
+        expect(update && hasEq(update, "status", "contacted") && hasEq(update, "tenant_id", TENANT)).toBe(true);
+        expect(insertedRows("order_status_history")).toHaveLength(0);
+        expect(insertedRows("whatsapp_logs")).toHaveLength(0);
+    });
+
+    it("refuses a wrong secret", async () => {
+        const res = await POST(
+            new NextRequest("https://app.example.com/api/webhooks/interakt", {
+                method: "POST",
+                headers: { "x-webhook-secret": "legacy-secreT" },
+                body: "{}",
+            }),
+        );
+        expect(res.status).toBe(401);
     });
 });

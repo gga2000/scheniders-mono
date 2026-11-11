@@ -2325,6 +2325,7 @@ export type Database = {
           pdf_shipment_number: string | null
           pdf_status: string | null
           previous_status: string | null
+          previous_values: Json | null
           tenant_id: string | null
         }
         Insert: {
@@ -2346,6 +2347,7 @@ export type Database = {
           pdf_shipment_number?: string | null
           pdf_status?: string | null
           previous_status?: string | null
+          previous_values?: Json | null
           tenant_id?: string | null
         }
         Update: {
@@ -2367,6 +2369,7 @@ export type Database = {
           pdf_shipment_number?: string | null
           pdf_status?: string | null
           previous_status?: string | null
+          previous_values?: Json | null
           tenant_id?: string | null
         }
         Relationships: [
@@ -6388,6 +6391,7 @@ export type Database = {
       salary_advances: {
         Row: {
           amount: number
+          carried_from_payroll_id: string | null
           created_at: string
           created_by: string | null
           employee_id: string
@@ -6399,6 +6403,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          carried_from_payroll_id?: string | null
           created_at?: string
           created_by?: string | null
           employee_id: string
@@ -6410,6 +6415,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          carried_from_payroll_id?: string | null
           created_at?: string
           created_by?: string | null
           employee_id?: string
@@ -8974,9 +8980,10 @@ export type Database = {
           reset_at: string
         }[]
       }
-      create_order_atomic:
-        | { Args: { _order_data: Json }; Returns: Json }
-        | { Args: { _order_data: Json; _tenant_id?: string }; Returns: Json }
+      create_order_atomic: {
+        Args: { _order_data: Json; _tenant_id?: string }
+        Returns: Json
+      }
       create_storefront_order: {
         Args: {
           _duplicate_window_minutes: number
@@ -9489,6 +9496,10 @@ export type Database = {
           total_cost: number | null
         }[]
       }
+      rollback_delivery_import: {
+        Args: { p_import_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       run_payroll: {
         Args: {
           p_absence_days: number
@@ -9702,24 +9713,15 @@ export type Database = {
         Args: { p_is_active: boolean; p_user_id: string }
         Returns: undefined
       }
-      split_order_atomic:
-        | {
-            Args: {
-              _kept_items: Json
-              _original_order_id: string
-              _returned_items: Json
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _kept_items: Json
-              _original_order_id: string
-              _returned_items: Json
-              _tenant_id?: string
-            }
-            Returns: Json
-          }
+      split_order_atomic: {
+        Args: {
+          _kept_items: Json
+          _original_order_id: string
+          _returned_items: Json
+          _tenant_id?: string
+        }
+        Returns: Json
+      }
       storage_object_writable: {
         Args: { p_bucket: string; p_name: string; p_owner_id: string }
         Returns: boolean

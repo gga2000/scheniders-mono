@@ -91,6 +91,8 @@ function LoginForm() {
             if (authError) {
                 if (authError.message.includes("Invalid login credentials")) {
                     setError("Invalid email or password. Please try again.");
+                } else if (authError.code === "email_not_confirmed") {
+                    setError("Confirm your email first: open the link we sent when you signed up.");
                 } else {
                     setError(authError.message);
                 }

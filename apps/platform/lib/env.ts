@@ -61,16 +61,10 @@ const serverSchema = z.object({
     // Cloudflare Turnstile secret for server-side token checks (lib/turnstile).
     // Unset = the check is skipped (dev and previews).
     TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
-    LIGHTFUNNELS_WEBHOOK_SECRET: z.string().min(1).optional(),
-    LIGHTFUNNELS_TENANT_ID: z.string().uuid().optional(),
-    // HMAC key for the `lightfunnels-hmac` header (the LightFunnels app's client
-    // secret). Only API-registered webhooks are signed; see lib/webhook-auth.ts.
-    LIGHTFUNNELS_APP_SECRET: z.string().min(1).optional(),
     // Staged webhook auth: "monitor" (default) processes unauthenticated
     // requests and logs them; "enforce" refuses them. Per-provider overrides
     // win over the global flag.
     WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
-    LIGHTFUNNELS_WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
     INTERAKT_WEBHOOK_AUTH_MODE: z.enum(["monitor", "enforce"]).optional(),
     WEBHOOK_LOGGING_ENABLED: z.enum(["true", "false"]).optional(),
     CRON_SECRET: z.string().min(1).optional(),
@@ -144,11 +138,7 @@ function validateEnv() {
         const serverResult = serverSchema.safeParse({
             SUPABASE_SERVICE_ROLE_KEY: orUndef(process.env.SUPABASE_SERVICE_ROLE_KEY),
             TURNSTILE_SECRET_KEY: orUndef(process.env.TURNSTILE_SECRET_KEY),
-            LIGHTFUNNELS_WEBHOOK_SECRET: orUndef(process.env.LIGHTFUNNELS_WEBHOOK_SECRET),
-            LIGHTFUNNELS_TENANT_ID: orUndef(process.env.LIGHTFUNNELS_TENANT_ID),
-            LIGHTFUNNELS_APP_SECRET: orUndef(process.env.LIGHTFUNNELS_APP_SECRET),
             WEBHOOK_AUTH_MODE: orUndef(process.env.WEBHOOK_AUTH_MODE),
-            LIGHTFUNNELS_WEBHOOK_AUTH_MODE: orUndef(process.env.LIGHTFUNNELS_WEBHOOK_AUTH_MODE),
             INTERAKT_WEBHOOK_AUTH_MODE: orUndef(process.env.INTERAKT_WEBHOOK_AUTH_MODE),
             WEBHOOK_LOGGING_ENABLED: orUndef(process.env.WEBHOOK_LOGGING_ENABLED),
             CRON_SECRET: orUndef(process.env.CRON_SECRET),
@@ -211,7 +201,6 @@ export const env = validateEnv();
 export const PLATFORM_PROVIDER_DEFAULTS = {
     INTERAKT_API_BASE_URL: "https://api.interakt.ai",
     QSTASH_URL: "https://qstash-us-east-1.upstash.io",
-    LIGHTFUNNELS_API_BASE_URL: "https://services.lightfunnels.com",
     TELEGRAM_API_BASE_URL: "https://api.telegram.org",
     WASEET_API_BASE_URL: "https://api.alwaseet-iq.net",
     GEMINI_API_BASE_URL: "https://generativelanguage.googleapis.com",
@@ -224,7 +213,6 @@ export function parsePlatformProviderBaseUrls(raw: RawEnv) {
         z.object({
             INTERAKT_API_BASE_URL: providerBaseUrlSchema(d.INTERAKT_API_BASE_URL, production),
             QSTASH_URL: providerBaseUrlSchema(d.QSTASH_URL, production),
-            LIGHTFUNNELS_API_BASE_URL: providerBaseUrlSchema(d.LIGHTFUNNELS_API_BASE_URL, production),
             TELEGRAM_API_BASE_URL: providerBaseUrlSchema(d.TELEGRAM_API_BASE_URL, production),
             WASEET_API_BASE_URL: providerBaseUrlSchema(d.WASEET_API_BASE_URL, production),
             GEMINI_API_BASE_URL: providerBaseUrlSchema(d.GEMINI_API_BASE_URL, production),

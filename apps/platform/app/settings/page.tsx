@@ -25,7 +25,6 @@ import { OrderSettings } from "@/components/settings/order-settings";
 import { PrintingSettings } from "@/components/settings/printing-settings";
 import { TeamSettings } from "@/components/settings/team-settings";
 import { DataSettings } from "@/components/settings/data-settings";
-import { LightfunnelsSettings } from "@/components/settings/lightfunnels-settings";
 import { PageSettings } from "@/components/settings/pages-settings";
 import { WaseetSettingsPanel } from "@/components/settings/waseet-settings";
 import { CustomerBlacklist } from "@/components/settings/customer-blacklist";
@@ -36,32 +35,13 @@ import { OrderReasonsManager } from "@/components/settings/order-reasons-manager
 
 function IntegrationsSettings() {
     const { t } = useLanguage();
-    const [tab, setTab] = useState<"lightfunnels" | "waseet">("lightfunnels");
     return (
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.integrations.title")}</h2>
                 <p className="text-sm text-muted-foreground">{t("settings.integrations.subtitle")}</p>
             </div>
-            <div className="flex gap-1 p-1 bg-muted/40 rounded-xl w-fit border border-(--card-border)">
-                {(["lightfunnels", "waseet"] as const).map((id) => (
-                    <button
-                        key={id}
-                        onClick={() => setTab(id)}
-                        className={cn(
-                            "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                            tab === id
-                                ? "bg-background shadow-sm text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        {id === "lightfunnels" ? "Lightfunnels" : "Waseet"}
-                    </button>
-                ))}
-            </div>
-            <div className="animate-in fade-in duration-200">
-                {tab === "lightfunnels" ? <LightfunnelsSettings /> : <WaseetSettingsPanel />}
-            </div>
+            <WaseetSettingsPanel />
         </div>
     );
 }
@@ -135,7 +115,7 @@ const SECTIONS = [
         colorVar: "--pastel-mint",
         iconColor: "text-teal-700",
         component: IntegrationsSettings,
-        keywords: ["integrations", "lightfunnels", "waseet", "sync", "api", "token", "connect"],
+        keywords: ["integrations", "waseet", "sync", "api", "token", "connect"],
     },
     {
         id: "staff-alerts",

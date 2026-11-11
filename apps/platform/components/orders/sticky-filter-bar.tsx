@@ -331,13 +331,18 @@ export const StickyFilterBar = memo(function StickyFilterBar({
 
                 {/* Risk Filter Toggle */}
                 <button
+                    type="button"
+                    aria-pressed={!!filters.riskLevel}
+                    aria-label={t("orders.filter.risk")}
+                    title={t("orders.filter.riskTip")}
                     onClick={() => {
                         if (filters.riskLevel) {
                             // Toggle OFF — just remove the risk filter
                             setFilters({ ...filters, riskLevel: undefined });
                         } else {
-                            // Toggle ON — clear date/status filters so all flagged/rejected orders show
-                            setFilters({ ...filters, riskLevel: 'flagged', status: 'all', dateFrom: undefined, dateTo: undefined });
+                            // Toggle ON — every status, within the days already picked,
+                            // so the badge counted before the click is the list after it.
+                            setFilters({ ...filters, riskLevel: 'flagged', status: 'all' });
                         }
                     }}
                     className={cn(
@@ -349,7 +354,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     )}
                 >
                     <ShieldCheck className="w-4 h-4" />
-                    <span>{!isMobile && t("common.risk")}</span>
+                    <span>{!isMobile && t("orders.filter.risk")}</span>
                     {!riskCountHidden && totalRiskCount !== undefined && totalRiskCount > 0 && (
                         <span data-badge="risk" className={cn(
                             "px-2 py-0.5 rounded-full text-[11px] font-bold min-w-[24px] text-center",

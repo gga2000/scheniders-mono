@@ -21,7 +21,6 @@ const FINANCIALS: RouteRule = { roles: ADMINS, permission: PERMISSIONS.VIEW_FINA
 export const ROUTE_PERMISSIONS: Readonly<Record<string, RouteRule>> = {
     "/admin/data-import": { roles: ADMINS },
     "/settings": { roles: ADMINS },
-    "/analytics": { roles: ADMINS },
     "/reports": { roles: ADMINS },
     "/team": { roles: ADMINS },
     "/finances": FINANCIALS,

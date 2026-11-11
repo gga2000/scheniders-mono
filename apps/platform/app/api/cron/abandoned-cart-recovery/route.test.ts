@@ -46,12 +46,26 @@ function makeClient(
         predicates.push((r) => (r[col] ?? null) !== value);
         return cartsChain;
     };
+    cartsChain.in = (col: string, values: unknown[]) => {
+        predicates.push((r) => values.includes(r[col]));
+        return cartsChain;
+    };
     cartsChain.lte = () => cartsChain;
+    cartsChain.gte = (col: string, value: string) => {
+        predicates.push((r) => String(r[col]) >= value);
+        return cartsChain;
+    };
     cartsChain.order = () => cartsChain;
     cartsChain.limit = () =>
         Promise.resolve({ data: carts.filter((c) => predicates.every((p) => p(c))), error: null });
+    // The route asks for opted-in stores only: apply that filter like the database would.
     const tenantsChain = {
-        in: () => Promise.resolve({ data: tenants, error: null }),
+        eq: (path: string, value: string) => {
+            if (path !== "store_config_v2->commerce->cart_recovery->>enabled") throw new Error(`unexpected filter ${path}`);
+            const enabled = (tenants as Array<{ store_config_v2?: { commerce?: { cart_recovery?: { enabled?: unknown } } } }>)
+                .filter((t) => String(t.store_config_v2?.commerce?.cart_recovery?.enabled) === value);
+            return Promise.resolve({ data: enabled, error: null });
+        },
     };
     const client = {
         rpc,
@@ -63,7 +77,8 @@ function makeClient(
     return { client, updateEq, rpc };
 }
 
-const OLD = "2020-01-01T00:00:00Z"; // safely past any delay
+// Past any delay (24 h at most) and inside the 48 h window the sweep still nudges.
+const OLD = new Date(Date.now() - 25 * 60 * 60_000).toISOString();
 const CONSENTED = "2020-01-01T00:00:00Z";
 
 function cart(overrides: Cart = {}): Cart {
@@ -144,7 +159,7 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         const res = await GET(authedRequest());
         const json = await res.json();
         expect(json.sent).toBe(0);
-        expect(json.skipped).toBe(1);
+        expect(json.processed).toBe(0);
         expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
     });
 
@@ -158,7 +173,29 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         const res = await GET(authedRequest());
         const json = await res.json();
         expect(json.sent).toBe(0);
-        expect(json.skipped).toBe(1);
+        expect(json.processed).toBe(0);
+        expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
+    });
+
+    it("an opted-out store's backlog no longer starves an opted-in store", async () => {
+        const backlog = Array.from({ length: 60 }, (_, i) => cart({ id: `off-${i}`, tenant_id: "t-off" }));
+        const { client } = makeClient(
+            [...backlog, cart({ id: "on-1" })],
+            [optedIn, { id: "t-off", store_config_v2: { commerce: { cart_recovery: { enabled: false } } } }],
+        );
+        (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+        (sendCartRecoveryMessage as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
+
+        const json = await (await GET(authedRequest())).json();
+        expect(json).toMatchObject({ processed: 1, sent: 1 });
+    });
+
+    it("never nudges a cart idle for more than two days", async () => {
+        const { client } = makeClient([cart({ updated_at: "2020-01-01T00:00:00Z" })], [optedIn]);
+        (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+
+        const json = await (await GET(authedRequest())).json();
+        expect(json.processed).toBe(0);
         expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
     });
 

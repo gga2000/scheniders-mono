@@ -169,6 +169,41 @@ const SUPER_ADMIN_ONLY: Case[] = [
       );
     },
   },
+  {
+    name: "DELETE /api/leads/[id] (delete_leads)",
+    call: async (t) => {
+      const { DELETE } = await import("./leads/[id]/route");
+      return DELETE(req(`/api/leads/${LEAD}`, "DELETE", t), leadParams);
+    },
+  },
+  {
+    name: "POST /api/leads/bulk delete (delete_leads)",
+    call: async (t) => {
+      const { POST } = await import("./leads/bulk/route");
+      return POST(req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "delete" }));
+    },
+  },
+  {
+    name: "POST /api/industries (update_settings)",
+    call: async (t) => {
+      const { POST } = await import("./industries/route");
+      return POST(req("/api/industries", "POST", t, { name: "Perfume" }));
+    },
+  },
+  {
+    name: "PATCH /api/industries/[id] (update_settings)",
+    call: async (t) => {
+      const { PATCH } = await import("./industries/[id]/route");
+      return PATCH(req(`/api/industries/${TENANT}`, "PATCH", t, { is_active: false }), idParams);
+    },
+  },
+  {
+    name: "DELETE /api/industries/[id] (update_settings)",
+    call: async (t) => {
+      const { DELETE } = await import("./industries/[id]/route");
+      return DELETE(req(`/api/industries/${TENANT}`, "DELETE", t), idParams);
+    },
+  },
 ];
 
 /** Handlers both roles may use (reads, and actions support_staff holds). */
@@ -185,6 +220,22 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./trials/extend/route");
       return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 7 }));
+    },
+  },
+  {
+    name: "POST /api/leads/[id]/build-store (convert_lead)",
+    call: async (t) => {
+      const { POST } = await import("./leads/[id]/build-store/route");
+      return POST(req(`/api/leads/${LEAD}/build-store`, "POST", t, {}), leadParams);
+    },
+  },
+  {
+    name: "POST /api/leads/bulk change_priority (any admin)",
+    call: async (t) => {
+      const { POST } = await import("./leads/bulk/route");
+      return POST(
+        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_priority", payload: { priority: "high" } }),
+      );
     },
   },
   {

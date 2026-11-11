@@ -38,8 +38,23 @@ describe("void_payroll", () => {
         expect(rowLock).toBeGreaterThan(advisory);
     });
 
+    // CREATE OR REPLACE keeps a function's grants, so the newest file that states them is live.
     it("keeps the grants: authenticated only", () => {
-        expect(voidBody).toMatch(/REVOKE ALL ON FUNCTION public\.void_payroll\(uuid\) FROM PUBLIC, anon/);
-        expect(voidBody).toMatch(/GRANT EXECUTE ON FUNCTION public\.void_payroll\(uuid\) TO authenticated/);
+        const grants = newestBody(/GRANT EXECUTE ON FUNCTION public\.void_payroll\(uuid\)/i);
+        expect(grants).toMatch(/REVOKE ALL ON FUNCTION public\.void_payroll\(uuid\) FROM PUBLIC, anon/);
+        expect(grants).toMatch(/GRANT EXECUTE ON FUNCTION public\.void_payroll\(uuid\) TO authenticated/);
+    });
+
+    // F16: a shortfall carried into the next payroll keeps its origin in its own column,
+    // because payroll_id is overwritten when the next run deducts it.
+    it("ties the carried shortfall to its origin by carried_from_payroll_id", () => {
+        expect(runBody).toMatch(/INSERT INTO public\.salary_advances \([^)]*carried_from_payroll_id\)/);
+        expect(voidBody).toMatch(/DELETE FROM public\.salary_advances\s+WHERE tenant_id = v_tenant AND carried_from_payroll_id = p_record_id AND NOT is_deducted/);
+    });
+
+    it("refuses to void while its carried shortfall is deducted by a later payroll", () => {
+        const guard = voidBody.indexOf("carried_from_payroll_id = p_record_id AND is_deducted");
+        expect(guard).toBeGreaterThan(-1);
+        expect(guard).toBeLessThan(voidBody.indexOf("DELETE FROM public.salary_advances"));
     });
 });

@@ -47,9 +47,9 @@ describe("countVisibility", () => {
         expect(v({ riskLevel: "high", facts: { statusIsAll: false, windowIsAll: false } }).riskBadge).toBe(true);
     });
 
-    it("risk off: the risk badge only while status and dates are clear (turning it on clears them)", () => {
+    it("risk off: the risk badge only on the All tab (turning it on clears the status, keeps the days)", () => {
         expect(v({ facts: { statusIsAll: false } }).riskBadge).toBe(false);
-        expect(v({ facts: { windowIsAll: false } }).riskBadge).toBe(false);
+        expect(v({ facts: { windowIsAll: false } }).riskBadge).toBe(true);
         expect(v({ facts: { statusIsAll: false, windowIsAll: false } })).toEqual({ chips: true, dueTodayBadge: true, riskBadge: false, flaggedCard: true });
     });
 });

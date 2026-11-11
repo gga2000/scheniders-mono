@@ -1,47 +1,88 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
     Printer, Package, Truck, ArrowRight, Clock, MapPin,
     AlertTriangle, CheckCircle2, FileText, ExternalLink,
 } from "lucide-react";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useAuth } from "@/components/auth/auth-provider";
+import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
+import { toBaghdadDayKey } from "@/lib/order-window";
 import { SectionCard } from "@/components/finances/hub/primitives/section-card";
 import { FinanceValue } from "@/components/finances/hub/primitives/finance-value";
 import { Sparkline } from "@/components/finances/hub/primitives/sparkline";
 import { cn } from "@/lib/utils";
 
+const PRINTED_DAYS = 7;
+
+type QueueOrder = {
+    id: string;
+    status: string;
+    price: number | null;
+    city: string | null;
+    print_count: number | null;
+    printed_at: string | null;
+    created_at: string;
+};
+
+/**
+ * The whole print queue (every confirmed and in-transit order) plus whatever was
+ * printed in the last week, read for this tab. The /orders page's loaded window
+ * (default: today) is not the queue, so it must not be the source here.
+ */
+function usePrintQueueOrders() {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: ["finances", "print-ship", tenantId],
+        enabled: !!tenantId,
+        staleTime: 30_000,
+        queryFn: async (): Promise<QueueOrder[]> => {
+            if (!tenantId) return [];
+            const since = new Date(Date.now() - PRINTED_DAYS * 86_400_000).toISOString();
+            return fetchAllPages<QueueOrder>((from, to) =>
+                supabase
+                    .from("orders")
+                    .select("id, status, price, city, print_count, printed_at, created_at")
+                    .eq("tenant_id", tenantId)
+                    .eq("is_archived", false)
+                    .is("deleted_at", null)
+                    .is("take_kind", null)
+                    .not("is_test", "is", true)
+                    .or(`status.in.(confirmed,in_transit),printed_at.gte.${since}`)
+                    .order("id")
+                    .range(from, to),
+            );
+        },
+    });
+}
+
 export function PrintShipTab() {
-    const { orders } = useOrdersContext();
+    const { data: orders = [] } = usePrintQueueOrders();
 
     const stats = useMemo(() => {
         const confirmed = orders.filter((o) => o.status === "confirmed");
         const inTransit = orders.filter((o) => o.status === "in_transit");
-        const printedNotShipped = confirmed.filter((o) => (o as any).print_count > 0);
-        const unprinted = confirmed.filter((o) => !(o as any).print_count);
+        const printedNotShipped = confirmed.filter((o) => (o.print_count ?? 0) > 0);
+        const unprinted = confirmed.filter((o) => !o.print_count);
 
         const queueValue = confirmed.reduce((s, o) => s + (o.price || 0), 0);
         const inTransitValue = inTransit.reduce((s, o) => s + (o.price || 0), 0);
         const unprintedValue = unprinted.reduce((s, o) => s + (o.price || 0), 0);
 
         const today = new Date();
-        const sevenDays = Array.from({ length: 7 }).map((_, i) => {
-            const d = new Date(today);
-            d.setDate(d.getDate() - (6 - i));
-            const ds = d.toISOString().slice(0, 10);
-            const printed = orders.filter(
-                (o) =>
-                    (o as any).printed_at &&
-                    String((o as any).printed_at).slice(0, 10) === ds
-            ).length;
-            return printed;
+        // Baghdad days: a label printed at 01:00 belongs to that morning, not the day before.
+        const sevenDays = Array.from({ length: PRINTED_DAYS }).map((_, i) => {
+            const day = toBaghdadDayKey(new Date(today.getTime() - (PRINTED_DAYS - 1 - i) * 86_400_000));
+            return orders.filter((o) => o.printed_at && toBaghdadDayKey(o.printed_at) === day).length;
         });
 
         const cityMap = new Map<string, { count: number; value: number }>();
         for (const o of confirmed) {
-            const city = (o as any).city || "Unknown";
+            const city = o.city || "Unknown";
             const cur = cityMap.get(city) || { count: 0, value: 0 };
             cur.count += 1;
             cur.value += o.price || 0;
@@ -53,7 +94,7 @@ export function PrintShipTab() {
             .slice(0, 5);
 
         const oldestUnprinted = unprinted.reduce<Date | null>((acc, o) => {
-            const created = (o as any).created_at ? new Date((o as any).created_at) : null;
+            const created = o.created_at ? new Date(o.created_at) : null;
             if (!created) return acc;
             if (!acc || created < acc) return created;
             return acc;

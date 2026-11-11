@@ -24,6 +24,7 @@ import { diag } from "@/lib/diag";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useNotificationChime } from "@/hooks/use-notification-chime";
+import { countUnreadUnits } from "@/lib/notification-feed-sections";
 
 export type NotificationCategory =
     | "orders"
@@ -339,40 +340,41 @@ export function useNotificationFeed(
      * under their cursor, which is exactly the churn the freeze is there to
      * prevent — and the outcome of these two mutations is already known.
      */
+    /**
+     * Edits the loaded pages and lowers the bell by what the edit cleared.
+     * The bell counts an hour of status changes as one, so marking one change
+     * of a busy hour read only lowers it once the whole hour is read.
+     */
     const patchFeed = useCallback(
         (fn: (n: FeedNotification) => FeedNotification | null) => {
-            queryClient.setQueryData<InfiniteData<FeedNotification[], string | null>>(
-                feedKey,
-                (current) =>
-                    current && {
-                        ...current,
-                        pages: current.pages.map((page) =>
-                            page.map(fn).filter((n): n is FeedNotification => n !== null),
-                        ),
-                    },
-            );
+            const current = queryClient.getQueryData<InfiniteData<FeedNotification[], string | null>>(feedKey);
+            if (!current) return;
+            const before = countUnreadUnits(current.pages.flat());
+            const next = {
+                ...current,
+                pages: current.pages.map((page) =>
+                    page.map(fn).filter((n): n is FeedNotification => n !== null),
+                ),
+            };
+            queryClient.setQueryData(feedKey, next);
+            const cleared = before - countUnreadUnits(next.pages.flat());
+            if (cleared > 0) {
+                queryClient.setQueryData<number>(unreadKey, (c) => Math.max(0, (c ?? 0) - cleared));
+            }
         },
-        [queryClient, feedKey],
+        [queryClient, feedKey, unreadKey],
     );
 
-    const dropUnread = useCallback(() => {
-        queryClient.setQueryData<number>(unreadKey, (c) => Math.max(0, (c ?? 0) - 1));
-    }, [queryClient, unreadKey]);
-
     const markRead = useMutation({
-        onMutate: (id: string) => {
-            let wasUnread = false;
-            patchFeed((n) => {
-                if (n.id !== id) return n;
-                wasUnread = !n.is_read;
-                return { ...n, is_read: true };
-            });
-            if (wasUnread) dropUnread();
+        onMutate: (ids: string[]) => {
+            const set = new Set(ids);
+            patchFeed((n) => (set.has(n.id) ? { ...n, is_read: true } : n));
         },
-        mutationFn: async (id: string) => {
-            if (!userId) return;
+        mutationFn: async (ids: string[]) => {
+            if (!userId || ids.length === 0) return;
+            const now = new Date().toISOString();
             const { error } = await supabase.from("notification_user_state").upsert(
-                { notification_id: id, user_id: userId, read_at: new Date().toISOString() },
+                ids.map((id) => ({ notification_id: id, user_id: userId, read_at: now })),
                 { onConflict: "notification_id,user_id" },
             );
             if (error) throw error;
@@ -387,20 +389,15 @@ export function useNotificationFeed(
     });
 
     const dismissOne = useMutation({
-        onMutate: (id: string) => {
-            let wasUnread = false;
-            patchFeed((n) => {
-                if (n.id !== id) return n;
-                wasUnread = !n.is_read;
-                return null;
-            });
-            if (wasUnread) dropUnread();
+        onMutate: (ids: string[]) => {
+            const set = new Set(ids);
+            patchFeed((n) => (set.has(n.id) ? null : n));
         },
-        mutationFn: async (id: string) => {
-            if (!userId) return;
+        mutationFn: async (ids: string[]) => {
+            if (!userId || ids.length === 0) return;
             const now = new Date().toISOString();
             const { error } = await supabase.from("notification_user_state").upsert(
-                { notification_id: id, user_id: userId, read_at: now, dismissed_at: now },
+                ids.map((id) => ({ notification_id: id, user_id: userId, read_at: now, dismissed_at: now })),
                 { onConflict: "notification_id,user_id" },
             );
             if (error) throw error;
@@ -448,8 +445,9 @@ export function useNotificationFeed(
         hasMore: !!hasNextPage,
         isLoadingMore: isFetchingNextPage,
         loadMore: () => void fetchNextPage(),
-        markAsRead: (id: string) => markRead.mutate(id),
-        dismiss: (id: string) => dismissOne.mutate(id),
+        /** One id, or every id of a grouped line (an hour of status changes). */
+        markAsRead: (ids: string | string[]) => markRead.mutate(typeof ids === "string" ? [ids] : ids),
+        dismiss: (ids: string | string[]) => dismissOne.mutate(typeof ids === "string" ? [ids] : ids),
         markAllAsRead: () => bulk.mutate("read"),
         clearAll: () => bulk.mutate("clear"),
     };

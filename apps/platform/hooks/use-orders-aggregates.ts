@@ -20,9 +20,9 @@ import type { OrderFilters } from "@/lib/supabase";
  * rows would report "12 confirmed" while the filter actually matches 300, and
  * look entirely plausible doing it.
  *
- * `get_orders_aggregates` reproduces the previous client semantics deliberately
- * — including bucketing revenue on created_at (COR-4) — so switching the source
- * changes no number the merchant currently sees.
+ * `get_orders_aggregates` reproduces the client semantics deliberately — revenue
+ * follows lib/order-revenue.ts (tests excluded, today bucketed on the day it was
+ * earned) — so switching the source changes no number the merchant sees.
  */
 
 export type OrdersAggregates = {

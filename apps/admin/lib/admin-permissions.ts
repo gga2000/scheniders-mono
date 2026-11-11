@@ -18,6 +18,9 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         lead is the sales team's job and it is what earns
  *                         their commission. The plan is not caller-chosen;
  *                         upgrading afterwards is `change_plan`.
+ *   delete_leads        — delete sales leads, one or in bulk. Super admins
+ *                         only: a deleted lead takes its history with it.
+ *   update_settings     — also covers the industry list leads are sorted by.
  *   link_prime          — mark a shop's Prime link request done («تم الربط»),
  *                         which tells the shop. Open to support_staff: linking
  *                         couriers is day-to-day onboarding work.
@@ -40,6 +43,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "manage_tags",
     "manage_commissions",
     "convert_lead",
+    "delete_leads",
     "link_prime",
   ]),
   support_staff: new Set([

@@ -23,7 +23,7 @@
  */
 
 import type { Order } from "@/types/order";
-import { BAGHDAD_UTC_OFFSET_HOURS } from "@/lib/order-window";
+import { baghdadDayKey, toBaghdadDayKey } from "@/lib/order-window";
 
 /**
  * Statuses where the goods reached the customer and the money is real.
@@ -70,21 +70,9 @@ export function realizedAt(
     return order.delivered_at ?? order.completed_at ?? null;
 }
 
-/**
- * The Baghdad calendar day (YYYY-MM-DD) an instant falls in.
- *
- * Iraq is UTC+3 year round, so shifting the instant by the offset and reading
- * the UTC date gives the merchant's day without needing a timezone database.
- */
-export function baghdadDayKey(instant: string | Date): string | null {
-    const ms = instant instanceof Date ? instant.getTime() : Date.parse(instant);
-    if (Number.isNaN(ms)) return null;
-    return new Date(ms + BAGHDAD_UTC_OFFSET_HOURS * 3600_000).toISOString().slice(0, 10);
-}
-
 /** Today's Baghdad calendar day. */
 export function todayBaghdadDayKey(now: Date = new Date()): string {
-    return baghdadDayKey(now) as string;
+    return baghdadDayKey(now);
 }
 
 /** Total realized revenue across the given orders. */
@@ -103,7 +91,7 @@ export function sumRealizedRevenueForDay(orders: readonly Order[], dayKey: strin
     return orders.reduce((sum, order) => {
         if (!isRealizedRevenue(order)) return sum;
         const at = realizedAt(order);
-        if (!at || baghdadDayKey(at) !== dayKey) return sum;
+        if (!at || toBaghdadDayKey(at) !== dayKey) return sum;
         return sum + (Number(order.price) || 0);
     }, 0);
 }
@@ -113,7 +101,7 @@ export function countRealizedForDay(orders: readonly Order[], dayKey: string): n
     return orders.reduce((n, order) => {
         if (!isRealizedRevenue(order)) return n;
         const at = realizedAt(order);
-        return at && baghdadDayKey(at) === dayKey ? n + 1 : n;
+        return at && toBaghdadDayKey(at) === dayKey ? n + 1 : n;
     }, 0);
 }
 
@@ -121,7 +109,7 @@ export function countRealizedForDay(orders: readonly Order[], dayKey: string): n
 export function recentBaghdadDayKeys(days: number, now: Date = new Date()): string[] {
     const keys: string[] = [];
     for (let i = days - 1; i >= 0; i--) {
-        keys.push(baghdadDayKey(new Date(now.getTime() - i * 86_400_000)) as string);
+        keys.push(baghdadDayKey(now.getTime() - i * 86_400_000));
     }
     return keys;
 }

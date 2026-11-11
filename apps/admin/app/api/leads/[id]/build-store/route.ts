@@ -1,17 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireBearerAdmin } from "@/lib/api-auth";
+import { z } from "zod";
+import { requireAdminPermission } from "@/lib/api-auth";
+
+// The dialog also sends business_name and slug; the store takes the lead's
+// name and a generated slug, so those are not read.
+const bodySchema = z.object({
+  template: z.string().trim().min(1).max(40).default("general"),
+  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  products: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        price: z.number().int().min(0).default(0),
+        description: z.string().max(2000).nullish(),
+        image_url: z.url().nullish(),
+      }),
+    )
+    .max(10)
+    .default([]),
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireBearerAdmin(request);
+    // Building a demo store is lead work, which the sales team owns.
+    const admin = await requireAdminPermission(request, "convert_lead");
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
-    const body = await request.json();
+    const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid store details" }, { status: 400 });
+    }
+    const body = parsed.data;
     const supabase = createAdminClient();
 
     // Fetch the lead
@@ -56,10 +80,10 @@ export async function POST(
         contact_phone: lead.page_phone || (lead.phone_numbers?.[0] as { number?: string })?.number || null,
         address: lead.address,
         city: lead.city,
-        branding: body.branding || { logo_url: null, primary_color: "#3b82f6", secondary_color: "#8b5cf6" },
+        branding: { logo_url: null, primary_color: body.primary_color ?? "#3b82f6", secondary_color: "#8b5cf6" },
         settings: { timezone: "Asia/Baghdad", language: "ar", currency: "IQD" },
         metadata: {
-          template: body.template || "general",
+          template: body.template,
           created_from_lead: true,
         },
       })
@@ -77,13 +101,13 @@ export async function POST(
     }
 
     // Create products if provided
-    if (body.products && Array.isArray(body.products) && body.products.length > 0) {
-      const products = body.products.map((p: { name: string; price?: number; description?: string; image_url?: string }) => ({
+    if (body.products.length > 0) {
+      const products = body.products.map((p) => ({
         tenant_id: tenant.id,
         name: p.name,
-        price: p.price || 0,
-        description: p.description || null,
-        image_url: p.image_url || null,
+        price: p.price,
+        description: p.description ?? null,
+        image_url: p.image_url ?? null,
         status: "active",
       }));
 
@@ -116,8 +140,8 @@ export async function POST(
       lead_id: id,
       activity_type: "store_created",
       title: `Prospect store created: ${tenant.slug}`,
-      metadata: { tenant_id: tenant.id, slug: tenant.slug, template: body.template || "general" },
-      created_by: body.created_by || null,
+      metadata: { tenant_id: tenant.id, slug: tenant.slug, template: body.template },
+      created_by: admin.user.id,
     });
     if (activityError) throw activityError;
 

@@ -1,38 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import type { ParsedDeliveryPDF } from "@/types/delivery-import";
 
-interface ConfirmRequest {
-    parsedPDF: ParsedDeliveryPDF;
-    confirmedItems: Array<{
-        pdfRowNumber: number;
-        orderId: string;
-        matchCategory: string;
-        matchDetails: string;
-        previousStatus: string;
-        resolutionAction?: string;
-        resolutionNote?: string;
-        pdfAmount?: number;
-    }>;
-    skippedItems: Array<{
-        pdfRowNumber: number;
-        orderId: string | null;
-        matchCategory: string;
-        matchDetails: string;
-        resolutionAction?: string;
-        resolutionNote?: string;
-    }>;
-    filename: string;
-}
+const MAX_ROWS = 2000;
+const note = z.string().max(2000);
 
+// The parsed receipt is stored whole as raw_data, so unknown row fields are kept.
+const pdfRowSchema = z.looseObject({
+    rowNumber: z.number().int(),
+    shipmentNumber: z.string().optional(),
+    phone: z.string().optional(),
+    shipmentAmount: z.number(),
+    deliveryFee: z.number().optional(),
+    netToMerchant: z.number().optional(),
+    status: z.string().optional(),
+    itemCount: z.number().optional(),
+    notes: z.string().optional(),
+});
 
+const confirmSchema = z.object({
+    filename: z.string().max(255).optional(),
+    parsedPDF: z.looseObject({
+        header: z.looseObject({
+            receiptNumber: z.string().trim().min(1).max(100),
+            paymentDate: z.string().max(100).optional(),
+            receivingAgent: z.string().max(200).optional(),
+        }),
+        rows: z.array(pdfRowSchema).max(MAX_ROWS),
+        footerTotal: z.number().optional(),
+    }),
+    confirmedItems: z.array(z.object({
+        pdfRowNumber: z.number().int(),
+        orderId: z.uuid(),
+        matchCategory: z.string().max(50),
+        matchDetails: note,
+        resolutionAction: z.enum([
+            "process_with_pdf_price",
+            "process_with_system_price",
+            "force_deliver",
+            "acknowledge_refund",
+            "mark_refund_delivered",
+            "mark_refund_failed",
+            "skip",
+        ]).optional(),
+        resolutionNote: note.optional(),
+    })).max(MAX_ROWS),
+    skippedItems: z.array(z.object({
+        pdfRowNumber: z.number().int(),
+        orderId: z.uuid().nullable(),
+        matchCategory: z.string().max(50),
+        matchDetails: note,
+    })).max(MAX_ROWS).optional(),
+});
+
+/** The order fields an import may overwrite, read before it writes them (for the undo). */
+const SNAPSHOT_COLUMNS = "id, status, price, delivered_at, needs_attention, attention_reasons, delivery_note";
+type OrderSnapshot = {
+    id: string;
+    status: string;
+    price: number | null;
+    delivered_at: string | null;
+    needs_attention: boolean | null;
+    attention_reasons: string[] | null;
+    delivery_note: string | null;
+};
 
 /**
  * POST /api/delivery-import/confirm
  *
  * Confirm a delivery import: create audit records and update order statuses to "delivered".
- * Processes in batches. Individual failures don't rollback the entire import.
+ * Each order's current status and fields are read here, never taken from the browser, and
+ * kept on its audit row so the import can be undone. A receipt already imported (and not
+ * undone) is refused. Individual failures don't roll back the entire import.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -40,17 +80,31 @@ export async function POST(request: NextRequest) {
         const caller = await requireRequestCaller(request, "tenant-admin");
         if (!caller.ok) return caller.response;
 
-        const body = (await request.json()) as ConfirmRequest;
-        const { parsedPDF, confirmedItems, skippedItems, filename } = body;
-
-        if (!parsedPDF || !confirmedItems) {
+        const parsedBody = confirmSchema.safeParse(await request.json().catch(() => null));
+        if (!parsedBody.success) {
             return NextResponse.json(
-                { success: false, error: "Missing required fields" },
+                { success: false, error: `Invalid import: ${parsedBody.error.issues[0]?.message ?? "bad body"}` },
                 { status: 400 }
             );
         }
+        const { parsedPDF, confirmedItems, skippedItems, filename } = parsedBody.data;
 
         const supabaseAdmin = createSupabaseServiceClient();
+
+        // The orders as they are now, in the caller's store only.
+        const orderIds = [...new Set(confirmedItems.map((i) => i.orderId))];
+        const current = new Map<string, OrderSnapshot>();
+        for (let i = 0; i < orderIds.length; i += 500) {
+            const { data: rows, error: readError } = await supabaseAdmin
+                .from("orders")
+                .select(SNAPSHOT_COLUMNS)
+                .eq("tenant_id", caller.tenantId)
+                .in("id", orderIds.slice(i, i + 500));
+            if (readError) {
+                return NextResponse.json({ success: false, error: `Failed to read orders: ${readError.message}` }, { status: 500 });
+            }
+            for (const r of (rows ?? []) as OrderSnapshot[]) current.set(r.id, r);
+        }
 
         // 1. Create the delivery_imports audit record
         const { data: importRecord, error: importError } = await supabaseAdmin
@@ -74,6 +128,12 @@ export async function POST(request: NextRequest) {
             .select()
             .single();
 
+        if (importError?.code === "23505") {
+            return NextResponse.json(
+                { success: false, error: `Receipt ${parsedPDF.header.receiptNumber} was already imported. Undo that import first to import it again.` },
+                { status: 409 }
+            );
+        }
         if (importError || !importRecord) {
             return NextResponse.json(
                 {
@@ -110,14 +170,18 @@ export async function POST(request: NextRequest) {
             action: string;
             previous_status: string | null;
             new_status: string | null;
+            previous_values: Record<string, unknown> | null;
         }> = [];
 
         const updatePromises = confirmedItems.map(async (item) => {
             const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
             const resAction = item.resolutionAction;
+            const before = current.get(item.orderId);
+            if (!before) throw new Error("order not found in this store");
+            const previousStatus = before.status;
 
             // An order already delivered (e.g. by the Prime link) keeps its real delivery time.
-            const orderUpdate: Record<string, unknown> = item.previousStatus === "delivered" ? {} : { delivered_at: now };
+            const orderUpdate: Record<string, unknown> = previousStatus === "delivered" ? {} : { delivered_at: now };
 
             const deliveryNotes: string[] = [];
             const attentionReasons: string[] = [];
@@ -134,17 +198,18 @@ export async function POST(request: NextRequest) {
                 deliveryNotes.push(`Refund failed via delivery import: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
                 attentionReasons.push("refund_failed");
             } else if (resAction === "acknowledge_refund") {
-                newStatus = item.previousStatus;
+                newStatus = previousStatus;
                 delete orderUpdate.delivered_at;
                 deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
-            } else if (resAction === "process_with_pdf_price" && item.pdfAmount != null) {
-                orderUpdate.price = item.pdfAmount;
+            } else if (resAction === "process_with_pdf_price" && pdfRow) {
+                // The amount comes from the receipt row itself, which is stored as raw_data.
+                orderUpdate.price = pdfRow.shipmentAmount;
                 orderUpdate.status = "delivered";
-                deliveryNotes.push(`Price updated from delivery PDF: ${item.pdfAmount.toLocaleString()} IQD`);
+                deliveryNotes.push(`Price updated from delivery PDF: ${pdfRow.shipmentAmount.toLocaleString()} IQD`);
                 attentionReasons.push(`delivery_price_changed`);
             } else if (resAction === "force_deliver") {
                 orderUpdate.status = "delivered";
-                deliveryNotes.push(`Force delivered (was: ${item.previousStatus})`);
+                deliveryNotes.push(`Force delivered (was: ${previousStatus})`);
                 attentionReasons.push(`delivery_force_delivered`);
             } else {
                 orderUpdate.status = "delivered";
@@ -170,19 +235,31 @@ export async function POST(request: NextRequest) {
                 orderUpdate.delivery_note = deliveryNotes.join(" | ");
             }
 
+            let previousValues: Record<string, unknown> | null = null;
             if (resAction !== "acknowledge_refund") {
-                const { error: updateError } = await supabaseAdmin
+                // Only if nobody changed the order since it was read above.
+                const { data: moved, error: updateError } = await supabaseAdmin
                     .from("orders")
                     .update(orderUpdate)
                     .eq("id", item.orderId)
-                    .eq("tenant_id", caller.tenantId);
+                    .eq("tenant_id", caller.tenantId)
+                    .eq("status", previousStatus)
+                    .select("id");
 
                 if (updateError) {
                     throw new Error(updateError.message);
                 }
+                if (!moved || moved.length === 0) {
+                    throw new Error("order changed while importing; match the receipt again");
+                }
+                previousValues = Object.fromEntries(
+                    Object.keys(orderUpdate).map((key) => [key, before[key as keyof OrderSnapshot] ?? null]),
+                );
+                // The undo matches on status; an update that left it unchanged still records it.
+                previousValues.status = previousStatus;
             }
 
-            return { item, newStatus, pdfRow, resAction };
+            return { item, newStatus, pdfRow, resAction, previousStatus, previousValues };
         });
 
         const updateResults = await Promise.allSettled(updatePromises);
@@ -193,7 +270,7 @@ export async function POST(request: NextRequest) {
 
             if (result.status === "fulfilled") {
                 processedCount++;
-                const { newStatus, pdfRow, resAction } = result.value;
+                const { newStatus, pdfRow, resAction, previousStatus, previousValues } = result.value;
                 auditItemsToInsert.push({
                     tenant_id: caller.tenantId,
                     import_id: importRecord.id,
@@ -214,8 +291,9 @@ export async function POST(request: NextRequest) {
                         resolutionNote: item.resolutionNote,
                     },
                     action: "confirmed",
-                    previous_status: item.previousStatus,
+                    previous_status: previousStatus,
                     new_status: newStatus,
+                    previous_values: previousValues,
                 });
             } else {
                 failedCount++;
@@ -244,8 +322,9 @@ export async function POST(request: NextRequest) {
                         error: msg,
                     },
                     action: "failed",
-                    previous_status: item.previousStatus,
+                    previous_status: current.get(item.orderId)?.status ?? null,
                     new_status: null,
+                    previous_values: null,
                 });
             }
         }
@@ -272,6 +351,7 @@ export async function POST(request: NextRequest) {
                     action: "skipped",
                     previous_status: null,
                     new_status: null,
+                    previous_values: null,
                 });
             }
         }
@@ -284,7 +364,9 @@ export async function POST(request: NextRequest) {
                     .insert(auditItemsToInsert.slice(i, i + 500));
                     
                 if (insertError) {
+                    // These rows are what an undo restores from: say so instead of reporting a clean import.
                     console.error("[DeliveryImport] Failed to insert audit items batch:", insertError);
+                    errors.push(`Audit rows ${i + 1}-${Math.min(i + 500, auditItemsToInsert.length)} were not saved (${insertError.message}); this import cannot be fully undone.`);
                 }
             }
         }
