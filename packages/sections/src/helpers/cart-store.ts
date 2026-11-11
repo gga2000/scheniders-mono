@@ -73,6 +73,11 @@ function repriced(item: CartItem, quantity: number): CartItem {
  * unit-testable without a DOM.
  */
 export function cartKeyFor(baseName: string, pathname: string): string {
+  // The editor preview runs on the store's own origin, so without its own
+  // bucket a test add-to-cart in the editor would overwrite the merchant's
+  // real cart on that browser.
+  const preview = pathname.match(/^\/_preview\/([^/]+)/);
+  if (preview) return `${baseName}:preview:${decodeURIComponent(preview[1])}`;
   const m = pathname.match(/^\/s\/([^/]+)/);
   return m ? `${baseName}:${decodeURIComponent(m[1])}` : baseName;
 }

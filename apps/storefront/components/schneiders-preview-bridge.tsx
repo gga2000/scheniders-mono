@@ -33,6 +33,7 @@ import {
   platformTargetOrigin,
   SAFE_PARENT_ORIGINS,
 } from "@/lib/preview-origin";
+import { draftViewUrlForPreviewLink } from "@/lib/preview-link";
 
 // Re-exported for back-compat — the allow-list now lives in lib/preview-origin.
 export { SAFE_PARENT_ORIGINS };
@@ -340,6 +341,30 @@ export function SchneidersPreviewBridge(): null {
 
     /* ───── Outbound: clicks ───── */
 
+    /**
+     * Store links in the preview point at `/_preview/<tenant>/...`, which
+     * only works inside the editor iframe. A link opened in a new tab goes
+     * to the real store page rendered from the draft instead; a plain click
+     * on a link outside any section stays on the editor page.
+     */
+    function interceptStoreLink(e: MouseEvent, newTab: boolean): boolean {
+      const link = (e.target as Element | null)?.closest?.("a[href]");
+      const href = link?.getAttribute("href");
+      if (!href) return false;
+      const slug = document
+        .querySelector("[data-tenant-slug]")
+        ?.getAttribute("data-tenant-slug");
+      const target = draftViewUrlForPreviewLink(href, window.location, slug);
+      if (!target) return false;
+      e.preventDefault();
+      if (newTab) window.open(target, "_blank", "noopener");
+      return true;
+    }
+
+    function onAuxClick(e: MouseEvent): void {
+      if (e.button === 1) interceptStoreLink(e, true);
+    }
+
     function onClickCapture(e: MouseEvent): void {
       // Clicks inside the active contenteditable manage their own caret.
       if (
@@ -349,8 +374,13 @@ export function SchneidersPreviewBridge(): null {
       ) {
         return;
       }
+      const newTab = e.metaKey || e.ctrlKey;
       const section = findSection(e.target);
-      if (!section || !section.dataset.sectionId) return;
+      if (!section || !section.dataset.sectionId) {
+        interceptStoreLink(e, newTab);
+        return;
+      }
+      if (newTab) interceptStoreLink(e, true);
       const sectionId = section.dataset.sectionId;
       // Single-click editable text inside the SELECTED section → inline edit.
       if (sectionId === selectedSectionId && !e.metaKey && !e.ctrlKey) {
@@ -362,8 +392,8 @@ export function SchneidersPreviewBridge(): null {
           return;
         }
       }
-      // Suppress navigation only when ctrl/cmd not held — power users can
-      // still cmd-click to open links in a new tab for genuine browsing.
+      // Suppress navigation only when ctrl/cmd not held: cmd-click still
+      // opens a link in a new tab (store links via draft view, above).
       if (!e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         e.stopPropagation();
@@ -521,6 +551,7 @@ export function SchneidersPreviewBridge(): null {
     }
 
     document.addEventListener("click", onClickCapture, true);
+    document.addEventListener("auxclick", onAuxClick, true);
     document.addEventListener("dblclick", onDblClick, true);
     document.addEventListener("contextmenu", onContextMenu, true);
     document.addEventListener("mouseover", onMouseOver, true);
@@ -538,6 +569,7 @@ export function SchneidersPreviewBridge(): null {
       if (debounceTimer) clearTimeout(debounceTimer);
       styleEl.remove();
       document.removeEventListener("click", onClickCapture, true);
+      document.removeEventListener("auxclick", onAuxClick, true);
       document.removeEventListener("dblclick", onDblClick, true);
       document.removeEventListener("contextmenu", onContextMenu, true);
       document.removeEventListener("mouseover", onMouseOver, true);

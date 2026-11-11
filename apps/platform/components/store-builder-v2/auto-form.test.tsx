@@ -160,6 +160,31 @@ describe("AutoForm", () => {
         expect(sw?.getAttribute("aria-checked")).toBe("true");
     });
 
+    it("shows an unset gallery switch the way each order-page layout reads it", () => {
+        const entry = getManifestEntry("pdp_direct_order");
+        if (!entry) throw new Error("pdp_direct_order missing from the manifest");
+        const galleryState = (layout: string): string | null | undefined => {
+            const { container, unmount } = render(
+                <AutoForm
+                    schema={entry.schema as unknown as z.ZodObject<z.ZodRawShape>}
+                    value={{ layout }}
+                    sectionType="pdp_direct_order"
+                    onChange={() => {}}
+                />,
+            );
+            container
+                .querySelectorAll('[aria-expanded="false"]')
+                .forEach((el) => fireEvent.click(el));
+            const state = container
+                .querySelector('[data-testid$=".show_gallery-switch"]')
+                ?.getAttribute("aria-checked");
+            unmount();
+            return state;
+        };
+        expect(galleryState("express")).toBe("true");
+        expect(galleryState("classic")).toBe("false");
+    });
+
     it("offers Reset to default when props differ, and resets on click (C2)", () => {
         const defaults = getManifestEntry("trust_strip")?.defaultProps as
             | Record<string, unknown>

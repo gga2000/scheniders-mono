@@ -428,6 +428,9 @@ const definition: SectionDefinition<Props> = {
   schema,
   defaultProps,
   render: PdpDirectOrderRender,
+  // Classic shows the gallery only when asked; express shows it unless
+  // turned off (express-view reads `!== false`).
+  unsetReads: (props) => ({ show_gallery: props.layout === "express" }),
 };
 
 registerSection(definition);

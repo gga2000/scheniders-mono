@@ -163,6 +163,15 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
             | undefined;
         return d;
     }, [sectionType]);
+    // What an unset on/off setting means right now: the defaults, plus any
+    // the section derives from its other settings (`unsetReads`).
+    const unsetValues = useMemo<Record<string, unknown> | undefined>(() => {
+        if (!sectionType) return undefined;
+        const derived = getManifestEntry(sectionType)?.unsetReads?.(value) as
+            | Record<string, unknown>
+            | undefined;
+        return { ...sectionDefaults, ...derived };
+    }, [sectionType, sectionDefaults, value]);
     const dirtyVsDefault = useMemo<boolean>(() => {
         if (!sectionDefaults) return false;
         try {
@@ -204,7 +213,7 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
                     tenantId={tenantId}
                     activeLocale={activeLocale ?? "en"}
                     renderAdornment={renderAdornment}
-                    sectionDefaults={sectionDefaults}
+                    unsetValues={unsetValues}
                 />
             </>
         );
@@ -222,6 +231,7 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
             tenantId={tenantId}
             activeLocale={activeLocale ?? "en"}
             renderAdornment={renderAdornment}
+            unsetDefault={unsetValues}
             isTopLevel
             />
         </>
@@ -242,8 +252,8 @@ interface GroupedFormRendererProps {
     tenantId?: string;
     activeLocale: LocaleCode;
     renderAdornment?: RenderFieldAdornment;
-    /** The section's own defaults: what an unset on/off setting means. */
-    sectionDefaults?: Record<string, unknown>;
+    /** What an unset on/off setting means (section defaults + unsetReads). */
+    unsetValues?: Record<string, unknown>;
 }
 
 function GroupedFormRenderer(p: GroupedFormRendererProps): ReactElement {
@@ -303,7 +313,7 @@ function GroupedFormRenderer(p: GroupedFormRendererProps): ReactElement {
                                     tenantId={p.tenantId}
                                     activeLocale={p.activeLocale}
                                     renderAdornment={p.renderAdornment}
-                                    unsetDefault={p.sectionDefaults?.[key]}
+                                    unsetDefault={p.unsetValues?.[key]}
                                     isTopLevel
                                 />
                             ))}
