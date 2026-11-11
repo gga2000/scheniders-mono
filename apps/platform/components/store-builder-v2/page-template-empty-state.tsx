@@ -228,7 +228,7 @@ function ConfirmOverlay(p: ConfirmOverlayProps): ReactElement {
             role="dialog"
             aria-modal="true"
             data-testid="page-template-empty-state-confirm"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
         >
             <button
                 type="button"

@@ -847,7 +847,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
     return (
         <div
             data-testid="schedule-targets-viewer"
-            className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40"
+            className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm"
         >
             <aside className="flex w-full max-w-md flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-4 py-3">
@@ -1076,7 +1076,7 @@ function ScheduleCreatorModal({
         <div
             data-testid="schedule-creator-modal"
             role="dialog"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
         >
             <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">

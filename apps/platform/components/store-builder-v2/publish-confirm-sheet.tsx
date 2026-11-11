@@ -259,7 +259,7 @@ export function PublishConfirmSheet({
                                                                 "inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
                                                                 check.status === "fail"
                                                                     ? "bg-red-500/15 text-red-600 dark:text-red-300"
-                                                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+                                                                    : "bg-amber-500/15 text-amber-800 dark:text-amber-300",
                                                             )}
                                                         >
                                                             {/* Publishing is never actually gated on these —
@@ -270,6 +270,16 @@ export function PublishConfirmSheet({
                                                     </div>
                                                     <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
                                                         {categoryLabel(check.category, locale)}
+                                                        {/* Same page line as the Health screen, so the
+                                                            merchant knows which page to open. */}
+                                                        {check.fix_action?.go_to?.kind === "section" ? (
+                                                            <span data-testid={`publish-confirm-sheet-item-${check.id}-page`}>
+                                                                {" · "}
+                                                                {tFormat(STRINGS.health.on_page, locale, {
+                                                                    page: getPageLabel(check.fix_action.go_to.page_id, locale),
+                                                                })}
+                                                            </span>
+                                                        ) : null}
                                                     </span>
                                                 </div>
                                             </div>

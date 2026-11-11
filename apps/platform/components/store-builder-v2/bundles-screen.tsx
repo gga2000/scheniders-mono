@@ -131,10 +131,9 @@ export function BundlesScreen({
                             <li
                                 key={b.id}
                                 data-testid={`bundle-row-${i}`}
-                                className={cn(
-                                    "rounded-xl border border-(--card-border) bg-(--card-bg) p-3",
-                                    b.enabled === false && "opacity-60",
-                                )}
+                                // No row-wide dimming: an off bundle says so in its own
+                                // pill, and fading the row would fade that pill too.
+                                className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
                             >
                                 <label className="mb-2.5 flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                     <span>

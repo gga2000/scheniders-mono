@@ -397,10 +397,10 @@ export const STRINGS = {
         // Winning / Losing / Learning verdicts
         verdict_winning: { en: "WINNING", ar: "فائز", ku: "براوە" },
         verdict_losing: { en: "LOSING", ar: "خاسر", ku: "دۆڕاوە" },
-        verdict_learning: { en: "STILL LEARNING", ar: "لا يزال يتعلم", ku: "هێشتا فێردەبێت" },
+        verdict_learning: { en: "NOT DECIDED YET", ar: "لم يُحسم بعد", ku: "هێشتا یەکلانەبووەتەوە" },
         verdict_winning_hint: { en: "This version is winning. Confidence is high enough to ship it.", ar: "هذه النسخة فائزة. الثقة مرتفعة كفاية للنشر.", ku: "ئەم وەشانە براوەیە. متمانە بەرزە بۆ بڵاوکردنەوەی." },
         verdict_losing_hint: { en: "This version is doing worse than the original.", ar: "هذه النسخة أسوأ من الأصلية.", ku: "ئەم وەشانە لە بنەڕەت خراپترە." },
-        verdict_learning_hint: { en: "Need more visitors to call a winner. Keep the test running.", ar: "نحتاج زواراً أكثر لتحديد الفائز. اترك الاختبار يعمل.", ku: "پێویستی بە سەردانیکەری زیاتر هەیە بۆ دیاریکردنی براوە. تاقیکردنەوەکە بەردەوام بکە." },
+        verdict_learning_hint: { en: "No winner yet. Keep the test running.", ar: "لم يتضح الفائز بعد. اترك الاختبار يعمل.", ku: "هێشتا براوە دیار نییە. تاقیکردنەوەکە بەردەوام بکە." },
         promote_winner: { en: "Promote this version to default", ar: "رقّ هذه النسخة كافتراضي", ku: "ئەم وەشانە وەکو بنەڕەت پلەی بەرز بکەرەوە" },
         // Goal (was: Primary metric)
         goal: { en: "Goal", ar: "الهدف", ku: "ئامانج" },
@@ -1439,8 +1439,14 @@ export const STRINGS = {
         },
         exp_gap_too_small: {
             en: "Enough visitors, but the gap between this version and the original is still too small to be sure. Keep it running.",
-            ar: "الزوار كافون، لكن الفرق بين هذه النسخة والأصل ما زال صغيراً لنتأكد منه. اترك الاختبار يعمل.",
+            ar: "عدد الزوار كافٍ، لكن الفرق بين هذه النسخة والأصل ما زال صغيراً لنتأكد منه. اترك الاختبار يعمل.",
             ku: "سەردانکەر بەسە، بەڵام جیاوازییەکە هێشتا بچووکە بۆ دڵنیابوون. با بەردەوام بێت.",
+        },
+        // Above the per-version numbers in the test drawer.
+        exp_counts_note: {
+            en: "Counts every order placed since the test started, cancelled ones included, so it can differ from last-7-days figures.",
+            ar: "تُحسب كل الطلبات منذ بدء الاختبار، ومنها الملغاة، لذا قد تختلف عن أرقام آخر 7 أيام.",
+            ku: "هەموو داواکارییەکان لە دەستپێکی تاقیکردنەوەوە دەژمێردرێن، هەڵوەشاوەکانیش، بۆیە لەوانەیە جیاواز بن لە ژمارەکانی 7 ڕۆژی ڕابردوو.",
         },
         exp_card_stats_error: {
             en: "Numbers did not load. Open View to try again.",
