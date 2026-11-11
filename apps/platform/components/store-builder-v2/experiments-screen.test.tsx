@@ -705,6 +705,37 @@ describe("ExperimentsScreen", () => {
         expect(handle.getConfig().experiments[0]?.status).toBe("completed");
     });
 
+    it("the edit drawer's status chip asks before ending a running test, and Escape closes it", () => {
+        const handle = makeBuilder({
+            experiments: [
+                {
+                    id: "exp_e",
+                    name: "Chip",
+                    status: "running",
+                    primary_metric: "orders",
+                    arms: [
+                        { id: "control", label: "Today", traffic_pct: 50 },
+                        { id: "arm_b", label: "New", traffic_pct: 50 },
+                    ],
+                },
+            ],
+        });
+        const { rerender } = renderScreen(handle);
+        fireEvent.click(screen.getByTestId("experiment-row-exp_e-edit"));
+        fireEvent.click(screen.getByTestId("experiment-editor-status-completed"));
+        expect(handle.getConfig().experiments[0]?.status).toBe("running");
+        expect(screen.getByTestId("experiment-editor-stop-confirm").textContent).toContain("Today");
+        act(() => {
+            fireEvent.click(screen.getByTestId("experiment-editor-stop-yes"));
+        });
+        rerender();
+        const ended = handle.getConfig().experiments[0];
+        expect(ended?.status).toBe("completed");
+        expect(ended?.ends_at).toBeTruthy();
+        fireEvent.keyDown(screen.getByTestId("experiment-editor"), { key: "Escape" });
+        expect(screen.queryByTestId("experiment-editor")).toBeNull();
+    });
+
     it("shows each running arm's orders and visitors on the card", async () => {
         const handle = makeBuilder(
             {
