@@ -244,7 +244,7 @@ export function CustomPagesScreen({
                                         )}
                                         {confirmDelete === p.id ? (
                                             <span className={cn("inline-flex items-center gap-1.5", !onEditSections && "ms-auto")}>
-                                                <span dir="auto" className="text-xs text-rose-700">
+                                                <span dir="auto" className="text-xs text-rose-700 dark:text-rose-400">
                                                     {tFormat(C.delete_confirm, ui, { path: `/p/${p.slug}` })}
                                                 </span>
                                                 <button
@@ -281,7 +281,7 @@ export function CustomPagesScreen({
                                     {issue && (
                                         <p
                                             data-testid={`custom-page-error-${i}`}
-                                            className="mt-1.5 text-xs text-rose-600"
+                                            className="mt-1.5 text-xs text-rose-600 dark:text-rose-400"
                                         >
                                             {t(SLUG_MESSAGE[issue], ui)}
                                         </p>
@@ -289,7 +289,7 @@ export function CustomPagesScreen({
                                     {forwarded[p.id] && !issue && (
                                         <p
                                             data-testid={`custom-page-forwarded-${i}`}
-                                            className="mt-1.5 text-xs text-emerald-700"
+                                            className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400"
                                         >
                                             {tFormat(C.forwarded, ui, { path: `/p/${forwarded[p.id]}` })}
                                         </p>

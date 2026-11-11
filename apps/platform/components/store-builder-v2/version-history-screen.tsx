@@ -458,7 +458,7 @@ export function VersionHistoryScreen({
                                                             </span>
                                                         )}
                                                         {v.diff_summary.changed > 0 && (
-                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                                                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
                                                                 <Pencil className="h-2.5 w-2.5" />
                                                                 {tFormat(STRINGS.advanced_chrome.vh_chip_changed, locale, { n: String(v.diff_summary.changed) })}
                                                             </span>
@@ -778,7 +778,7 @@ function DiffRow({
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
             : entry.kind === "removed" && !toDefault
               ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
-              : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
+              : "bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30";
 
     const label =
         entry.kind === "added"

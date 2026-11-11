@@ -219,7 +219,7 @@ export function PublishConfirmSheet({
                                     <AlertTriangle
                                         className={cn(
                                             "h-4 w-4",
-                                            openChecks.some((c) => c.status === "fail") ? "text-red-600" : "text-amber-500",
+                                            openChecks.some((c) => c.status === "fail") ? "text-red-600 dark:text-red-400" : "text-amber-500",
                                         )}
                                         aria-hidden="true"
                                     />
@@ -245,7 +245,7 @@ export function PublishConfirmSheet({
                                                 <AlertTriangle
                                                     className={cn(
                                                         "mt-0.5 h-4 w-4 shrink-0",
-                                                        check.status === "fail" ? "text-red-600" : "text-amber-500",
+                                                        check.status === "fail" ? "text-red-600 dark:text-red-400" : "text-amber-500",
                                                     )}
                                                     aria-hidden="true"
                                                 />
@@ -306,7 +306,7 @@ export function PublishConfirmSheet({
                         <span
                             data-testid="publish-confirm-sheet-error"
                             role="alert"
-                            className="mr-auto text-sm font-medium text-rose-600"
+                            className="mr-auto text-sm font-medium text-rose-600 dark:text-rose-400"
                         >
                             {t(
                                 error === "conflict"
@@ -447,7 +447,7 @@ function PublishDiffSection({
                         {diff.globalsChanged.map((slot) => (
                             <span
                                 key={slot}
-                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"
                             >
                                 {t(STRINGS.publish[`global_${slot}`], locale)}
                             </span>
@@ -467,7 +467,7 @@ function PublishDiffSection({
                             <span
                                 key={area}
                                 data-testid={`publish-diff-settings-${area}`}
-                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"
                             >
                                 {t(settingsAreaLabel(area), locale)}
                             </span>
@@ -531,7 +531,7 @@ function PageGroup({
                     {counts.modified > 0 && (
                         <span
                             data-testid={`publish-diff-page-${page.page_id}-modified-count`}
-                            className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300"
                         >
                             <Pencil className="h-3 w-3" aria-hidden="true" />
                             {tFormat(STRINGS.advanced_chrome.vh_chip_changed, locale, { n: counts.modified })}

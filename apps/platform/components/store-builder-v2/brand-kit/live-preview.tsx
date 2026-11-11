@@ -64,7 +64,7 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                 <h4 className="text-sm font-semibold tracking-tight">
                     {t(STRINGS.brand_kit_preview.heading, locale)}
                 </h4>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     {t(STRINGS.brand_kit_preview.realtime, locale)}
                 </span>

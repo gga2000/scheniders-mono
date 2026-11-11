@@ -116,8 +116,8 @@ export function CapiKeyField({ network, label, status, pending, onSave }: CapiKe
                 </div>
             ) : (
                 <div className="flex items-center gap-2 rounded-lg border border-(--card-border) bg-(--card-bg) px-2.5 py-1.5">
-                    <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                    <span className="text-xs font-semibold text-emerald-700">{t(P.key_saved, locale)}</span>
+                    <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{t(P.key_saved, locale)}</span>
                     <span data-testid={`${id}-last4`} className="min-w-0 flex-1 truncate text-xs text-muted-foreground text-left!">
                         {status.last4 ? (
                             <>
@@ -137,14 +137,14 @@ export function CapiKeyField({ network, label, status, pending, onSave }: CapiKe
                         type="button"
                         data-testid={`${id}-delete`}
                         onClick={() => setConfirmDelete(true)}
-                        className={cn(quietBtnCls, "text-red-600 hover:bg-red-50")}
+                        className={cn(quietBtnCls, "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10")}
                     >
                         {t(P.key_delete, locale)}
                     </button>
                 </div>
             )}
             {error ? (
-                <p role="alert" className="text-xs text-red-600 text-left!">
+                <p role="alert" className="text-xs text-red-600 text-left! dark:text-red-400">
                     {error}
                 </p>
             ) : null}

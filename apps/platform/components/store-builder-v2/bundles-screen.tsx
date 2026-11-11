@@ -138,7 +138,7 @@ export function BundlesScreen({
                                 <label className="mb-2.5 flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                     <span>
                                         {t(STRINGS.advanced_chrome.bun_name, locale)}{" "}
-                                        <span className="text-muted-foreground/80">{t(STRINGS.advanced_chrome.bun_name_hint, locale)}</span>
+                                        <span className="text-muted-foreground">{t(STRINGS.advanced_chrome.bun_name_hint, locale)}</span>
                                     </span>
                                     <input
                                         type="text"

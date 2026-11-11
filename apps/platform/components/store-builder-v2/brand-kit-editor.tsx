@@ -413,7 +413,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                                 {themeName}
                                             </span>
                                             {isApplied && (
-                                                <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700">
+                                                <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-400">
                                                     {tChrome(STRINGS.brand_kit.theme_applied, chromeLocale)}
                                                 </span>
                                             )}
@@ -472,7 +472,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                     {extractionError && (
                         <div
                             data-testid="extract-error"
-                            className="mb-3 rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[11px] text-red-700"
+                            className="mb-3 rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-[11px] text-red-700 dark:text-red-400"
                         >
                             {tChrome(
                                 extractionError === "no_colors"

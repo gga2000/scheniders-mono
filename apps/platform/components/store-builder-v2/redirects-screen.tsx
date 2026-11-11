@@ -198,7 +198,7 @@ export function RedirectsScreen({
                                         <p
                                             data-testid={`redirect-issue-${i}`}
                                             dir="auto"
-                                            className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-700"
+                                            className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-300"
                                         >
                                             <AlertTriangle className="h-3 w-3" />
                                             {issueText(issue, locale)}

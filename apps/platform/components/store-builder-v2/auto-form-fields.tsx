@@ -581,7 +581,7 @@ export function VideoControl(p: VideoControlProps): ReactElement {
             {detected && (
                 <p
                     data-testid={`${p.testIdBase}-video-detected`}
-                    className="text-xs text-emerald-600"
+                    className="text-xs text-emerald-600 dark:text-emerald-400"
                 >
                     {detected}
                 </p>

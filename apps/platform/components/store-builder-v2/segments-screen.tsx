@@ -410,7 +410,7 @@ function SegmentEditor({
                     type="button"
                     onClick={onDelete}
                     data-testid="segment-editor-delete"
-                    className="inline-flex h-8 items-center gap-1 rounded-md border border-rose-500/40 px-2 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-rose-500/40 px-2 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                 >
                     <Trash2 className="h-3.5 w-3.5" />
                     {t(STRINGS.advanced_chrome.seg_delete_segment, locale)}

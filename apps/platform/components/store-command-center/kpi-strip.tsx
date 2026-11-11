@@ -37,7 +37,8 @@ function KpiCard({ label, value, icon, tint, sub, loading }: KpiCardProps) {
             {loading ? (
                 <div className="h-8 w-24 animate-pulse rounded-lg bg-muted" />
             ) : (
-                <span className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</span>
+                // ltr: amount first, then «د.ع», the same order as the editor lists.
+                <span dir="ltr" className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</span>
             )}
             {sub && !loading && (
                 <span className="text-[11px] text-muted-foreground">{sub}</span>
