@@ -78,7 +78,7 @@
     "@playwright/test": "^1.58.2",
     "@scheniders/provider-mock": "workspace:*",
     "@storybook/addon-a11y": "^10.1.11",
-    "@storybook/addon-docs": "^10.1.11",
+    "@storybook/addon-docs": "^10.6.6",
     "@storybook/addon-onboarding": "^10.1.11",
     "@storybook/nextjs": "^10.1.11",
     "@tailwindcss/postcss": "^4",
