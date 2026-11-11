@@ -204,7 +204,7 @@ export async function submitCheckout(
   // the column / 'limited' enum value were added.
   const { data: tenantRaw, error: tenantErr } = await supabase
     .from("tenants")
-    .select("id, status, restrictions, store_config_v2")
+    .select("id, status, is_prospect, restrictions, store_config_v2")
     .eq("id", payload.tenantId)
     .maybeSingle();
 

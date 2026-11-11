@@ -8,6 +8,8 @@
 
 export interface TenantOrderGateRow {
   status: string;
+  /** A demo store built for a sales lead: nobody owns it yet to see orders. */
+  is_prospect: boolean;
   restrictions: {
     paused_until?: string | null;
     reason?: string | null;
@@ -25,6 +27,7 @@ export function tenantOrderBlock(tenant: TenantOrderGateRow, nowMs: number = Dat
   ) {
     return "المتجر غير نشط حالياً";
   }
+  if (tenant.is_prospect) return "هذا متجر تجريبي ولا يستقبل الطلبات";
 
   // Tenant pause guard — when admin paused the merchant with new_orders blocked,
   // refuse the order. An expired pause window is treated as inactive.
