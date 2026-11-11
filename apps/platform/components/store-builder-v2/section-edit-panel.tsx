@@ -309,7 +309,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                             type="text"
                             data-testid="section-edit-panel-label"
                             value={instance.label ?? ""}
-                            placeholder={tFormat(STRINGS.section_edit.label_placeholder, locale, { name: sectionName })}
+                            placeholder={t(STRINGS.section_edit.label_placeholder, locale)}
                             onChange={handleLabelChange}
                             className={cn(
                                 "w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm",
