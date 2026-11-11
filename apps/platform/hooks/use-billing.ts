@@ -32,7 +32,10 @@ export interface PlanLimitsData {
     base_price_iqd: number;
     trial_days: number;
     trial_order_cap: number;
+    /** Per delivered utility message (confirmation, delivery update). */
     whatsapp_message_price_iqd: number;
+    /** Per delivered marketing message (reminder, offer). */
+    whatsapp_marketing_price_iqd: number;
     features: Record<string, boolean>;
 }
 

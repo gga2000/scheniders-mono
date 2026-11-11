@@ -93,6 +93,7 @@ export function BillingSettings() {
                                     {t("billing.wallet.pays", {
                                         amount: formatIQD(plan.order_price_iqd),
                                         wa: formatIQD(plan.whatsapp_message_price_iqd),
+                                        waOffer: formatIQD(plan.whatsapp_marketing_price_iqd),
                                     })}
                                 </p>
                             )}
