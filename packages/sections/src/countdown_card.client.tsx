@@ -61,6 +61,9 @@ export function CountdownCard({
     return () => clearInterval(id);
   }, [props.target_iso]);
 
+  // A deadline nobody set is not a deadline: draw nothing until there is one.
+  if (!Number.isFinite(Date.parse(props.target_iso))) return null;
+
   const labelsEn = ["Days", "Hours", "Mins", "Secs"];
   const labelsAr = ["أيام", "ساعات", "دقائق", "ثوانٍ"];
   const labels = locale !== "en" ? labelsAr : labelsEn;

@@ -35,24 +35,9 @@ type Props = z.infer<typeof schema>;
 const defaultProps: Props = {
   heading_i18n: { en: "By the numbers", ar: "بالأرقام" },
   bg: "butter",
-  items: [
-    {
-      value: "10K+",
-      label_i18n: { en: "Orders shipped", ar: "طلبات تم شحنها" },
-    },
-    {
-      value: "18",
-      label_i18n: { en: "Governorates", ar: "محافظة" },
-    },
-    {
-      value: "4.8★",
-      label_i18n: { en: "Average rating", ar: "متوسط التقييم" },
-    },
-    {
-      value: "24/7",
-      label_i18n: { en: "Support", ar: "دعم العملاء" },
-    },
-  ],
+  // Empty on purpose: sample reviews, press quotes or numbers would show
+  // invented proof on a real store. Empty -> the section renders nothing.
+  items: [],
 };
 
 function NumbersStatStripRender({

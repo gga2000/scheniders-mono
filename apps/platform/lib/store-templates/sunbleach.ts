@@ -7,7 +7,8 @@
 // thumb-scroll, which is what high-volume COD sellers actually need.
 //
 // Guardrail: tangerine owns surfaces, magenta owns discounts, and at most
-// two urgency devices (countdown, free gift, promo) are enabled at once.
+// two urgency devices (free gift, promo) are enabled at once. No countdown:
+// a template cannot know a real deadline, and a looping one is a fake.
 // The cart is where the free-gift strip lives — it is not valid on home.
 // =====================================================================
 
@@ -21,8 +22,8 @@ export const sunbleachTemplate: StoreTemplate = {
     version: 1,
     name_i18n: { en: "Sunbleach", ar: "شمس" },
     description_i18n: {
-        en: "Bright, price-first and built to convert: bold hero, countdown, offers above the fold.",
-        ar: "ألوان قوية والسعر أولاً: غلاف جريء، عدّاد تنازلي، وعروض بأول الصفحة.",
+        en: "Bright, price-first and built to convert: bold hero and offers above the fold.",
+        ar: "ألوان قوية والسعر أولاً: غلاف جريء وعروض بأول الصفحة.",
     },
     brand_kit: {
         colors: {
@@ -60,7 +61,6 @@ export const sunbleachTemplate: StoreTemplate = {
             s("announcement_bar"),
             s("hero_image", WHATSAPP_CTA),
             s("marquee_strip", { messages_i18n: TRUST_MESSAGES }),
-            s("countdown_card"),
             s("category_grid"),
             s("product_grid"),
             s("promo_banner"),

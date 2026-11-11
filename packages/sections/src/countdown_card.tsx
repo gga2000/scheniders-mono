@@ -23,7 +23,9 @@ export type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   heading_i18n: { en: "Drop closes in", ar: "ينتهي العرض خلال" },
-  target_iso: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(),
+  // No date until the merchant sets one: a made-up "48 hours from now" was a
+  // deadline nobody set, and it moved on every deploy.
+  target_iso: "",
   expired_label_i18n: { en: "This drop has closed.", ar: "انتهى هذا العرض." },
 };
 
