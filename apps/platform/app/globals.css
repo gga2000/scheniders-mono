@@ -163,6 +163,13 @@ body {
 .sb-bidi :where(p, span, label, button, a, li, h1, h2, h3, h4, option, dt, dd) {
     unicode-bidi: plaintext;
 }
+/* An empty dir="auto" field resolves its direction from the value, not the
+ * placeholder, so Arabic hints rendered LTR (full stop on the right,
+ * {tokens} scrambled). plaintext lets the hint pick its own direction;
+ * English and URL hints stay LTR. */
+.sb-bidi ::placeholder {
+    unicode-bidi: plaintext;
+}
 
 .sb-canvas {
   background-color: var(--background);

@@ -936,7 +936,7 @@ export const STRINGS = {
         back: { en: "Back", ar: "رجوع", ku: "گەڕانەوە" },
         refresh: { en: "Refresh", ar: "تحديث", ku: "نوێکردنەوە" },
         save_snapshot: { en: "Save snapshot", ar: "حفظ لقطة", ku: "هەڵگرتنی وێنە" },
-        snapshot_placeholder: { en: "Label, e.g. 'Before Eid sale'", ar: "اسم، مثال: 'قبل تخفيضات العيد'", ku: "ناو، نموونە: 'پێش فرۆشتنی جەژن'" },
+        snapshot_placeholder: { en: "Label, e.g. 'Before Eid sale'", ar: "اسم، مثال: «قبل تخفيضات العيد»", ku: "ناو، نموونە: 'پێش فرۆشتنی جەژن'" },
         save: { en: "Save", ar: "حفظ", ku: "هەڵگرتن" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
         empty_title: { en: "No versions yet", ar: "لا توجد نسخ بعد", ku: "هێشتا وەشان نییە" },

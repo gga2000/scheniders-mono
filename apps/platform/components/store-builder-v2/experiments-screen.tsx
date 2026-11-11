@@ -790,6 +790,30 @@ function ExperimentEditor({
     const locale = useEditorLocale();
     const total = experiment.arms.reduce((s, a) => s + a.traffic_pct, 0);
     const sumsTo100 = total === 100;
+    const controlLabel = experiment.arms[0]?.label ?? "";
+
+    // Leaving "running" for completed or draft sends every visitor back to
+    // the control, the same effect as «إنهاء الاختبار» on the list, so it
+    // asks first and, for completed, stamps ends_at like handleStop does.
+    const [pendingStop, setPendingStop] = useState<Experiment["status"] | null>(null);
+    const chooseStatus = useCallback(
+        (s: Experiment["status"]): void => {
+            if (experiment.status === "running" && (s === "completed" || s === "draft")) {
+                setPendingStop(s);
+                return;
+            }
+            setPendingStop(null);
+            onPatch(s === "completed" ? { status: s, ends_at: new Date().toISOString() } : { status: s });
+        },
+        [experiment.status, onPatch],
+    );
+
+    // Focus moves into the sheet so Escape and screen readers land here,
+    // matching the «عرض» viewer.
+    const sheetRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        sheetRef.current?.focus();
+    }, []);
 
     const handleAddArm = useCallback((): void => {
         if (experiment.arms.length >= MAX_ARMS) return;
@@ -827,9 +851,24 @@ function ExperimentEditor({
         <div
             data-testid="experiment-editor"
             role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => {
+                // A press on the dimmed backdrop, not the sheet, closes it.
+                if (e.target === e.currentTarget) onClose();
+            }}
+            onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                    e.stopPropagation();
+                    onClose();
+                }
+            }}
             className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm"
         >
-            <aside className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
+            <aside
+                ref={sheetRef}
+                tabIndex={-1}
+                className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl outline-none"
+            >
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <h3 className="text-left! text-base font-bold tracking-tight">
                         {t(isNew ? STRINGS.advanced_chrome.exp_editor_title_new : STRINGS.advanced_chrome.exp_editor_title, locale)}
@@ -1013,7 +1052,7 @@ function ExperimentEditor({
                                         type="radio"
                                         name={`status-${experiment.id}`}
                                         checked={experiment.status === s}
-                                        onChange={() => onPatch({ status: s })}
+                                        onChange={() => chooseStatus(s)}
                                         data-testid={`experiment-editor-status-${s}`}
                                         className="sr-only"
                                     />
@@ -1021,6 +1060,40 @@ function ExperimentEditor({
                                 </label>
                             ))}
                         </div>
+                        {pendingStop && experiment.status === "running" ? (
+                            <div
+                                role="alert"
+                                data-testid="experiment-editor-stop-confirm"
+                                className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2"
+                            >
+                                <p className="min-w-0 flex-1 text-left! text-[11px] text-amber-900 dark:text-amber-200">
+                                    {tFormat(STRINGS.advanced_chrome.exp_stop_confirm, locale, { control: controlLabel })}
+                                </p>
+                                <button
+                                    type="button"
+                                    data-testid="experiment-editor-stop-yes"
+                                    onClick={() => {
+                                        const next = pendingStop;
+                                        setPendingStop(null);
+                                        onPatch(
+                                            next === "completed"
+                                                ? { status: next, ends_at: new Date().toISOString() }
+                                                : { status: next },
+                                        );
+                                    }}
+                                    className="inline-flex h-7 items-center rounded-md bg-rose-600 px-2 text-[11px] font-semibold text-white transition-colors hover:bg-rose-700"
+                                >
+                                    {t(STRINGS.advanced_chrome.exp_stop_yes, locale)}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingStop(null)}
+                                    className="inline-flex h-7 items-center rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
+                                >
+                                    {t(STRINGS.advanced_chrome.exp_stop_cancel, locale)}
+                                </button>
+                            </div>
+                        ) : null}
                     </Field>
                 </div>
 
