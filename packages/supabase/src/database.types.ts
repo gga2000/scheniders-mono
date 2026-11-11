@@ -4619,6 +4619,7 @@ export type Database = {
           trial_days: number
           trial_order_cap: number
           updated_at: string
+          whatsapp_marketing_price_iqd: number
           whatsapp_message_price_iqd: number
         }
         Insert: {
@@ -4634,6 +4635,7 @@ export type Database = {
           trial_days?: number
           trial_order_cap?: number
           updated_at?: string
+          whatsapp_marketing_price_iqd?: number
           whatsapp_message_price_iqd?: number
         }
         Update: {
@@ -4649,6 +4651,7 @@ export type Database = {
           trial_days?: number
           trial_order_cap?: number
           updated_at?: string
+          whatsapp_marketing_price_iqd?: number
           whatsapp_message_price_iqd?: number
         }
         Relationships: []
@@ -9783,7 +9786,10 @@ export type Database = {
       void_payroll: { Args: { p_record_id: string }; Returns: undefined }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
-      whatsapp_message_price: { Args: { _tenant_id: string }; Returns: number }
+      whatsapp_message_price: {
+        Args: { _marketing: boolean; _tenant_id: string }
+        Returns: number
+      }
       whatsapp_send_allowed: { Args: { _tenant_id: string }; Returns: boolean }
     }
     Enums: {

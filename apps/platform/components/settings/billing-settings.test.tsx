@@ -26,7 +26,8 @@ const PLAN: PlanLimitsData = {
     base_price_iqd: 9000,
     trial_days: 7,
     trial_order_cap: 50,
-    whatsapp_message_price_iqd: 50,
+    whatsapp_message_price_iqd: 30,
+    whatsapp_marketing_price_iqd: 80,
     features: {},
 };
 
@@ -129,12 +130,16 @@ describe("BillingSettings", () => {
         state.transactions = [
             tx({ description: "Delivered order 4370" }),
             tx({ description: "WhatsApp message 4371", amount_iqd: -50 }),
+            tx({ description: "WhatsApp confirmation 4372", amount_iqd: -30 }),
+            tx({ description: "WhatsApp offer 4373", amount_iqd: -80 }),
             tx({ description: "Monthly subscription - starter plan", amount_iqd: -9000 }),
             tx({ type: "topup", amount_iqd: 25_000, payment_method: "zain_cash", description: "Top-up by Zain Cash" }),
         ];
         show();
         expect(screen.getByText("طلب مُسلَّم #4370")).toBeTruthy();
         expect(screen.getByText("رسالة واتساب، طلب #4371")).toBeTruthy();
+        expect(screen.getByText("واتساب تأكيد، طلب #4372")).toBeTruthy();
+        expect(screen.getByText("واتساب تذكير أو عرض، طلب #4373")).toBeTruthy();
         expect(screen.getByText("الاشتراك الشهري")).toBeTruthy();
         expect(screen.getByText("شحن · زين كاش")).toBeTruthy();
     });
