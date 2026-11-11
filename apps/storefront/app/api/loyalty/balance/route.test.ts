@@ -97,6 +97,20 @@ describe("/api/loyalty/balance", () => {
     }
   });
 
+  it("404s for an order that is not delivered yet: checkout gives anyone a fresh number for any phone", async () => {
+    for (const status of ["placed", "confirmed", "shipped"]) {
+      install({
+        lookup_order: (args) => ({
+          data: args.p_order_number === ORDER_NUMBER ? [{ order_number: ORDER_NUMBER, status }] : [],
+          error: null,
+        }),
+      });
+      const res = await route.POST(req(body()));
+      expect(res.status).toBe(404);
+      expect(await res.json()).not.toHaveProperty("balance");
+    }
+  });
+
   it("answers the same 404 whether or not the phone has points", async () => {
     install({ lookup_order: () => ({ data: [], error: null }) });
     const res = await route.POST(req(body()));

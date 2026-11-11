@@ -114,7 +114,7 @@ function isReplayRow(row: Record<string, unknown> | null): boolean {
 }
 
 const REDEMPTION_NEEDS_PROOF =
-  "لاستخدام النقاط اكتب رقم طلب سابق من نفس الرقم، أو أكمل طلبك بدون استخدام النقاط.";
+  "لاستخدام النقاط اكتب رقم طلب سابق وصلك من نفس الرقم، أو أكمل طلبك بدون استخدام النقاط.";
 
 /** Why a points redemption is refused, or null when the phone is proven the
  *  shopper's by a previous order of this store (lib/loyalty-proof). */
