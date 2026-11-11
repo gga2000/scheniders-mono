@@ -32,32 +32,9 @@ type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
   heading_i18n: { en: "Press loves us", ar: "أحبّتنا الصحافة" },
-  items: [
-    {
-      outlet_name: "Iraq Vogue",
-      logo_url: undefined,
-      quote_i18n: {
-        en: "The local label finally redefining everyday Iraqi style.",
-        ar: "العلامة المحلية التي تعيد تعريف الأناقة اليومية في العراق.",
-      },
-    },
-    {
-      outlet_name: "Niqash",
-      logo_url: undefined,
-      quote_i18n: {
-        en: "A masterclass in clean, accessible design from Baghdad.",
-        ar: "درس متقَن في تصميم بسيط ومتاح، صادر من بغداد.",
-      },
-    },
-    {
-      outlet_name: "Al-Mada",
-      logo_url: undefined,
-      quote_i18n: {
-        en: "Built with the patience that only locals would bother with.",
-        ar: "صُنع بصبر لا يبذله إلا أهل البلد.",
-      },
-    },
-  ],
+  // Empty on purpose: sample reviews, press quotes or numbers would show
+  // invented proof on a real store. Empty -> the section renders nothing.
+  items: [],
 };
 
 function PressQuotes({

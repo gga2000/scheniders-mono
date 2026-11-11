@@ -28,12 +28,11 @@ const schema = z.object({
 type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
-  quote_i18n: {
-    en: "Every piece we ship is something I'd wear myself — that's the only rule.",
-    ar: "كل قطعة نشحنها هي قطعة أرتديها أنا — تلك هي القاعدة الوحيدة.",
-  },
-  founder_name_i18n: { en: "Yara Al-Shammari", ar: "يارا الشمري" },
-  founder_role_i18n: { en: "Founder & Creative Director", ar: "المؤسِّسة والمديرة الإبداعية" },
+  // Empty on purpose: an invented founder and quote would read as the
+  // merchant's own words. No quote -> the section renders nothing.
+  quote_i18n: { en: "", ar: "" },
+  founder_name_i18n: { en: "", ar: "" },
+  founder_role_i18n: { en: "", ar: "" },
   photo_url: undefined,
   signature_image_url: undefined,
 };

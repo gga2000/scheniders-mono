@@ -399,15 +399,20 @@ export function buildSignatureDirection(pack: ContentPack, facts?: SignatureFact
                       }
                     : {}),
             }),
-            promo_bar: s("countdown_announcement", {
-                label_i18n: { ar: "ينتهي عرض الخصم خلال:", en: "Discount offer ends in:" },
-                // The original funnel runs a 150-minute evergreen urgency loop
-                // (epoch-aligned, never sits at zero) rather than a daily reset.
-                mode: "evergreen_minutes",
-                duration_minutes: 150,
-                bg: "secondary",
-                show_flame: true,
-            }),
+            // The 150-minute evergreen discount loop is the original store's own
+            // choice. A template cannot know another merchant's real deadline,
+            // so only that store's facts carry it.
+            ...(facts
+                ? {
+                      promo_bar: s("countdown_announcement", {
+                          label_i18n: { ar: "ينتهي عرض الخصم خلال:", en: "Discount offer ends in:" },
+                          mode: "evergreen_minutes",
+                          duration_minutes: 150,
+                          bg: "secondary",
+                          show_flame: true,
+                      }),
+                  }
+                : {}),
         },
         pages: {
             home: [
