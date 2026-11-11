@@ -13,6 +13,10 @@ describe("cart governorate (shipping R2b)", () => {
 });
 
 describe("cartKeyFor (EC22 — per-tenant cart isolation)", () => {
+  it("gives the editor preview its own bucket, apart from the real store cart", () => {
+    expect(cartKeyFor(BASE, "/_preview/shop-a/cart")).toBe(`${BASE}:preview:shop-a`);
+    expect(cartKeyFor(BASE, "/_preview/shop-a/cart")).not.toBe(cartKeyFor(BASE, "/cart"));
+  });
   it("namespaces the key by the /s/<tenant> path segment", () => {
     expect(cartKeyFor(BASE, "/s/tenant-a/products/x")).toBe(
       `${BASE}:tenant-a`,

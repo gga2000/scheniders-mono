@@ -69,6 +69,7 @@ import { StoreBaseProvider } from "@/lib/store-context";
 import { toSectionTenant } from "@scheniders/sections"; // also registers all built-in sections (barrel side effect)
 import { SchneidersPreviewBridge } from "@/components/schneiders-preview-bridge";
 import { SchneidersPreviewLiveRenderer } from "@/components/schneiders-preview-live-renderer";
+import { PreviewSampleCart, sampleCartLines } from "@/components/preview-sample-cart";
 import { PreviewBrandSurface } from "@/components/preview-brand-surface";
 import { getTemplate } from "@/templates/registry";
 import type { Tenant, Product, Category } from "@/lib/types";
@@ -376,6 +377,13 @@ export default async function PreviewPage({
       break;
   }
 
+  // The preview has no shopper cart, so the cart and checkout pages would
+  // only ever show their empty state; give them two real products to show.
+  const sampleCart =
+    pageId === "cart" || pageId === "checkout"
+      ? sampleCartLines(await listProducts(tenant.id, { limit: 2 }))
+      : [];
+
   /* ───── Runtime context ───── */
 
   const runtime: RuntimeContext = {
@@ -499,6 +507,7 @@ export default async function PreviewPage({
           }}
         />
       </PreviewBrandSurface>
+      <PreviewSampleCart sample={sampleCart} />
       <SchneidersPreviewBridge />
     </StoreBaseProvider>
   );

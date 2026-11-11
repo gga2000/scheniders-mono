@@ -381,6 +381,11 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     activeLocale={activeLocale}
                     testIdBase={testIdBase}
                     flat={inline}
+                    unsetDefaults={
+                        unsetDefault !== null && typeof unsetDefault === "object" && !Array.isArray(unsetDefault)
+                            ? (unsetDefault as Record<string, unknown>)
+                            : undefined
+                    }
                 />
             );
             break;
@@ -1275,6 +1280,8 @@ interface ObjectControlProps {
     testIdBase: string;
     /** No titled card — the parent (a repeater row) already frames it. */
     flat?: boolean;
+    /** What each unset field means, keyed like `shape`. */
+    unsetDefaults?: Record<string, unknown>;
 }
 
 export function ObjectControl(p: ObjectControlProps): ReactElement {
@@ -1311,6 +1318,7 @@ export function ObjectControl(p: ObjectControlProps): ReactElement {
                     fieldKey={key}
                     tenantId={p.tenantId}
                     activeLocale={p.activeLocale}
+                    unsetDefault={p.unsetDefaults?.[key]}
                 />
             ))}
         </div>
