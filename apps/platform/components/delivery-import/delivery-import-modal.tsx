@@ -25,6 +25,7 @@ import { useDeliveryImport, type ImportStep } from "@/hooks/use-delivery-import"
 import { ImportSummaryTab } from "./import-summary-tab";
 import { ImportReviewTable } from "./import-review-table";
 import { ReconciliationBanner } from "./reconciliation-banner";
+import { DeliveryHistory } from "./delivery-history";
 import type { RowResolution } from "@/types/delivery-import";
 
 interface DeliveryImportModalProps {
@@ -34,6 +35,7 @@ interface DeliveryImportModalProps {
 }
 
 type ReviewTab = "summary" | "table";
+type View = "new" | "history";
 
 export function DeliveryImportModal({
     open,
@@ -57,6 +59,7 @@ export function DeliveryImportModal({
 
     const [dragActive, setDragActive] = useState(false);
     const [reviewTab, setReviewTab] = useState<ReviewTab>("summary");
+    const [view, setView] = useState<View>("new");
     const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
     const [resolutions, setResolutions] = useState<Map<number, RowResolution>>(new Map());
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +143,7 @@ export function DeliveryImportModal({
         setSelectedRows(new Set());
         setResolutions(new Map());
         setReviewTab("summary");
+        setView("new");
         setDragActive(false);
         onClose();
     }, [onClose, reset]);
@@ -223,11 +227,41 @@ export function DeliveryImportModal({
                         <Truck className="w-6 h-6 text-teal-600" />
                         Import Delivery PDF
                     </DialogTitle>
-                    <DialogDescription>{stepDescription[step]}</DialogDescription>
+                    <DialogDescription>
+                        {view === "history" ? "Receipts you imported, newest first" : stepDescription[step]}
+                    </DialogDescription>
                 </DialogHeader>
 
-                {/* Step: Upload */}
+                {/* New import / Past imports: only before an import starts, so a running one is never hidden. */}
                 {step === "upload" && (
+                    <div role="tablist" className="flex gap-5 border-b border-[var(--card-border)] text-sm">
+                        {(["new", "history"] as const).map((v) => (
+                            <button
+                                key={v}
+                                role="tab"
+                                aria-selected={view === v}
+                                onClick={() => setView(v)}
+                                className={cn(
+                                    "pb-2 -mb-px border-b-2 font-medium transition-colors",
+                                    view === v
+                                        ? "border-teal-600 text-foreground"
+                                        : "border-transparent text-muted hover:text-foreground"
+                                )}
+                            >
+                                {v === "new" ? "New import" : "Past imports"}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {step === "upload" && view === "history" && (
+                    <div className="flex-1 overflow-y-auto py-4">
+                        <DeliveryHistory />
+                    </div>
+                )}
+
+                {/* Step: Upload */}
+                {step === "upload" && view === "new" && (
                     <div className="flex-1 py-8">
                         <div
                             onDragEnter={handleDrag}

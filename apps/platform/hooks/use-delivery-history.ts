@@ -104,7 +104,7 @@ export function useDeliveryHistory() {
 
                 toast({
                     variant: "success",
-                    title: "Import Rolled Back",
+                    title: "Import undone",
                     description: `${result.data.restored} orders restored${result.data.changedSince > 0 ? `, ${result.data.changedSince} left as they are (changed after the import)` : ""}`,
                 });
 
@@ -113,7 +113,7 @@ export function useDeliveryHistory() {
                 const msg = err instanceof Error ? err.message : "Failed to roll back import";
                 toast({
                     variant: "error",
-                    title: "Rollback Error",
+                    title: "Undo failed",
                     description: msg,
                 });
             }
