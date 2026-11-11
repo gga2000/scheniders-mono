@@ -815,6 +815,19 @@ function ExperimentEditor({
         sheetRef.current?.focus();
     }, []);
 
+    // The confirm unmounts on cancel; hand focus back to the chip that
+    // opened it so Escape and Tab keep working inside the sheet.
+    const cancelPendingStop = useCallback((): void => {
+        const from = pendingStop;
+        setPendingStop(null);
+        const chip = from
+            ? sheetRef.current?.querySelector<HTMLInputElement>(
+                  `[data-testid="experiment-editor-status-${from}"]`,
+              )
+            : null;
+        (chip ?? sheetRef.current)?.focus();
+    }, [pendingStop]);
+
     const handleAddArm = useCallback((): void => {
         if (experiment.arms.length >= MAX_ARMS) return;
         const letter = String.fromCharCode(65 + experiment.arms.length - 1); // B, C, D, …
@@ -857,17 +870,21 @@ function ExperimentEditor({
                 if (e.target === e.currentTarget) onClose();
             }}
             onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                    e.stopPropagation();
-                    onClose();
+                if (e.key !== "Escape") return;
+                e.stopPropagation();
+                // Escape peels one layer: an open end-test confirm first.
+                if (pendingStop) {
+                    cancelPendingStop();
+                    return;
                 }
+                onClose();
             }}
             className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm"
         >
             <aside
                 ref={sheetRef}
                 tabIndex={-1}
-                className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl outline-none"
+                className="flex w-full max-w-2xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl outline-none"
             >
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <h3 className="text-left! text-base font-bold tracking-tight">
@@ -1087,7 +1104,8 @@ function ExperimentEditor({
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setPendingStop(null)}
+                                    data-testid="experiment-editor-stop-cancel"
+                                    onClick={cancelPendingStop}
                                     className="inline-flex h-7 items-center rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                                 >
                                     {t(STRINGS.advanced_chrome.exp_stop_cancel, locale)}

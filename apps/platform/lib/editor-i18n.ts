@@ -1432,7 +1432,7 @@ export const STRINGS = {
         exp_pct_traffic: { en: "{n}% traffic", ar: "{n}% من الزوار", ku: "{n}% سەردانیکەران" },
         exp_stat_atc: { en: "ATC", ar: "إضافة للسلة", ku: "بۆ سەبەتە" },
         exp_stat_checkout: { en: "Started order", ar: "بدأ الطلب", ku: "داواکاری دەستپێکرد" },
-        exp_stat_aov: { en: "AOV", ar: "متوسط الطلب", ku: "تێکڕای داواکاری" },
+        exp_stat_aov: { en: "AOV (IQD)", ar: "متوسط الطلب (د.ع)", ku: "تێکڕای داواکاری (IQD)" },
         exp_stat_uplift_control: { en: "Conversion vs original", ar: "تحسن التحويل مقابل الأصل", ku: "گۆڕانی گۆڕین بەراورد بە بنەڕەت" },
         // tFormat: {n} — under a "still learning" version in the test drawer
         exp_needs_visitors: {
