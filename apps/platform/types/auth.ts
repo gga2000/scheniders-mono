@@ -43,5 +43,5 @@ export interface AuthContextType {
     linkGoogle: () => Promise<{ error: AuthError | null }>;
     googleLinked: boolean;
     refreshProfile: () => Promise<void>;
-    retryAuth: () => Promise<{ error: any }>;
+    retryAuth: () => Promise<{ error: unknown }>;
 }

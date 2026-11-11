@@ -156,7 +156,7 @@ class TrustEngine {
             }
 
             if (data) {
-                data.forEach((row: any) => {
+                data.forEach((row) => {
                     const rowTier = row.trust_tier as TrustTier;
                     results.set(row.phone, {
                         score: row.trust_score,

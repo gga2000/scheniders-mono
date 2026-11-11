@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { useEffect, useState } from "react";
-import { useSettings } from "@/hooks/use-settings";
+import { readSetting, useSettings, type SettingValue } from "@/hooks/use-settings";
 import { Switch } from "@scheniders/ui/switch";
 import { Label } from "@scheniders/ui/label";
 import { Input } from "@scheniders/ui/input";
@@ -13,13 +13,13 @@ import { toast } from "@/hooks/use-toast";
 export function WorkflowSettingsForm() {
     const { settings, updateSetting, loading } = useSettings();
     const { t } = useLanguage();
-    const [autoArchive, setAutoArchive] = useState<any>({});
-    const [quickActions, setQuickActions] = useState<any>({});
+    const [autoArchive, setAutoArchive] = useState<SettingValue<"auto_archive">>({});
+    const [quickActions, setQuickActions] = useState<SettingValue<"quick_actions">>({});
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (settings.auto_archive) setAutoArchive(settings.auto_archive);
-        if (settings.quick_actions) setQuickActions(settings.quick_actions);
+        if (settings.auto_archive) setAutoArchive(readSetting(settings, "auto_archive"));
+        if (settings.quick_actions) setQuickActions(readSetting(settings, "quick_actions"));
     }, [settings]);
 
     const handleSave = async () => {

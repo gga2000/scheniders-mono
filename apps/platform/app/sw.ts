@@ -1,10 +1,9 @@
 /// <reference lib="webworker" />
 import { defaultCache } from "@serwist/next/worker";
-import { installSerwist } from "@serwist/sw";
+import { installSerwist, type InstallSerwistOptions } from "@serwist/sw";
 
 declare const self: ServiceWorkerGlobalScope & {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    __SW_MANIFEST: any;
+    __SW_MANIFEST: InstallSerwistOptions["precacheEntries"];
 };
 
 console.log("[SW] Serwist SW loaded (v2 — with session check + cache cleanup)");
