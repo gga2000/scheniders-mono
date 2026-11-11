@@ -33,16 +33,16 @@ describe("isTenantRole", () => {
 describe("applyPermissionOverrides", () => {
     it("adds granted overrides and removes revoked ones", () => {
         const perms = applyPermissionOverrides(
-            ["orders.view", "orders.edit"],
+            ["orders.create", "orders.edit"],
             [
                 { permission: "system.financials.view", is_granted: true },
                 { permission: "orders.edit", is_granted: false },
             ],
         );
-        expect(perms.sort()).toEqual(["orders.view", "system.financials.view"]);
+        expect(perms.sort()).toEqual(["orders.create", "system.financials.view"]);
     });
 
     it("returns the role permissions unchanged without overrides", () => {
-        expect(applyPermissionOverrides(["orders.view"], [])).toEqual(["orders.view"]);
+        expect(applyPermissionOverrides(["orders.create"], [])).toEqual(["orders.create"]);
     });
 });

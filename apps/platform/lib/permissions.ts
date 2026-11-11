@@ -72,14 +72,12 @@ export function applyPermissionOverrides(
 
 export const PERMISSIONS = {
     // Orders
-    VIEW_ORDERS: "orders.view",
     CREATE_ORDERS: "orders.create",
     EDIT_ORDERS: "orders.edit",
     DELETE_ORDERS: "orders.delete",
     EXPORT_DATA: "orders.export",
 
     // Customers
-    VIEW_CUSTOMERS: "customers.view",
     EDIT_CUSTOMERS: "customers.edit",
     BLOCK_CUSTOMERS: "customers.block",
     UNBLOCK_CUSTOMERS: "customers.unblock",
@@ -90,8 +88,6 @@ export const PERMISSIONS = {
     MANAGE_PRODUCTS: "products.manage", // delete products, bulk price changes, inventory tools
 
     // System
-    MANAGE_USERS: "system.users.manage",
-    VIEW_ANALYTICS: "system.analytics.view",
     VIEW_FINANCIALS: "system.financials.view", // see cost/profit data
     EDIT_FINANCIALS: "system.financials.edit", // add, change and delete expenses
     ACCESS_SETTINGS: "system.settings.access",
@@ -117,11 +113,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
         ...Object.values(PERMISSIONS),
     ],
     employee: [
-        PERMISSIONS.VIEW_ORDERS,
         PERMISSIONS.CREATE_ORDERS,
         PERMISSIONS.EDIT_ORDERS,
         PERMISSIONS.EXPORT_DATA,
-        PERMISSIONS.VIEW_CUSTOMERS,
         PERMISSIONS.EDIT_CUSTOMERS,
         PERMISSIONS.BLOCK_CUSTOMERS,
         PERMISSIONS.EDIT_PRODUCTS,
@@ -130,11 +124,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
         PERMISSIONS.TILL_SHIFT,
         // No Analytics, No Financials, No Settings
     ],
-    viewer: [
-        PERMISSIONS.VIEW_ORDERS,
-        PERMISSIONS.VIEW_CUSTOMERS,
-        // No Analytics, No Financials
-    ],
+    // Viewers can open pages their role allows (lib/route-permissions) but change nothing.
+    viewer: [],
 };
 
 /**
@@ -159,7 +150,6 @@ export const PERMISSION_CATEGORIES: readonly { id: string; items: readonly { key
     {
         id: "orders",
         items: [
-            { key: PERMISSIONS.VIEW_ORDERS },
             { key: PERMISSIONS.CREATE_ORDERS },
             { key: PERMISSIONS.EDIT_ORDERS },
             { key: PERMISSIONS.DELETE_ORDERS },
@@ -169,7 +159,6 @@ export const PERMISSION_CATEGORIES: readonly { id: string; items: readonly { key
     {
         id: "customers",
         items: [
-            { key: PERMISSIONS.VIEW_CUSTOMERS },
             { key: PERMISSIONS.EDIT_CUSTOMERS },
             { key: PERMISSIONS.BLOCK_CUSTOMERS },
             { key: PERMISSIONS.UNBLOCK_CUSTOMERS },
@@ -196,9 +185,7 @@ export const PERMISSION_CATEGORIES: readonly { id: string; items: readonly { key
     {
         id: "system",
         items: [
-            { key: PERMISSIONS.MANAGE_USERS },
             { key: PERMISSIONS.ACCESS_SETTINGS },
-            { key: PERMISSIONS.VIEW_ANALYTICS },
             { key: PERMISSIONS.VIEW_FINANCIALS },
             { key: PERMISSIONS.EDIT_FINANCIALS },
         ],
