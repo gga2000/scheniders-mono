@@ -53,6 +53,7 @@ import {
 } from "./resource-picker";
 import {
     inferField,
+    orderTextStack,
     type FieldShape,
 } from "./auto-form-schema";
 
@@ -1280,7 +1281,7 @@ export function ObjectControl(p: ObjectControlProps): ReactElement {
     const shapeKeys = Object.keys(p.shape);
     // Drop fields a sibling switch makes inert (e.g. hand-written cards
     // while the section reads real categories) — editing them does nothing.
-    const fields = shapeKeys.filter((k) => isFieldRelevant(k, p.value, shapeKeys));
+    const fields = orderTextStack(shapeKeys.filter((k) => isFieldRelevant(k, p.value, shapeKeys)));
     const isRoot = p.testIdBase === "auto-form-root";
     const isInline = fields.length < 2;
     const [open, setOpen] = useState<boolean>(true);

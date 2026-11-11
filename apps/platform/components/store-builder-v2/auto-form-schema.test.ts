@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { inferField, unwrap } from "./auto-form-schema";
+import { inferField, orderTextStack, unwrap } from "./auto-form-schema";
 
 describe("unwrap", () => {
     it("walks through .catch() to the wrapped type", () => {
@@ -41,5 +41,21 @@ describe("inferField — number ranges", () => {
             min: 1,
             max: 60,
         });
+    });
+});
+
+describe("orderTextStack", () => {
+    it("moves the eyebrow right before the title", () => {
+        expect(orderTextStack(["title", "show_filters", "subheading", "eyebrow"])).toEqual([
+            "eyebrow",
+            "title",
+            "show_filters",
+            "subheading",
+        ]);
+        expect(orderTextStack(["image", "heading", "eyebrow"])).toEqual(["image", "eyebrow", "heading"]);
+    });
+    it("leaves keys alone without an eyebrow or a title", () => {
+        expect(orderTextStack(["a", "b"])).toEqual(["a", "b"]);
+        expect(orderTextStack(["eyebrow", "b"])).toEqual(["eyebrow", "b"]);
     });
 });

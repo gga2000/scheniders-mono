@@ -186,3 +186,20 @@ export function inferField(schema: z.ZodType<unknown>): {
     }
 }
 
+
+const TITLE_KEYS = ["title", "heading", "headline"];
+
+/**
+ * Fields follow schema order, but the eyebrow (the small line above the
+ * title) is often declared late. Move it to sit right before the title so
+ * the inspector lists text in the order it reads on the page. Other fields
+ * keep their order.
+ */
+export function orderTextStack(keys: readonly string[]): string[] {
+    const out = keys.filter((k) => k !== "eyebrow");
+    if (out.length === keys.length) return out;
+    const titleAt = out.findIndex((k) => TITLE_KEYS.includes(k));
+    if (titleAt === -1) return [...keys];
+    out.splice(titleAt, 0, "eyebrow");
+    return out;
+}

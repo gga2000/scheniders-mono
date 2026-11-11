@@ -48,7 +48,7 @@ import {
     type RenderFieldAdornment,
 } from "./auto-form-fields";
 import { BreakpointAdornment } from "./auto-form-breakpoints";
-import { unwrap, type FieldShape } from "./auto-form-schema";
+import { orderTextStack, unwrap, type FieldShape } from "./auto-form-schema";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
@@ -145,6 +145,9 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
             // because its bucket stays empty.
             if (!isFieldVisible(mode, sectionType, key)) continue;
             buckets[getFieldGroupForMode(mode, sectionType, key)].push(key);
+        }
+        for (const g of Object.keys(buckets) as FieldGroup[]) {
+            buckets[g] = orderTextStack(buckets[g]);
         }
         return { shape, buckets };
     }, [schema, sectionType, mode]);
