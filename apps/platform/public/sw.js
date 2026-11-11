@@ -13,6 +13,8 @@
 // the bump is required to evict the stale v2-cached copies.
 const CACHE_NAME = 'schenider-v3';
 const DYNAMIC_CACHE = 'schenider-dynamic-v3';
+// Signing out deletes every cache starting 'schenider-dynamic-' (components/auth/auth-provider.tsx):
+// keep that prefix when bumping the version.
 
 // Truly-static, version-independent assets safe to precache. NOTE: "/" is
 // intentionally excluded (see header) — never precache the HTML shell.

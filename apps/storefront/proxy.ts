@@ -149,6 +149,10 @@ function ensureMetaCookies(request: NextRequest, response: NextResponse): void {
 }
 
 const ROOT_DOMAIN = storefrontRootDomain();
+/** No subdomains on a local root (localhost:3001), so stores use /s/<slug>. */
+const ROOT_IS_LOCAL = ROOT_DOMAIN.startsWith("localhost");
+/** A slug that is a valid single DNS label. */
+const SUBDOMAIN_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
 
 /**
  * Per-tenant documents served from a store's own root, which happen to carry
@@ -213,6 +217,16 @@ export function proxy(request: NextRequest) {
     // Set x-store-base so tenant layout knows to use path-based links
     if (url.pathname.startsWith("/s/")) {
       const tenantSlug = url.pathname.split("/")[2];
+      // On the real root domain every store has its own subdomain. Serving
+      // /s/<slug> here put every store on ONE origin, so one merchant's
+      // tracking script could read another store's shoppers' carts and
+      // drafts. Send the visitor to the store's own origin instead; path mode
+      // stays only where there are no subdomains (local development).
+      if (tenantSlug && !ROOT_IS_LOCAL) {
+        if (!SUBDOMAIN_SLUG.test(tenantSlug)) return new NextResponse(null, { status: 404 });
+        const rest = url.pathname.slice(`/s/${tenantSlug}`.length) || "/";
+        return NextResponse.redirect(`https://${tenantSlug.toLowerCase()}.${ROOT_DOMAIN}${rest}${url.search}`, 308);
+      }
       if (tenantSlug) {
         const requestHeaders = new Headers(request.headers);
         requestHeaders.set("x-store-base", `/s/${tenantSlug}`);

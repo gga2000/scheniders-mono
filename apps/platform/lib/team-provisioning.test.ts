@@ -39,7 +39,7 @@ describe("provisionInvitedUserIfNeeded — membership role", () => {
         ["admin", "admin"],
     ])("an invite as %s creates a '%s' membership and keeps the profile role", async (role, memberRole) => {
         inviteRole = role;
-        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "hire@example.com" });
+        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "hire@example.com", emailConfirmed: true });
         expect(result.provisioned).toBe(true);
         const member = fake.calls.find((c) => c.table === "tenant_members" && c.op === "insert")?.payload;
         const profile = fake.calls.find((c) => c.table === "user_profiles" && c.op === "insert")?.payload;
@@ -65,7 +65,7 @@ describe("provisionInvitedUserIfNeeded — someone who already has an account", 
     });
 
     it("joins the invited store, accepts the invite and lands them there", async () => {
-        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "Owner@Example.com" });
+        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "Owner@Example.com", emailConfirmed: true });
         expect(result).toEqual({ provisioned: true, reason: "accepted-existing" });
         expect(fake.calls.find((c) => c.table === "tenant_members" && c.op === "insert")?.payload)
             .toMatchObject({ tenant_id: OTHER, user_id: "user-1", role: "employee", status: "active" });
@@ -78,8 +78,19 @@ describe("provisionInvitedUserIfNeeded — someone who already has an account", 
 
     it("treats an existing membership as accepted without touching its role", async () => {
         memberInsertError = { message: "duplicate", code: "23505" };
-        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "owner@example.com" });
+        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "owner@example.com", emailConfirmed: true });
         expect(result.provisioned).toBe(true);
         expect(fake.calls.some((c) => c.table === "tenant_members" && (c.op === "update" || c.op === "upsert"))).toBe(false);
+    });
+});
+
+describe("provisionInvitedUserIfNeeded — unproven email", () => {
+    it("never accepts an invite for an address the user has not confirmed", async () => {
+        inviteRole = "admin";
+        fake = fakeServiceClient((call) => respond(call));
+        const result = await provisionInvitedUserIfNeeded({ id: "user-1", email: "hire@example.com", emailConfirmed: false });
+        expect(result.provisioned).toBe(false);
+        expect(fake.calls.some((c) => c.table === "tenant_members" && c.op === "insert")).toBe(false);
+        expect(fake.calls.some((c) => c.table === "team_invites")).toBe(false);
     });
 });

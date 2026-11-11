@@ -17,6 +17,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /** Browser-storage keys that hold the signed-in user's store data. */
 const DEVICE_KEY_PREFIXES = ["returns:", "chat-drafts"];
+/** Name prefix of the service worker's per-page cache (public/sw.js). */
+const PAGE_CACHE_PREFIX = "schenider-dynamic-";
 
 /**
  * Delete what the app keeps on the device for the signed-in user: the saved
@@ -31,6 +33,15 @@ function forgetDeviceData(): void {
         }
     } catch (err) {
         reportOrderError(err, { operation: "device-storage-clear" });
+    }
+    // The service worker keeps the last server-rendered page of each route for
+    // offline use (public/sw.js DYNAMIC_CACHE). Those pages belong to the user
+    // who signed out, so they go too; the app shell cache stays.
+    if (typeof caches !== "undefined") {
+        caches
+            .keys()
+            .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PAGE_CACHE_PREFIX)).map((k) => caches.delete(k))))
+            .catch((err: unknown) => reportOrderError(err, { operation: "page-cache-clear" }));
     }
 }
 

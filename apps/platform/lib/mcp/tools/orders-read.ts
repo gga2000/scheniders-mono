@@ -11,6 +11,7 @@ import {
     orderLine,
     statusText,
     type OrderSummaryRow,
+    shopperText,
 } from "@/lib/mcp/format";
 
 const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
@@ -117,8 +118,8 @@ export function registerOrderReadTools(server: McpServer): void {
                 `Order #${o.order_id} (id ${o.id})${o.is_return ? " — return" : ""}${o.is_replacement ? " — replacement" : ""}`,
                 `Status: ${statusText(o.status)}${o.rejection_reason ? ` — reason: ${o.rejection_reason}` : ""}`,
                 `Created: ${baghdadTime(o.created_at)}${o.scheduled_date ? ` | scheduled ${o.scheduled_date}` : ""}`,
-                `Customer: ${o.customer_name} | ${o.phone}${o.secondary_phone ? ` / ${o.secondary_phone}` : ""}`,
-                `Address: ${o.city ?? "-"}, ${o.address_details ?? "-"}`,
+                `Customer: ${shopperText(o.customer_name, 80)} | ${o.phone}${o.secondary_phone ? ` / ${o.secondary_phone}` : ""}`,
+                `Address: ${o.city ?? "-"}, ${shopperText(o.address_details)}`,
                 `Source: ${o.source ?? "-"}${o.ad_channel ? ` (ad: ${o.ad_channel})` : ""}`,
                 "Items:",
                 ...(o.items ?? []).map(
@@ -126,17 +127,17 @@ export function registerOrderReadTools(server: McpServer): void {
                 ),
                 `Money: items ${iqd(itemsTotal)} − discount ${iqd(o.discount_amount ?? 0)} = ${iqd(o.price)}; delivery ${iqd(o.delivery_fee)}; COD ${iqd((o.price ?? 0) + (o.delivery_fee ?? 0))}`,
                 `Delivery: ${o.delivery_company ?? "not sent"}${o.waseet_qr_id ? ` | Waseet ${o.waseet_qr_id} ${o.waseet_status_text ?? ""}` : ""}`,
-                `Notes: ${o.notes || "-"} | Internal: ${o.internal_notes || "-"}`,
+                `Notes (typed by the customer): ${shopperText(o.notes, 500)} | Internal: ${shopperText(o.internal_notes, 500)}`,
                 `Version: ${o.version}`,
                 "",
                 "Status history:",
                 ...(history.data ?? []).map(
-                    (h) => `  ${baghdadTime(h.changed_at)} ${h.from_status ?? "-"} → ${h.to_status} by ${h.changed_by ?? "?"}${h.notes ? ` (${h.notes})` : ""}`,
+                    (h) => `  ${baghdadTime(h.changed_at)} ${h.from_status ?? "-"} → ${h.to_status} by ${h.changed_by ?? "?"}${h.notes ? ` (${shopperText(h.notes)})` : ""}`,
                 ),
                 "Order notes:",
                 ...((notes.data ?? []).length === 0
                     ? ["  none"]
-                    : (notes.data ?? []).map((n) => `  ${baghdadTime(n.created_at)} ${n.created_by ?? "?"}: ${n.note}`)),
+                    : (notes.data ?? []).map((n) => `  ${baghdadTime(n.created_at)} ${n.created_by ?? "?"}: ${shopperText(n.note, 500)}`)),
             ];
             return lines.join("\n");
         },

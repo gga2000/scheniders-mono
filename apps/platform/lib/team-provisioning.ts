@@ -5,6 +5,12 @@ interface ProvisionUser {
     id: string;
     email?: string | null;
     name?: string | null;
+    /**
+     * Auth says this user proved they own `email` (email_confirmed_at). An
+     * invite is accepted only then: otherwise anyone who signs up with an
+     * invited address, without opening that mailbox, would join the store.
+     */
+    emailConfirmed: boolean;
 }
 
 /**
@@ -26,7 +32,9 @@ export async function provisionInvitedUserIfNeeded(
         if (!user?.id) return { provisioned: false, reason: "no-user" };
         const admin = createSupabaseServiceClient();
 
-        const email = (user.email ?? "").trim().toLowerCase();
+        // An unproven address accepts nothing; the person can come back after
+        // confirming it.
+        const email = user.emailConfirmed ? (user.email ?? "").trim().toLowerCase() : "";
 
         // Already has an account? (common path — one fast lookup)
         const { data: existing } = await admin
