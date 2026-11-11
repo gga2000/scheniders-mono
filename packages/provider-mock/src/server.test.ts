@@ -51,15 +51,6 @@ describe("provider mock: provider answers", () => {
         expect((await bytes.arrayBuffer()).byteLength).toBeGreaterThan(0);
     });
 
-    it("answers LightFunnels GraphQL with empty pages and seeded nodes", async () => {
-        const orders = await post("/api/v2", { query: "query q { orders(first: 1) { edges { node { id } } } }", variables: {} });
-        expect(orders.json.data).toEqual({ orders: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } } });
-
-        mock.setLightfunnelsNode("chk_1", { id: "chk_1", phone: "07700000000" });
-        const node = await post("/api/v2", { query: "query GetCheckout($id: ID!) { node(id: $id) { id } }", variables: { id: "chk_1" } });
-        expect(node.json.data).toEqual({ node: { id: "chk_1", phone: "07700000000" } });
-    });
-
     it("answers Al-Waseet with { status, errNum, msg, data }", async () => {
         const login = await post("/v1/merchant/login", {});
         expect(login.json).toMatchObject({ status: true, data: { token: "mock-waseet-token" } });

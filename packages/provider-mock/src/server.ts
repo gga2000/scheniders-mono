@@ -25,7 +25,6 @@ import type { AddressInfo } from "node:net";
 export type ProviderName =
     | "interakt"
     | "qstash"
-    | "lightfunnels"
     | "telegram"
     | "waseet"
     | "gemini"
@@ -80,8 +79,6 @@ export interface ProviderMock {
     deliveries(): QStashDelivery[];
     /** Forget recorded calls and deliveries, cancel pending QStash callbacks. */
     reset(): void;
-    /** Seed a LightFunnels GraphQL `node(id:)` answer (e.g. a checkout). */
-    setLightfunnelsNode(id: string, node: Record<string, unknown>): void;
     /** Deliver every pending QStash callback now and wait for them. */
     flushQStash(): Promise<void>;
     close(): Promise<void>;
@@ -208,7 +205,6 @@ export function redactPath(path: string): string {
 function classify(method: string, path: string): ProviderName {
     if (path.startsWith("/v1/public/message")) return "interakt";
     if (path.startsWith("/v2/")) return "qstash";
-    if (path === "/api/v2" || path.startsWith("/api/v2/")) return "lightfunnels";
     if (/^\/(file\/)?bot[^/]+\//.test(path)) return "telegram";
     if (path.startsWith("/v1/merchant/")) return "waseet";
     if (/^\/v1(beta)?\/models\//.test(path)) return "gemini";
@@ -319,20 +315,6 @@ function anthropicResponse(body: Buffer): MockResponse {
     });
 }
 
-function lightfunnelsResponse(body: Buffer, nodes: Map<string, Record<string, unknown>>): MockResponse {
-    const input = parseJson(body);
-    const query = isRecord(input) && typeof input.query === "string" ? input.query : "";
-    const variables = isRecord(input) && isRecord(input.variables) ? input.variables : {};
-    const emptyPage = { edges: [], pageInfo: { hasNextPage: false, endCursor: null } };
-    if (/\bnode\s*\(/.test(query)) {
-        const id = typeof variables.id === "string" ? variables.id : "";
-        return json({ data: { node: nodes.get(id) ?? null } });
-    }
-    if (/\bcheckouts\s*\(/.test(query)) return json({ data: { checkouts: emptyPage } });
-    if (/\borders\s*\(/.test(query)) return json({ data: { orders: emptyPage } });
-    return json({ data: {} });
-}
-
 function readBody(req: IncomingMessage): Promise<Buffer> {
     return new Promise((resolve, reject) => {
         const chunks: Buffer[] = [];
@@ -357,7 +339,6 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
     const delivered: QStashDelivery[] = [];
     const pending = new Map<string, PendingDelivery>();
     const inFlight = new Set<Promise<void>>();
-    const lightfunnelsNodes = new Map<string, Record<string, unknown>>();
 
     async function deliver(item: PendingDelivery): Promise<void> {
         pending.delete(item.messageId);
@@ -428,10 +409,9 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
         delivered.length = 0;
         for (const item of pending.values()) clearTimeout(item.timer);
         pending.clear();
-        lightfunnelsNodes.clear();
     }
 
-    async function handleControl(req: IncomingMessage, res: ServerResponse, path: string, body: Buffer): Promise<void> {
+    async function handleControl(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
         if (path === "/__mock/health") return send(res, json({ ok: true }));
         if (path === "/__mock/calls" && req.method === "GET") {
             return send(res, json({ calls: recorded, deliveries: delivered }));
@@ -443,14 +423,6 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
         if (path === "/__mock/qstash/flush" && req.method === "POST") {
             await flushQStash();
             return send(res, json({ ok: true, deliveries: delivered }));
-        }
-        if (path === "/__mock/lightfunnels/nodes" && req.method === "POST") {
-            const input = parseJson(body);
-            if (isRecord(input) && typeof input.id === "string" && isRecord(input.node)) {
-                lightfunnelsNodes.set(input.id, input.node);
-                return send(res, json({ ok: true }));
-            }
-            return send(res, json({ error: "expected { id: string, node: object }" }, 400));
         }
         return send(res, json({ error: "unknown control route" }, 404));
     }
@@ -464,7 +436,7 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
             const path = stripQuery(rawUrl);
             const body = await readBody(req);
 
-            if (path.startsWith("/__mock/")) return handleControl(req, res, path, body);
+            if (path.startsWith("/__mock/")) return handleControl(req, res, path);
 
             const provider = classify(method, path);
             recorded.push({
@@ -478,7 +450,6 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
             switch (provider) {
                 case "interakt": return send(res, interaktResponse());
                 case "qstash": return send(res, qstashResponse(req, rawUrl, body));
-                case "lightfunnels": return send(res, lightfunnelsResponse(body, lightfunnelsNodes));
                 case "telegram": return send(res, telegramResponse(path, body));
                 case "waseet": return send(res, waseetResponse(path));
                 case "gemini": return send(res, geminiResponse());
@@ -507,9 +478,6 @@ export async function startProviderMock(options: ProviderMockOptions = {}): Prom
         calls: () => recorded.map((call) => ({ ...call })),
         deliveries: () => delivered.map((delivery) => ({ ...delivery })),
         reset,
-        setLightfunnelsNode: (id, node) => {
-            lightfunnelsNodes.set(id, node);
-        },
         flushQStash,
         close: async () => {
             for (const item of pending.values()) clearTimeout(item.timer);
