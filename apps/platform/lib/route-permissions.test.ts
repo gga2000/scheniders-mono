@@ -20,7 +20,7 @@ describe("canAccessRoute", () => {
     });
 
     it.each(money)("keeps employees and viewers out of %s", (path) => {
-        expect(canAccessRoute(path, "employee", [PERMISSIONS.VIEW_ORDERS])).toBe(false);
+        expect(canAccessRoute(path, "employee", [PERMISSIONS.EDIT_ORDERS])).toBe(false);
         expect(canAccessRoute(path, "viewer", [])).toBe(false);
     });
 
@@ -89,7 +89,7 @@ describe("filterNavItems / filterNavSections", () => {
     });
 
     it("hides Finances, Reports, Team and Vault from an employee, and drops the emptied section", () => {
-        expect(keys(filterNavSections(sections, "employee", [PERMISSIONS.VIEW_ORDERS]))).toEqual([
+        expect(keys(filterNavSections(sections, "employee", [PERMISSIONS.EDIT_ORDERS]))).toEqual([
             ["nav.dashboard", "nav.orders", "nav.printing"],
             ["nav.store"],
         ]);
