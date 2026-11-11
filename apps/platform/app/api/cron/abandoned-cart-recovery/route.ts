@@ -17,7 +17,12 @@ export const maxDuration = 30;
 // Floor: never consider a cart younger than this. Each tenant's own delay (from
 // its config) is applied on top, so this is just the cheapest pre-filter.
 const MIN_DELAY_MINUTES = 5;
+// Runs every 10 minutes (vercel.json), so a cart is nudged within 10 minutes of its delay.
 const BATCH_SIZE = 50;
+// A nudge more than a day after the latest possible delay (24 h) reaches a shopper who
+// has moved on; such carts, and the backlog from before a store turned recovery on,
+// are never sent.
+const STALE_AFTER_MINUTES = 2 * 24 * 60;
 // Owner decision 2026-10-27: an abandoned checkout nobody contacted for 14 days goes to the trash.
 const CHECKOUT_EXPIRE_AFTER = "14 days";
 // Consent on a capture is the shopper's claim (any caller can send the line),
@@ -44,10 +49,23 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
     const floorCutoff = new Date(
         Date.now() - MIN_DELAY_MINUTES * 60_000,
     ).toISOString();
+    const staleCutoff = new Date(Date.now() - STALE_AFTER_MINUTES * 60_000).toISOString();
+
+    // Recovery is opt-in, so only opted-in stores' carts are read: carts of stores
+    // that never turned it on used to fill the batch and starve the ones that did.
+    const { data: tenants, error: tenantsError } = await db
+        .from("tenants")
+        .select("id, store_config_v2")
+        .eq("store_config_v2->commerce->cart_recovery->>enabled", "true");
+    if (tenantsError) throw new Error(tenantsError.message);
+    if (!tenants || tenants.length === 0) {
+        return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+    }
 
     const { data, error } = await db
         .from("abandoned_carts")
         .select("id, tenant_id, phone, items, subtotal_iqd, updated_at")
+        .in("tenant_id", tenants.map((t) => t.id))
         .is("reminded_at", null)
         .is("recovered_at", null)
         // Consent: only a shopper who typed their phone with the consent line
@@ -55,6 +73,7 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         // lead for staff to call, never a send.
         .not("consent_at", "is", null)
         .lte("updated_at", floorCutoff)
+        .gte("updated_at", staleCutoff)
         .order("updated_at", { ascending: true })
         .limit(BATCH_SIZE);
 
@@ -72,18 +91,11 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         return { processed: 0, sent: 0, failed: 0, skipped: 0 };
     }
 
-    // Load each involved tenant's recovery config once.
-    const tenantIds = [...new Set(carts.map((c) => c.tenant_id))];
-    const { data: tenants } = await db
-        .from("tenants")
-        .select("id, store_config_v2")
-        .in("id", tenantIds);
-
     const cfgByTenant = new Map<
         string,
         ReturnType<typeof resolveCartRecovery>
     >();
-    for (const t of (tenants ?? []) as Array<{
+    for (const t of tenants as Array<{
         id: string;
         store_config_v2: StoreConfigV2 | null;
     }>) {

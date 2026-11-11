@@ -76,8 +76,11 @@ function daysBetween(a: Date, b: Date): number {
   return Math.floor(Math.abs(b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function getDateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** The Baghdad calendar day (UTC+3, no DST) of an instant; the UTC day files 00:00-02:59 under the day before. */
+export function getDateKey(d: Date): string {
+  return new Date(d.getTime() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 // ─── Pipeline ───────────────────────────────────────────────────────────────
@@ -323,7 +326,7 @@ export function calculateWalletHealth(
     day.setDate(day.getDate() - (6 - i));
     const dayKey = getDateKey(day);
     return transactions.filter(
-      (t) => t.type === "topup" && t.created_at.startsWith(dayKey),
+      (t) => t.type === "topup" && getDateKey(new Date(t.created_at)) === dayKey,
     ).length;
   });
 
@@ -626,7 +629,7 @@ export function calculateKpis(
       day.setDate(day.getDate() - (6 - i));
       const dayKey = getDateKey(day);
       return items
-        .filter((item) => item.created_at.startsWith(dayKey))
+        .filter((item) => getDateKey(new Date(item.created_at)) === dayKey)
         .reduce((sum, item) => sum + (countFn ? countFn(item) : 1), 0);
     });
   };

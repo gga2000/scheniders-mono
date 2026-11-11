@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
     Truck, RefreshCw, CheckCircle2, AlertTriangle, Clock,
@@ -8,7 +9,9 @@ import {
 } from "lucide-react";
 import { useWaseet } from "@/hooks/use-waseet";
 import { useLanguage } from "@/hooks/use-language";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useAuth } from "@/components/auth/auth-provider";
+import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 import type { WaseetInvoice } from "@/types/waseet";
 import { SectionCard } from "@/components/finances/hub/primitives/section-card";
 import { FinanceValue } from "@/components/finances/hub/primitives/finance-value";
@@ -25,12 +28,40 @@ interface ReconciliationRow {
     orderCount: number;
 }
 
+type InvoicedOrder = { waseet_invoice_id: string | null; price: number | null };
+
+/**
+ * The orders each courier invoice covers, read by invoice id. The /orders page's
+ * loaded window (default: today) would miss most of an older invoice's orders and
+ * show it as short.
+ */
+function useInvoicedOrders(invoiceIds: string[]) {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: ["finances", "payouts-orders", tenantId, invoiceIds],
+        enabled: !!tenantId && invoiceIds.length > 0,
+        staleTime: 30_000,
+        queryFn: async (): Promise<InvoicedOrder[]> => {
+            if (!tenantId) return [];
+            return fetchAllPages<InvoicedOrder>((from, to) =>
+                supabase
+                    .from("orders")
+                    .select("waseet_invoice_id, price")
+                    .eq("tenant_id", tenantId)
+                    .in("waseet_invoice_id", invoiceIds)
+                    .order("id")
+                    .range(from, to),
+            );
+        },
+    });
+}
+
 export function PayoutsTab() {
     const { t, language } = useLanguage();
     const { fetchInvoices } = useWaseet();
-    const { orders } = useOrdersContext();
-
     const [invoices, setInvoices] = useState<WaseetInvoice[] | null>(null);
+    const invoiceIds = useMemo(() => (invoices ?? []).map((inv) => inv.id), [invoices]);
+    const { data: orders = [] } = useInvoicedOrders(invoiceIds);
     const [loading, setLoading] = useState(false);
     // A translation key for our own messages, raw text for a message the API sent.
     const [failure, setFailure] = useState<{ key: string } | { text: string } | null>(null);
