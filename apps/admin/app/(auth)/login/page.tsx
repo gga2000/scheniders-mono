@@ -113,7 +113,13 @@ export default function LoginPage() {
             />
           </div>
 
-          <TurnstileBox ref={captchaRef} siteKey={TURNSTILE_SITE_KEY} onToken={setCaptchaToken} language="en" />
+          <TurnstileBox
+            ref={captchaRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onToken={setCaptchaToken}
+            language="en"
+            frameClassName="rounded-xl border border-[#E7E5E4] bg-white"
+          />
 
           <button
             type="submit"

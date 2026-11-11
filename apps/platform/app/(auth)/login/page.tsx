@@ -4,11 +4,12 @@ import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
+import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 
 /** Smooth two-tone ring spinner — replaces the default Loader2 for a more premium feel. */
 function ButtonSpinner() {
@@ -122,46 +123,10 @@ function LoginForm() {
     const isFormValid = email.length > 0 && password.length >= 6 && captcha.ready;
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-full max-w-md relative z-10"
-        >
-            {/* Glassmorphic Card */}
-            <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
-                {/* Header Section */}
-                <div className="px-8 pt-10 pb-6 text-center">
-                    {/* Logo/Brand */}
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                        className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1E1E1E] to-[#3D3D3D] shadow-lg mb-4"
-                    >
-                        <Sparkles className="w-8 h-8 text-[#FBE38E]" />
-                    </motion.div>
+        <div className="px-6 sm:px-8 pt-3 pb-8">
+            <AuthCardHeading icon={<LogIn className="w-5 h-5" />} title={t("login.title")} subtitle={t("login.subtitle")} />
 
-                    <motion.h1
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="text-2xl font-bold text-[#1E1E1E] mb-1"
-                    >
-                        {t("login.title")}
-                    </motion.h1>
-                    <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="text-[#6B6B6B] text-sm"
-                    >
-                        {t("login.subtitle")}
-                    </motion.p>
-                </div>
-
-                {/* Form Section */}
-                <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
+                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                     {/* Status Messages */}
                     <AnimatePresence mode="wait">
                         {error && (
@@ -169,10 +134,10 @@ function LoginForm() {
                                 initial={{ opacity: 0, y: -10, height: 0 }}
                                 animate={{ opacity: 1, y: 0, height: "auto" }}
                                 exit={{ opacity: 0, y: -10, height: 0 }}
-                                className="flex items-center gap-3 p-4 rounded-xl bg-[#FCEEF1] border border-[#F4C7CF]"
+                                className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF]"
                             >
                                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                                <p className="text-sm text-[#1E1E1E]">{error}</p>
+                                <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{error}</p>
                             </motion.div>
                         )}
                         {success && (
@@ -180,10 +145,10 @@ function LoginForm() {
                                 initial={{ opacity: 0, y: -10, height: 0 }}
                                 animate={{ opacity: 1, y: 0, height: "auto" }}
                                 exit={{ opacity: 0, y: -10, height: 0 }}
-                                className="flex items-center gap-3 p-4 rounded-xl bg-[#E8F8E0] border border-[#C0EBA6]"
+                                className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#E8F8E0] border border-[#C0EBA6]"
                             >
                                 <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                                <p className="text-sm text-[#1E1E1E]">{success}</p>
+                                <p dir={dir} className="text-left text-sm text-[#1E1E1E]">{success}</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -194,12 +159,12 @@ function LoginForm() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.4 }}
                     >
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
+                        <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">
                             {t("login.email")}
                         </label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                                <Mail className="w-5 h-5 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
+                                <Mail className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
                             </div>
                             <input
                                 type="email"
@@ -208,10 +173,7 @@ function LoginForm() {
                                 placeholder="you@example.com"
                                 autoComplete="email"
                                 required
-                                className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/80 border-2 border-transparent 
-                                         text-[#1E1E1E] placeholder:text-[#9A9A9A]
-                                         focus:border-[#FBE38E] focus:bg-white focus:outline-none
-                                         transition-all duration-200"
+                                className="w-full h-12 pl-11 pr-4 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
                             />
                         </div>
                     </motion.div>
@@ -222,12 +184,12 @@ function LoginForm() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.5 }}
                     >
-                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
+                        <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">
                             {t("login.password")}
                         </label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                                <Lock className="w-5 h-5 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
+                                <Lock className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
                             </div>
                             <input
                                 type={showPassword ? "text" : "password"}
@@ -237,10 +199,7 @@ function LoginForm() {
                                 autoComplete="current-password"
                                 required
                                 minLength={6}
-                                className="w-full h-12 pl-12 pr-12 rounded-xl bg-white/80 border-2 border-transparent 
-                                         text-[#1E1E1E] placeholder:text-[#9A9A9A]
-                                         focus:border-[#FBE38E] focus:bg-white focus:outline-none
-                                         transition-all duration-200"
+                                className="w-full h-12 pl-11 pr-12 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
                             />
                             <button
                                 type="button"
@@ -302,16 +261,9 @@ function LoginForm() {
                         <button
                             type="submit"
                             disabled={isLoading || !isFormValid}
-                            className={`group relative w-full h-12 rounded-xl font-semibold text-white overflow-hidden
-                                     bg-gradient-to-r from-[#1E1E1E] to-[#3D3D3D]
-                                     hover:from-[#2D2D2D] hover:to-[#4D4D4D]
-                                     shadow-lg transition-all duration-200 ${
-                                         isLoading || success
-                                             ? "cursor-default"
-                                             : isFormValid
-                                                 ? "hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                                                 : "opacity-50 cursor-not-allowed"
-                                     }`}
+                            className={`group relative w-full h-12 rounded-2xl font-semibold text-[15px] text-white overflow-hidden bg-[#1E1E1E] hover:bg-black transition-colors ${
+                                isLoading || success ? "cursor-default" : isFormValid ? "cursor-pointer" : "opacity-40 cursor-not-allowed"
+                            }`}
                         >
                             {/* Success: wash the button to green */}
                             <AnimatePresence>
@@ -393,7 +345,7 @@ function LoginForm() {
                         type="button"
                         onClick={handleGoogle}
                         disabled={isLoading}
-                        className="w-full h-12 rounded-xl font-semibold text-[#1E1E1E] bg-white border-2 border-[#E8E4DC] hover:bg-[#FAF8F4] hover:border-[#DAD4CC] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200"
+                        className="w-full h-12 rounded-2xl font-semibold text-[15px] text-[#1E1E1E] bg-white border border-[#ECE8DD] hover:bg-[#FAF8F3] hover:border-[#D6D0C2] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"/>
@@ -404,104 +356,22 @@ function LoginForm() {
                         <span>{t("login.google")}</span>
                     </button>
                 </form>
-
-                {/* Footer */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    className="px-8 py-6 bg-[#F5F0E8]/50 border-t border-[#E8E4DC]/50 text-center"
-                >
-                    <p className="flex items-center justify-center gap-2 text-sm text-[#6B6B6B]">
-                        <ShieldCheck className="w-4 h-4 shrink-0" />
-                        <span dir={dir} className="text-left">{t("login.footerSecure")}</span>
-                    </p>
-                </motion.div>
-            </div>
-        </motion.div>
+        </div>
     );
 }
 
 export default function LoginPage() {
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Animated Background Elements - Static for optimization */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Floating gradient orbs */}
-                <motion.div
-                    className="absolute w-[600px] h-[600px] rounded-full opacity-30"
-                    style={{
-                        background: "radial-gradient(circle, var(--pastel-yellow) 0%, transparent 70%)",
-                        top: "-200px",
-                        right: "-200px",
-                    }}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        x: [0, 30, 0],
-                        y: [0, -20, 0],
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                    }}
-                />
-                <motion.div
-                    className="absolute w-[500px] h-[500px] rounded-full opacity-25"
-                    style={{
-                        background: "radial-gradient(circle, var(--pastel-green) 0%, transparent 70%)",
-                        bottom: "-150px",
-                        left: "-150px",
-                    }}
-                    animate={{
-                        scale: [1, 1.15, 1],
-                        x: [0, -20, 0],
-                        y: [0, 30, 0],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                    }}
-                />
-                <motion.div
-                    className="absolute w-[400px] h-[400px] rounded-full opacity-20"
-                    style={{
-                        background: "radial-gradient(circle, var(--pastel-mint) 0%, transparent 70%)",
-                        top: "50%",
-                        left: "10%",
-                    }}
-                    animate={{
-                        scale: [1, 1.2, 1],
-                        y: [0, -40, 0],
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                    }}
-                />
-
-                {/* Subtle grid pattern */}
-                <div
-                    className="absolute inset-0 opacity-[0.03]"
-                    style={{
-                        backgroundImage: `
-                            linear-gradient(rgba(30,30,30,1) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(30,30,30,1) 1px, transparent 1px)
-                        `,
-                        backgroundSize: "60px 60px",
-                    }}
-                />
-            </div>
-
-            <Suspense fallback={
-                <div className="relative z-10 p-8 bg-white/50 backdrop-blur-xl rounded-3xl shadow-xl flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#1E1E1E]" />
-                </div>
-            }>
+        <AuthCardShell showBack={false}>
+            <Suspense
+                fallback={
+                    <div className="px-6 sm:px-8 py-16 flex items-center justify-center">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#1E1E1E]" />
+                    </div>
+                }
+            >
                 <LoginForm />
             </Suspense>
-        </div>
+        </AuthCardShell>
     );
 }
