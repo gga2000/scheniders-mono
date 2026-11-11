@@ -114,7 +114,7 @@ export function PageSeoPanel({
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {t(STRINGS.seo.serp_preview, locale)}
                 </p>
-                <p className="truncate text-xs text-emerald-700">
+                <p className="truncate text-xs text-emerald-700 dark:text-emerald-400">
                     {[host, ...serpCrumbs(pageId)].join(" › ")}
                 </p>
                 <p className="truncate text-[15px] leading-snug text-[#1a0dab]">

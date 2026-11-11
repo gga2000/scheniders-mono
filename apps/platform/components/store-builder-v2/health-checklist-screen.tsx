@@ -107,11 +107,24 @@ const BAND_COLOR: Record<HealthBand, string> = {
     great: "#16a34a", // green
 };
 
+/** Text shades of the band colours: the fills above are too light to read
+ *  as words on the light card, so text uses a darker shade per theme. */
+const BAND_TEXT: Record<HealthBand, string> = {
+    needs_work: "text-red-700 dark:text-red-400",
+    almost: "text-amber-800 dark:text-amber-300",
+    ready: "text-teal-700 dark:text-teal-300",
+    great: "text-green-700 dark:text-green-400",
+};
+
+function scoreBand(score: number): HealthBand {
+    if (score < 40) return "needs_work";
+    if (score < 70) return "almost";
+    if (score < 85) return "ready";
+    return "great";
+}
+
 function scoreColor(score: number): string {
-    if (score < 40) return BAND_COLOR.needs_work;
-    if (score < 70) return BAND_COLOR.almost;
-    if (score < 85) return BAND_COLOR.ready;
-    return BAND_COLOR.great;
+    return BAND_COLOR[scoreBand(score)];
 }
 
 const BAND_LABEL: Record<HealthBand, EditorString> = {
@@ -444,7 +457,7 @@ export function HealthChecklistScreen(
                                 >
                                     {step.done ? (
                                         <CheckCircle2
-                                            className="h-4 w-4 shrink-0 text-emerald-600"
+                                            className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
                                             aria-hidden="true"
                                         />
                                     ) : (
@@ -528,7 +541,7 @@ export function HealthChecklistScreen(
                                                 </button>
                                             </div>
                                             {waError && (
-                                                <p className="mt-1 text-[11px] text-red-600" role="alert">
+                                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400" role="alert">
                                                     {t(STRINGS.health.launch_whatsapp_invalid, locale)}
                                                 </p>
                                             )}
@@ -572,7 +585,7 @@ export function HealthChecklistScreen(
                                                 </button>
                                             </div>
                                             {feeError && (
-                                                <p className="mt-1 text-[11px] text-red-600" role="alert">
+                                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400" role="alert">
                                                     {t(STRINGS.health.launch_delivery_invalid, locale)}
                                                 </p>
                                             )}
@@ -584,7 +597,7 @@ export function HealthChecklistScreen(
                         {isSimple && launchDone === launchSteps.length && (
                             <p
                                 data-testid="health-launch-all-done"
-                                className="mt-3 text-sm font-semibold text-emerald-700"
+                                className="mt-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400"
                             >
                                 {t(STRINGS.health.launch_all_done, locale)}
                             </p>
@@ -606,8 +619,7 @@ export function HealthChecklistScreen(
                     <ScoreDonut score={report.score} color={BAND_COLOR[band]} />
                     <div className="mt-3 text-center">
                         <div
-                            className="text-sm font-semibold"
-                            style={{ color: BAND_COLOR[band] }}
+                            className={cn("text-sm font-semibold", BAND_TEXT[band])}
                             data-testid="health-score-label"
                         >
                             {t(BAND_LABEL[band], locale)}
@@ -636,8 +648,7 @@ export function HealthChecklistScreen(
                                         {t(CATEGORY_LABEL[cat], locale)}
                                     </span>
                                     <span
-                                        className="shrink-0 text-sm font-semibold tabular-nums"
-                                        style={{ color: scoreColor(v) }}
+                                        className={cn("shrink-0 text-sm font-semibold tabular-nums", BAND_TEXT[scoreBand(v)])}
                                     >
                                         {v}
                                     </span>

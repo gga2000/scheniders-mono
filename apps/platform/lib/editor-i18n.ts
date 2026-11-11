@@ -1405,6 +1405,9 @@ export const STRINGS = {
         exp_stop_yes: { en: "End test", ar: "نعم، أنهِ الاختبار", ku: "بەڵێ، کۆتایی پێبهێنە" },
         exp_stop_cancel: { en: "Cancel", ar: "إلغاء", ku: "هەڵوەشاندنەوە" },
         exp_editor_title: { en: "Edit test", ar: "تعديل الاختبار", ku: "دەستکاری تاقیکردنەوە" },
+        exp_editor_title_new: { en: "New test", ar: "اختبار جديد", ku: "تاقیکردنەوەی نوێ" },
+        // Default name of the second version of a new test.
+        exp_default_variant: { en: "Version A", ar: "النسخة أ", ku: "وەشانی A" },
         exp_field_primary_metric: { en: "Goal", ar: "الهدف", ku: "پێوەری سەرەکی" },
         exp_field_starts_at: { en: "Starts at", ar: "يبدأ في", ku: "دەستپێدەکات لە" },
         exp_field_ends_at: { en: "Ends at (optional)", ar: "ينتهي في (اختياري)", ku: "کۆتایی دێت لە (ئارەزوومەندانە)" },

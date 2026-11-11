@@ -422,7 +422,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                                 onClick={handleEnabledToggle}
                                 className={cn(
                                     "relative inline-flex h-10 w-full items-center justify-between rounded-xl border border-(--card-border) px-3 text-sm font-medium",
-                                    enabled ? "bg-emerald-500/10 text-emerald-700" : "bg-muted/40 text-muted-foreground",
+                                    enabled ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-muted/40 text-muted-foreground",
                                 )}
                             >
                                 <span>{enabled ? "On" : "Off"}</span>
@@ -604,7 +604,7 @@ function OverrideFieldPicker(p: OverrideFieldPickerProps): ReactElement {
                                             "rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
                                             opt.kind === "i18n"
                                                 ? "bg-blue-500/10 text-blue-700"
-                                                : "bg-amber-500/10 text-amber-700",
+                                                : "bg-amber-500/10 text-amber-800",
                                         )}
                                     >
                                         {opt.kind}
@@ -666,7 +666,7 @@ function OverridePathRow(p: OverridePathRowProps): ReactElement {
                     {p.kind === "array" && (
                         <span
                             data-testid={`variant-editor-field-${p.path}-array-hint`}
-                            className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-700"
+                            className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-800"
                             title="Array overrides replace base entirely"
                         >
                             Replaces base

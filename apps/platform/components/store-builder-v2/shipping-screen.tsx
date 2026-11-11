@@ -284,7 +284,7 @@ export function ShippingScreen({
                                     )}
                                     {m.label}
                                 </span>
-                                <span className="mt-0.5 block text-xs text-muted-foreground">
+                                <span className="mt-0.5 block text-xs text-foreground/70">
                                     {m.hint}
                                 </span>
                             </button>

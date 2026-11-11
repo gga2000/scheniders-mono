@@ -154,7 +154,7 @@ export function PixelsScreen({
                             {t(P.key_loading, locale)}
                         </p>
                     ) : keys.status.isError || !keysData ? (
-                        <p role="alert" className="flex items-center gap-2 text-xs text-red-600">
+                        <p role="alert" className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
                             {t(P.key_load_error, locale)}
                             <button
                                 type="button"

@@ -91,13 +91,13 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
                         {plan.additions.length === 0 ? (
                             <p
                                 data-testid="template-updates-current"
-                                className="inline-flex items-center gap-2 text-sm text-emerald-700"
+                                className="inline-flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400"
                             >
                                 <Check className="h-4 w-4" aria-hidden="true" />
                                 {tx(s.up_to_date, locale)}
                             </p>
                         ) : applied ? (
-                            <p data-testid="template-updates-applied" role="status" className="max-w-prose text-sm text-emerald-700">
+                            <p data-testid="template-updates-applied" role="status" className="max-w-prose text-sm text-emerald-700 dark:text-emerald-400">
                                 {tx(s.applied, locale)}
                             </p>
                         ) : (

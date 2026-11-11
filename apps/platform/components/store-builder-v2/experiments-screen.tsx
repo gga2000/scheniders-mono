@@ -169,10 +169,11 @@ function genArmId(): string {
     return `arm_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function defaultArms(): ExperimentArm[] {
+/** A new test's two versions, named in the merchant's editor language. */
+function defaultArms(locale: LocaleCode): ExperimentArm[] {
     return [
-        { id: "control", label: "Control", traffic_pct: 50 },
-        { id: genArmId(), label: "Variant A", traffic_pct: 50 },
+        { id: "control", label: t(STRINGS.advanced_chrome.exp_control_badge, locale), traffic_pct: 50 },
+        { id: genArmId(), label: t(STRINGS.advanced_chrome.exp_default_variant, locale), traffic_pct: 50 },
     ];
 }
 
@@ -199,6 +200,8 @@ export function ExperimentsScreen({
     const locale = useEditorLocale();
     const experiments = builder.config.experiments;
     const [editingId, setEditingId] = useState<string | null>(null);
+    /** The test just made with «اختبار جديد»: its drawer is titled as new. */
+    const [createdId, setCreatedId] = useState<string | null>(null);
     const [viewingId, setViewingId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [acknowledgedRefs, setAcknowledgedRefs] = useState<boolean>(false);
@@ -221,9 +224,10 @@ export function ExperimentsScreen({
             name: t(STRINGS.advanced_chrome.exp_default_name, locale),
             status: "draft",
             primary_metric: "orders",
-            arms: defaultArms(),
+            arms: defaultArms(locale),
         });
         setEditingId(exp.id);
+        setCreatedId(exp.id);
     }, [builder, locale]);
 
     const handlePatch = useCallback(
@@ -384,6 +388,7 @@ export function ExperimentsScreen({
             {editingExperiment && (
                 <ExperimentEditor
                     experiment={editingExperiment}
+                    isNew={editingExperiment.id === createdId}
                     onClose={() => setEditingId(null)}
                     onPatch={(patch) => handlePatch(editingExperiment.id, patch)}
                     onDelete={() => handleDeleteRequest(editingExperiment.id)}
@@ -666,7 +671,7 @@ function ExperimentRow({
                         type="button"
                         onClick={onDelete}
                         data-testid={`experiment-row-${experiment.id}-delete`}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
+                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                     >
                         <Trash2 className="h-3 w-3" />
                         {t(STRINGS.common.delete, locale)}
@@ -716,7 +721,7 @@ function StatusBadge({
         status === "running"
             ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
             : status === "paused"
-              ? "bg-amber-500/20 text-amber-700 dark:text-amber-300"
+              ? "bg-amber-500/20 text-amber-800 dark:text-amber-300"
               : status === "completed"
                 ? "bg-sky-500/20 text-sky-700 dark:text-sky-300"
                 : "bg-muted text-muted-foreground";
@@ -768,6 +773,8 @@ function ArmsTrafficBar({ arms }: { arms: ExperimentArm[] }): ReactElement {
 
 interface ExperimentEditorProps {
     experiment: Experiment;
+    /** Just created: the title says «اختبار جديد», not «تعديل الاختبار». */
+    isNew?: boolean;
     onClose: () => void;
     onPatch: (patch: Partial<Experiment>) => void;
     onDelete: () => void;
@@ -775,6 +782,7 @@ interface ExperimentEditorProps {
 
 function ExperimentEditor({
     experiment,
+    isNew = false,
     onClose,
     onPatch,
     onDelete,
@@ -824,7 +832,7 @@ function ExperimentEditor({
             <aside className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <h3 className="text-left! text-base font-bold tracking-tight">
-                        {t(STRINGS.advanced_chrome.exp_editor_title, locale)}
+                        {t(isNew ? STRINGS.advanced_chrome.exp_editor_title_new : STRINGS.advanced_chrome.exp_editor_title, locale)}
                     </h3>
                     <button
                         type="button"
@@ -970,8 +978,8 @@ function ExperimentEditor({
                             className={cn(
                                 "rounded-md border px-3 py-1.5 text-[12px]",
                                 sumsTo100
-                                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"
-                                    : "border-rose-500/40 bg-rose-500/10 text-rose-700",
+                                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+                                    : "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400",
                             )}
                         >
                             {t(STRINGS.advanced_chrome.exp_total_traffic, locale)}{" "}
@@ -1021,7 +1029,7 @@ function ExperimentEditor({
                         type="button"
                         onClick={onDelete}
                         data-testid="experiment-editor-delete"
-                        className="inline-flex h-9 items-center gap-1 rounded-md border border-rose-500/40 px-3 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
+                        className="inline-flex h-9 items-center gap-1 rounded-md border border-rose-500/40 px-3 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                         {t(STRINGS.common.delete, locale)}
@@ -1354,7 +1362,7 @@ function SignificanceBadge({
         return (
             <span
                 data-testid="experiment-verdict-winning"
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400"
                 title={t(STRINGS.experiment.verdict_winning_hint, locale)}
             >
                 <Trophy className="h-3 w-3" />
@@ -1366,7 +1374,7 @@ function SignificanceBadge({
         return (
             <span
                 data-testid="experiment-verdict-losing"
-                className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700"
+                className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400"
                 title={t(STRINGS.experiment.verdict_losing_hint, locale)}
             >
                 {t(STRINGS.experiment.verdict_losing, locale)}
