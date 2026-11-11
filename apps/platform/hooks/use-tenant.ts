@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import type { PlanTier } from "@/lib/tenant";
 
 /**
  * Shared current-tenant query.
@@ -17,7 +18,7 @@ export interface TenantSummary {
     id: string;
     status: string;
     trial_ends_at: string | null;
-    plan: string | null;
+    plan: PlanTier | null;
     restrictions: {
         paused_until?: string | null;
         paused_at?: string | null;

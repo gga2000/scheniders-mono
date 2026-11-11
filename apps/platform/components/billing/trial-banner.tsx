@@ -6,6 +6,10 @@ import { Clock, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { isBillingExempt } from "@/lib/billing-exempt";
+import { useTrialOrderCap, useTrialOrderCount } from "@/hooks/use-billing";
+
+/** Orders left in the trial at which the banner starts warning. */
+const ORDERS_LEFT_WARNING = 10;
 
 function computeDaysLeft(trialEndsAt: string | null): number | null {
     if (!trialEndsAt) return null;
@@ -18,6 +22,9 @@ export function TrialBanner() {
     const pathname = usePathname();
 
     const { data: tenant } = useTenant();
+    const inTrial = tenant?.status === "trial" && !isBillingExempt(tenant?.plan);
+    const { data: ordersUsed } = useTrialOrderCount(inTrial);
+    const { data: orderCap } = useTrialOrderCap(tenant?.plan ?? null, inTrial);
 
     if (!tenant) return null;
 
@@ -32,6 +39,10 @@ export function TrialBanner() {
     const isTrialExpired = tenant.status === "trial" && daysLeft !== null && daysLeft <= 0;
     const isSuspended = tenant.status === "suspended";
     const isCancelled = tenant.status === "cancelled";
+    const ordersLeft = orderCap && orderCap > 0 && ordersUsed != null ? Math.max(0, orderCap - ordersUsed) : null;
+    // The trial ends after its days or its order cap, whichever comes first, so
+    // the warning fires on whichever is about to run out.
+    const isOrdersWarning = tenant.status === "trial" && ordersLeft !== null && ordersLeft <= ORDERS_LEFT_WARNING;
     const isTrialWarning = tenant.status === "trial" && daysLeft !== null && daysLeft <= 3 && daysLeft > 0;
 
     // Suspended / Cancelled — full block overlay
@@ -77,26 +88,28 @@ export function TrialBanner() {
         );
     }
 
-    // Trial warning — last 3 days
-    if (isTrialWarning) {
+    // Trial warning — last 3 days, or last orders of the trial cap
+    if (isTrialWarning || isOrdersWarning) {
+        const urgent = (isTrialWarning && daysLeft !== null && daysLeft <= 1) || (ordersLeft !== null && ordersLeft <= 3);
+        const message = isOrdersWarning && ordersLeft !== null
+            ? t("billing.trialOrdersLeft").replace("{n}", String(ordersLeft)).replace("{cap}", String(orderCap))
+            : daysLeft === 1
+                ? t("billing.trialEndsTomorrow")
+                : t("billing.trialDaysLeft").replace("{n}", String(daysLeft));
         return (
             <div className={cn(
                 "px-4 py-2 flex items-center justify-center gap-3 text-sm",
-                daysLeft! <= 1
+                urgent
                     ? "bg-amber-500 text-white"
                     : "bg-amber-100 text-amber-800"
             )}>
                 <Clock className="w-4 h-4 shrink-0" />
-                <span>
-                    {daysLeft === 1
-                        ? t("billing.trialEndsTomorrow")
-                        : t("billing.trialDaysLeft").replace("{n}", String(daysLeft))}
-                </span>
+                <span>{message}</span>
                 <button
                     onClick={() => router.push("/settings")}
                     className={cn(
                         "px-3 py-1 rounded-lg text-xs font-semibold transition-colors",
-                        daysLeft! <= 1
+                        urgent
                             ? "bg-white text-amber-700 hover:bg-amber-50"
                             : "bg-amber-700 text-white hover:bg-amber-800"
                     )}
