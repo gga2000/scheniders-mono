@@ -28,10 +28,13 @@ const schema = z.object({
 type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
+  // Every store on the platform takes cash on delivery and ships to every
+  // governorate, so these hold for any merchant. A discount or a delivery time
+  // here would be an offer the merchant never made: this bar is also the
+  // storefront's fallback when a store sets no top bar of its own.
   messages_i18n: [
-    { en: "Delivery in 24 hours", ar: "التوصيل خلال ٢٤ ساعة" },
     { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
-    { en: "15% off your first order", ar: "خصم ١٥٪ على أول طلب" },
+    { en: "Delivery to every governorate", ar: "توصيل لكل المحافظات" },
   ],
   bg: "butter",
   speed: "normal",

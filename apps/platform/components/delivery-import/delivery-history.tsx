@@ -21,6 +21,7 @@ export function DeliveryHistory() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [completingId, setCompletingId] = useState<string | null>(null);
     const [rollingBackId, setRollingBackId] = useState<string | null>(null);
+    const [confirmUndoId, setConfirmUndoId] = useState<string | null>(null);
     const [actualAmount, setActualAmount] = useState("");
 
     const handleComplete = async (imp: DeliveryImport) => {
@@ -33,10 +34,7 @@ export function DeliveryHistory() {
     };
 
     const handleRollback = async (imp: DeliveryImport) => {
-        const ok = confirm(
-            `Roll back this import?\n\nThis will restore every order it changed to the snapshot taken at confirm time and mark the import "cancelled". Only allowed while the import is still confirmed (not yet completed).`,
-        );
-        if (!ok) return;
+        setConfirmUndoId(null);
         setRollingBackId(imp.id);
         await rollbackImport(imp.id);
         setRollingBackId(null);
@@ -257,10 +255,9 @@ export function DeliveryHistory() {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleRollback(imp);
+                                                setConfirmUndoId(imp.id);
                                             }}
                                             disabled={rollingBackId === imp.id}
-                                            title="Restore every order this import changed to its prior snapshot and mark the import cancelled."
                                             className={cn(
                                                 "flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all mt-5 border border-rose-300 text-rose-700 hover:bg-rose-50",
                                                 rollingBackId === imp.id && "opacity-60 cursor-not-allowed"
@@ -271,8 +268,35 @@ export function DeliveryHistory() {
                                             ) : (
                                                 <RotateCcw className="w-4 h-4" />
                                             )}
-                                            Roll back
+                                            Undo import
                                         </button>
+                                    </div>
+                                )}
+
+                                {imp.status === "confirmed" && confirmUndoId === imp.id && (
+                                    <div
+                                        role="alertdialog"
+                                        aria-label={`Undo receipt ${imp.receipt_number}`}
+                                        className="mt-3 p-3 rounded-xl border border-rose-300 text-sm text-foreground space-y-3"
+                                    >
+                                        <p>
+                                            Undo receipt #{imp.receipt_number}? Its {imp.processed_count} orders go back to how they were before it.
+                                            Orders your team or the courier changed since then stay as they are.
+                                        </p>
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => setConfirmUndoId(null)}
+                                                className="px-3 py-1.5 rounded-lg border border-[var(--card-border)] hover:bg-[var(--card-bg)]"
+                                            >
+                                                Keep
+                                            </button>
+                                            <button
+                                                onClick={() => handleRollback(imp)}
+                                                className="px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                                            >
+                                                Undo import
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
