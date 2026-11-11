@@ -368,7 +368,7 @@ export function Sidebar({
                         variants={labelVariants}
                         className="font-bold tracking-tight text-xl whitespace-nowrap overflow-hidden inline-block flex-shrink-0"
                     >
-                        Schenider
+                        Scheniders
                     </motion.span>
                 </motion.div>
 
@@ -550,7 +550,7 @@ export function Sidebar({
                                     <Package className="w-5 h-5" />
                                 </div>
                                 <span className="font-bold text-xl tracking-tight">
-                                    Schenider
+                                    Scheniders
                                 </span>
                             </div>
                             <button

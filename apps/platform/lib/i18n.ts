@@ -4518,7 +4518,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.export.report.stock": "Stock",
         "products.export.report.sold": "Sold",
         "products.export.report.revenue": "Revenue",
-        "products.export.report.footer": "Schenider Team - Product Management System",
+        "products.export.report.footer": "Scheniders Team - Product Management System",
 
         // Notifications
         "products.alerts.title": "Notifications",
@@ -7261,7 +7261,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "pwreset.done.opening": "Opening your store",
         // ── Login + billing chrome (UX2-14 follow-up) ──
         "login.title": "Welcome Back",
-        "login.subtitle": "Sign in to Schenider Order Management",
+        "login.subtitle": "Sign in to Scheniders Order Management",
         "login.email": "Email Address",
         "login.password": "Password",
         "login.rememberMe": "Remember me",
@@ -11825,7 +11825,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.export.report.stock": "المخزون",
         "products.export.report.sold": "المباع",
         "products.export.report.revenue": "الإيرادات",
-        "products.export.report.footer": "فريق Schenider - نظام إدارة المنتجات",
+        "products.export.report.footer": "فريق شنايدر - نظام إدارة المنتجات",
 
         // Notifications
         "products.alerts.title": "الإشعارات",

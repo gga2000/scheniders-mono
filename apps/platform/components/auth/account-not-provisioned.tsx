@@ -4,17 +4,17 @@ import { motion } from "framer-motion";
 import { Sparkles, LogOut, Package, Truck, Users, ShieldCheck } from "lucide-react";
 
 /**
- * Shown when a user authenticates (e.g. via Google) but has no Schenider
+ * Shown when a user authenticates (e.g. via Google) but has no Scheniders
  * account provisioned — the invite-only gate. Designed to match the login
  * page's premium glassmorphic aesthetic, with a WhatsApp path to an admin and
- * a short "what is Schenider" section so the visitor understands where they are.
+ * a short "what is Scheniders" section so the visitor understands where they are.
  */
 
 // Configure the support contact in .env: NEXT_PUBLIC_SUPPORT_WHATSAPP=9647XXXXXXXXX
 const SUPPORT_WHATSAPP = (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "").replace(/[^0-9]/g, "");
 
 function whatsappLink(email?: string | null): string {
-    const msg = `Hi! I'm trying to access Schenider OMS. I signed in with ${email ?? "my Google account"} but my account isn't set up yet. Could you invite me or link my account?`;
+    const msg = `Hi! I'm trying to access Scheniders. I signed in with ${email ?? "my Google account"} but my account isn't set up yet. Could you invite me or link my account?`;
     return `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -65,7 +65,7 @@ export function AccountNotProvisioned({ email, onSignOut }: { email?: string | n
                         <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[#1E1E1E] to-[#3D3D3D] shadow-md">
                             <Sparkles className="w-4.5 h-4.5 text-[#FBE38E]" />
                         </div>
-                        <span className="text-sm font-semibold tracking-tight text-[#1E1E1E]">Schenider</span>
+                        <span className="text-sm font-semibold tracking-tight text-[#1E1E1E]">Scheniders</span>
                     </div>
 
                     {/* Hero */}
@@ -87,7 +87,7 @@ export function AccountNotProvisioned({ email, onSignOut }: { email?: string | n
                             {email ? (
                                 <> as <span className="font-semibold text-[#1E1E1E]">{email}</span></>
                             ) : null}
-                            , but it isn&apos;t linked to a Schenider workspace.
+                            , but it isn&apos;t linked to a Scheniders workspace.
                         </p>
 
                         <div className="mt-4 mx-auto max-w-sm rounded-2xl bg-[#F6F4EF] border border-[#ECE8E0] px-4 py-3">
@@ -133,10 +133,10 @@ export function AccountNotProvisioned({ email, onSignOut }: { email?: string | n
                         </button>
                     </div>
 
-                    {/* About Schenider */}
+                    {/* About Scheniders */}
                     <div className="mt-7 px-8 py-6 bg-[#1E1E1E] text-white">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FBE38E] mb-1.5">
-                            What is Schenider?
+                            What is Scheniders?
                         </p>
                         <p className="text-sm text-white/70 leading-relaxed mb-5">
                             The order-management workspace Iraqi merchants use to run orders, delivery, and

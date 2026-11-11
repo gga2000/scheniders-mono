@@ -291,7 +291,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         doc.setTextColor(...COLORS.darkGray);
-        doc.text("Schneider — Internal Report", margin, footerY);
+        doc.text("Scheniders — Internal Report", margin, footerY);
         doc.text(`Page ${pageNum}${totalPages ? ` of ${totalPages}` : ""}`, pageWidth - margin, footerY, { align: "right" });
         doc.text(genDate, pageWidth / 2, footerY, { align: "center" });
     };
@@ -582,6 +582,6 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
     // SAVE PDF
     // ============================================
     const dateSuffix = new Date().toISOString().split("T")[0];
-    const filename = `Schneider_Report_${dateSuffix}.pdf`;
+    const filename = `Scheniders_Report_${dateSuffix}.pdf`;
     doc.save(filename);
 }

@@ -8,7 +8,7 @@ import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { decideAuthorization } from "./actions";
 
 export const metadata: Metadata = {
-    title: "Connect Claude | Schenider",
+    title: "Connect Claude | Scheniders",
 };
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export default async function OAuthConsentPage({
             <Message
                 title="Claude isn't available for your account yet"
                 titleAr="ربط Claude غير متاح لحسابك بعد"
-                body="Connecting Claude to Schenider is in early access. You can close this page."
+                body="Connecting Claude to Scheniders is in early access. You can close this page."
             />
         );
     }
