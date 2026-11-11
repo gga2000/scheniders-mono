@@ -30,7 +30,7 @@ function normalizeKey(key: string): string {
 const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
     ...CATALOGUE_FIELD_LABELS,
     title: { en: "Title", ar: "العنوان", ku: "ناونیشان" },
-    subtitle: { en: "Subtitle", ar: "الوصف المختصر", ku: "ژێرناونیشان" },
+    subtitle: { en: "Subheading", ar: "العنوان الفرعي", ku: "ژێرسەردێڕ" },
     heading: { en: "Heading", ar: "العنوان", ku: "سەردێڕ" },
     subheading: { en: "Subheading", ar: "العنوان الفرعي", ku: "ژێرسەردێڕ" },
     eyebrow: { en: "Small line above the title", ar: "سطر صغير فوق العنوان", ku: "دێڕی بچووک لەسەر ناونیشان" },

@@ -205,7 +205,7 @@ export const STRINGS = {
         close: { en: "Close edit panel", ar: "إغلاق لوحة التعديل", ku: "داخستنی پانێڵی دەستکاری" },
         label_field: { en: "Section label", ar: "اسم القسم", ku: "ناوی بەش" },
         // tFormat: {name} is the canonical section name
-        label_placeholder: { en: "e.g. {name} — Summer Sale", ar: "مثال: {name} — تخفيضات الصيف", ku: "نموونە: {name} — فرۆشتنی هاوین" },
+        label_placeholder: { en: "e.g. Summer sale", ar: "مثال: تخفيضات الصيف", ku: "نموونە: فرۆشتنی هاوین" },
         label_hint: { en: "Shown only in the editor — doesn’t affect the storefront.", ar: "يظهر فقط في المحرر — لا يؤثر على المتجر.", ku: "تەنیا لە دەستکاریکەردا دەردەکەوێت — کاریگەری لەسەر فرۆشگا نییە." },
         tab_properties: { en: "Properties", ar: "الخصائص", ku: "تایبەتمەندی" },
         tab_visibility: { en: "Visibility", ar: "الظهور", ku: "دەرکەوتن" },
