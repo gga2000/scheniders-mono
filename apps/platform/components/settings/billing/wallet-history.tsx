@@ -18,6 +18,8 @@ export function transactionLabel(tx: Pick<WalletTransaction, "type" | "descripti
     const description = tx.description ?? "";
     const delivered = /^Delivered order (\S+)$/.exec(description);
     if (delivered) return t("billing.tx.delivered", { id: delivered[1] });
+    const waTyped = /^WhatsApp (confirmation|offer) (\S*)$/.exec(description);
+    if (waTyped) return t(waTyped[1] === "offer" ? "billing.tx.whatsappOffer" : "billing.tx.whatsappConfirm", { id: waTyped[2] });
     const whatsapp = /^WhatsApp message (\S*)$/.exec(description);
     if (whatsapp) return whatsapp[1] ? t("billing.tx.whatsappOrder", { id: whatsapp[1] }) : t("billing.tx.whatsapp");
     if (description.startsWith("Monthly subscription")) return t("billing.tx.monthly");
