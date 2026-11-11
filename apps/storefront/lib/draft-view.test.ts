@@ -111,6 +111,8 @@ describe("draft-view flag", () => {
 
   it("the dev token only opens draft view outside production with no secret", async () => {
     vi.stubEnv("PREVIEW_TOKEN_SECRET", "");
+    // The service key also derives a signing key, so it must be absent too.
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
     withCookie(DEV_PREVIEW_TOKEN);
     expect(await isDraftViewRequest(TENANT_ID)).toBe(true);
     vi.stubEnv("NODE_ENV", "production");
