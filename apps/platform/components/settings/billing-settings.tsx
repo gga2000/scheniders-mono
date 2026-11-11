@@ -12,6 +12,7 @@ import { PlanCard } from "./billing/plan-card";
 import { TopupForm } from "./billing/topup-form";
 import { TopupRequests } from "./billing/topup-requests";
 import { WalletHistory } from "./billing/wallet-history";
+import { MonthlyInvoices } from "./billing/monthly-invoices";
 import { formatIQD } from "./billing/billing-format";
 
 export function BillingSettings() {
@@ -121,6 +122,7 @@ export function BillingSettings() {
             </div>
 
             <TopupRequests requests={requests} />
+            {!exempt && tenant && <MonthlyInvoices tenantId={tenant.id} displayId={tenant.display_id} />}
             <WalletHistory transactions={transactions} />
         </div>
     );
