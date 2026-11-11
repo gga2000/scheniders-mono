@@ -141,6 +141,21 @@ export async function renameOrderNumberAction(
 // RESTORE ORDERS FROM A BACKUP
 // =============================================
 
+/** Columns a restore never changes on an order that already exists. */
+const RESTORE_SERVER_OWNED_COLUMNS = [
+    "order_id",
+    "is_test",
+    "guide_practice",
+    "take_kind",
+    "taken_by",
+    "abandoned_cart_at",
+    "created_via",
+    "entered_by",
+] as const;
+
+/** Columns only the create function sets, so a restored new row drops them. */
+const RESTORE_NEW_ROW_DROPPED_COLUMNS = ["take_kind", "taken_by", "guide_practice", "created_via"] as const;
+
 const restoreOrdersInput = z
     .array(z.looseObject({ id: z.string().uuid() }))
     .min(1)
@@ -156,7 +171,9 @@ const restoreOrdersInput = z
  * - a batch holding an id that belongs to another tenant is refused whole, or
  *   the upsert would overwrite that tenant's order;
  * - an order that still exists keeps its current number (numbers change only
- *   through renameOrderNumberAction);
+ *   through renameOrderNumberAction) and its server-owned billing and
+ *   attribution columns;
+ * - a new row cannot claim a staff take, a practice order or a creation channel;
  * - a new row may carry a generator-format number only from an earlier day,
  *   so a file cannot take today's numbers from other tenants.
  */
@@ -184,7 +201,7 @@ export async function restoreOrdersAction(
     const ids = parsed.data.map((row) => row.id);
     const { data: existing, error: existingError } = await supabase
         .from("orders")
-        .select("id, tenant_id, order_id")
+        .select("id, tenant_id, order_id, is_test, guide_practice, take_kind, taken_by, abandoned_cart_at, created_via, entered_by")
         .in("id", ids);
     if (existingError) return { success: false, error: existingError.message };
 
@@ -200,8 +217,15 @@ export async function restoreOrdersAction(
         const write: Record<string, unknown> = { ...pickOrderWriteColumns(row), tenant_id: tenantId };
         const current = existingById.get(row.id);
         if (current) {
-            write.order_id = current.order_id;
-        } else if (
+            // Billing and attribution columns belong to the server: a restore
+            // keeps the stored values, or a crafted row could mark a live
+            // order as a test or a staff take and skip the delivered charge.
+            for (const column of RESTORE_SERVER_OWNED_COLUMNS) write[column] = current[column] ?? null;
+            writes.push(write);
+            continue;
+        }
+        for (const column of RESTORE_NEW_ROW_DROPPED_COLUMNS) delete write[column];
+        if (
             typeof write.order_id === "string"
             && isSystemOrderNumber(write.order_id)
             && !isPastDaySystemOrderNumber(write.order_id, now)
