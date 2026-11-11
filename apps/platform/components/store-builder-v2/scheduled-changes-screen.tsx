@@ -407,7 +407,7 @@ export function ScheduledChangesScreen({
             />
 
             {error && (
-                <div className="flex shrink-0 items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-5 py-2 text-[12px] text-rose-700 dark:text-rose-300">
+                <div className="flex shrink-0 items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-5 py-2 text-[12px] text-rose-800 dark:text-rose-300">
                     <AlertCircle className="h-3.5 w-3.5" />
                     {error}
                 </div>
@@ -686,10 +686,10 @@ function ScheduleRow({
                     <span
                         className={cn(
                             "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
-                            status === "active" && "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+                            status === "active" && "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400",
                             status === "scheduled" && "bg-sky-500/20 text-sky-600",
                             status === "expired" && "bg-muted text-muted-foreground",
-                            status === "cancelled" && "bg-rose-500/20 text-rose-600 dark:text-rose-400",
+                            status === "cancelled" && "bg-rose-500/20 text-rose-800 dark:text-rose-400",
                         )}
                     >
                         {icon}
@@ -804,7 +804,7 @@ function ScheduleRow({
                         onClick={onCancel}
                         disabled={busy}
                         data-testid={`schedule-row-${schedule.id}-cancel`}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
+                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                     >
                         <Trash2 className="h-3 w-3" />
                         {tx(STRINGS.common.cancel, locale)}
@@ -816,7 +816,7 @@ function ScheduleRow({
                         onClick={onDelete}
                         disabled={busy}
                         data-testid={`schedule-row-${schedule.id}-delete`}
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
+                        className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-500/10 dark:text-rose-400"
                     >
                         <Trash2 className="h-3 w-3" />
                         {tx(STRINGS.scheduled.delete, locale)}
@@ -1235,7 +1235,7 @@ function ScheduleCreatorModal({
                     {formError && (
                         <div
                             data-testid="schedule-creator-error"
-                            className="flex items-center gap-2 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300"
+                            className="flex items-center gap-2 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-800 dark:text-rose-300"
                         >
                             <AlertCircle className="h-3.5 w-3.5" />
                             {formError}

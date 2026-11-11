@@ -258,7 +258,7 @@ export function PublishConfirmSheet({
                                                             className={cn(
                                                                 "inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
                                                                 check.status === "fail"
-                                                                    ? "bg-red-500/15 text-red-600 dark:text-red-300"
+                                                                    ? "bg-red-500/15 text-red-800 dark:text-red-300"
                                                                     : "bg-amber-500/15 text-amber-800 dark:text-amber-300",
                                                             )}
                                                         >
@@ -512,7 +512,7 @@ function PageGroup({
                     {counts.added > 0 && (
                         <span
                             data-testid={`publish-diff-page-${page.page_id}-added-count`}
-                            className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300"
                         >
                             <Plus className="h-3 w-3" aria-hidden="true" />
                             {/* Same worded chips as version history; one count, not two. */}
@@ -522,7 +522,7 @@ function PageGroup({
                     {counts.removed > 0 && (
                         <span
                             data-testid={`publish-diff-page-${page.page_id}-removed-count`}
-                            className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                            className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-800 dark:text-rose-300"
                         >
                             <Minus className="h-3 w-3" aria-hidden="true" />
                             {tFormat(STRINGS.advanced_chrome.vh_chip_removed, locale, { n: counts.removed })}
