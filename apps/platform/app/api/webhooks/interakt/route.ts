@@ -9,6 +9,14 @@ import { env } from "@/lib/env";
 import { constantTimeEqual } from "@/lib/webhook-auth";
 import { sharedSenderAllows } from "@/lib/interakt";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import {
+    extractCallbackData,
+    extractPhone,
+    extractResponseText,
+    matchResponse,
+    parseInteraktInbound,
+    type InteraktInbound,
+} from "@/lib/interakt-inbound";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -31,168 +39,6 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
  * 3. Any other reply            → No status change (team handles manually)
  */
 
-
-// =============================================
-// TYPES
-// =============================================
-
-interface InteraktWebhookPayload {
-    type?: string; // "message_received" | "message_api_clicked"
-    data?: {
-        customer?: {
-            phone_number?: string;
-            country_code?: string;
-            id?: string;
-            traits?: {
-                name?: string;
-                [key: string]: unknown;
-            };
-        };
-        message?: {
-            id?: string;
-            type?: string; // "text" | "button_reply" | "interactive_reply"
-            text?: string;
-            button_reply?: {
-                id?: string;
-                title?: string;
-            };
-            interactive_reply?: {
-                id?: string;
-                title?: string;
-            };
-            context?: {
-                callback_data?: string;
-                [key: string]: unknown;
-            };
-            meta_data?: {
-                source_data?: {
-                    callback_data?: string;
-                };
-                [key: string]: unknown;
-            };
-            [key: string]: unknown;
-        };
-    };
-}
-
-// Button text patterns to match (normalized)
-const CONFIRM_PATTERNS = ["تأكيد", "تاكيد", "confirm", "تأكيد ✅"];
-const CANCEL_PATTERNS = ["إلغاء", "الغاء", "cancel", "إلغاء ❌"];
-
-// =============================================
-// HELPERS
-// =============================================
-
-/**
- * Extract the button text or message text from the webhook payload.
- * Interakt uses varying payload structures depending on webhook type.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractResponseText(data: any): string | null {
-    if (!data) return null;
-
-    const msg = data.message || data.msg || {};
-
-    // Quick reply button tap (standard format)
-    if (msg.button_reply?.title) {
-        return msg.button_reply.title.trim();
-    }
-
-    // Interactive reply (list select, etc.)
-    if (msg.interactive_reply?.title) {
-        return msg.interactive_reply.title.trim();
-    }
-
-    // Interakt "button_text" field (used in message_api_clicked)
-    if (msg.button_text) {
-        return msg.button_text.trim();
-    }
-
-    // Interakt "button" field
-    if (msg.button?.text) {
-        return msg.button.text.trim();
-    }
-
-    // Interakt "button_title" field
-    if (msg.button_title) {
-        return msg.button_title.trim();
-    }
-
-    // Check data-level fields (some Interakt events put button info at data level)
-    if (data.button_text) {
-        return data.button_text.trim();
-    }
-
-    if (data.button_reply?.title) {
-        return data.button_reply.title.trim();
-    }
-
-    // Plain text reply
-    if (msg.text && typeof msg.text === "string") {
-        return msg.text.trim();
-    }
-
-    // Last resort: check message_status or any text-like field in message
-    if (msg.message && typeof msg.message === "string" && !msg.message.startsWith("[")) {
-        return msg.message.trim();
-    }
-
-    // Field names only: the values carry the customer's name, phone and text.
-    console.warn("[Interakt Webhook] Could not extract response text, message fields:", Object.keys(msg).join(","));
-    return null;
-}
-
-/**
- * Extract callback_data (order UUID) from the webhook payload
- */
-function extractCallbackData(message: InteraktWebhookPayload["data"]): string | null {
-    const msg = message?.message;
-    if (!msg) return null;
-    return msg.context?.callback_data || 
-           msg.meta_data?.source_data?.callback_data || 
-           null;
-}
-
-/**
- * Extract customer phone from the webhook payload
- */
-function extractPhone(customer: InteraktWebhookPayload["data"]): string | null {
-    const c = customer?.customer;
-    if (!c?.phone_number) return null;
-
-    let phone = c.phone_number.replace(/\D/g, "");
-
-    // Ensure it has country code
-    if (c.country_code) {
-        const cc = c.country_code.replace(/\D/g, "");
-        if (!phone.startsWith(cc)) {
-            phone = cc + phone;
-        }
-    }
-
-    return phone || null;
-}
-
-/**
- * Match response text against known patterns
- */
-function matchResponse(text: string): "confirmed" | "cancelled" | null {
-    const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
-
-    for (const pattern of CONFIRM_PATTERNS) {
-        if (normalized.includes(pattern.toLowerCase())) {
-            return "confirmed";
-        }
-    }
-
-    for (const pattern of CANCEL_PATTERNS) {
-        if (normalized.includes(pattern.toLowerCase())) {
-            return "cancelled";
-        }
-    }
-
-    return null;
-}
 
 /**
  * Find the order by UUID (from callback_data) or by phone number
@@ -269,7 +115,7 @@ async function updateOrderStatus(
     tenantId: string,
     newStatus: "confirmed" | "cancelled",
     phone: string | null,
-    payload: InteraktWebhookPayload
+    payload: InteraktInbound
 ): Promise<{ success: true; updated: boolean } | { success: false; error: string }> {
     // Only while the order is still `contacted`: a second tap, or staff moving the
     // order on since it was read, must not be overwritten by this reply.
@@ -353,8 +199,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Parse payload
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const payload = (await request.json()) as any;
+        const payload = parseInteraktInbound(await request.json());
 
         // 3. Handle delivery status webhooks
         const webhookType = payload.type || payload.eventType || "";
