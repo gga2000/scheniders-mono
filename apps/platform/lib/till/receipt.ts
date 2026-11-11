@@ -4,6 +4,7 @@
  */
 import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import { escapeHtml } from "@/lib/html-escape";
+import { printHtmlDocument } from "@/lib/print-html";
 import { qrSvg } from "@/lib/print-codes";
 import { formatIqd, type PayMethod, type PaymentLine } from "@/lib/till/cart";
 
@@ -140,18 +141,5 @@ export function whatsAppReceiptLink(phone: string, text: string): string {
     return `https://wa.me/${intl}?text=${encodeURIComponent(text)}`;
 }
 
-/** Prints a document through a hidden frame, so the till never opens a new window. */
-export function printReceipt(html: string): void {
-    const frame = document.createElement("iframe");
-    frame.setAttribute("aria-hidden", "true");
-    frame.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0;";
-    frame.srcdoc = html;
-    frame.onload = () => {
-        const win = frame.contentWindow;
-        if (!win) return;
-        win.onafterprint = () => frame.remove();
-        win.focus();
-        win.print();
-    };
-    document.body.appendChild(frame);
-}
+/** Prints a receipt through a hidden frame, so the till never opens a new window. */
+export const printReceipt = printHtmlDocument;
