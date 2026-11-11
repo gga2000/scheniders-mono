@@ -979,13 +979,13 @@ export function useStoreBuilderV2(
      */
     const undo_description = useMemo<string | null>(
         () => (pastRef.current.length > 0 ? lastDescriptionRef.current : null),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- history lives in refs; historyTick is the change signal
         [historyTick],
     );
     const redo_description = useMemo<string | null>(() => {
         if (futureRef.current.length === 0) return null;
         return futureRef.current[futureRef.current.length - 1].description;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- history lives in refs; historyTick is the change signal
     }, [historyTick]);
 
     /* ── patchField (field-level autosave fast path) ──────────────── */
@@ -1053,7 +1053,7 @@ export function useStoreBuilderV2(
                             lastPersistedSerializedRef.current = "";
                         }
                     } else {
-                        // eslint-disable-next-line no-console
+                        // eslint-disable-next-line no-console -- the full save reconciles; this says why it had to
                         console.warn(
                             "[patchField] PATCH failed, full-save will reconcile",
                             r.status,
@@ -1061,7 +1061,7 @@ export function useStoreBuilderV2(
                         scheduleReconcileSave();
                     }
                 }).catch((err) => {
-                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console -- the full save reconciles; this says why it had to
                     console.warn("[patchField] PATCH error", err);
                     scheduleReconcileSave();
                 });
@@ -1074,7 +1074,7 @@ export function useStoreBuilderV2(
                     }
                 });
             } catch (err) {
-                // eslint-disable-next-line no-console
+                // eslint-disable-next-line no-console -- the full save reconciles; this says why it had to
                 console.warn("[patchField] PATCH threw", err);
                 scheduleReconcileSave();
             }

@@ -33,7 +33,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         setMobileMenuOpen(open);
     }, []);
 
-    /* eslint-disable react-hooks/set-state-in-effect */
+    /* eslint-disable react-hooks/set-state-in-effect -- closes the mobile menu when the screen grows past mobile */
     useEffect(() => {
         if (!isMobile && mobileMenuOpen) {
             setMobileMenuOpen(false);

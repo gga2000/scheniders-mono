@@ -700,7 +700,7 @@ function SectionCard({
     // dnd-kit emits `aria-disabled` in `attributes`; strip it so it
     // doesn't clash with the explicit `aria-disabled` we already pass.
     const {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- pulled out only to drop it from the spread
         ["aria-disabled"]: _ariaDisabledAttr,
         ...dndAttributes
     } = attributes as unknown as Record<string, unknown>;

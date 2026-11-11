@@ -1555,7 +1555,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             set_editing_section_id(initialSectionId);
             set_focus_field(initialFieldKey ?? null);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- the deep link applies once on mount
     }, []);
 
     // Pages handled by desktop-only stubs on mobile (don't try to render

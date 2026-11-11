@@ -91,7 +91,7 @@ export function ShareDialog({ url, businessName, onClose, locale }: ShareDialogP
                 {/* QR Code */}
                 <div className="flex justify-center mb-4">
                     {qrDataUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                        // eslint-disable-next-line @next/next/no-img-element -- a data: URL QR code; next/image has nothing to optimize
                         <img
                             src={qrDataUrl}
                             alt={t(STRINGS.command_center.share_qr_alt, locale)}

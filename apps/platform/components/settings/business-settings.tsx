@@ -363,7 +363,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                             <div className="flex items-center gap-4">
                                 {logoUrl ? (
                                     <div className="relative group">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        {/* eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts */}
                                         <img
                                             src={logoUrl}
                                             alt="Logo"
@@ -463,7 +463,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                             <p className="text-xs text-muted-foreground mb-3">{t("settings.biz.preview")}</p>
                             <div className="flex items-center gap-3">
                                 {logoUrl ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
+                                    // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
                                     <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
                                 ) : (
                                     <div

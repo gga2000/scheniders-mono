@@ -123,7 +123,7 @@ function CtaBannerRender({
             data-layer-kind="image"
             className="absolute inset-0"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts */}
             <img
               src={props.background_image_url}
               alt=""

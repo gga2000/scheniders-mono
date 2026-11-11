@@ -44,7 +44,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         } else {
             stopScanning();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- camera follows isOpen only; the scanner callbacks are new every render
     }, [isOpen]);
 
     // Auto-close after success animation

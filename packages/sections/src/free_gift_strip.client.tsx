@@ -66,7 +66,7 @@ export function FreeGiftStrip({
             aria-hidden="true"
           >
             {props.gift_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
+              // eslint-disable-next-line @next/next/no-img-element -- image URL may be on any host a merchant pasted; next/image only serves allowlisted hosts
               <img
                 src={props.gift_image_url}
                 alt=""

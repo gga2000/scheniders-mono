@@ -101,7 +101,7 @@ const nextConfig: NextConfig = {
   // Note: This only runs when ANALYZE=true, otherwise Turbopack handles the build
   webpack: (config, { isServer }) => {
     if (process.env.ANALYZE === "true") {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- dev-only analyzer, loaded only when ANALYZE=true
       const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
       config.plugins.push(
         new BundleAnalyzerPlugin({
