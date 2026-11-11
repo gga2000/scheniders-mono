@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
 import { env } from "@/lib/env";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -74,15 +74,24 @@ export function useAuthCaptcha() {
 export function AuthCaptcha({ captcha, className }: { captcha: ReturnType<typeof useAuthCaptcha>; className?: string }) {
     const { language, t } = useLanguage();
     const dir = useTextDir();
+    const [shown, setShown] = useState(false);
     if (!captcha.enabled) return null;
     return (
         <div className={className}>
+            {shown && (
+                <p className="mb-2 flex items-center gap-2 text-[13px] font-medium text-[#1E1E1E]">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-[#8A847A]" />
+                    <span dir={dir} className="text-left">{t("auth.captcha.prompt")}</span>
+                </p>
+            )}
             <TurnstileBox
                 ref={captcha.ref}
                 siteKey={SITE_KEY}
                 onToken={captcha.onToken}
                 onFailure={captcha.onFailure}
+                onVisibleChange={setShown}
                 language={language}
+                frameClassName="rounded-2xl border border-[#ECE8DD] bg-[#FAF8F3]"
             />
             {captcha.failed && (
                 <p role="alert" className="flex items-start gap-2 text-[13px] text-[#8A3B12]">

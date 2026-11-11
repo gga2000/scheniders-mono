@@ -7,9 +7,9 @@ import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 
 /**
- * Shared frame for the password reset pages (forgot + choose new): brand row,
+ * Shared frame for every auth page (login, sign-up, forgot, choose new): brand row,
  * white card with the neon top strip, optional "back to sign in", and the
- * encryption footer. Keeps both screens visually identical.
+ * encryption footer. Keeps the auth screens visually identical.
  */
 export function AuthCardShell({ children, showBack = true }: { children: React.ReactNode; showBack?: boolean }) {
     const { t } = useLanguage();
