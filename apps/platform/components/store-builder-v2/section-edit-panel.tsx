@@ -483,6 +483,8 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                         onChange={handleVariantsChange}
                         onAdd={() => setWizardOpen(true)}
                         onEdit={(id) => setEditingVariantId(id)}
+                        experiments={experiments}
+                        segments={segments}
                     />
                 </div>
                 </>
