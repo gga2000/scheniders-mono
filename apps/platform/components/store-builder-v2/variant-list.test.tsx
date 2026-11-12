@@ -188,4 +188,22 @@ describe("VariantList", () => {
         expect(out[0].priority).toBeGreaterThan(out[1].priority);
         expect(out[1].priority).toBeGreaterThan(out[2].priority);
     });
+
+    it("row lines take their own direction and row buttons name the version", () => {
+        render(
+            <VariantList
+                instance={makeInstance([
+                    makeVariant({ id: "v1", label: "Ramadan", override: { title: "x" } }),
+                ])}
+                onChange={() => {}}
+                onAdd={() => {}}
+                onEdit={() => {}}
+            />,
+        );
+        const summary = screen.getByTestId("variant-row-v1-summary");
+        expect(summary.querySelector("[dir='auto']")).toBeTruthy();
+        expect(screen.getByTestId("variant-row-v1-overrides").getAttribute("dir")).toBe("auto");
+        expect(screen.getByTestId("variant-row-v1-edit").getAttribute("aria-label")).toContain("Ramadan");
+        expect(screen.getByTestId("variant-row-v1-delete").getAttribute("aria-label")).toContain("Ramadan");
+    });
 });

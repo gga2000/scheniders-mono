@@ -284,11 +284,14 @@ function VariantRow({
                         title={humanSummary}
                     >
                         <KindIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        <span className="truncate">{humanSummary}</span>
+                        {/* dir="auto": an Arabic-first line in the LTR app must
+                            cut at its own end, not lose its first words. */}
+                        <span dir="auto" className="min-w-0 truncate">{humanSummary}</span>
                     </div>
                     {overrideSummary && (
                         <div
                             data-testid={`variant-row-${variant.id}-overrides`}
+                            dir="auto"
                             className="truncate text-[11px] text-muted-foreground"
                             title={overrideSummary}
                         >
@@ -310,7 +313,7 @@ function VariantRow({
 
                 <button
                     type="button"
-                    aria-label={t(STRINGS.variant.row_edit, locale)}
+                    aria-label={tFormat(STRINGS.variant.row_edit, locale, { label })}
                     data-testid={`variant-row-${variant.id}-edit`}
                     onClick={() => onEdit(variant.id)}
                     className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
@@ -320,7 +323,7 @@ function VariantRow({
 
                 <button
                     type="button"
-                    aria-label={t(STRINGS.variant.row_delete, locale)}
+                    aria-label={tFormat(STRINGS.variant.row_delete, locale, { label })}
                     data-testid={`variant-row-${variant.id}-delete`}
                     onClick={handleDelete}
                     className="inline-flex h-7 w-7 items-center justify-center rounded text-red-800 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
