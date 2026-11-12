@@ -284,11 +284,12 @@ function VariantRow({
                         title={humanSummary}
                     >
                         <KindIcon className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-                        {/* Wraps to two lines instead of one-line ellipsis: the
-                            summary mixes Arabic with merchant names in any
-                            script, and a one-line clip in mixed-direction text
-                            cuts the middle of the name, not the end. */}
-                        <span dir="auto" className="min-w-0 line-clamp-2 break-words">{humanSummary}</span>
+                        {/* Wraps in full instead of clipping: the summary mixes
+                            Arabic with merchant names in any script, and any
+                            clip in mixed-direction text cuts the middle of a
+                            name or hides the rule's scope. It is a short rule
+                            list, so showing all of it is the honest layout. */}
+                        <span dir="auto" className="min-w-0 break-words">{humanSummary}</span>
                     </div>
                     {overrideSummary && (
                         <div
