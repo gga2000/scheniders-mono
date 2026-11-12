@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Order } from "@/types/order";
 
 /*
- * {{8}} on cod_order_confirm_v3 ({{7}} on the staff new-order alert) quotes what
+ * {{7}} on cod_order_confirm_v3 (and on the staff new-order alert) quotes what
  * the courier will collect.
  *
  * Every source stores `price` net of the discount (lib/order-money). A
@@ -70,10 +70,10 @@ function sentBody(): { name: string; bodyValues: string[] } {
     return body.template;
 }
 
-/** The courier amount: {{8}} on cod_order_confirm_v3, {{7}} on the staff alert. */
+/** The courier amount: {{7}} on cod_order_confirm_v3 and on the staff alert. */
 function sentTotal(): string {
     const t = sentBody();
-    return t.name === "cod_order_confirm_v3" ? t.bodyValues[7] : t.bodyValues[6];
+    return t.bodyValues[6];
 }
 
 describe("{{7}} on storefront orders: price (net) + delivery", () => {

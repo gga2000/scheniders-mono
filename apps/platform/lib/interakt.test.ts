@@ -148,33 +148,35 @@ describe("v3 templates name the store and give its own WhatsApp", () => {
         return JSON.parse(fetchMock.mock.calls[0][1].body as string).template.bodyValues;
     }
 
-    it("confirmation: store name {{2}}, order number {{3}}, products {{4}}, store WhatsApp {{9}}", async () => {
+    it("confirmation: store name {{2}} and {{8}}, order number {{3}}, products {{4}}, amount {{7}}, store WhatsApp {{9}}", async () => {
         await sendTemplateMessage(makeOrder(), "confirmation");
         const v = sentValues();
         expect(v).toHaveLength(9);
         expect(v[1]).toBe("عطور الكرادة");
         expect(v[2]).toBe("7208");
         expect(v[3]).toContain("انفوي");
-        expect(v[6]).toBe("لا يوجد");
-        expect(v[7]).toBe("34,750 د.ع");
+        expect(v[6]).toBe("34,750 د.ع");
+        expect(v[7]).toBe("عطور الكرادة");
         expect(v[8]).toBe("07801234567");
     });
 
-    it("reminder: store name is {{2}}, store WhatsApp is {{6}}", async () => {
+    it("reminder: store name {{2}} and {{6}}, store WhatsApp {{7}}", async () => {
         await sendTemplateMessage(makeOrder(), "reminder");
-        const v = sentValues();
-        expect(v).toHaveLength(6);
-        expect(v[1]).toBe("عطور الكرادة");
-        expect(v[5]).toBe("07801234567");
-    });
-
-    it("discount: store name is {{2}}, percent is {{3}}, store WhatsApp is {{7}}", async () => {
-        await sendTemplateMessage(makeOrder(), "discount", undefined, 10);
         const v = sentValues();
         expect(v).toHaveLength(7);
         expect(v[1]).toBe("عطور الكرادة");
-        expect(v[2]).toBe("10%");
+        expect(v[5]).toBe("عطور الكرادة");
         expect(v[6]).toBe("07801234567");
+    });
+
+    it("discount: store name {{2}} and {{7}}, percent {{3}}, store WhatsApp {{8}}", async () => {
+        await sendTemplateMessage(makeOrder(), "discount", undefined, 10);
+        const v = sentValues();
+        expect(v).toHaveLength(8);
+        expect(v[1]).toBe("عطور الكرادة");
+        expect(v[2]).toBe("10%");
+        expect(v[6]).toBe("عطور الكرادة");
+        expect(v[7]).toBe("07801234567");
     });
 });
 

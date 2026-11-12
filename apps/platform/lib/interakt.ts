@@ -259,11 +259,8 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
     const customerName = shopperName(order.customer_name ?? "") || "عميلنا العزيز";
 
     const displayPhone = formatPhoneForDisplay(targetPhone);
-    const displaySecondaryPhone = order.secondary_phone
-        ? formatPhoneForDisplay(order.secondary_phone)
-        : "لا يوجد";
 
-    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, customerName, displayPhone, displaySecondaryPhone };
+    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, customerName, displayPhone };
 }
 
 const NAME_MAX = 60;
@@ -308,25 +305,25 @@ export function shopperName(value: string): string {
 
 /**
  * Build CONFIRMATION template body (cod_order_confirm_v3), variables {{1}}–{{9}}.
+ * Wording is Ali's (2026-11-13). The store name is sent twice ({{2}} and
+ * {{8}}) because each template variable may appear only once.
  *
- * Template body (Ali picked the warm Iraqi wording, 2026-11-13):
- *   هلا {{1}}،
- *   وصلنا طلبك من *{{2}}* ونجهزه إلك بكل اهتمام.
+ *   يا هلا ومرحبا {{1}} 🌷
+ *   وصلنا طلبك من *{{2}}* ✅
  *
- *   *طلبك*
- *   رقم الطلب: {{3}}
- *   المنتجات: {{4}}
- *   العنوان: {{5}}
- *   الهاتف: {{6}}
- *   هاتف ثاني: {{7}}
+ *   🧾 *تفاصيل طلبك*
+ *   🔢 رقم الطلب: {{3}}
+ *   🛍️ المنتجات: {{4}}
+ *   📍 العنوان: {{5}}
+ *   📞 الهاتف: {{6}}
  *
- *   *تدفع عند الاستلام: {{8}}*
+ *   💰 *المبلغ الإجمالي: {{7}}*
  *
- *   اضغط «تأكيد الطلب» حتى نبدي بالتجهيز.
- *   أي سؤال، راسل المتجر على واتساب {{9}} ونرد عليك.
- *   (Meta refuses a body that ends with a variable.)
+ *   👇 اضغط «تأكيد الطلب» حتى نجهز طلبك ونشحنه.
  *
- * Footer: شكراً لثقتك بينا
+ *   ℹ️ هذه رسالة تلقائية من منصة شنايدر لإدارة الطلبات.
+ *   💬 للاستفسار تواصل مع متجر *{{8}}* على واتساب {{9}} وشكراً لثقتك.
+ *
  * Buttons: [تأكيد الطلب] [إلغاء الطلب]
  */
 function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?: string): InteraktTemplateBody {
@@ -346,9 +343,9 @@ function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?
                 order.order_id,               // {{3}} — Order number
                 h.itemsList,                  // {{4}} — Products
                 h.address,                    // {{5}} — Address
-                h.displayPhone,               // {{6}} — Phone 1
-                h.displaySecondaryPhone,      // {{7}} — Phone 2
-                h.collectibleTotal,           // {{8}} — What the courier collects
+                h.displayPhone,               // {{6}} — Phone
+                h.collectibleTotal,           // {{7}} — What the courier collects
+                store.name,                   // {{8}} — Store name (contact line)
                 store.whatsapp,               // {{9}} — Store WhatsApp
             ],
         },
@@ -356,17 +353,21 @@ function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?
 }
 
 /**
- * Build REMINDER template body (order_reminder_v3), variables {{1}}–{{6}}.
+ * Build REMINDER template body (order_reminder_v3), variables {{1}}–{{7}}.
  *
- * Template body:
- *   مرحباً {{1}}
- *   طلبك من {{2}} بعده محجوز باسمك.
- *   المنتجات: {{3}}
- *   العنوان: {{4}}
- *   المبلغ: {{5}}
- *   أكد الطلب حتى نشحنه بأقرب وقت. للاستفسار راسل المتجر على واتساب {{6}} وراح نرد عليك.
+ *   مرحبا {{1}} 👋
+ *   طلبك من *{{2}}* بعده محجوز باسمك ⏳
  *
- * Buttons: [تأكيد] [إلغاء]
+ *   🛍️ المنتجات: {{3}}
+ *   📍 العنوان: {{4}}
+ *   💰 *المبلغ: {{5}}*
+ *
+ *   👇 اضغط «تأكيد الطلب» حتى نشحنه بأقرب وقت.
+ *
+ *   ℹ️ هذه رسالة تلقائية من منصة شنايدر لإدارة الطلبات.
+ *   💬 للاستفسار تواصل مع متجر *{{6}}* على واتساب {{7}} وشكراً لثقتك.
+ *
+ * Buttons: [تأكيد الطلب] [إلغاء الطلب]
  */
 function buildReminderBody(order: Order, store: StoreContact, overridePhone?: string): InteraktTemplateBody {
     const h = getOrderHelpers(order, overridePhone);
@@ -385,22 +386,27 @@ function buildReminderBody(order: Order, store: StoreContact, overridePhone?: st
                 h.itemsList,                  // {{3}} — Products
                 h.address,                    // {{4}} — Address
                 h.totalPrice,                 // {{5}} — Total price
-                store.whatsapp,               // {{6}} — Store WhatsApp
+                store.name,                   // {{6}} — Store name (contact line)
+                store.whatsapp,               // {{7}} — Store WhatsApp
             ],
         },
     };
 }
 
 /**
- * Build DISCOUNT template body (order_discount_offer_v3), variables {{1}}–{{7}}.
+ * Build DISCOUNT template body (order_discount_offer_v3), variables {{1}}–{{8}}.
  *
- * Template body:
- *   مرحباً {{1}}
- *   {{2}} حابين يقدمولك خصم إضافي {{3}} على طلبك.
- *   المنتجات: {{4}}
- *   السعر الأصلي: {{5}}
- *   السعر بعد الخصم: {{6}}
- *   للاستفسار راسل المتجر على واتساب {{7}} وراح نرد عليك.
+ *   مرحبا {{1}} 🌟
+ *   متجر *{{2}}* حابين يقدمولك خصم إضافي *{{3}}* على طلبك 🎁
+ *
+ *   🛍️ المنتجات: {{4}}
+ *   💰 السعر الأصلي: {{5}}
+ *   🏷️ *السعر بعد الخصم: {{6}}*
+ *
+ *   👇 اضغط «تأكيد بالخصم» حتى نجهز طلبك.
+ *
+ *   ℹ️ هذه رسالة تلقائية من منصة شنايدر لإدارة الطلبات.
+ *   💬 للاستفسار تواصل مع متجر *{{7}}* على واتساب {{8}} وشكراً لثقتك.
  *
  * Buttons: [تأكيد بالخصم] [لا شكراً]
  */
@@ -426,7 +432,8 @@ function buildDiscountBody(order: Order, store: StoreContact, discountPercent: n
                 h.itemsList,                  // {{4}} — Products
                 h.totalPrice,                 // {{5}} — Original price
                 discountedPrice,              // {{6}} — Discounted price
-                store.whatsapp,               // {{7}} — Store WhatsApp
+                store.name,                   // {{7}} — Store name (contact line)
+                store.whatsapp,               // {{8}} — Store WhatsApp
             ],
         },
     };
