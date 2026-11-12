@@ -45,6 +45,11 @@ const LABEL = {
     footer: STRINGS.inspector.sitewide_footer,
 } as const;
 
+/** The inspector's name for a slot ("Header", «رأس المتجر"…). */
+export function sitewideLabel(slot: SitewideSlot, locale: LocaleCode): string {
+    return t(LABEL[slot], locale);
+}
+
 /** The id the storefront preview gives an unset slot's default section. */
 export function defaultSlotId(slot: SitewideSlot): string {
     return `__default_${slot}__`;

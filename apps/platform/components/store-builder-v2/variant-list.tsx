@@ -206,6 +206,8 @@ function VariantRow({
             : Layers;
     const overrideSummary = summarizeOverrides(
         (variant.override as Record<string, unknown>) ?? {},
+        3,
+        locale,
     );
     const humanSummary = summarizeVariantConditions(
         variant.conditions,

@@ -189,17 +189,24 @@ export function inferField(schema: z.ZodType<unknown>): {
 
 const TITLE_KEYS = ["title", "heading", "headline"];
 
+/** A field's name without its `_i18n` suffix: `eyebrow_i18n` → `eyebrow`. */
+function baseKey(k: string): string {
+    return k.endsWith("_i18n") ? k.slice(0, -"_i18n".length) : k;
+}
+
 /**
  * Fields follow schema order, but the eyebrow (the small line above the
  * title) is often declared late. Move it to sit right before the title so
  * the inspector lists text in the order it reads on the page. Other fields
- * keep their order.
+ * keep their order. Translatable keys (`eyebrow_i18n`, `heading_i18n`)
+ * count the same as plain ones.
  */
 export function orderTextStack(keys: readonly string[]): string[] {
-    const out = keys.filter((k) => k !== "eyebrow");
-    if (out.length === keys.length) return out;
-    const titleAt = out.findIndex((k) => TITLE_KEYS.includes(k));
+    const eyebrow = keys.find((k) => baseKey(k) === "eyebrow");
+    if (eyebrow === undefined) return [...keys];
+    const out = keys.filter((k) => k !== eyebrow);
+    const titleAt = out.findIndex((k) => TITLE_KEYS.includes(baseKey(k)));
     if (titleAt === -1) return [...keys];
-    out.splice(titleAt, 0, "eyebrow");
+    out.splice(titleAt, 0, eyebrow);
     return out;
 }

@@ -82,7 +82,7 @@ const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
     placeholder: { en: "Placeholder text", ar: "النص التوضيحي داخل الحقل", ku: "دەقی ڕوونکەرەوە" },
     success_message: { en: "Success message", ar: "رسالة النجاح", ku: "پەیامی سەرکەوتن" },
 
-    columns: { en: "Columns", ar: "عدد الأعمدة", ku: "ژمارەی ستوونەکان" },
+    columns: { en: "Columns", ar: "الأعمدة", ku: "ستوونەکان" },
     cols_mobile: { en: "Columns on phones", ar: "الأعمدة على الهاتف", ku: "ستوونەکان لە مۆبایل" },
     cols_desktop: { en: "Columns on desktop", ar: "الأعمدة على الحاسوب", ku: "ستوونەکان لە کۆمپیوتەر" },
     layout: { en: "Layout", ar: "التخطيط", ku: "ڕووکار" },
