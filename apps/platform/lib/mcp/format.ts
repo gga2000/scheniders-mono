@@ -45,6 +45,26 @@ export function baghdadDayEnd(day: string): string {
     return new Date(start.getTime() + 24 * 60 * 60 * 1000).toISOString();
 }
 
+/**
+ * Text a shopper typed (name, address, order note), made safe to hand to the
+ * merchant's agent: one line, quoted, length-capped. A shopper can write
+ * anything in a checkout field, including fake "Order notes:" lines or
+ * instructions; quoting it on one line keeps it readable as data and stops it
+ * passing for the tool's own output. MCP_INSTRUCTIONS tells the agent the rest.
+ */
+export function shopperText(value: string | null | undefined, max = 300): string {
+    if (!value) return "-";
+    // Control characters (newlines, tabs, escapes) and line separators become spaces.
+    const spaced = Array.from(value, (ch) => {
+        const code = ch.codePointAt(0) ?? 0;
+        return code < 0x20 || code === 0x7f || code === 0x2028 || code === 0x2029 ? " " : ch;
+    }).join("");
+    const oneLine = spaced.replace(/\s+/g, " ").trim();
+    if (!oneLine) return "-";
+    const capped = oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
+    return JSON.stringify(capped);
+}
+
 export function itemsText(items: readonly OrderItem[] | null | undefined): string {
     if (!items || items.length === 0) return "no items";
     return items.map((i) => `${i.quantity}× ${i.name} @ ${iqd(i.price)}`).join("; ");
@@ -75,7 +95,7 @@ export type OrderSummaryRow = Pick<
 
 export function orderLine(o: OrderSummaryRow, showMoney: boolean): string {
     const kind = o.is_return ? " [return]" : o.is_replacement ? " [replacement]" : "";
-    const place = [o.city, o.address_details].filter(Boolean).join(", ");
+    const place = [o.city, o.address_details ? shopperText(o.address_details) : null].filter(Boolean).join(", ");
     const money = showMoney ? ` | ${iqd(o.price)} + delivery ${iqd(o.delivery_fee)}` : "";
-    return `#${o.order_id}${kind} | ${baghdadTime(o.created_at)} | ${o.status} | ${o.customer_name} ${o.phone} | ${place || "no address"} | ${itemsText(o.items)}${money}`;
+    return `#${o.order_id}${kind} | ${baghdadTime(o.created_at)} | ${o.status} | ${shopperText(o.customer_name, 80)} ${o.phone} | ${place || "no address"} | ${itemsText(o.items)}${money}`;
 }

@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useContinuousScanner } from "@/hooks/use-continuous-scanner";
 import { extractScannedOrderId } from "@/lib/scan-utils";
 import { playScanBeep, playErrorBuzz, primeOnFirstGesture } from "@/lib/returns/sounds";
+import { returnsPairingTopic } from "@/lib/returns/pairing-topic";
 
 const overlay: React.CSSProperties = {
     position: "absolute", inset: 0, display: "flex", alignItems: "center",
@@ -16,7 +17,9 @@ const overlay: React.CSSProperties = {
 function ReturnsScanInner() {
     const params = useSearchParams();
     const token = params.get("s") || "";
+    const storeId = params.get("t") || "";
     const { user } = useAuth();
+    const userId = user?.id;
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const [count, setCount] = useState(0);
     const [last, setLast] = useState<{ text: string; warn: boolean } | null>(null);
@@ -25,8 +28,10 @@ function ReturnsScanInner() {
     useEffect(() => { primeOnFirstGesture(); }, []);
 
     useEffect(() => {
-        if (!token) return;
-        const channel = supabase.channel(`returns:${token}`, { config: { presence: { key: "scanner" } } });
+        // A private channel: it opens only for a signed-in member of the store.
+        const topic = userId ? returnsPairingTopic(storeId, token) : null;
+        if (!topic) return;
+        const channel = supabase.channel(topic, { config: { private: true, presence: { key: "scanner" } } });
         channel
             .on("broadcast", { event: "ack" }, ({ payload }) => {
                 const r = payload?.result as string;
@@ -48,7 +53,7 @@ function ReturnsScanInner() {
             });
         channelRef.current = channel;
         return () => { channel.unsubscribe(); channelRef.current = null; };
-    }, [token]);
+    }, [token, storeId, userId]);
 
     const handleScan = (raw: string) => {
         const orderId = extractScannedOrderId(raw);
@@ -66,7 +71,7 @@ function ReturnsScanInner() {
     });
     const [manual, setManual] = useState("");
 
-    if (!token) {
+    if (!token || !returnsPairingTopic(storeId, token)) {
         return <div style={{ padding: 24, color: "#fff", background: "#0e0e10", minHeight: "100dvh" }}>Missing pairing token — scan the QR on the laptop again.</div>;
     }
     if (!user) {

@@ -5,9 +5,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // must hold here, not only in the sheet. Lives under lib/ because vitest
 // collects app/api and lib, not app/actions.
 
-vi.mock("@/lib/auth/resolve-order-caller", () => ({
-    ORDER_WRITE_ROLES: ["admin", "super_admin", "employee"],
-    resolveCaller: vi.fn(),
+vi.mock("@/lib/auth/resolve-order-caller", () => ({ resolveCaller: vi.fn() }));
+// The store's permission rule, as member_has_permission answers it: role
+// defaults, unless a test switches the permission off for the caller.
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: vi.fn(async (member: { role: string }) => member.role !== "viewer"),
 }));
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: vi.fn() }));
 vi.mock("@/lib/restrictions", () => ({
@@ -24,6 +26,7 @@ import { canCreateOrder } from "@/lib/tenant";
 import { trackOrderUsage } from "@/lib/order-service";
 import { resolveCaller } from "@/lib/auth/resolve-order-caller";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { memberHasPermission } from "@/lib/auth/member-has-permission";
 
 const ORIGINAL = "11111111-1111-4111-8111-111111111111";
 const CHILD = "22222222-2222-4222-8222-222222222222";
@@ -110,6 +113,18 @@ describe("createAfterSaleOrderAction", () => {
         expect(rpc).not.toHaveBeenCalled();
     });
 
+    it("refuses an employee whose orders.create the store switched off", async () => {
+        asRole("employee");
+        vi.mocked(memberHasPermission).mockResolvedValueOnce(false);
+        const result = await createAfterSaleOrderAction(
+            { kind: "refund", originalOrderId: ORIGINAL, lines: [{ originalLine: 0, qty: 1 }] },
+            "token",
+        );
+        expect(result.success).toBe(false);
+        expect(memberHasPermission).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1", tenantId: "tenant-a" }), "orders.create");
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
     it("charges the wallet and counts usage like a normal order", async () => {
         asRole("employee");
         await createAfterSaleOrderAction(
@@ -153,6 +168,15 @@ describe("receiveAfterSaleItemAction", () => {
         asRole("viewer");
         const result = await receiveAfterSaleItemAction({ itemId: ITEM, condition: "sealed" }, "token");
         expect(result.success).toBe(false);
+        expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("refuses an employee whose orders.edit the store switched off", async () => {
+        asRole("employee");
+        vi.mocked(memberHasPermission).mockResolvedValueOnce(false);
+        const result = await receiveAfterSaleItemAction({ itemId: ITEM, condition: "sealed" }, "token");
+        expect(result.success).toBe(false);
+        expect(memberHasPermission).toHaveBeenCalledWith(expect.anything(), "orders.edit");
         expect(rpc).not.toHaveBeenCalled();
     });
 

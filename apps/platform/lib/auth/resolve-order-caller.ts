@@ -12,9 +12,6 @@ import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
  */
 export type Caller = { userId: string; tenantId: string; role: string };
 
-/** Roles permitted to mutate orders. `viewer` is read-only. */
-export const ORDER_WRITE_ROLES = ["admin", "super_admin", "employee"];
-
 export async function resolveCaller(
     accessToken: string | undefined,
 ): Promise<{ caller: Caller } | { error: string }> {

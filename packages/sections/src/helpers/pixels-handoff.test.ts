@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createHash } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PENDING_PURCHASE_KEY, pixelContentsFromItems } from "@scheniders/shared";
+import { pendingPurchaseKey, pixelContentsFromItems } from "@scheniders/shared";
 import { firePendingPurchase, handOffPurchase } from "./pixels";
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
@@ -29,7 +29,7 @@ describe("Purchase handoff", () => {
 
   it("stores the event for the next page with hashed ids only, and fires nothing yet", async () => {
     await handOffPurchase({ tenantId: TENANT, phone: "0770 123 4567", data: DATA, eventId: "evt-1" });
-    const raw = sessionStorage.getItem(PENDING_PURCHASE_KEY) ?? "";
+    const raw = sessionStorage.getItem(pendingPurchaseKey(TENANT)) ?? "";
     expect(raw).not.toContain("7701234567");
     const stored = JSON.parse(raw) as Record<string, unknown>;
     expect(stored.event_id).toBe("evt-1");
@@ -41,8 +41,8 @@ describe("Purchase handoff", () => {
 
   it("fires the handed-over Purchase once on the next page, with its event id and TikTok matching", async () => {
     await handOffPurchase({ tenantId: TENANT, phone: "07701234567", data: DATA, eventId: "evt-2" });
-    firePendingPurchase();
-    firePendingPurchase();
+    firePendingPurchase(TENANT);
+    firePendingPurchase(TENANT);
     const purchases = fbq.mock.calls.filter((c) => c[1] === "Purchase");
     expect(purchases).toHaveLength(1);
     expect(purchases[0]?.[2]).toMatchObject({ value: 50000, currency: "IQD", content_ids: ["p1"] });
@@ -52,23 +52,23 @@ describe("Purchase handoff", () => {
       external_id: sha(`${TENANT}:9647701234567`),
     });
     expect(ttq.track).toHaveBeenCalledWith("CompletePayment", expect.anything(), { event_id: "evt-2" });
-    expect(sessionStorage.getItem(PENDING_PURCHASE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(pendingPurchaseKey(TENANT))).toBeNull();
   });
 
   it("leaves the handoff for a page that has a pixel", () => {
     delete (globalThis as W).fbq;
     delete (globalThis as W).ttq;
-    sessionStorage.setItem(PENDING_PURCHASE_KEY, JSON.stringify({ event_id: "e", data: DATA, ts: Date.now() }));
-    firePendingPurchase();
-    expect(sessionStorage.getItem(PENDING_PURCHASE_KEY)).not.toBeNull();
+    sessionStorage.setItem(pendingPurchaseKey(TENANT), JSON.stringify({ event_id: "e", data: DATA, ts: Date.now() }));
+    firePendingPurchase(TENANT);
+    expect(sessionStorage.getItem(pendingPurchaseKey(TENANT))).not.toBeNull();
   });
 
   it("drops a stale handoff", () => {
     sessionStorage.setItem(
-      PENDING_PURCHASE_KEY,
+      pendingPurchaseKey(TENANT),
       JSON.stringify({ event_id: "old", data: DATA, ts: Date.now() - 2 * 60 * 60 * 1000 }),
     );
-    firePendingPurchase();
+    firePendingPurchase(TENANT);
     expect(fbq).not.toHaveBeenCalled();
   });
 
@@ -78,5 +78,13 @@ describe("Purchase handoff", () => {
     });
     await handOffPurchase({ tenantId: TENANT, phone: "07701234567", data: DATA, eventId: "evt-3" });
     expect(fbq.mock.calls.filter((c) => c[1] === "Purchase")).toHaveLength(1);
+  });
+
+  it("never fires one store's order into another store's pixel on a shared origin", async () => {
+    const OTHER = "9f0e8d7c-6b5a-4c3d-8e2f-1a0b9c8d7e6f";
+    await handOffPurchase({ tenantId: TENANT, phone: "07701234567", data: DATA, eventId: "evt-a" });
+    firePendingPurchase(OTHER);
+    expect(fbq.mock.calls.filter((c) => c[1] === "Purchase")).toHaveLength(0);
+    expect(sessionStorage.getItem(pendingPurchaseKey(TENANT))).not.toBeNull();
   });
 });

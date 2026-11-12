@@ -1,6 +1,7 @@
 "use client";
 
 import { Order } from "@/lib/supabase";
+import { csvCell, tsvCell } from "@/lib/customer-csv";
 import { cleanPhoneForExport } from "@/lib/export-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 
@@ -98,10 +99,6 @@ export function generateExportFilename(
  * only safe because the value is quoted, so the quoting has to be correct.
  * RFC 4180: double the quote character.
  */
-function toCsvCell(cell: string | number): string {
-    return `"${String(cell).replace(/"/g, '""')}"`;
-}
-
 /**
  * Export orders to CSV format
  */
@@ -113,7 +110,7 @@ export function exportOrdersToCSV(orders: Order[]): {
 
     const csvContent = [
         ORDER_EXPORT_HEADERS.join(","),
-        ...rows.map((row) => row.map(toCsvCell).join(",")),
+        ...rows.map((row) => row.map(csvCell).join(",")),
     ].join("\n");
 
     downloadFile(
@@ -136,7 +133,7 @@ export function exportOrdersToExcel(orders: Order[]): {
 
     const tsvContent = [
         ORDER_EXPORT_HEADERS.join("\t"),
-        ...rows.map((row) => row.map((cell) => `${cell}`).join("\t")),
+        ...rows.map((row) => row.map(tsvCell).join("\t")),
     ].join("\n");
 
     downloadFile(
@@ -204,7 +201,7 @@ export function exportForDelivery(orders: Order[]): {
 
     const csvContent = [
         DELIVERY_EXPORT_HEADERS.join(","),
-        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+        ...rows.map((row) => row.map(csvCell).join(",")),
     ].join("\n");
 
     // Add UTF-8 BOM for Arabic support

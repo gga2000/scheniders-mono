@@ -83,6 +83,10 @@ vi.mock("@/lib/order-service", () => ({
     createOrderForTenant: state.createOrder,
 }));
 
+// member_has_permission: the role default unless a test switches it off.
+const memberHasPermission = vi.hoisted(() => vi.fn(async (member: { role: string }) => member.role !== "viewer"));
+vi.mock("@/lib/auth/member-has-permission", () => ({ memberHasPermission }));
+
 import { POST } from "./route";
 
 const TENANT = "tenant-a";
@@ -196,5 +200,20 @@ describe("telegram webhook: deactivated profiles (F-087)", () => {
         await POST(update("1"));
         expect(state.createOrder).toHaveBeenCalledTimes(1);
         expect(state.createOrder.mock.calls[0][1]).toBe(TENANT);
+    });
+});
+
+describe("telegram webhook: orders.create", () => {
+    it("refuses a linked member whose orders.create the store switched off", async () => {
+        seed(true);
+        linkTelegramUser();
+        memberHasPermission.mockResolvedValueOnce(false);
+        await POST(update("1"));
+        expect(memberHasPermission).toHaveBeenCalledWith(
+            { userId: USER, tenantId: TENANT, role: "admin" },
+            "orders.create",
+        );
+        expect(state.createOrder).not.toHaveBeenCalled();
+        expect(state.sent.at(-1)).toContain("🚫");
     });
 });

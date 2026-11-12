@@ -13,6 +13,12 @@ vi.mock("@/lib/after-sale/create", () => ({
     receiveAfterSaleItem: (...a: unknown[]) => receiveAfterSaleItem(...a),
 }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+// The store's permission rule (member_has_permission): role defaults, unless a
+// test switches a permission off for the caller.
+const memberHasPermission = vi.fn(async (member: { role: string }) => member.role !== "viewer");
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: (...a: [{ role: string }]) => memberHasPermission(...a),
+}));
 
 import { registerDeliveryTools } from "./delivery";
 
@@ -108,7 +114,7 @@ describe("ship_orders", () => {
     it("refuses a viewer", async () => {
         asCaller("viewer");
         const res = await call("ship_orders", { orders: ["1001"], company: "prime", include_scheduled_later: false, confirm: true });
-        expect(res).toEqual({ isError: true, text: "Your role in this store is read-only." });
+        expect(res).toEqual({ isError: true, text: "Your role in this store cannot do this." });
     });
 });
 

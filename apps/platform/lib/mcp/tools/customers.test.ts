@@ -6,6 +6,12 @@ import type { McpCaller } from "@/lib/mcp/caller";
 const resolveMcpCaller = vi.fn();
 vi.mock("@/lib/mcp/caller", () => ({ resolveMcpCaller: (...a: unknown[]) => resolveMcpCaller(...a) }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+// The store's permission rule (member_has_permission): role defaults, unless a
+// test switches a permission off for the caller.
+const memberHasPermission = vi.fn(async (member: { role: string }) => member.role !== "viewer");
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: (...a: [{ role: string }]) => memberHasPermission(...a),
+}));
 
 import { registerCustomerTools } from "./customers";
 
@@ -122,7 +128,7 @@ describe("add_customer_note", () => {
     it("refuses a viewer", async () => {
         asCaller("viewer");
         const res = await call("add_customer_note", { phone: "07701234567", note: "x" });
-        expect(res.text).toBe("Your role in this store is read-only.");
+        expect(res.text).toBe("Your role in this store cannot do this.");
     });
 });
 

@@ -1,6 +1,6 @@
 import Script from "next/script";
 import type { AnalyticsConfig } from "@scheniders/shared";
-import { PENDING_PURCHASE_KEY } from "@scheniders/shared";
+import { PENDING_PURCHASE_TTL_MS, pendingPurchaseKey } from "@scheniders/shared";
 import { PixelRouteChange } from "./pixel-route-change";
 import { PendingPurchasePixel } from "./pending-purchase-pixel";
 import { MetaServerEvents } from "./meta-server-events";
@@ -125,7 +125,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-${metaAdvancedMatchingJs(visitorExternalId)}
+${metaAdvancedMatchingJs(visitorExternalId, tenantId)}
 fbq('init', '${escapeJs(meta)}', am);
 fbq('track', 'PageView');`,
           }}
@@ -182,7 +182,7 @@ snaptr('track', 'PAGE_VIEW');`,
 
       {/* Last, so its effect runs after the pixel scripts above have set up
           fbq / ttq. */}
-      {(meta || tiktokIds.length > 0) && <PendingPurchasePixel />}
+      {(meta || tiktokIds.length > 0) && tenantId && <PendingPurchasePixel tenantId={tenantId} />}
     </>
   );
 }
@@ -193,11 +193,14 @@ snaptr('track', 'PAGE_VIEW');`,
  * in Iraq only) and the hashed visitor id. On the page after an order, the
  * order form's Purchase handoff adds the buyer's hashed phone, and its
  * phone-based external id takes the visitor id's place (the server event
- * carries both). Only 64-char SHA-256 hex values are passed.
+ * carries both). Only 64-char SHA-256 hex values are passed, and only from
+ * this store's own handoff while it is fresh.
  */
-export function metaAdvancedMatchingJs(visitorExternalId?: string | null): string {
+export function metaAdvancedMatchingJs(visitorExternalId?: string | null, tenantId?: string): string {
   const vid = visitorExternalId && /^[a-f0-9]{64}$/.test(visitorExternalId) ? visitorExternalId : null;
-  return `var am={country:'iq'${vid ? `,external_id:'${vid}'` : ""}};try{var hp=JSON.parse(sessionStorage.getItem('${escapeJs(PENDING_PURCHASE_KEY)}')||'null');var hx=/^[a-f0-9]{64}$/;if(hp&&hx.test(hp.ph||''))am.ph=hp.ph;if(hp&&hx.test(hp.external_id||''))am.external_id=hp.external_id;}catch(e){}`;
+  const base = `var am={country:'iq'${vid ? `,external_id:'${vid}'` : ""}};`;
+  if (!tenantId) return base;
+  return `${base}try{var hp=JSON.parse(sessionStorage.getItem('${escapeJs(pendingPurchaseKey(tenantId))}')||'null');var hx=/^[a-f0-9]{64}$/;if(hp&&typeof hp.ts==='number'&&Date.now()-hp.ts<=${PENDING_PURCHASE_TTL_MS}){if(hx.test(hp.ph||''))am.ph=hp.ph;if(hx.test(hp.external_id||''))am.external_id=hp.external_id;}}catch(e){}`;
 }
 
 /** Minimal JS-string escaper for inline-script tag IDs. Pixel IDs are

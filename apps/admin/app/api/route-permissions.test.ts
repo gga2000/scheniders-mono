@@ -103,6 +103,13 @@ type Case = {
 /** Mutations support_staff must NOT be able to perform. */
 const SUPER_ADMIN_ONLY: Case[] = [
   {
+    name: "GET /api/export?type=transactions (adjust_balance)",
+    call: async (t) => {
+      const { GET } = await import("./export/route");
+      return GET(req("/api/export?type=transactions&format=csv", "GET", t));
+    },
+  },
+  {
     name: "POST /api/wallet-topup-requests/[id] (top_up_wallet)",
     call: async (t) => {
       const { POST } = await import("./wallet-topup-requests/[id]/route");
