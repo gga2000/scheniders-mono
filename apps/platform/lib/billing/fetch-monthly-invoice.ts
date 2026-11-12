@@ -17,7 +17,7 @@ export async function fetchMonthlyInvoice(
     const { start, end } = monthRange(month);
 
     const [{ data: store, error: storeError }, { data: before, error: beforeError }] = await Promise.all([
-        client.from("tenants").select("name").eq("id", tenant.id).single(),
+        client.from("tenants").select("business_name").eq("id", tenant.id).single(),
         client
             .from("wallet_transactions")
             .select("balance_after_iqd")
@@ -49,7 +49,7 @@ export async function fetchMonthlyInvoice(
 
     return buildMonthlyInvoice({
         month,
-        storeName: (store as { name: string }).name,
+        storeName: (store as { business_name: string | null }).business_name ?? "",
         displayId: tenant.displayId,
         transactions,
         openingBalance: before ? Number((before as { balance_after_iqd: number }).balance_after_iqd) : 0,

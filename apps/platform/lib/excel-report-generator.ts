@@ -152,7 +152,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
 
     const { title, dateRange, reportType, orders } = options;
     const workbook = new ExcelJSLib.Workbook();
-    workbook.creator = "Schneider OMS";
+    workbook.creator = "Scheniders";
     workbook.created = new Date();
 
     // Calculate stats
@@ -558,7 +558,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
     const link = document.createElement("a");
     const dateSuffix = new Date().toISOString().split("T")[0];
     link.href = url;
-    link.download = `Schneider_Report_${dateSuffix}.xlsx`;
+    link.download = `Scheniders_Report_${dateSuffix}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

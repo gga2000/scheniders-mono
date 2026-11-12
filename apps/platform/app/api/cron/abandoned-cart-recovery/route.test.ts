@@ -10,6 +10,8 @@ vi.mock("@/lib/env", () => ({ env: { CRON_SECRET: "test-cron-secret" } }));
 vi.mock("@/lib/abandoned-cart-sender", () => ({
     sendCartRecoveryMessage: vi.fn(),
 }));
+// Every test store may send on the shared number except "t-blocked".
+vi.mock("@/lib/interakt", () => ({ sharedSenderAllows: (id: string) => id !== "t-blocked" }));
 const limiter = vi.hoisted(() => ({ consumeRateLimit: vi.fn() }));
 vi.mock("@/lib/rate-limit", () => limiter);
 
@@ -46,6 +48,10 @@ function makeClient(
         predicates.push((r) => (r[col] ?? null) !== value);
         return cartsChain;
     };
+    cartsChain.eq = (col: string, value: unknown) => {
+        predicates.push((r) => r[col] === value);
+        return cartsChain;
+    };
     cartsChain.in = (col: string, values: unknown[]) => {
         predicates.push((r) => values.includes(r[col]));
         return cartsChain;
@@ -56,8 +62,11 @@ function makeClient(
         return cartsChain;
     };
     cartsChain.order = () => cartsChain;
-    cartsChain.limit = () =>
-        Promise.resolve({ data: carts.filter((c) => predicates.every((p) => p(c))), error: null });
+    cartsChain.limit = (n: number) => {
+        const rows = carts.filter((c) => predicates.every((p) => p(c))).slice(0, n);
+        predicates.length = 0;
+        return Promise.resolve({ data: rows, error: null });
+    };
     // The route asks for opted-in stores only: apply that filter like the database would.
     const tenantsChain = {
         eq: (path: string, value: string) => {
@@ -188,6 +197,36 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
 
         const json = await (await GET(authedRequest())).json();
         expect(json).toMatchObject({ processed: 1, sent: 1 });
+    });
+
+    it("one store's flood of captures or spent budget never starves another store", async () => {
+        const flood = Array.from({ length: 80 }, (_, i) => cart({ id: `a-${i}`, tenant_id: "t-a" }));
+        const storeA = { ...optedIn, id: "t-a" };
+        const { client } = makeClient([...flood, cart({ id: "b-1" })], [storeA, optedIn]);
+        (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+        (sendCartRecoveryMessage as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
+        // Store A's daily budget is already spent.
+        limiter.consumeRateLimit.mockImplementation(async (key: string) =>
+            key === "cart-recovery:t-a"
+                ? { allowed: false, remaining: 0, retryAfterSeconds: 60 }
+                : { allowed: true, remaining: 39, retryAfterSeconds: 0 },
+        );
+
+        const json = await (await GET(authedRequest())).json();
+        expect(json.sent).toBe(1);
+        expect(sendCartRecoveryMessage).toHaveBeenCalledWith(expect.objectContaining({ id: "b-1" }));
+        // A stops at its first refused cart instead of burning the batch.
+        expect(limiter.consumeRateLimit.mock.calls.filter((c) => c[0] === "cart-recovery:t-a")).toHaveLength(1);
+    });
+
+    it("never reads carts of a store not allowed on the shared number", async () => {
+        const blocked = { ...optedIn, id: "t-blocked" };
+        const { client } = makeClient([cart({ tenant_id: "t-blocked" })], [blocked]);
+        (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+
+        const json = await (await GET(authedRequest())).json();
+        expect(json.processed).toBe(0);
+        expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
     });
 
     it("never nudges a cart idle for more than two days", async () => {

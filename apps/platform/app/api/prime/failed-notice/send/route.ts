@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
+import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import { sendPrimeFailedNoticeByHand, type PrimeFailedNoticeHandResult } from "@/lib/prime/failed-notice";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +26,8 @@ const REFUSED: Record<Exclude<PrimeFailedNoticeHandResult, "sent">, { status: nu
 export async function POST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
-    if (!hasPermission(caller.role, PERMISSIONS.EDIT_ORDERS)) {
-        return NextResponse.json({ success: false, error: "You cannot change orders." }, { status: 403 });
-    }
+    const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-failed-notice-send");
+    if (!permission.ok) return permission.response;
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
 

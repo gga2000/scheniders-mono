@@ -17,6 +17,7 @@ import {
     parseInteraktInbound,
     type InteraktInbound,
 } from "@/lib/interakt-inbound";
+import { withFailureReport } from "@/lib/job-monitor";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -176,7 +177,7 @@ async function updateOrderStatus(
 // ROUTE HANDLERS
 // =============================================
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         // 1. Verify webhook secret — mandatory.
         const webhookSecret = env.INTERAKT_WEBHOOK_SECRET;
@@ -361,3 +362,5 @@ export async function GET() {
         { status: 200 }
     );
 }
+
+export const POST = withFailureReport("webhook-interakt", handlePost);

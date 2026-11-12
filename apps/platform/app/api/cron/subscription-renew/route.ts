@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { EXEMPT_PLANS_SQL_LIST, isBillingExempt } from "@/lib/billing-exempt";
+import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -46,7 +47,7 @@ const renewResultSchema = z.object({
  * advanced in the same transaction as the charge, or neither happened). A
  * unique index on the per-period reference backs this up in the ledger.
  */
-export async function GET(request: Request) {
+async function runScheduled(request: Request) {
     const denied = requireCronAuth(request);
     if (denied) return denied;
 
@@ -143,3 +144,5 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: errors === 0, renewed, suspended, errors, results }, { status: errors === 0 ? 200 : 500 });
 }
+
+export const GET = withCronMonitor(CRON_MONITORS.subscriptionRenew, runScheduled);

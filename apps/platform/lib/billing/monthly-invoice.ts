@@ -215,7 +215,8 @@ export function monthlyInvoiceDocument(inv: MonthlyInvoice): string {
   h2 { font-size: 14px; margin: 6mm 0 2mm; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2.2mm 0; border-bottom: 1px solid #ddd; }
-  td.num { text-align: left; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  td.num { text-align: left; }
   tr.total td { font-weight: 700; font-size: 15px; border-bottom: none; padding-top: 3mm; }
   .foot { margin-top: 8mm; color: #555; font-size: 11px; }
 </style>

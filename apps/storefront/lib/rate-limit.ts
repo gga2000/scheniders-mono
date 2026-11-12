@@ -42,7 +42,10 @@ export async function consumeRateLimit(
 ): Promise<RateLimitResult> {
   const supabase = createSupabaseServiceClient();
   const { data, error } = await supabase.rpc("consume_rate_limit", {
-    _key: key,
+    // Keys embed client-sent ids such as tenant_id. A uuid matches the same
+    // store in any letter case, so the bucket must too, or each spelling of
+    // one id would get its own fresh budget.
+    _key: key.toLowerCase(),
     _limit: limit,
     _window_seconds: windowSeconds,
   });
@@ -73,7 +76,7 @@ export async function consumeRateLimit(
  */
 export function phoneBucket(tenantId: string, phone: string): string {
   const digits = phone.replace(/\D/g, "").slice(-10);
-  return createHash("sha256").update(`${tenantId}:${digits}`).digest("hex").slice(0, 32);
+  return createHash("sha256").update(`${tenantId.toLowerCase()}:${digits}`).digest("hex").slice(0, 32);
 }
 
 /** The caller's address as the edge reports it (first x-forwarded-for hop). */

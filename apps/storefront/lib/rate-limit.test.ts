@@ -5,7 +5,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: () => ({ rpc }),
 }));
 
-import { clientIp, consumeRateLimit } from "./rate-limit";
+import { clientIp, consumeRateLimit, phoneBucket } from "./rate-limit";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -32,6 +32,17 @@ describe("consumeRateLimit", () => {
     rpc.mockResolvedValue({ data: [], error: null });
     expect(await consumeRateLimit("k", 5, 60, "fail-open")).toEqual({ allowed: true, remaining: 5, retryAfterSeconds: 0 });
     expect(console.error).toHaveBeenCalled();
+  });
+});
+
+describe("tenant id letter case", () => {
+  it("gives every spelling of one tenant id the same bucket", async () => {
+    rpc.mockResolvedValue({ data: [{ allowed: true, remaining: 4, reset_at: new Date().toISOString() }], error: null });
+    const lower = "0f1e2d3c-4b5a-4987-a6b5-c4d3e2f1a0b9";
+    const mixed = "0F1E2d3c-4B5A-4987-A6b5-c4d3e2f1a0b9";
+    await consumeRateLimit(`track:order:${mixed}:1261110017`, 10, 600, "fail-closed");
+    expect(rpc).toHaveBeenCalledWith("consume_rate_limit", expect.objectContaining({ _key: `track:order:${lower}:1261110017` }));
+    expect(phoneBucket(mixed, "07709876543")).toBe(phoneBucket(lower, "0770 987 6543"));
   });
 });
 

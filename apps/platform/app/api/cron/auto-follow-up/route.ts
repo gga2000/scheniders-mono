@@ -9,6 +9,7 @@ import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { automationFollowUpStamp } from "@/lib/follow-up-state";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { withFailureReport } from "@/lib/job-monitor";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -22,7 +23,7 @@ export const maxDuration = 30;
  * Called by QStash after a scheduled delay (6h for reminder, 10h for discount).
  * Verifies the order is still in "contacted" status before sending.
  */
-export async function POST(request: Request) {
+async function runFollowUp(request: Request) {
     // Verify QStash signature
     const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
     const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
@@ -215,3 +216,5 @@ export async function POST(request: Request) {
         newContactCount,
     });
 }
+
+export const POST = withFailureReport("auto-follow-up", runFollowUp);

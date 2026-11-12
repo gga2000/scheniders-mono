@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getPrimeClient, primeConfigFromEnv } from "@/lib/prime/client";
 import { handlePrimeTicketMessage, type PrimeTicketReplyOutcome } from "@/lib/prime/ticket-reply";
 import { isPrimeWebhookCall, parsePrimeTicketBody, PRIME_WEBHOOK_HEADER, primeWebhookSecret } from "@/lib/prime/webhook";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -15,7 +16,7 @@ export const maxDuration = 30;
  * support becomes a notice for the store (lib/prime/ticket-reply). A failure
  * answers 500 so Prime tries again; the tickets tab still refreshes on its own.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const config = primeConfigFromEnv();
     const client = getPrimeClient();
     if (!config || !client) return NextResponse.json({ success: false, error: "Prime is not configured" }, { status: 503 });
@@ -42,3 +43,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "failed" }, { status: 500 });
     }
 }
+
+export const POST = withFailureReport("webhook-prime-ticket", handlePost);

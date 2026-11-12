@@ -9,9 +9,21 @@ import { toIraqE164 } from "@/lib/customer-format";
  * not a formula, and keeps its "+".
  */
 export function csvCell(value: string | number | null | undefined): string {
-    let v = String(value ?? "");
-    if (/^[=+\-@\t\r]/.test(v) && !/^\+\d+$/.test(v)) v = `'${v}`;
+    const v = noFormula(value);
     return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+/**
+ * One tab-separated cell, with the same formula guard. A tab or line break
+ * inside a value would start a new cell or row, so it becomes a space.
+ */
+export function tsvCell(value: string | number | null | undefined): string {
+    return noFormula(value).replace(/[\t\r\n]+/g, " ");
+}
+
+function noFormula(value: string | number | null | undefined): string {
+    const v = String(value ?? "");
+    return /^[=+\-@\t\r]/.test(v) && !/^\+\d+$/.test(v) ? `'${v}` : v;
 }
 
 /** "+9647…" so WhatsApp tools and Excel keep it as a phone, not a number. */

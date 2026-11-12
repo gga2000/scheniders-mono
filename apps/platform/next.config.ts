@@ -168,8 +168,22 @@ const nextConfig: NextConfig = {
 
 import { withSentryConfig } from "@sentry/nextjs";
 
+// org, project and the upload key come from SENTRY_ORG, SENTRY_PROJECT and
+// SENTRY_AUTH_TOKEN, which the Sentry Vercel integration sets per project.
+// With them, every production build creates a release named after the git
+// commit and uploads source maps (then deletes them from the deploy), so
+// stack traces show our real files and lines.
 export default withSentryConfig(withSerwist(nextConfig), {
-  silent: true,
-  org: "ali-b1",
-  project: "javascript-nextjs",
+  silent: !process.env.CI,
+  telemetry: false,
+  widenClientFileUpload: true,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+  // Browser events go to our own /monitoring route (app/monitoring/route.ts),
+  // so merchants' ad blockers do not drop them on the way to sentry.io.
+  tunnelRoute: "/monitoring",
+  // A Sentry outage or an expired upload key must not block a deploy: the
+  // build still ships, and the warning is in the Vercel build log.
+  errorHandler: (err) => {
+    console.warn(`[sentry] release or source map upload failed: ${err.message}`);
+  },
 });

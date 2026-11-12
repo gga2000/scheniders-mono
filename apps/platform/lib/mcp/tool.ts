@@ -2,8 +2,8 @@ import * as Sentry from "@sentry/nextjs";
 import type { CallToolResult, McpServer, ServerContext, ToolAnnotations } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 import { resolveMcpCaller, type McpCaller } from "@/lib/mcp/caller";
-import { isAdminRole } from "@/lib/permissions";
-import { ORDER_WRITE_ROLES } from "@/lib/auth/resolve-order-caller";
+import { isAdminRole, type PermissionKey } from "@/lib/permissions";
+import { memberHasPermission } from "@/lib/auth/member-has-permission";
 
 /**
  * A failure the caller should read as-is: no access, not found, invalid
@@ -12,10 +12,14 @@ import { ORDER_WRITE_ROLES } from "@/lib/auth/resolve-order-caller";
  */
 export class McpToolError extends Error {}
 
-/** Roles that may change orders: the list the order server actions use. */
-export function requireWriter(caller: McpCaller): void {
-    if (!ORDER_WRITE_ROLES.includes(caller.role)) {
-        throw new McpToolError("Your role in this store is read-only.");
+/**
+ * The caller must hold this staff permission in their store, by the same rule
+ * the app uses (role default plus the store's per-user overrides), so a
+ * permission switched off for someone is off through Claude too.
+ */
+export async function requireWriter(caller: McpCaller, permission: PermissionKey): Promise<void> {
+    if (!(await memberHasPermission(caller, permission))) {
+        throw new McpToolError("Your role in this store cannot do this.");
     }
 }
 

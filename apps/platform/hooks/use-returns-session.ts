@@ -6,6 +6,7 @@ import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { classifyScannedOrder, type ScanResult } from "@/lib/returns/classify-scan";
 import { playScanBeep, playErrorBuzz } from "@/lib/returns/sounds";
+import { returnsPairingTopic } from "@/lib/returns/pairing-topic";
 import type { Order } from "@/types/order";
 
 export type { ScanResult };
@@ -67,9 +68,9 @@ export function useReturnsSession(open: boolean) {
     useEffect(() => { itemsRef.current = items; }, [items]);
 
     const pairingUrl = useMemo(() => {
-        if (typeof window === "undefined") return "";
-        return `${window.location.origin}/returns/scan?s=${token}`;
-    }, [token]);
+        if (typeof window === "undefined" || !tenantId) return "";
+        return `${window.location.origin}/returns/scan?t=${tenantId}&s=${token}`;
+    }, [token, tenantId]);
 
     useEffect(() => {
         try {
@@ -78,8 +79,10 @@ export function useReturnsSession(open: boolean) {
     }, [items, storageKey]);
 
     useEffect(() => {
-        if (!open) return;
-        const channel = supabase.channel(`returns:${token}`, { config: { presence: { key: "cockpit" } } });
+        if (!open || !tenantId) return;
+        const topic = returnsPairingTopic(tenantId, token);
+        if (!topic) return;
+        const channel = supabase.channel(topic, { config: { private: true, presence: { key: "cockpit" } } });
         channel
             .on("presence", { event: "sync" }, () => {
                 const state = channel.presenceState() as Record<string, Array<{ role?: string }>>;
@@ -113,7 +116,7 @@ export function useReturnsSession(open: boolean) {
                 if (status === "SUBSCRIBED") await channel.track({ role: "cockpit", online_at: new Date().toISOString() });
             });
         return () => { channel.unsubscribe(); };
-    }, [open, token, findScanned]);
+    }, [open, token, tenantId, findScanned]);
 
     const markProcessed = useCallback((orderId: string) => {
         setItems((prev) => prev.map((i) => (i.orderId === orderId ? { ...i, result: "done" as ScanResult } : i)));

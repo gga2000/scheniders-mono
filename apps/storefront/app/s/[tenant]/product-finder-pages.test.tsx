@@ -3,7 +3,7 @@
 // cost an extra query and are loaded on demand — these tests pin that
 // every route the finder may sit on asks for them when it does.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -168,12 +168,20 @@ function attributeRequests(): boolean[] {
 }
 
 beforeEach(() => {
+  // The preview uses the dev token, which only works when no signing key is set;
+  // a machine with the Supabase service key would otherwise derive one.
+  vi.stubEnv("PREVIEW_TOKEN_SECRET", "");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
   queries.listProducts.mockReset();
   queries.listProducts.mockImplementation(
     async (_tenantId: string, opts: { withAttributes?: boolean } = {}) => [
       opts.withAttributes ? WITH_ATTRIBUTES : BARE,
     ],
   );
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("product finder on the home page", () => {

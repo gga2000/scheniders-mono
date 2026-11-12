@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { ORDER_WRITE_ROLES } from "@/lib/auth/resolve-order-caller";
-import { isAdminRole } from "@/lib/permissions";
+import { memberHasPermission } from "@/lib/auth/member-has-permission";
+import { isAdminRole, PERMISSIONS } from "@/lib/permissions";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { canCreateOrder } from "@/lib/tenant";
 import { trackOrderUsage } from "@/lib/order-service";
@@ -88,7 +88,7 @@ async function actorName(supabase: ReturnType<typeof createSupabaseServiceClient
  */
 export async function createAfterSaleOrder(actor: AfterSaleActor, input: AfterSaleInput): Promise<AfterSaleResult> {
     const { tenantId, role } = actor;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    if (!(await memberHasPermission(actor, PERMISSIONS.CREATE_ORDERS))) {
         return { success: false, error: "You do not have permission to create orders" };
     }
 
@@ -174,8 +174,8 @@ export async function receiveAfterSaleItem(
     actor: AfterSaleActor,
     input: ReceiveAfterSaleInput,
 ): Promise<{ success: true } | { success: false; error: string }> {
-    const { tenantId, role } = actor;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    const { tenantId } = actor;
+    if (!(await memberHasPermission(actor, PERMISSIONS.EDIT_ORDERS))) {
         return { success: false, error: "You do not have permission to receive returns" };
     }
 

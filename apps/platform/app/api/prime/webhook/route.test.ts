@@ -17,7 +17,7 @@ const state = vi.hoisted(() => ({
     stepNames: vi.fn(),
 }));
 
-vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
+vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn(), captureMessage: vi.fn(), flush: vi.fn(async () => true) }));
 
 vi.mock("@/lib/prime/client", () => ({
     primeConfigFromEnv: () => (state.configured ? config : null),

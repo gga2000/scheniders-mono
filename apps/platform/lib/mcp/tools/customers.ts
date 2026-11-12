@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { McpCaller } from "@/lib/mcp/caller";
 import { McpToolError, actorName, canSeeMoney, registerTool, requireWriter } from "@/lib/mcp/tool";
+import { PERMISSIONS } from "@/lib/permissions";
 import { ORDER_SUMMARY_COLUMNS, baghdadTime, iqd, orderLine, type OrderSummaryRow } from "@/lib/mcp/format";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
@@ -139,7 +140,7 @@ export function registerCustomerTools(server: McpServer): void {
         description: "Add a note to a customer's profile (seen by the team on the customer page). The note is signed as coming from Claude.",
         input: z.object({ phone: phoneSchema, note: z.string().trim().min(1).max(1000) }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_CUSTOMERS);
             const customer = await knownCustomer(caller, input.phone);
             const { error } = await caller.db.from("customer_notes").insert({
                 tenant_id: caller.tenantId,
@@ -164,7 +165,7 @@ export function registerCustomerTools(server: McpServer): void {
             create_tag: z.boolean().default(false),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_CUSTOMERS);
             const customer = await knownCustomer(caller, input.phone);
 
             const { data: tags, error: tagsError } = await caller.db

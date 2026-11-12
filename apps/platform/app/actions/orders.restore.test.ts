@@ -27,7 +27,7 @@ const OTHER_TENANT = "44444444-4444-4444-8444-444444444444";
 const ORDER_A = "33333333-3333-4333-8333-333333333333";
 const ORDER_B = "55555555-5555-4555-8555-555555555555";
 
-type ExistingRow = { id: string; tenant_id: string; order_id: string | null };
+type ExistingRow = { id: string; tenant_id: string; order_id: string | null } & Record<string, unknown>;
 
 /**
  * `from("orders").select(...).in("id", ids)` answers with `existing`;
@@ -154,5 +154,32 @@ describe("restoreOrdersAction", () => {
         const oversized = Array.from({ length: RESTORE_ORDERS_BATCH_SIZE + 1 }, () => backupRow(ORDER_A));
         expect((await restoreOrdersAction(oversized, "token")).success).toBe(false);
         expect(from).not.toHaveBeenCalled();
+    });
+    it("keeps an existing order's billing and attribution columns, so a restore cannot make it free", async () => {
+        signedInAs("admin");
+        const stored = {
+            id: ORDER_A, tenant_id: TENANT, order_id: "9001",
+            is_test: false, guide_practice: false, take_kind: null, taken_by: null,
+            abandoned_cart_at: null, created_via: "storefront", entered_by: null,
+        };
+        const { recorded } = serviceClient([stored]);
+        const res = await restoreOrdersAction([backupRow(ORDER_A, {
+            status: "delivered", is_test: true, take_kind: "sample", taken_by: "x",
+            created_via: "manual", abandoned_cart_at: "2026-11-01T00:00:00Z",
+        })], "token");
+        expect(res).toEqual({ success: true, restored: 1 });
+        const row = recorded.upserted?.[0];
+        expect(row).toMatchObject({
+            status: "delivered", order_id: "9001", is_test: false, guide_practice: false,
+            take_kind: null, taken_by: null, abandoned_cart_at: null, created_via: "storefront", entered_by: null,
+        });
+    });
+
+    it("drops take, practice and channel columns from a new row", async () => {
+        signedInAs("admin");
+        const { recorded } = serviceClient([]);
+        await restoreOrdersAction([backupRow(ORDER_A, { take_kind: "sample", taken_by: "x", guide_practice: true, created_via: "till" })], "token");
+        const row = recorded.upserted?.[0] ?? {};
+        for (const column of ["take_kind", "taken_by", "guide_practice", "created_via"]) expect(row).not.toHaveProperty(column);
     });
 });

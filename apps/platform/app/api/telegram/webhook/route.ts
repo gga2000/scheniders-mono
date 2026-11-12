@@ -9,12 +9,15 @@ import {
 } from "@/lib/telegram";
 import { createOrderForTenant } from "@/lib/order-service";
 import { activeTenantRole } from "@/lib/auth/active-tenant-role";
+import { memberHasPermission } from "@/lib/auth/member-has-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { constantTimeEqual } from "@/lib/webhook-auth";
 import type { Order, OrderItem } from "@/types/order";
 import {
     matchProductReply,
     type CatalogProduct,
 } from "@/lib/telegram-product-match";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -77,7 +80,7 @@ interface EmployeeLink {
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
     // Fails closed: without the secret anyone could post a fake update as a
     // linked employee and create orders in that employee's store.
     const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -143,6 +146,15 @@ async function handleMessage(msg: TgMessage) {
         return sendMessage(
             msg.chat.id,
             "🚫 حسابك معطّل في هذا المتجر. تواصل مع الأدمن."
+        );
+    }
+
+    // The bot only creates orders, so it needs the same orders.create the web
+    // app checks: a demoted or revoked member keeps their link but not this.
+    if (!(await canCreateOrders(link))) {
+        return sendMessage(
+            msg.chat.id,
+            "🚫 صلاحيتك في هذا المتجر لا تسمح بإنشاء الطلبات. تواصل مع الأدمن."
         );
     }
 
@@ -496,6 +508,13 @@ async function getActiveMembership(link: EmployeeLink): Promise<boolean> {
     return (await activeTenantRole(link.user_profile_id, link.tenant_id)) !== null;
 }
 
+/** orders.create for the linked member, with the store's per-user overrides. */
+async function canCreateOrders(link: EmployeeLink): Promise<boolean> {
+    const role = await activeTenantRole(link.user_profile_id, link.tenant_id);
+    if (role === null) return false;
+    return memberHasPermission({ userId: link.user_profile_id, tenantId: link.tenant_id, role }, PERMISSIONS.CREATE_ORDERS);
+}
+
 async function loadProducts(tenantId: string): Promise<CatalogProduct[]> {
     const supabase = createSupabaseServiceClient();
     const { data, error } = await supabase
@@ -576,3 +595,5 @@ function helpText(): string {
         "<b>بعد إرسال الصورة</b>، جاوب برقم المنتج (مثلاً <code>3</code>)، أو اسم المنتج، أو <code>3 x 2</code> للكميات.",
     ].join("\n");
 }
+
+export const POST = withFailureReport("webhook-telegram", handlePost);

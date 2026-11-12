@@ -14,6 +14,7 @@ import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 import type { Order } from "@/types/order";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 // The Interakt client retries (1s, 2s) for the primary, the secondary phone
@@ -56,7 +57,7 @@ const deliverySchema = z.object({ order_id: z.string().uuid() });
  * failure QStash should retry · 200 for everything decided (sent or
  * deliberately skipped), so QStash stops.
  */
-export async function POST(request: Request): Promise<NextResponse> {
+async function handlePost(request: Request): Promise<NextResponse> {
     const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
     const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
     if (!currentSigningKey || !nextSigningKey) {
@@ -185,3 +186,5 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({ dispatched: true });
 }
+
+export const POST = withFailureReport("webhook-storefront-order", handlePost);

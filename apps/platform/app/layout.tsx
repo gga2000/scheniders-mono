@@ -22,12 +22,12 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "شنايدر",
-  description: "نظام إدارة الطلبات - Advanced order management dashboard for Schenider team",
+  description: "نظام إدارة الطلبات - Advanced order management dashboard for Scheniders team",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Schenider OMS",
+    title: "Scheniders",
   },
   formatDetection: {
     telephone: false,
@@ -76,7 +76,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Schenider" />
+        <meta name="apple-mobile-web-app-title" content="Scheniders" />
         <link rel="apple-touch-icon" href="/icons/icon-180.png" />
         <link rel="apple-touch-startup-image" href="/icons/splash.png" />
       </head>
