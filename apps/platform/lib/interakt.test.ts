@@ -148,12 +148,15 @@ describe("v3 templates name the store and give its own WhatsApp", () => {
         return JSON.parse(fetchMock.mock.calls[0][1].body as string).template.bodyValues;
     }
 
-    it("confirmation: store name is {{2}}, store WhatsApp is {{9}}", async () => {
+    it("confirmation: store name {{2}}, order number {{3}}, products {{4}}, store WhatsApp {{9}}", async () => {
         await sendTemplateMessage(makeOrder(), "confirmation");
         const v = sentValues();
         expect(v).toHaveLength(9);
         expect(v[1]).toBe("عطور الكرادة");
-        expect(v[3]).toBe("7208");
+        expect(v[2]).toBe("7208");
+        expect(v[3]).toContain("انفوي");
+        expect(v[6]).toBe("لا يوجد");
+        expect(v[7]).toBe("34,750 د.ع");
         expect(v[8]).toBe("07801234567");
     });
 

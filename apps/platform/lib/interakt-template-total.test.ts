@@ -82,7 +82,7 @@ describe("{{7}} on storefront orders: price (net) + delivery", () => {
             order({ source: "storefront", price: 36000, discount_amount: 4000, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 41,000");
+        expect(sentTotal()).toBe("41,000 د.ع");
     });
 
     it("confirmation adds delivery when there is no discount", async () => {
@@ -90,7 +90,7 @@ describe("{{7}} on storefront orders: price (net) + delivery", () => {
             order({ source: "storefront", price: 35000, discount_amount: 0, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 40,000");
+        expect(sentTotal()).toBe("40,000 د.ع");
     });
 
     it("confirmation treats a missing fee as zero", async () => {
@@ -98,7 +98,7 @@ describe("{{7}} on storefront orders: price (net) + delivery", () => {
             order({ source: "storefront", price: 35000, discount_amount: null, delivery_fee: null }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 35,000");
+        expect(sentTotal()).toBe("35,000 د.ع");
     });
 
     it("the staff alert quotes the same amount", async () => {
@@ -116,7 +116,7 @@ describe("{{7}} on every other source: price, exactly as before", () => {
             order({ source: "lightfunnels", price: 34750, discount_amount: 0, delivery_fee: 0 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 34,750");
+        expect(sentTotal()).toBe("34,750 د.ع");
     });
 
     it("a Lightfunnels order staff later gave a discount and a fee (price is already net)", async () => {
@@ -124,7 +124,7 @@ describe("{{7}} on every other source: price, exactly as before", () => {
             order({ source: "lightfunnels", price: 30000, discount_amount: 4750, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 30,000");
+        expect(sentTotal()).toBe("30,000 د.ع");
     });
 
     it("the staff alert for that Lightfunnels order", async () => {
@@ -140,6 +140,6 @@ describe("{{7}} on every other source: price, exactly as before", () => {
             order({ source: "whatsapp", price: 25000, discount_amount: 2500, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 25,000");
+        expect(sentTotal()).toBe("25,000 د.ع");
     });
 });

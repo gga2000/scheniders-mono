@@ -245,8 +245,9 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
         })
         .join("، ");
 
-    const totalPrice = `IQD ${order.price.toLocaleString("en-US")}`;
-    const collectibleTotal = `IQD ${templateTotal(order).toLocaleString("en-US")}`;
+    // The v3 templates are Arabic, so amounts read the Arabic way: "25,000 د.ع".
+    const totalPrice = `${order.price.toLocaleString("en-US")} د.ع`;
+    const collectibleTotal = `${templateTotal(order).toLocaleString("en-US")} د.ع`;
 
     const addressParts = [
         order.city || order.governorate_code,
@@ -260,7 +261,7 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
     const displayPhone = formatPhoneForDisplay(targetPhone);
     const displaySecondaryPhone = order.secondary_phone
         ? formatPhoneForDisplay(order.secondary_phone)
-        : "—";
+        : "لا يوجد";
 
     return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, customerName, displayPhone, displaySecondaryPhone };
 }
@@ -308,17 +309,25 @@ export function shopperName(value: string): string {
 /**
  * Build CONFIRMATION template body (cod_order_confirm_v3), variables {{1}}–{{9}}.
  *
- * Template body:
- *   هلا {{1}}، وصلنا طلبك من {{2}}.
- *   المنتجات: {{3}}
- *   رقم الطلب: {{4}}
+ * Template body (Ali picked the warm Iraqi wording, 2026-11-13):
+ *   هلا {{1}}،
+ *   وصلنا طلبك من *{{2}}* ونجهزه إلك بكل اهتمام.
+ *
+ *   *طلبك*
+ *   رقم الطلب: {{3}}
+ *   المنتجات: {{4}}
  *   العنوان: {{5}}
  *   الهاتف: {{6}}
  *   هاتف ثاني: {{7}}
- *   المبلغ عند الاستلام: {{8}}
- *   اضغط تأكيد حتى نجهز طلبك. لأي سؤال راسل المتجر على واتساب {{9}} وراح نرد عليك.
  *
- * Buttons: [تأكيد] [إلغاء]
+ *   *تدفع عند الاستلام: {{8}}*
+ *
+ *   اضغط «تأكيد الطلب» حتى نبدي بالتجهيز.
+ *   أي سؤال، راسل المتجر على واتساب {{9}} ونرد عليك.
+ *   (Meta refuses a body that ends with a variable.)
+ *
+ * Footer: شكراً لثقتك بينا
+ * Buttons: [تأكيد الطلب] [إلغاء الطلب]
  */
 function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?: string): InteraktTemplateBody {
     const h = getOrderHelpers(order, overridePhone);
@@ -334,8 +343,8 @@ function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name
-                h.itemsList,                  // {{3}} — Products
-                order.order_id,               // {{4}} — Order number
+                order.order_id,               // {{3}} — Order number
+                h.itemsList,                  // {{4}} — Products
                 h.address,                    // {{5}} — Address
                 h.displayPhone,               // {{6}} — Phone 1
                 h.displaySecondaryPhone,      // {{7}} — Phone 2
@@ -399,8 +408,8 @@ function buildDiscountBody(order: Order, store: StoreContact, discountPercent: n
     const h = getOrderHelpers(order, overridePhone);
 
     const discountedPrice = customPrice != null
-        ? `IQD ${customPrice.toLocaleString("en-US")}`
-        : `IQD ${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")}`;
+        ? `${customPrice.toLocaleString("en-US")} د.ع`
+        : `${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")} د.ع`;
 
     return {
         countryCode: h.countryCode,
