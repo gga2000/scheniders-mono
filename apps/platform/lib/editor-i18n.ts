@@ -268,10 +268,10 @@ export const STRINGS = {
         empty_hint: { en: "No versions yet. Versions let you show this section differently — by date, device, city, language, or as an A/B test.", ar: "لا توجد نسخ بعد. تتيح لك النسخ عرض هذا القسم بشكل مختلف — حسب التاريخ أو الجهاز أو المدينة أو اللغة أو كتجربة تقارن بين نسختين.", ku: "هێشتا هیچ وەشانێک نییە. وەشانەکان ڕێگەت دەدەن ئەم بەشە بە جیاوازی پیشانبدەیت — بەپێی بەروار، ئامێر، شار، زمان، یان وەکو تاقیکردنەوەی A/B." },
         empty_first_button: { en: "Add your first version", ar: "أضف أول نسخة", ku: "یەکەم وەشانت زیاد بکە" },
         row_drag: { en: "Drag to reorder", ar: "اسحب لإعادة الترتيب", ku: "ڕایبکێشە بۆ ڕێکخستنەوە" },
-        row_enabled: { en: "On", ar: "تشغيل", ku: "هەڵکراو" },
-        row_disabled: { en: "Off", ar: "إيقاف", ku: "کوژاوەتەوە" },
-        row_edit: { en: "Edit version", ar: "تعديل النسخة", ku: "دەستکاری وەشان" },
-        row_delete: { en: "Delete version", ar: "حذف النسخة", ku: "سڕینەوەی وەشان" },
+        row_enabled: { en: "On", ar: "مفعّلة", ku: "چالاکە" },
+        row_disabled: { en: "Off", ar: "متوقفة", ku: "ناچالاکە" },
+        row_edit: { en: "Edit version {label}", ar: "تعديل النسخة {label}", ku: "دەستکاری وەشانی {label}" },
+        row_delete: { en: "Delete version {label}", ar: "حذف النسخة {label}", ku: "سڕینەوەی وەشانی {label}" },
         row_expand: { en: "Edit on the row", ar: "تعديل في الصف", ku: "دەستکاری لە ڕیزدا" },
         row_collapse: { en: "Close inline editor", ar: "إغلاق التعديل المضمّن", ku: "داخستنی دەستکاری لەناوەوە" },
         // tFormat: {label}
@@ -362,7 +362,7 @@ export const STRINGS = {
         editor_override_disabled_hint: { en: "Every field already has a different value", ar: "كل الحقول لديها قيمة مختلفة بالفعل", ku: "پێشتر هەموو خانەکان بەهای جیاوازیان هەیە" },
         editor_priority: { en: "Order", ar: "الترتيب", ku: "ڕیزبەندی" },
         editor_priority_hint: { en: "Top wins when multiple versions match.", ar: "تفوز النسخة الأعلى عند تطابق عدة نسخ.", ku: "ئەو وەشانە سەرکەوتوو دەبێت کە لە سەرەوەیە، کاتێک چەند وەشانێک یەکدەگرنەوە." },
-        editor_enabled: { en: "Enabled", ar: "مفعّل", ku: "چالاککراو" },
+        editor_enabled: { en: "Status", ar: "الحالة", ku: "دۆخ" },
         editor_field_schema_missing: { en: "Field schema not resolvable from path.", ar: "تعذّر استخراج مخطط الحقل من المسار.", ku: "نەخشەی خانە لە ڕێگاوە دەستەبەر نابێت." },
 
         // Wizard step labels
