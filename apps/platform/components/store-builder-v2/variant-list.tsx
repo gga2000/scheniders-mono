@@ -280,13 +280,15 @@ function VariantRow({
                     </div>
                     <div
                         data-testid={`variant-row-${variant.id}-summary`}
-                        className="flex items-center gap-1 truncate text-[12px] text-muted-foreground"
+                        className="flex items-start gap-1 text-[12px] text-muted-foreground"
                         title={humanSummary}
                     >
-                        <KindIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        {/* dir="auto": an Arabic-first line in the LTR app must
-                            cut at its own end, not lose its first words. */}
-                        <span dir="auto" className="min-w-0 truncate">{humanSummary}</span>
+                        <KindIcon className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                        {/* Wraps to two lines instead of one-line ellipsis: the
+                            summary mixes Arabic with merchant names in any
+                            script, and a one-line clip in mixed-direction text
+                            cuts the middle of the name, not the end. */}
+                        <span dir="auto" className="min-w-0 line-clamp-2 break-words">{humanSummary}</span>
                     </div>
                     {overrideSummary && (
                         <div
