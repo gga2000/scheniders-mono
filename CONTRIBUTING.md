@@ -11,13 +11,23 @@ review from @gga2000.
 2. Keep the change small and about one thing. Large features go in as a series
    of PRs, each one safe to ship on its own.
 3. Push the branch and open a pull request into `main`. Fill in the template.
-4. CI runs lint, type-check, tests and build. Vercel builds a preview of the PR.
+4. CI runs lint, type-check, tests and build. Vercel does not build PR previews
+   (the Hobby plan caps deployments at 100 per day); test on production.
 5. @gga2000 reviews. Address comments with new commits on the same branch;
    a new push resets the approval, so the final version is always the one reviewed.
-6. Only @gga2000 merges. Merging to `main` deploys to production.
+6. Only @gga2000 merges. Merging to `main` does not deploy; production deploys
+   from the `release` branch. See "Shipping to production".
 
 Never push to `main`, force-push a shared branch, or merge your own PR. The
 branch rules on `main` block these anyway.
+
+## Shipping to production
+
+Vercel's production branch is `release`. Merges to `main` collect there and
+deploy nothing. When @gga2000 says "ship", fast-forward `release` to `main`
+(`git push origin origin/main:release`): that is one deploy per app, instead of
+one per merge. Each app's `ignoreCommand` skips the build when nothing it
+depends on changed.
 
 ## Setup
 
