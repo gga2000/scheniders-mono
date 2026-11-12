@@ -10,7 +10,7 @@
 // =====================================================================
 
 import {
-  PENDING_PURCHASE_KEY,
+  pendingPurchaseKey,
   pixelContentFromProduct,
   parsePendingPurchase,
   pixelExternalIdSource,
@@ -266,7 +266,7 @@ export async function handOffPurchase(input: {
     ts: Date.now(),
   };
   try {
-    window.sessionStorage.setItem(PENDING_PURCHASE_KEY, JSON.stringify(pending));
+    window.sessionStorage.setItem(pendingPurchaseKey(input.tenantId), JSON.stringify(pending));
   } catch {
     // Storage refused (private mode): fire here, before the navigation.
     identifyTikTok(pending);
@@ -280,14 +280,15 @@ export async function handOffPurchase(input: {
  * initialised. Meta's advanced matching for it is applied at that page's
  * `fbq('init')`, which reads the same handoff.
  */
-export function firePendingPurchase(): void {
+export function firePendingPurchase(tenantId: string): void {
   if (typeof window === "undefined") return;
   // No pixel on this page to fire into: leave the handoff for one that has.
   if (!getFbq() && !getTtq()) return;
   let pending: PendingPurchase | null = null;
   try {
-    pending = parsePendingPurchase(window.sessionStorage.getItem(PENDING_PURCHASE_KEY), Date.now());
-    window.sessionStorage.removeItem(PENDING_PURCHASE_KEY);
+    const key = pendingPurchaseKey(tenantId);
+    pending = parsePendingPurchase(window.sessionStorage.getItem(key), Date.now());
+    window.sessionStorage.removeItem(key);
   } catch {
     // Storage unreadable: the form already fired the event itself.
     return;

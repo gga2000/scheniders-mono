@@ -1,7 +1,9 @@
 "use server";
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { ORDER_WRITE_ROLES, resolveCaller } from "@/lib/auth/resolve-order-caller";
+import { resolveCaller } from "@/lib/auth/resolve-order-caller";
+import { memberHasPermission } from "@/lib/auth/member-has-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { CreateOrderInput } from "@/types/order";
 import { Order, OrderItem } from "@/lib/supabase";
 import { canCreateOrder } from "@/lib/tenant";
@@ -68,8 +70,8 @@ export async function createOrderAction(
         return { success: false, error: `Invalid order: ${issue.path.join(".") || "input"} ${issue.message}` };
     }
 
-    const { tenantId, role } = resolved.caller;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    const { tenantId } = resolved.caller;
+    if (!(await memberHasPermission(resolved.caller, PERMISSIONS.CREATE_ORDERS))) {
         return { success: false, error: "You do not have permission to create orders" };
     }
 
@@ -109,8 +111,8 @@ export async function renameOrderNumberAction(
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { success: false, error: resolved.error };
 
-    const { tenantId, role } = resolved.caller;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    const { tenantId } = resolved.caller;
+    if (!(await memberHasPermission(resolved.caller, PERMISSIONS.EDIT_ORDERS))) {
         return { success: false, error: "You do not have permission to edit orders" };
     }
 
@@ -269,8 +271,8 @@ export async function splitOrderAction(
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { success: false, error: resolved.error };
 
-    const { tenantId, role } = resolved.caller;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    const { tenantId } = resolved.caller;
+    if (!(await memberHasPermission(resolved.caller, PERMISSIONS.CREATE_ORDERS))) {
         return { success: false, error: "You do not have permission to split orders" };
     }
 
@@ -364,8 +366,8 @@ export async function unsplitOrderAction(
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { success: false, error: resolved.error };
 
-    const { tenantId, role } = resolved.caller;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    const { tenantId } = resolved.caller;
+    if (!(await memberHasPermission(resolved.caller, PERMISSIONS.EDIT_ORDERS))) {
         return { success: false, error: "You do not have permission to undo a split" };
     }
 

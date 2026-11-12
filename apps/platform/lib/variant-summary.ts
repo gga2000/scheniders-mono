@@ -102,23 +102,25 @@ const LOCALE_NAME_EN: Record<LocaleCode, string> = {
     ku: "Kurdish",
 };
 
-const PAGE_EN: Record<PageId, string> = {
-    home: "Home",
-    category: "Category",
-    product: "Product",
-    search: "Search",
-    cart: "Cart",
-    checkout: "Checkout",
-    checkout_success: "Order success",
-    track: "Order tracking",
-    about: "About",
-    faq: "FAQ",
-    contact: "Contact",
-    policy_shipping: "Shipping",
-    policy_returns: "Returns",
-    policy_privacy: "Privacy",
-    policy_terms: "Terms",
-    not_found: "404",
+/** Page names as they follow "On"/«على صفحة»/«لەسەر پەڕەی» (so no
+ *  "page" word of their own in Arabic or Kurdish). */
+const PAGE_LABELS: Record<PageId, Record<LocaleCode, string>> = {
+    home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
+    category: { en: "Category", ar: "الفئة", ku: "پۆل" },
+    product: { en: "Product", ar: "المنتج", ku: "بەرهەم" },
+    search: { en: "Search", ar: "البحث", ku: "گەڕان" },
+    cart: { en: "Cart", ar: "السلة", ku: "سەبەتە" },
+    checkout: { en: "Checkout", ar: "إتمام الطلب", ku: "پارەدان" },
+    checkout_success: { en: "Order success", ar: "تأكيد الطلب", ku: "پشتڕاستکردنەوەی داواکاری" },
+    track: { en: "Order tracking", ar: "تتبع الطلب", ku: "بەدواداچوونی داواکاری" },
+    about: { en: "About", ar: "من نحن", ku: "دەربارە" },
+    faq: { en: "FAQ", ar: "الأسئلة الشائعة", ku: "پرسیارە باوەکان" },
+    contact: { en: "Contact", ar: "تواصل معنا", ku: "پەیوەندی" },
+    policy_shipping: { en: "Shipping", ar: "سياسة التوصيل", ku: "سیاسەتی گەیاندن" },
+    policy_returns: { en: "Returns", ar: "سياسة الإرجاع", ku: "سیاسەتی گەڕاندنەوە" },
+    policy_privacy: { en: "Privacy", ar: "سياسة الخصوصية", ku: "سیاسەتی تایبەتمەندێتی" },
+    policy_terms: { en: "Terms", ar: "الشروط والأحكام", ku: "مەرجەکان" },
+    not_found: { en: "404", ar: "غير موجودة", ku: "نەدۆزراوە" },
 };
 
 const DEVICE_LABELS: Record<"mobile" | "tablet" | "desktop", Record<LocaleCode, string>> = {
@@ -221,7 +223,7 @@ function summarizeOne(
         }
         case "page": {
             if (c.values.length === 0) return "";
-            const names = c.values.map((p) => PAGE_EN[p] ?? p);
+            const names = c.values.map((p) => PAGE_LABELS[p]?.[locale] ?? PAGE_LABELS[p]?.en ?? p);
             const joined = joinList(names, locale);
             return locale === "ar"
                 ? `على صفحة ${joined}`

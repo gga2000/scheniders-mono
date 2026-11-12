@@ -189,8 +189,12 @@ export function useMessages(conversationId: string | null) {
                             .from("chat_messages")
                             .select(MESSAGE_SELECT)
                             .eq("id", incoming.id)
-                            .single();
-                        const full = (data ?? incoming) as ChatMessage;
+                            .eq("conversation_id", conversationId)
+                            .maybeSingle();
+                        // Only a row the database returns is shown: any member can
+                        // send on this topic, so the broadcast itself is just a hint.
+                        if (!data) return;
+                        const full = data as ChatMessage;
                         qc.setQueryData<ChatMessage[]>(key, (old = []) =>
                             old.some((m) => m.id === full.id) ? old : sortByCreated([...old, full])
                         );
@@ -210,8 +214,13 @@ export function useMessages(conversationId: string | null) {
                 const { data } = await supabase
                     .from("chat_messages")
                     .select("*, references:chat_message_references(*), reactions:chat_message_reactions(*), attachments:chat_message_attachments(*)")
-                    .eq("id", incoming.id).single();
-                const full = (data ?? incoming) as ChatMessage;
+                    .eq("id", incoming.id)
+                    .eq("conversation_id", conversationId)
+                    .maybeSingle();
+                // Any member can broadcast on this topic, so a payload with no
+                // matching saved row (a forged message) is never rendered.
+                if (!data) return;
+                const full = data as ChatMessage;
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) => {
                     // dedupe purely on client_msg_id, then on id
                     const withoutOptimistic = old.filter(
@@ -226,10 +235,22 @@ export function useMessages(conversationId: string | null) {
                 });
                 qc.invalidateQueries({ queryKey: chatKeys.conversations() });
             })
-            .on("broadcast", { event: "message:update" }, ({ payload }) => {
-                const upd = payload as ChatMessage;
+            .on("broadcast", { event: "message:update" }, async ({ payload }) => {
+                // Re-read the edited row instead of trusting the payload: any
+                // member can broadcast on this topic, so a forged edit would
+                // otherwise rewrite someone else's message on screen.
+                const messageId = (payload as { id?: unknown }).id;
+                if (typeof messageId !== "string") return;
+                const { data } = await supabase
+                    .from("chat_messages")
+                    .select(MESSAGE_SELECT)
+                    .eq("id", messageId)
+                    .eq("conversation_id", conversationId)
+                    .maybeSingle();
+                if (!data) return;
+                const saved = data as ChatMessage;
                 qc.setQueryData<ChatMessage[]>(chatKeys.messages(conversationId), (old = []) =>
-                    old.map((m) => (m.id === upd.id ? { ...m, ...upd } : m))
+                    old.map((m) => (m.id === saved.id ? { ...m, ...saved } : m))
                 );
             })
             .on("broadcast", { event: "reaction:update" }, async ({ payload }) => {

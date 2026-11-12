@@ -81,7 +81,12 @@ import {
     MobileDesktopOnlyStub,
 } from "./mobile-editor-shell";
 import { SectionEditPanel } from "./section-edit-panel";
-import { slotForSectionId, type SitewideSlot } from "./sitewide-parts";
+import {
+    sitewideInstance,
+    sitewideLabel,
+    slotForSectionId,
+    type SitewideSlot,
+} from "./sitewide-parts";
 import { SystemScreenRouter } from "./system-screen-router";
 import { EditorToolbar } from "./editor-toolbar";
 import {
@@ -579,6 +584,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     useEffect(() => {
         return bridge.onContextMenu((e) => {
             set_selected_section_id(e.section_id);
+            // The top bar, header and footer can't be duplicated, moved or
+            // deleted, so they get no menu; right-click opens their form.
+            if (slotForSectionId(globals_ref.current, e.section_id)) return;
             set_preview_context_menu({
                 section_id: e.section_id,
                 x: e.x,
@@ -1043,10 +1051,32 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     const handleEditSection = useCallback(
         (id: string): void => {
+            const slot = slotForSectionId(globals_ref.current, id);
+            if (slot) {
+                set_inspector_tab("blocks");
+                set_editing_global(slot);
+                return;
+            }
             set_editing_section_id(id);
             onEditSection?.(id);
         },
         [onEditSection],
+    );
+
+    /** Open (or close) a site-wide part's form from the inspector strip.
+     *  Opening also selects it in the preview and scrolls there, like a
+     *  page section row does. */
+    const handleEditGlobal = useCallback(
+        (slot: SitewideSlot | null): void => {
+            set_editing_global(slot);
+            if (!slot) return;
+            const id = sitewideInstance(globals_ref.current, slot)?.id;
+            if (!id) return;
+            set_selected_section_id(id);
+            bridge.scrollToSection(id);
+            bridge.requestRect(id);
+        },
+        [bridge],
     );
 
     const handleApplyTemplate = useCallback(
@@ -1291,14 +1321,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     );
 
     // Resolve a friendly label for the selected section (for the toolbar).
+    // Site-wide part (top bar / header / footer) the selection points at.
+    const selected_slot = useMemo<SitewideSlot | null>(
+        () => slotForSectionId(builder.config.globals, selected_section_id),
+        [builder.config.globals, selected_section_id],
+    );
+
     const selected_section_label = useMemo<string | null>(() => {
         if (!selected_section_id) return null;
+        if (selected_slot) return sitewideLabel(selected_slot, builder.active_locale);
         const s = activeSections.find((x) => x.id === selected_section_id);
         if (!s) return null;
         if (s.label?.trim()) return s.label;
         const manifest = getManifestEntry(s.type);
         return manifest ? sectionDisplayName(manifest, builder.active_locale) : s.type;
-    }, [activeSections, selected_section_id, builder.active_locale]);
+    }, [activeSections, selected_section_id, selected_slot, builder.active_locale]);
 
     // Current bottom spacing of the selected section — seeds the drag handle.
     const selected_spacing_bottom_px = useMemo<number>(() => {
@@ -1676,6 +1713,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     bridge={bridge}
                                     selected_section_id={selected_section_id}
                                     selected_section_label={selected_section_label}
+                                    selected_is_sitewide={selected_slot !== null}
                                     onEditRequest={onEditRequest}
                                     onDeleteRequest={handleOverlayDelete}
                                     onAction={handleOverlayAction}
@@ -1983,6 +2021,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     bridge={bridge}
                                     selected_section_id={selected_section_id}
                                     selected_section_label={selected_section_label}
+                                    selected_is_sitewide={selected_slot !== null}
                                     onEditRequest={handleEditSection}
                                     onDeleteRequest={handleOverlayDelete}
                                     onAction={handleOverlayAction}
@@ -2062,7 +2101,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 globals={builder.config.globals}
                                 onChangeGlobal={handleGlobalChange}
                                 editingGlobal={editing_global}
-                                onEditGlobal={set_editing_global}
+                                onEditGlobal={handleEditGlobal}
                                 pageId={builder.active_page}
                                 pageLabel={getPageLabel(builder.active_page, builder.active_locale)}
                                 sections={activeSections}

@@ -7,7 +7,9 @@
 // =====================================================================
 
 import type { z } from "zod";
-import { humanizeFieldKey } from "@/lib/section-field-meta";
+import type { LocaleCode } from "@scheniders/shared";
+import { humanizeFieldKey, resolveFieldLabel } from "@/lib/section-field-meta";
+import { STRINGS, tFormat } from "@/lib/editor-i18n";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Schema introspection                                                 */
@@ -214,10 +216,12 @@ export function humanLabel(key: string): string {
     return humanizeFieldKey(key);
 }
 
-export function humanPath(path: string): string {
+/** "a.b" as "A › B". With a locale, each part uses the editor's own field
+ *  label in that language (the same one the form shows). */
+export function humanPath(path: string, locale?: LocaleCode): string {
     return path
         .split(".")
-        .map((seg) => humanLabel(seg))
+        .map((seg) => (locale ? resolveFieldLabel(undefined, seg, locale) : humanLabel(seg)))
         .join(" › ");
 }
 
@@ -234,6 +238,11 @@ function isI18nObject(o: Record<string, unknown>): boolean {
     return true;
 }
 
+/** Arabic and Kurdish lists take the Arabic comma. */
+function listSep(locale: LocaleCode | undefined): string {
+    return locale === "ar" || locale === "ku" ? "، " : ", ";
+}
+
 /**
  * Return the (up to `limit`) field-path names that the variant overrides,
  * comma-joined and pretty-printed. Walks the override object collecting
@@ -242,6 +251,7 @@ function isI18nObject(o: Record<string, unknown>): boolean {
 export function summarizeOverrides(
     override: Record<string, unknown>,
     limit = 3,
+    locale?: LocaleCode,
 ): string {
     const leaves: string[] = [];
     const walk = (val: unknown, prefix: string): void => {
@@ -261,8 +271,11 @@ export function summarizeOverrides(
     walk(override, "");
     if (leaves.length === 0) return "";
     if (leaves.length <= limit) {
-        return leaves.map((p) => humanPath(p)).join(", ");
+        return leaves.map((p) => humanPath(p, locale)).join(listSep(locale));
     }
-    const shown = leaves.slice(0, limit).map((p) => humanPath(p));
-    return `${shown.join(", ")} +${leaves.length - limit} more`;
+    const shown = leaves.slice(0, limit).map((p) => humanPath(p, locale));
+    const more = locale
+        ? tFormat(STRINGS.variant.override_more, locale, { n: String(leaves.length - limit) })
+        : ` +${leaves.length - limit} more`;
+    return `${shown.join(listSep(locale))}${more}`;
 }

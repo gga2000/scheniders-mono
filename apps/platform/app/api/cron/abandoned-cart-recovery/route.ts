@@ -9,6 +9,7 @@ import {
 } from "@/lib/abandoned-cart-sender";
 import { resolveCartRecovery } from "@scheniders/shared";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { sharedSenderAllows } from "@/lib/interakt";
 import type { AbandonedCartItem, StoreConfigV2 } from "@scheniders/shared";
 import { CRON_MONITORS, withCronMonitor, withFailureReport } from "@/lib/job-monitor";
 
@@ -20,6 +21,8 @@ export const maxDuration = 30;
 const MIN_DELAY_MINUTES = 5;
 // Runs every 10 minutes (vercel.json), so a cart is nudged within 10 minutes of its delay.
 const BATCH_SIZE = 50;
+// Carts read per store per run, so every opted-in store gets a turn.
+const PER_STORE_BATCH = 10;
 // A nudge more than a day after the latest possible delay (24 h) reaches a shopper who
 // has moved on; such carts, and the backlog from before a store turned recovery on,
 // are never sent.
@@ -35,7 +38,7 @@ interface SweepResult {
     processed: number;
     sent: number;
     failed: number;
-    /** Skipped because the tenant opted out or the cart isn't past its delay. */
+    /** Not sent because the store's daily budget is spent or the limiter is down. */
     skipped: number;
 }
 
@@ -47,10 +50,8 @@ interface SweepResult {
  */
 async function sweepAbandonedCarts(): Promise<SweepResult> {
     const db = createSupabaseServiceClient();
-    const floorCutoff = new Date(
-        Date.now() - MIN_DELAY_MINUTES * 60_000,
-    ).toISOString();
-    const staleCutoff = new Date(Date.now() - STALE_AFTER_MINUTES * 60_000).toISOString();
+    const now = Date.now();
+    const staleCutoff = new Date(now - STALE_AFTER_MINUTES * 60_000).toISOString();
 
     // Recovery is opt-in, so only opted-in stores' carts are read: carts of stores
     // that never turned it on used to fill the batch and starve the ones that did.
@@ -59,107 +60,90 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         .select("id, store_config_v2")
         .eq("store_config_v2->commerce->cart_recovery->>enabled", "true");
     if (tenantsError) throw new Error(tenantsError.message);
-    if (!tenants || tenants.length === 0) {
-        return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+
+    // Only stores that can actually send (on the shared number), each with its
+    // own delay, in a fresh order every run so no store is always last.
+    const stores = (tenants ?? [])
+        .map((t) => ({
+            id: (t as { id: string }).id,
+            cfg: resolveCartRecovery((t as { store_config_v2: StoreConfigV2 | null }).store_config_v2?.commerce?.cart_recovery),
+        }))
+        .filter((t) => t.cfg.enabled && sharedSenderAllows(t.id));
+    for (let i = stores.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [stores[i], stores[j]] = [stores[j], stores[i]];
     }
 
-    const { data, error } = await db
-        .from("abandoned_carts")
-        .select("id, tenant_id, phone, items, subtotal_iqd, updated_at")
-        .in("tenant_id", tenants.map((t) => t.id))
-        .is("reminded_at", null)
-        .is("recovered_at", null)
-        // Consent: only a shopper who typed their phone with the consent line
-        // on screen may get an automatic WhatsApp. A capture without it is a
-        // lead for staff to call, never a send.
-        .not("consent_at", "is", null)
-        .lte("updated_at", floorCutoff)
-        .gte("updated_at", staleCutoff)
-        .order("updated_at", { ascending: true })
-        .limit(BATCH_SIZE);
-
-    if (error) throw new Error(error.message);
-
-    const carts = (data ?? []) as Array<{
-        id: string;
-        tenant_id: string;
-        phone: string;
-        items: AbandonedCartItem[];
-        subtotal_iqd: number;
-        updated_at: string;
-    }>;
-    if (carts.length === 0) {
-        return { processed: 0, sent: 0, failed: 0, skipped: 0 };
-    }
-
-    const cfgByTenant = new Map<
-        string,
-        ReturnType<typeof resolveCartRecovery>
-    >();
-    for (const t of tenants as Array<{
-        id: string;
-        store_config_v2: StoreConfigV2 | null;
-    }>) {
-        cfgByTenant.set(
-            t.id,
-            resolveCartRecovery(t.store_config_v2?.commerce?.cart_recovery),
-        );
-    }
-
-    const now = Date.now();
+    let processed = 0;
     let sent = 0;
     let failed = 0;
     let skipped = 0;
-    for (const c of carts) {
-        const cfg = cfgByTenant.get(c.tenant_id);
-        // Opted out, or not yet idle past this tenant's delay → leave for later.
-        if (!cfg || !cfg.enabled) {
-            skipped += 1;
-            continue;
-        }
-        const dueAt =
-            new Date(c.updated_at).getTime() + cfg.delayMinutes * 60_000;
-        if (now < dueAt) {
-            skipped += 1;
-            continue;
-        }
+    // Each store reads its own due carts with its own small batch. One store's
+    // flood of captures (consent is the shopper's claim) or its spent daily
+    // budget can then only hold up that store, never another one.
+    for (const store of stores) {
+        if (processed >= BATCH_SIZE) break;
+        const dueCutoff = new Date(now - Math.max(MIN_DELAY_MINUTES, store.cfg.delayMinutes) * 60_000).toISOString();
+        const { data, error } = await db
+            .from("abandoned_carts")
+            .select("id, tenant_id, phone, items, subtotal_iqd, updated_at")
+            .eq("tenant_id", store.id)
+            .is("reminded_at", null)
+            .is("recovered_at", null)
+            // Consent: only a shopper who typed their phone with the consent line
+            // on screen may get an automatic WhatsApp. A capture without it is a
+            // lead for staff to call, never a send.
+            .not("consent_at", "is", null)
+            .lte("updated_at", dueCutoff)
+            .gte("updated_at", staleCutoff)
+            .order("updated_at", { ascending: true })
+            .limit(Math.min(PER_STORE_BATCH, BATCH_SIZE - processed));
+        if (error) throw new Error(error.message);
 
-        const budget = await consumeRateLimit(
-            `cart-recovery:${c.tenant_id}`,
-            RECOVERY_SENDS_PER_STORE_PER_DAY,
-            86_400,
-        );
-        if (budget.error) {
-            // Fail closed: a send costs money and reaches a stranger's phone.
-            console.error(`[abandoned-cart-recovery] limiter unavailable: ${budget.error}`);
-            skipped += 1;
-            continue;
-        }
-        if (!budget.allowed) {
-            skipped += 1;
-            continue;
-        }
+        const carts = (data ?? []) as Array<{
+            id: string;
+            tenant_id: string;
+            phone: string;
+            items: AbandonedCartItem[];
+            subtotal_iqd: number;
+            updated_at: string;
+        }>;
+        for (const c of carts) {
+            processed += 1;
+            const budget = await consumeRateLimit(
+                `cart-recovery:${store.id}`,
+                RECOVERY_SENDS_PER_STORE_PER_DAY,
+                86_400,
+            );
+            if (budget.error || !budget.allowed) {
+                // Fail closed: a send costs money and reaches a stranger's phone.
+                if (budget.error) console.error(`[abandoned-cart-recovery] limiter unavailable: ${budget.error}`);
+                skipped += 1;
+                // This store is done for now; the rest of its carts wait.
+                break;
+            }
 
-        const cart: RecoverableCart = {
-            id: c.id,
-            tenant_id: c.tenant_id,
-            phone: c.phone,
-            items: Array.isArray(c.items) ? c.items : [],
-            subtotal_iqd: c.subtotal_iqd ?? 0,
-        };
-        const result = await sendCartRecoveryMessage(cart);
-        if (result.success) {
-            sent += 1;
-            await db
-                .from("abandoned_carts")
-                .update({ reminded_at: new Date().toISOString() })
-                .eq("id", c.id);
-        } else {
-            failed += 1;
+            const cart: RecoverableCart = {
+                id: c.id,
+                tenant_id: c.tenant_id,
+                phone: c.phone,
+                items: Array.isArray(c.items) ? c.items : [],
+                subtotal_iqd: c.subtotal_iqd ?? 0,
+            };
+            const result = await sendCartRecoveryMessage(cart);
+            if (result.success) {
+                sent += 1;
+                await db
+                    .from("abandoned_carts")
+                    .update({ reminded_at: new Date().toISOString() })
+                    .eq("id", c.id);
+            } else {
+                failed += 1;
+            }
         }
     }
 
-    return { processed: carts.length, sent, failed, skipped };
+    return { processed, sent, failed, skipped };
 }
 
 /** Abandoned checkouts (orders in pending_checkout) moved to the trash by this run, per reason. */

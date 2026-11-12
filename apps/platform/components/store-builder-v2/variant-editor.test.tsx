@@ -317,7 +317,7 @@ describe("VariantEditor", () => {
             />,
         );
         expect(screen.getByTestId("variant-editor-field-pills-array-hint")).toBeTruthy();
-        expect(screen.getByText(/replaces base entirely/i)).toBeTruthy();
+        expect(screen.getByText(/replaces the original list completely/i)).toBeTruthy();
     });
 
     it("adding a second condition kind appends to conditions", () => {
@@ -418,5 +418,39 @@ describe("VariantEditor", () => {
         );
         fireEvent.click(screen.getByTestId("variant-editor-done"));
         expect(onClose).toHaveBeenCalled();
+    });
+
+    it("Escape closes the editor", () => {
+        const onClose = vi.fn();
+        render(
+            <VariantEditor
+                open
+                variant={makeVariant()}
+                schema={schema}
+                base={base}
+                onChange={() => {}}
+                onClose={onClose}
+            />,
+        );
+        fireEvent.keyDown(window, { key: "Escape" });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders into document.body, outside a transformed parent", () => {
+        const { container } = render(
+            <div style={{ transform: "translateY(-1px)" }}>
+                <VariantEditor
+                    open
+                    variant={makeVariant()}
+                    schema={schema}
+                    base={base}
+                    onChange={() => {}}
+                    onClose={() => {}}
+                />
+            </div>,
+        );
+        const dialog = screen.getByTestId("variant-editor");
+        expect(container.contains(dialog)).toBe(false);
+        expect(dialog.parentElement).toBe(document.body);
     });
 });

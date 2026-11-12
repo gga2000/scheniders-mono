@@ -115,22 +115,6 @@ export function variantKindLabel(
     }
 }
 
-// Re-export under the legacy name. Tests + variant-editor.tsx import
-// VARIANT_KIND_LABEL. We keep it as an English map (backwards-compatible)
-// since variant-editor still references it; UI rendering paths now go
-// through `variantKindLabel(kind, locale)`.
-export const VARIANT_KIND_LABEL: Record<VariantCondition["kind"], string> = {
-    locale: "Language",
-    breakpoint: "Device",
-    time_window: "Schedule",
-    audience: "Audience",
-    ab_test: "Test",
-    governorate: "Governorate",
-    product: "Product",
-    category: "Specific page",
-    page: "Specific page",
-};
-
 function variantPrimaryKind(v: Variant): VariantCondition["kind"] | null {
     return v.conditions[0]?.kind ?? null;
 }
@@ -206,6 +190,8 @@ function VariantRow({
             : Layers;
     const overrideSummary = summarizeOverrides(
         (variant.override as Record<string, unknown>) ?? {},
+        3,
+        locale,
     );
     const humanSummary = summarizeVariantConditions(
         variant.conditions,

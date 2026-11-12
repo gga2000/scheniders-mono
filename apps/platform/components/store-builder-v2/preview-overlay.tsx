@@ -56,6 +56,9 @@ export interface PreviewOverlayProps {
     bridge: UseIframeBridgeReturn;
     selected_section_id: string | null;
     selected_section_label?: string | null;
+    /** The selection is a site-wide part (top bar, header, footer): it can
+     *  only be edited, not duplicated, moved, deleted or re-spaced. */
+    selected_is_sitewide?: boolean;
     onEditRequest: (section_id: string) => void;
     onDeleteRequest: (section_id: string) => void;
     onAction: (action: PreviewOverlayAction) => void;
@@ -99,6 +102,7 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         bridge,
         selected_section_id,
         selected_section_label,
+        selected_is_sitewide = false,
         onEditRequest,
         onDeleteRequest,
         onAction,
@@ -325,8 +329,9 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                         onDuplicate={() => handleAction("duplicate")}
                         onUp={() => handleAction("up")}
                         onDown={() => handleAction("down")}
+                        editOnly={selected_is_sitewide}
                     />
-                    {onSpacingChange && onSpacingPreview && !state.inline_editing ? (
+                    {onSpacingChange && onSpacingPreview && !state.inline_editing && !selected_is_sitewide ? (
                         <SpacingHandle
                             rect={selected_rect}
                             dragValue={
@@ -503,6 +508,8 @@ interface ToolbarProps {
     onDuplicate: () => void;
     onUp: () => void;
     onDown: () => void;
+    /** Show only the edit button (site-wide parts). */
+    editOnly?: boolean;
 }
 
 const TOOLBAR_HEIGHT = 32;
@@ -523,6 +530,7 @@ function Toolbar(props: ToolbarProps): ReactElement {
         onDuplicate,
         onUp,
         onDown,
+        editOnly = false,
     } = props;
     const locale = useEditorLocale();
 
@@ -568,34 +576,38 @@ function Toolbar(props: ToolbarProps): ReactElement {
             >
                 <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             </ToolbarButton>
-            <ToolbarButton
-                testId="preview-overlay-toolbar-duplicate"
-                aria_label={t(STRINGS.common.section_duplicate, locale)}
-                onClick={onDuplicate}
-            >
-                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-            </ToolbarButton>
-            <ToolbarButton
-                testId="preview-overlay-toolbar-up"
-                aria_label={t(STRINGS.common.section_move_up, locale)}
-                onClick={onUp}
-            >
-                <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
-            </ToolbarButton>
-            <ToolbarButton
-                testId="preview-overlay-toolbar-down"
-                aria_label={t(STRINGS.common.section_move_down, locale)}
-                onClick={onDown}
-            >
-                <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
-            </ToolbarButton>
-            <ToolbarButton
-                testId="preview-overlay-toolbar-delete"
-                aria_label={t(STRINGS.common.section_delete, locale)}
-                onClick={onDelete}
-            >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            </ToolbarButton>
+            {editOnly ? null : (
+                <>
+                    <ToolbarButton
+                        testId="preview-overlay-toolbar-duplicate"
+                        aria_label={t(STRINGS.common.section_duplicate, locale)}
+                        onClick={onDuplicate}
+                    >
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    </ToolbarButton>
+                    <ToolbarButton
+                        testId="preview-overlay-toolbar-up"
+                        aria_label={t(STRINGS.common.section_move_up, locale)}
+                        onClick={onUp}
+                    >
+                        <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                    </ToolbarButton>
+                    <ToolbarButton
+                        testId="preview-overlay-toolbar-down"
+                        aria_label={t(STRINGS.common.section_move_down, locale)}
+                        onClick={onDown}
+                    >
+                        <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                    </ToolbarButton>
+                    <ToolbarButton
+                        testId="preview-overlay-toolbar-delete"
+                        aria_label={t(STRINGS.common.section_delete, locale)}
+                        onClick={onDelete}
+                    >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </ToolbarButton>
+                </>
+            )}
         </div>
     );
 }

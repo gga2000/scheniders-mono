@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
+import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
 
 const leadIds = z.array(z.uuid()).min(1, "lead_ids required").max(100, "Max 100 leads per bulk action");
 
@@ -108,6 +109,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, affected: lead_ids.length });
   } catch (error) {
+    const locked = leadConvertedLockResponse(error);
+    if (locked) return locked;
     console.error("Bulk action error:", error);
     return NextResponse.json({ error: "Bulk action failed" }, { status: 500 });
   }

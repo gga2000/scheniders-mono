@@ -11,9 +11,9 @@ import { firePendingPurchase } from "@scheniders/sections/helpers/pixels";
  * effect after theirs and `fbq` / `ttq` already exist (as queues, if their
  * libraries are still loading).
  */
-export function PendingPurchasePixel() {
+export function PendingPurchasePixel({ tenantId }: { tenantId: string }) {
   useEffect(() => {
-    firePendingPurchase();
-  }, []);
+    firePendingPurchase(tenantId);
+  }, [tenantId]);
   return null;
 }

@@ -262,6 +262,7 @@ export const STRINGS = {
     // not "condition", "different value" not "override". Keys keep their
     // legacy names for code stability but the strings have been rewritten.
     variant: {
+        override_more: { en: " +{n} more", ar: " و{n} غيرها", ku: " و {n}ی تر" },
         heading: { en: "Versions", ar: "النسخ", ku: "وەشانەکان" },
         add: { en: "New version", ar: "نسخة جديدة", ku: "وەشانی نوێ" },
         empty_hint: { en: "No versions yet. Versions let you show this section differently — by date, device, city, language, or as an A/B test.", ar: "لا توجد نسخ بعد. تتيح لك النسخ عرض هذا القسم بشكل مختلف — حسب التاريخ أو الجهاز أو المدينة أو اللغة أو كتجربة تقارن بين نسختين.", ku: "هێشتا هیچ وەشانێک نییە. وەشانەکان ڕێگەت دەدەن ئەم بەشە بە جیاوازی پیشانبدەیت — بەپێی بەروار، ئامێر، شار، زمان، یان وەکو تاقیکردنەوەی A/B." },
@@ -339,6 +340,17 @@ export const STRINGS = {
 
         // Editor (modal) — merchant-friendly labels
         editor_close: { en: "Close version editor", ar: "إغلاق محرر النسخة", ku: "داخستنی دەستکاریکەری وەشان" },
+        editor_dialog_label: { en: "Edit version {label}", ar: "تعديل النسخة {label}", ku: "دەستکاریکردنی وەشانی {label}" },
+        editor_remove_condition: { en: "Remove rule: {kind}", ar: "إزالة القاعدة: {kind}", ku: "لابردنی ڕێسا: {kind}" },
+        editor_on: { en: "On", ar: "مفعّلة", ku: "چالاکە" },
+        editor_off: { en: "Off", ar: "متوقفة", ku: "ناچالاکە" },
+        editor_done: { en: "Done", ar: "تم", ku: "تەواو" },
+        editor_overridden: { en: "Changed in this version", ar: "مختلف في هذه النسخة", ku: "لەم وەشانەدا گۆڕاوە" },
+        editor_remove_override: { en: "Remove", ar: "إزالة", ku: "لابردن" },
+        editor_remove_override_aria: { en: "Remove the change to {label}", ar: "إزالة التغيير على {label}", ku: "لابردنی گۆڕانکاری لە {label}" },
+        editor_list_badge: { en: "Whole list", ar: "القائمة كاملة", ku: "هەموو لیستەکە" },
+        editor_list_hint: { en: "This list replaces the original list completely in this version.", ar: "هذه القائمة تحلّ محلّ القائمة الأصلية بالكامل في هذه النسخة.", ku: "ئەم لیستە لەم وەشانەدا بە تەواوی جێگەی لیستە ڕەسەنەکە دەگرێتەوە." },
+        editor_translated_badge: { en: "All languages", ar: "كل اللغات", ku: "هەموو زمانەکان" },
         editor_label_field: { en: "Version name", ar: "اسم النسخة", ku: "ناوی وەشان" },
         editor_conditions_heading: { en: "When", ar: "متى", ku: "کاتێک" },
         editor_conditions_empty: { en: "Always shown — add a rule to limit when this version appears.", ar: "تظهر دائماً — أضف قاعدة لتقييد ظهور هذه النسخة.", ku: "هەمیشە پیشاندەدرێت — ڕێسایەک زیاد بکە بۆ سنووردارکردنی دەرکەوتنی ئەم وەشانە." },
@@ -351,12 +363,6 @@ export const STRINGS = {
         editor_priority: { en: "Order", ar: "الترتيب", ku: "ڕیزبەندی" },
         editor_priority_hint: { en: "Top wins when multiple versions match.", ar: "تفوز النسخة الأعلى عند تطابق عدة نسخ.", ku: "ئەو وەشانە سەرکەوتوو دەبێت کە لە سەرەوەیە، کاتێک چەند وەشانێک یەکدەگرنەوە." },
         editor_enabled: { en: "Enabled", ar: "مفعّل", ku: "چالاککراو" },
-        editor_on: { en: "On", ar: "تشغيل", ku: "هەڵکراو" },
-        editor_off: { en: "Off", ar: "إيقاف", ku: "کوژاوەتەوە" },
-        editor_done: { en: "Done", ar: "تم", ku: "تەواو" },
-        editor_remove: { en: "Remove", ar: "إزالة", ku: "لابردن" },
-        editor_replaces_base: { en: "Replaces base", ar: "يستبدل الأساس", ku: "جێگرەوەی بنەڕەت دەبێت" },
-        editor_array_hint: { en: "Array replaces base entirely.", ar: "المصفوفة تستبدل الأساس بالكامل.", ku: "ڕیزە بەتەواوەتی جێگرەوەی بنەڕەت دەبێت." },
         editor_field_schema_missing: { en: "Field schema not resolvable from path.", ar: "تعذّر استخراج مخطط الحقل من المسار.", ku: "نەخشەی خانە لە ڕێگاوە دەستەبەر نابێت." },
 
         // Wizard step labels

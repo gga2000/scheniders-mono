@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { McpToolError, actorName, registerTool, requireWriter } from "@/lib/mcp/tool";
+import { PERMISSIONS } from "@/lib/permissions";
 import { findProduct, pickVariant, productRefSchema, variantRefSchema, type CatalogProduct, type CatalogVariant } from "@/lib/mcp/products";
 import { orderPhone } from "@/lib/mcp/orders";
 import { iqd } from "@/lib/mcp/format";
@@ -64,7 +65,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             .refine((v) => !(v.variant && v.visible !== undefined), "Visibility is set on the product, not a variant")
             .refine((v) => !(v.variant && v.website_price !== undefined), "The website price is set on the product, not a variant"),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_PRODUCTS);
             const { product, variants } = await findProduct(caller, input.product);
             // Without a variant the change is to the product's base price, which
             // variants without a price of their own inherit.
@@ -145,7 +146,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             notes: z.string().trim().max(300).optional(),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_PRODUCTS);
             const { product, variants } = await findProduct(caller, input.product);
             const variant = pickVariant(product, variants, input.variant);
             const before = (variant ?? product).stock_quantity ?? 0;
@@ -185,7 +186,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             notes: z.string().trim().max(300).optional(),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.EDIT_PRODUCTS);
             const { product, variants } = await findProduct(caller, input.product);
             const variant = pickVariant(product, variants, input.variant);
             const notes = [input.notes, "via Claude"].filter(Boolean).join(" — ");
@@ -234,7 +235,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             notes: z.string().trim().max(500).optional(),
         }),
         async run(caller, input) {
-            requireWriter(caller);
+            await requireWriter(caller, PERMISSIONS.BLOCK_CUSTOMERS);
             const phone = orderPhone(input.phone, "Phone");
             const { data: existing, error: findError } = await caller.db
                 .from("blacklist")

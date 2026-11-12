@@ -97,6 +97,16 @@ describe("summarizeVariantConditions", () => {
         expect(out).toContain("Product");
     });
 
+    it("page condition names pages in Arabic, no English left", () => {
+        const c: VariantCondition = {
+            kind: "page",
+            values: ["home", "product"],
+        };
+        const out = summarizeVariantConditions([c], "ar");
+        expect(out).toContain("المنتج");
+        expect(out).not.toMatch(/[A-Za-z]/);
+    });
+
     it("empty conditions falls back to 'Always shown'", () => {
         expect(summarizeVariantConditions([], "en")).toBe("Always shown");
     });
