@@ -11,6 +11,11 @@ vi.mock("@/lib/supabase-server", () => ({
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({ resolveActiveTenant: vi.fn() }));
 vi.mock("@/lib/order-service", () => ({ createOrderForTenant: vi.fn() }));
 vi.mock("@/lib/tenant", () => ({ canCreateOrder: vi.fn() }));
+// The permission check asks the database (member_has_permission); here a
+// viewer lacks the order permissions and every other store role holds them.
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: vi.fn(async (member: { role: string }) => member.role !== "viewer"),
+}));
 vi.mock("@/lib/restrictions", () => ({
     assertNotBlocked: vi.fn(),
     TenantBlockedError: class TenantBlockedError extends Error {},
