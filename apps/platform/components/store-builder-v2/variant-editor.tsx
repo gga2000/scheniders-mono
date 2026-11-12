@@ -597,7 +597,7 @@ function OverrideFieldPicker(p: OverrideFieldPickerProps): ReactElement {
                                 onClick={() => p.onPick(opt.path)}
                                 className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted/40"
                             >
-                                <span className="truncate">{humanPath(opt.path)}</span>
+                                <span className="truncate">{humanPath(opt.path, locale)}</span>
                                 {opt.kind !== "leaf" && (
                                     <span
                                         className={cn(
@@ -635,7 +635,8 @@ interface OverridePathRowProps {
 }
 
 function OverridePathRow(p: OverridePathRowProps): ReactElement {
-    const label = humanPath(p.path);
+    const locale = useEditorLocale();
+    const label = humanPath(p.path, locale);
 
     // Wrap the field's schema in a single-key object so AutoForm can render
     // it through its existing infrastructure. Use the last segment as the

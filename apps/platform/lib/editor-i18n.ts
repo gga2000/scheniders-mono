@@ -262,6 +262,7 @@ export const STRINGS = {
     // not "condition", "different value" not "override". Keys keep their
     // legacy names for code stability but the strings have been rewritten.
     variant: {
+        override_more: { en: " +{n} more", ar: " و{n} غيرها", ku: " و {n}ی تر" },
         heading: { en: "Versions", ar: "النسخ", ku: "وەشانەکان" },
         add: { en: "New version", ar: "نسخة جديدة", ku: "وەشانی نوێ" },
         empty_hint: { en: "No versions yet. Versions let you show this section differently — by date, device, city, language, or as an A/B test.", ar: "لا توجد نسخ بعد. تتيح لك النسخ عرض هذا القسم بشكل مختلف — حسب التاريخ أو الجهاز أو المدينة أو اللغة أو كتجربة تقارن بين نسختين.", ku: "هێشتا هیچ وەشانێک نییە. وەشانەکان ڕێگەت دەدەن ئەم بەشە بە جیاوازی پیشانبدەیت — بەپێی بەروار، ئامێر، شار، زمان، یان وەکو تاقیکردنەوەی A/B." },

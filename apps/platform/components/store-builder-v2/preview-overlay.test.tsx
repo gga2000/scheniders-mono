@@ -249,6 +249,28 @@ describe("PreviewOverlay", () => {
         expect(onEditRequest).toHaveBeenCalledWith("sec-E");
     });
 
+    it("a site-wide part (header/footer) shows only Edit on the toolbar", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    rect_updates: {
+                        "sec-G": { top: 200, left: 0, width: 100, height: 50 },
+                    },
+                })}
+                selected_section_id="sec-G"
+                selected_is_sitewide
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+            />,
+        );
+        expect(screen.getByTestId("preview-overlay-toolbar-edit")).toBeTruthy();
+        for (const id of ["duplicate", "up", "down", "delete"]) {
+            expect(screen.queryByTestId(`preview-overlay-toolbar-${id}`)).toBeNull();
+        }
+    });
+
     it("clicking Delete on the toolbar calls onDeleteRequest", () => {
         const onDeleteRequest = vi.fn();
         render(

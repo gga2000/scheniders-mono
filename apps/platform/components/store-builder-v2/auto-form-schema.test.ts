@@ -54,6 +54,19 @@ describe("orderTextStack", () => {
         ]);
         expect(orderTextStack(["image", "heading", "eyebrow"])).toEqual(["image", "eyebrow", "heading"]);
     });
+    it("treats translatable keys like plain ones", () => {
+        expect(orderTextStack(["heading_i18n", "show_filters", "eyebrow_i18n"])).toEqual([
+            "eyebrow_i18n",
+            "heading_i18n",
+            "show_filters",
+        ]);
+        expect(orderTextStack(["heading_i18n", "sub_i18n", "eyebrow_i18n", "cta"])).toEqual([
+            "eyebrow_i18n",
+            "heading_i18n",
+            "sub_i18n",
+            "cta",
+        ]);
+    });
     it("leaves keys alone without an eyebrow or a title", () => {
         expect(orderTextStack(["a", "b"])).toEqual(["a", "b"]);
         expect(orderTextStack(["eyebrow", "b"])).toEqual(["eyebrow", "b"]);
