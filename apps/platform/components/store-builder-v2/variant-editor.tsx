@@ -21,10 +21,12 @@
 
 import {
     useCallback,
+    useEffect,
     useMemo,
     useState,
     type ReactElement,
 } from "react";
+import { createPortal } from "react-dom";
 import { ArrowDownUp, Plus, X } from "lucide-react";
 import { z } from "zod";
 import type {
@@ -40,8 +42,8 @@ import {
     VariantAddWizard,
     type VariantKind,
 } from "./variant-add-wizard";
-import { VARIANT_KIND_ICON, VARIANT_KIND_LABEL } from "./variant-list";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { VARIANT_KIND_ICON, variantKindLabel } from "./variant-list";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { summarizeVariantConditions } from "@/lib/variant-summary";
 import {
@@ -231,17 +233,33 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
         return allPaths.filter((p) => !taken.has(p.path));
     }, [allPaths, overriddenPaths]);
 
+    // Escape closes the editor, like every other drawer in the editor.
+    // A nested add-rule wizard handles its own Escape first.
+    useEffect(() => {
+        if (!open || addConditionKind !== null) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [open, addConditionKind, onClose]);
+
     if (!open) return null;
 
     const enabled = variant.enabled !== false;
     const overrideRecord = variant.override as Record<string, unknown>;
 
-    return (
+    // Portalled to <body>: the editor opens from inside a sortable section
+    // row whose CSS transform would otherwise anchor `fixed` to that row
+    // and push the dialog off-screen.
+    return createPortal(
         <div
             data-testid="variant-editor"
             role="dialog"
             aria-modal="true"
-            aria-label={`Edit variant ${variant.label}`}
+            aria-label={tFormat(STRINGS.variant.editor_dialog_label, locale, {
+                label: variant.label || t(STRINGS.variant.untitled, locale),
+            })}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
         >
             <button
@@ -317,7 +335,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                                         <KindIcon kind={c.kind} />
                                         <div className="min-w-0 flex-1">
                                             <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
-                                                {VARIANT_KIND_LABEL[c.kind]}
+                                                {variantKindLabel(c.kind, locale)}
                                             </div>
                                             <div className="truncate text-sm">
                                                 {summarizeCondition(c, locale, experiments, segments)}
@@ -325,7 +343,9 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                                         </div>
                                         <button
                                             type="button"
-                                            aria-label={`Remove ${c.kind} condition`}
+                                            aria-label={tFormat(STRINGS.variant.editor_remove_condition, locale, {
+                                                kind: variantKindLabel(c.kind, locale),
+                                            })}
                                             data-testid={`variant-editor-condition-${i}-remove`}
                                             onClick={() => handleRemoveCondition(i)}
                                             className="inline-flex h-6 w-6 items-center justify-center rounded text-red-800 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
@@ -425,7 +445,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                                     enabled ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-400" : "bg-muted/40 text-muted-foreground",
                                 )}
                             >
-                                <span>{enabled ? "On" : "Off"}</span>
+                                <span>{t(enabled ? STRINGS.variant.editor_on : STRINGS.variant.editor_off, locale)}</span>
                                 <span
                                     aria-hidden="true"
                                     className={cn(
@@ -445,7 +465,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                         onClick={onClose}
                         className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                     >
-                        Done
+                        {t(STRINGS.variant.editor_done, locale)}
                     </button>
                 </footer>
             </div>
@@ -464,7 +484,8 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                     }}
                 />
             )}
-        </div>
+        </div>,
+        document.body,
     );
 }
 
@@ -531,7 +552,7 @@ function ConditionAddMenu({
                                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted/40"
                             >
                                 <KindIcon kind={k} />
-                                <span>{VARIANT_KIND_LABEL[k]}</span>
+                                <span>{variantKindLabel(k, locale)}</span>
                             </button>
                         ))}
                     </div>
@@ -607,7 +628,12 @@ function OverrideFieldPicker(p: OverrideFieldPickerProps): ReactElement {
                                                 : "bg-amber-500/10 text-amber-800",
                                         )}
                                     >
-                                        {opt.kind}
+                                        {t(
+                                            opt.kind === "i18n"
+                                                ? STRINGS.variant.editor_translated_badge
+                                                : STRINGS.variant.editor_list_badge,
+                                            locale,
+                                        )}
                                     </span>
                                 )}
                             </button>
@@ -659,8 +685,8 @@ function OverridePathRow(p: OverridePathRowProps): ReactElement {
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{label}</span>
                     <span
-                        aria-label="Overridden"
-                        title="Overridden"
+                        aria-label={t(STRINGS.variant.editor_overridden, locale)}
+                        title={t(STRINGS.variant.editor_overridden, locale)}
                         data-testid={`variant-editor-field-${p.path}-dot`}
                         className="inline-block h-2 w-2 rounded-full bg-amber-500"
                     />
@@ -668,26 +694,26 @@ function OverridePathRow(p: OverridePathRowProps): ReactElement {
                         <span
                             data-testid={`variant-editor-field-${p.path}-array-hint`}
                             className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-800"
-                            title="Array overrides replace base entirely"
+                            title={t(STRINGS.variant.editor_list_hint, locale)}
                         >
-                            Replaces base
+                            {t(STRINGS.variant.editor_list_badge, locale)}
                         </span>
                     )}
                 </div>
                 <button
                     type="button"
-                    aria-label={`Remove override on ${label}`}
+                    aria-label={tFormat(STRINGS.variant.editor_remove_override_aria, locale, { label })}
                     data-testid={`variant-editor-field-${p.path}-remove`}
                     onClick={p.onRemove}
                     className="inline-flex h-6 items-center gap-1 rounded-full border border-(--card-border) bg-muted/40 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
                     <X className="h-3 w-3" aria-hidden="true" />
-                    Remove
+                    {t(STRINGS.variant.editor_remove_override, locale)}
                 </button>
             </div>
             {p.kind === "array" && (
                 <p className="mb-1.5 text-[11px] italic text-muted-foreground">
-                    Array replaces base entirely.
+                    {t(STRINGS.variant.editor_list_hint, locale)}
                 </p>
             )}
             <div data-testid={`variant-editor-field-${p.path}-control`}>
