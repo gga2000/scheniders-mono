@@ -14,6 +14,8 @@ import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { SHOP_WALLET_EMPTY, shopCanPayForWhatsApp } from "@/lib/whatsapp-wallet";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { ORDER_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 
 // =============================================
 // TYPES
@@ -100,19 +102,56 @@ export interface SendTemplateResult {
 // =============================================
 
 const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
-const TEMPLATE_LANGUAGE = "en";
+const TEMPLATE_LANGUAGE = "ar";
 const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
 export type TemplateType = 'confirmation' | 'reminder' | 'discount';
 
-/** The store's approved Interakt templates (copies of the first three, each with an image header). */
-export const TEMPLATE_NAMES: Record<TemplateType, string> = {
-    confirmation: "new_cod_order_confirm",
-    reminder: "v2_order_reminder",
-    discount: "v2order_discount_offer",
-};
+/**
+ * The Interakt templates (Arabic, image header). The v3 set names the store
+ * and gives the store's own WhatsApp number, because every store sends from
+ * the platform's one shared number (launch blocker 7).
+ */
+export const TEMPLATE_NAMES: Record<TemplateType, string> = ORDER_TEMPLATES;
+
+/** Who the customer is hearing from: the store's name and its own WhatsApp number. */
+export interface StoreContact {
+    name: string;
+    whatsapp: string;
+}
+
+export const STORE_WHATSAPP_MISSING = "Add the store's WhatsApp number in Settings before sending WhatsApp";
+
+/**
+ * The store's name and WhatsApp number as the templates print them. The name
+ * is typed by whoever signs up, so it gets the same link-stripping as a
+ * shopper's name. The number is the one in Settings (store contact), else the
+ * account's contact phone; with neither, the store cannot send.
+ */
+export async function loadStoreContact(tenantId: string): Promise<StoreContact | null> {
+    const { data, error } = await createSupabaseServiceClient()
+        .from("tenants")
+        .select("business_name, contact_phone, store_config")
+        .eq("id", tenantId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return storeContactFrom(data);
+}
+
+export function storeContactFrom(row: {
+    business_name: string | null;
+    contact_phone: string | null;
+    store_config: unknown;
+}): StoreContact | null {
+    const config = row.store_config as { contact?: { whatsapp_number?: string | null } | null } | null;
+    const whatsapp = formatPhoneForDisplay(config?.contact?.whatsapp_number?.trim() || row.contact_phone?.trim() || "");
+    const name = shopperText(row.business_name ?? "", NAME_MAX);
+    if (!whatsapp || !name) return null;
+    return { name, whatsapp };
+}
 
 /** Each template's header picture, served from apps/platform/public. */
 const TEMPLATE_HEADER_IMAGES: Record<TemplateType, string> = {
@@ -180,7 +219,7 @@ export function formatPhoneForInterakt(phone: string): {
 // =============================================
 
 /**
- * The total a {{7}} quotes: what the courier will collect.
+ * The total a confirmation {{8}} quotes: what the courier will collect.
  *
  * Every source stores `price` net of the discount (lib/order-money). A
  * storefront order also carries its `delivery_fee` from checkout, so its
@@ -206,8 +245,9 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
         })
         .join("، ");
 
-    const totalPrice = `IQD ${order.price.toLocaleString("en-US")}`;
-    const collectibleTotal = `IQD ${templateTotal(order).toLocaleString("en-US")}`;
+    // The v3 templates are Arabic, so amounts read the Arabic way: "25,000 د.ع".
+    const totalPrice = `${order.price.toLocaleString("en-US")} د.ع`;
+    const collectibleTotal = `${templateTotal(order).toLocaleString("en-US")} د.ع`;
 
     const addressParts = [
         order.city || order.governorate_code,
@@ -219,11 +259,8 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
     const customerName = shopperName(order.customer_name ?? "") || "عميلنا العزيز";
 
     const displayPhone = formatPhoneForDisplay(targetPhone);
-    const displaySecondaryPhone = order.secondary_phone
-        ? formatPhoneForDisplay(order.secondary_phone)
-        : "—";
 
-    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, customerName, displayPhone, displaySecondaryPhone };
+    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, customerName, displayPhone };
 }
 
 const NAME_MAX = 60;
@@ -267,10 +304,29 @@ export function shopperName(value: string): string {
 // =============================================
 
 /**
- * Build CONFIRMATION template body.
- * Maps order fields to template variables {{1}} through {{7}}.
+ * Build CONFIRMATION template body (cod_order_confirm_v3), variables {{1}}–{{9}}.
+ * Wording is Ali's (2026-11-13). The store name is sent twice ({{2}} and
+ * {{8}}) because each template variable may appear only once.
+ *
+ *   يا هلا ومرحبا {{1}} 🌷
+ *   وصلنا طلبك من *{{2}}* ✅
+ *
+ *   🧾 *تفاصيل طلبك*
+ *   🔢 رقم الطلب: {{3}}
+ *   🛍️ المنتجات: {{4}}
+ *   📍 العنوان: {{5}}
+ *   📞 الهاتف: {{6}}
+ *
+ *   💰 *المبلغ الإجمالي: {{7}}*
+ *
+ *   👇 اضغط «تأكيد الطلب» حتى نجهز طلبك ونشحنه.
+ *
+ *   ℹ️ هذه رسالة تلقائية من منصة شنايدر لإدارة الطلبات.
+ *   💬 للاستفسار تواصل مع متجر *{{8}}* على واتساب {{9}} وشكراً لثقتك.
+ *
+ * Buttons: [تأكيد الطلب] [إلغاء الطلب]
  */
-function buildConfirmationBody(order: Order, overridePhone?: string): InteraktTemplateBody {
+function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?: string): InteraktTemplateBody {
     const h = getOrderHelpers(order, overridePhone);
 
     return {
@@ -283,32 +339,37 @@ function buildConfirmationBody(order: Order, overridePhone?: string): InteraktTe
             languageCode: TEMPLATE_LANGUAGE,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
-                h.itemsList,                  // {{2}} — Products
+                store.name,                   // {{2}} — Store name
                 order.order_id,               // {{3}} — Order number
-                h.address,                    // {{4}} — Address
-                h.displayPhone,               // {{5}} — Phone 1
-                h.displaySecondaryPhone,      // {{6}} — Phone 2
+                h.itemsList,                  // {{4}} — Products
+                h.address,                    // {{5}} — Address
+                h.displayPhone,               // {{6}} — Phone
                 h.collectibleTotal,           // {{7}} — What the courier collects
+                store.name,                   // {{8}} — Store name (contact line)
+                store.whatsapp,               // {{9}} — Store WhatsApp
             ],
         },
     };
 }
 
 /**
- * Build REMINDER template body.
- * Maps order fields to template variables {{1}} through {{4}}.
+ * Build REMINDER template body (order_reminder_v3), variables {{1}}–{{7}}.
  *
- * Template body:
- *   مرحباً {{1}} 👋
- *   نود تذكيرك بأن طلبك لا يزال محجوزا بإسمك‼️
- *   🛍️ المنتجات: {{2}}
- *   📍 العنوان: {{3}}
- *   💰 المبلغ: {{4}}
- *   نرجو تأكيد الطلب بالضغط على الزر أدناه حتى نتمكن من شحنه في أقرب وقت ⏳
+ *   مرحبا {{1}} 👋
+ *   طلبك من *{{2}}* بعده محجوز باسمك ⏳
  *
- * Buttons: [تأكيد] [إلغاء]
+ *   🛍️ المنتجات: {{3}}
+ *   📍 العنوان: {{4}}
+ *   💰 *المبلغ: {{5}}*
+ *
+ *   👇 اضغط «تأكيد الطلب» حتى نشحنه بأقرب وقت.
+ *
+ *   ℹ️ هذه رسالة تلقائية من منصة شنايدر لإدارة الطلبات.
+ *   💬 للاستفسار تواصل مع متجر *{{6}}* على واتساب {{7}} وشكراً لثقتك.
+ *
+ * Buttons: [تأكيد الطلب] [إلغاء الطلب]
  */
-function buildReminderBody(order: Order, overridePhone?: string): InteraktTemplateBody {
+function buildReminderBody(order: Order, store: StoreContact, overridePhone?: string): InteraktTemplateBody {
     const h = getOrderHelpers(order, overridePhone);
 
     return {
@@ -318,37 +379,43 @@ function buildReminderBody(order: Order, overridePhone?: string): InteraktTempla
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.reminder,
-            languageCode: "ar",
+            languageCode: TEMPLATE_LANGUAGE,
             bodyValues: [
-                h.customerName || "عميلنا العزيز", // {{1}} — Customer name
-                h.itemsList,                  // {{2}} — Products
-                h.address,                    // {{3}} — Address
-                h.totalPrice,                 // {{4}} — Total price
+                h.customerName,               // {{1}} — Customer name
+                store.name,                   // {{2}} — Store name
+                h.itemsList,                  // {{3}} — Products
+                h.address,                    // {{4}} — Address
+                h.totalPrice,                 // {{5}} — Total price
+                store.name,                   // {{6}} — Store name (contact line)
+                store.whatsapp,               // {{7}} — Store WhatsApp
             ],
         },
     };
 }
 
 /**
- * Build DISCOUNT template body.
- * Maps order fields to template variables {{1}} through {{5}}.
+ * Build DISCOUNT template body (order_discount_offer_v3), variables {{1}}–{{8}}.
  *
- * Template body:
- *   مرحباً {{1}} 🌟
- *   حبينا نحليلك الصفقة اكثر! 🎁
- *   🔥 حصلت خصم اضافي {{2}} على طلبك هدية من عدنا
- *   🛍️ المنتجات: {{3}}
- *   💰 السعر الأصلي: {{4}}
- *   🏷️ السعر بعد الخصم: {{5}}
+ *   مرحبا {{1}} 🌟
+ *   متجر *{{2}}* حابين يقدمولك خصم إضافي *{{3}}* على طلبك 🎁
+ *
+ *   🛍️ المنتجات: {{4}}
+ *   💰 السعر الأصلي: {{5}}
+ *   🏷️ *السعر بعد الخصم: {{6}}*
+ *
+ *   👇 اضغط «تأكيد بالخصم» حتى نجهز طلبك.
+ *
+ *   ℹ️ هذه رسالة تلقائية من منصة شنايدر لإدارة الطلبات.
+ *   💬 للاستفسار تواصل مع متجر *{{7}}* على واتساب {{8}} وشكراً لثقتك.
  *
  * Buttons: [تأكيد بالخصم] [لا شكراً]
  */
-function buildDiscountBody(order: Order, discountPercent: number, overridePhone?: string, customPrice?: number): InteraktTemplateBody {
+function buildDiscountBody(order: Order, store: StoreContact, discountPercent: number, overridePhone?: string, customPrice?: number): InteraktTemplateBody {
     const h = getOrderHelpers(order, overridePhone);
 
     const discountedPrice = customPrice != null
-        ? `IQD ${customPrice.toLocaleString("en-US")}`
-        : `IQD ${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")}`;
+        ? `${customPrice.toLocaleString("en-US")} د.ع`
+        : `${Math.round(order.price * (1 - discountPercent / 100)).toLocaleString("en-US")} د.ع`;
 
     return {
         countryCode: h.countryCode,
@@ -360,10 +427,13 @@ function buildDiscountBody(order: Order, discountPercent: number, overridePhone?
             languageCode: TEMPLATE_LANGUAGE,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
-                `${discountPercent}%`,         // {{2}} — Discount (e.g. "10%")
-                h.itemsList,                  // {{3}} — Products
-                h.totalPrice,                 // {{4}} — Original price
-                discountedPrice,              // {{5}} — Discounted price
+                store.name,                   // {{2}} — Store name
+                `${discountPercent}%`,         // {{3}} — Discount (e.g. "10%")
+                h.itemsList,                  // {{4}} — Products
+                h.totalPrice,                 // {{5}} — Original price
+                discountedPrice,              // {{6}} — Discounted price
+                store.name,                   // {{7}} — Store name (contact line)
+                store.whatsapp,               // {{8}} — Store WhatsApp
             ],
         },
     };
@@ -372,8 +442,9 @@ function buildDiscountBody(order: Order, discountPercent: number, overridePhone?
 /**
  * Build the correct template body based on type.
  */
-function buildTemplateBody(
+export function buildTemplateBody(
     order: Order,
+    store: StoreContact,
     templateType: TemplateType = 'confirmation',
     overridePhone?: string,
     discountPercent?: number,
@@ -381,12 +452,12 @@ function buildTemplateBody(
 ): InteraktTemplateBody {
     switch (templateType) {
         case 'reminder':
-            return buildReminderBody(order, overridePhone);
+            return buildReminderBody(order, store, overridePhone);
         case 'discount':
-            return buildDiscountBody(order, discountPercent || 10, overridePhone, customPrice);
+            return buildDiscountBody(order, store, discountPercent || 10, overridePhone, customPrice);
         case 'confirmation':
         default:
-            return buildConfirmationBody(order, overridePhone);
+            return buildConfirmationBody(order, store, overridePhone);
     }
 }
 
@@ -433,6 +504,10 @@ export async function sendTemplateMessage(
     if (!(await shopCanPayForWhatsApp(tenantId))) {
         return { success: false, error: SHOP_WALLET_EMPTY };
     }
+    const store = await loadStoreContact(tenantId);
+    if (!store) {
+        return { success: false, error: STORE_WHATSAPP_MISSING };
+    }
     const apiKey = env.INTERAKT_API_KEY;
 
     if (!apiKey) {
@@ -450,7 +525,7 @@ export async function sendTemplateMessage(
     }
 
     const templateName = TEMPLATE_NAMES[templateType];
-    const body = buildTemplateBody(order, templateType, overridePhone, discountPercent, customPrice);
+    const body = buildTemplateBody(order, store, templateType, overridePhone, discountPercent, customPrice);
     body.template.bodyValues = body.template.bodyValues.map(sanitizeTemplateVar);
     body.template.headerValues = [headerImage];
 

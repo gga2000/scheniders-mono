@@ -6,6 +6,7 @@ import {
     Pin, Printer, Reply, StickyNote, Truck, Undo2,
 } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
+import { CONFIRMATION_TEMPLATE_NAMES, REMINDER_TEMPLATE_NAMES } from "@scheniders/shared/whatsapp-templates";
 import { cn, formatIQD, getBaseOrderId } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useStatusLabel } from "@/hooks/use-status-label";
@@ -35,9 +36,9 @@ const TONES: Record<string, Tone> = {
 };
 
 const MONEY_FIELDS = new Set(["price", "delivery_fee", "discount"]);
-/** The confirmation and reminder templates, old names (history) and the current image-header copies. */
-const CONFIRM_TEMPLATES = new Set(["cod_order_confirm", "new_cod_order_confirm"]);
-const REMINDER_TEMPLATES = new Set(["order_reminder", "v2_order_reminder"]);
+/** The confirmation and reminder templates under every name they were sent as. */
+const CONFIRM_TEMPLATES = new Set(CONFIRMATION_TEMPLATE_NAMES);
+const REMINDER_TEMPLATES = new Set(REMINDER_TEMPLATE_NAMES);
 
 function StatusPill({ status, isReturn }: { status: string; isReturn: boolean }) {
     const statusLabel = useStatusLabel();
