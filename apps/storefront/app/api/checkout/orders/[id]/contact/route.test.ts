@@ -150,6 +150,15 @@ describe("GET — what it reports", () => {
     expect(body.whatsapp_sent).toBe(true);
   });
 
+  it.each(["cod_order_confirm", "new_cod_order_confirm", "cod_order_confirm_v3"])(
+    "counts the confirmation sent under its name %s",
+    async (template_name) => {
+      install({ whatsapp_logs: [sentLog({ template_name })] });
+      const body = await (await GET(getReq(proofFor()), ctx())).json();
+      expect(body.whatsapp_sent).toBe(true);
+    },
+  );
+
   it.each([
     ["a failed send", sentLog({ status: "failed" })],
     ["a reminder, not the confirmation", sentLog({ template_name: "order_reminder" })],

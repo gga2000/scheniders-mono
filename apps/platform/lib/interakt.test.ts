@@ -18,12 +18,15 @@ vi.mock("@/lib/whatsapp-wallet", () => ({
     shopCanPayForWhatsApp: vi.fn(async () => true),
 }));
 
+vi.mock("@/lib/supabase-server", async () =>
+    (await import("@/lib/testing/store-contact-service-client")).storeContactSupabaseServer);
+
 vi.mock("@/lib/env", () => ({
     env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz", INTERAKT_SENDER_TENANT_IDS: "11111111-1111-4111-8111-111111111111" },
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
 }));
 
-import { sendTemplateMessage, shopperName, shopperText } from "./interakt";
+import { sendTemplateMessage, shopperName, shopperText, storeContactFrom } from "./interakt";
 
 const fetchMock = vi.fn();
 
@@ -92,9 +95,9 @@ describe("Interakt template variable sanitization", () => {
 
 describe("Interakt template header picture", () => {
     it.each([
-        ["confirmation", "new_cod_order_confirm", "en", "order-confirm.png"],
-        ["reminder", "v2_order_reminder", "ar", "order-reminder.png"],
-        ["discount", "v2order_discount_offer", "en", "order-discount.png"],
+        ["confirmation", "cod_order_confirm_v3", "ar", "order-confirm.png"],
+        ["reminder", "order_reminder_v3", "ar", "order-reminder.png"],
+        ["discount", "order_discount_offer_v3", "ar", "order-discount.png"],
     ] as const)("sends %s as the approved copy with its picture", async (type, name, language, picture) => {
         await sendTemplateMessage(makeOrder(), type);
         const sent = JSON.parse(fetchMock.mock.calls[0][1].body as string);
@@ -137,5 +140,63 @@ describe("shopperName", () => {
 
     it("keeps a normal name", () => {
         expect(shopperName("علي حسن")).toBe("علي حسن");
+    });
+});
+
+describe("v3 templates name the store and give its own WhatsApp", () => {
+    function sentValues(): string[] {
+        return JSON.parse(fetchMock.mock.calls[0][1].body as string).template.bodyValues;
+    }
+
+    it("confirmation: store name is {{2}}, store WhatsApp is {{9}}", async () => {
+        await sendTemplateMessage(makeOrder(), "confirmation");
+        const v = sentValues();
+        expect(v).toHaveLength(9);
+        expect(v[1]).toBe("عطور الكرادة");
+        expect(v[3]).toBe("7208");
+        expect(v[8]).toBe("07801234567");
+    });
+
+    it("reminder: store name is {{2}}, store WhatsApp is {{6}}", async () => {
+        await sendTemplateMessage(makeOrder(), "reminder");
+        const v = sentValues();
+        expect(v).toHaveLength(6);
+        expect(v[1]).toBe("عطور الكرادة");
+        expect(v[5]).toBe("07801234567");
+    });
+
+    it("discount: store name is {{2}}, percent is {{3}}, store WhatsApp is {{7}}", async () => {
+        await sendTemplateMessage(makeOrder(), "discount", undefined, 10);
+        const v = sentValues();
+        expect(v).toHaveLength(7);
+        expect(v[1]).toBe("عطور الكرادة");
+        expect(v[2]).toBe("10%");
+        expect(v[6]).toBe("07801234567");
+    });
+});
+
+describe("storeContactFrom", () => {
+    it("prefers the store's WhatsApp number from Settings", () => {
+        expect(storeContactFrom({
+            business_name: "عطور الكرادة",
+            contact_phone: "07701111111",
+            store_config: { contact: { whatsapp_number: "07801234567" } },
+        })).toEqual({ name: "عطور الكرادة", whatsapp: "07801234567" });
+    });
+
+    it("falls back to the account contact phone", () => {
+        expect(storeContactFrom({ business_name: "متجر", contact_phone: "07701111111", store_config: null })?.whatsapp)
+            .toBe("07701111111");
+    });
+
+    it("returns null with no number, so the store cannot send", () => {
+        expect(storeContactFrom({ business_name: "متجر", contact_phone: null, store_config: { contact: { whatsapp_number: " " } } }))
+            .toBeNull();
+    });
+
+    it("returns null with no name, and strips links from the name", () => {
+        expect(storeContactFrom({ business_name: "", contact_phone: "07701111111", store_config: null })).toBeNull();
+        expect(storeContactFrom({ business_name: "متجر https://evil.example", contact_phone: "07701111111", store_config: null })?.name)
+            .toBe("متجر");
     });
 });

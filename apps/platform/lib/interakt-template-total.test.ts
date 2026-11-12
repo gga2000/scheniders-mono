@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Order } from "@/types/order";
 
 /*
- * {{7}} on cod_order_confirm (and on the staff new-order alert) quotes what
+ * {{8}} on cod_order_confirm_v3 ({{7}} on the staff new-order alert) quotes what
  * the courier will collect.
  *
  * Every source stores `price` net of the discount (lib/order-money). A
@@ -18,6 +18,9 @@ vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
     shopCanPayForWhatsApp: vi.fn(async () => true),
 }));
+
+vi.mock("@/lib/supabase-server", async () =>
+    (await import("@/lib/testing/store-contact-service-client")).storeContactSupabaseServer);
 
 vi.mock("@/lib/env", () => ({
     env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz", INTERAKT_SENDER_TENANT_IDS: "11111111-1111-4111-8111-111111111111" },
@@ -60,11 +63,17 @@ function order(overrides: Record<string, unknown>): Order {
     } as unknown as Order;
 }
 
-function sentTotal(): string {
+function sentBody(): { name: string; bodyValues: string[] } {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
-        template: { bodyValues: string[] };
+        template: { name: string; bodyValues: string[] };
     };
-    return body.template.bodyValues[6];
+    return body.template;
+}
+
+/** The courier amount: {{8}} on cod_order_confirm_v3, {{7}} on the staff alert. */
+function sentTotal(): string {
+    const t = sentBody();
+    return t.name === "cod_order_confirm_v3" ? t.bodyValues[7] : t.bodyValues[6];
 }
 
 describe("{{7}} on storefront orders: price (net) + delivery", () => {
