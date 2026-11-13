@@ -12,16 +12,44 @@ import { cookies } from "next/headers";
 const SUPABASE_REQUEST_TIMEOUT_MS = 8_000;
 
 /**
- * Records whether any request made through a client failed for a reason the
+ * Records whether any request made through a client ended in a failure the
  * next attempt may not share: the fetch itself threw (timeout, dropped
  * connection) or the API answered 5xx (it could not reach Postgres). A read
  * that saw one of these returns its degraded fallback, and `cachedRead` keeps
- * that fallback out of the cross-request cache. postgrest-js retries a failed
- * GET, so a read can be marked failed and still end with good data; that read
- * is merely not cached, and the next request caches it.
+ * that fallback out of the cross-request cache.
+ *
+ * postgrest-js retries a failed GET (marking each retry with X-Retry-Count).
+ * A retry that succeeds settles the failure before it: the read ended with
+ * good data and is cached. This matters on Vercel, where a background cache
+ * refresh can be paused with the instance between requests; on resume its
+ * fetch has outlived the timeout, the retry answers at once, and counting
+ * that first attempt kept good data out of the cache and logged a false
+ * "degraded read" error.
  */
 export interface ReadHealth {
   failed: boolean;
+}
+
+/** Failures per request (method + URL) still waiting for a retry to settle them. */
+const unsettled = new WeakMap<ReadHealth, Map<string, number>>();
+
+function recordOutcome(health: ReadHealth, key: string, isRetry: boolean, ok: boolean): void {
+  const counts = unsettled.get(health) ?? new Map<string, number>();
+  unsettled.set(health, counts);
+  const open = counts.get(key) ?? 0;
+  // A failed retry is the same request failing again: still one failure.
+  if (!ok && !isRetry) counts.set(key, open + 1);
+  if (ok && isRetry && open > 0) counts.set(key, open - 1);
+  health.failed = [...counts.values()].some((n) => n > 0);
+}
+
+function requestKey(input: RequestInfo | URL, init?: RequestInit): string {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  return `${init?.method ?? "GET"} ${url}`;
+}
+
+function isRetryAttempt(init?: RequestInit): boolean {
+  return new Headers(init?.headers).has("X-Retry-Count");
 }
 
 function fetchWithTimeout(
@@ -33,13 +61,15 @@ function fetchWithTimeout(
   const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   const request = fetch(input, { ...init, signal });
   if (!health) return request;
+  const key = requestKey(input, init);
+  const isRetry = isRetryAttempt(init);
   return request.then(
     (response) => {
-      if (response.status >= 500) health.failed = true;
+      recordOutcome(health, key, isRetry, response.status < 500);
       return response;
     },
     (error: unknown) => {
-      health.failed = true;
+      recordOutcome(health, key, isRetry, false);
       throw error;
     },
   );
