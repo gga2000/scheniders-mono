@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { brandFontVars } from "./fonts/brand-fonts";
 import "./globals.css";
 import { ICON_FONT_SUBSET_HREF } from "@scheniders/sections/helpers/icon-names";
+import { WebAnalytics } from "@/components/analytics/web-analytics";
 
 export const metadata: Metadata = {
   title: "Scheniders Storefront",
@@ -35,7 +36,10 @@ export default function RootLayout({
           href={ICON_FONT_SUBSET_HREF}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <WebAnalytics />
+      </body>
     </html>
   );
 }

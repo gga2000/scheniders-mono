@@ -262,5 +262,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // `_vercel` = Web Analytics / Speed Insights endpoints; the tenant rewrite
+  // below would send them to /s/[tenant]/_vercel/... and lose every page view.
+  matcher: ["/((?!_next/static|_next/image|_vercel|favicon.ico).*)"],
 };

@@ -19,6 +19,7 @@ import { DevServiceWorkerCleanup } from "@/components/pwa/dev-service-worker-cle
 import { Toaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { WebAnalytics } from "@/components/analytics/web-analytics";
 
 export const metadata: Metadata = {
   title: "شنايدر",
@@ -121,6 +122,7 @@ export default function RootLayout({
           </AuthProvider>
         </ErrorBoundary>
         <SpeedInsights />
+        <WebAnalytics />
         <DevServiceWorkerCleanup />
       </body>
     </html>
