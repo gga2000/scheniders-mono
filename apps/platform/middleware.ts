@@ -48,7 +48,8 @@ export const config = {
     matcher: [
         // Run on page navigations only. Exclude API routes (they authenticate via
         // the Authorization header), static assets, and the Sentry tunnel
-        // (/monitoring), which must accept error reports from signed-out pages.
-        '/((?!api|monitoring|_next/static|_next/image|favicon.ico|icons|manifest.json|till.webmanifest|sw.js|whatsapp).*)',
+        // (/monitoring), which must accept error reports from signed-out pages,
+        // and the Vercel Analytics / Speed Insights endpoints (/_vercel).
+        '/((?!api|monitoring|_vercel|_next/static|_next/image|favicon.ico|icons|manifest.json|till.webmanifest|sw.js|whatsapp).*)',
     ],
 };

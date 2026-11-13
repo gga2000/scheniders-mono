@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { geistFontVars } from "./fonts/geist";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { WebAnalytics } from "@/components/analytics/web-analytics";
 
 export const metadata: Metadata = {
   title: "Scheniders Admin",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body style={geistFontVars} className="antialiased">
         <Providers>{children}</Providers>
+        <WebAnalytics />
       </body>
     </html>
   );
