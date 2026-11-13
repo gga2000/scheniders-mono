@@ -58,6 +58,12 @@ const SDK_CONTEXTS = new Set([
 
 const MAX_DEPTH = 8;
 
+/** An error's class name ("TypeError", "TimeoutError"): code, not a person. */
+const ERROR_CLASS_NAME = /^(?:[A-Z][A-Za-z]*)?(?:Error|Exception)$/;
+
+/** What the SDK writes for an exception that was a plain object, e.g. a Supabase error. */
+const PLAIN_OBJECT_EXCEPTION = /^Object captured as exception with keys:/;
+
 function normaliseKey(key: string): string {
     return key
         .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
@@ -82,7 +88,8 @@ export function scrubValue(value: unknown, depth = 0): unknown {
     if (Array.isArray(value)) return value.map((item) => scrubValue(item, depth + 1));
     const out: Record<string, unknown> = {};
     for (const [key, inner] of Object.entries(value)) {
-        out[key] = isSensitiveKey(key) && inner !== null && inner !== undefined ? REDACTED : scrubValue(inner, depth + 1);
+        const keep = key === "name" && typeof inner === "string" && ERROR_CLASS_NAME.test(inner);
+        out[key] = !keep && isSensitiveKey(key) && inner !== null && inner !== undefined ? REDACTED : scrubValue(inner, depth + 1);
     }
     return out;
 }
@@ -113,6 +120,7 @@ interface ScrubbableSpan {
 
 /** The structural subset of Sentry's ErrorEvent / TransactionEvent this scrubber touches. */
 export interface ScrubbableEvent {
+    logentry?: { message?: string; params?: unknown[] };
     message?: string;
     transaction?: string;
     exception?: { values?: Array<{ value?: string }> };
@@ -149,12 +157,39 @@ export function scrubBreadcrumb<T extends ScrubbableBreadcrumb>(crumb: T): T {
     return crumb;
 }
 
+function messageOf(value: unknown): string | undefined {
+    if (typeof value === "string") return value;
+    if (value && typeof value === "object" && "message" in value && typeof value.message === "string") return value.message;
+    return undefined;
+}
+
+/**
+ * `console.error("[queries.listProducts]", error)` with a Supabase error (a
+ * plain object, not an Error) reaches Sentry titled "[queries.listProducts]
+ * [object Object]", which hides the cause. Rebuild the title from the logged
+ * arguments, using each object's `message`, so it reads "... TimeoutError: …".
+ */
+function readableTitles(event: ScrubbableEvent): void {
+    const args = event.extra?.arguments;
+    if (event.message?.includes("[object Object]") && Array.isArray(args)) {
+        const parts = args.map((arg) => messageOf(arg) ?? String(arg));
+        event.message = parts.join(" ");
+        if (event.logentry?.message) event.logentry.message = event.message;
+    }
+    const serialized = messageOf(event.extra?.__serialized__);
+    for (const ex of event.exception?.values ?? []) {
+        if (serialized && ex.value && PLAIN_OBJECT_EXCEPTION.test(ex.value)) ex.value = serialized;
+    }
+}
+
 /**
  * Strip personal data from a Sentry event in place and return it.
  * Used as `beforeSend` and `beforeSendTransaction` in every app.
  */
 export function scrubSentryEvent<T extends ScrubbableEvent>(event: T): T {
+    readableTitles(event);
     if (event.message) event.message = redactText(event.message);
+    if (event.logentry?.message) event.logentry.message = redactText(event.logentry.message);
     if (event.transaction) event.transaction = redactText(event.transaction);
     for (const ex of event.exception?.values ?? []) {
         if (ex.value) ex.value = redactText(ex.value);
@@ -186,6 +221,8 @@ export function scrubSentryEvent<T extends ScrubbableEvent>(event: T): T {
 export const SENTRY_IGNORE_ERRORS: Array<string | RegExp> = [
     "ResizeObserver loop limit exceeded",
     "ResizeObserver loop completed with undelivered notifications",
+    // Node prints this to stderr when a library uses an experimental API.
+    /ExperimentalWarning:/,
 ];
 
 export const SENTRY_DENY_URLS: RegExp[] = [
