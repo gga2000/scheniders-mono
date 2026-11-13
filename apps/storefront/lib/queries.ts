@@ -435,13 +435,17 @@ function decodeSlugParam(value: string): string {
 
 export const getProductBySlug = cache(
   (tenantId: string, slugOrId: string): Promise<Product | null> =>
-    publicCache(["getProductBySlug", tenantId, slugOrId], async (supabase) => {
-      const columns = PRODUCT_COLUMNS;
+    // The dynamic route param can arrive still percent-encoded, so a non-ASCII
+    // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
+    // would never match the stored value. Decode before matching, and before
+    // keying the cache: otherwise "ويفر" and "%D9%88..." are two cache entries
+    // for one product, each read and refreshed on its own.
+    productBySlug(tenantId, decodeSlugParam(slugOrId)),
+);
 
-      // The dynamic route param can arrive still percent-encoded, so a non-ASCII
-      // slug (e.g. an Arabic slug like "ويفر") comes through as "%D9%88..." and
-      // would never match the stored value. Decode before matching.
-      const key = decodeSlugParam(slugOrId);
+function productBySlug(tenantId: string, key: string): Promise<Product | null> {
+  return publicCache(["getProductBySlug", tenantId, key], async (supabase) => {
+      const columns = PRODUCT_COLUMNS;
 
       // ProductCard links to /products/{slug ?? id}, so the route param can be
       // either a slug or a UUID. Try both paths so slug-less products still work.
@@ -478,8 +482,8 @@ export const getProductBySlug = cache(
       }
 
       return null;
-    }),
-);
+    });
+}
 
 /** Newest-first cap for the SSR review list — the section paints these in
  *  the first HTML; anything beyond is pagination territory, not first paint. */
