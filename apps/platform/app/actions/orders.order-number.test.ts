@@ -8,6 +8,11 @@ vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: vi.fn(),
     verifyAccessToken: vi.fn(),
 }));
+// The database's member_has_permission RPC, reduced to the role defaults
+// these tests need: a viewer may neither create nor edit orders.
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: vi.fn(async (member: { role: string }) => member.role !== "viewer"),
+}));
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({ resolveActiveTenant: vi.fn() }));
 vi.mock("@/lib/order-service", () => ({ createOrderForTenant: vi.fn() }));
 vi.mock("@/lib/tenant", () => ({ canCreateOrder: vi.fn() }));
