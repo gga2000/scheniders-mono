@@ -9,6 +9,11 @@ vi.mock("@/lib/supabase-server", () => ({
     verifyAccessToken: vi.fn(),
 }));
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({ resolveActiveTenant: vi.fn() }));
+// The database's permission rule (member_has_permission RPC) is covered by its
+// own test; here a viewer lacks orders.create / orders.edit, everyone else has them.
+vi.mock("@/lib/auth/member-has-permission", () => ({
+    memberHasPermission: vi.fn(async (member: { role: string }) => member.role !== "viewer"),
+}));
 vi.mock("@/lib/order-service", () => ({ createOrderForTenant: vi.fn() }));
 vi.mock("@/lib/tenant", () => ({ canCreateOrder: vi.fn() }));
 vi.mock("@/lib/restrictions", () => ({
