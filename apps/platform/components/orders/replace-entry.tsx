@@ -12,6 +12,7 @@ import { refundSheetKeys, useRefundSheetData } from "@/hooks/use-refund-sheet-da
 import { toast } from "@/hooks/use-toast";
 import { getBaseOrderId } from "@/lib/utils";
 import { ReplaceSheet, type ReplacementRequest } from "./replace-sheet";
+import { freshAccessToken } from "@/lib/authed-fetch";
 
 /**
  * The Replace button in order details and the sheet it opens. It shares the
@@ -20,7 +21,7 @@ import { ReplaceSheet, type ReplacementRequest } from "./replace-sheet";
  */
 export function ReplaceEntry({ order }: { order: Order }) {
     const { t } = useLanguage();
-    const { session, tenantId } = useAuth();
+    const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     const [open, setOpen] = useState(false);
     const { data, error } = useRefundSheetData(order, true);
@@ -37,7 +38,7 @@ export function ReplaceEntry({ order }: { order: Order }) {
                 chargeFee: request.chargeFee,
                 notes: request.note || null,
             },
-            session?.access_token ?? "",
+            await freshAccessToken(),
         );
         if (!result.success) return { success: false, error: result.error };
 
