@@ -29,7 +29,11 @@ const H = vi.hoisted(() => {
     function answer(table: string, filters: Record<string, unknown>): Result {
         if (table === "user_profiles") return { data: profile.current, error: null };
         if (table === "tenant_members") return { data: { role: roles.current[String(filters.tenant_id)] }, error: null };
-        if (table === "role_permissions") return { data: [{ permission: `perm:${String(filters.role)}` }], error: null };
+        // The provider reads the whole (small) table and keeps its role's rows.
+        if (table === "role_permissions") {
+            const all = ["admin", "manager", "employee", "viewer", "super_admin"].map((role) => ({ role, permission: `perm:${role}` }));
+            return { data: filters.role === undefined ? all : all.filter((r) => r.role === filters.role), error: null };
+        }
         if (table === "user_permissions") {
             // Overrides are per tenant; a read without a tenant filter sees every tenant's.
             const rows = overrides.current.filter(

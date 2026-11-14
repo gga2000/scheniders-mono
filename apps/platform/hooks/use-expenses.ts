@@ -192,6 +192,7 @@ export function useExpenses(filters?: ExpenseFilters) {
 
     // Real-time subscription
     useEffect(() => {
+        if (!tenantId) return;
         // Use a unique channel name to prevent collision if multiple components
         // use this hook simultaneously (which causes the "cannot add callback" error)
         const channelId = `expenses-changes-${Date.now()}-${Math.random().toString(36).substring(2)}`;
@@ -200,7 +201,7 @@ export function useExpenses(filters?: ExpenseFilters) {
             .channel(channelId)
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "expenses" },
+                { event: "*", schema: "public", table: "expenses", filter: `tenant_id=eq.${tenantId}` },
                 () => {
                     fetchExpenses();
                 }
@@ -210,7 +211,7 @@ export function useExpenses(filters?: ExpenseFilters) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [fetchExpenses]);
+    }, [fetchExpenses, tenantId]);
 
     return {
         expenses,

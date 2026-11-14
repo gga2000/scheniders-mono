@@ -20,7 +20,7 @@ import { chatKeys } from "./use-conversations";
 import type { ChatMentionNotification } from "@/types/chat";
 
 export function useMentionNotifications() {
-    const { user } = useAuth();
+    const { user, tenantId } = useAuth();
     const qc = useQueryClient();
     // Per-instance channel name. This hook mounts in more than one place at once
     // (and React StrictMode double-invokes effects) — a STATIC channel name made
@@ -65,12 +65,12 @@ export function useMentionNotifications() {
     });
 
     useEffect(() => {
-        if (!user?.id) return;
+        if (!user?.id || !tenantId) return;
         const channel = supabase
             .channel(`chat_mentions:${user.id}:${instanceId}`)
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "notifications" },
+                { event: "*", schema: "public", table: "notifications", filter: `tenant_id=eq.${tenantId}` },
                 () => qc.invalidateQueries({ queryKey: chatKeys.mentions() }),
             )
             .subscribe((status, err) => {
@@ -79,7 +79,7 @@ export function useMentionNotifications() {
                 }
             });
         return () => { void supabase.removeChannel(channel); };
-    }, [user?.id, qc, instanceId]);
+    }, [user?.id, tenantId, qc, instanceId]);
 
     const unreadCount = useMemo(() => mentions.filter((m) => !m.is_read).length, [mentions]);
 

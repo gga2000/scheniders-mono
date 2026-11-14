@@ -71,6 +71,7 @@ export default function TeamPage() {
 
     // Real-time subscription
     const { isConnected, activeUserIds, lastActivity } = useTeamRealtime({
+        tenantId,
         onNewActivity: useCallback((activity: RealtimeActivity) => {
             prependActivity(activity);
             fetchLeaderboardRef.current?.();

@@ -20,6 +20,8 @@ interface UseTeamRealtimeOptions {
     onNewActivity?: (activity: RealtimeActivity) => void;
     onUserActivity?: (userId: string) => void;
     enabled?: boolean;
+    /** The shop whose activity to stream; nothing is subscribed until it is known. */
+    tenantId: string | null;
 }
 
 interface UseTeamRealtimeReturn {
@@ -33,8 +35,8 @@ interface UseTeamRealtimeReturn {
  * Hook for real-time activity updates using Supabase Realtime
  * Subscribes to INSERT events on the activity_logs table
  */
-export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRealtimeReturn {
-    const { onNewActivity, onUserActivity, enabled = true } = options;
+export function useTeamRealtime(options: UseTeamRealtimeOptions): UseTeamRealtimeReturn {
+    const { onNewActivity, onUserActivity, enabled = true, tenantId } = options;
 
     const [isConnected, setIsConnected] = useState(false);
     const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
 
     useEffect(() => {
         const timeouts = activeTimeoutsRef.current;
-        if (!enabled) {
+        if (!enabled || !tenantId) {
             return;
         }
 
@@ -87,6 +89,7 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
                     event: "INSERT",
                     schema: "public",
                     table: "activity_logs",
+                    filter: `tenant_id=eq.${tenantId}`,
                 },
                 (payload) => {
                     const activity = payload.new as RealtimeActivity;
@@ -131,7 +134,7 @@ export function useTeamRealtime(options: UseTeamRealtimeOptions = {}): UseTeamRe
                 channelRef.current = null;
             }
         };
-    }, [enabled, onNewActivity, onUserActivity, markUserActive, instanceId]);
+    }, [enabled, tenantId, onNewActivity, onUserActivity, markUserActive, instanceId]);
 
     return {
         isConnected,

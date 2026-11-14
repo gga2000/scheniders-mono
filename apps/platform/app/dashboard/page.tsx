@@ -16,7 +16,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { RevealToggle } from "@/components/ui/reveal-toggle";
 import { useViewport } from "@/hooks/use-viewport";
-import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
 import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { StoreOverviewRow } from "@/components/dashboard/bento/store-overview-row";
@@ -34,6 +33,8 @@ import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { DASHBOARD_EVENTS, useTrackEvent } from "@/lib/analytics/track-event";
 import { buildDashboardCsv } from "@/lib/analytics/dashboard-export";
 
+// Only phones render it, so desktop never downloads the mobile dashboard.
+const MobileDashboardPage = dynamic(() => import("@/components/mobile/dashboard/MobileDashboardPage").then(mod => ({ default: mod.MobileDashboardPage })));
 // Dynamic imports — all chart + operational widgets
 const IraqMap = dynamic(() => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets/delivery-success-rate").then(mod => ({ default: mod.DeliverySuccessRate })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
