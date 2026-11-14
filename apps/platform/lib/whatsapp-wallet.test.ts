@@ -38,7 +38,8 @@ const fetchMock = vi.fn();
 beforeEach(() => {
     canPay.mockReset();
     fetchMock.mockReset();
-    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ result: true, id: "m1" }) });
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ result: true, id: "m1" }),
+        text: async () => JSON.stringify({ result: true, id: "m1" }) });
     vi.stubGlobal("fetch", fetchMock);
 });
 

@@ -9,6 +9,7 @@ import { useOrdersListSettledOnce } from "@/hooks/orders-list-coverage";
 import { supabase } from "@/lib/supabase";
 import type { PrimeShipmentView } from "@/lib/prime/chip-state";
 import { primeBucket, primeIsStuck, type PrimeRowFilter } from "@/lib/prime/track";
+import { authedFetch } from "@/lib/authed-fetch";
 
 /** Orders whose card can carry a Prime chip: out with Prime, or cancelled after it was sent. */
 const CHIP_STATUSES = ["confirmed", "in_transit", "cancelled"] as const;
@@ -172,7 +173,7 @@ export function usePrimeJourney(orderId: string, enabled: boolean) {
         enabled: enabled && !!token,
         staleTime: 60_000,
         queryFn: async (): Promise<PrimeJourneyAnswer> => {
-            const res = await fetch(`/api/prime/history?orderId=${encodeURIComponent(orderId)}`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch(`/api/prime/history?orderId=${encodeURIComponent(orderId)}`, { });
             if (!res.ok) throw new Error(`Prime journey failed: ${res.status}`);
             return journeyAnswer.parse(await res.json());
         },
@@ -240,9 +241,9 @@ export function usePrimePullBack() {
     return useCallback(
         async (orderId: string): Promise<PrimePullBackAnswer> => {
             if (!token) throw new Error("Not signed in");
-            const res = await fetch("/api/prime/pull-back", {
+            const res = await authedFetch("/api/prime/pull-back", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),
             });
             if (!res.ok) throw new Error(`Pull back failed: ${res.status}`);
@@ -262,9 +263,9 @@ export function usePrimeResend() {
     return useCallback(
         async (orderId: string, note: string): Promise<PrimeResendAnswer> => {
             if (!token) throw new Error("Not signed in");
-            const res = await fetch("/api/prime/resend", {
+            const res = await authedFetch("/api/prime/resend", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId, ...(note.trim() ? { note: note.trim() } : {}) }),
             });
             if (!res.ok) throw new Error(`Resend failed: ${res.status}`);
@@ -286,9 +287,9 @@ export function usePrimeProblemMark() {
     return useCallback(
         async (body: { action: "handled"; orderId: string; note?: string } | { action: "reopen"; orderId: string }): Promise<boolean> => {
             if (!token) throw new Error("Not signed in");
-            const res = await fetch("/api/prime/problem", {
+            const res = await authedFetch("/api/prime/problem", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
             const answer = problemAnswer.parse(await res.json().catch(() => ({ success: false })));
@@ -311,9 +312,9 @@ export function usePrimeFailedNoticeSend() {
     return useCallback(
         async (orderId: string): Promise<string | null> => {
             if (!token) throw new Error("Not signed in");
-            const res = await fetch("/api/prime/failed-notice/send", {
+            const res = await authedFetch("/api/prime/failed-notice/send", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId }),
             });
             const answer = problemAnswer.parse(await res.json().catch(() => ({ success: false })));

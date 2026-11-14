@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { fetchAccountBilling, META_BILLING_THRESHOLD_USD } from "@/lib/meta-ads";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * Admins only (money data, like ad spend); the token never leaves the server. `billing` is null with no active
  * link or a non-USD account.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -37,3 +38,5 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "Meta request failed" }, { status: 502 });
     }
 }
+
+export const GET = withFailureReport("api/settings/meta-ads/billing GET", handleGET);

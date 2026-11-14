@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import type { DeliveryImport } from "@/types/delivery-import";
+import { authedFetch } from "@/lib/authed-fetch";
 
 export function useDeliveryHistory() {
     const { session } = useAuth();
@@ -18,11 +19,7 @@ export function useDeliveryHistory() {
         setError(null);
 
         try {
-            const response = await fetch("/api/delivery-import/history", {
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-            });
+            const response = await authedFetch("/api/delivery-import/history");
 
             const result = await response.json();
 
@@ -48,10 +45,9 @@ export function useDeliveryHistory() {
             if (!session?.access_token) return;
 
             try {
-                const response = await fetch("/api/delivery-import/complete", {
+                const response = await authedFetch("/api/delivery-import/complete", {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${session.access_token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({ importId, actualAmountReceived }),
@@ -87,10 +83,9 @@ export function useDeliveryHistory() {
             if (!session?.access_token) return;
 
             try {
-                const response = await fetch("/api/delivery-import/rollback", {
+                const response = await authedFetch("/api/delivery-import/rollback", {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${session.access_token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({ importId }),

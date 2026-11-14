@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { env } from '@/lib/env';
 import { provisionInvitedUserIfNeeded } from '@/lib/team-provisioning';
 import { safeRedirectPath } from '@scheniders/shared/safe-redirect-path';
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Email link handler (password reset, sign-up confirm, email change).
@@ -19,7 +20,7 @@ import { safeRedirectPath } from '@scheniders/shared/safe-redirect-path';
  */
 const otpTypeSchema = z.enum(['recovery', 'signup', 'email', 'email_change', 'invite', 'magiclink']);
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url);
     const tokenHash = searchParams.get('token_hash');
     const type = otpTypeSchema.safeParse(searchParams.get('type'));
@@ -67,3 +68,5 @@ export async function GET(request: NextRequest) {
     const fallback = type.success && type.data === 'recovery' ? '/forgot-password?link=expired' : '/login';
     return NextResponse.redirect(`${origin}${fallback}`);
 }
+
+export const GET = withFailureReport("api/auth/confirm GET", handleGET);

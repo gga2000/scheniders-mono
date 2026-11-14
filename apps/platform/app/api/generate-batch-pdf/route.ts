@@ -3,6 +3,7 @@ import puppeteer from 'puppeteer-core';
 import { z } from 'zod';
 import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
 import { isAllowedPdfRequest } from "@/lib/pdf-request-allowlist";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,7 @@ async function getLocalChromePath(): Promise<string> {
  * Generate high-quality PDF from HTML using headless Chrome.
  * Uses local Chrome in development, @sparticuz/chromium on Vercel.
  */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     // Headless Chrome is billed compute: store members only, capped per store.
     const caller = await requireMeteredCaller(req, { bucket: "label-pdf", limit: 120, windowSeconds: 3600 });
@@ -115,3 +116,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withFailureReport("api/generate-batch-pdf POST", handlePOST);

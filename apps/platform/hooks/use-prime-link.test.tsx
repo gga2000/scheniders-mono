@@ -4,6 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { usePrimeLink, type PrimeSendProgress } from "./use-prime-link";
 
+// authedFetch reads a fresh session per call; here the session token is fixed.
+vi.mock("@/lib/authed-fetch", () => ({
+    authedFetch: (input: string, init: RequestInit = {}) =>
+        fetch(input, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), Authorization: "Bearer t" } }),
+}));
 vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ session: { access_token: "t" }, tenantId: "tenant" }) }));
 
 const wrapper = ({ children }: { children: ReactNode }) => (

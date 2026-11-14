@@ -13,6 +13,11 @@ const state = vi.hoisted(() => ({
     toasts: { success: vi.fn(), error: vi.fn() },
 }));
 
+// authedFetch reads a fresh session per call; here the session token is fixed.
+vi.mock("@/lib/authed-fetch", () => ({
+    authedFetch: (input: string, init: RequestInit = {}) =>
+        fetch(input, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), Authorization: "Bearer tok-1" } }),
+}));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ session: { access_token: "tok-1" } }) }));
 vi.mock("@/hooks/use-toast", () => ({ toast: state.toasts }));
 vi.mock("@/lib/supabase", () => ({

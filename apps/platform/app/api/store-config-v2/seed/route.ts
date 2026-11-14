@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from "zod";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Onboarding seed endpoint                                              */
@@ -61,7 +62,7 @@ const bodySchema = z.object({
 });
 
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function handlePOST(request: Request): Promise<NextResponse> {
     let raw: unknown;
     try {
         raw = await request.json();
@@ -163,3 +164,5 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     return NextResponse.json({ ok: true, seeded, taxonomy });
 }
+
+export const POST = withFailureReport("api/store-config-v2/seed POST", handlePOST);

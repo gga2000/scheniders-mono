@@ -28,10 +28,10 @@ import { processEmojis } from "@/lib/emoji-shortcodes";
 import { formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import type { MessageTemplate, Order } from "@/lib/supabase";
-import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRecordContact } from "@/hooks/use-record-contact";
 import { useLanguage } from "@/hooks/use-language";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface WhatsAppTemplatePanelProps {
     open: boolean;
@@ -258,24 +258,16 @@ export function WhatsAppTemplatePanel({
             // Orders left unsent because the store hit its hourly send limit.
             let notSentForLimit = 0;
 
-            // Fetched once rather than per target: a bulk send is one operator
-            // action, and the token is the same for all of them.
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
-
             // Loop through all target orders (1 in single mode, N in bulk mode)
             for (const [index, target] of targetOrders.entries()) {
                 // Determine override phone (only works in single mode)
                 const effectiveOverridePhone = !isBulkMode && phoneToOverride !== target.phone ? phoneToOverride : undefined;
 
-                const res = await fetch("/api/webhooks/interakt/send", {
+                // The send endpoint requires a signed-in caller and re-reads
+                // the order under that caller's RLS.
+                const res = await authedFetch("/api/webhooks/interakt/send", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        // The send endpoint now requires a signed-in caller and
-                        // re-reads the order under that caller's RLS.
-                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         order: target,
                         templateType: selectedType,

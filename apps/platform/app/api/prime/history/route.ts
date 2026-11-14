@@ -5,6 +5,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeConnection } from "@/lib/prime/connection";
 import { loadPrimeJourney } from "@/lib/prime/journey";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const querySchema = z.object({ orderId: z.string().uuid() });
  * step first, for the order card's Prime panel. Any member may read it. The
  * shipment is looked up in the caller's own tenant, never from the request.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -30,3 +31,5 @@ export async function GET(request: NextRequest) {
     const journey = await loadPrimeJourney(db, client, caller.tenantId, parsed.data.orderId);
     return NextResponse.json({ success: true, ...journey });
 }
+
+export const GET = withFailureReport("api/prime/history GET", handleGET);

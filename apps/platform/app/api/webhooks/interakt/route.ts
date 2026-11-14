@@ -352,7 +352,7 @@ async function handlePost(request: NextRequest) {
 /**
  * Health check / verification endpoint
  */
-export async function GET() {
+async function handleGet(_request: Request) {
     return NextResponse.json(
         {
             message: "Interakt WhatsApp Webhook Endpoint",
@@ -363,4 +363,5 @@ export async function GET() {
     );
 }
 
+export const GET = withFailureReport("webhook-interakt GET", handleGet);
 export const POST = withFailureReport("webhook-interakt", handlePost);

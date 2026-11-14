@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 const bodySchema = z.object({ importId: z.uuid() });
 
@@ -20,7 +21,7 @@ const resultSchema = z.object({
  * changed since then by staff or the courier are left alone and counted as
  * `changedSince`. The import is then marked "cancelled".
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // Tenant admins only; the tenant is the caller's verified active tenant.
         const caller = await requireRequestCaller(request, "tenant-admin");
@@ -65,3 +66,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/delivery-import/rollback POST", handlePOST);

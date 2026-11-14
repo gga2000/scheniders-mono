@@ -1,6 +1,7 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { MCP_INSTRUCTIONS, MCP_SERVER_CAPABILITIES, MCP_SERVER_INFO, registerPlatformTools } from "@/lib/mcp/server";
 import { verifyMcpToken } from "@/lib/mcp/caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Claude (MCP) connector for the platform app. Middleware does not run on
@@ -23,4 +24,5 @@ const authed = withMcpAuth(handler, verifyMcpToken, {
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export { authed as GET, authed as POST };
+export const GET = withFailureReport("api/mcp GET", authed);
+export const POST = withFailureReport("api/mcp POST", authed);

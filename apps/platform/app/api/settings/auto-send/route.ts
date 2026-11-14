@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { followUpWindowSchema, DEFAULT_FOLLOW_UP_WINDOW } from "@/lib/follow-up-window";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ const SETTINGS_KEY = "whatsapp_auto_send";
  * GET /api/settings/auto-send
  * Returns the caller's tenant's auto-send toggle state.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     try {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
  * Updates the caller's tenant's auto-send toggle state (tenant admins only).
  * Body: { enabled: boolean, default_discount_percent?: number }
  */
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
     try {
@@ -105,3 +106,6 @@ export async function PUT(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/settings/auto-send GET", handleGET);
+export const PUT = withFailureReport("api/settings/auto-send PUT", handlePUT);

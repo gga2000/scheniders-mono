@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import type { UnfurlResult } from "@/types/chat";
+import { authedFetch } from "@/lib/authed-fetch";
 
 /**
  * Lazily unfurl a single URL via the SSRF-guarded `/api/chat/unfurl` route.
@@ -24,9 +25,7 @@ export function useUnfurl(url: string | null | undefined) {
         gcTime: 60 * 60_000,
         retry: false,
         queryFn: async (): Promise<UnfurlResult> => {
-            const res = await fetch(`/api/chat/unfurl?url=${encodeURIComponent(url!)}`, {
-                headers: { Authorization: `Bearer ${token!}` },
-            });
+            const res = await authedFetch(`/api/chat/unfurl?url=${encodeURIComponent(url!)}`);
             if (!res.ok) {
                 // The route returns 200 for blocked/failed unfurls; a non-200
                 // here means auth/transport — degrade to an empty preview.

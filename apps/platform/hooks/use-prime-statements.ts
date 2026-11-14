@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const summarySchema = z.object({
     parcels: z.number(),
@@ -73,7 +74,7 @@ const oneAnswer = z.object({
 });
 
 async function getJson<T>(url: string, token: string, schema: z.ZodType<T>): Promise<T> {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await authedFetch(url);
     if (!res.ok) throw new Error(`Prime statements failed: ${res.status}`);
     return schema.parse(await res.json());
 }
@@ -127,13 +128,13 @@ export type PrimeStatementAction = { action: "approve"; id: number } | { action:
  * amount as one order's price. Both refresh the payment and its list.
  */
 export function usePrimeStatementAction() {
-    const { session, tenantId } = useAuth();
+    const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (body: PrimeStatementAction): Promise<PrimeStatementActionAnswer> => {
-            const res = await fetch("/api/prime/statements", {
+            const res = await authedFetch("/api/prime/statements", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${session?.access_token ?? ""}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
             const parsed = actionAnswer.safeParse(await res.json().catch(() => null));

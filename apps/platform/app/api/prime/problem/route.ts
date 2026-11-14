@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { PERMISSIONS } from "@/lib/permissions";
 import { callerHasPermission } from "@/lib/auth/caller-has-permission";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ const bodySchema = z.discriminatedUnion("action", [
  * parcel is read from the caller's own tenant, never from the body. The mark
  * stops counting once Prime moves the parcel again (lib/prime/problems).
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-problem");
@@ -48,3 +49,5 @@ export async function POST(request: NextRequest) {
     if (!data || data.length === 0) return NextResponse.json({ success: false, error: "Parcel not found" }, { status: 404 });
     return NextResponse.json({ success: true });
 }
+
+export const POST = withFailureReport("api/prime/problem POST", handlePOST);

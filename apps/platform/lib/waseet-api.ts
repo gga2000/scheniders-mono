@@ -32,6 +32,7 @@ import type {
     WaseetInvoiceOrdersResponse,
     WaseetCityMapping,
 } from "@/types/waseet";
+import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
 
 // =============================================
 // CONSTANTS
@@ -129,6 +130,7 @@ async function login(): Promise<string> {
     const response = await fetch(`${BASE_URL}/login`, {
         method: "POST",
         body: formData,
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
 
     const result = await readWaseetJson(response);
@@ -212,7 +214,7 @@ async function waseetRequest<T>(
             const url = `${BASE_URL}/${endpoint}${queryString ? `?${queryString}` : ""}`;
 
             // Build fetch options
-            const fetchOptions: RequestInit = { method };
+            const fetchOptions: RequestInit = { method, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) };
 
             if (method === "POST" && bodyFields) {
                 // CRITICAL: Use FormData, NOT JSON. Al-Waseet requires multipart/form-data.
@@ -272,6 +274,10 @@ async function waseetRequest<T>(
             lastError = error instanceof Error ? error.message : "Network error";
             console.error(`[Waseet] Error on attempt ${attempt + 1}/${MAX_RETRIES + 1}:`, lastError);
 
+            // A POST that may have reached Al-Waseet (timeout, dropped
+            // connection) is not sent again: create-order would make a
+            // second parcel.
+            if (method === "POST" && !requestNeverSent(error)) break;
             if (attempt < MAX_RETRIES) {
                 await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
             }

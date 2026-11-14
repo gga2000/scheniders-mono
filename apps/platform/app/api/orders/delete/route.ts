@@ -5,6 +5,7 @@ import { reportOrderError } from '@/lib/order-telemetry';
 import { resolveActiveTenant } from '@/lib/auth/resolve-active-tenant';
 import { callerHasPermission } from '@/lib/auth/caller-has-permission';
 import { PERMISSIONS } from '@/lib/permissions';
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * POST /api/orders/delete
@@ -13,7 +14,7 @@ import { PERMISSIONS } from '@/lib/permissions';
  * Requires authenticated admin user via Authorization header.
  * Body: { ids: string[] }
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // Verify the requesting user via access token
         const authHeader = request.headers.get('Authorization');
@@ -161,3 +162,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/orders/delete POST", handlePOST);

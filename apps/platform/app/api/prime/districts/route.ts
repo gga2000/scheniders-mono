@@ -6,6 +6,7 @@ import { getPrimeClient, isPrimeUnreachable, PrimeApiError } from "@/lib/prime/c
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { primeStateOf } from "@/lib/prime/district";
 import { primeDistrictsOf } from "@/lib/prime/districts-load";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const querySchema = z.object({
  * GET /api/prime/districts?city=…&governorate=… — Prime's districts for the
  * order's governorate, for the new-order form's picker. Read only; any member.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -44,3 +45,5 @@ export async function GET(request: NextRequest) {
         throw err;
     }
 }
+
+export const GET = withFailureReport("api/prime/districts GET", handleGET);

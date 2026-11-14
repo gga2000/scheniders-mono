@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { addToBlacklist } from "@/lib/blacklist";
 import { usePermission } from "@/hooks/use-permission";
@@ -44,6 +45,7 @@ export function ReturnDetailPanel({
     const { reasons } = useOrderReasons("reject", { enabledOnly: true });
     const { profile, user, tenantId } = useAuth();
     const { can } = usePermission();
+    const { t } = useLanguage();
     const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
     const orderStatusLabel = useStatusLabel();
     const [reasonLabel, setReasonLabel] = useState<string>(defaultReasonLabel || "");
@@ -89,7 +91,7 @@ export function ReturnDetailPanel({
                 addedBy: profile?.display_name || user?.email || null,
             });
         } catch {
-            toast.error("Failed to blacklist");
+            toast.error(t("intake.toast.blacklistFailed"));
             return;
         } finally {
             setBlacklisting(false);

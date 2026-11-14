@@ -3,6 +3,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { primeConfigFromEnv } from "@/lib/prime/client";
 import { loadPrimeConnection } from "@/lib/prime/connection";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * orders to Prime directly, and the orders page shows the Prime track), and
  * the Prime branch its parcels go through. Any member may ask.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -19,3 +20,5 @@ export async function GET(request: NextRequest) {
     const connection = await loadPrimeConnection(createSupabaseServiceClient(), caller.tenantId);
     return NextResponse.json({ success: true, connected: connection !== null, branchName: connection?.branchName ?? null });
 }
+
+export const GET = withFailureReport("api/prime/connection GET", handleGET);

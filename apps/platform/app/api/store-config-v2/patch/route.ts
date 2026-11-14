@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from "zod";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Field-level autosave PATCH endpoint                                  */
@@ -105,7 +106,7 @@ export function setByPath(
 }
 
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function handlePOST(request: Request): Promise<NextResponse> {
     let raw: unknown;
     try {
         raw = await request.json();
@@ -171,3 +172,5 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({ ok: true, applied: { path, value } });
 }
+
+export const POST = withFailureReport("api/store-config-v2/patch POST", handlePOST);

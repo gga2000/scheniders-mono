@@ -5,6 +5,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { previewPrimeRun } from "@/lib/prime/desk-preview";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ const bodySchema = z.object({ orderIds: z.array(z.string().uuid()).min(1).max(50
  * must be fixed before Prime takes it, and its case number once sent. Read
  * only: nothing is sent to Prime. Orders come from the caller's own tenant.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -33,3 +34,5 @@ export async function POST(request: NextRequest) {
     const rows = await previewPrimeRun(db, client, caller.tenantId, merchant, [...new Set(parsed.data.orderIds)]);
     return NextResponse.json({ success: true, connected: true, rows });
 }
+
+export const POST = withFailureReport("api/prime/desk-preview POST", handlePOST);

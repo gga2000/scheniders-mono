@@ -8,6 +8,7 @@ import type {
     RowResolution,
     ResolutionAction,
 } from "@/types/delivery-import";
+import { authedFetch } from "@/lib/authed-fetch";
 
 export type ImportStep = "upload" | "processing" | "review" | "confirming" | "done";
 
@@ -59,11 +60,8 @@ export function useDeliveryImport() {
                 const formData = new FormData();
                 formData.append("file", file);
 
-                const response = await fetch("/api/delivery-import/parse", {
+                const response = await authedFetch("/api/delivery-import/parse", {
                     method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${session.access_token}`,
-                    },
                     body: formData,
                 });
 
@@ -115,10 +113,9 @@ export function useDeliveryImport() {
             setIsLoading(true);
 
             try {
-                const response = await fetch("/api/delivery-import/match", {
+                const response = await authedFetch("/api/delivery-import/match", {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${session.access_token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({ parsedPDF: parsed }),
@@ -210,10 +207,9 @@ export function useDeliveryImport() {
                     }
                 }
 
-                const response = await fetch("/api/delivery-import/confirm", {
+                const response = await authedFetch("/api/delivery-import/confirm", {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${session.access_token}`,
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({

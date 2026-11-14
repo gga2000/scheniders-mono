@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { PrimeCallCheck } from "@/lib/prime/call-check-load";
 import type { Order } from "@/types/order";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const fixReason = z.enum(["no_governorate", "bad_phone", "no_value", "bad_receipt", "amount_out_of_range"]);
 
@@ -48,11 +49,11 @@ function createBatcher() {
     let token: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    async function flush(ids: string[], waiting: Map<string, Pending[]>, auth: string) {
+    async function flush(ids: string[], waiting: Map<string, Pending[]>) {
         try {
-            const res = await fetch("/api/prime/call-check", {
+            const res = await authedFetch("/api/prime/call-check", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderIds: ids }),
             });
             if (!res.ok) throw new Error(`Prime call check failed: ${res.status}`);
@@ -71,7 +72,7 @@ function createBatcher() {
         queue = new Map();
         if (!auth) return;
         const ids = [...waiting.keys()];
-        for (let i = 0; i < ids.length; i += BATCH_MAX) void flush(ids.slice(i, i + BATCH_MAX), waiting, auth);
+        for (let i = 0; i < ids.length; i += BATCH_MAX) void flush(ids.slice(i, i + BATCH_MAX), waiting);
     }
 
     return (orderId: string, auth: string) =>

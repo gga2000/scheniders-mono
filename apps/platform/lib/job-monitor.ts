@@ -143,8 +143,10 @@ export function withCronMonitor<A extends [Request, ...unknown[]]>(monitor: Cron
 
 /**
  * For endpoints with no fixed schedule (webhooks from Prime and Interakt,
- * QStash messages sent per order): raise an issue on a 5xx or a throw,
- * without a cron monitor.
+ * QStash messages sent per order, and every app route handler): raise an
+ * issue on a 5xx or a throw, without a cron monitor. A handler that catches
+ * its own error and answers 500 is invisible to Next's onRequestError, so
+ * this is what makes those failures reach Sentry.
  */
 export function withFailureReport<A extends [Request, ...unknown[]]>(job: string, handler: Handler<A>): Handler<A> {
     return async (...args) => {
