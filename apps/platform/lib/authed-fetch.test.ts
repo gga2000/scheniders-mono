@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const auth = vi.hoisted(() => ({ getSession: vi.fn(), refreshSession: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabase: { auth } }));
 
-import { authedFetch, SignedOutError } from "./authed-fetch";
+import { ApiUnavailableError, authedFetch, readApiJson, SignedOutError } from "./authed-fetch";
 
 const session = (token: string) => ({ data: { session: { access_token: token } }, error: null });
 const bearer = (call: unknown[]) => new Headers((call[1] as RequestInit).headers).get("Authorization");
@@ -48,5 +48,20 @@ describe("authedFetch", () => {
         auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
         await expect(authedFetch("/api/x")).rejects.toBeInstanceOf(SignedOutError);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
+describe("readApiJson", () => {
+    it("returns the parsed reply", async () => {
+        const res = new Response(JSON.stringify({ success: true, data: 3 }), { status: 200 });
+        await expect(readApiJson(res)).resolves.toEqual({ success: true, data: 3 });
+    });
+
+    it("turns a timeout page into a plain-words error with the status (audit R2 N6)", async () => {
+        const res = new Response("An error occurred with your deployment\n\nFUNCTION_INVOCATION_TIMEOUT", { status: 504 });
+        const err = await readApiJson(res).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(ApiUnavailableError);
+        expect((err as ApiUnavailableError).status).toBe(504);
+        expect((err as Error).message).not.toMatch(/Unexpected token/);
     });
 });

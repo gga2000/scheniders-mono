@@ -4,6 +4,7 @@ import { LineChart } from "lucide-react";
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
+import { formatIqdCompact } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceTooltip } from "../primitives/finance-tooltip";
@@ -55,7 +56,7 @@ export function CashTimeline({ data }: Props) {
                                 tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                                 axisLine={false}
                                 tickLine={false}
-                                tickFormatter={(v) => abbrev(v as number)}
+                                tickFormatter={(v) => formatIqdCompact(v as number)}
                                 width={42}
                             />
                             <Tooltip
@@ -86,12 +87,6 @@ export function CashTimeline({ data }: Props) {
     );
 }
 
-function abbrev(n: number): string {
-    const abs = Math.abs(n);
-    if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-    return `${Math.round(n)}`;
-}
 
 function shortDate(key: string, locale: string): string {
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import type { DeliveryImport } from "@/types/delivery-import";
-import { authedFetch } from "@/lib/authed-fetch";
+import { authedFetch, readApiJson, type ApiReply } from "@/lib/authed-fetch";
 
 export function useDeliveryHistory() {
     const { session } = useAuth();
@@ -21,7 +21,7 @@ export function useDeliveryHistory() {
         try {
             const response = await authedFetch("/api/delivery-import/history");
 
-            const result = await response.json();
+            const result = await readApiJson<ApiReply<DeliveryImport[]>>(response);
 
             if (!result.success) {
                 throw new Error(result.error || "Failed to fetch import history");
@@ -53,7 +53,7 @@ export function useDeliveryHistory() {
                     body: JSON.stringify({ importId, actualAmountReceived }),
                 });
 
-                const result = await response.json();
+                const result = await readApiJson<ApiReply<{ updatedCount: number }>>(response);
 
                 if (!result.success) {
                     throw new Error(result.error || "Failed to complete import");
@@ -91,7 +91,7 @@ export function useDeliveryHistory() {
                     body: JSON.stringify({ importId }),
                 });
 
-                const result = await response.json();
+                const result = await readApiJson<ApiReply<{ restored: number; changedSince: number }>>(response);
 
                 if (!result.success) {
                     throw new Error(result.error || "Failed to roll back import");

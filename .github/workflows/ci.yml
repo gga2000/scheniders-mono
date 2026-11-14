@@ -89,13 +89,17 @@ jobs:
       # select guards, *-migration checks) never runs when only those files
       # change. Run every such test on every PR: they take seconds, and main
       # deploys on merge, so the post-merge run is too late to stop a bad one.
-      - name: Platform file-reading guard tests
-        working-directory: apps/platform
+      # packages/sections is in: the platform's store builder renders its
+      # sections, and its copy lints read the source files. execSync covers
+      # guards that grep the tree (customer-aggregates-access).
+      - name: File-reading guard tests (platform, sections)
         run: |
           set -euo pipefail
-          files=$(grep -rlE "readFileSync|readdirSync|readFile\(" --include=*.test.ts --include=*.test.tsx --exclude-dir=node_modules --exclude-dir=.next .)
-          echo "$files"
-          echo "$files" | xargs pnpm exec vitest run
+          for dir in apps/platform packages/sections; do
+            files=$(cd "$dir" && grep -rlE "readFileSync|readdirSync|readFile\(|execSync" --include=*.test.ts --include=*.test.tsx --exclude-dir=node_modules --exclude-dir=.next .)
+            echo "== $dir"; echo "$files"
+            (cd "$dir" && echo "$files" | xargs pnpm exec vitest run)
+          done
 
   db-behaviour:
     name: database behaviour tests

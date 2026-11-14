@@ -293,7 +293,7 @@ function must<T>(res: { data: T | null; error: { message: string } | null }): T 
  * would add every other store the viewer belongs to. Any failed read throws, so a
  * partial load can never show a smaller salary as if it were correct.
  */
-async function fetchPayrollSource(tenantId: string, fetchStart: string, fetchEnd: string, periodMode: PeriodMode): Promise<PayrollSource> {
+export async function fetchPayrollSource(tenantId: string, fetchStart: string, fetchEnd: string, periodMode: PeriodMode): Promise<PayrollSource> {
     // ── Phase 1: roster, configs, deductions, and payroll history ──
     // We need the payroll history first to learn each employee's "since last"
     // start, which may predate the 90-day default fetch window.
