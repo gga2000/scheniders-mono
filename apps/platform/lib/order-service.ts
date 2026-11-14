@@ -103,7 +103,10 @@ export async function createOrderForTenant(
         // `after` keeps the function alive until they finish; a bare promise
         // started here could be dropped when the instance froze after the
         // reply, losing the alert with no error anywhere (audit R2 N5).
-        if (!isTake) {
+        // A replayed create (same idempotency key) returns the order made the
+        // first time: it was counted and announced then (audit R3-3).
+        const replayed = (data as { idempotent_replay?: boolean } | null)?.idempotent_replay === true;
+        if (!isTake && !replayed) {
             const created = data as Order | null;
             after(async () => {
                 await trackOrderUsage(tenantId, supabase).catch((err) => {
