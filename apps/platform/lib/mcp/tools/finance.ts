@@ -50,8 +50,14 @@ export function firstNonNullWithin(columns: readonly string[], start: string, en
 
 /** A sale counts the day it was delivered; old rows without that stamp fall back to completed, then created. */
 const SOLD_AT = ["delivered_at", "completed_at", "created_at"] as const;
-/** A refund counts the day the money went back. */
-const REFUNDED_AT = ["refunded_at", "delivered_at", "completed_at", "created_at"] as const;
+/**
+ * A refund counts the day the money went back: refund_paid_at, which the
+ * database stamps on reaching refund_delivered, as the Finances page files it
+ * (lib/refunds/refund-reporting.ts refundPaidAt, same fallbacks). The older
+ * refunded_at is never set, so a refund used to fall back to the original
+ * order's delivery day and land in another month here than on Finances.
+ */
+export const REFUNDED_AT = ["refund_paid_at", "updated_at", "created_at"] as const;
 
 type Paged = { data: unknown[] | null; error: { message: string } | null };
 

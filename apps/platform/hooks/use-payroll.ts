@@ -35,10 +35,13 @@ export function usePayroll() {
     const [historyFailed, setHistoryFailed] = useState(false);
 
     const fetchHistory = useCallback(async (employeeId?: string) => {
+        if (!tenantId) return;
         setIsLoading(true);
+        // This shop only: RLS shows a member of two shops both (audit R2 N4).
         let query = supabase
             .from("payroll_records")
             .select("*")
+            .eq("tenant_id", tenantId)
             .order("period_end", { ascending: false });
         if (employeeId) {
             query = query.eq("employee_id", employeeId);
@@ -48,7 +51,7 @@ export function usePayroll() {
         setHistoryFailed(!!error);
         if (!error) setPayrollHistory(await withPayslipLinks(data ?? []));
         setIsLoading(false);
-    }, []);
+    }, [tenantId]);
 
     const fetchAllHistory = useCallback(async () => {
         await fetchHistory(undefined);
@@ -146,13 +149,15 @@ export function usePayroll() {
      * Returns a map of employeeId → period_end date string.
      */
     const getLastPayrollDates = useCallback(async (): Promise<Map<string, string>> => {
+        const map = new Map<string, string>();
+        if (!tenantId) return map;
         const { data } = await supabase
             .from("payroll_records")
             .select("employee_id, period_end")
+            .eq("tenant_id", tenantId)
             .eq("status", "paid")
             .order("period_end", { ascending: false });
 
-        const map = new Map<string, string>();
         if (data) {
             for (const row of data) {
                 if (!map.has(row.employee_id)) {
@@ -161,7 +166,7 @@ export function usePayroll() {
             }
         }
         return map;
-    }, []);
+    }, [tenantId]);
 
     return {
         payrollHistory,

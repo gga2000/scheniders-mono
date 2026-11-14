@@ -83,13 +83,14 @@ function realOrders<T extends { or: (filters: string) => T }>(query: T): T {
     return query.or("is_return.is.null,is_return.eq.false").or("is_replacement.is.null,is_replacement.eq.false").or("is_test.is.null,is_test.eq.false");
 }
 
-async function fetchOrdersPlaced(range: DayRange): Promise<AdsOrderRow[]> {
+async function fetchOrdersPlaced(tenantId: string, range: DayRange): Promise<AdsOrderRow[]> {
     const rows: AdsOrderRow[] = [];
     for (let from = 0; ; from += PAGE) {
         const { data, error } = await realOrders(
             supabase
                 .from("orders")
                 .select("created_at, status, ad_channel, attribution")
+                .eq("tenant_id", tenantId)
                 .gte("created_at", new Date(baghdadDayStart(range.since)).toISOString())
                 .lt("created_at", new Date(baghdadDayStart(addDaysToDayKey(range.until, 1))).toISOString()),
         ).range(from, from + PAGE - 1);
@@ -105,13 +106,14 @@ interface DeliveredRow {
     attribution: unknown;
 }
 
-async function fetchDelivered(range: DayRange): Promise<DeliveredRow[]> {
+async function fetchDelivered(tenantId: string, range: DayRange): Promise<DeliveredRow[]> {
     const rows: DeliveredRow[] = [];
     for (let from = 0; ; from += PAGE) {
         const { data, error } = await realOrders(
             supabase
                 .from("orders")
                 .select("delivered_at, ad_channel, attribution")
+                .eq("tenant_id", tenantId)
                 .in("status", ["delivered", "completed"])
                 .gte("delivered_at", new Date(baghdadDayStart(range.since)).toISOString())
                 .lt("delivered_at", new Date(baghdadDayStart(addDaysToDayKey(range.until, 1))).toISOString()),
@@ -131,22 +133,28 @@ function countByDay(stamps: readonly string[]): Map<string, number> {
     return counts;
 }
 
-async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
+/**
+ * Every read names the shop: RLS lets a member of two shops read both, and
+ * the report must show only the one they have open (audit R2 N4).
+ */
+async function fetchReport(tenantId: string, range: DayRange): Promise<MetaAdsReport> {
     const [spend, ads, placed, delivered] = await Promise.all([
         supabase
             .from("ad_spend_daily")
             .select("spend_date, campaign_id, campaign_name, spend_usd, spend_iqd, impressions, clicks, results")
+            .eq("tenant_id", tenantId)
             .gte("spend_date", range.since)
             .lte("spend_date", range.until)
             .limit(10000),
         supabase
             .from("ad_insights_daily")
             .select("ad_id, adset_id, campaign_id")
+            .eq("tenant_id", tenantId)
             .gte("spend_date", range.since)
             .lte("spend_date", range.until)
             .limit(10000),
-        fetchOrdersPlaced(range),
-        fetchDelivered(range),
+        fetchOrdersPlaced(tenantId, range),
+        fetchDelivered(tenantId, range),
     ]);
     if (spend.error) throw new Error(spend.error.message);
     if (ads.error) throw new Error(ads.error.message);
@@ -203,11 +211,15 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
 }
 
 function useReportFor(range: DayRange, enabled: boolean) {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["meta-ads", "report", range.since, range.until],
-        queryFn: () => fetchReport(range),
+        queryKey: ["meta-ads", "report", tenantId, range.since, range.until],
+        queryFn: () => {
+            if (!tenantId) throw new Error("Meta Ads report requested without a shop");
+            return fetchReport(tenantId, range);
+        },
         staleTime: 60_000,
-        enabled,
+        enabled: enabled && !!tenantId,
     });
 }
 
@@ -261,12 +273,13 @@ export function useMetaAdsAutoRefresh(enabled: boolean) {
 }
 
 
-async function fetchAdInsightDays(range: DayRange): Promise<AdInsightDay[]> {
+async function fetchAdInsightDays(tenantId: string, range: DayRange): Promise<AdInsightDay[]> {
     const rows: AdInsightDay[] = [];
     for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabase
             .from("ad_insights_daily")
             .select("spend_date, ad_id, ad_name, adset_id, adset_name, campaign_id, spend_iqd, impressions, clicks, results, frequency")
+            .eq("tenant_id", tenantId)
             .gte("spend_date", range.since)
             .lte("spend_date", range.until)
             .order("spend_date")
@@ -288,10 +301,13 @@ async function fetchAdInsightDays(range: DayRange): Promise<AdInsightDay[]> {
 
 /** Ad sets and ads for the range, grouped by campaign id. Fatigue needs 6+ days of history in the range. */
 export function useMetaAdInsights(range: DayRange) {
+    const { tenantId } = useAuth();
     return useQuery({
-        queryKey: ["meta-ads", "ad-insights", range.since, range.until],
+        queryKey: ["meta-ads", "ad-insights", tenantId, range.since, range.until],
+        enabled: !!tenantId,
         queryFn: async () => {
-            const sets = groupAdsByAdset(await fetchAdInsightDays(range));
+            if (!tenantId) throw new Error("ad insights requested without a shop");
+            const sets = groupAdsByAdset(await fetchAdInsightDays(tenantId, range));
             const byCampaign = new Map<string, typeof sets>();
             for (const set of sets) {
                 const list = byCampaign.get(set.campaignId);

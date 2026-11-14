@@ -9111,7 +9111,9 @@ export type Database = {
           month: string
         }[]
       }
-      get_dashboard_metrics: { Args: { p_range?: string }; Returns: Json }
+      get_dashboard_metrics:
+        | { Args: { p_range?: string }; Returns: Json }
+        | { Args: { p_range: string; p_tenant_id: string }; Returns: Json }
       get_finance_summary: {
         Args: { _from: string; _tenant_id: string; _to: string }
         Returns: Json

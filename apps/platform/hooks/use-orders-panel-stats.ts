@@ -56,10 +56,11 @@ function usePanelStats(window: PanelWindow | null, scope: BarScope, enabled: boo
 }
 
 /** Meta spend over a range, summed in USD (what Meta bills) and IQD (at the rate saved per day). Admin-only table: other roles get no rows. */
-async function fetchAdSpend(from: string | null, to: string | null): Promise<{ usd: number; iqd: number }> {
+async function fetchAdSpend(tenantId: string, from: string | null, to: string | null): Promise<{ usd: number; iqd: number }> {
     const total = { usd: 0, iqd: 0 };
     for (let start = 0; ; start += PAGE) {
-        let query = supabase.from("ad_spend_daily").select("spend_usd, spend_iqd");
+        // This shop's spend only: RLS shows a member of two shops both (audit R2 N4).
+        let query = supabase.from("ad_spend_daily").select("spend_usd, spend_iqd").eq("tenant_id", tenantId);
         if (from) query = query.gte("spend_date", from);
         if (to) query = query.lte("spend_date", to);
         const { data, error } = await query.range(start, start + PAGE - 1);
@@ -116,7 +117,7 @@ function useStoreDays(enabled: boolean) {
  * store-wide, so they only appear while no city / product / priority / payment filter narrows the list.
  */
 export function useOrdersPanelStats(filters: OrderFilters) {
-    const { role, permissions } = useAuth();
+    const { role, permissions, tenantId } = useAuth();
     // "Today so far" is cut at the current Baghdad time, so the windows move on every tick: the cut-off
     // (and the day itself, past midnight) never goes stale, and each tick fetches fresh numbers.
     const [now, setNow] = useState(() => new Date());
@@ -146,9 +147,12 @@ export function useOrdersPanelStats(filters: OrderFilters) {
     const mayOpenAds = storeWide && canAccessRoute("/ads", role, permissions);
     const adsOn = mayOpenAds && connection.data?.is_active === true;
     const spend = useQuery({
-        queryKey: ["orders-panel-ad-spend", windows.current.from, windows.current.to],
-        queryFn: () => fetchAdSpend(windows.current.from, windows.current.to),
-        enabled: adsOn,
+        queryKey: ["orders-panel-ad-spend", tenantId, windows.current.from, windows.current.to],
+        queryFn: () => {
+            if (!tenantId) throw new Error("ad spend requested without a shop");
+            return fetchAdSpend(tenantId, windows.current.from, windows.current.to);
+        },
+        enabled: adsOn && !!tenantId,
         staleTime: REFRESH_MS,
         placeholderData: keepPreviousData,
     });

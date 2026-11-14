@@ -211,6 +211,8 @@ export function useFinanceOverview(
             // time series
             const map = new Map<string, BucketPoint>();
             for (const o of oList) {
+                // Same rule as the totals above: a test order is never a sale.
+                if (o.is_test) continue;
                 const d = reportDate(o) ?? toDate(o.created_at);
                 const { key, ts } = periodBucket(d, granularity);
                 if (!map.has(key)) {

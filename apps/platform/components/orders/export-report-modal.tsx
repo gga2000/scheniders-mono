@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { addDaysToDayKey, baghdadDayKey } from "@/lib/order-window";
 
 // ============================================
 // TYPES
@@ -46,30 +47,24 @@ type ReportType = "order_list" | "summary";
 // HELPERS
 // ============================================
 
-function getTodayRange(): { from: string; to: string } {
-    const now = new Date();
-    const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+// The export scopes are Baghdad days, like the Orders list's "Today": the
+// browser clock (a laptop left on UTC, or abroad) would pick another day.
+export function getTodayRange(now: number = Date.now()): { from: string; to: string } {
+    const d = baghdadDayKey(now);
     return { from: d, to: d };
 }
 
-function getThisWeekRange(): { from: string; to: string } {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday
-    // Start from Saturday (Iraqi week start)
-    const satOffset = dayOfWeek >= 6 ? dayOfWeek - 6 : dayOfWeek + 1;
-    const start = new Date(now);
-    start.setDate(now.getDate() - satOffset);
-    const fmt = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return { from: fmt(start), to: fmt(now) };
+/** Saturday (the Iraqi week start) through today. */
+export function getThisWeekRange(now: number = Date.now()): { from: string; to: string } {
+    const today = baghdadDayKey(now);
+    const dayOfWeek = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+    const satOffset = (dayOfWeek + 1) % 7;
+    return { from: addDaysToDayKey(today, -satOffset), to: today };
 }
 
-function getThisMonthRange(): { from: string; to: string } {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const fmt = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return { from: fmt(start), to: fmt(now) };
+export function getThisMonthRange(now: number = Date.now()): { from: string; to: string } {
+    const today = baghdadDayKey(now);
+    return { from: `${today.slice(0, 8)}01`, to: today };
 }
 
 

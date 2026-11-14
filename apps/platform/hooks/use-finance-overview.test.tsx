@@ -88,4 +88,14 @@ describe("useFinanceOverview profit", () => {
         expect(kept.product_cost).toBe(4000);
         expect(kept.net_profit).toBe(6000);
     });
+
+    it("leaves a test order out of the chart as well as the totals", () => {
+        const orders = [
+            order({ id: "sale", price: 10000 }),
+            order({ id: "test", price: 15000, is_test: true }),
+        ];
+        const { result } = renderHook(() => useFinanceOverview(orders, [], [], interval, null, "day"));
+        expect(result.current.gross_revenue).toBe(10000);
+        expect(result.current.series.reduce((sum, b) => sum + b.delivered_revenue, 0)).toBe(10000);
+    });
 });
