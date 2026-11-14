@@ -29,3 +29,15 @@ describe("isRefundRow / refundPaidAt", () => {
         expect(refundPaidAt(row)).toEqual(new Date(paid));
     });
 });
+
+describe("refundPaidAt prefers the stamped payment time", () => {
+    it("a later edit (updated_at) does not move a refund out of the month it was paid", () => {
+        const row = {
+            is_return: true, status: "refund_delivered" as const,
+            created_at: "2026-09-25T10:00:00.000Z",
+            refund_paid_at: "2026-10-02T10:00:00.000Z",
+            updated_at: "2026-11-10T10:00:00.000Z",
+        };
+        expect(refundPaidAt(row)).toEqual(new Date("2026-10-02T10:00:00.000Z"));
+    });
+});

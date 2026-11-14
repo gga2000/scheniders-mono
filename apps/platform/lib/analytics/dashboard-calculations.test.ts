@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+    isRealizedRevenue,
     realizedRevenueBetween,
     formatChartWeekday,
     formatChartDayMonth,
@@ -196,5 +197,13 @@ describe("calculateRevenueTrend — one point per Baghdad day", () => {
             order({ status: "delivered", price: undefined, created_at: "2026-10-13T05:00:00Z", delivered_at: "2026-10-13T05:30:00+00:00" }),
         ], 7, "en", now);
         expect(points[6].revenue).toBe(0);
+    });
+});
+
+describe("isRealizedRevenue leaves test orders out, as the orders bar does", () => {
+    it("a delivered test order is not revenue", () => {
+        const base = { status: "delivered", price: 15000, created_at: "2026-11-01T09:00:00Z" };
+        expect(isRealizedRevenue(base)).toBe(true);
+        expect(isRealizedRevenue({ ...base, is_test: true })).toBe(false);
     });
 });

@@ -25,5 +25,10 @@ describe("split_order_atomic definition", () => {
         const newest = fs.readFileSync(path.join(dir, definers[definers.length - 1]), "utf8");
         const body = newest.replace(/^--.*$/gm, "");
         expect(body).toMatch(/-\s*'idempotency_key'/);
+        // Audit F10: only a confirmed or in-transit order splits (a split order is
+        // 'delivered', so a second split is refused), and the kept + returned
+        // lines must equal the order's own lines at the order's own prices.
+        expect(body).toMatch(/status NOT IN \('confirmed', 'in_transit'\)/);
+        expect(body).toMatch(/FULL JOIN requested r USING \(pid, vid, nm, sku, price\)/);
     });
 });
