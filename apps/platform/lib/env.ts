@@ -86,6 +86,14 @@ const serverSchema = z.object({
     PRIME_SYSTEM_CODE: z.string().min(1).optional(),
     PRIME_PASSWORD: z.string().min(1).optional(),
     PRIME_INITIAL_TOKEN: z.string().min(1).optional(),
+    // Qi Card payment gateway (wallet top-ups). Sandbox host while testing:
+    // https://uat-sandbox-3ds-api.qi.iq/api/v1
+    QI_API_BASE_URL: z.string().url().startsWith("https://").optional(),
+    QI_TERMINAL_ID: z.string().min(1).optional(),
+    QI_USERNAME: z.string().min(1).optional(),
+    QI_PASSWORD: z.string().min(1).optional(),
+    // Qi's RSA public key (PEM) for the X-Signature on its payment messages.
+    QI_WEBHOOK_PUBLIC_KEY: z.string().includes("PUBLIC KEY").optional(),
     // Set by Vercel on every deployment. The Prime webhook is registered only
     // from Production, at the project's production domain (lib/prime/webhook).
     VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
@@ -156,6 +164,11 @@ function validateEnv() {
             PRIME_SYSTEM_CODE: orUndef(process.env.PRIME_SYSTEM_CODE),
             PRIME_PASSWORD: orUndef(process.env.PRIME_PASSWORD),
             PRIME_INITIAL_TOKEN: orUndef(process.env.PRIME_INITIAL_TOKEN),
+            QI_API_BASE_URL: orUndef(process.env.QI_API_BASE_URL),
+            QI_TERMINAL_ID: orUndef(process.env.QI_TERMINAL_ID),
+            QI_USERNAME: orUndef(process.env.QI_USERNAME),
+            QI_PASSWORD: orUndef(process.env.QI_PASSWORD),
+            QI_WEBHOOK_PUBLIC_KEY: orUndef(process.env.QI_WEBHOOK_PUBLIC_KEY?.replace(/\\n/g, "\n")),
             VERCEL_ENV: orUndef(process.env.VERCEL_ENV),
             VERCEL_PROJECT_PRODUCTION_URL: orUndef(process.env.VERCEL_PROJECT_PRODUCTION_URL),
             GEMINI_API_KEY: orUndef(process.env.GEMINI_API_KEY),

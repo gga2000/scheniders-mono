@@ -14,17 +14,25 @@ import {
     useWalletTopup,
     type TopupMethod,
 } from "@/hooks/use-wallet-topup";
+import { useQiTopup } from "@/hooks/use-qi-topup";
+import { QiPay } from "./qi-pay";
 
 const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 
 /**
- * Top-up by receipt: the shop sends money by Zain Cash or Qi to our number,
- * uploads the receipt, and our team adds the balance after checking it.
+ * Top-up by receipt: the shop sends money by Zain Cash (or Qi, while Qi card
+ * payments are not switched on) to our number, uploads the receipt, and our
+ * team adds the balance after checking it. With Qi switched on, Qi is paid on
+ * Qi's own card page instead (QiPay) and the wallet fills by itself.
  */
 export function TopupForm({ onDone }: { onDone: () => void }) {
     const { t } = useLanguage();
     const { paymentDetails, paymentDetailsLoading, submit } = useWalletTopup();
-    const [method, setMethod] = useState<TopupMethod>("zain_cash");
+    const { enabled: qiEnabled } = useQiTopup();
+    const [picked, setMethod] = useState<TopupMethod | null>(null);
+    // Qi by card page when it is switched on; otherwise every method is by receipt.
+    const method: TopupMethod = picked ?? (qiEnabled ? "qi_card" : "zain_cash");
+    const qiOnline = method === "qi_card" && qiEnabled;
     const [amount, setAmount] = useState<number>(50_000);
     const [file, setFile] = useState<File | null>(null);
     const [copied, setCopied] = useState(false);
@@ -91,6 +99,10 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                 ))}
             </div>
 
+            {qiOnline ? (
+                <QiPay onCancel={onDone} />
+            ) : (
+            <>
             <div>
                 <p className="mb-1 text-xs text-muted-foreground">{t("billing.topup.step1")}</p>
                 {paymentDetailsLoading ? (
@@ -185,6 +197,8 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                     {t("billing.topup.submit")}
                 </button>
             </div>
+            </>
+            )}
         </div>
     );
 }
