@@ -15,6 +15,7 @@ const state: {
     trialOrders: number;
     payment: TopupPaymentDetails;
     requests: TopupRequest[];
+    qiEnabled: boolean;
 } = {} as never;
 
 const PLAN: PlanLimitsData = {
@@ -72,6 +73,21 @@ vi.mock("@/hooks/use-wallet-topup", async (importOriginal) => {
     };
 });
 
+const qiPay = vi.fn();
+vi.mock("@/hooks/use-qi-topup", async (importOriginal) => {
+    const real = await importOriginal<typeof import("@/hooks/use-qi-topup")>();
+    return {
+        ...real,
+        useQiTopup: () => ({ enabled: state.qiEnabled, pay: { isPending: false, isSuccess: false, mutate: qiPay } }),
+    };
+});
+
+vi.mock("next/navigation", () => ({
+    useSearchParams: () => new URLSearchParams(""),
+    useRouter: () => ({ replace: vi.fn() }),
+    usePathname: () => "/settings",
+}));
+
 const { BillingSettings } = await import("./billing-settings");
 
 function tenant(status: string, trialEndsAt: string | null): TenantSummary {
@@ -103,6 +119,8 @@ beforeEach(() => {
     state.trialOrders = 0;
     state.payment = { zain_cash: "07701234567", qi_card: null };
     state.requests = [];
+    state.qiEnabled = false;
+    qiPay.mockReset();
 });
 afterEach(cleanup);
 
@@ -151,6 +169,19 @@ describe("BillingSettings", () => {
         fireEvent.click(screen.getByText("كي كارد"));
         expect(screen.getByText("رقم الدفع غير متوفر بعد. تواصل مع الدعم.")).toBeTruthy();
         expect((screen.getByText("إرسال للمراجعة").closest("button") as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("with Qi card payments on: Qi opens Qi's page with the amount, no receipt; Zain Cash keeps the receipt", () => {
+        state.qiEnabled = true;
+        show();
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        expect(screen.getByTestId("qi-pay")).toBeTruthy();
+        expect(screen.queryByTestId("topup-file")).toBeNull();
+        fireEvent.click(screen.getByTestId("qi-pay-button"));
+        expect(qiPay).toHaveBeenCalledWith({ amount: 50_000, locale: "ar" }, expect.anything());
+        fireEvent.click(screen.getByText("زين كاش"));
+        expect(screen.queryByTestId("qi-pay")).toBeNull();
+        expect(screen.getByTestId("topup-number").textContent).toBe("07701234567");
     });
 
     it("lists the shop's receipts with their state", () => {

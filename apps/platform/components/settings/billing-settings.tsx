@@ -10,6 +10,7 @@ import { useWalletTopup } from "@/hooks/use-wallet-topup";
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { PlanCard } from "./billing/plan-card";
 import { TopupForm } from "./billing/topup-form";
+import { QiReturnCheck } from "./billing/qi-return-check";
 import { TopupRequests } from "./billing/topup-requests";
 import { WalletHistory } from "./billing/wallet-history";
 import { MonthlyInvoices } from "./billing/monthly-invoices";
@@ -45,6 +46,8 @@ export function BillingSettings() {
                 <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("billing.page.title")}</h2>
                 <p className="text-sm text-muted-foreground">{t("billing.page.subtitle")}</p>
             </div>
+
+            <QiReturnCheck onSettled={refetch} />
 
             {showLowBalance && (
                 <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30" data-testid="low-balance-warning">

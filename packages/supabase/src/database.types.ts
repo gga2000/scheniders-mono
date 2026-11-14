@@ -6224,6 +6224,50 @@ export type Database = {
           },
         ]
       }
+      qi_payments: {
+        Row: {
+          amount_iqd: number
+          created_at: string
+          id: string
+          masked_pan: string | null
+          qi_payment_id: string | null
+          requested_by: string
+          settled_at: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          amount_iqd: number
+          created_at?: string
+          id?: string
+          masked_pan?: string | null
+          qi_payment_id?: string | null
+          requested_by: string
+          settled_at?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          amount_iqd?: number
+          created_at?: string
+          id?: string
+          masked_pan?: string | null
+          qi_payment_id?: string | null
+          requested_by?: string
+          settled_at?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qi_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_codes: {
         Row: {
           code: string
@@ -9634,6 +9678,17 @@ export type Database = {
         Returns: boolean
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
+      settle_qi_payment: {
+        Args: {
+          _amount: number
+          _canceled: boolean
+          _id: string
+          _masked_pan: string
+          _qi_payment_id: string
+          _qi_status: string
+        }
+        Returns: Json
+      }
       shield_impact: {
         Args: { p_from: string; p_to: string }
         Returns: {
