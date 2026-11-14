@@ -97,6 +97,36 @@ jobs:
           echo "$files"
           echo "$files" | xargs pnpm exec vitest run
 
+  db-behaviour:
+    name: database behaviour tests
+    runs-on: ubuntu-latest
+    # Money rules live in SQL (run_payroll, void_payroll, ...). Each suite in
+    # packages/supabase/tests/behaviour runs the newest definition from the
+    # migrations against a throwaway Postgres, so a wrong formula in a new
+    # migration fails here instead of in a live payroll. Takes seconds; runs
+    # on every PR and on main.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 2s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      - run: packages/supabase/tests/behaviour/run.sh
+
   lint:
     name: lint changed files
     if: github.event_name == 'pull_request'
