@@ -8,10 +8,8 @@ import { Trash2, TrendingDown, AlertCircle, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SalaryAdvance, SalaryPenalty, PerformanceBonus } from "@/types/salary";
 import { formatPayrollDate } from "@/lib/payroll-date";
+import { formatIqdNumber } from "@scheniders/shared";
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-}
 
 function fmtDate(d: string, isArabic: boolean) {
     return formatPayrollDate(d, isArabic ? "d MMMM yyyy" : "MMM d, yyyy", isArabic ? ar : undefined);
@@ -157,7 +155,7 @@ function DeductionRow({
             </div>
             <div className="text-right shrink-0">
                 <p className={cn("font-semibold text-sm tabular-nums", isBonus ? "text-violet-600" : "text-rose-600")}>
-                    {isBonus ? "+" : "−"}{fmtIQD(amount)} {t("common.iqd")}
+                    {isBonus ? "+" : "−"}{formatIqdNumber(amount)} {t("common.iqd")}
                 </p>
                 {!isApplied && !locked && (confirming ? (
                     <div className="mt-1 flex items-center justify-end gap-1">

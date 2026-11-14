@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from "zod";
-import { env } from "@/lib/env";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Onboarding seed endpoint                                              */
@@ -62,25 +61,8 @@ const bodySchema = z.object({
     attribute_defs: z.array(attributeSchema).max(40).optional(),
 });
 
-async function getServerSupabase() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll() {
-                    // Reads only — auth verification, no cookie writes here.
-                },
-            },
-        },
-    );
-}
 
-export async function POST(request: Request): Promise<NextResponse> {
+async function handlePOST(request: Request): Promise<NextResponse> {
     let raw: unknown;
     try {
         raw = await request.json();
@@ -105,7 +87,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Config too large" }, { status: 400 });
     }
 
-    const supabase = await getServerSupabase();
+    const supabase = await createSupabaseServerClient();
 
     const {
         data: { user },
@@ -182,3 +164,5 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     return NextResponse.json({ ok: true, seeded, taxonomy });
 }
+
+export const POST = withFailureReport("api/store-config-v2/seed POST", handlePOST);

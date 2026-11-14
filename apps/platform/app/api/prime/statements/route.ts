@@ -6,6 +6,7 @@ import { getPrimeClient, isPrimeUnreachable, PrimeApiError } from "@/lib/prime/c
 import { loadPrimeConnection } from "@/lib/prime/connection";
 import { acceptPrimePrice, approvePrimePayment, loadPrimeApprovals, loadPrimePayment, loadPrimePaymentChecks } from "@/lib/prime/payment-check";
 import { primeStatementEntry, PRIME_STATEMENTS_PAGE } from "@/lib/prime/statement-load";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ async function primeLink(tenantId: string) {
  * administrators only; the merchant is the caller's own tenant's Prime link,
  * never the request's.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
  * Prime collected for one of the payment's parcels as the order's price.
  * Administrators only; every amount is read from Prime again here.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -97,3 +98,6 @@ export async function POST(request: NextRequest) {
         return primeFailure(err);
     }
 }
+
+export const GET = withFailureReport("api/prime/statements GET", handleGET);
+export const POST = withFailureReport("api/prime/statements POST", handlePOST);

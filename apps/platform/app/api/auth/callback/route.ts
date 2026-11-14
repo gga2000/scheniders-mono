@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/lib/env';
 import { provisionInvitedUserIfNeeded } from '@/lib/team-provisioning';
 import { safeRedirectPath } from '@scheniders/shared/safe-redirect-path';
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Auth Callback Handler
@@ -12,7 +13,7 @@ import { safeRedirectPath } from '@scheniders/shared/safe-redirect-path';
  * - Password reset links
  * - OAuth redirects
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
     const next = safeRedirectPath(searchParams.get('next'));
@@ -60,3 +61,5 @@ export async function GET(request: NextRequest) {
     // If there's an error or no code, redirect to login
     return NextResponse.redirect(`${origin}/login`);
 }
+
+export const GET = withFailureReport("api/auth/callback GET", handleGET);

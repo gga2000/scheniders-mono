@@ -7,7 +7,6 @@ import {
     addPartPayment,
     changeInNotes,
     finishPayment,
-    formatIqd,
     IQD_NOTES,
     leftToPay,
     paidSoFar,
@@ -16,6 +15,7 @@ import {
     type PayMethod,
     type PaymentLine,
 } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON, NOTE_TILES } from "./till-colors";
 import type { PayShown } from "@/lib/till/customer-display";
@@ -123,20 +123,20 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                         <span className={cn("mb-2 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors", approvalTone(approval.expiresAt - now))}>
                             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                             <span dir="auto">
-                                {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
+                                {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqdNumber(approval.maxOff) })}{" "}
                                 <span className="whitespace-nowrap font-bold tabular-nums">· {approvalClock(approval.expiresAt - now)}</span>
                             </span>
                         </span>
                     )}
                     <p className="text-left text-sm font-semibold text-muted" dir="auto">{name ? t("till.pay.whoPays", { name }) : t("till.pay.toPay")}</p>
                     <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
-                        {formatIqd(rest)} <span className="text-xl font-semibold text-muted">{t("till.iqd")}</span>
+                        {formatIqdNumber(rest)} <span className="text-xl font-semibold text-muted">{t("till.iqd")}</span>
                     </p>
                     {parts.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                             {parts.map((p, i) => (
                                 <span key={i} className="inline-flex h-12 items-center gap-2 rounded-full bg-[var(--card-border)]/50 pl-4 pr-1 text-base font-semibold text-foreground">
-                                    {t(`till.pay.method.${p.method}`)} {formatIqd(p.amount)}
+                                    {t(`till.pay.method.${p.method}`)} {formatIqdNumber(p.amount)}
                                     <button
                                         type="button"
                                         onClick={() => setParts(parts.filter((_, j) => j !== i))}
@@ -147,7 +147,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     </button>
                                 </span>
                             ))}
-                            <span className="inline-flex h-12 items-center text-sm text-muted">{t("till.pay.ofTotal", { total: formatIqd(total) })}</span>
+                            <span className="inline-flex h-12 items-center text-sm text-muted">{t("till.pay.ofTotal", { total: formatIqdNumber(total) })}</span>
                         </div>
                     )}
                 </div>
@@ -180,14 +180,14 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                 {overPaid ? (
                     <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 rounded-[24px] bg-red-50 p-5 text-center text-red-900 dark:bg-red-500/15 dark:text-red-100">
                         <AlertTriangle className="h-8 w-8" aria-hidden="true" />
-                        <p className="text-xl font-semibold" dir="auto">{t("till.pay.overPaid", { paid: formatIqd(paidSoFar(parts)), total: formatIqd(total) })}</p>
+                        <p className="text-xl font-semibold" dir="auto">{t("till.pay.overPaid", { paid: formatIqdNumber(paidSoFar(parts)), total: formatIqdNumber(total) })}</p>
                         <p className="text-base" dir="auto">{t("till.pay.overPaidHint")}</p>
                     </div>
                 ) : picking ? (
                     <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-[24px] bg-[var(--card-border)]/30 p-5 text-center">
                         <p className="text-xl font-semibold text-foreground" dir="auto">{t("till.pay.pickRest")}</p>
                         <p className="text-7xl font-bold tabular-nums tracking-tight text-foreground">
-                            {formatIqd(rest)} <span className="text-2xl font-semibold text-muted">{t("till.iqd")}</span>
+                            {formatIqdNumber(rest)} <span className="text-2xl font-semibold text-muted">{t("till.iqd")}</span>
                         </p>
                         <p className="text-base text-muted-foreground" dir="auto">{t("till.pay.pickRestHint")}</p>
                     </div>
@@ -200,7 +200,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     <button
                                         type="button"
                                         onClick={() => tapNote(note)}
-                                        aria-label={notes[note] ? `${formatIqd(note)} ×${notes[note]}` : formatIqd(note)}
+                                        aria-label={notes[note] ? `${formatIqdNumber(note)} ×${notes[note]}` : formatIqdNumber(note)}
                                         className={cn(
                                             "flex h-24 w-full flex-col justify-between rounded-2xl border bg-[var(--card-bg)] p-3 text-left text-lg font-bold tabular-nums text-foreground transition-transform active:scale-[0.97]",
                                             notes[note] ? "border-2 border-[var(--ink)] dark:border-white" : "border-[var(--card-border)]",
@@ -208,7 +208,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     >
                                         <span className="h-2 w-10 rounded-full" style={{ background: NOTE_TILES[note] }} aria-hidden="true" />
                                         <span className="flex items-center justify-between gap-1">
-                                            {formatIqd(note)}
+                                            {formatIqdNumber(note)}
                                             {notes[note] ? <span className={cn("rounded-full px-2 py-0.5 text-xs", INK_BUTTON)}>×{notes[note]}</span> : null}
                                         </span>
                                     </button>
@@ -219,7 +219,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                         disabled={!notes[note]}
                                         aria-hidden={notes[note] ? undefined : true}
                                         tabIndex={notes[note] ? undefined : -1}
-                                        aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
+                                        aria-label={t("till.pay.takeOne", { note: formatIqdNumber(note) })}
                                         className={cn(
                                             "flex h-10 w-full items-center justify-center rounded-xl border border-stone-400 bg-[var(--card-bg)] text-foreground dark:border-white/25",
                                             !notes[note] && "invisible",
@@ -235,13 +235,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 type="button"
                                 onClick={() => {
                                     setNotes({});
-                                    setTyped(formatIqd(rest));
+                                    setTyped(formatIqdNumber(rest));
                                 }}
                                 className="flex h-14 items-center justify-center gap-2 rounded-2xl border-2 border-[var(--ink)] bg-[var(--card-bg)] px-4 text-base font-bold text-foreground transition-transform active:scale-[0.97] dark:border-white/60"
                             >
                                 {typed !== null && parseDinars(typed) === rest ? <Check className="h-5 w-5" aria-hidden="true" /> : <Equal className="h-5 w-5 text-muted" aria-hidden="true" />}
                                 {t("till.pay.exact")}
-                                <span className="font-semibold tabular-nums text-muted">{formatIqd(rest)}</span>
+                                <span className="font-semibold tabular-nums text-muted">{formatIqdNumber(rest)}</span>
                             </button>
                             <input
                                 value={typed ?? ""}
@@ -272,15 +272,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                         >
                             <span className="text-lg font-semibold" dir="auto">
                                 {result.ok ? t("till.pay.giveBack") : given > 0 ? t("till.pay.shortBy") : t("till.pay.short")}
-                                <span className="font-normal opacity-80"> · {given > 0 ? t("till.pay.gave", { amount: formatIqd(given) }) : t("till.pay.tapNotes")}</span>
+                                <span className="font-normal opacity-80"> · {given > 0 ? t("till.pay.gave", { amount: formatIqdNumber(given) }) : t("till.pay.tapNotes")}</span>
                             </span>
-                            <span className="text-left text-7xl font-bold tabular-nums tracking-tight">{formatIqd(result.ok ? change : result.short)}</span>
+                            <span className="text-left text-7xl font-bold tabular-nums tracking-tight">{formatIqdNumber(result.ok ? change : result.short)}</span>
                             <span className="flex min-h-9 flex-wrap gap-2">
                                 {change > 0 &&
                                     changeInNotes(change).map(({ note, count }) => (
                                         <span key={note} className="inline-flex items-center gap-2 rounded-xl bg-[var(--card-bg)] px-3 py-1.5 text-sm font-bold tabular-nums text-foreground">
                                             <span className="h-2 w-4 rounded-full" style={{ background: NOTE_TILES[note] }} aria-hidden="true" />
-                                            {count} × {formatIqd(note)}
+                                            {count} × {formatIqdNumber(note)}
                                         </span>
                                     ))}
                             </span>
@@ -301,9 +301,9 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     ? t("till.pay.typePartHint")
                                     : payQr[method]
                                       ? t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })
-                                      : t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}
+                                      : t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqdNumber(due) })}
                             </p>
-                            <p className={cn("text-5xl font-bold tabular-nums tracking-tight", partEmpty ? "text-muted-foreground" : "text-foreground")}>{partEmpty ? "—" : formatIqd(due)}</p>
+                            <p className={cn("text-5xl font-bold tabular-nums tracking-tight", partEmpty ? "text-muted-foreground" : "text-foreground")}>{partEmpty ? "—" : formatIqdNumber(due)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div role="radiogroup" className="flex rounded-2xl border border-stone-400 dark:border-white/25 p-1">
@@ -359,7 +359,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-500 dark:border-white/50")}>
                                 {noticeIn && <Check className="h-4 w-4" aria-hidden="true" />}
                             </span>
-                            <span dir="auto">{t(method === "card" ? "till.pay.cardIn" : "till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
+                            <span dir="auto">{t(method === "card" ? "till.pay.cardIn" : "till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqdNumber(due) })}</span>
                         </button>
                     </div>
                 )}
@@ -390,7 +390,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 "disabled:border-transparent disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70",
                             )}
                         >
-                            <span dir="auto">{t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`), rest: formatIqd(rest - partAmount) })}</span>
+                            <span dir="auto">{t("till.pay.splitOff", { amount: formatIqdNumber(partAmount), method: t(`till.pay.method.${method}`), rest: formatIqdNumber(rest - partAmount) })}</span>
                         </button>
                     )}
                     {!partial && (
@@ -410,10 +410,10 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     : picking
                                   ? t("till.pay.pickFirst")
                                   : change > 0
-                                  ? t("till.pay.completeChange", { change: formatIqd(change) })
+                                  ? t("till.pay.completeChange", { change: formatIqdNumber(change) })
                                   : needsNotice
                                     ? noticeIn
-                                        ? <span dir="auto">{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
+                                        ? <span dir="auto">{t("till.pay.completeNotice", { amount: formatIqdNumber(due) })}</span>
                                         : <span dir="auto">{t(method === "card" ? "till.pay.waitCard" : "till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })}</span>
                                     : t("till.pay.complete")}
                         </button>
@@ -439,37 +439,37 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 {l.quantity > 1 ? ` × ${l.quantity}` : ""}
                             </span>
                             <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
-                                {l.list_price > l.price && <span className="text-xs text-muted line-through">{formatIqd(l.list_price * l.quantity)}</span>}
-                                {formatIqd(l.price * l.quantity)}
+                                {l.list_price > l.price && <span className="text-xs text-muted line-through">{formatIqdNumber(l.list_price * l.quantity)}</span>}
+                                {formatIqdNumber(l.price * l.quantity)}
                             </span>
                         </p>
                     ))}
                     {ticket.discount > 0 && (
                         <p className="flex justify-between text-sm text-foreground">
                             <span>{t("till.cart.discount")}</span>
-                            <span className="tabular-nums">−{formatIqd(ticket.discount)}</span>
+                            <span className="tabular-nums">−{formatIqdNumber(ticket.discount)}</span>
                         </p>
                     )}
                     {saved > 0 && (
                         <p className="flex justify-between text-sm font-semibold text-[#14532D] dark:text-emerald-300">
                             <span dir="auto">{t("till.done.saved")}</span>
-                            <span className="tabular-nums">{formatIqd(saved)}</span>
+                            <span className="tabular-nums">{formatIqdNumber(saved)}</span>
                         </p>
                     )}
                     <p className="mt-1 flex justify-between border-t border-[var(--card-border)] pt-2 text-base font-bold text-foreground">
                         <span>{t("till.cart.total")}</span>
-                        <span className="tabular-nums">{formatIqd(total)}</span>
+                        <span className="tabular-nums">{formatIqdNumber(total)}</span>
                     </p>
                     {parts.map((p, i) => (
                         <p key={i} className="flex justify-between text-sm text-foreground">
                             <span dir="auto">{t("till.pay.paidBy", { method: t(`till.pay.method.${p.method}`) })}</span>
-                            <span className="tabular-nums">−{formatIqd(p.amount)}</span>
+                            <span className="tabular-nums">−{formatIqdNumber(p.amount)}</span>
                         </p>
                     ))}
                     {parts.length > 0 && (
                         <p className="flex justify-between text-base font-bold text-foreground">
                             <span dir="auto">{t("till.pay.leftToPay")}</span>
-                            <span className="tabular-nums">{formatIqd(rest)}</span>
+                            <span className="tabular-nums">{formatIqdNumber(rest)}</span>
                         </p>
                     )}
                     <button type="button" onClick={onBack} disabled={pending} className="mt-2 h-12 rounded-2xl border border-[var(--card-border)] text-sm font-semibold text-foreground">

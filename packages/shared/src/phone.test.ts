@@ -72,3 +72,10 @@ describe("maskIraqiMobile", () => {
     expect(maskIraqiMobile("0612345678")).toBeNull();
   });
 });
+
+describe("normalizeIraqiMobile: digits in any script", () => {
+  it("folds Arabic-Indic and Persian digits", () => {
+    expect(normalizeIraqiMobile("٠٧٧٠١٢٣٤٥٦٧")).toBe("07701234567");
+    expect(normalizeIraqiMobile("+۹۶۴ ۷۷۰ ۱۲۳ ۴۵۶۷")).toBe("07701234567");
+  });
+});

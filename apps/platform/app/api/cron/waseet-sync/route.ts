@@ -26,17 +26,20 @@ async function runScheduled(request: NextRequest) {
         const supabaseAdmin = createSupabaseServiceClient();
 
         // Find all tenants with active Waseet integration
-        const { data: activeTenants } = await supabaseAdmin
+        const { data: activeTenants, error: tenantsError } = await supabaseAdmin
             .from("tenant_integrations")
             .select("tenant_id")
             .eq("provider", "waseet")
             .eq("is_active", true);
+        // A failed read is not "nobody uses Waseet": answer 500 so the monitor sees it.
+        if (tenantsError) throw new Error(`tenant_integrations: ${tenantsError.message}`);
 
         // Also check for global sync setting (backward compat for tenants using env vars)
-        const { data: globalSyncSetting } = await supabaseAdmin
+        const { data: globalSyncSetting, error: settingsError } = await supabaseAdmin
             .from("app_settings")
             .select("value, tenant_id")
             .eq("key", "waseet_sync_enabled");
+        if (settingsError) throw new Error(`app_settings: ${settingsError.message}`);
 
         // Build set of tenant IDs that have sync enabled
         const enabledTenantIds = new Set<string>();
@@ -165,14 +168,20 @@ async function runScheduled(request: NextRequest) {
 
         console.log(`[Waseet Sync] Completed: ${totalUpdated} updated, ${errors.length} errors, ${orders.length} checked`);
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                checked: orders.length,
-                updated: totalUpdated,
-                errors: errors.length > 0 ? errors : undefined,
+        // Errors used to ride along on a 200, so the monitor checked in ok
+        // while delivered statuses stopped updating.
+        return NextResponse.json(
+            {
+                success: errors.length === 0,
+                ...(errors.length > 0 ? { error: `${errors.length} Waseet sync errors: ${errors.slice(0, 3).join("; ")}` } : {}),
+                data: {
+                    checked: orders.length,
+                    updated: totalUpdated,
+                    errors: errors.length > 0 ? errors : undefined,
+                },
             },
-        });
+            { status: errors.length > 0 ? 500 : 200 },
+        );
     } catch (error) {
         console.error("[Waseet Sync] Error:", error);
         return NextResponse.json(

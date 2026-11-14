@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Link2, Copy, Check } from "lucide-react";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface Member {
     id: string;
@@ -53,11 +54,11 @@ export function LinkMemberGoogleCard() {
         setClaimUrl(null);
         try {
             const { data: s } = await supabase.auth.getSession();
-            const res = await fetch("/api/team/link-google/start", {
+            const res = await authedFetch("/api/team/link-google/start", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(s.session?.access_token ? { Authorization: `Bearer ${s.session.access_token}` } : {}),
+                    ...(s.session?.access_token ? { } : {}),
                 },
                 body: JSON.stringify({ userId: selected }),
             });

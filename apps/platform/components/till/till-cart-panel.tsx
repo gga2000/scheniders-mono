@@ -7,7 +7,8 @@ import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
 import type { TillMember } from "@/hooks/use-shops";
-import { dateLocale, discountGiven, formatIqd, itemCount, leftToPay, listSubtotalOf, maxDiscount, parseDinars, setLinePrice, setQuantity, subtotalOf, type CartLine } from "@/lib/till/cart";
+import { dateLocale, discountGiven, itemCount, leftToPay, listSubtotalOf, maxDiscount, parseDinars, setLinePrice, setQuantity, subtotalOf, type CartLine } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { CART_TARGET_ID } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
@@ -77,8 +78,8 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const discountTooBig = overLimit && !approved;
     // Line price cuts count toward the limit too, so spell out where the total comes from.
     const lineCuts = given - ticket.discount;
-    const overText = limit === null ? "" : t("till.manager.overShort", { given: formatIqd(given), limit: formatIqd(limit), extra: formatIqd(given - limit) });
-    const overParts = lineCuts > 0 && ticket.discount > 0 ? t("till.manager.overParts", { lines: formatIqd(lineCuts), discount: formatIqd(ticket.discount) }) : null;
+    const overText = limit === null ? "" : t("till.manager.overShort", { given: formatIqdNumber(given), limit: formatIqdNumber(limit), extra: formatIqdNumber(given - limit) });
+    const overParts = lineCuts > 0 && ticket.discount > 0 ? t("till.manager.overParts", { lines: formatIqdNumber(lineCuts), discount: formatIqdNumber(ticket.discount) }) : null;
 
     // Items taken out before payment go to the owner's log; the sale never waits on it.
     const changeQuantity = (l: CartLine, quantity: number) => {
@@ -93,7 +94,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
 
     const applyDiscount = (text: string) => {
         const amount = parseDinars(text);
-        setDiscountText(amount > 0 ? formatIqd(amount) : "");
+        setDiscountText(amount > 0 ? formatIqdNumber(amount) : "");
         onChange({ ...ticket, discount: Math.min(subtotal, amount) });
     };
 
@@ -119,7 +120,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             )}
                         >
                             <span dir="auto" className="max-w-[110px] truncate">{label}</span>
-                            <span className={cn("text-xs tabular-nums", on ? "opacity-80" : "text-muted")}>{formatIqd(Math.max(0, subtotalOf(x.cart) - x.discount))}</span>
+                            <span className={cn("text-xs tabular-nums", on ? "opacity-80" : "text-muted")}>{formatIqdNumber(Math.max(0, subtotalOf(x.cart) - x.discount))}</span>
                         </button>
                     );
                 })}
@@ -247,13 +248,13 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                     >
                                         <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
                                         {l.price < l.list_price ? (
-                                            <span className="font-semibold text-foreground" dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
+                                            <span className="font-semibold text-foreground" dir="auto">{t("till.cart.each", { price: formatIqdNumber(l.price) })}</span>
                                         ) : (
-                                            <span dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
+                                            <span dir="auto">{t("till.cart.each", { price: formatIqdNumber(l.price) })}</span>
                                         )}
                                     </button>
                                 ) : (
-                                    <span className="text-xs tabular-nums text-muted">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
+                                    <span className="text-xs tabular-nums text-muted">{t("till.cart.each", { price: formatIqdNumber(l.price) })}</span>
                                 )}
                             </span>
                             <span className="flex h-12 items-center rounded-2xl border border-[var(--card-border)]">
@@ -276,8 +277,8 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 </button>
                             </span>
                             <span className="flex w-[84px] flex-col items-end">
-                                <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(l.price * l.quantity)}</span>
-                                {l.price < l.list_price && <span className="text-xs tabular-nums text-muted line-through">{formatIqd(l.list_price * l.quantity)}</span>}
+                                <span className="text-base font-bold tabular-nums text-foreground">{formatIqdNumber(l.price * l.quantity)}</span>
+                                {l.price < l.list_price && <span className="text-xs tabular-nums text-muted line-through">{formatIqdNumber(l.list_price * l.quantity)}</span>}
                             </span>
                         </div>
                         {editing === l.key && (
@@ -301,7 +302,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 {t("till.cart.discount")}
                                 <input
                                     autoFocus={discountOpen}
-                                    value={discountText || (ticket.discount ? formatIqd(ticket.discount) : "")}
+                                    value={discountText || (ticket.discount ? formatIqdNumber(ticket.discount) : "")}
                                     onChange={(e) => applyDiscount(e.target.value)}
                                     onBlur={() => setDiscountText("")}
                                     inputMode="numeric"
@@ -325,7 +326,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             <span className={cn("flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors", approvalTone(approval.expiresAt - now))} dir="auto">
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>
-                                    {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
+                                    {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqdNumber(approval.maxOff) })}{" "}
                                     <span className="whitespace-nowrap font-bold tabular-nums">· {approvalClock(approval.expiresAt - now)}</span>
                                 </span>
                             </span>
@@ -334,8 +335,8 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 {limit === null
                                     ? t("till.cart.anyDiscount", { name: cashierName })
                                     : given > 0
-                                      ? t("till.cart.limitLeft", { left: formatIqd(limit - given), amount: formatIqd(limit) })
-                                      : t("till.cart.upTo", { name: cashierName, pct: discountLimitPct ?? 0, amount: formatIqd(limit) })}
+                                      ? t("till.cart.limitLeft", { left: formatIqdNumber(limit - given), amount: formatIqdNumber(limit) })
+                                      : t("till.cart.upTo", { name: cashierName, pct: discountLimitPct ?? 0, amount: formatIqdNumber(limit) })}
                             </span>
                         )}
                     </div>
@@ -346,15 +347,15 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         <dl className="grid grid-cols-3 gap-2 text-center">
                             <div>
                                 <dt className="text-xs" dir="auto">{t("till.manager.rowGiven")}</dt>
-                                <dd className="text-base font-semibold tabular-nums">{formatIqd(given)}</dd>
+                                <dd className="text-base font-semibold tabular-nums">{formatIqdNumber(given)}</dd>
                             </div>
                             <div>
                                 <dt className="text-xs" dir="auto">{t("till.manager.rowLimit")}</dt>
-                                <dd className="text-base font-semibold tabular-nums">{formatIqd(limit)}</dd>
+                                <dd className="text-base font-semibold tabular-nums">{formatIqdNumber(limit)}</dd>
                             </div>
                             <div>
                                 <dt className="text-xs font-bold" dir="auto">{t("till.manager.rowOver")}</dt>
-                                <dd className="text-base font-bold tabular-nums">{formatIqd(given - limit)}</dd>
+                                <dd className="text-base font-bold tabular-nums">{formatIqdNumber(given - limit)}</dd>
                             </div>
                         </dl>
                         {overParts && <p className="text-center text-xs" dir="auto">{overParts}</p>}
@@ -364,7 +365,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 {ticket.discount > 0 && (
                     <p className="flex justify-between text-sm tabular-nums text-muted">
                         <span>{t("till.cart.subtotal")}</span>
-                        <span>{formatIqd(subtotal)}</span>
+                        <span>{formatIqdNumber(subtotal)}</span>
                     </p>
                 )}
                 <div className="flex items-end justify-between">
@@ -373,7 +374,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         {ticket.cart.length > 0 && <span className="block text-xs font-normal">{t("till.cart.items", { n: itemCount(ticket.cart) })}</span>}
                     </span>
                     <span className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
-                        {formatIqd(total)} <span className="text-lg font-semibold text-muted">{t("till.iqd")}</span>
+                        {formatIqdNumber(total)} <span className="text-lg font-semibold text-muted">{t("till.iqd")}</span>
                     </span>
                 </div>
                 {ticket.payments.length > 0 && (
@@ -382,12 +383,12 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         {ticket.payments.map((p, i) => (
                             <p key={i} className="flex justify-between text-foreground">
                                 <span dir="auto">{t("till.pay.paidBy", { method: t(`till.pay.method.${p.method}`) })}</span>
-                                <span className="tabular-nums">−{formatIqd(p.amount)}</span>
+                                <span className="tabular-nums">−{formatIqdNumber(p.amount)}</span>
                             </p>
                         ))}
                         <p className="flex justify-between font-bold text-foreground">
                             <span dir="auto">{t("till.pay.leftToPay")}</span>
-                            <span className="tabular-nums">{formatIqd(rest)}</span>
+                            <span className="tabular-nums">{formatIqdNumber(rest)}</span>
                         </p>
                     </div>
                 )}
@@ -419,9 +420,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             {t("till.manager.ask")}
                         </span>
                     ) : ticket.payments.length > 0 ? (
-                        <span dir="auto">{t("till.cart.payRest", { rest: formatIqd(rest) })}</span>
+                        <span dir="auto">{t("till.cart.payRest", { rest: formatIqdNumber(rest) })}</span>
                     ) : (
-                        t("till.cart.pay", { total: formatIqd(total) })
+                        t("till.cart.pay", { total: formatIqdNumber(total) })
                     )}
                 </button>
                 </div>
@@ -447,7 +448,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
 /** Sell one line for less: quick cuts or a typed price, never above the catalog price. */
 function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (price: number) => void; onDone: () => void }) {
     const { t } = useLanguage();
-    const [text, setText] = useState(line.price < line.list_price ? formatIqd(line.price) : "");
+    const [text, setText] = useState(line.price < line.list_price ? formatIqdNumber(line.price) : "");
     const cuts = [5, 10, 15];
     return (
         <div className="flex flex-wrap items-center gap-2 bg-[var(--card-border)]/20 px-4 py-3">
@@ -459,7 +460,7 @@ function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (
                         type="button"
                         onClick={() => {
                             onPrice(price);
-                            setText(formatIqd(price));
+                            setText(formatIqdNumber(price));
                         }}
                         className={cn(
                             "h-10 rounded-xl border px-3 text-sm font-semibold tabular-nums",
@@ -482,7 +483,7 @@ function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (
                     if (e.key === "Enter") e.currentTarget.blur();
                 }}
                 inputMode="numeric"
-                placeholder={formatIqd(line.list_price)}
+                placeholder={formatIqdNumber(line.list_price)}
                 aria-label={t("till.cart.linePrice")}
                 className="h-10 w-28 rounded-xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-3 text-right text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
             />
@@ -518,7 +519,7 @@ function CustomerCard({
     const last = c.last_at ? new Date(c.last_at).toLocaleDateString(dateLocale(language), { day: "numeric", month: "short", timeZone: "Asia/Baghdad" }) : null;
     const facts = [
         t("till.cart.custOrders", { n: c.orders }),
-        c.spent > 0 ? t("till.cart.custSpent", { amount: formatIqd(c.spent) }) : null,
+        c.spent > 0 ? t("till.cart.custSpent", { amount: formatIqdNumber(c.spent) }) : null,
         last ? t("till.cart.custLast", { date: last }) : null,
     ].filter((f): f is string => f !== null);
     return (

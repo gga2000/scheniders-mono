@@ -22,7 +22,8 @@ import {
     useTillStoreName,
     type TillHold,
 } from "@/hooks/use-till";
-import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, setQuantity, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { addToCart, commissionOf, dateLocale, onShelf, setQuantity, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { connectDrawer, drawerSupported, openDrawer } from "@/lib/till/cash-drawer";
 import type { DisplayState, PayShown } from "@/lib/till/customer-display";
 import { DEFAULT_TILL_RULES } from "@/lib/till/shop-forms";
@@ -625,7 +626,7 @@ function TillFrame({
                         <button type="button" onClick={onHistory} className={chip} title={t("till.history.title")}>
                             <Receipt className="h-4 w-4" aria-hidden="true" />
                             {/* "No sales yet" already says it; a lone 0 beside it is noise. */}
-                            {today.count > 0 && <span className="tabular-nums">{formatIqd(today.total)}</span>}
+                            {today.count > 0 && <span className="tabular-nums">{formatIqdNumber(today.total)}</span>}
                             <span className="whitespace-nowrap text-xs font-medium tabular-nums text-white/75" dir="auto">
                                 {t("till.top.today", { n: today.count, count: today.count })}
                             </span>
@@ -650,7 +651,7 @@ function TillFrame({
                     {commission != null && (
                         <span className={cn(chip, "cursor-default")}>
                             <span className="whitespace-nowrap text-xs font-medium text-white/75" dir="auto">{t("till.top.commission")}</span>
-                            <span className="tabular-nums">{formatIqd(commission)}</span>
+                            <span className="tabular-nums">{formatIqdNumber(commission)}</span>
                         </span>
                     )}
                     {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} onCount={onCount} onLabels={onLabels} onScent={onScent} chip={chip} />}
@@ -666,7 +667,7 @@ function TillFrame({
 function GoalBar({ goal, total }: { goal: number; total: number }) {
     const { t } = useLanguage();
     const pct = Math.min(100, Math.round((total / goal) * 100));
-    const label = t("till.top.goal", { pct, goal: formatIqd(goal) });
+    const label = t("till.top.goal", { pct, goal: formatIqdNumber(goal) });
     return (
         <div
             className="absolute inset-x-0 bottom-0 h-1 bg-white/10"

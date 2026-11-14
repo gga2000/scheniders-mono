@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, Package } from "lucide-react";
 import { useTenantBrand } from "@/hooks/chat/use-tenant-brand";
 import { useLanguage } from "@/hooks/use-language";
-import { formatIqd } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { CUSTOMER_CHANNEL, HELLO, readDisplayMessage, type DisplayState } from "@/lib/till/customer-display";
 import { useLinesAbove, useShowChangedLine } from "./use-show-changed-line";
@@ -112,20 +112,20 @@ export function TillCustomerScreen() {
                             <span className="block text-lg tabular-nums text-[#1E1E1E]/75 dark:text-white/75">
                                 {l.variant ? `${l.variant} · ` : ""}
                                 <bdi dir="ltr">
-                                    {l.quantity} × {formatIqd(l.price)}
+                                    {l.quantity} × {formatIqdNumber(l.price)}
                                 </bdi>
                             </span>
                         </span>
                         <span className="flex shrink-0 flex-col items-end">
-                            {l.listPrice > l.price && <span className="text-lg tabular-nums text-[#1E1E1E]/65 line-through dark:text-white/65">{formatIqd(l.listPrice * l.quantity)}</span>}
-                            <span className="text-2xl font-bold tabular-nums">{formatIqd(l.price * l.quantity)}</span>
+                            {l.listPrice > l.price && <span className="text-lg tabular-nums text-[#1E1E1E]/65 line-through dark:text-white/65">{formatIqdNumber(l.listPrice * l.quantity)}</span>}
+                            <span className="text-2xl font-bold tabular-nums">{formatIqdNumber(l.price * l.quantity)}</span>
                         </span>
                     </li>
                 ))}
                 {state.discount > 0 && (
                     <li className="flex items-center justify-between rounded-[24px] border-2 border-dashed border-[#14532D]/50 px-6 py-4 text-[#14532D] dark:border-emerald-300/50 dark:text-emerald-200">
                         <span className="text-2xl font-semibold" dir="auto">{t("till.customer.discount")}</span>
-                        <span className="text-2xl font-bold tabular-nums">−{formatIqd(state.discount)}</span>
+                        <span className="text-2xl font-bold tabular-nums">−{formatIqdNumber(state.discount)}</span>
                     </li>
                 )}
             </ul>
@@ -142,47 +142,47 @@ export function TillCustomerScreen() {
 
                 {state.view === "cart" ? (
                     <div className="mt-auto flex flex-col gap-3">
-                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqdNumber(state.saved) })} />}
                         <p className="text-xl text-white/60" dir="auto">
                             {t("till.customer.total")} · {t("till.cart.items", { n: state.lines.reduce((n, l) => n + l.quantity, 0) })}
                         </p>
-                        <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqd(state.total)))}>
-                            {formatIqd(state.total)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
+                        <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqdNumber(state.total)))}>
+                            {formatIqdNumber(state.total)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
                         </p>
                     </div>
                 ) : state.view === "pay" && qrPay ? (
                     <div className="my-auto flex flex-col items-center gap-4 text-center">
                         <p className="text-2xl font-semibold" dir="auto">{t("till.customer.scan", { method: t(`till.pay.method.${state.method}`) })}</p>
                         <img src={qrPay} alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${state.method}`) })} className="aspect-square w-[min(100%,22rem)] rounded-[28px] bg-white object-contain p-5" />
-                        <p className={cn("font-bold tabular-nums tracking-tight", formatIqd(state.due).length > 7 ? "text-6xl" : "text-7xl")}>
-                            {formatIqd(state.due)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
+                        <p className={cn("font-bold tabular-nums tracking-tight", formatIqdNumber(state.due).length > 7 ? "text-6xl" : "text-7xl")}>
+                            {formatIqdNumber(state.due)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
                         </p>
-                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqdNumber(state.saved) })} />}
                         {(storeName || shopName) && (
                             <p className="text-xl text-white/60" dir="auto">{t("till.customer.payTo", { name: [storeName, shopName].filter(Boolean).join(" · ") })}</p>
                         )}
                     </div>
                 ) : state.view === "pay" ? (
                     <div className="mt-auto flex flex-col gap-4">
-                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqdNumber(state.saved) })} />}
                         <Row
                             label={state.method === "cash" ? t("till.customer.toPayCash") : t("till.customer.toPay", { method: t(`till.pay.method.${state.method}`) })}
-                            value={formatIqd(state.due)}
+                            value={formatIqdNumber(state.due)}
                             big={!(state.method === "cash" && state.given > 0)}
                             unit={t("till.iqd")}
                         />
                         {state.method === "cash" && state.given > 0 && (
                             <>
-                                <Row label={t("till.customer.gave")} value={formatIqd(state.given)} unit={t("till.iqd")} />
-                                <Change label={t("till.customer.change")} value={formatIqd(state.change)} unit={t("till.iqd")} />
+                                <Row label={t("till.customer.gave")} value={formatIqdNumber(state.given)} unit={t("till.iqd")} />
+                                <Change label={t("till.customer.change")} value={formatIqdNumber(state.change)} unit={t("till.iqd")} />
                             </>
                         )}
                     </div>
                 ) : (
                     <div className="my-auto flex flex-col items-center gap-6 text-center">
                         <p className="text-6xl font-bold" dir="auto">{t("till.customer.thanks")}</p>
-                        {state.change > 0 && <Change label={t("till.customer.change")} value={formatIqd(state.change)} unit={t("till.iqd")} />}
-                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
+                        {state.change > 0 && <Change label={t("till.customer.change")} value={formatIqdNumber(state.change)} unit={t("till.iqd")} />}
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqdNumber(state.saved) })} />}
                     </div>
                 )}
             </aside>

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Check, MessageCircle, Printer, RotateCcw } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
-import { changeInNotes, formatIqd } from "@/lib/till/cart";
+import { changeInNotes } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { printReceipt, receiptDocument, receiptSaved, receiptWhatsAppText, whatsAppReceiptLink, type ReceiptData } from "@/lib/till/receipt";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON, NOTE_TILES } from "./till-colors";
@@ -39,13 +40,13 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                 {receipt.change > 0 ? (
                     <>
                         <p className="text-base font-semibold opacity-80">{t("till.pay.giveBack")}</p>
-                        <p className="text-[120px] font-bold leading-none tabular-nums tracking-tighter">{formatIqd(receipt.change)}</p>
-                        <p className="text-base opacity-80">{t("till.done.gave", { total: formatIqd(receipt.total), cash: formatIqd(cashGiven) })}</p>
+                        <p className="text-[120px] font-bold leading-none tabular-nums tracking-tighter">{formatIqdNumber(receipt.change)}</p>
+                        <p className="text-base opacity-80">{t("till.done.gave", { total: formatIqdNumber(receipt.total), cash: formatIqdNumber(cashGiven) })}</p>
                         <div className="flex flex-wrap justify-center gap-2">
                             {changeInNotes(receipt.change).map(({ note, count }) => (
                                 <span key={note} className="inline-flex items-center gap-2 rounded-xl bg-[var(--card-bg)] px-3 py-1.5 text-base font-bold tabular-nums text-foreground">
                                     <span className="h-2 w-4 rounded-full" style={{ background: NOTE_TILES[note] }} aria-hidden="true" />
-                                    {count} × {formatIqd(note)}
+                                    {count} × {formatIqdNumber(note)}
                                 </span>
                             ))}
                         </div>
@@ -53,7 +54,7 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                 ) : (
                     <>
                         <p className="text-base font-semibold opacity-80">{t("till.done.noChange")}</p>
-                        <p className="text-[96px] font-bold leading-none tabular-nums tracking-tighter">{formatIqd(receipt.total)}</p>
+                        <p className="text-[96px] font-bold leading-none tabular-nums tracking-tighter">{formatIqdNumber(receipt.total)}</p>
                     </>
                 )}
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -84,9 +85,9 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                                 </span>
                                 <span className="shrink-0 tabular-nums text-foreground">
                                     {l.list_price !== undefined && l.list_price > l.price && (
-                                        <s className="me-1.5 text-xs text-muted">{formatIqd(l.list_price * l.quantity)}</s>
+                                        <s className="me-1.5 text-xs text-muted">{formatIqdNumber(l.list_price * l.quantity)}</s>
                                     )}
-                                    {formatIqd(l.price * l.quantity)}
+                                    {formatIqdNumber(l.price * l.quantity)}
                                 </span>
                             </li>
                         ))}
@@ -94,29 +95,29 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                     {receipt.discount > 0 && (
                         <p className="flex justify-between text-sm text-foreground">
                             {t("till.cart.discount")}
-                            <span className="tabular-nums">−{formatIqd(receipt.discount)}</span>
+                            <span className="tabular-nums">−{formatIqdNumber(receipt.discount)}</span>
                         </p>
                     )}
                     {receiptSaved(receipt) > receipt.discount && (
                         <p className="flex justify-between text-sm font-semibold text-[#14532D] dark:text-emerald-300">
                             {t("till.done.saved")}
-                            <span className="tabular-nums">{formatIqd(receiptSaved(receipt))}</span>
+                            <span className="tabular-nums">{formatIqdNumber(receiptSaved(receipt))}</span>
                         </p>
                     )}
                     <p className="flex justify-between border-t border-[var(--card-border)] pt-2 text-base font-bold text-foreground">
                         {t("till.cart.total")}
-                        <span className="tabular-nums">{formatIqd(receipt.total)}</span>
+                        <span className="tabular-nums">{formatIqdNumber(receipt.total)}</span>
                     </p>
                     {receipt.payments.map((p, i) => (
                         <p key={`${p.method}-${i}`} className="flex justify-between text-sm text-muted">
                             {t(`till.pay.method.${p.method}`)}
-                            <span className="tabular-nums">{formatIqd(p.tendered ?? p.amount)}</span>
+                            <span className="tabular-nums">{formatIqdNumber(p.tendered ?? p.amount)}</span>
                         </p>
                     ))}
                     {receipt.change > 0 && (
                         <p className="flex justify-between text-sm font-semibold text-foreground">
                             {t("till.pay.giveBack")}
-                            <span className="tabular-nums">{formatIqd(receipt.change)}</span>
+                            <span className="tabular-nums">{formatIqdNumber(receipt.change)}</span>
                         </p>
                     )}
                 </section>
@@ -175,7 +176,7 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                                 className="flex h-14 items-center justify-between rounded-2xl border border-[var(--card-border)] px-4 text-left"
                             >
                                 <span className="text-sm font-semibold text-foreground" dir="auto">{h.label}</span>
-                                <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(h.total)}</span>
+                                <span className="text-base font-bold tabular-nums text-foreground">{formatIqdNumber(h.total)}</span>
                             </button>
                         ))}
                     </section>

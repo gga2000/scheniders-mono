@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeWaseetCaller, WASEET_MONEY_ROLES } from "@/lib/waseet-caller";
 import { receiveMerchantInvoice } from "@/lib/waseet-api";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * POST /api/waseet/receive-invoice
@@ -8,7 +9,7 @@ import { receiveMerchantInvoice } from "@/lib/waseet-api";
  * Confirm receipt of an Al-Waseet invoice.
  * This is an alternative to scanning the QR code in the Al-Waseet app.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         const caller = await authorizeWaseetCaller(request, WASEET_MONEY_ROLES);
         if (!caller.ok) return caller.response;
@@ -35,3 +36,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/waseet/receive-invoice POST", handlePOST);

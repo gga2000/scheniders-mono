@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface ExtractedData {
     id: string;
@@ -81,10 +82,10 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                 // The route requires a bearer token. Without it every image came
                 // back 401 and the tile just showed "analysis failed", so bulk image
                 // extraction has never actually worked.
-                const response = await fetch('/api/orders/analyze-image', {
+                const response = await authedFetch('/api/orders/analyze-image', {
                     method: 'POST',
                     headers: {
-                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                        ...(session?.access_token ? { } : {}),
                     },
                     body: formData,
                 });

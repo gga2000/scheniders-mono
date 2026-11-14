@@ -27,6 +27,7 @@ import {
     normalizeCustomDomain,
     txtHostLabel,
 } from "@/lib/custom-domain";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface DomainDialogProps {
     tenantId: string;
@@ -138,11 +139,10 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
     // Verify domain mutation
     const verifyDomain = useMutation({
         mutationFn: async (domainId: string) => {
-            const res = await fetch("/api/domains/verify", {
+            const res = await authedFetch("/api/domains/verify", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({ domain_id: domainId }),
             });

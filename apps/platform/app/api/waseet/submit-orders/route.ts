@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { authorizeWaseetCaller, WASEET_READ_ROLES } from "@/lib/waseet-caller";
+import { callerHasPermission } from "@/lib/auth/caller-has-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
     createWaseetOrder,
     mapOrderToWaseet,
@@ -11,6 +13,7 @@ import type { Order } from "@/types/order";
 import type { WaseetSubmitResult } from "@/types/waseet";
 import { waseetSubmitBodySchema, toOrderUuids, MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const maxDuration = 60;
 
@@ -23,13 +26,22 @@ export const maxDuration = 60;
  * Request body: { orderIds: string[] }
  * Response: { success, data: { submitted, failed, results[] } }
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // 1. Auth
         // Shipping is a real-world, billable side effect on the shared
         // Al-Waseet account: an active member of an allowed store, never a viewer.
         const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
         if (!caller.ok) return caller.response;
+        // The writes below use the service role, so the role list alone would
+        // let a member whose orders.edit was revoked still ship orders.
+        const permission = await callerHasPermission(
+            request,
+            { tenantId: caller.tenantId, platformAdmin: false },
+            PERMISSIONS.EDIT_ORDERS,
+            "waseet-submit-orders",
+        );
+        if (!permission.ok) return permission.response;
 
         // 2. Parse request
         const parsedBody = waseetSubmitBodySchema.safeParse(await request.json());
@@ -252,3 +264,5 @@ async function processOrder(
         waseetQrLink: waseetOrder.qr_link,
     };
 }
+
+export const POST = withFailureReport("api/waseet/submit-orders POST", handlePOST);

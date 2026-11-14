@@ -6,6 +6,9 @@ vi.mock("@/lib/supabase-server", () => ({
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({
     resolveActiveTenant: vi.fn(async () => ({ ok: true, tenantId: "t1", role: "employee", platformAdmin: false })),
 }));
+vi.mock("@/lib/auth/caller-has-permission", () => ({
+    callerHasPermission: vi.fn(async () => ({ ok: true })),
+}));
 vi.mock("@/lib/rate-limit", () => ({
     consumeRateLimit: vi.fn(async () => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
     rateLimitHeaders: () => ({}),
@@ -15,6 +18,7 @@ import { POST } from "./route";
 import { verifyAccessToken } from "@/lib/supabase-server";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 
 function req(body: unknown, auth = "Bearer tok"): Request {
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -59,6 +63,22 @@ describe("POST /api/ai/product-copy", () => {
         vi.stubGlobal("fetch", fetchMock);
         const res = await POST(req({ name: "X" }) as never);
         expect(res.status).toBe(403);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("403s a member without products.edit before spending the store's AI budget", async () => {
+        (verifyAccessToken as ReturnType<typeof vi.fn>).mockResolvedValue({ user: { id: "u1" }, error: null });
+        const { NextResponse } = await import("next/server");
+        vi.mocked(callerHasPermission).mockResolvedValueOnce({
+            ok: false,
+            response: NextResponse.json({ success: false }, { status: 403 }),
+        });
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const res = await POST(req({ name: "X" }) as never);
+        expect(res.status).toBe(403);
+        expect(vi.mocked(callerHasPermission).mock.calls[0][2]).toBe("products.edit");
+        expect(consumeRateLimit).not.toHaveBeenCalled();
         expect(fetchMock).not.toHaveBeenCalled();
     });
 

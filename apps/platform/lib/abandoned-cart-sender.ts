@@ -71,9 +71,19 @@ export function buildCartRecoveryBody(cart: RecoverableCart): InteraktBody {
   };
 }
 
+/**
+ * A failed send says whether the message may still have reached the phone:
+ * "unknown" when the request left and no answer came back (a timeout or a
+ * dropped connection), so the caller must not send it again.
+ */
+export type CartRecoveryResult = SendTemplateResult & { delivery?: "not_sent" | "unknown" };
+
+/** Interakt answers in well under a second; past this the run must move on. */
+const SEND_TIMEOUT_MS = 10_000;
+
 export async function sendCartRecoveryMessage(
   cart: RecoverableCart,
-): Promise<SendTemplateResult> {
+): Promise<CartRecoveryResult> {
   if (!sharedSenderAllows(cart.tenant_id)) {
     return { success: false, error: "This store is not set up to send WhatsApp from the shared number" };
   }
@@ -83,7 +93,6 @@ export async function sendCartRecoveryMessage(
   }
 
   const body = buildCartRecoveryBody(cart);
-  let lastError: string | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -94,6 +103,7 @@ export async function sendCartRecoveryMessage(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
 
       if (response.status === 429 && attempt < MAX_RETRIES) {
@@ -112,6 +122,8 @@ export async function sendCartRecoveryMessage(
           success: false,
           error: data?.message ?? `HTTP ${response.status}`,
           statusCode: response.status,
+          // A gateway error page can come after Interakt already queued it.
+          delivery: response.status >= 500 || !data ? "unknown" : "not_sent",
         };
       }
       if (data.result) {
@@ -121,14 +133,18 @@ export async function sendCartRecoveryMessage(
         success: false,
         error: data.message ?? "Unknown error from Interakt API",
         statusCode: response.status,
+        delivery: "not_sent",
       };
     } catch (error) {
-      lastError = error instanceof Error ? error.message : "Network error";
-      if (attempt < MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
-      }
+      // The request may have reached Interakt before the connection dropped:
+      // retrying could send the shopper the same paid message twice.
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Network error",
+        delivery: "unknown",
+      };
     }
   }
 
-  return { success: false, error: lastError ?? "Max retries exceeded" };
+  return { success: false, error: "Interakt rate limit", delivery: "not_sent" };
 }

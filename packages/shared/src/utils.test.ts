@@ -3,7 +3,7 @@
 // =====================================================================
 
 import { describe, expect, it } from "vitest";
-import { cn, isCanonicalSlug, slugify } from "./utils";
+import { cn, formatIqdCompact, formatIqdNumber, isCanonicalSlug, slugify } from "./utils";
 
 describe("slugify", () => {
   it("slugifies Latin text", () => {
@@ -108,5 +108,31 @@ describe("isCanonicalSlug", () => {
   it("is idempotent — validating a canonical slug never changes it", () => {
     const once = slugify("عطر ويفر انتنس الفاخر");
     expect(slugify(once)).toBe(once);
+  });
+});
+
+describe("formatIqdNumber", () => {
+  it("writes whole dinars with Latin digits and no unit", () => {
+    expect(formatIqdNumber(12500.4)).toBe("12,500");
+    expect(formatIqdNumber(-1234.6)).toBe("-1,235");
+    expect(formatIqdNumber(-0.3)).toBe("0");
+  });
+});
+
+describe("formatIqdCompact", () => {
+  it("shortens amounts the same way on every screen", () => {
+    expect(formatIqdCompact(950)).toBe("950");
+    expect(formatIqdCompact(999.6)).toBe("1K");
+    expect(formatIqdCompact(1500)).toBe("1.5K");
+    expect(formatIqdCompact(12_000)).toBe("12K");
+    expect(formatIqdCompact(125_400)).toBe("125K");
+    expect(formatIqdCompact(999_600)).toBe("1M");
+    expect(formatIqdCompact(2_450_000)).toBe("2.5M");
+    expect(formatIqdCompact(-42_000)).toBe("-42K");
+    expect(formatIqdCompact(-0.2)).toBe("0");
+  });
+
+  it("uses the words it is given", () => {
+    expect(formatIqdCompact(2_500_000, { thousand: " ألف", million: " مليون" })).toBe("2.5 مليون");
   });
 });

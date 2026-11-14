@@ -4187,6 +4187,7 @@ export type Database = {
           priority: string | null
           product_cost: number | null
           reason_id: string | null
+          refund_paid_at: string | null
           refund_status: Database["public"]["Enums"]["refund_status"]
           refunded_at: string | null
           rejection_reason: string | null
@@ -4286,6 +4287,7 @@ export type Database = {
           priority?: string | null
           product_cost?: number | null
           reason_id?: string | null
+          refund_paid_at?: string | null
           refund_status?: Database["public"]["Enums"]["refund_status"]
           refunded_at?: string | null
           rejection_reason?: string | null
@@ -4385,6 +4387,7 @@ export type Database = {
           priority?: string | null
           product_cost?: number | null
           reason_id?: string | null
+          refund_paid_at?: string | null
           refund_status?: Database["public"]["Enums"]["refund_status"]
           refunded_at?: string | null
           rejection_reason?: string | null

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { PROVIDER_TIMEOUT_MS } from "@/lib/request-never-sent";
 
 /**
  * Where a merchant's custom domain stands on the storefront's Vercel project.
@@ -43,6 +44,7 @@ async function call(cfg: VercelConfig, method: "GET" | "POST", path: string, bod
         headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: "no-store",
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
 }
 

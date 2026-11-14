@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeWaseetCaller, WASEET_READ_ROLES } from "@/lib/waseet-caller";
 import { fetchRegions } from "@/lib/waseet-api";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * GET /api/waseet/regions?city_id=ID
@@ -8,7 +9,7 @@ import { fetchRegions } from "@/lib/waseet-api";
  * Proxy to Al-Waseet GET /regions?city_id= endpoint.
  * Returns the list of regions for a specific city.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     try {
         const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
         if (!caller.ok) return caller.response;
@@ -33,3 +34,5 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/waseet/regions GET", handleGET);

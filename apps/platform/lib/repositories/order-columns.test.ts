@@ -42,7 +42,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "delivery_company", "waseet_qr_id", "waseet_qr_link", "waseet_status_id",
     "waseet_status_text", "waseet_merchant_price", "waseet_company_price",
     "waseet_submitted_at", "waseet_invoice_id", "completed_at", "version", "tenant_id",
-    "refund_status", "refunded_at", "delivered_source", "reason_id", "deleted_at",
+    "refund_status", "refunded_at", "refund_paid_at", "delivered_source", "reason_id", "deleted_at",
     "idempotency_key", "waseet_submit_started_at", "whatsapp_contact_slot",
     "last_followup_by_name", "last_followup_by_avatar", "last_followup_at",
     "last_followup_type", "attribution", "ad_channel", "confirmation_dispatched_at",

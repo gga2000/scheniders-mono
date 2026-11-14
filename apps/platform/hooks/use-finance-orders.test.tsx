@@ -5,9 +5,15 @@ import type { ReactNode } from "react";
 import type { Order } from "@/types/order";
 
 const findWindow = vi.fn();
+const findRefundsPaidBetween = vi.fn();
 
 vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ tenantId: "tenant-1" }) }));
-vi.mock("@/lib/repositories/order-repository", () => ({ orderRepository: { findWindow: (...a: unknown[]) => findWindow(...a) } }));
+vi.mock("@/lib/repositories/order-repository", () => ({
+    orderRepository: {
+        findWindow: (...a: unknown[]) => findWindow(...a),
+        findRefundsPaidBetween: (...a: unknown[]) => findRefundsPaidBetween(...a),
+    },
+}));
 
 import { useFinanceOrders } from "./use-finance-orders";
 
@@ -18,6 +24,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 describe("useFinanceOrders", () => {
     beforeEach(() => {
         findWindow.mockReset();
+        findRefundsPaidBetween.mockReset();
+        findRefundsPaidBetween.mockResolvedValue([]);
         vi.useFakeTimers({ toFake: ["Date"] });
         vi.setSystemTime(new Date("2026-10-31T09:00:00.000Z"));
     });
@@ -31,7 +39,7 @@ describe("useFinanceOrders", () => {
         );
         await waitFor(() => expect(result.current.loading).toBe(false));
 
-        expect(result.current.orders).toBe(rows);
+        expect(result.current.orders).toEqual(rows);
         const window = findWindow.mock.calls[0][1];
         expect(window.fromDay).toBe("2026-10-01");
         expect(window.toDay).toBe("2026-10-31");
@@ -54,5 +62,18 @@ describe("useFinanceOrders", () => {
         const window = findWindow.mock.calls[0][1];
         expect(window.fromDay).toBe("2026-09-01");
         expect(window.toDay).toBe("2026-10-31");
+    });
+
+    it("adds refunds paid in the range that were created before it, once each", async () => {
+        findWindow.mockResolvedValue([{ id: "a" }, { id: "r-new" }] as Order[]);
+        findRefundsPaidBetween.mockResolvedValue([{ id: "r-old" }, { id: "r-new" }] as Order[]);
+        const { result } = renderHook(
+            () => useFinanceOrders({ start: new Date("2026-10-01T00:00:00.000Z"), end: new Date("2026-10-31T20:00:00.000Z") }),
+            { wrapper },
+        );
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        expect(result.current.orders.map((o) => o.id)).toEqual(["a", "r-new", "r-old"]);
+        expect(findRefundsPaidBetween.mock.calls[0]).toEqual(["tenant-1", "2026-10-01", "2026-10-31"]);
     });
 });

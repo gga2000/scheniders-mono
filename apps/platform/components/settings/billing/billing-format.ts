@@ -1,10 +1,3 @@
-import { formatIQD as formatIQDLocale } from "@scheniders/shared";
-
-/** IQD in whole numbers with Latin digits, as on every other money screen. */
-export function formatIQD(amount: number): string {
-    return formatIQDLocale(Math.round(amount));
-}
-
 /** A day like "10 Nov 2026", in the app's language with Latin digits. */
 export function formatBillingDate(iso: string, language: string): string {
     return new Date(iso).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {

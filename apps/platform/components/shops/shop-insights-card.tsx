@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { useShopInsights, type Shop, type ShopInsights } from "@/hooks/use-shops";
-import { formatIqd } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 
 const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)]";
@@ -158,7 +158,7 @@ function BusyHours({
                                         {hours.map((h) => {
                                             const v = cells.get(`${dow}-${h}`);
                                             const share = v ? v.sales / max : 0;
-                                            const label = v ? t("till.insights.cell", { n: v.sales, total: formatIqd(v.total) }) : t("till.insights.cellNone");
+                                            const label = v ? t("till.insights.cell", { n: v.sales, total: formatIqdNumber(v.total) }) : t("till.insights.cellNone");
                                             return (
                                                 <td key={h} className="p-0">
                                                     <span

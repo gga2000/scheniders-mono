@@ -18,6 +18,7 @@ import {
     formatFailedOrderList,
     findUnaffectedIds,
 } from "@/lib/order-bulk-result";
+import { authedFetch } from "@/lib/authed-fetch";
 
 // Bulk status, reschedule, archive, unarchive and delete for useOrderCrud.
 // Built fresh on every render from the hook's current state, so each call sees
@@ -313,11 +314,10 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
 
             for (let i = 0; i < uniqueOrderIds.length; i += MAX_ORDER_IDS_PER_REQUEST) {
                 const chunk = uniqueOrderIds.slice(i, i + MAX_ORDER_IDS_PER_REQUEST);
-                const res = await fetch("/api/orders/delete", {
+                const res = await authedFetch("/api/orders/delete", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${session.access_token}`,
                     },
                     body: JSON.stringify({ ids: chunk }),
                 });

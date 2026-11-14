@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { callerHasPermission } from "@/lib/auth/caller-has-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { getPrimeClient, isPrimeUnreachable, PrimeApiError, type PrimeClient } from "@/lib/prime/client";
 import { loadPrimeConnection } from "@/lib/prime/connection";
 import { placeTickets, PRIME_TICKETS_PAGE, tenantCases, ticketMessages } from "@/lib/prime/tickets";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +38,7 @@ async function ownedChat(db: ServiceDb, client: PrimeClient, tenantId: string, t
  * GET /api/prime/tickets — the tenant's tickets with Prime and the subjects a
  * new one can take. GET ?id=… — one ticket's chat. Any member may read.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -74,11 +77,14 @@ export async function GET(request: NextRequest) {
  * POST /api/prime/tickets — {action:"open", orderId, subjectCode, message}
  * opens a ticket on the order's parcel; {action:"message", ticketId, message}
  * writes into a ticket's chat. Any member may write; the parcel must be one
- * of the caller's tenant's shipments.
+ * of the caller's tenant's shipments. Writing to the courier is order work,
+ * so the caller needs orders.edit (a viewer may read tickets, not open them).
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
+    const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-tickets");
+    if (!permission.ok) return permission.response;
 
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
@@ -109,3 +115,6 @@ export async function POST(request: NextRequest) {
         return primeFailure(err);
     }
 }
+
+export const GET = withFailureReport("api/prime/tickets GET", handleGET);
+export const POST = withFailureReport("api/prime/tickets POST", handlePOST);

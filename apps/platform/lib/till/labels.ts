@@ -4,7 +4,8 @@
  */
 import { escapeHtml } from "@/lib/html-escape";
 import { code128Svg } from "@/lib/print-codes";
-import { formatIqd, lineKey, type TillProduct } from "./cart";
+import { lineKey, type TillProduct } from "./cart";
+import { formatIqdNumber } from "@scheniders/shared";
 
 export interface LabelLine {
     key: string;
@@ -62,7 +63,7 @@ export function labelSheetHtml(storeName: string, stickers: Sticker[]): string {
     const one = (s: Sticker) => {
         const name = s.variant_name ? `${s.name} ${s.variant_name}` : s.name;
         return `<section class="label">
-<div class="top"><span class="name">${escapeHtml(name)}</span><span class="price"><span class="num">${escapeHtml(formatIqd(s.price))}</span> د.ع</span></div>
+<div class="top"><span class="name">${escapeHtml(name)}</span><span class="price"><span class="num">${escapeHtml(formatIqdNumber(s.price))}</span> د.ع</span></div>
 <div class="code">${code128Svg(s.barcode, { heightMm: 11, maxWidthMm: 46 })}</div>
 <div class="foot"><span class="num">${escapeHtml(s.barcode)}</span><span>${escapeHtml(storeName)}</span></div>
 </section>`;

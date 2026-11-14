@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 import { resolvePreviewTokenSecret, signPreviewToken } from "@scheniders/shared/preview-token";
 import type { StoreConfigV2, PageId } from "@scheniders/shared";
@@ -9,7 +8,6 @@ import type {
     Category as SectionCategory,
 } from "@scheniders/sections";
 import { resolveTrackerContact } from "@scheniders/sections/helpers/whatsapp";
-import { env } from "@/lib/env";
 import { hasUnpublishedDraft } from "@/lib/store-draft";
 import { EditorShell } from "@/components/store-builder-v2/editor-shell";
 import type { InspectorTab } from "@/components/store-builder-v2/inspector-rail";
@@ -81,30 +79,13 @@ interface TenantMemberRow {
     } | null;
 }
 
-async function getServerSupabase() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll() {
-                    // No-op in a Server Component — Next disallows cookie writes here.
-                },
-            },
-        },
-    );
-}
 
 export default async function StoreV2Page({
     searchParams,
 }: {
     searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-    const supabase = await getServerSupabase();
+    const supabase = await createSupabaseServerClient();
 
     // Command Center deep-links (?screen=/?page=/?section=) — open the editor
     // on the exact target the merchant clicked instead of the default state.

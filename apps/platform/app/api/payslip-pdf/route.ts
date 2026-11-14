@@ -4,6 +4,7 @@ import { ACCOUNT_CHECK_FAILED, requireAdminOverUser } from "@/lib/auth/require-a
 import { isAllowedPdfRequest } from "@/lib/pdf-request-allowlist";
 import { buildPayslipHTML } from "@/lib/payslip-html";
 import { payslipRequestSchema } from "@/lib/payslip-schema";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ async function getLocalChromePath(): Promise<string> {
     throw new Error("No local Chrome/Chromium found. Install Google Chrome for local PDF generation.");
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
     try {
         const authHeader = req.headers.get("Authorization");
         const token = authHeader?.replace("Bearer ", "");
@@ -98,3 +99,5 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }
+
+export const POST = withFailureReport("api/payslip-pdf POST", handlePOST);

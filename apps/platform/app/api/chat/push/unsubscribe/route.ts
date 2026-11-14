@@ -10,6 +10,7 @@ import {
     verifyAccessToken,
     createSupabaseServerClientWithToken,
 } from "@/lib/supabase-server";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ const bodySchema = z.object({
     endpoint: z.string().min(1),
 });
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(request: NextRequest): Promise<NextResponse> {
     // 1. Auth.
     const raw = request.headers.get("Authorization")?.replace("Bearer ", "");
     if (!raw) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,3 +52,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ ok: true });
 }
+
+export const POST = withFailureReport("api/chat/push/unsubscribe POST", handlePOST);

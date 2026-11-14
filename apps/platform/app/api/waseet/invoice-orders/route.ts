@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeWaseetCaller, WASEET_MONEY_ROLES } from "@/lib/waseet-caller";
 import { fetchMerchantInvoiceOrders } from "@/lib/waseet-api";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * GET /api/waseet/invoice-orders?invoice_id=ID
  *
  * Fetch orders for a specific Al-Waseet invoice.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     try {
         const caller = await authorizeWaseetCaller(request, WASEET_MONEY_ROLES);
         if (!caller.ok) return caller.response;
@@ -32,3 +33,5 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/waseet/invoice-orders GET", handleGET);

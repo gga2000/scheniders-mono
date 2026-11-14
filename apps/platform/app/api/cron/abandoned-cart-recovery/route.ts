@@ -45,8 +45,9 @@ interface SweepResult {
 /**
  * Sweep storefront phone captures (abandoned_carts) and send WhatsApp recovery nudges. Recovery is OPT-IN
  * per tenant: a cart is only nudged if its tenant enabled recovery AND the cart
- * has been idle past that tenant's configured delay. Sends stamp reminded_at;
- * failures stay eligible for the next sweep. Service role → bypasses RLS.
+ * has been idle past that tenant's configured delay. A cart is claimed
+ * (reminded_at) before its send; a send Interakt refused releases the claim so
+ * the next sweep retries it. Service role → bypasses RLS.
  */
 async function sweepAbandonedCarts(): Promise<SweepResult> {
     const db = createSupabaseServiceClient();
@@ -130,16 +131,33 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
                 items: Array.isArray(c.items) ? c.items : [],
                 subtotal_iqd: c.subtotal_iqd ?? 0,
             };
+            // Claim before sending: stamping after the send let a failed stamp,
+            // or Vercel killing the run between send and stamp, resend the
+            // same paid message 10 minutes later. Only the run whose claim
+            // lands may send.
+            const { data: claimed, error: claimError } = await db
+                .from("abandoned_carts")
+                .update({ reminded_at: new Date().toISOString() })
+                .eq("id", c.id)
+                .is("reminded_at", null)
+                .select("id");
+            if (claimError) throw new Error(claimError.message);
+            if (!claimed || claimed.length === 0) continue;
+
             const result = await sendCartRecoveryMessage(cart);
             if (result.success) {
                 sent += 1;
-                await db
-                    .from("abandoned_carts")
-                    .update({ reminded_at: new Date().toISOString() })
-                    .eq("id", c.id);
-            } else {
-                failed += 1;
+                continue;
             }
+            failed += 1;
+            console.error(`[abandoned-cart-recovery] cart ${c.id} not sent: ${result.error ?? "unknown"}`);
+            if (result.delivery === "unknown") continue; // may have reached the phone: keep the claim
+            // Interakt refused it: nothing was sent, so the next run may try again.
+            const { error: releaseError } = await db
+                .from("abandoned_carts")
+                .update({ reminded_at: null })
+                .eq("id", c.id);
+            if (releaseError) console.error(`[abandoned-cart-recovery] cart ${c.id} claim not released: ${releaseError.message}`);
         }
     }
 
@@ -173,12 +191,27 @@ async function runSweeps() {
     return { ...reminders, checkoutsRemoved: checkouts };
 }
 
+/**
+ * A run where sends were attempted and none went out answers 500, so the
+ * Sentry monitor goes red (a revoked Interakt key used to look like a quiet
+ * night).
+ */
+function sweepResponse(result: Awaited<ReturnType<typeof runSweeps>>): NextResponse {
+    if (result.failed > 0 && result.sent === 0) {
+        return NextResponse.json(
+            { success: false, error: `All ${result.failed} recovery sends failed`, ...result },
+            { status: 500 },
+        );
+    }
+    return NextResponse.json({ success: true, ...result });
+}
+
 async function runScheduled(request: Request): Promise<NextResponse> {
     const denied = requireCronAuth(request);
     if (denied) return denied;
     try {
         const result = await runSweeps();
-        return NextResponse.json({ success: true, ...result });
+        return sweepResponse(result);
     } catch (e) {
         return NextResponse.json(
             { error: e instanceof Error ? e.message : "Sweep failed" },
@@ -205,7 +238,7 @@ async function runQueued(request: Request): Promise<NextResponse> {
     }
     try {
         const result = await runSweeps();
-        return NextResponse.json({ success: true, ...result });
+        return sweepResponse(result);
     } catch (e) {
         return NextResponse.json(
             { error: e instanceof Error ? e.message : "Sweep failed" },

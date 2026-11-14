@@ -5,6 +5,7 @@ import { BellRing, Plus, Trash2, Phone, AlertTriangle, User } from "lucide-react
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface StaffEntry {
     phone: string;
@@ -30,17 +31,10 @@ export function StaffAlertsSettings() {
     const [isAdding, setIsAdding] = useState(false);
     const [togglingEnabled, setTogglingEnabled] = useState(false);
 
-    const authHeaders = useCallback(
-        (extra?: Record<string, string>): HeadersInit => ({
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-            ...(extra || {}),
-        }),
-        [session?.access_token]
-    );
 
     const load = useCallback(async () => {
         try {
-            const res = await fetch(API, { cache: "no-store", headers: authHeaders() });
+            const res = await authedFetch(API, { cache: "no-store" });
             if (res.ok) {
                 const data = (await res.json()) as StaffAlertConfig;
                 setConfig({
@@ -53,7 +47,7 @@ export function StaffAlertsSettings() {
         } finally {
             setLoading(false);
         }
-    }, [authHeaders]);
+    }, []);
 
     useEffect(() => {
         if (session?.access_token) load();
@@ -82,9 +76,9 @@ export function StaffAlertsSettings() {
         }
         setIsAdding(true);
         try {
-            const res = await fetch(API, {
+            const res = await authedFetch(API, {
                 method: "POST",
-                headers: authHeaders({ "Content-Type": "application/json" }),
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ phone, name: name.trim() || undefined }),
             });
             if (!res.ok) {
@@ -106,9 +100,8 @@ export function StaffAlertsSettings() {
 
     const handleRemove = async (phoneToRemove: string) => {
         try {
-            const res = await fetch(`${API}?phone=${encodeURIComponent(phoneToRemove)}`, {
+            const res = await authedFetch(`${API}?phone=${encodeURIComponent(phoneToRemove)}`, {
                 method: "DELETE",
-                headers: authHeaders(),
             });
             if (!res.ok) throw new Error(t("settings.staff.removeFailed"));
             const updated = (await res.json()) as StaffAlertConfig;
@@ -123,9 +116,9 @@ export function StaffAlertsSettings() {
         setTogglingEnabled(true);
         try {
             const next = !config.enabled;
-            const res = await fetch(API, {
+            const res = await authedFetch(API, {
                 method: "PUT",
-                headers: authHeaders({ "Content-Type": "application/json" }),
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ enabled: next }),
             });
             if (!res.ok) throw new Error(t("settings.staff.updateFailed"));

@@ -1,12 +1,16 @@
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
-import type { PrimeClient, PrimeTicketChat } from "@/lib/prime/client";
+import { PrimeApiError, type PrimeClient, type PrimeTicketChat } from "@/lib/prime/client";
 import { noticeTicketReply } from "@/lib/prime/notify";
 import type { PrimeTicketEvent } from "@/lib/prime/webhook";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
-/** What a ticket message call came to: not one of our parcels, a message our side wrote, announced now, or already announced. */
-export type PrimeTicketReplyOutcome = "not_ours" | "own_message" | "noticed" | "already_noticed";
+/**
+ * What a ticket message call came to: not one of our parcels, a ticket Prime
+ * no longer has (its parcel was deleted there), a message our side wrote,
+ * announced now, or already announced.
+ */
+export type PrimeTicketReplyOutcome = "not_ours" | "gone" | "own_message" | "noticed" | "already_noticed";
 
 const PREVIEW_MAX = 160;
 
@@ -26,6 +30,18 @@ export function replyInChat(chat: PrimeTicketChat, event: Pick<PrimeTicketEvent,
     if (matched) return matched;
     if (chat.messages.some((m) => m.fromSupport !== true && same(m.message, event.message))) return null;
     return support.at(-1) ?? null;
+}
+
+/**
+ * Prime refusing to read a ticket (its parcel was deleted there: "لم يتم
+ * إيجاد الشحنة") is final, so asking again gets the same answer. Anything
+ * else goes back to the caller, which answers 500 so Prime retries: a down
+ * Prime (5xx, network), our login refused (401/403), a rate limit (429), or
+ * an answer in a shape we don't know.
+ */
+function isTicketGone(err: unknown): boolean {
+    if (!(err instanceof PrimeApiError)) return false;
+    return err.status >= 400 && err.status < 500 && ![401, 403, 408, 429].includes(err.status);
 }
 
 /**
@@ -52,7 +68,14 @@ export async function handlePrimeTicketMessage(db: ServiceDb, client: Pick<Prime
     const tracked = shipments.filter((s) => active.has(String(s.tenant_id)));
     if (tracked.length === 0) return "not_ours";
 
-    const chat = await client.ticketChat(event.ticketId);
+    let chat: PrimeTicketChat;
+    try {
+        chat = await client.ticketChat(event.ticketId);
+    } catch (err) {
+        if (!isTicketGone(err)) throw err;
+        console.warn(`[prime-ticket] ticket ${event.ticketId} unreadable on Prime:`, err instanceof Error ? err.message : err);
+        return "gone";
+    }
     if (chat.caseId !== event.caseId) return "not_ours";
     const reply = replyInChat(chat, event);
     if (!reply) return "own_message";

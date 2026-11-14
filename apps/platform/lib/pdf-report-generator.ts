@@ -5,6 +5,7 @@ import { Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import { formatOrderNamedDayMonth } from "@/lib/order-format-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { exportReportStats } from "@/lib/export-report-stats";
 
 // ============================================
 // TYPES
@@ -94,75 +95,6 @@ function getStatusLabel(status: string): string {
     return STATUS_LABELS[status] || status;
 }
 
-function calculateStats(orders: Order[]) {
-    const total = orders.length;
-    const byStatus: Record<string, number> = {};
-    let totalRevenue = 0;
-    let totalDeliveryFees = 0;
-    const byCityMap: Record<string, { total: number; delivered: number; rejected: number; revenue: number }> = {};
-    const byPayment: Record<string, { count: number; revenue: number }> = {};
-
-    orders.forEach((order) => {
-        // Status counts
-        byStatus[order.status] = (byStatus[order.status] || 0) + 1;
-
-        // Revenue
-        const price = Number(order.price) || 0;
-        if (!order.is_return) {
-            totalRevenue += price;
-        }
-
-        // Delivery fees
-        if (order.delivery_fee) totalDeliveryFees += order.delivery_fee;
-        if (order.delivery_cost) totalDeliveryFees += order.delivery_cost;
-
-        // City performance
-        const city = order.city || order.governorate_code || "Unknown";
-        if (!byCityMap[city]) byCityMap[city] = { total: 0, delivered: 0, rejected: 0, revenue: 0 };
-        byCityMap[city].total++;
-        if (!order.is_return) byCityMap[city].revenue += price;
-        if (order.status === "delivered" || order.status === "completed") byCityMap[city].delivered++;
-        if (order.status === "rejected") byCityMap[city].rejected++;
-
-        // Payment
-        const payStatus = order.payment_status || "pending";
-        if (!byPayment[payStatus]) byPayment[payStatus] = { count: 0, revenue: 0 };
-        byPayment[payStatus].count++;
-        if (!order.is_return) byPayment[payStatus].revenue += price;
-    });
-
-    const delivered = (byStatus["delivered"] || 0) + (byStatus["completed"] || 0);
-    const rejected = byStatus["rejected"] || 0;
-    const shipped = delivered + rejected;
-    const deliveryRate = shipped > 0 ? (delivered / shipped) * 100 : 0;
-    const rejectionRate = shipped > 0 ? (rejected / shipped) * 100 : 0;
-    const avgOrderValue = total > 0 ? totalRevenue / total : 0;
-
-    const byCity = Object.entries(byCityMap)
-        .map(([city, data]) => ({
-            city,
-            ...data,
-            deliveryRate: (data.delivered + data.rejected) > 0
-                ? (data.delivered / (data.delivered + data.rejected)) * 100
-                : 0,
-        }))
-        .sort((a, b) => b.total - a.total);
-
-    return {
-        total,
-        byStatus,
-        totalRevenue,
-        totalDeliveryFees,
-        delivered,
-        rejected,
-        deliveryRate,
-        rejectionRate,
-        avgOrderValue,
-        byCity,
-        byPayment,
-    };
-}
-
 // ============================================
 // PDF GENERATION
 // ============================================
@@ -174,7 +106,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
     ]);
 
     const { title, dateRange, reportType, orders } = options;
-    const stats = calculateStats(orders);
+    const stats = exportReportStats(orders);
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     // autoTable records where its last table ended on the doc, outside jsPDF's types.
     const lastTableEnd = () => (doc as unknown as { lastAutoTable: Pick<Table, "finalY"> }).lastAutoTable.finalY ?? 0;

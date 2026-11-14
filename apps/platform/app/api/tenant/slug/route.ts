@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { normalizeSlug, slugRejection } from "@/lib/tenant-slug";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ const claimResultSchema = z.string();
 let _admin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const admin = () => (_admin ??= createSupabaseServiceClient());
 
-export async function GET(request: Request): Promise<NextResponse> {
+async function handleGET(request: Request): Promise<NextResponse> {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -70,7 +71,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ available: true });
 }
 
-export async function PATCH(request: Request): Promise<NextResponse> {
+async function handlePATCH(request: Request): Promise<NextResponse> {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -122,3 +123,6 @@ export async function PATCH(request: Request): Promise<NextResponse> {
         unchanged: previous.data === slug,
     });
 }
+
+export const GET = withFailureReport("api/tenant/slug GET", handleGET);
+export const PATCH = withFailureReport("api/tenant/slug PATCH", handlePATCH);

@@ -18,6 +18,7 @@ import type { LocaleCode } from "@scheniders/shared";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { normalizeSlug, slugRejection } from "@/lib/tenant-slug";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface ClaimHandleDialogProps {
     currentSlug: string;
@@ -81,9 +82,9 @@ export function ClaimHandleDialog({
             // A failed check is shown as such (and blocks Save) instead of
             // leaving a stale "available" on screen for a different slug.
             try {
-                const res = await fetch(
+                const res = await authedFetch(
                     `/api/tenant/slug?slug=${encodeURIComponent(candidate)}`,
-                    { headers: { Authorization: `Bearer ${accessToken}` } },
+                    { },
                 );
                 const parsed = availabilitySchema.safeParse(
                     res.ok ? await res.json() : null,
@@ -129,11 +130,10 @@ export function ClaimHandleDialog({
         setSaving(true);
         setError(false);
         try {
-            const res = await fetch("/api/tenant/slug", {
+            const res = await authedFetch("/api/tenant/slug", {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${accessToken}`,
                 },
                 body: JSON.stringify({ slug: candidate }),
             });

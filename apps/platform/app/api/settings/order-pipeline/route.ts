@@ -8,6 +8,7 @@ import {
     pipelineLayoutSchema,
     type PipelineStageId,
 } from "@/lib/order-pipeline";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ async function readOrgDefault(tenantId: string): Promise<PipelineStageId[] | nul
     return normalizePipelineStages(raw?.stages);
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const r = await resolveCaller(request);
     if ("error" in r) return r.error;
     try {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
     const r = await resolveCaller(request);
     if ("error" in r) return r.error;
 
@@ -93,3 +94,6 @@ export async function PUT(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/settings/order-pipeline GET", handleGET);
+export const PUT = withFailureReport("api/settings/order-pipeline PUT", handlePUT);

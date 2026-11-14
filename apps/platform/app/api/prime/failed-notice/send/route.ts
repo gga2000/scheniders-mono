@@ -5,6 +5,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { PERMISSIONS } from "@/lib/permissions";
 import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import { sendPrimeFailedNoticeByHand, type PrimeFailedNoticeHandResult } from "@/lib/prime/failed-notice";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ const REFUSED: Record<Exclude<PrimeFailedNoticeHandResult, "sent">, { status: nu
  * tab). Body: { orderId }. The parcel is read from the caller's own tenant;
  * it goes out once per parcel, counting the automatic send.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-failed-notice-send");
@@ -40,3 +41,5 @@ export async function POST(request: NextRequest) {
     const refused = REFUSED[result];
     return NextResponse.json({ success: false, error: refused.error }, { status: refused.status });
 }
+
+export const POST = withFailureReport("api/prime/failed-notice/send POST", handlePOST);

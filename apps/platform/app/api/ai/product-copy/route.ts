@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
+import { PERMISSIONS } from "@/lib/permissions";
 import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import {
     buildProductCopyMessages,
     parseProductCopy,
     PRODUCT_COPY_SCHEMA,
 } from "@/lib/product-copy";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +19,14 @@ const bodySchema = z.object({
     tone: z.enum(["friendly", "luxury", "playful", "minimal"]).optional(),
 });
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(request: NextRequest): Promise<NextResponse> {
     // Paid Anthropic call: store members only, capped per store per hour.
-    const caller = await requireMeteredCaller(request, { bucket: "ai-product-copy", limit: 40, windowSeconds: 3600 });
+    const caller = await requireMeteredCaller(request, {
+        bucket: "ai-product-copy",
+        limit: 40,
+        windowSeconds: 3600,
+        permission: PERMISSIONS.EDIT_PRODUCTS,
+    });
     if (!caller.ok) return caller.response;
 
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
@@ -39,6 +46,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         res = await fetch(ANTHROPIC_MESSAGES_URL, {
             method: "POST",
+            // A long copy takes tens of seconds; never hang the function.
+            signal: AbortSignal.timeout(60_000),
             headers: {
                 "Content-Type": "application/json",
                 "x-api-key": apiKey,
@@ -75,3 +84,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ copy });
 }
+
+export const POST = withFailureReport("api/ai/product-copy POST", handlePOST);

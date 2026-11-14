@@ -132,7 +132,11 @@ export async function verifyAccessToken(accessToken: string, options: TokenOptio
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
-        console.error(`[Auth] Token verification failed:`, error?.message);
+        // An expired token is routine (a tab waking from sleep sends its old
+        // token before the refresh lands) and the caller answers 401. Only a
+        // token that fails for another reason is worth an error report.
+        const expired = error?.message?.includes("token is expired") ?? false;
+        (expired ? console.warn : console.error)(`[Auth] Token verification failed:`, error?.message);
         return { user: null, error: error?.message || 'Invalid token' };
     }
 

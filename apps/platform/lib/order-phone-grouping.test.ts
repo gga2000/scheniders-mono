@@ -71,3 +71,16 @@ describe("phone input mask", () => {
         }
     });
 });
+
+describe("normalizeIraqiPhone follows the shared Iraqi-mobile rule", () => {
+    it("accepts 00964 and Arabic or Persian digits (create-order used to call 00964 invalid)", () => {
+        expect(normalizeIraqiPhone("00964 770 123 4567")).toBe("07701234567");
+        expect(normalizeIraqiPhone("٠٠٩٦٤٧٧٠١٢٣٤٥٦٧")).toBe("07701234567");
+        expect(normalizeIraqiPhone("۰۷۷۰۱۲۳۴۵۶۷")).toBe("07701234567");
+    });
+
+    it("returns the digits of a number that is not an Iraqi mobile, so the form can flag it", () => {
+        expect(normalizeIraqiPhone("0780 12")).toBe("078012");
+        expect(normalizeIraqiPhone("+44 20 7946 0958")).toBe("442079460958");
+    });
+});

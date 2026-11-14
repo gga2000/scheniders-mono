@@ -27,6 +27,7 @@ export default defineConfig({
     test: {
         environment: "jsdom",
         globals: false,
+        setupFiles: [path.resolve(__dirname, "./vitest.setup.ts")],
         env: {
             // Stub the runtime supabase env so modules that import
             // `lib/supabase.ts` transitively (e.g. section-list-panel

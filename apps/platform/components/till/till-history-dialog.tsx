@@ -7,7 +7,8 @@ import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { RECEIPT_CODE, useTillFindSale, useTillSalesToday, type TillHistorySale } from "@/hooks/use-till";
 import type { Shop } from "@/hooks/use-shops";
-import { dateLocale, formatIqd, type PayMethod } from "@/lib/till/cart";
+import { dateLocale, type PayMethod } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { printReceipt, receiptDocument, receiptWhatsAppText, whatsAppReceiptLink, type ReceiptData } from "@/lib/till/receipt";
 
 interface Props {
@@ -83,9 +84,9 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
                         ) : !past.isSuccess && sales.data ? (
                             <>
                                 <Stat label={t("till.history.count")} value={String(sales.data.length)} />
-                                <Stat label={t("till.cart.total")} value={formatIqd(total)} />
+                                <Stat label={t("till.cart.total")} value={formatIqdNumber(total)} />
                                 {[...byMethod].map(([m, amount]) => (
-                                    <Stat key={m} label={t(`till.pay.method.${m}`)} value={formatIqd(amount)} />
+                                    <Stat key={m} label={t(`till.pay.method.${m}`)} value={formatIqdNumber(amount)} />
                                 ))}
                             </>
                         ) : (
@@ -176,7 +177,7 @@ function SaleRow({ sale, receipt, withDay = false }: { sale: TillHistorySale; re
                     </span>
                 ))}
             </span>
-            <span className="w-24 shrink-0 text-right text-base font-bold tabular-nums text-foreground">{formatIqd(sale.total)}</span>
+            <span className="w-24 shrink-0 text-right text-base font-bold tabular-nums text-foreground">{formatIqdNumber(sale.total)}</span>
             <span className="flex shrink-0 gap-1">
                 <button
                     type="button"

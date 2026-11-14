@@ -25,6 +25,11 @@ async function syncAllTenants(): Promise<NextResponse> {
         if (outcome.ok) synced += 1;
         else failed += 1;
     }
+    // Every store failing (an expired token, Meta down) must turn the monitor
+    // red; a partial failure is kept on each store's row (last_error).
+    if (failed > 0 && synced === 0) {
+        return NextResponse.json({ success: false, error: `Meta sync failed for all ${failed} stores`, synced, failed }, { status: 500 });
+    }
     return NextResponse.json({ success: true, synced, failed });
 }
 

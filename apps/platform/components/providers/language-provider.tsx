@@ -1,7 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { translations, Locale } from "@/lib/i18n";
+import * as Sentry from "@sentry/nextjs";
+import type { Locale } from "@/lib/i18n";
+// Arabic is the default and the language every page renders first, so it ships
+// with the app. English (another ~400 kB) loads only for someone who picks it.
+import { ar } from "@/lib/i18n-ar";
 
 type TranslateArg = string | Record<string, string | number>;
 
@@ -42,6 +46,7 @@ const PLURAL_RULES: Record<Locale, Intl.PluralRules> = {
  * separate form simply omits the entry.
  */
 function lookup(
+    dict: Record<string, string>,
     language: Locale,
     key: string,
     vars: Record<string, string | number> | undefined,
@@ -50,8 +55,8 @@ function lookup(
     const category = typeof count !== "number" ? "other"
         : count === 0 ? "zero"
         : PLURAL_RULES[language].select(count);
-    const form = category === "other" ? undefined : translations[language]?.[`${key}.${category}`];
-    return form ?? translations[language]?.[key] ?? translations.en?.[key];
+    const form = category === "other" ? undefined : dict[`${key}.${category}`];
+    return form ?? dict[key];
 }
 
 function resolveFallback(
@@ -64,9 +69,18 @@ function resolveFallback(
     return { fallback: undefined, vars: fallbackOrVars };
 }
 
+/** The English dictionary once it has been loaded; later providers start with it. */
+let englishCache: Record<string, string> | null = null;
+
+/** Loads English (its own ~400 kB chunk) and keeps it for every provider after. */
+export function loadEnglish(): Promise<Record<string, string>> {
+    return import("@/lib/i18n-en").then((m) => (englishCache = m.en));
+}
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const [language, setLanguageState] = useState<Locale>("ar");
     const [mounted, setMounted] = useState(false);
+    const [en, setEn] = useState<Record<string, string> | null>(() => englishCache);
 
     // Load persisted language on mount
     useEffect(() => {
@@ -80,9 +94,24 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
+        if (language !== "en" || en) return;
+        let live = true;
+        loadEnglish()
+            .then((dict) => { if (live) setEn(dict); })
+            // The page stays in Arabic; the failed chunk load is reported.
+            .catch((err: unknown) => Sentry.captureException(err));
+        return () => { live = false; };
+    }, [language, en]);
+
+    // Until the English dictionary has arrived the page reads in Arabic, as it
+    // does before mount.
+    const active: Locale = language === "en" && en ? "en" : "ar";
+    const dict = active === "en" && en ? en : ar;
+
+    useEffect(() => {
         if (typeof document === "undefined") return;
-        document.documentElement.lang = language;
-    }, [language]);
+        document.documentElement.lang = active;
+    }, [active]);
 
     const setLanguage = useCallback((lang: Locale) => {
         setLanguageState(lang);
@@ -98,15 +127,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             varsArg?: Record<string, string | number>,
         ): string => {
             const { fallback, vars } = resolveFallback(fallbackOrVars, varsArg);
-            const raw = lookup(language, key, vars) ?? fallback ?? key;
+            const raw = lookup(dict, active, key, vars) ?? fallback ?? key;
             return interpolate(raw, vars);
         },
-        [language]
+        [dict, active]
     );
 
     // Avoid hydration mismatch — render children with default "ar" until mounted
     const value = {
-        language: mounted ? language : "ar",
+        language: mounted ? active : "ar",
         setLanguage,
         t: mounted
             ? t
@@ -116,7 +145,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
                 varsArg?: Record<string, string | number>,
             ) => {
                 const { fallback, vars } = resolveFallback(fallbackOrVars, varsArg);
-                const raw = lookup("ar", key, vars) ?? fallback ?? key;
+                const raw = lookup(ar, "ar", key, vars) ?? fallback ?? key;
                 return interpolate(raw, vars);
             },
     };

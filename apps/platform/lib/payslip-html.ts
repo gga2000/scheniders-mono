@@ -1,4 +1,5 @@
 import type { PayrollRecord, OrderBreakdown, OrderStatusBreakdown } from "@/types/salary";
+import { formatIqdNumber } from "@scheniders/shared";
 
 // =============================================================================
 // SCHNEIDER — Arabic (RTL) employee payslip
@@ -59,7 +60,7 @@ const ROLE_AR: Record<string, string> = {
 };
 
 function fmtNum(n: number): string {
-    return new Intl.NumberFormat("en-US").format(Math.round(n || 0));
+    return formatIqdNumber(n || 0);
 }
 function fmtIQD(n: number): string {
     return `${fmtNum(n)} د.ع`;

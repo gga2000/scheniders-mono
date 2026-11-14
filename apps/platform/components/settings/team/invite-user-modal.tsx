@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import type { UserRole } from "@/lib/permissions";
+import { authedFetch } from "@/lib/authed-fetch";
 
 export function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUserCreated: () => void; }) {
     const { tenantId } = useAuth();
@@ -24,12 +24,10 @@ export function InviteUserModal({ onClose, onUserCreated }: { onClose: () => voi
         setLoading(true);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch("/api/auth/create-user", {
+            const response = await authedFetch("/api/auth/create-user", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
                 },
                 body: JSON.stringify({
                     email,

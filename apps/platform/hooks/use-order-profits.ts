@@ -51,13 +51,6 @@ export function useOrderProfits(
         );
         if (byNameExact) return byNameExact;
 
-        // Try partial name match
-        const byNamePartial = products.find(
-            p => itemName.toLowerCase().includes(p.name.toLowerCase()) ||
-                p.name.toLowerCase().includes(itemName.toLowerCase())
-        );
-        if (byNamePartial) return byNamePartial;
-
         // Try aliases
         const byAlias = products.find(p => {
             if (!p.lightfunnels_aliases) return false;

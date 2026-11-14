@@ -7,10 +7,8 @@ import { ar } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 import type { PayrollRecord } from "@/types/salary";
 import { formatPayrollDate } from "@/lib/payroll-date";
+import { formatIqdNumber } from "@scheniders/shared";
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-}
 
 function fmtMonth(d: string, isArabic: boolean) {
     return formatPayrollDate(d, "MMM yyyy", isArabic ? ar : undefined);
@@ -35,7 +33,7 @@ interface DiffRowProps {
 function DiffRow({ label, valueA, valueB, isCount = false, isTotal = false }: DiffRowProps) {
     const { t } = useLanguage();
     const diff = valueB - valueA;
-    const fmt = (n: number) => isCount ? String(n) : `${fmtIQD(n)} ${t("common.iqd")}`;
+    const fmt = (n: number) => isCount ? String(n) : `${formatIqdNumber(n)} ${t("common.iqd")}`;
 
     return (
         <tr className={isTotal ? "border-t-2 border-[var(--card-border)] font-bold" : ""}>

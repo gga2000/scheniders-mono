@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { WaseetSubmitSummary } from "@/types/waseet";
 import { MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
+import { authedFetch } from "@/lib/authed-fetch";
 
 /**
  * Client-side hook for Al-Waseet operations.
@@ -46,11 +47,10 @@ export function useWaseet() {
             for (let i = 0; i < orderIds.length; i += MAX_WASEET_ORDERS_PER_REQUEST) {
                 const chunk = orderIds.slice(i, i + MAX_WASEET_ORDERS_PER_REQUEST);
 
-                const response = await fetch("/api/waseet/submit-orders", {
+                const response = await authedFetch("/api/waseet/submit-orders", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${session.access_token}`,
                     },
                     body: JSON.stringify({ orderIds: chunk }),
                 });
@@ -96,9 +96,7 @@ export function useWaseet() {
     const fetchCities = useCallback(async () => {
         if (!session?.access_token) return null;
 
-        const response = await fetch("/api/waseet/cities", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        const response = await authedFetch("/api/waseet/cities");
         const result = await response.json();
         return result.success ? result.data : null;
     }, [session]);
@@ -109,9 +107,7 @@ export function useWaseet() {
     const fetchRegions = useCallback(async (cityId: number) => {
         if (!session?.access_token) return null;
 
-        const response = await fetch(`/api/waseet/regions?city_id=${cityId}`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        const response = await authedFetch(`/api/waseet/regions?city_id=${cityId}`);
         const result = await response.json();
         return result.success ? result.data : null;
     }, [session]);
@@ -122,9 +118,7 @@ export function useWaseet() {
     const fetchPackageSizes = useCallback(async () => {
         if (!session?.access_token) return null;
 
-        const response = await fetch("/api/waseet/package-sizes", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        const response = await authedFetch("/api/waseet/package-sizes");
         const result = await response.json();
         return result.success ? result.data : null;
     }, [session]);
@@ -136,9 +130,7 @@ export function useWaseet() {
         if (!session?.access_token) return { success: false, error: "Not authenticated" };
 
         try {
-            const response = await fetch("/api/waseet/statuses", {
-                headers: { Authorization: `Bearer ${session.access_token}` },
-            });
+            const response = await authedFetch("/api/waseet/statuses");
             const result = await response.json();
             return { success: result.success, data: result.data, error: result.error };
         } catch (err) {
@@ -160,11 +152,10 @@ export function useWaseet() {
         if (!session?.access_token) return { success: false, error: "Not authenticated" };
 
         try {
-            const response = await fetch("/api/waseet/city-mappings", {
+            const response = await authedFetch("/api/waseet/city-mappings", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
                 },
                 body: JSON.stringify({ mappings }),
             });
@@ -181,9 +172,7 @@ export function useWaseet() {
     const fetchCityMappings = useCallback(async () => {
         if (!session?.access_token) return null;
 
-        const response = await fetch("/api/waseet/city-mappings", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        const response = await authedFetch("/api/waseet/city-mappings");
         const result = await response.json();
         return result.success ? result.data : null;
     }, [session]);
@@ -194,9 +183,7 @@ export function useWaseet() {
     const fetchInvoices = useCallback(async () => {
         if (!session?.access_token) return null;
 
-        const response = await fetch("/api/waseet/invoices", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        const response = await authedFetch("/api/waseet/invoices");
         const result = await response.json();
         return result.success ? result.data : null;
     }, [session]);

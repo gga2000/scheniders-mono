@@ -31,6 +31,7 @@ import { ConfirmPayrollDialog, PAYMENT_METHODS, type PaymentMethod } from "./con
 
 import type { EmployeePayrollData } from "@/types/salary";
 import { useLanguage } from "@/hooks/use-language";
+import { formatIqdNumber } from "@scheniders/shared";
 
 
 function today() {
@@ -598,9 +599,6 @@ function BulkPayAllDialog({
 
     const total = employees.reduce((s, d) => s + d.calculation.netSalary, 0);
 
-    function fmtIQD(n: number) {
-        return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-    }
 
     return (
         <AnimatePresence>
@@ -623,7 +621,7 @@ function BulkPayAllDialog({
                             </div>
                             <div>
                                 <h2 className="text-lg font-bold text-foreground">{t("payroll.bulk.title")}</h2>
-                                <p className="text-xs text-muted">{t("payroll.bulk.summary", { count: employees.length, total: fmtIQD(total), currency: iqd })}</p>
+                                <p className="text-xs text-muted">{t("payroll.bulk.summary", { count: employees.length, total: formatIqdNumber(total), currency: iqd })}</p>
                             </div>
                         </div>
                     </div>
@@ -638,7 +636,7 @@ function BulkPayAllDialog({
                                         <p className="font-medium text-foreground">{name}</p>
                                         <p className="text-xs text-muted capitalize">{d.employee.role}</p>
                                     </div>
-                                    <p className="font-semibold text-foreground tabular-nums">{fmtIQD(d.calculation.netSalary)} {iqd}</p>
+                                    <p className="font-semibold text-foreground tabular-nums">{formatIqdNumber(d.calculation.netSalary)} {iqd}</p>
                                 </div>
                             );
                         })}

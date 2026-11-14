@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeWaseetCaller, WASEET_READ_ROLES } from "@/lib/waseet-caller";
 import { fetchStatuses } from "@/lib/waseet-api";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * GET /api/waseet/statuses
@@ -8,7 +9,7 @@ import { fetchStatuses } from "@/lib/waseet-api";
  * Fetch Al-Waseet order statuses.
  * Also serves as a connection test endpoint.
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     try {
         const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
         if (!caller.ok) return caller.response;
@@ -28,3 +29,5 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/waseet/statuses GET", handleGET);

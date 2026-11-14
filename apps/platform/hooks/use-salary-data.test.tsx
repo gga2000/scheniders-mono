@@ -23,6 +23,8 @@ function builder(table: string) {
         delete: () => { call.op = "delete"; return chain; },
         eq: (col: string, val: unknown) => { call.filters.push([col, val]); return chain; },
         in: (col: string, val: unknown) => { call.filters.push([col, val]); return chain; },
+        is: (col: string, val: unknown) => { call.filters.push([col, val]); return chain; },
+        or: () => chain,
         gte: () => chain,
         lte: () => chain,
         order: () => chain,
@@ -61,6 +63,8 @@ describe("useSalaries", () => {
         expect(result.current.employeePayrollData.map((d) => d.employee.role)).toEqual(["employee"]);
         const unscoped = calls.filter((c) => c.table !== "user_profiles" && !c.filters.some(([col, v]) => col === "tenant_id" && v === TENANT));
         expect(unscoped).toEqual([]);
+        // A trashed or test order earns no bonus.
+        expect(calls.find((c) => c.table === "orders")?.filters).toContainEqual(["deleted_at", null]);
         // Profiles are read for this store's members only.
         expect(calls.find((c) => c.table === "user_profiles")?.filters).toContainEqual(["id", ["u1"]]);
     });

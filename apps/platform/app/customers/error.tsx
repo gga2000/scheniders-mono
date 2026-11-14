@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -15,6 +16,8 @@ export default function CustomersError({
 
     useEffect(() => {
         console.error("Customers segment error:", error);
+        // A boundary swallows the error: without this, customer-page crashes never reach Sentry.
+        Sentry.captureException(error, { tags: { boundary: "customers" } });
     }, [error]);
 
     return (

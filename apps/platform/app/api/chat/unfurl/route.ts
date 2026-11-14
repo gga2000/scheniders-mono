@@ -40,6 +40,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { isPrivateAddress } from "@/lib/chat/ssrf";
 import type { UnfurlResult } from "@/types/chat";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -367,7 +368,7 @@ function cacheSet(url: string, value: UnfurlResult): void {
 // Route handler.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+async function handleGET(request: NextRequest): Promise<NextResponse> {
     // Layer 1: auth — an active store member, not just any account.
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
@@ -412,3 +413,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     cacheSet(rawUrl, result);
     return NextResponse.json(result);
 }
+
+export const GET = withFailureReport("api/chat/unfurl GET", handleGET);

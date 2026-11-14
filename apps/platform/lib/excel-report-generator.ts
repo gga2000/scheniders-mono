@@ -4,6 +4,8 @@ import type ExcelJS from "exceljs";
 import { Order } from "@/lib/supabase";
 import { formatOrderNamedDate } from "@/lib/order-format-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { exportReportStats } from "@/lib/export-report-stats";
+import { formatIQD } from "@scheniders/shared";
 
 // ============================================
 // TYPES
@@ -95,14 +97,6 @@ const STATUS_LABELS: Record<string, string> = {
 // HELPER
 // ============================================
 
-function formatIQDNumber(amount: number): string {
-    return new Intl.NumberFormat("en-IQ", {
-        style: "currency",
-        currency: "IQD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
 
 function applyHeaderStyle(row: ExcelJS.Row, columnCount: number) {
     row.height = 28;
@@ -155,39 +149,10 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
     workbook.creator = "Scheniders";
     workbook.created = new Date();
 
-    // Calculate stats
-    const byStatus: Record<string, number> = {};
-    let totalRevenue = 0;
-    let totalDeliveryFees = 0;
-    const byCityMap: Record<string, { total: number; delivered: number; rejected: number; revenue: number }> = {};
-    const byPayment: Record<string, { count: number; revenue: number }> = {};
-
-    orders.forEach((order) => {
-        byStatus[order.status] = (byStatus[order.status] || 0) + 1;
-        const price = Number(order.price) || 0;
-        if (!order.is_return) totalRevenue += price;
-        if (order.delivery_fee) totalDeliveryFees += order.delivery_fee;
-        if (order.delivery_cost) totalDeliveryFees += order.delivery_cost;
-
-        const city = order.city || order.governorate_code || "Unknown";
-        if (!byCityMap[city]) byCityMap[city] = { total: 0, delivered: 0, rejected: 0, revenue: 0 };
-        byCityMap[city].total++;
-        if (!order.is_return) byCityMap[city].revenue += price;
-        if (order.status === "delivered" || order.status === "completed") byCityMap[city].delivered++;
-        if (order.status === "rejected") byCityMap[city].rejected++;
-
-        const payStatus = order.payment_status || "pending";
-        if (!byPayment[payStatus]) byPayment[payStatus] = { count: 0, revenue: 0 };
-        byPayment[payStatus].count++;
-        if (!order.is_return) byPayment[payStatus].revenue += price;
-    });
-
-    const delivered = (byStatus["delivered"] || 0) + (byStatus["completed"] || 0);
-    const rejected = byStatus["rejected"] || 0;
-    const shipped = delivered + rejected;
-    const deliveryRate = shipped > 0 ? (delivered / shipped) * 100 : 0;
-    const rejectionRate = shipped > 0 ? (rejected / shipped) * 100 : 0;
-    const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
+    const {
+        byStatus, byPayment, byCity, totalRevenue, realizedOrders, totalDeliveryFees,
+        delivered, rejected, deliveryRate, rejectionRate, avgOrderValue,
+    } = exportReportStats(orders);
 
     const fromDate = new Date(dateRange.from + "T00:00:00");
     const toDate = new Date(dateRange.to + "T00:00:00");
@@ -232,10 +197,10 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
     // KPI Cards (using cells)
     const kpiData = [
         { label: "Total Orders", value: orders.length, bg: COLORS.kpiBlueBg },
-        { label: "Revenue", value: formatIQDNumber(totalRevenue), bg: COLORS.kpiGreenBg },
+        { label: "Revenue", value: formatIQD(totalRevenue), bg: COLORS.kpiGreenBg },
         { label: "Delivery Rate", value: `${deliveryRate.toFixed(1)}%`, bg: COLORS.kpiGreenBg },
         { label: "Rejection Rate", value: `${rejectionRate.toFixed(1)}%`, bg: COLORS.kpiRedBg },
-        { label: "Avg Order Value", value: formatIQDNumber(avgOrderValue), bg: COLORS.kpiPurpleBg },
+        { label: "Avg Order Value", value: formatIQD(avgOrderValue), bg: COLORS.kpiPurpleBg },
     ];
 
     // KPI Labels Row
@@ -311,7 +276,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
         const row = summarySheet.getRow(paymentStartRow + 2 + i);
         row.getCell(1).value = paymentLabels[status] || status;
         row.getCell(2).value = data.count;
-        row.getCell(3).value = formatIQDNumber(data.revenue);
+        row.getCell(3).value = formatIQD(data.revenue);
         applyDataRowStyle(row, 3, i % 2 === 1);
     });
 
@@ -383,7 +348,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
         const totalRow = ordersSheet.getRow(orders.length + 2);
         totalRow.getCell(1).value = "TOTAL";
         totalRow.getCell(1).font = { bold: true, size: 11, name: "Segoe UI", color: { argb: COLORS.text } };
-        totalRow.getCell(5).value = `${orders.length} orders`;
+        totalRow.getCell(5).value = `${realizedOrders} delivered`;
         totalRow.getCell(5).font = { bold: true, size: 10, name: "Segoe UI", color: { argb: COLORS.text } };
         totalRow.getCell(6).value = totalRevenue;
         totalRow.getCell(6).numFmt = "#,##0";
@@ -398,15 +363,6 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
     // ============================================
     // SHEET 3: CITY PERFORMANCE
     // ============================================
-    const byCity = Object.entries(byCityMap)
-        .map(([city, data]) => ({
-            city,
-            ...data,
-            deliveryRate: (data.delivered + data.rejected) > 0
-                ? (data.delivered / (data.delivered + data.rejected)) * 100
-                : 0,
-        }))
-        .sort((a, b) => b.total - a.total);
 
     if (byCity.length > 0) {
         const citySheet = workbook.addWorksheet("City Performance", {
@@ -501,11 +457,11 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
 
     // Revenue section
     const finItems = [
-        { label: "Total Revenue", value: formatIQDNumber(totalRevenue), bold: true },
+        { label: "Total Revenue", value: formatIQD(totalRevenue), bold: true },
         { label: "Total Orders", value: String(orders.length), bold: false },
-        { label: "Average Order Value", value: formatIQDNumber(avgOrderValue), bold: false },
-        { label: "Total Delivery Fees", value: formatIQDNumber(totalDeliveryFees), bold: false },
-        { label: "Net Revenue (after delivery)", value: formatIQDNumber(totalRevenue - totalDeliveryFees), bold: true },
+        { label: "Average Order Value", value: formatIQD(avgOrderValue), bold: false },
+        { label: "Total Delivery Fees", value: formatIQD(totalDeliveryFees), bold: false },
+        { label: "Net Revenue (after delivery)", value: formatIQD(totalRevenue - totalDeliveryFees), bold: true },
         { label: "", value: "", bold: false }, // Spacer
         { label: "DELIVERY PERFORMANCE", value: "", bold: true },
         { label: "Delivered Orders", value: String(delivered), bold: false },

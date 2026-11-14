@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PrimeTicketChat } from "./client";
+import { PrimeApiError, type PrimeTicketChat } from "./client";
 import { handlePrimeTicketMessage, replyInChat } from "./ticket-reply";
 
 type Row = Record<string, unknown>;
@@ -105,5 +105,16 @@ describe("handlePrimeTicketMessage", () => {
         const ownChat = chat([msg({ messageId: 8, message: "الزبون لا يرد", fromSupport: false })]);
         expect(await handlePrimeTicketMessage(own.db, { ticketChat: vi.fn().mockResolvedValue(ownChat) }, event)).toBe("own_message");
         expect([...other.inserted, ...own.inserted]).toEqual([]);
+    });
+
+    it("ends the call when Prime no longer has the ticket's parcel, and retries when Prime is down", async () => {
+        const gone = fakeDb({ shipments: [shipment], active: ["t1"] });
+        const refused = { ticketChat: vi.fn().mockRejectedValue(new PrimeApiError("لم يتم إيجاد الشحنة", 404)) };
+        expect(await handlePrimeTicketMessage(gone.db, refused, event)).toBe("gone");
+        expect(gone.inserted).toEqual([]);
+        const down = { ticketChat: vi.fn().mockRejectedValue(new PrimeApiError("Bad Gateway", 502)) };
+        const locked = { ticketChat: vi.fn().mockRejectedValue(new PrimeApiError("Prime refused the system login", 401)) };
+        await expect(handlePrimeTicketMessage(fakeDb({ shipments: [shipment], active: ["t1"] }).db, locked, event)).rejects.toThrow("system login");
+        await expect(handlePrimeTicketMessage(fakeDb({ shipments: [shipment], active: ["t1"] }).db, down, event)).rejects.toThrow("Bad Gateway");
     });
 });

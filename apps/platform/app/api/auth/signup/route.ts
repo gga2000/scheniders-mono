@@ -7,6 +7,7 @@ import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { buildStarterStoreConfigV2, SIGNUP_TEMPLATE_ID } from '@/lib/starter-store';
 import { DEFAULT_PACK_ID } from '@/lib/store-templates/content-packs';
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Every self-serve signup starts a trial on the one plan (Ali, 9 Nov): 7 days
@@ -49,7 +50,7 @@ function clientIp(request: NextRequest): string {
 // Creates a new tenant + user account
 // =============================================
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         const ip = clientIp(request);
         const limit = await consumeRateLimit(`signup:${ip}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
@@ -311,3 +312,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/auth/signup POST", handlePOST);

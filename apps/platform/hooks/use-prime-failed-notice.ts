@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const answerSchema = z.object({ success: z.literal(true), enabled: z.boolean() });
 const key = (tenantId: string | null | undefined) => ["prime-failed-notice", tenantId] as const;
@@ -16,16 +17,16 @@ export function usePrimeFailedNotice() {
         queryKey: key(tenantId),
         enabled: token !== "",
         queryFn: async () => {
-            const res = await fetch("/api/prime/failed-notice", { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch("/api/prime/failed-notice", { });
             if (!res.ok) throw new Error(`Failed-delivery WhatsApp setting failed: ${res.status}`);
             return answerSchema.parse(await res.json()).enabled;
         },
     });
     const mutation = useMutation({
         mutationFn: async (enabled: boolean) => {
-            const res = await fetch("/api/prime/failed-notice", {
+            const res = await authedFetch("/api/prime/failed-notice", {
                 method: "PUT",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ enabled }),
             });
             if (!res.ok) throw new Error(`Saving the failed-delivery WhatsApp setting failed: ${res.status}`);

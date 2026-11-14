@@ -40,7 +40,14 @@ export function useFinanceOrders({ start, end, compareStart }: FinanceOrdersRang
         queryKey: ["finance-orders", tenantId, fromDay, toDay],
         queryFn: async (): Promise<Order[]> => {
             if (!tenantId) throw new Error("No active tenant");
-            return orderRepository.findWindow(tenantId, windowFromDateFilter(fromDay, toDay), { withRisk: false });
+            const [placed, refundsPaid] = await Promise.all([
+                orderRepository.findWindow(tenantId, windowFromDateFilter(fromDay, toDay), { withRisk: false }),
+                orderRepository.findRefundsPaidBetween(tenantId, fromDay, toDay),
+            ]);
+            // A refund paid in the range but created before it is filed on its
+            // payment day, so it has to be read even though the window misses it.
+            const seen = new Set(placed.map((o) => o.id));
+            return [...placed, ...refundsPaid.filter((o) => !seen.has(o.id))];
         },
         enabled: !!tenantId,
         // A new period keeps the old rows on screen instead of blanking the page.

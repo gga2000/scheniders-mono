@@ -55,6 +55,7 @@ vi.mock("@/components/pwa/dev-service-worker-cleanup", () => ({ DevServiceWorker
 vi.mock("@/components/ui/toaster", () => ({ Toaster: Nothing }));
 vi.mock("@scheniders/ui/error-boundary", () => ({ ErrorBoundary: Passthrough }));
 vi.mock("@vercel/speed-insights/next", () => ({ SpeedInsights: Nothing }));
+vi.mock("@/components/analytics/web-analytics", () => ({ WebAnalytics: Nothing }));
 
 import RootLayout from "./layout";
 import GlobalError from "./global-error";

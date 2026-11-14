@@ -100,6 +100,35 @@ describe("scrubSentryEvent", () => {
         expect(event.user).toEqual({ id: "u1" });
     });
 
+    it("titles a console-logged Supabase error by its message, not [object Object]", () => {
+        const event = scrubSentryEvent({
+            message: "[queries.listAttributeDefs] [object Object]",
+            extra: { arguments: ["[queries.listAttributeDefs]", { code: "", message: "TimeoutError: The operation was aborted due to timeout" }] },
+        });
+        expect(event.message).toBe("[queries.listAttributeDefs] TimeoutError: The operation was aborted due to timeout");
+    });
+
+    it("redacts a phone that the rebuilt title brings in", () => {
+        const event = scrubSentryEvent({
+            message: "[x] [object Object]",
+            extra: { arguments: ["[x]", { message: "no customer 07701234567" }] },
+        });
+        expect(event.message).toBe("[x] no customer [phone]");
+    });
+
+    it("titles a plain-object exception by its message", () => {
+        const event = scrubSentryEvent({
+            exception: { values: [{ value: "Object captured as exception with keys: code, details, hint, message" }] },
+            extra: { __serialized__: { code: "", message: "AbortError: signal is aborted without reason" } },
+        });
+        expect(event.exception?.values?.[0]?.value).toBe("AbortError: signal is aborted without reason");
+    });
+
+    it("keeps an error's class name but still redacts a person's name", () => {
+        const event = scrubSentryEvent({ extra: { err: { name: "TimeoutError", message: "x" }, customer: { name: "Ali" } } });
+        expect(event.extra).toEqual({ err: { name: "TimeoutError", message: "x" }, customer: { name: "[redacted]" } });
+    });
+
     it("keeps tenant and role tags but redacts personal ones", () => {
         const event = scrubSentryEvent({ tags: { tenant_id: "t1", user_role: "owner", customer_phone: "07701234567" } });
         expect(event.tags).toEqual({ tenant_id: "t1", user_role: "owner", customer_phone: "[redacted]" });

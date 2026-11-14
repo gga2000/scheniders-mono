@@ -129,6 +129,8 @@ export interface Order {
      */
     refund_status?: 'none' | 'pending' | 'partial' | 'refunded' | 'failed';
     refunded_at?: string;
+    /** When a refund row reached refund_delivered; stamped by the database. */
+    refund_paid_at?: string | null;
     /** FK to order_reasons.id when the cancellation/rejection reason was picked from the managed list. */
     reason_id?: string;
     is_archived: boolean;

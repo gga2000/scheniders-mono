@@ -37,3 +37,15 @@ describe("useOrderProfits per-order costs", () => {
         expect(own.totalCost).toBe(18000 + 4000 + 100 + 600 + 40 + 90);
     });
 });
+
+describe("useOrderProfits product match", () => {
+    it("never takes the cost of a product whose name only contains the line's name", () => {
+        const unlinked = {
+            ...order, id: "o2",
+            items: [{ name: "Rose", quantity: 1, price: 20000 }],
+        } as unknown as Order;
+        const products = [{ id: "p9", name: "Rose Gold Set", cost: 40000 }] as Product[];
+        const line = renderHook(() => useOrderProfits([unlinked], products)).result.current.orderCostBreakdowns[0];
+        expect(line.productCost).toBe(0);
+    });
+});

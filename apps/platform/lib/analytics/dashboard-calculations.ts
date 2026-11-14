@@ -162,6 +162,7 @@ export interface RealizableOrder {
     created_at: string;
     delivered_at?: string | null;
     completed_at?: string | null;
+    is_test?: boolean | null;
 }
 
 export function realizedAt(o: RealizableOrder): Date | null {
@@ -172,6 +173,7 @@ export function realizedAt(o: RealizableOrder): Date | null {
 
 /** Orders whose money is realized, i.e. actually collected. */
 export function isRealizedRevenue(o: RealizableOrder): boolean {
+    if (o.is_test) return false;
     return o.status === 'delivered' || o.status === 'completed';
 }
 

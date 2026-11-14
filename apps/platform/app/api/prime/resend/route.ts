@@ -7,6 +7,7 @@ import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { resendPrimeShipment } from "@/lib/prime/resend";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ const bodySchema = z.object({
  * or `{ ok: false, reason }` (and Prime's own words when it refused) so the
  * card can say what to fix.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-resend");
@@ -43,3 +44,5 @@ export async function POST(request: NextRequest) {
     const result = await resendPrimeShipment(db, client, caller.tenantId, merchant, parsed.data.orderId, parsed.data.note);
     return NextResponse.json({ success: true, ...result });
 }
+
+export const POST = withFailureReport("api/prime/resend POST", handlePOST);

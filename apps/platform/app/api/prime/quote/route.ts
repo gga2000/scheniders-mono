@@ -6,6 +6,7 @@ import { getPrimeClient, isPrimeUnreachable, PrimeApiError } from "@/lib/prime/c
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { primeStateOf } from "@/lib/prime/district";
 import { primeFeeQuote } from "@/lib/prime/desk-preview";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const bodySchema = z.object({
  * governorate (and district), for the new-order form's live fee. Read only;
  * cached with the dispatch desk's look-ups. Any member.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -47,3 +48,5 @@ export async function POST(request: NextRequest) {
         throw err;
     }
 }
+
+export const POST = withFailureReport("api/prime/quote POST", handlePOST);

@@ -1,7 +1,8 @@
 name: CI
 
-# Pull requests run a fast gate only: lint, type-check, and just the tests
-# related to the changed files (`vitest --changed`), as parallel jobs.
+# Pull requests run a fast gate only: lint, type-check, the tests related to
+# the changed files (`vitest --changed`) and every file-reading guard test,
+# as parallel jobs.
 # Everything slow runs after the merge, on main: the full sharded test suite,
 # the three `next build`s and the storefront bundle budget. A broken build
 # never reaches production anyway: Vercel builds every deploy and keeps serving
@@ -66,6 +67,35 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm exec turbo ${{ matrix.task }} --affected ${{ matrix.args }}
+
+  guards:
+    name: guard tests (always)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `vitest --changed` follows imports, so a test that reads the files it
+      # polices with fs (server actions guarded, unique migration versions,
+      # select guards, *-migration checks) never runs when only those files
+      # change. Run every such test on every PR: they take seconds, and main
+      # deploys on merge, so the post-merge run is too late to stop a bad one.
+      - name: Platform file-reading guard tests
+        working-directory: apps/platform
+        run: |
+          set -euo pipefail
+          files=$(grep -rlE "readFileSync|readdirSync|readFile\(" --include=*.test.ts --include=*.test.tsx --exclude-dir=node_modules --exclude-dir=.next .)
+          echo "$files"
+          echo "$files" | xargs pnpm exec vitest run
 
   lint:
     name: lint changed files

@@ -3,13 +3,14 @@ import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { PRIME_FAILED_NOTICE_KEY, primeFailedNoticeSetting } from "@/lib/prime/failed-notice";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({ enabled: z.boolean() });
 
 /** GET /api/prime/failed-notice — whether the caller's store sends the failed-delivery WhatsApp. */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     const { data, error } = await createSupabaseServiceClient()
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 }
 
 /** PUT /api/prime/failed-notice — switch it on or off (store admins only). Body: { enabled }. */
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
@@ -34,3 +35,6 @@ export async function PUT(request: NextRequest) {
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, enabled: parsed.data.enabled });
 }
+
+export const GET = withFailureReport("api/prime/failed-notice GET", handleGET);
+export const PUT = withFailureReport("api/prime/failed-notice PUT", handlePUT);

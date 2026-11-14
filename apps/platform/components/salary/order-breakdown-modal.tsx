@@ -9,10 +9,8 @@ import { ar } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 import type { OrderBreakdown, CountedOrderDetail, ReturnedAfterPayment, OrderBucket } from "@/types/salary";
 import { formatPayrollDate } from "@/lib/payroll-date";
+import { formatIqdNumber } from "@scheniders/shared";
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-}
 
 function fmtDate(d: string, isArabic: boolean) {
     return formatPayrollDate(d, isArabic ? "d MMM yyyy" : "MMM d, yyyy", isArabic ? ar : undefined);
@@ -122,7 +120,7 @@ export function OrderBreakdownModal({
                                     replacements: breakdown.replacements,
                                     refunds: breakdown.refunds,
                                     genuine: breakdown.genuine,
-                                    bonus: fmtIQD(perOrderBonus),
+                                    bonus: formatIqdNumber(perOrderBonus),
                                 })}
                             </span>
                         </div>
@@ -164,7 +162,7 @@ export function OrderBreakdownModal({
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-xs text-muted tabular-nums"><bdi>{fmtIQD(o.amount)} {t("common.iqd")}</bdi></span>
+                                        <span className="text-xs text-muted tabular-nums"><bdi>{formatIqdNumber(o.amount)} {t("common.iqd")}</bdi></span>
                                         <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", BUCKET_META[o.bucket].cls)}>
                                             {t(BUCKET_META[o.bucket].labelKey)}
                                         </span>

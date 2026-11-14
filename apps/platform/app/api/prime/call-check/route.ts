@@ -5,6 +5,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { loadPrimeCallChecks } from "@/lib/prime/call-check-load";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ const bodySchema = z.object({ orderIds: z.array(z.string().uuid()).min(1).max(10
  * Prime's fee for this one (or what to fix before Prime would take it). Read
  * only. Orders come from the caller's own tenant; any member may ask.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -34,3 +35,5 @@ export async function POST(request: NextRequest) {
     const checks = await loadPrimeCallChecks(db, client, caller.tenantId, merchant, [...new Set(parsed.data.orderIds)]);
     return NextResponse.json({ success: true, connected: true, checks });
 }
+
+export const POST = withFailureReport("api/prime/call-check POST", handlePOST);

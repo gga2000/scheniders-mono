@@ -161,7 +161,7 @@ export function ReturnsCockpitModal({
             { orderId: current.order!.id, tenantId, reasonLabel, changedByName, changedByAvatar, destinations },
             {
                 onSuccess: () => {
-                    toast.success(`#${current.order!.order_id} — return processed`);
+                    toast.success(t("intake.toast.processed", { order: current.order!.order_id }));
                     session.markProcessed(current.orderId);
                     // Re-fetch so the row's status badge reflects the new 'rejected'
                     // state right away (stays greyed/handled), instead of showing the
@@ -173,7 +173,7 @@ export function ReturnsCockpitModal({
                     const next = session.items.find((i) => (i.result === "needs_action" || i.result === "never_shipped") && i.key !== current.key);
                     session.setSelectedKey(next?.key ?? null);
                 },
-                onError: () => toast.error("Failed to process return — try again"),
+                onError: () => toast.error(t("intake.toast.processFailed")),
             }
         );
     };
@@ -183,38 +183,38 @@ export function ReturnsCockpitModal({
         const lc = lastConfirm;
         undoReturn.mutate(lc.orderId, {
             onSuccess: () => {
-                toast.success("Last return undone");
+                toast.success(t("intake.toast.undone"));
                 session.markUnprocessed(lc.orderId);
                 setSummary((s) => ({ restock: s.restock - lc.deltas.restock, open_box: s.open_box - lc.deltas.open_box, write_off: s.write_off - lc.deltas.write_off }));
                 setLastConfirm(null);
                 const it = session.items.find((i) => i.orderId === lc.orderId);
                 if (it) session.setSelectedKey(it.key);
             },
-            onError: () => toast.error("Undo failed"),
+            onError: () => toast.error(t("intake.toast.undoFailed")),
         });
     };
 
     const bulkRestock = () => {
-        if (!defaultReason) { toast.error("Pick a default reason first"); return; }
+        if (!defaultReason) { toast.error(t("intake.toast.pickReason")); return; }
         const targets = session.items.filter((i) => i.result === "needs_action" && i.order);
         if (targets.length === 0) return;
-        targets.forEach((t) => {
-            const destinations = (t.order!.items || [])
+        targets.forEach((target) => {
+            const destinations = (target.order!.items || [])
                 .filter((it) => it.product_id)
                 .map((it) => ({ product_id: it.product_id as string, quantity: it.quantity, dest: "restock" as ReturnDestination }));
             processReturn.mutate(
-                { orderId: t.order!.id, tenantId, reasonLabel: defaultReason, changedByName, changedByAvatar, destinations },
+                { orderId: target.order!.id, tenantId, reasonLabel: defaultReason, changedByName, changedByAvatar, destinations },
                 {
                     onSuccess: () => {
-                        session.markProcessed(t.orderId);
-                        void session.refreshItem(t.key); // keep the status badge in sync after bulk restock
+                        session.markProcessed(target.orderId);
+                        void session.refreshItem(target.key); // keep the status badge in sync after bulk restock
                         const d = tally(destinations);
                         setSummary((s) => ({ restock: s.restock + d.restock, open_box: s.open_box + d.open_box, write_off: s.write_off + d.write_off }));
                     }
                 }
             );
         });
-        toast.success(`Processing ${targets.length} order(s) as restock…`);
+        toast.success(t("intake.toast.bulkRestock", { count: targets.length }));
     };
 
     return (

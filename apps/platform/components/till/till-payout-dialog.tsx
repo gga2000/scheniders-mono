@@ -7,7 +7,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useTillPayout } from "@/hooks/use-till";
 import type { TillMember } from "@/hooks/use-shops";
-import { formatIqd, parseDinars } from "@/lib/till/cart";
+import { parseDinars } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
 import { TillManagerDialog } from "./till-manager-dialog";
@@ -54,7 +55,7 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                         setAskManager(true);
                         return;
                     }
-                    toast({ title: t("till.payout.saved", { amount: formatIqd(amount) }), variant: "success" });
+                    toast({ title: t("till.payout.saved", { amount: formatIqdNumber(amount) }), variant: "success" });
                     onClose();
                 },
                 onError: () => toast({ title: t("till.payout.failed"), variant: "error" }),
@@ -93,20 +94,20 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                             <button
                                 key={a}
                                 type="button"
-                                onClick={() => setAmountText(formatIqd(a))}
+                                onClick={() => setAmountText(formatIqdNumber(a))}
                                 className={cn(
                                     "h-11 rounded-xl border px-3 text-sm font-semibold tabular-nums",
                                     amount === a ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
                                 )}
                             >
-                                {formatIqd(a)}
+                                {formatIqdNumber(a)}
                             </button>
                         ))}
                     </div>
                     {needsPin && (
                         <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-300" dir="auto">
                             <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                            {t("till.payout.needsPin", { limit: formatIqd(limit) })}
+                            {t("till.payout.needsPin", { limit: formatIqdNumber(limit) })}
                         </p>
                     )}
                 </div>
@@ -151,7 +152,7 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                     {payout.isPending
                         ? t("till.payout.saving")
                         : amount > 0
-                          ? t(needsPin ? "till.payout.takeWithPin" : "till.payout.take", { amount: formatIqd(amount) })
+                          ? t(needsPin ? "till.payout.takeWithPin" : "till.payout.take", { amount: formatIqdNumber(amount) })
                           : t("till.payout.title")}
                 </button>
                 </div>
@@ -161,7 +162,7 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                 <TillManagerDialog
                     sessionId={sessionId}
                     managers={managers}
-                    reason={t("till.payout.askReason", { amount: formatIqd(amount) })}
+                    reason={t("till.payout.askReason", { amount: formatIqdNumber(amount) })}
                     maxOff={amount}
                     purpose="payout"
                     onApproved={(ok) => {

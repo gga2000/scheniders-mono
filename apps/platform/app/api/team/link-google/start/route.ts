@@ -3,6 +3,7 @@ import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { linkTargetAllowed } from "@/lib/auth/link-target";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { withFailureReport } from "@/lib/job-monitor";
 
 const TTL_MINUTES = 20;
 
@@ -13,7 +14,7 @@ const TTL_MINUTES = 20;
  * server-generated magic-link) and runs the Google link. Same auth user → all
  * data preserved.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
     try {
         const token = request.headers.get("Authorization")?.replace("Bearer ", "");
         if (!token) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
@@ -65,3 +66,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
     }
 }
+
+export const POST = withFailureReport("api/team/link-google/start POST", handlePOST);

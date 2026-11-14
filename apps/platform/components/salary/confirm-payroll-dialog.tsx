@@ -6,6 +6,7 @@ import { CheckCircle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { EmployeePayrollData } from "@/types/salary";
+import { formatIqdNumber } from "@scheniders/shared";
 
 export type PaymentMethod = "cash" | "zain_cash" | "qi_card";
 
@@ -38,9 +39,6 @@ export function ConfirmPayrollDialog({
 
     if (!isOpen || !data) return null;
 
-    function fmtIQD(n: number) {
-        return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-    }
 
     const { calculation } = data;
     const name = data.employee.displayName || data.employee.email.split("@")[0];
@@ -100,19 +98,19 @@ export function ConfirmPayrollDialog({
                                     <div key={item.label} className="flex justify-between text-sm">
                                         <span className="text-muted">{item.label}</span>
                                         <span className="font-medium text-foreground tabular-nums">
-                                            {item.sign}{fmtIQD(item.value)} {iqd}
+                                            {item.sign}{formatIqdNumber(item.value)} {iqd}
                                         </span>
                                     </div>
                                 ))}
                             <div className="border-t border-[var(--card-border)] pt-2 flex justify-between">
                                 <span className="font-semibold text-foreground">{t("payroll.line.netPayable")}</span>
                                 <span className="font-bold text-emerald-600 tabular-nums">
-                                    {fmtIQD(calculation.netSalary)} {iqd}
+                                    {formatIqdNumber(calculation.netSalary)} {iqd}
                                 </span>
                             </div>
                             {carriedOver > 0 && (
                                 <p className="text-xs text-amber-700 dark:text-amber-400 pt-1 border-t border-[var(--card-border)]">
-                                    {t("payroll.confirm.carryOver", { amount: fmtIQD(carriedOver), currency: iqd })}
+                                    {t("payroll.confirm.carryOver", { amount: formatIqdNumber(carriedOver), currency: iqd })}
                                 </p>
                             )}
                             {calculation.orderBreakdown.replacements + calculation.orderBreakdown.refunds > 0 && (
@@ -136,7 +134,7 @@ export function ConfirmPayrollDialog({
                                             id="payroll-pay-now"
                                             type="text"
                                             inputMode="numeric"
-                                            value={fmtIQD(payNow)}
+                                            value={formatIqdNumber(payNow)}
                                             onChange={e => setAmountText(e.target.value.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "") || "0")}
                                             aria-invalid={tooMuch}
                                             aria-describedby="payroll-pay-now-hint"
@@ -160,9 +158,9 @@ export function ConfirmPayrollDialog({
                                 <p id="payroll-pay-now-hint" className={cn("text-xs mt-1.5", tooMuch ? "text-rose-600" : stillOwed > 0 ? "text-amber-700 dark:text-amber-400" : "text-muted")}>
                                     <bdi>
                                         {tooMuch
-                                            ? t("payroll.confirm.tooMuch", { amount: fmtIQD(net), currency: iqd })
+                                            ? t("payroll.confirm.tooMuch", { amount: formatIqdNumber(net), currency: iqd })
                                             : stillOwed > 0
-                                                ? t("payroll.confirm.stillOwed", { amount: fmtIQD(stillOwed), currency: iqd })
+                                                ? t("payroll.confirm.stillOwed", { amount: formatIqdNumber(stillOwed), currency: iqd })
                                                 : t("payroll.confirm.payNowHint")}
                                     </bdi>
                                 </p>

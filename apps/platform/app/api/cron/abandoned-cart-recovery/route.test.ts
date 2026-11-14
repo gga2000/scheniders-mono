@@ -36,7 +36,20 @@ function makeClient(
     sweptCheckouts: Array<{ tenant_id: string; outcome: string; removed: number }> = [],
 ) {
     const rpc = vi.fn(() => Promise.resolve({ data: sweptCheckouts, error: null }));
-    const updateEq = vi.fn(() => Promise.resolve({ error: null }));
+    // update().eq() is the claim release; update().eq().is().select() the claim,
+    // which lands only while the cart is still unclaimed.
+    const claimed = new Set<string>();
+    const updateEq = vi.fn((_col: string, id: string) => {
+        return Object.assign(Promise.resolve({ error: null }), {
+            is: () => ({
+                select: () => {
+                    if (claimed.has(id)) return Promise.resolve({ data: [], error: null });
+                    claimed.add(id);
+                    return Promise.resolve({ data: [{ id }], error: null });
+                },
+            }),
+        });
+    });
     const predicates: Array<(r: Cart) => boolean> = [];
     const cartsChain: Record<string, unknown> = {};
     cartsChain.is = (col: string, value: unknown) => {
@@ -83,7 +96,7 @@ function makeClient(
                 ? { select: () => tenantsChain }
                 : { select: () => cartsChain, update: () => ({ eq: updateEq }) },
     };
-    return { client, updateEq, rpc };
+    return { client, updateEq, rpc, claimed };
 }
 
 // Past any delay (24 h at most) and inside the 48 h window the sweep still nudges.
@@ -127,6 +140,33 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         expect(json.skipped).toBe(0);
         expect(sendCartRecoveryMessage).toHaveBeenCalledTimes(1);
         expect(updateEq).toHaveBeenCalledTimes(1);
+    });
+
+    it("claims a cart before sending, so a cart another run already claimed is never sent twice", async () => {
+        const { client, claimed } = makeClient([cart()], [optedIn]);
+        claimed.add("c1");
+        (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+        (sendCartRecoveryMessage as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
+
+        const json = await (await GET(authedRequest())).json();
+        expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
+        expect(json.sent).toBe(0);
+    });
+
+    it("releases the claim when Interakt refused the send, keeps it when delivery is unknown", async () => {
+        for (const [delivery, releases] of [["not_sent", true], ["unknown", false]] as const) {
+            vi.clearAllMocks();
+            limiter.consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 39, retryAfterSeconds: 0 });
+            const { client, updateEq } = makeClient([cart()], [optedIn]);
+            (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+            (sendCartRecoveryMessage as ReturnType<typeof vi.fn>).mockResolvedValue({ success: false, error: "x", delivery });
+
+            const res = await GET(authedRequest());
+            // Every attempted send failed: the run is a failure the monitor must see.
+            expect(res.status).toBe(500);
+            // One call is the claim; a release is a second update on the same cart.
+            expect(updateEq).toHaveBeenCalledTimes(releases ? 2 : 1);
+        }
     });
 
     it("stops a store's paid sends at the daily cap, and when the limiter is down", async () => {

@@ -16,6 +16,7 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 import { SHOP_WALLET_EMPTY, shopCanPayForWhatsApp } from "@/lib/whatsapp-wallet";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { ORDER_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
+import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
 
 // =============================================
 // TYPES
@@ -536,8 +537,8 @@ export async function sendTemplateMessage(
 }
 
 /**
- * POST one template to Interakt, retrying a rate limit or a dropped
- * connection. `label` names the send in the logs (an order number).
+ * POST one template to Interakt, retrying a rate limit or a connection
+ * that was never made. `label` names the send in the logs (an order number).
  */
 async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: string): Promise<SendTemplateResult> {
     let lastError: string | undefined;
@@ -551,6 +552,7 @@ async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: s
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(body),
+                signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
             });
 
             // Rate limited — retry after delay
@@ -563,11 +565,12 @@ async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: s
             }
 
             // Safe JSON parsing — Interakt sometimes returns non-JSON responses
+            // Read the body once: json() would consume it and leave nothing to log.
+            const rawText = await response.text();
             let data: InteraktAPIResponse;
             try {
-                data = (await response.json()) as InteraktAPIResponse;
+                data = JSON.parse(rawText) as InteraktAPIResponse;
             } catch {
-                const rawText = await response.text().catch(() => "(unreadable)");
                 console.error(
                     `[Interakt] Non-JSON response (HTTP ${response.status}):`,
                     rawText.slice(0, 200)
@@ -621,6 +624,10 @@ async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: s
                 lastError
             );
 
+            // Only a request that never left may be sent again: after a
+            // timeout or a dropped connection Interakt may already have
+            // queued the message, and a retry would send it twice.
+            if (!requestNeverSent(error)) return { success: false, error: lastError };
             if (attempt < MAX_RETRIES) {
                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
             }
@@ -757,6 +764,7 @@ export async function sendStaffAlertMessage(
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(body),
+                signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
             });
 
             const result = await response.json().catch(() => ({}));
@@ -776,6 +784,7 @@ export async function sendStaffAlertMessage(
             return { success: false, error: lastError, statusCode: response.status };
         } catch (err) {
             lastError = err instanceof Error ? err.message : String(err);
+            if (!requestNeverSent(err)) return { success: false, error: lastError };
             if (attempt < MAX_RETRIES) {
                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
             }

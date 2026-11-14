@@ -10,6 +10,7 @@ import {
     normalizePipelineStages,
     type PipelineStageId,
 } from "@/lib/order-pipeline";
+import { authedFetch } from "@/lib/authed-fetch";
 
 /**
  * Resolves the order-pipeline stage layout for the current user, layering:
@@ -69,9 +70,7 @@ export function useOrderPipelineLayout(): OrderPipelineLayout {
         enabled: !!session?.access_token && !!tenantId,
         staleTime: 5 * 60_000,
         queryFn: async (): Promise<PipelineStageId[] | null> => {
-            const res = await fetch("/api/settings/order-pipeline", {
-                headers: { Authorization: `Bearer ${session!.access_token}` },
-            });
+            const res = await authedFetch("/api/settings/order-pipeline");
             if (!res.ok) throw new Error("Failed to load pipeline layout");
             const json = (await res.json()) as { stages?: unknown };
             return normalizePipelineStages(json.stages);
@@ -100,11 +99,10 @@ export function useOrderPipelineLayout(): OrderPipelineLayout {
 
     const saveMutation = useMutation({
         mutationFn: async (next: PipelineStageId[]) => {
-            const res = await fetch("/api/settings/order-pipeline", {
+            const res = await authedFetch("/api/settings/order-pipeline", {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${session?.access_token ?? ""}`,
                 },
                 body: JSON.stringify({ stages: next }),
             });

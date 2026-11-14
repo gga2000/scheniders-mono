@@ -18,6 +18,7 @@ import {
     type PanelStats,
     type PanelWindow,
 } from "@/lib/orders/analytics-strip";
+import { authedFetch } from "@/lib/authed-fetch";
 
 /** Supabase returns at most 1000 rows per request; walk the pages. */
 const PAGE = 1000;
@@ -83,7 +84,7 @@ function useAdBilling(enabled: boolean) {
     return useQuery({
         queryKey: ["orders-panel-ad-billing"],
         queryFn: async () => {
-            const res = await fetch("/api/settings/meta-ads/billing", { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch("/api/settings/meta-ads/billing", { });
             if (!res.ok) throw new Error(`Meta billing failed: ${res.status}`);
             return billingSchema.parse(await res.json()).billing;
         },

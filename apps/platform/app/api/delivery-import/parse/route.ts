@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { parsePrimeDeliveryPDF } from "@/lib/delivery-import/pdf-parser";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,7 @@ export const runtime = "nodejs";
  * Accepts multipart/form-data with a "file" field.
  * Returns structured ParsedDeliveryPDF data (does NOT modify any DB data).
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // Tenant admins only; the tenant is the caller's verified active tenant.
         const caller = await requireRequestCaller(request, "tenant-admin");
@@ -57,3 +58,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/delivery-import/parse POST", handlePOST);

@@ -28,21 +28,8 @@ function makeFakeSupabase() {
     };
 }
 
-vi.mock("@supabase/ssr", () => ({
-    createServerClient: () => makeFakeSupabase(),
-}));
-
-vi.mock("next/headers", () => ({
-    cookies: async () => ({
-        getAll: () => [],
-    }),
-}));
-
-vi.mock("@/lib/env", () => ({
-    env: {
-        NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "test-anon-key",
-    },
+vi.mock("@/lib/supabase-server", () => ({
+    createSupabaseServerClient: async () => makeFakeSupabase(),
 }));
 
 import { POST, setByPath } from "./route";

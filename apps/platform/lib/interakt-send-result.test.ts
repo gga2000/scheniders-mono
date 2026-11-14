@@ -53,6 +53,7 @@ beforeEach(() => {
         ok: true,
         status: 200,
         json: async () => LIVE_SUCCESS_RESPONSE,
+        text: async () => JSON.stringify(LIVE_SUCCESS_RESPONSE),
     }));
     vi.stubGlobal("fetch", fetchSpy);
 });
@@ -85,6 +86,7 @@ describe("sendTemplateMessage", () => {
             ok: true,
             status: 200,
             json: async () => ({ result: false, message: "Invalid phone number" }),
+        text: async () => JSON.stringify({ result: false, message: "Invalid phone number" }),
         });
 
         const result = await sendTemplateMessage(order);

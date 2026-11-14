@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROVIDER_TIMEOUT_MS } from "@/lib/request-never-sent";
 
 const GRAPH_VERSION = "v21.0";
 const GRAPH_HOST = "https://graph.facebook.com";
@@ -75,6 +76,7 @@ async function fetchInsightRows<T>(
         const res: Response = await fetch(url, {
             headers: { Authorization: `Bearer ${params.accessToken}` },
             cache: "no-store",
+            signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         });
         const body: unknown = await res.json().catch(() => null);
         if (!res.ok) {
@@ -168,6 +170,7 @@ export async function fetchTokenHealth(accessToken: string): Promise<TokenHealth
     const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/debug_token?${query}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
     const body: unknown = await res.json().catch(() => null);
     if (!res.ok) {
@@ -209,6 +212,7 @@ export async function fetchAccountBilling(params: { adAccountId: string; accessT
     const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/act_${params.adAccountId}?${query}`, {
         headers: { Authorization: `Bearer ${params.accessToken}` },
         cache: "no-store",
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
     const body: unknown = await res.json().catch(() => null);
     if (!res.ok) {

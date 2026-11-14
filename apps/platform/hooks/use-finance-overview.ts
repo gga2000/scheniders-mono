@@ -156,6 +156,8 @@ export function useFinanceOverview(
             const non_rejected: Order[] = [];
 
             for (const o of oList) {
+                // A test order is never a sale: the orders bar already leaves it out.
+                if (o.is_test) continue;
                 const value = o.price || 0;
                 const disc = o.discount_amount || 0;
                 const dfee = o.delivery_fee || o.delivery_cost || 0;

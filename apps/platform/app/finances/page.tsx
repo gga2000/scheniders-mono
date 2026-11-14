@@ -236,6 +236,7 @@ function FinancesContent() {
         if (ordersLoading) return;
         exportFinanceHubToCSV({
             language,
+            t,
             overview,
             revenue,
             cash,
@@ -247,6 +248,7 @@ function FinancesContent() {
         if (ordersLoading) return;
         printFinanceHubReport({
             language,
+            t,
             overview,
             revenue,
             cash,

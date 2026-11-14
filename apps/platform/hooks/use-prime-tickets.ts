@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const ticketSchema = z.object({
     ticketId: z.number(),
@@ -82,7 +83,7 @@ export function usePrimeTickets(enabled: boolean) {
         staleTime: 60_000,
         refetchInterval: enabled ? REFRESH_MS : false,
         queryFn: async () => {
-            const res = await fetch("/api/prime/tickets", { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch("/api/prime/tickets", { });
             if (!res.ok) throw new Error(`Prime tickets failed: ${res.status}`);
             return listAnswer.parse(await res.json());
         },
@@ -99,7 +100,7 @@ export function usePrimeTicketChat(ticketId: number | null) {
         staleTime: 30_000,
         refetchInterval: ticketId !== null ? 60_000 : false,
         queryFn: async () => {
-            const res = await fetch(`/api/prime/tickets?id=${ticketId}`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch(`/api/prime/tickets?id=${ticketId}`, { });
             if (!res.ok) throw new Error(`Prime ticket failed: ${res.status}`);
             return chatAnswer.parse(await res.json());
         },
@@ -114,9 +115,9 @@ export function usePrimeTicketWrite() {
     return useCallback(
         async (body: { action: "open"; orderId: string; subjectCode: string; message: string } | { action: "message"; ticketId: number; message: string }) => {
             if (!token) throw new Error("Not signed in");
-            const res = await fetch("/api/prime/tickets", {
+            const res = await authedFetch("/api/prime/tickets", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
             const answer = writeAnswer.parse(await res.json().catch(() => ({ success: false })));

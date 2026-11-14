@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { normalizeIraqiPhone, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
+import { iraqMobileE164, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ async function writeSettings(tenantId: string, value: StaffAlertSettings) {
     if (error) throw new Error(error.message);
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const r = await resolveTenant(request, "member");
     if ("error" in r) return r.error;
     try {
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
     const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
@@ -75,7 +76,7 @@ export async function PUT(request: NextRequest) {
             const normalized: StaffNumberEntry[] = [];
             for (const entry of body.numbers) {
                 const phone = String(entry?.phone || "");
-                const norm = normalizeIraqiPhone(phone);
+                const norm = iraqMobileE164(phone);
                 if (!norm) {
                     return NextResponse.json({ error: `Invalid Iraqi phone: ${phone}` }, { status: 400 });
                 }
@@ -103,17 +104,17 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
         const body = await request.json();
         const phone = String(body?.phone || "");
-        const norm = normalizeIraqiPhone(phone);
+        const norm = iraqMobileE164(phone);
         if (!norm) return NextResponse.json({ error: `Invalid Iraqi phone: ${phone}` }, { status: 400 });
 
         const current = await readSettings(r.tenantId);
-        if (current.numbers.some((n) => normalizeIraqiPhone(n.phone) === norm)) {
+        if (current.numbers.some((n) => iraqMobileE164(n.phone) === norm)) {
             return NextResponse.json(current);
         }
 
@@ -132,16 +133,16 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDELETE(request: NextRequest) {
     const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
         const phone = new URL(request.url).searchParams.get("phone") || "";
-        const norm = normalizeIraqiPhone(phone);
+        const norm = iraqMobileE164(phone);
         if (!norm) return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
 
         const current = await readSettings(r.tenantId);
-        current.numbers = current.numbers.filter((n) => normalizeIraqiPhone(n.phone) !== norm);
+        current.numbers = current.numbers.filter((n) => iraqMobileE164(n.phone) !== norm);
         await writeSettings(r.tenantId, current);
         return NextResponse.json(current);
     } catch (err) {
@@ -151,3 +152,8 @@ export async function DELETE(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/settings/staff-alert GET", handleGET);
+export const PUT = withFailureReport("api/settings/staff-alert PUT", handlePUT);
+export const POST = withFailureReport("api/settings/staff-alert POST", handlePOST);
+export const DELETE = withFailureReport("api/settings/staff-alert DELETE", handleDELETE);

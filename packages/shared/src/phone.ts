@@ -10,8 +10,16 @@
 // An Iraqi mobile is country code 964 + a 10-digit national significant number
 // beginning with 7 (locally written 07XX XXX XXXX). We accept the common ways a
 // customer types it — with +964 / 00964, with or without the national leading
-// 0, and with spaces, dashes, or parens — and reject everything else.
+// 0, with spaces, dashes, or parens, in Latin, Arabic or Persian digits — and
+// reject everything else.
 // =====================================================================
+
+/** Arabic-Indic (٠-٩) and Persian (۰-۹) digits as Latin 0-9; everything else unchanged. */
+export function toLatinDigits(raw: string): string {
+  return raw
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+}
 
 /**
  * Normalize an Iraqi mobile to canonical local form `07XXXXXXXXX` (11 digits),
@@ -21,7 +29,7 @@ export function normalizeIraqiMobile(
   raw: string | null | undefined,
 ): string | null {
   if (!raw) return null;
-  let d = raw.replace(/\D/g, "");
+  let d = toLatinDigits(raw).replace(/\D/g, "");
   if (d.startsWith("00964")) d = d.slice(5);
   else if (d.startsWith("964")) d = d.slice(3);
   if (d.startsWith("0")) d = d.slice(1);

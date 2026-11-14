@@ -3,7 +3,7 @@ import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
-import type { OrderWindow } from "@/lib/order-window";
+import { addDaysToDayKey, baghdadDayStart, type OrderWindow } from "@/lib/order-window";
 import {
     PREVIEW_HEAD_ROWS,
     PREVIEW_PINNED_MAX,
@@ -15,6 +15,7 @@ import { buildStatusUpdate, type StatusUpdateContext } from "@/lib/orders/status
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { ExchangedOrderStatusError, isExchangedOriginalStatusViolation } from "@/lib/order-status-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS, ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 import { runInSequentialBatches, type BatchOutcome, type BulkProgress } from "@/lib/order-bulk-batches";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import {
@@ -414,6 +415,20 @@ const DISPATCH_TWIN_COLUMNS =
 /** One PostgREST page; a store ships ~60 orders a day. */
 const DISPATCH_TWIN_MAX = 1000;
 
+/**
+ * An export's day range in Baghdad days, as created_at bounds: from the start
+ * of the first day up to (not including) the start of the day after the last.
+ * UTC midnights used to cut the file 3 hours off, so orders placed between
+ * midnight and 3 AM Baghdad landed in the previous day's export.
+ */
+export function exportBounds(opts: { dateFrom?: string; dateTo?: string }): { fromTs: string | null; untilTs: string | null } {
+    const day = (value: string) => value.slice(0, 10);
+    return {
+        fromTs: opts.dateFrom ? new Date(baghdadDayStart(day(opts.dateFrom))).toISOString() : null,
+        untilTs: opts.dateTo ? new Date(baghdadDayStart(addDaysToDayKey(day(opts.dateTo), 1))).toISOString() : null,
+    };
+}
+
 export const orderRepository = {
     /**
      * Every active (non-archived, not trashed) order, newest first — the
@@ -498,8 +513,7 @@ export const orderRepository = {
     async findForExport(tenantId: string, opts: { dateFrom?: string; dateTo?: string } = {}): Promise<Order[]> {
         const _t = performance.now();
         const step = 1000;
-        const fromTs = opts.dateFrom ? `${opts.dateFrom}T00:00:00.000Z` : null;
-        const toTs = opts.dateTo ? `${opts.dateTo}T23:59:59.999Z` : null;
+        const { fromTs, untilTs } = exportBounds(opts);
 
         let countQuery = supabase
             .from("orders")
@@ -508,7 +522,7 @@ export const orderRepository = {
             .is("deleted_at", null)
             .eq("is_archived", false);
         if (fromTs) countQuery = countQuery.gte("created_at", fromTs);
-        if (toTs) countQuery = countQuery.lte("created_at", toTs);
+        if (untilTs) countQuery = countQuery.lt("created_at", untilTs);
 
         const { count, error: countErr } = await countQuery;
         if (countErr) throw countErr;
@@ -526,9 +540,11 @@ export const orderRepository = {
                     .is("deleted_at", null)
                     .eq("is_archived", false);
                 if (fromTs) q = q.gte("created_at", fromTs);
-                if (toTs) q = q.lte("created_at", toTs);
+                if (untilTs) q = q.lt("created_at", untilTs);
+                // id breaks created_at ties, so no row lands on two pages or none.
                 return q
                     .order("created_at", { ascending: false })
+                    .order("id", { ascending: false })
                     .range(i * step, i * step + step - 1);
             }),
         );
@@ -589,6 +605,31 @@ export const orderRepository = {
     },
 
     /**
+     * Refund rows paid back inside a range of Baghdad days, whatever day they
+     * were created. Finances files a refund on the day the money went back, so
+     * a refund created in September and paid in October must be read for
+     * October even though the October window (by created_at) never loads it.
+     */
+    async findRefundsPaidBetween(tenantId: string, fromDay: string, toDay: string): Promise<Order[]> {
+        const fromTs = new Date(baghdadDayStart(fromDay)).toISOString();
+        const untilTs = new Date(baghdadDayStart(addDaysToDayKey(toDay, 1))).toISOString();
+        const rows = await fetchAllPages<unknown>((from, to) =>
+            supabase
+                .from("orders")
+                .select(LIST_COLUMNS)
+                .eq("tenant_id", tenantId)
+                .is("deleted_at", null)
+                .eq("is_archived", false)
+                .gte("refund_paid_at", fromTs)
+                .lt("refund_paid_at", untilTs)
+                .order("refund_paid_at", { ascending: false })
+                .order("id", { ascending: false })
+                .range(from, to),
+        );
+        return rows.map((row) => normalizeOrder(row as Order));
+    },
+
+    /**
      * Row count for an export scope, without transferring any rows.
      *
      * The export scope picker advertises "this month — N orders" before the
@@ -603,8 +644,9 @@ export const orderRepository = {
             .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             .eq("is_archived", false);
-        if (opts.dateFrom) q = q.gte("created_at", `${opts.dateFrom}T00:00:00.000Z`);
-        if (opts.dateTo) q = q.lte("created_at", `${opts.dateTo}T23:59:59.999Z`);
+        const { fromTs, untilTs } = exportBounds(opts);
+        if (fromTs) q = q.gte("created_at", fromTs);
+        if (untilTs) q = q.lt("created_at", untilTs);
         const { count, error } = await q;
         if (error) throw error;
         return count ?? 0;

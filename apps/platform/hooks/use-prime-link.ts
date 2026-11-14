@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const connectionSchema = z.object({ success: z.literal(true), connected: z.boolean(), branchName: z.string().nullish() });
 
@@ -60,10 +61,10 @@ const CHUNK = 10;
 const SEND_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [2000, 5000];
 
-async function postChunk(orderIds: string[], token: string): Promise<ChunkResult> {
-    const res = await fetch("/api/prime/send", {
+async function postChunk(orderIds: string[]): Promise<ChunkResult> {
+    const res = await authedFetch("/api/prime/send", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderIds }),
     });
     if (!res.ok) throw new Error(`Sending to Prime failed: ${res.status}`);
@@ -97,7 +98,7 @@ export function usePrimeConnection(): PrimeConnectionState {
         enabled: token !== "",
         staleTime: 5 * 60_000,
         queryFn: async (): Promise<PrimeConnectionState> => {
-            const res = await fetch("/api/prime/connection", { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch("/api/prime/connection", { });
             if (!res.ok) throw new Error(`Prime link status failed: ${res.status}`);
             const answer = connectionSchema.parse(await res.json());
             return { connected: answer.connected, branchName: answer.branchName ?? null, checked: true, failed: false };
@@ -157,7 +158,7 @@ export function usePrimeLink() {
                     }
                     let chunk: ChunkResult;
                     try {
-                        chunk = await postChunk(pending, token);
+                        chunk = await postChunk(pending);
                     } catch (err) {
                         console.error(`Prime send request failed (attempt ${attempt} of ${SEND_ATTEMPTS}):`, err);
                         continue;
