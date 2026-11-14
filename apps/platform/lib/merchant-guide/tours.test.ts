@@ -61,6 +61,11 @@ describe("first-visit offers", () => {
         expect(tourOfferFor("/settings", {}, { ...plain, staff: true })?.id).toBe("team");
         expect(tourOfferFor("/dashboard", {}, plain)).toBeNull();
     });
+
+    it("offers the money tour on the Finances page it walks, not on the new page in preview", () => {
+        expect(tourOfferFor("/finances", {}, plain)?.id).toBe("money");
+        expect(tourOfferFor("/finances/new", {}, plain)).toBeNull();
+    });
 });
 
 describe("words", () => {
