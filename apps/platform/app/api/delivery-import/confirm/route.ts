@@ -218,12 +218,17 @@ async function handlePOST(request: NextRequest) {
             }
             const previousStatus = before.status;
 
-            // An order already delivered (e.g. by the Prime link) keeps its real delivery time.
-            const orderUpdate: Record<string, unknown> = previousStatus === "delivered" ? {} : { delivered_at: now };
+            // An order already delivered (e.g. by the Prime link) or already
+            // completed keeps its real delivery time, and a completed one stays
+            // completed: moving it back to delivered and re-dating it moved its
+            // revenue into another month (audit R3-1).
+            const alreadyDelivered = previousStatus === "delivered" || previousStatus === "completed";
+            const deliveredStatus = previousStatus === "completed" ? "completed" : "delivered";
+            const orderUpdate: Record<string, unknown> = alreadyDelivered ? {} : { delivered_at: now };
 
             const deliveryNotes: string[] = [];
             const attentionReasons: string[] = [];
-            let newStatus = "delivered";
+            let newStatus = deliveredStatus;
 
             if (resAction === "mark_refund_delivered") {
                 newStatus = "refund_delivered";
@@ -242,15 +247,15 @@ async function handlePOST(request: NextRequest) {
             } else if (resAction === "process_with_pdf_price" && pdfRow) {
                 // The amount comes from the receipt row itself, which is stored as raw_data.
                 orderUpdate.price = pdfRow.shipmentAmount;
-                orderUpdate.status = "delivered";
+                orderUpdate.status = deliveredStatus;
                 deliveryNotes.push(`Price updated from delivery PDF: ${pdfRow.shipmentAmount.toLocaleString()} IQD`);
                 attentionReasons.push(`delivery_price_changed`);
             } else if (resAction === "force_deliver") {
-                orderUpdate.status = "delivered";
+                orderUpdate.status = deliveredStatus;
                 deliveryNotes.push(`Force delivered (was: ${previousStatus})`);
                 attentionReasons.push(`delivery_force_delivered`);
             } else {
-                orderUpdate.status = "delivered";
+                orderUpdate.status = deliveredStatus;
             }
 
             if (item.resolutionNote) {

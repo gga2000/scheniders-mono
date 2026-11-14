@@ -23,6 +23,8 @@ const ORDER_GONE = "33333333-3333-4333-8333-333333333333";
 const state = vi.hoisted(() => ({
     importError: null as null | { code: string; message: string },
     auditError: null as null | { message: string },
+    readStatus: "in_transit",
+    readDeliveredAt: null as string | null,
 }));
 
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
@@ -48,6 +50,8 @@ beforeEach(() => {
     resetRecording();
     state.importError = null;
     state.auditError = null;
+    state.readStatus = "in_transit";
+    state.readDeliveredAt = null;
     respond((q) => {
         if (q.target === "delivery_import_items" && q.ops.some((o) => o.op === "insert")) {
             return { data: null, error: state.auditError };
@@ -64,7 +68,7 @@ beforeEach(() => {
             // The server's own read of the orders: what the browser claims is ignored.
             return {
                 data: [ORDER_1, ORDER_2].map((id) => ({
-                    id, status: "in_transit", price: 30000, delivered_at: null,
+                    id, status: state.readStatus, price: 30000, delivered_at: state.readDeliveredAt,
                     needs_attention: false, attention_reasons: null, delivery_note: null,
                 })),
                 error: null,
@@ -143,6 +147,18 @@ describe("POST /api/delivery-import/confirm", () => {
         const [audit] = auditRows();
         expect(audit).toMatchObject({ previous_status: "in_transit", new_status: "delivered" });
         expect(audit.previous_values).toMatchObject({ status: "in_transit", price: 30000, delivered_at: null });
+    });
+
+    it("leaves a completed order completed and keeps its delivery day (audit R3-1)", async () => {
+        state.readStatus = "completed";
+        state.readDeliveredAt = "2026-10-28T09:00:00Z";
+        const res = await post([{ pdfRowNumber: 1, orderId: ORDER_1, matchCategory: "already_delivered", matchDetails: "already completed" }]);
+        expect(res.status).toBe(200);
+        const update = queriesOn("orders").find((q) => q.ops.some((o) => o.op === "update"));
+        const values = update?.ops.find((o) => o.op === "update")?.args[0] as Record<string, unknown>;
+        expect(values.status).toBe("completed");
+        expect(values).not.toHaveProperty("delivered_at");
+        expect(auditRows()[0]).toMatchObject({ previous_status: "completed", new_status: "completed" });
     });
 
     it("fails a row whose order is not in this store instead of writing it", async () => {
