@@ -380,6 +380,9 @@ async function fetchPayrollSource(tenantId: string, fetchStart: string, fetchEnd
                 .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status, refunded_amount")
                 .eq("tenant_id", tenantId)
                 .eq("status", "completed")
+                // A trashed or test order earns no bonus.
+                .is("deleted_at", null)
+                .or("is_test.is.null,is_test.eq.false")
                 .gte("completed_at", wStart)
                 .lte("completed_at", wEnd)
                 .order("completed_at", { ascending: true })

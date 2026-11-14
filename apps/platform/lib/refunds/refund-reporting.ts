@@ -1,6 +1,6 @@
 import type { Order } from "@/types/order";
 
-type ReportedOrder = Pick<Order, "is_return" | "status" | "created_at" | "updated_at">;
+type ReportedOrder = Pick<Order, "is_return" | "status" | "created_at" | "updated_at" | "refund_paid_at">;
 
 /** A row that carries refunded money rather than a sale. */
 export function isRefundRow(o: ReportedOrder): boolean {
@@ -9,12 +9,13 @@ export function isRefundRow(o: ReportedOrder): boolean {
 
 /**
  * When the customer was paid back, or null while the refund is still open or
- * failed. A refund row's last status change is reaching refund_delivered, so
- * its updated_at is the payment time (a later edit of the row moves it).
+ * failed. The database stamps refund_paid_at when the row reaches
+ * refund_delivered, and no later edit moves it. updated_at is only the
+ * fallback for a row read without that column.
  */
 export function refundPaidAt(o: ReportedOrder): Date | null {
     if (o.status !== "refund_delivered") return null;
-    return new Date(o.updated_at || o.created_at);
+    return new Date(o.refund_paid_at || o.updated_at || o.created_at);
 }
 
 /**
