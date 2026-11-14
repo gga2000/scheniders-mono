@@ -5,6 +5,7 @@ import type {
     ParsedPDFRow,
 } from "@/types/delivery-import";
 import { PDFParse } from "pdf-parse";
+import { toLatinDigits } from "@scheniders/shared";
 
 /**
  * Parse a Prime delivery company merchant account statement PDF.
@@ -30,11 +31,28 @@ const COL = {
     ROW_NUM: 11,
 } as const;
 
-/** Remove commas and parse as integer. Handles "-" as 0. */
-function parseAmount(value: string): number {
-    const cleaned = value.replace(/\n/g, "").trim();
+/** A money cell the parser cannot read; the whole row is reported, never guessed. */
+export class UnreadableAmountError extends Error {
+    constructor(readonly cell: string) {
+        super(`unreadable amount "${cell}"`);
+        this.name = "UnreadableAmountError";
+    }
+}
+
+/**
+ * A money cell as a whole number of dinars: "25,000" -> 25000. "-" or an empty
+ * cell is 0. A minus sign may sit on either side ("-5,000" or "5,000-", as
+ * right-to-left statements print it), and Arabic-Indic digits are read as
+ * digits. Anything else throws: a guessed 0 or a misread number would become
+ * an order's price when the merchant picks "use PDF price".
+ */
+export function parseAmount(value: string): number {
+    const cleaned = toLatinDigits(value).replace(/\s+/g, "").replace(/[٬،]/g, ",");
     if (cleaned === "-" || cleaned === "") return 0;
-    return parseInt(cleaned.replace(/,/g, ""), 10) || 0;
+    const match = cleaned.match(/^(-?)(\d{1,3}(?:,\d{3})*|\d+)(-?)$/);
+    if (!match || (match[1] && match[3])) throw new UnreadableAmountError(value);
+    const amount = parseInt(match[2].replace(/,/g, ""), 10);
+    return match[1] || match[3] ? -amount : amount;
 }
 
 /** Clean up newlines in shipment numbers (e.g. "12603020\n01" → "1260302001") */
@@ -61,8 +79,8 @@ function parsePriceChange(text: string): { original: number; newPrice: number } 
     const match = text.match(/([\d,]+)[,،]?\s*(?:ﺇﻟﻰ|إلى|الى)\s*\n?([\d,]+)/);
     if (match) {
         return {
-            original: parseAmount(match[1]),
-            newPrice: parseAmount(match[2]),
+            original: parseAmount(match[1].replace(/,+$/, "")),
+            newPrice: parseAmount(match[2].replace(/,+$/, "")),
         };
     }
     return null;
@@ -125,7 +143,9 @@ function parseFinancials(table: string[][]): ParsedPDFFinancials {
 
 /** Parse a single order row from the table */
 function parseOrderRow(row: string[]): ParsedPDFRow | null {
-    if (row.length < 12) return null;
+    // Exactly the 12 known columns: with one more, every index after it would
+    // read its neighbour (the amount column would hold the fee).
+    if (row.length !== 12) return null;
 
     const rowNumStr = row[COL.ROW_NUM]?.trim();
     const rowNumber = parseInt(rowNumStr, 10);
@@ -206,6 +226,17 @@ function parseOrderRow(row: string[]): ParsedPDFRow | null {
     };
 }
 
+/** The statement's footer total, or 0 with a reported error when unreadable. */
+function footerAmount(cell: string, unreadable: string[]): number {
+    try {
+        return parseAmount(cell);
+    } catch (err) {
+        if (!(err instanceof UnreadableAmountError)) throw err;
+        unreadable.push(`Footer total: ${err.message}`);
+        return 0;
+    }
+}
+
 /**
  * Main entry point: parse a Prime delivery PDF buffer into structured data.
  * Uses pdf-parse's PDFParse class with getText() and getTable() methods.
@@ -231,13 +262,19 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
     };
 
     const rows: ParsedPDFRow[] = [];
+    const unreadable: string[] = [];
     let footerTotal = 0;
 
     for (const page of tableResult.pages) {
         for (const table of page.tables) {
             // Financial summary table (3 columns, 5 rows)
             if (table[0]?.length === 3 && page.num === 1) {
-                financials = parseFinancials(table);
+                try {
+                    financials = parseFinancials(table);
+                } catch (err) {
+                    if (!(err instanceof UnreadableAmountError)) throw err;
+                    unreadable.push(`Balance summary: ${err.message}`);
+                }
                 continue;
             }
 
@@ -255,12 +292,17 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
                         const totalCell = tableRow.find(
                             (c: string) => /[\d,]+/.test(c) && !c.includes("ﺍﻟ")
                         );
-                        if (totalCell) footerTotal = parseAmount(totalCell);
+                        if (totalCell) footerTotal = footerAmount(totalCell, unreadable);
                         continue;
                     }
 
-                    const parsed = parseOrderRow(tableRow);
-                    if (parsed) rows.push(parsed);
+                    try {
+                        const parsed = parseOrderRow(tableRow);
+                        if (parsed) rows.push(parsed);
+                    } catch (err) {
+                        if (!(err instanceof UnreadableAmountError)) throw err;
+                        unreadable.push(`Row ${tableRow[COL.ROW_NUM]?.trim() || "?"}: ${err.message}`);
+                    }
                 }
             }
 
@@ -277,7 +319,7 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
                         const totalCell = tableRow.find((c: string) =>
                             /^[\d,]+$/.test(c.trim())
                         );
-                        if (totalCell) footerTotal = parseAmount(totalCell);
+                        if (totalCell) footerTotal = footerAmount(totalCell, unreadable);
                     }
                 }
             }
@@ -285,7 +327,7 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
     }
 
     // Validation
-    const validationErrors: string[] = [];
+    const validationErrors: string[] = [...unreadable];
 
     if (header.totalShipments > 0 && rows.length !== header.totalShipments) {
         validationErrors.push(
