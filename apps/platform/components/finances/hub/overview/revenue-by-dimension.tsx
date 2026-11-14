@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceTooltip } from "../primitives/finance-tooltip";
+import { formatIqdCompact } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
@@ -100,7 +101,7 @@ function TimeChart({ data }: { data: FinanceOverviewResult }) {
                         tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                         axisLine={false}
                         tickLine={false}
-                        tickFormatter={(v) => abbrev(v as number)}
+                        tickFormatter={(v) => formatIqdCompact(v as number)}
                         width={42}
                     />
                     <Tooltip
@@ -141,7 +142,7 @@ function BarRows({ rows }: { rows: Array<{ label: string; value: number; seconda
                     <div key={r.label} className="group">
                         <div className="flex items-center justify-between text-[12px] mb-0.5">
                             <span className="truncate text-foreground font-medium">{r.label}</span>
-                            <span className="tabular-nums text-foreground font-semibold shrink-0 ml-2">{abbrev(r.value)} IQD</span>
+                            <span className="tabular-nums text-foreground font-semibold shrink-0 ml-2">{formatIqdCompact(r.value)} IQD</span>
                         </div>
                         <div className="relative h-2 rounded-full bg-[var(--background)] overflow-hidden">
                             <div
@@ -165,12 +166,6 @@ function EmptyBlock({ label }: { label: string }) {
     );
 }
 
-function abbrev(n: number): string {
-    const abs = Math.abs(n);
-    if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-    return `${Math.round(n)}`;
-}
 
 function shortLabel(key: string, locale: string): string {
     // yyyy-mm-dd → Mar 14 ;  yyyy-mm → Mar 26 ; otherwise as-is

@@ -10,6 +10,7 @@ import { FinanceTooltip } from "../primitives/finance-tooltip";
 import { FinanceValue } from "../primitives/finance-value";
 import type { AcquisitionMixPoint } from "@/hooks/use-finance-customers";
 import { useLanguage } from "@/hooks/use-language";
+import { formatIqdCompact } from "@scheniders/shared";
 
 interface Props {
     data: AcquisitionMixPoint[];
@@ -93,7 +94,7 @@ export function CustomersAcquisitionMix({ data }: Props) {
                             tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                             axisLine={false}
                             tickLine={false}
-                            tickFormatter={(v) => abbrev(v)}
+                            tickFormatter={(v) => formatIqdCompact(v)}
                             width={48}
                         />
                         <Tooltip
@@ -161,9 +162,3 @@ function prettyLabel(key: string, locale: string, week: (date: string) => string
     return key;
 }
 
-function abbrev(v: number): string {
-    const a = Math.abs(v);
-    if (a >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (a >= 1_000) return `${Math.round(v / 1_000)}K`;
-    return String(Math.round(v));
-}

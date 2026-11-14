@@ -52,3 +52,31 @@ export async function authedFetch(input: string, init: RequestInit = {}): Promis
     if (error || !fresh) return response;
     return send(fresh);
 }
+
+/** The `{ success, data | error }` reply our /api routes send. */
+export type ApiReply<T, Extra extends object = object> =
+    | ({ success: true; data: T } & Extra)
+    | { success: false; error?: string };
+
+/** Thrown when one of our /api routes answered with something that is not JSON. */
+export class ApiUnavailableError extends Error {
+    constructor(readonly status: number) {
+        super(`The server did not answer properly (HTTP ${status}). Check before trying again: the change may already be saved.`);
+        this.name = "ApiUnavailableError";
+    }
+}
+
+/**
+ * Parses a reply from one of our /api routes. A Vercel timeout or gateway
+ * error comes back as an HTML or text page, and a bare `res.json()` turned
+ * that into "Unexpected token 'A'..." in a toast (audit R2 N6). This throws a
+ * plain-words ApiUnavailableError instead.
+ */
+export async function readApiJson<T = unknown>(res: Response): Promise<T> {
+    const text = await res.text();
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        throw new ApiUnavailableError(res.status);
+    }
+}

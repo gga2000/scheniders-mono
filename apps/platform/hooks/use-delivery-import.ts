@@ -8,7 +8,9 @@ import type {
     RowResolution,
     ResolutionAction,
 } from "@/types/delivery-import";
-import { authedFetch } from "@/lib/authed-fetch";
+import { authedFetch, readApiJson, type ApiReply } from "@/lib/authed-fetch";
+
+type ExistingImport = { id: string; created_at: string; status: string } | null;
 
 export type ImportStep = "upload" | "processing" | "review" | "confirming" | "done";
 
@@ -35,11 +37,7 @@ export function useDeliveryImport() {
     // Match results
     const [matches, setMatches] = useState<MatchedRow[]>([]);
     const [summary, setSummary] = useState<DeliveryImportSummary | null>(null);
-    const [existingImport, setExistingImport] = useState<{
-        id: string;
-        created_at: string;
-        status: string;
-    } | null>(null);
+    const [existingImport, setExistingImport] = useState<ExistingImport>(null);
 
     // Confirm results
     const [confirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
@@ -65,7 +63,7 @@ export function useDeliveryImport() {
                     body: formData,
                 });
 
-                const result = await response.json();
+                const result = await readApiJson<ApiReply<ParsedDeliveryPDF, { filename?: string }>>(response);
 
                 if (!result.success) {
                     throw new Error(result.error || "Failed to parse PDF");
@@ -121,7 +119,7 @@ export function useDeliveryImport() {
                     body: JSON.stringify({ parsedPDF: parsed }),
                 });
 
-                const result = await response.json();
+                const result = await readApiJson<ApiReply<{ matches: MatchedRow[]; summary: DeliveryImportSummary; existingImport: ExistingImport }>>(response);
 
                 if (!result.success) {
                     throw new Error(result.error || "Failed to match orders");
@@ -220,7 +218,7 @@ export function useDeliveryImport() {
                     }),
                 });
 
-                const result = await response.json();
+                const result = await readApiJson<ApiReply<ConfirmResult>>(response);
 
                 if (!result.success) {
                     throw new Error(result.error || "Failed to confirm import");
