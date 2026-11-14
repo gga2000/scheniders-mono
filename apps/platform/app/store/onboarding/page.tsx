@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { needsStoreOnboarding } from "@/lib/store-onboarding-state";
-import { env } from "@/lib/env";
 import { OnboardingWizard } from "@/components/store-onboarding/onboarding-wizard";
 import { FALLBACK_INDUSTRIES, type WizardIndustry } from "@/lib/wizard-industry-types";
 
@@ -23,26 +21,9 @@ interface TenantMemberRow {
     } | null;
 }
 
-async function getServerSupabase() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll() {
-                    // No-op in a Server Component.
-                },
-            },
-        },
-    );
-}
 
 export default async function StoreOnboardingPage() {
-    const supabase = await getServerSupabase();
+    const supabase = await createSupabaseServerClient();
 
     const {
         data: { user },

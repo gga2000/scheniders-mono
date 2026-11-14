@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
+import { PERMISSIONS } from "@/lib/permissions";
 import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import {
     buildProductCopyMessages,
@@ -19,7 +20,12 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     // Paid Anthropic call: store members only, capped per store per hour.
-    const caller = await requireMeteredCaller(request, { bucket: "ai-product-copy", limit: 40, windowSeconds: 3600 });
+    const caller = await requireMeteredCaller(request, {
+        bucket: "ai-product-copy",
+        limit: 40,
+        windowSeconds: 3600,
+        permission: PERMISSIONS.EDIT_PRODUCTS,
+    });
     if (!caller.ok) return caller.response;
 
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
