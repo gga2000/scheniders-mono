@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { maskIraqiMobile, normalizeIraqiMobile } from "@scheniders/shared";
+import { CONFIRMATION_TEMPLATE_NAMES } from "@scheniders/shared/whatsapp-templates";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import {
   UPSELL_WINDOW_MS,
@@ -37,10 +38,6 @@ export const runtime = "nodejs";
 
 const PROOF_HEADER = "x-upsell-proof";
 
-/** The template the platform's dispatcher sends as the instant order
- *  confirmation (apps/platform/lib/interakt.ts TEMPLATE_NAMES.confirmation)
- *  and logs to whatsapp_logs.template_name. */
-const CONFIRMATION_TEMPLATE = "cod_order_confirm";
 
 /** Statuses in which the order is still waiting for its confirmation call. */
 const AWAITING_CALL: readonly string[] = ["new", "contacted"];
@@ -122,7 +119,7 @@ async function confirmationSent(
     .eq("order_uuid", orderId)
     .eq("tenant_id", tenantId)
     .eq("direction", "outbound")
-    .eq("template_name", CONFIRMATION_TEMPLATE)
+    .in("template_name", [...CONFIRMATION_TEMPLATE_NAMES])
     .eq("status", "sent")
     .limit(1);
   if (error) throw new ContactReadError(`send log read failed: ${error.message}`);

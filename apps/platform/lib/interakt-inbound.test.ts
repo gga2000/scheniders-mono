@@ -18,6 +18,7 @@ describe("Interakt inbound payload", () => {
         });
         expect(extractResponseText(p.data)).toBe("تأكيد ✅");
         expect(matchResponse("تأكيد ✅")).toBe("confirmed");
+        expect(matchResponse("تأكيد الطلب")).toBe("confirmed");
         expect(extractCallbackData(p.data)).toBe("order-1");
         expect(extractPhone(p.data)).toBe("9647801234567");
     });
@@ -27,6 +28,7 @@ describe("Interakt inbound payload", () => {
         expect(p.type).toBeUndefined();
         expect(extractResponseText(p.data)).toBe("إلغاء");
         expect(matchResponse("إلغاء")).toBe("cancelled");
+        expect(matchResponse("إلغاء الطلب")).toBe("cancelled");
         expect(extractPhone(p.data)).toBeNull();
     });
 

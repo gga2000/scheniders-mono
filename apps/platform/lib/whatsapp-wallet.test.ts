@@ -12,6 +12,9 @@ vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
     shopCanPayForWhatsApp: (tenantId: string) => canPay(tenantId),
 }));
+vi.mock("@/lib/supabase-server", async () =>
+    (await import("@/lib/testing/store-contact-service-client")).storeContactSupabaseServer);
+
 vi.mock("@/lib/env", () => ({
     env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz", INTERAKT_SENDER_TENANT_IDS: "11111111-1111-4111-8111-111111111111", NEXT_PUBLIC_SUPABASE_URL: "http://localhost", NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon" },
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },

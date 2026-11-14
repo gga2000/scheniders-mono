@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Order } from "@/types/order";
 
 /*
- * {{7}} on cod_order_confirm (and on the staff new-order alert) quotes what
+ * {{7}} on cod_order_confirm_v3 (and on the staff new-order alert) quotes what
  * the courier will collect.
  *
  * Every source stores `price` net of the discount (lib/order-money). A
@@ -18,6 +18,9 @@ vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
     shopCanPayForWhatsApp: vi.fn(async () => true),
 }));
+
+vi.mock("@/lib/supabase-server", async () =>
+    (await import("@/lib/testing/store-contact-service-client")).storeContactSupabaseServer);
 
 vi.mock("@/lib/env", () => ({
     env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz", INTERAKT_SENDER_TENANT_IDS: "11111111-1111-4111-8111-111111111111" },
@@ -60,11 +63,17 @@ function order(overrides: Record<string, unknown>): Order {
     } as unknown as Order;
 }
 
-function sentTotal(): string {
+function sentBody(): { name: string; bodyValues: string[] } {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
-        template: { bodyValues: string[] };
+        template: { name: string; bodyValues: string[] };
     };
-    return body.template.bodyValues[6];
+    return body.template;
+}
+
+/** The courier amount: {{7}} on cod_order_confirm_v3 and on the staff alert. */
+function sentTotal(): string {
+    const t = sentBody();
+    return t.bodyValues[6];
 }
 
 describe("{{7}} on storefront orders: price (net) + delivery", () => {
@@ -73,7 +82,7 @@ describe("{{7}} on storefront orders: price (net) + delivery", () => {
             order({ source: "storefront", price: 36000, discount_amount: 4000, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 41,000");
+        expect(sentTotal()).toBe("41,000 د.ع");
     });
 
     it("confirmation adds delivery when there is no discount", async () => {
@@ -81,7 +90,7 @@ describe("{{7}} on storefront orders: price (net) + delivery", () => {
             order({ source: "storefront", price: 35000, discount_amount: 0, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 40,000");
+        expect(sentTotal()).toBe("40,000 د.ع");
     });
 
     it("confirmation treats a missing fee as zero", async () => {
@@ -89,7 +98,7 @@ describe("{{7}} on storefront orders: price (net) + delivery", () => {
             order({ source: "storefront", price: 35000, discount_amount: null, delivery_fee: null }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 35,000");
+        expect(sentTotal()).toBe("35,000 د.ع");
     });
 
     it("the staff alert quotes the same amount", async () => {
@@ -107,7 +116,7 @@ describe("{{7}} on every other source: price, exactly as before", () => {
             order({ source: "lightfunnels", price: 34750, discount_amount: 0, delivery_fee: 0 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 34,750");
+        expect(sentTotal()).toBe("34,750 د.ع");
     });
 
     it("a Lightfunnels order staff later gave a discount and a fee (price is already net)", async () => {
@@ -115,7 +124,7 @@ describe("{{7}} on every other source: price, exactly as before", () => {
             order({ source: "lightfunnels", price: 30000, discount_amount: 4750, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 30,000");
+        expect(sentTotal()).toBe("30,000 د.ع");
     });
 
     it("the staff alert for that Lightfunnels order", async () => {
@@ -131,6 +140,6 @@ describe("{{7}} on every other source: price, exactly as before", () => {
             order({ source: "whatsapp", price: 25000, discount_amount: 2500, delivery_fee: 5000 }),
             "confirmation",
         );
-        expect(sentTotal()).toBe("IQD 25,000");
+        expect(sentTotal()).toBe("25,000 د.ع");
     });
 });
