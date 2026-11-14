@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
+
+const completeSchema = z.object({
+    importId: z.uuid(),
+    /** IQD, whole and not negative; absent when the courier's cash is not counted yet. */
+    actualAmountReceived: z.number().int().nonnegative().nullable().optional(),
+});
 
 /**
  * POST /api/delivery-import/complete
@@ -15,15 +22,16 @@ async function handlePOST(request: NextRequest) {
         const caller = await requireRequestCaller(request, "tenant-admin");
         if (!caller.ok) return caller.response;
 
-        const body = await request.json();
-        const { importId, actualAmountReceived } = body;
-
-        if (!importId) {
+        // Checked before any write: a formatted string or a negative amount
+        // used to complete the orders and then fail on the record.
+        const parsed = completeSchema.safeParse(await request.json().catch(() => null));
+        if (!parsed.success) {
             return NextResponse.json(
-                { success: false, error: "Missing importId" },
+                { success: false, error: `Invalid request: ${parsed.error.issues[0]?.message ?? "bad body"}` },
                 { status: 400 }
             );
         }
+        const { importId, actualAmountReceived } = parsed.data;
 
         const supabaseAdmin = createSupabaseServiceClient();
 

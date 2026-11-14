@@ -1,10 +1,10 @@
 "use client";
 
 import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, LogIn } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle2, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -46,11 +46,19 @@ function SuccessCheck() {
     );
 }
 
+/**
+ * Where to go after signing in. Read from the address bar when it is needed,
+ * not through useSearchParams: that hook kept the whole form out of the server
+ * HTML (behind Suspense), so the login card stayed blank until all JS had run.
+ */
+function readReturnTo(): string {
+    return safeRedirectPath(new URLSearchParams(window.location.search).get("returnTo"));
+}
+
 function LoginForm() {
     const { t } = useLanguage();
     const dir = useTextDir();
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { signIn, signInWithGoogle, user, isLoading: authLoading } = useAuth();
 
     const [email, setEmail] = useState("");
@@ -62,21 +70,19 @@ function LoginForm() {
     const [success, setSuccess] = useState<string | null>(null);
     const captcha = useAuthCaptcha();
 
-    const returnTo = safeRedirectPath(searchParams.get("returnTo"));
-
     // Redirect if already logged in
     useEffect(() => {
         if (user && !authLoading) {
-            router.push(returnTo);
+            router.push(readReturnTo());
         }
-    }, [user, authLoading, router, returnTo]);
+    }, [user, authLoading, router]);
 
     // Check for password reset success
     useEffect(() => {
-        if (searchParams.get("reset") === "success") {
+        if (new URLSearchParams(window.location.search).get("reset") === "success") {
             setSuccess("Password updated successfully! Please sign in with your new password.");
         }
-    }, [searchParams]);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,7 +108,7 @@ function LoginForm() {
 
             // Success — redirect
             setSuccess("Welcome back! Redirecting...");
-            router.push(returnTo);
+            router.push(readReturnTo());
         } catch {
             captcha.reset();
             setError("An unexpected error occurred. Please try again.");
@@ -115,7 +121,7 @@ function LoginForm() {
         setIsLoading(true);
         // signInWithOAuth redirects the browser to Google on success; an error
         // means the redirect never started (e.g. the provider isn't enabled yet).
-        const { error: oauthError } = await signInWithGoogle(returnTo);
+        const { error: oauthError } = await signInWithGoogle(readReturnTo());
         if (oauthError) {
             setError(oauthError.message);
             setIsLoading(false);
@@ -365,15 +371,7 @@ function LoginForm() {
 export default function LoginPage() {
     return (
         <AuthCardShell showBack={false}>
-            <Suspense
-                fallback={
-                    <div className="px-6 sm:px-8 py-16 flex items-center justify-center">
-                        <Loader2 className="w-7 h-7 animate-spin text-[#1E1E1E]" />
-                    </div>
-                }
-            >
-                <LoginForm />
-            </Suspense>
+            <LoginForm />
         </AuthCardShell>
     );
 }

@@ -9,8 +9,11 @@ const pathname = vi.hoisted(() => ({ current: "/" }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+const guard = vi.hoisted(() => ({ holding: false }));
 vi.mock("@/components/auth/role-guard", () => ({
-    PageGuard: ({ children }: { children: ReactNode }) => <>{children}</>,
+    // A restricted page still waiting for the member's role.
+    PageGuard: ({ children }: { children: ReactNode }) =>
+        guard.holding ? <div data-testid="page-skeleton" /> : <>{children}</>,
 }));
 vi.mock("@/components/billing/trial-banner", () => ({
     TrialBanner: () => <div data-testid="trial-banner" />,
@@ -25,6 +28,7 @@ import { DashboardLayout } from "./dashboard-layout";
 
 afterEach(() => {
     cleanup();
+    guard.holding = false;
 });
 
 describe("DashboardLayout", () => {
@@ -55,5 +59,19 @@ describe("DashboardLayout", () => {
         // Everything the root layout mounts beside the page still renders.
         expect(screen.getByTestId("page")).toBeTruthy();
         expect(screen.getByTestId("chat-runtime")).toBeTruthy();
+    });
+
+    it("paints the sidebar and top bar while a restricted page waits for the role (audit R2 speed #3)", () => {
+        pathname.current = "/finances";
+        guard.holding = true;
+        render(
+            <DashboardLayout>
+                <p data-testid="page" />
+            </DashboardLayout>,
+        );
+        expect(screen.getByTestId("oms-sidebar")).toBeTruthy();
+        expect(screen.getByTestId("oms-topbar")).toBeTruthy();
+        expect(screen.getByTestId("page-skeleton")).toBeTruthy();
+        expect(screen.queryByTestId("page")).toBeNull();
     });
 });

@@ -33,7 +33,7 @@ const METRICS_REFRESH_DEBOUNCE_MS = 1_500;
  * so each tenant only ever aggregates its own orders.
  */
 export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
     const queryClient = useQueryClient();
 
     // ENG-D2: nothing used to invalidate these metrics, so the dashboard could sit
@@ -64,14 +64,17 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
     }, [queryClient]);
 
     return useQuery<DashboardMetrics>({
-        queryKey: ["dashboard-metrics", range],
+        queryKey: ["dashboard-metrics", range, tenantId],
         queryFn: async () => {
+            if (!tenantId) throw new Error("dashboard metrics requested without a shop");
             const _t = performance.now();
             perfTrace.markRepeat("dashboard-metrics:fetch-start", { range });
             diag.log(`[Diag:RQ:Metrics] get_dashboard_metrics START range=${range}`);
 
+            // Named shop: a member of two shops must see only the one open (audit R2 N4).
             const { data, error } = await supabase.rpc("get_dashboard_metrics", {
                 p_range: range,
+                p_tenant_id: tenantId,
             });
 
             if (error) {
@@ -108,7 +111,7 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
             return parsed.data;
         },
         // Same auth gate as orders: wait for the client's session to be ready.
-        enabled: !!session && clientReady,
+        enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         gcTime: CACHE_PRESETS.FREQUENT.gcTime,
         refetchOnWindowFocus: true,

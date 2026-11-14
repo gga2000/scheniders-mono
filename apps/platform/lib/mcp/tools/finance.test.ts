@@ -13,7 +13,7 @@ vi.mock("@/lib/auth/member-has-permission", () => ({
     memberHasPermission: (...a: [{ role: string }]) => memberHasPermission(...a),
 }));
 
-import { firstNonNullWithin, registerFinanceTools } from "./finance";
+import { firstNonNullWithin, REFUNDED_AT, registerFinanceTools } from "./finance";
 
 type Handler = (args: Record<string, unknown>, ctx: unknown) => Promise<{ content: { text: string }[]; isError?: boolean }>;
 
@@ -77,6 +77,15 @@ beforeEach(() => {
 describe("firstNonNullWithin", () => {
     it("is COALESCE written as one branch per column", () => {
         expect(firstNonNullWithin(["a", "b"], "S", "E")).toBe("and(a.gte.S,a.lt.E),and(a.is.null,b.gte.S,b.lt.E)");
+    });
+});
+
+describe("refund date", () => {
+    it("files a refund on the day the money went back, as Finances does", () => {
+        // Audit R2 N3: refunded_at is never set, so delivered_at (often the
+        // original order's) put 40 of 93 live refunds in another month.
+        expect(REFUNDED_AT[0]).toBe("refund_paid_at");
+        expect(REFUNDED_AT).not.toContain("delivered_at");
     });
 });
 
