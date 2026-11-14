@@ -79,19 +79,26 @@ const openRefillSchema = qiPaymentRowSchema.extend({ created_at: z.string() });
 /** How long a refill without a Qi payment id may stay open before it counts as failed. */
 const UNOPENED_GIVE_UP_MS = 24 * 60 * 60 * 1000;
 
+/** Open payments older than this are re-checked with Qi: the webhook and the shop's return check had their chance. */
+const RECHECK_AFTER_MS = 5 * 60 * 1000;
+/** A payment still unpaid after this was abandoned on Qi's page; stop asking. */
+const RECHECK_FOR_MS = 2 * 24 * 60 * 60 * 1000;
+
 /**
- * Settle refills a missed webhook left open, so a store is never stuck: one
- * open refill blocks the next. A refill whose charge request never returned a
- * payment id is closed as failed after a day, by when Qi's webhook (which
- * repeats until answered) would have attached it.
+ * Settle payments both the webhook and the shop's return check missed, so a
+ * paid top-up is always credited and a store is never stuck (one open refill
+ * blocks the next). A refill whose charge request never returned a payment id
+ * is closed as failed after a day, by when Qi's webhook (which repeats until
+ * answered) would have attached it.
  */
-async function recoverOpenRefills(admin: Admin, config: QiConfig): Promise<number> {
+async function recoverOpenPayments(admin: Admin, config: QiConfig): Promise<number> {
     const { data, error } = await admin
         .from("qi_payments")
         .select(`${QI_PAYMENT_COLUMNS}, created_at`)
-        .eq("kind", "auto_refill")
         .eq("status", "created")
-        .lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .lt("created_at", new Date(Date.now() - RECHECK_AFTER_MS).toISOString())
+        .gt("created_at", new Date(Date.now() - RECHECK_FOR_MS).toISOString())
+        .order("created_at", { ascending: true })
         .limit(50);
     if (error) throw error;
     let settled = 0;
@@ -102,9 +109,9 @@ async function recoverOpenRefills(admin: Admin, config: QiConfig): Promise<numbe
                 const result = await settleQiPayment(config, row);
                 if (result.success && result.status !== "created") settled += 1;
             } catch (err) {
-                console.error("[qi-auto-refill] recovery settle failed", { id: row.id, error: String(err) });
+                console.error("[qi-auto-refill] re-check failed", { id: row.id, error: String(err) });
             }
-        } else if (Date.parse(row.created_at) < Date.now() - UNOPENED_GIVE_UP_MS) {
+        } else if (row.kind === "auto_refill" && Date.parse(row.created_at) < Date.now() - UNOPENED_GIVE_UP_MS) {
             console.error("[qi-auto-refill] refill never opened at Qi, closing as failed", { id: row.id, tenant: row.tenant_id });
             await failUnopened(admin, row.id);
             settled += 1;
@@ -119,7 +126,8 @@ async function recoverOpenRefills(admin: Admin, config: QiConfig): Promise<numbe
  * decides who and how much). Each charge is a qi_payments row (kind
  * auto_refill) settled exactly like a top-up the shop pays itself: the wallet
  * is credited only from Qi's status, once. A failed charge is counted; 3 in a
- * row switch auto refill off and tell the store.
+ * row switch auto refill off and tell the store. Each run also re-checks
+ * open payments, top-ups included, that Qi's webhook never closed.
  */
 async function runScheduled(request: Request) {
     const denied = requireCronAuth(request);
@@ -151,7 +159,7 @@ async function runScheduled(request: Request) {
         results.push({ tenant_id: store.tenant_id, amount: row.amount_iqd, outcome: await charge(admin, config, origin, row, store.token) });
     }
 
-    const recovered = await recoverOpenRefills(admin, config);
+    const recovered = await recoverOpenPayments(admin, config);
 
     const errors = results.filter((r) => r.outcome === "error").length;
     console.log(`[qi-auto-refill] ${due.length} due: ${results.map((r) => r.outcome).join(", ") || "none"}; recovered ${recovered}`);

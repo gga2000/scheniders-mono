@@ -107,6 +107,29 @@ describe("qi-auto-refill cron", () => {
         expect(queriesOn("settle_qi_payment")).toEqual([]);
     });
 
+    it("re-checks a paid top-up whose webhook and return check were both missed", async () => {
+        due = [];
+        open = [{ ...row({ kind: "topup", qi_payment_id: PAYMENT }), created_at: new Date(Date.now() - 60 * 60_000).toISOString() }];
+        vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(json(200, paid(ROW)))));
+
+        const res = await GET(cronRequest());
+        expect(await res.json()).toMatchObject({ success: true, recovered: 1 });
+        expect(queriesOn("settle_qi_payment")[0].rpcArgs).toMatchObject({ _id: ROW, _qi_status: "SUCCESS" });
+        const recheck = recorded.find((q) => q.target === "qi_payments" && isOp(q, "lt"));
+        expect(recheck?.ops.some((o) => o.op === "eq" && o.args[0] === "kind")).toBe(false);
+        expect(recheck?.ops.some((o) => o.op === "gt" && o.args[0] === "created_at")).toBe(true);
+    });
+
+    it("never fails a top-up the shop simply did not open", async () => {
+        due = [];
+        open = [{ ...row({ kind: "topup" }), created_at: new Date(Date.now() - 30 * 3_600_000).toISOString() }];
+        vi.stubGlobal("fetch", vi.fn());
+
+        const res = await GET(cronRequest());
+        expect(await res.json()).toMatchObject({ success: true, recovered: 0 });
+        expect(queriesOn("fail_qi_auto_refill")).toEqual([]);
+    });
+
     it("settles a refill a missed webhook left open, and gives up on one Qi never opened after a day", async () => {
         due = [];
         open = [
