@@ -3,8 +3,8 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { withFailureReport } from "@/lib/job-monitor";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { qiConfigFromEnv, qiWebhookSchema, verifyQiSignature } from "@/lib/qi/client";
-import { settleQiPayment, type QiPaymentRow } from "@/lib/qi/settle";
+import { getQiPaymentStatus, qiConfigFromEnv, qiWebhookSchema, verifyQiSignature, type QiPayment } from "@/lib/qi/client";
+import { QI_PAYMENT_COLUMNS, qiPaymentRowSchema, settleQiPayment } from "@/lib/qi/settle";
 
 export const dynamic = "force-dynamic";
 
@@ -37,16 +37,30 @@ async function handlePOST(request: NextRequest) {
     const id = z.string().uuid().safeParse(parsed.data.requestId);
     if (!id.success) return NextResponse.json({ ok: true, ignored: "not_ours" });
 
-    const { data: row, error } = await createSupabaseServiceClient()
-        .from("qi_payments")
-        .select("id, tenant_id, qi_payment_id, status")
-        .eq("id", id.data)
-        .eq("qi_payment_id", parsed.data.paymentId)
-        .maybeSingle();
+    const admin = createSupabaseServiceClient();
+    const { data: found, error } = await admin.from("qi_payments").select(QI_PAYMENT_COLUMNS).eq("id", id.data).maybeSingle();
     if (error) throw error;
-    if (!row) return NextResponse.json({ ok: true, ignored: "not_ours" });
+    if (!found) return NextResponse.json({ ok: true, ignored: "not_ours" });
+    let row = qiPaymentRowSchema.parse(found);
 
-    const result = await settleQiPayment(config, row as QiPaymentRow);
+    let known: QiPayment | undefined;
+    if (row.qi_payment_id === null && row.kind === "auto_refill") {
+        // An auto refill whose charge request timed out never learned Qi's
+        // payment id. Attach it only when Qi's own status API says this payment
+        // was opened for this row.
+        known = await getQiPaymentStatus(config, parsed.data.paymentId);
+        if (known.requestId !== row.id) return NextResponse.json({ ok: true, ignored: "not_ours" });
+        const { error: attachError } = await admin
+            .from("qi_payments")
+            .update({ qi_payment_id: known.paymentId })
+            .eq("id", row.id)
+            .is("qi_payment_id", null);
+        if (attachError) throw attachError;
+        row = { ...row, qi_payment_id: known.paymentId };
+    }
+    if (row.qi_payment_id !== parsed.data.paymentId) return NextResponse.json({ ok: true, ignored: "not_ours" });
+
+    const result = await settleQiPayment(config, row, known);
     if (!result.success) {
         console.error("[qi] webhook settle refused", { id: row.id, error: result.error });
         return NextResponse.json({ ok: true, ignored: result.error });

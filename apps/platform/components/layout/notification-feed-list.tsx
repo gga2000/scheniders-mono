@@ -147,6 +147,9 @@ export function NotificationFeedList({
                 return t("notifications.wallet.topupApproved", { amount: money(payloadNumber(n, "amount")) });
             case "wallet.topup_rejected":
                 return t("notifications.wallet.topupRejected", { amount: money(payloadNumber(n, "amount")) });
+            case "wallet.auto_refill_failed":
+                return t(n.payload.stopped === true ? "notifications.wallet.autoRefillStopped" : "notifications.wallet.autoRefillFailed",
+                    { amount: money(payloadNumber(n, "amount")) });
             case "customer.review_created": {
                 const rating = typeof n.payload.rating === "number" ? n.payload.rating : null;
                 return t("notifications.msgReview",

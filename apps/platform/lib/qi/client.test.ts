@@ -1,6 +1,6 @@
 import { createSign, generateKeyPairSync } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { QiApiError, createQiPayment, getQiPaymentStatus, qiSignedString, verifyQiSignature } from "./client";
+import { QiApiError, blockQiToken, chargeQiToken, createQiPayment, getQiPaymentStatus, qiSignedString, verifyQiSignature } from "./client";
 
 const config = { baseUrl: "https://qi.test/api/v1", terminalId: "237984", username: "u", password: "p" };
 
@@ -101,6 +101,71 @@ describe("Qi API calls", () => {
         const fetchMock = vi.fn();
         vi.stubGlobal("fetch", fetchMock);
         await expect(getQiPaymentStatus(config, "../admin")).rejects.toBeInstanceOf(QiApiError);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("asks Qi for an AUTH token only when the shop saves its card", async () => {
+        const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(json(200, { ...paid, status: "CREATED", formUrl: "https://qi.test/pay/1" })));
+        vi.stubGlobal("fetch", fetchMock);
+        const input = {
+            requestId: paid.requestId,
+            amountIqd: 25_000,
+            finishPaymentUrl: "https://app.test/f",
+            notificationUrl: "https://app.test/api/webhooks/qi",
+            locale: "en_US" as const,
+        };
+        await createQiPayment(config, input);
+        await createQiPayment(config, { ...input, saveCard: true });
+        const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+        expect(bodies[0]).not.toHaveProperty("needPaymentToken");
+        expect(bodies[1]).toMatchObject({ needPaymentToken: true, tokenType: "AUTH" });
+    });
+
+    it("reads the saved card token from a paid status", async () => {
+        const token = { token: "b6d6f1d0-5c4e-4bc1-9d38-0f6b6f0e3a11", type: "AUTH", validTo: "2032-01-31T23:59:59" };
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(200, { ...paid, paymentToken: token })));
+        const payment = await getQiPaymentStatus(config, paid.paymentId);
+        expect(payment.paymentToken).toEqual(token);
+    });
+
+    it("charges a saved card as a recurring payment without the shop", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(json(200, paid));
+        vi.stubGlobal("fetch", fetchMock);
+        await chargeQiToken(config, {
+            requestId: paid.requestId,
+            amountIqd: 25_000,
+            token: "tok-1",
+            finishPaymentUrl: "https://app.test/f",
+            notificationUrl: "https://app.test/api/webhooks/qi",
+        });
+        expect(JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string)).toMatchObject({
+            amount: 25_000,
+            currency: "IQD",
+            recurrent: true,
+            withoutAuthenticate: true,
+            paymentData: { paymentType: "PAYMENT_TOKEN", paymentToken: "tok-1" },
+        });
+    });
+
+    it("blocks a token, and treats already blocked or unknown as done", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(new Response(null, { status: 200 }))
+            .mockResolvedValueOnce(json(400, { error: { code: 5, description: "Token is blocked" } }))
+            .mockResolvedValueOnce(json(400, { error: { code: 31, description: "Token not found" } }))
+            .mockResolvedValueOnce(json(400, { error: { code: 99, description: "Other" } }));
+        vi.stubGlobal("fetch", fetchMock);
+        await blockQiToken(config, "tok-1", "r1");
+        await blockQiToken(config, "tok-1", "r2");
+        await blockQiToken(config, "tok-1", "r3");
+        await expect(blockQiToken(config, "tok-1", "r4")).rejects.toMatchObject({ code: 99 });
+        expect(fetchMock.mock.calls[0][0]).toBe("https://qi.test/api/v1/token/tok-1/block");
+    });
+
+    it("never puts an odd token into the URL", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        await expect(blockQiToken(config, "../x", "r")).rejects.toBeInstanceOf(QiApiError);
         expect(fetchMock).not.toHaveBeenCalled();
     });
 });

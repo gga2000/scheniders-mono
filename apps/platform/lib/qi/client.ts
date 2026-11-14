@@ -44,9 +44,6 @@ export class QiApiError extends Error {
     }
 }
 
-/** Statuses Qi documents; anything else is kept as a string and treated as "not final". */
-export const QI_FINAL_STATUSES = ["SUCCESS", "FAILED", "AUTHENTICATION_FAILED"] as const;
-
 const paymentSchema = z.object({
     requestId: z.string(),
     paymentId: z.string().regex(/^[0-9A-Za-z-]{1,64}$/),
@@ -57,6 +54,15 @@ const paymentSchema = z.object({
     creationDate: z.string().optional(),
     formUrl: z.string().url().optional(),
     details: z.object({ maskedPan: z.string().optional() }).passthrough().optional(),
+    /** Present when the payment asked Qi to save the card and it was paid. */
+    paymentToken: z
+        .object({
+            token: z.string().regex(/^[0-9A-Za-z-]{1,100}$/),
+            type: z.enum(["AUTH", "NON_RECUR", "UNAUTH"]),
+            /** Qi sends it without a time zone; it is UTC. */
+            validTo: z.string().optional(),
+        })
+        .optional(),
 });
 export type QiPayment = z.infer<typeof paymentSchema>;
 
@@ -97,6 +103,8 @@ export interface CreateQiPaymentInput {
     /** Our webhook. Must be public https. */
     notificationUrl: string;
     locale: "ar_IQ" | "en_US";
+    /** Ask Qi to keep the card (an AUTH token, which we may charge later without the shop). */
+    saveCard?: boolean;
 }
 
 /** Open a payment; the shop pays on the returned formUrl. */
@@ -110,10 +118,67 @@ export async function createQiPayment(config: QiConfig, input: CreateQiPaymentIn
             locale: input.locale,
             finishPaymentUrl: input.finishPaymentUrl,
             notificationUrl: input.notificationUrl,
+            ...(input.saveCard ? { needPaymentToken: true, tokenType: "AUTH" } : {}),
         },
     });
     if (!payment.formUrl) throw new QiApiError("Qi opened the payment without a payment page", 200);
     return { ...payment, formUrl: payment.formUrl };
+}
+
+export interface ChargeQiTokenInput {
+    requestId: string;
+    amountIqd: number;
+    token: string;
+    finishPaymentUrl: string;
+    notificationUrl: string;
+}
+
+/**
+ * Charge a saved card without the shop present (auto refill). Needs an AUTH
+ * token and recurring payments switched on for the terminal. Qi usually
+ * answers with the final status at once; the webhook follows as for any payment.
+ */
+export function chargeQiToken(config: QiConfig, input: ChargeQiTokenInput): Promise<QiPayment> {
+    return call(config, "/payment", {
+        method: "POST",
+        body: {
+            requestId: input.requestId,
+            amount: input.amountIqd,
+            currency: "IQD",
+            recurrent: true,
+            withoutAuthenticate: true,
+            paymentData: { paymentType: "PAYMENT_TOKEN", paymentToken: input.token },
+            finishPaymentUrl: input.finishPaymentUrl,
+            notificationUrl: input.notificationUrl,
+        },
+    });
+}
+
+/** Qi's answer when the token is already blocked (5) or unknown (31): either way it can no longer be charged. */
+const TOKEN_ALREADY_GONE = new Set([5, 31]);
+
+/** Stop a saved card from ever being charged again. */
+export async function blockQiToken(config: QiConfig, token: string, requestId: string): Promise<void> {
+    if (!/^[0-9A-Za-z-]{1,100}$/.test(token)) throw new QiApiError("Bad token", 400);
+    const auth = Buffer.from(`${config.username}:${config.password}`).toString("base64");
+    const response = await fetch(`${config.baseUrl}/token/${token}/block`, {
+        method: "POST",
+        headers: {
+            Authorization: `Basic ${auth}`,
+            "X-Terminal-Id": config.terminalId,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ requestId }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+    });
+    if (response.ok) return;
+    const parsed = errorSchema.safeParse(await response.json().catch(() => null));
+    if (parsed.success && TOKEN_ALREADY_GONE.has(parsed.data.error.code)) return;
+    throw parsed.success
+        ? new QiApiError(parsed.data.error.description, response.status, parsed.data.error.code)
+        : new QiApiError(`Qi answered ${response.status}`, response.status);
 }
 
 /** Read a payment's current state from Qi. This is the only status we act on. */

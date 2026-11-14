@@ -52,6 +52,7 @@ export const CRON_MONITORS = {
     metaAdsSyncQstash: frequent("meta-ads-sync-qstash", "*/5 * * * *", 1),
     primeSync: frequent("prime-sync", "*/5 * * * *", 1),
     waseetLocations: daily("waseet-locations", "0 3 * * 1", 5),
+    qiAutoRefill: frequent("qi-auto-refill", "*/10 * * * *", 1),
 } as const satisfies Record<string, CronMonitor>;
 
 /** Paths in vercel.json, for the drift test. QStash-only monitors map to null. */
@@ -66,6 +67,7 @@ export const VERCEL_CRON_PATHS: Record<keyof typeof CRON_MONITORS, string | null
     metaAdsSyncQstash: null,
     primeSync: "/api/cron/prime-sync",
     waseetLocations: "/api/cron/waseet-locations",
+    qiAutoRefill: "/api/cron/qi-auto-refill",
 };
 
 /** A route handler: the request first, then Next's route context for dynamic segments. */
