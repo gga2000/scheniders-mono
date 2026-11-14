@@ -1,6 +1,7 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
+import { withFailureReport } from "@/lib/job-monitor";
 
 type Admin = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -22,7 +23,7 @@ async function requireSuperAdmin(request: Request) {
 }
 
 /** List pending access requests + all tenants (for the approve picker). */
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
     const ctx = await requireSuperAdmin(request);
     if (ctx.error) return ctx.error;
     const { admin } = ctx;
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 }
 
 /** Approve a request: provision the user into a tenant with a role. */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
     const ctx = await requireSuperAdmin(request);
     if (ctx.error) return ctx.error;
     const { admin, userId } = ctx;
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
 }
 
 /** Reject a request. */
-export async function DELETE(request: Request) {
+async function handleDELETE(request: Request) {
     const ctx = await requireSuperAdmin(request);
     if (ctx.error) return ctx.error;
     const { admin, userId } = ctx;
@@ -88,3 +89,7 @@ export async function DELETE(request: Request) {
         .eq("id", id);
     return NextResponse.json({ success: true });
 }
+
+export const GET = withFailureReport("api/admin/access-requests GET", handleGET);
+export const POST = withFailureReport("api/admin/access-requests POST", handlePOST);
+export const DELETE = withFailureReport("api/admin/access-requests DELETE", handleDELETE);

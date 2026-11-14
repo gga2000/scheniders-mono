@@ -8,6 +8,7 @@ import {
     TenantBlockedError,
 } from "@/lib/restrictions";
 import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
+import { withFailureReport } from "@/lib/job-monitor";
 
 const createUserSchema = z.object({
     email: z.string().trim().toLowerCase().email().max(254),
@@ -19,7 +20,7 @@ const createUserSchema = z.object({
     tenantId: z.string().uuid().optional(),
 });
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
     try {
         // Verify the requesting user via access token
         const authHeader = request.headers.get('Authorization');
@@ -152,3 +153,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "حدث خطأ غير متوقع" }, { status: 500 });
     }
 }
+
+export const POST = withFailureReport("api/auth/create-user POST", handlePOST);

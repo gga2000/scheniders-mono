@@ -5,6 +5,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { domainTxtName, isAcceptedApexIp, isAcceptedCnameTarget, txtRecordsProve } from "@/lib/custom-domain";
 import { DomainConflictError, provisionCustomDomain, type DomainSsl } from "@/lib/vercel-domains";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const NO_RECORD_CODES = new Set(["ENODATA", "ENOTFOUND", "NXDOMAIN"]);
  * one store claim a domain another store pointed at us. The tenant comes from the caller's session, never the request, so
  * one tenant cannot probe or verify another tenant's domain ids.
  */
-export async function POST(request: Request): Promise<NextResponse> {
+async function handlePOST(request: Request): Promise<NextResponse> {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -176,3 +177,5 @@ async function provision(domain: string): Promise<Provisioned> {
         return { ok: false, conflict: false };
     }
 }
+
+export const POST = withFailureReport("api/domains/verify POST", handlePOST);

@@ -2,13 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { authedFetch } from "@/lib/authed-fetch";
 
 /** Admin-only form: the token goes straight to the server route and is never read back. */
 export function MetaAdsConnectCard({ initialAdAccountId = "", initialUsdToIqd = 1717 }: { initialAdAccountId?: string; initialUsdToIqd?: number }) {
     const { t } = useLanguage();
-    const { session } = useAuth();
     const qc = useQueryClient();
     const [adAccountId, setAdAccountId] = useState(initialAdAccountId);
     const [accessToken, setAccessToken] = useState("");
@@ -21,9 +20,9 @@ export function MetaAdsConnectCard({ initialAdAccountId = "", initialUsdToIqd = 
         setBusy(true);
         setError(null);
         try {
-            const res = await fetch("/api/settings/meta-ads", {
+            const res = await authedFetch("/api/settings/meta-ads", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
+                headers: { "Content-Type": "application/json", },
                 body: JSON.stringify({ adAccountId: adAccountId.trim().replace(/^act_/, ""), accessToken: accessToken.trim(), usdToIqd: Number(usdToIqd) }),
             });
             const body = (await res.json()) as { success?: boolean; error?: string };

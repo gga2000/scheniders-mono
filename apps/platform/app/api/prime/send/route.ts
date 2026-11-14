@@ -7,6 +7,7 @@ import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { sendOrdersToPrime } from "@/lib/prime/send";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 // The desk sends 10 orders per request (use-prime-link); a slow Prime with
@@ -24,7 +25,7 @@ const bodySchema = z.object({ orderIds: z.array(z.string().uuid()).min(1).max(10
  * `connected: false` when the tenant has no Prime API link; the desk then
  * downloads the Excel file as before. Each order lands in `sent` or `failed`.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-send");
@@ -43,3 +44,5 @@ export async function POST(request: NextRequest) {
     const outcome = await sendOrdersToPrime(db, client, caller.tenantId, merchant, [...new Set(parsed.data.orderIds)]);
     return NextResponse.json({ success: true, connected: true, ...outcome });
 }
+
+export const POST = withFailureReport("api/prime/send POST", handlePOST);

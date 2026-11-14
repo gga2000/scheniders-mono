@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { syncMetaAdsForTenant } from "@/lib/meta-ads-sync";
 import { fetchTokenHealth, type TokenHealth } from "@/lib/meta-ads";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -18,7 +19,7 @@ const connectSchema = z.object({
  * Masked status. The token is never returned; only Meta's verdict on it (`tokenHealth`, null when Meta
  * could not be asked). Any member may see it (page shows sync health).
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 }
 
 /** Save credentials (tenant admins only), then run a first sync so a bad token fails loudly now. */
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -80,7 +81,7 @@ export async function PUT(request: NextRequest) {
 const AUTO_SYNC_MIN_AGE_MS = 4 * 60_000;
 
 /** Sync (tenant admins only). Throttled unless ?force=1, so a page left open cannot hammer Meta. */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
 
@@ -103,3 +104,7 @@ export async function POST(request: NextRequest) {
     const outcome = await syncMetaAdsForTenant(db, conn);
     return NextResponse.json({ success: outcome.ok, rows: outcome.rows, error: outcome.error });
 }
+
+export const GET = withFailureReport("api/settings/meta-ads GET", handleGET);
+export const PUT = withFailureReport("api/settings/meta-ads PUT", handlePUT);
+export const POST = withFailureReport("api/settings/meta-ads POST", handlePOST);

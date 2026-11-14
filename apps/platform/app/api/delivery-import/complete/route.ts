@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * POST /api/delivery-import/complete
@@ -8,7 +9,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
  * Mark a confirmed delivery import as "completed" — updates all delivered orders
  * from that import batch to "completed" status and records the actual amount received.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // Tenant admins only; the tenant is the caller's verified active tenant.
         const caller = await requireRequestCaller(request, "tenant-admin");
@@ -90,14 +91,22 @@ export async function POST(request: NextRequest) {
             updatedCount = updated?.length || 0;
         }
 
-        // 4. Update the import record
-        await supabaseAdmin
+        // 4. Update the import record. The orders are already completed, so a
+        // failed write here must say so: otherwise the amount the courier paid
+        // is silently missing from delivery history.
+        const { error: recordError } = await supabaseAdmin
             .from("delivery_imports")
             .update({
                 status: "completed",
                 actual_amount_received: actualAmountReceived ?? null,
             })
             .eq("id", importId);
+        if (recordError) {
+            return NextResponse.json(
+                { success: false, error: `Orders completed, but the import record was not saved: ${recordError.message}` },
+                { status: 500 },
+            );
+        }
 
         return NextResponse.json({
             success: true,
@@ -118,3 +127,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/delivery-import/complete POST", handlePOST);

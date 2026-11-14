@@ -14,6 +14,7 @@ import {
 } from "@/lib/supabase-server";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { isPushServiceEndpoint } from "@/lib/chat/push-endpoint";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ const bodySchema = z.object({
     userAgent: z.string().optional(),
 });
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(request: NextRequest): Promise<NextResponse> {
     // 1. Auth — verify the bearer token.
     const raw = request.headers.get("Authorization")?.replace("Bearer ", "");
     if (!raw) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,3 +87,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ ok: true });
 }
+
+export const POST = withFailureReport("api/chat/push/subscribe POST", handlePOST);

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const districtsAnswer = z.discriminatedUnion("connected", [
     z.object({ success: z.literal(true), connected: z.literal(false) }),
@@ -31,7 +32,7 @@ export function usePrimeDistricts(city: string, enabled: boolean) {
         staleTime: 60 * 60_000,
         retry: 1,
         queryFn: async (): Promise<PrimeDistrictsAnswer> => {
-            const res = await fetch(`/api/prime/districts?${new URLSearchParams({ city })}`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch(`/api/prime/districts?${new URLSearchParams({ city })}`, { });
             if (!res.ok) throw new Error(`Prime districts failed: ${res.status}`);
             return districtsAnswer.parse(await res.json());
         },
@@ -54,9 +55,9 @@ export function usePrimeQuote(input: { city: string; districtId: number | null; 
         retry: 1,
         placeholderData: (previous) => previous,
         queryFn: async () => {
-            const res = await fetch("/api/prime/quote", {
+            const res = await authedFetch("/api/prime/quote", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ city, amount, ...(districtId ? { districtId } : {}) }),
             });
             if (!res.ok) throw new Error(`Prime quote failed: ${res.status}`);

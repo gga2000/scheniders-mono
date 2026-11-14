@@ -173,24 +173,22 @@ export function useDeleteProductImageMutation() {
 
             if (getError) throw getError;
 
-            try {
-                const urlObj = new URL(imageUrl);
-                const pathParts = urlObj.pathname.split("/product-images/");
-                if (pathParts.length > 1) {
-                    const filePath = pathParts[1];
-                    await supabase.storage.from("product-images").remove([filePath]);
-                }
-            } catch (e) {
-                console.error("Storage delete error", e);
-            }
-
+            // Row first, file second: deleting the file first left a row
+            // pointing at a missing file (a broken image on the store) when the
+            // row delete then failed.
             const { error: dbError } = await supabase
                 .from("product_images")
                 .delete()
                 .eq("id", id);
-                
             if (dbError) throw dbError;
-            
+
+            // A file left behind costs storage, not a broken page: log it.
+            const filePath = new URL(imageUrl).pathname.split("/product-images/")[1];
+            if (filePath) {
+                const { error: storageError } = await supabase.storage.from("product-images").remove([filePath]);
+                if (storageError) console.error("[product-images] file not removed:", storageError.message);
+            }
+
             return { id, product_id: img.product_id };
         },
         onSuccess: (data) => {
@@ -206,7 +204,9 @@ export function useReorderProductImagesMutation() {
 
     return useMutation({
          mutationFn: async ({ productId, items }: { productId: string; items: { id: string; display_order: number }[] }) => {
-             await Promise.all(
+             // Each builder resolves with {error} rather than rejecting, so a
+             // failed write must be looked for, or a failed reorder reads as saved.
+             const results = await Promise.all(
                  items.map((item) =>
                      supabase
                          .from("product_images")
@@ -214,6 +214,8 @@ export function useReorderProductImagesMutation() {
                          .eq("id", item.id)
                  )
              );
+             const failed = results.find((r) => r.error);
+             if (failed?.error) throw failed.error;
              return { productId };
          },
          onSuccess: (data) => {

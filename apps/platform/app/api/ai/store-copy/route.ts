@@ -5,6 +5,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import { buildStoreCopyMessages, parseStoreCopy, STORE_COPY_SCHEMA } from "@/lib/store-copy";
 import { resolveContentPack } from "@/lib/store-templates/content-packs";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const anthropicMessageSchema = z.object({
     content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
 });
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handlePOST(request: NextRequest): Promise<NextResponse> {
     // Paid Anthropic call: store members only, capped per store per hour.
     const caller = await requireMeteredCaller(request, {
         bucket: "ai-store-copy",
@@ -55,6 +56,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         res = await fetch(ANTHROPIC_MESSAGES_URL, {
             method: "POST",
+            // A long copy takes tens of seconds; never hang the function.
+            signal: AbortSignal.timeout(60_000),
             headers: {
                 "Content-Type": "application/json",
                 "x-api-key": apiKey,
@@ -100,3 +103,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ copy, pack_id: pack.id });
 }
+
+export const POST = withFailureReport("api/ai/store-copy POST", handlePOST);

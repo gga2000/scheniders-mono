@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { normalizeIraqiPhone, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ async function writeSettings(tenantId: string, value: StaffAlertSettings) {
     if (error) throw new Error(error.message);
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     const r = await resolveTenant(request, "member");
     if ("error" in r) return r.error;
     try {
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
     const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
@@ -103,7 +104,7 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDELETE(request: NextRequest) {
     const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
@@ -151,3 +152,8 @@ export async function DELETE(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/settings/staff-alert GET", handleGET);
+export const PUT = withFailureReport("api/settings/staff-alert PUT", handlePUT);
+export const POST = withFailureReport("api/settings/staff-alert POST", handlePOST);
+export const DELETE = withFailureReport("api/settings/staff-alert DELETE", handleDELETE);

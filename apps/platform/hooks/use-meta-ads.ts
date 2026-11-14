@@ -19,6 +19,7 @@ import {
     type DayRange,
 } from "@/lib/ads-report";
 import { groupAdsByAdset, type AdInsightDay } from "@/lib/ads-creatives";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const tokenHealthSchema = z
     .object({ isValid: z.boolean(), expiresAt: z.string().nullable(), hasAdsRead: z.boolean() })
@@ -224,7 +225,7 @@ export function useMetaAdsConnection() {
         queryKey: ["meta-ads", "connection"],
         enabled: token !== "",
         queryFn: async () => {
-            const res = await fetch("/api/settings/meta-ads", { headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch("/api/settings/meta-ads", { });
             if (!res.ok) throw new Error(`Meta Ads status failed: ${res.status}`);
             const parsed = connectionSchema.parse(await res.json());
             return parsed.connection ? { ...parsed.connection, tokenHealth: parsed.tokenHealth } : null;
@@ -236,12 +237,10 @@ export function useMetaAdsConnection() {
 const AUTO_REFRESH_MS = 5 * 60_000;
 
 export function useMetaAdsSyncNow() {
-    const { session } = useAuth();
     const qc = useQueryClient();
-    const token = session?.access_token ?? "";
     return useMutation({
         mutationFn: async (opts?: { force?: boolean }) => {
-            const res = await fetch(`/api/settings/meta-ads${opts?.force ? "?force=1" : ""}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+            const res = await authedFetch(`/api/settings/meta-ads${opts?.force ? "?force=1" : ""}`, { method: "POST" });
             const body: unknown = await res.json();
             const parsed = z.object({ success: z.boolean(), error: z.string().optional() }).parse(body);
             if (!parsed.success) throw new Error(parsed.error ?? "Sync failed");

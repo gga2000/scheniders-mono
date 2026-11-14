@@ -53,6 +53,7 @@ import {
 import type { StoreTemplate } from "@/lib/store-templates";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { authedFetch } from "@/lib/authed-fetch";
 
 interface OnboardingWizardProps {
     tenantId: string;
@@ -927,12 +928,12 @@ function StoreCopyField({
         setFailed(false);
         try {
             const { data } = await supabase.auth.getSession();
-            const res = await fetch("/api/ai/store-copy", {
+            const res = await authedFetch("/api/ai/store-copy", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     ...(data.session?.access_token
-                        ? { Authorization: `Bearer ${data.session.access_token}` }
+                        ? { }
                         : {}),
                 },
                 body: JSON.stringify({

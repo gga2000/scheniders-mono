@@ -7,6 +7,7 @@ import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { pullBackPrimeShipment } from "@/lib/prime/pull-back";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ const bodySchema = z.object({ orderId: z.string().uuid() });
  * and the order is confirmed again, or `{ ok: false, reason }` so the card can
  * say why not.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
     const permission = await callerHasPermission(request, caller, PERMISSIONS.EDIT_ORDERS, "prime-pull-back");
@@ -40,3 +41,5 @@ export async function POST(request: NextRequest) {
     const result = await pullBackPrimeShipment(db, client, caller.tenantId, parsed.data.orderId, changedBy);
     return NextResponse.json({ success: true, ...result });
 }
+
+export const POST = withFailureReport("api/prime/pull-back POST", handlePOST);

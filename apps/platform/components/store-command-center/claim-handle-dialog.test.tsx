@@ -6,6 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+// authedFetch reads a fresh session per call; here the session token is fixed.
+vi.mock("@/lib/authed-fetch", () => ({
+    authedFetch: (input: string, init: RequestInit = {}) =>
+        fetch(input, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), Authorization: "Bearer tok-123" } }),
+}));
 vi.mock("@/hooks/use-auth", () => ({
     useAuth: () => ({ session: { access_token: "tok-123" } }),
 }));

@@ -24,6 +24,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
 import { usePrimeEditReview } from "./use-prime-edit-review";
+import { authedFetch } from "@/lib/authed-fetch";
 
 export interface OrderDetailsModalProps {
     order: Order | null;
@@ -425,12 +426,12 @@ export function buildOrderDetailsActions(m: OrderDetailsModel, order: Order) {
         setIsSendingTemplate(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch("/api/webhooks/interakt/send", {
+            const response = await authedFetch("/api/webhooks/interakt/send", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     // The send endpoint now requires a signed-in caller.
-                    ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    ...(session ? { } : {}),
                 },
                 body: JSON.stringify({ order }),
             });

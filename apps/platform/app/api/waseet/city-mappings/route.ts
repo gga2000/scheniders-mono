@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { authorizeWaseetCaller, WASEET_ADMIN_ROLES, WASEET_READ_ROLES } from "@/lib/waseet-caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * GET /api/waseet/city-mappings
@@ -9,7 +10,7 @@ import { authorizeWaseetCaller, WASEET_ADMIN_ROLES, WASEET_READ_ROLES } from "@/
  * POST /api/waseet/city-mappings
  * Save/update mappings (upsert by governorate_code).
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
     try {
         const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
         if (!caller.ok) return caller.response;
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // The map is shared by every store on the Al-Waseet account: only its admins change it.
         const caller = await authorizeWaseetCaller(request, WASEET_ADMIN_ROLES);
@@ -86,3 +87,6 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const GET = withFailureReport("api/waseet/city-mappings GET", handleGET);
+export const POST = withFailureReport("api/waseet/city-mappings POST", handlePOST);

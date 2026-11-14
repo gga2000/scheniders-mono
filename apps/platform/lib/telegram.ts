@@ -4,6 +4,7 @@
  */
 
 import { providerBaseUrls } from "./env";
+import { PROVIDER_TIMEOUT_MS } from "@/lib/request-never-sent";
 
 const API = providerBaseUrls.TELEGRAM_API_BASE_URL;
 
@@ -18,6 +19,7 @@ async function call<T = unknown>(method: string, body: Record<string, unknown>):
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
     const json = await res.json();
     if (!json.ok) {
@@ -68,7 +70,7 @@ export async function answerCallbackQuery(
 export async function downloadFile(fileId: string): Promise<{ buffer: Buffer; mimeType: string }> {
     const file = await call<{ file_path: string }>("getFile", { file_id: fileId });
     const url = `${API}/file/bot${token()}/${file.file_path}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`Failed to download file: ${res.status}`);
     const arrayBuffer = await res.arrayBuffer();
 

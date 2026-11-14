@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { diag } from "@/lib/diag";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
+import { authedFetch } from "@/lib/authed-fetch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -133,11 +134,10 @@ export function useWebPush(): WebPushState {
 
             const json = sub.toJSON();
             const keys = json.keys as { p256dh: string; auth: string } | undefined;
-            const res = await fetch("/api/chat/push/subscribe", {
+            const res = await authedFetch("/api/chat/push/subscribe", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     endpoint: sub.endpoint,
@@ -185,11 +185,10 @@ export function useWebPush(): WebPushState {
 
             const token = session?.access_token;
             if (token) {
-                await fetch("/api/chat/push/unsubscribe", {
+                await authedFetch("/api/chat/push/unsubscribe", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
                     },
                     body: JSON.stringify({ endpoint }),
                 });

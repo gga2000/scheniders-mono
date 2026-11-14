@@ -33,7 +33,7 @@ beforeEach(() => {
         ok: true,
         status: 200,
         json: async () => ({ result: true, data: { message_id: "m1" } }),
-        text: async () => "",
+        text: async () => JSON.stringify({ result: true, data: { message_id: "m1" } }),
     });
     vi.stubGlobal("fetch", fetchMock);
 });

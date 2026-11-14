@@ -16,6 +16,7 @@ import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { routeCreateOrderDate } from "@/lib/order-date-guard";
 import { useLanguage } from "@/hooks/use-language";
 import { primeDistrictOfOrder, type PrimeDistrict } from "@/lib/prime/district";
+import { authedFetch } from "@/lib/authed-fetch";
 
 // TikTok icon component
 export const TikTokIcon = ({ className }: { className?: string }) => (
@@ -328,10 +329,9 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             const formData = new FormData();
             formData.append("image", file);
 
-            const response = await fetch("/api/orders/analyze-image", {
+            const response = await authedFetch("/api/orders/analyze-image", {
                 method: "POST",
                 headers: {
-                    ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
                 },
                 body: formData,
             });

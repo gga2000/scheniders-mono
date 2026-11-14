@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 const MAX_ROWS = 2000;
 const note = z.string().max(2000);
@@ -74,7 +75,7 @@ type OrderSnapshot = {
  * kept on its audit row so the import can be undone. A receipt already imported (and not
  * undone) is refused. Individual failures don't roll back the entire import.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // Tenant admins only; the tenant is the caller's verified active tenant.
         const caller = await requireRequestCaller(request, "tenant-admin");
@@ -373,7 +374,7 @@ export async function POST(request: NextRequest) {
 
         // 4. Update import record with final counts
         const skippedCount = (skippedItems?.length || 0);
-        await supabaseAdmin
+        const { error: countsError } = await supabaseAdmin
             .from("delivery_imports")
             .update({
                 processed_count: processedCount,
@@ -381,6 +382,8 @@ export async function POST(request: NextRequest) {
                 failed_count: failedCount,
             })
             .eq("id", importRecord.id);
+        // The orders are done; only the history counts are off. Say so, don't fail the import.
+        if (countsError) errors.push(`Import counts were not saved (${countsError.message}).`);
 
         return NextResponse.json({
             success: true,
@@ -403,3 +406,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/delivery-import/confirm POST", handlePOST);

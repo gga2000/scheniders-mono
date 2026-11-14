@@ -13,6 +13,7 @@ import type { Order } from "@/types/order";
 import type { WaseetSubmitResult } from "@/types/waseet";
 import { waseetSubmitBodySchema, toOrderUuids, MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const maxDuration = 60;
 
@@ -25,7 +26,7 @@ export const maxDuration = 60;
  * Request body: { orderIds: string[] }
  * Response: { success, data: { submitted, failed, results[] } }
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // 1. Auth
         // Shipping is a real-world, billable side effect on the shared
@@ -263,3 +264,5 @@ async function processOrder(
         waseetQrLink: waseetOrder.qr_link,
     };
 }
+
+export const POST = withFailureReport("api/waseet/submit-orders POST", handlePOST);

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { Order } from "@/lib/supabase";
 import type { PrimeDeskRow } from "@/lib/prime/desk-preview";
+import { authedFetch } from "@/lib/authed-fetch";
 
 const fixReason = z.enum(["no_governorate", "bad_phone", "no_value", "bad_receipt", "amount_out_of_range"]);
 
@@ -36,9 +37,9 @@ export function usePrimeDeskPreview(orders: readonly Order[], connected: boolean
         staleTime: 5 * 60_000,
         placeholderData: (previous) => previous,
         queryFn: async (): Promise<ReadonlyMap<string, PrimeDeskRow>> => {
-            const res = await fetch("/api/prime/desk-preview", {
+            const res = await authedFetch("/api/prime/desk-preview", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderIds: orders.map((o) => o.id) }),
             });
             if (!res.ok) throw new Error(`Prime desk check failed: ${res.status}`);

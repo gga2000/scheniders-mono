@@ -3,6 +3,7 @@ import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { NextResponse } from "next/server";
 import { assertNotBlocked, blockedResponseBody, TenantBlockedError } from "@/lib/restrictions";
 import { sendTeamInviteEmail } from "@/lib/team-invite-email";
+import { withFailureReport } from "@/lib/job-monitor";
 
 const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
 
@@ -11,7 +12,7 @@ const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
  * Creates a pending row in team_invites and emails them a join link. Opening
  * the link (or signing in with Google on that email) adds them to this store.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
     try {
         const token = request.headers.get("Authorization")?.replace("Bearer ", "");
         if (!token) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
 /**
  * Admin endpoint: revoke a pending invite.
  */
-export async function DELETE(request: Request) {
+async function handleDELETE(request: Request) {
     try {
         const token = request.headers.get("Authorization")?.replace("Bearer ", "");
         if (!token) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
@@ -166,3 +167,6 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
     }
 }
+
+export const POST = withFailureReport("api/team/invite POST", handlePOST);
+export const DELETE = withFailureReport("api/team/invite DELETE", handleDELETE);

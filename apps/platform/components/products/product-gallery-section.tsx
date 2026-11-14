@@ -74,7 +74,10 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
             }));
             
             if (productId) {
-                 reorderMutation.mutate({ productId, items: updates });
+                 reorderMutation.mutate(
+                     { productId, items: updates },
+                     { onError: () => toast.error(t("products.ed.gallery.saveFailed")) },
+                 );
             }
         }
     };
@@ -193,8 +196,17 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                                 <SortableImageItem 
                                     key={image.id} 
                                     image={image} 
-                                    onUpdate={(alt) => updateImageMutation.mutate({ id: image.id, data: { alt_text: alt } })}
-                                    onDelete={() => deleteImageMutation.mutate({ id: image.id, imageUrl: image.image_url })}
+                                    onUpdate={(alt) => updateImageMutation.mutate(
+                                        { id: image.id, data: { alt_text: alt } },
+                                        { onError: () => toast.error(t("products.ed.gallery.saveFailed")) },
+                                    )}
+                                    onDelete={() => deleteImageMutation.mutate(
+                                        { id: image.id, imageUrl: image.image_url },
+                                        {
+                                            onSuccess: () => toast.success(t("products.ed.gallery.removed")),
+                                            onError: () => toast.error(t("products.ed.gallery.removeFailed")),
+                                        },
+                                    )}
                                 />
                             ))}
                         </div>

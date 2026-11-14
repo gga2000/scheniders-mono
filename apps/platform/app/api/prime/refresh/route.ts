@@ -6,6 +6,7 @@ import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getPrimeClient } from "@/lib/prime/client";
 import { loadPrimeConnection } from "@/lib/prime/connection";
 import { syncPrimeTenant } from "@/lib/prime/sync";
+import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,7 +21,7 @@ const REFRESH_WINDOW_SECONDS = 60;
  * does, lib/prime/sync). Only the caller's own tenant, never one from the
  * body. Answers `{ success: true, connected, checked }`.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
@@ -57,3 +58,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Prime did not answer." }, { status: 502 });
     }
 }
+
+export const POST = withFailureReport("api/prime/refresh POST", handlePOST);

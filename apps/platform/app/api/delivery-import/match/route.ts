@@ -5,6 +5,7 @@ import { matchParsedRows, calculateSummary } from "@/lib/delivery-import/match-e
 import type { ParsedDeliveryPDF } from "@/types/delivery-import";
 import type { Order } from "@/types/order";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * POST /api/delivery-import/match
@@ -13,7 +14,7 @@ import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
  * Accepts JSON body with parsed PDF data.
  * Returns match results with classifications (does NOT modify any DB data).
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
     try {
         // Tenant admins only; the tenant is the caller's verified active tenant.
         const caller = await requireRequestCaller(request, "tenant-admin");
@@ -121,3 +122,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withFailureReport("api/delivery-import/match POST", handlePOST);

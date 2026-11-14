@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractOrderFromImage } from "@/lib/gemini-order-extractor";
 import { validateImageUpload } from "@/lib/order-image-upload";
 import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
+import { withFailureReport } from "@/lib/job-monitor";
 
 /**
  * Per-store ceiling on image analyses. Bulk upload sends one request per image,
@@ -12,7 +13,7 @@ import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
 const ANALYZE_IMAGE_LIMIT = 60;
 const ANALYZE_IMAGE_WINDOW_SECONDS = 60;
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // Each analysis is a billed Gemini call: only a store member who may create
     // orders may spend, the store's spend is capped, and the cap fails closed.
@@ -59,3 +60,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to analyze image" }, { status: 500 });
   }
 }
+
+export const POST = withFailureReport("api/orders/analyze-image POST", handlePOST);
