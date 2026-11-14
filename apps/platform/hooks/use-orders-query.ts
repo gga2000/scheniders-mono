@@ -1314,11 +1314,16 @@ export function useCreateOrderMutation() {
             return { previousOrders, tempId };
         },
         onSuccess: (realOrder, _variables, context) => {
-            // Replace the temporary optimistic order with the real server data
+            // Replace the temporary optimistic order with the real server data.
+            // A replayed create (same idempotency key) returns an order the
+            // list may already hold, so the placeholder is then just dropped.
             if (context?.tempId) {
-                queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) =>
-                    (old || []).map(o => o.id === context.tempId ? realOrder : o)
-                );
+                queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
+                    const list = old || [];
+                    return list.some(o => o.id === realOrder.id)
+                        ? list.filter(o => o.id !== context.tempId)
+                        : list.map(o => o.id === context.tempId ? realOrder : o);
+                });
             }
         },
         onError: (err, _variables, context) => {

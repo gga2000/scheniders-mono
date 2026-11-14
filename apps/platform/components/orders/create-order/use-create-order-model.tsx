@@ -102,6 +102,11 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     const postponeTo = routeCreateOrderDate(customCreatedAt).scheduledDate;
     const [createAndNew, setCreateAndNew] = useState(false);
     const handleCreateRef = useRef<(() => void) | undefined>(undefined);
+    // One key per filled-in form, sent with every press of Create: if a
+    // response is lost and the merchant presses again, the server hands back
+    // the order it already made instead of a second one. A new form gets a
+    // new key.
+    const idempotencyKeyRef = useRef(crypto.randomUUID());
 
     // Check plan limits when modal opens
     useEffect(() => {
@@ -171,6 +176,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     };
 
     const resetForm = () => {
+        idempotencyKeyRef.current = crypto.randomUUID();
         setStockWarning(null);
         setOrderType("delivery");
         setTakeKind("staff");
@@ -487,6 +493,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
                     internal_notes: formData.internal_notes || "",
                     items: takeItems,
                     custom_created_at: customCreatedAt,
+                    idempotency_key: idempotencyKeyRef.current,
                 });
                 if (takeResult.success) {
                     toast.success(t("orders.create.takeRecorded"));
@@ -518,6 +525,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
                 internal_notes: formData.internal_notes || "",
                 items: formData.items.filter(item => item.name.trim()),
                 custom_created_at: customCreatedAt,
+                idempotency_key: idempotencyKeyRef.current,
             });
 
             if (result.success) {

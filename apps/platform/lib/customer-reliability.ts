@@ -17,7 +17,8 @@
 // =============================================
 
 import type { TrustTier } from '@/types/customer';
-import { translations, type Locale } from '@/lib/i18n';
+import type { Locale } from '@/lib/i18n';
+import { ar } from '@/lib/i18n-ar';
 import { baghdadMonthKey, formatBaghdadShortDate } from '@/lib/customer-format';
 import {
     ORDER_STATUS_TONE, REFUND_ORDER_STATUS_LABELS, getOrderStatusLabel, orderStatusTone, type OrderStatusKey,
@@ -507,11 +508,29 @@ export const SCORE_FACTOR_TONE: Record<ScoreFactor['type'], { bar: string; text:
 // ───────────────────────── tags vs tiers ─────────────────────────
 
 /** The labels the store computes for a customer; a merchant tag with one of these names reads as the rating itself. */
-const RATING_LABEL_KEYS = [
+export const RATING_LABEL_KEYS = [
     'customers.value.vip', 'customers.value.good', 'customers.value.newcomer',
     'customers.tier.vip', 'customers.tier.good', 'customers.tier.newcomer',
     'customers.risk.clean', 'customers.risk.caution', 'customers.risk.high', 'customers.risk.blocked',
 ] as const;
+
+/**
+ * The English wording of RATING_LABEL_KEYS. Importing the English dictionary
+ * here would ship all of it (about 90 KB) on every customers page for ten
+ * words; customer-reliability.test.ts keeps this list equal to it.
+ */
+export const RATING_LABELS_EN: Record<(typeof RATING_LABEL_KEYS)[number], string> = {
+    'customers.value.vip': 'VIP', 'customers.value.good': 'Good', 'customers.value.newcomer': 'New',
+    'customers.tier.vip': 'VIP', 'customers.tier.good': 'Good', 'customers.tier.newcomer': 'New',
+    'customers.risk.clean': 'Clean', 'customers.risk.caution': 'Needs confirming',
+    'customers.risk.high': 'High risk', 'customers.risk.blocked': 'Blocked',
+};
+
+const RATING_LABELS = new Set(
+    RATING_LABEL_KEYS.flatMap((key) => [RATING_LABELS_EN[key], ar[key] ?? ''])
+        .map((label) => label.trim().toLowerCase())
+        .filter(Boolean),
+);
 
 /**
  * Whether a tag name copies a computed rating ("VIP", "Blocked", "جيد") in any
@@ -520,7 +539,5 @@ const RATING_LABEL_KEYS = [
  */
 export function tagNameMatchesRating(name: string): boolean {
     const wanted = name.trim().toLowerCase();
-    if (!wanted) return false;
-    return Object.values(translations).some((dict) =>
-        RATING_LABEL_KEYS.some((key) => (dict[key] ?? '').trim().toLowerCase() === wanted));
+    return wanted !== '' && RATING_LABELS.has(wanted);
 }

@@ -19,7 +19,6 @@ import type { CreateOrderInput, CreateOrderResult } from "@/types/order";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
 import { checkOrderIdExists as checkOrderIdExistsAction, renameOrderNumberAction, splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
-import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "@/hooks/use-toast";
 import {
     useUpdateStatusMutation,
@@ -407,16 +406,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         // Extract custom_created_at before passing to mutation (not part of Order schema)
         const { custom_created_at, ...cleanOrderData } = orderData;
 
-        // Idempotency guard: prevent double-click / duplicate submissions
-        const fingerprint = `create_${cleanOrderData.order_id || ''}_${cleanOrderData.phone || ''}_${Date.now()}`;
-        const idempotencyKey = generateIdempotencyKey(fingerprint);
-        const guard = getIdempotencyGuard();
-
-        if (!guard.tryExecute(idempotencyKey)) {
-            diag.log(`[Diag:CreateOrder] IDEMPOTENCY_BLOCKED key=${idempotencyKey}`);
-            return { success: false, error: "Duplicate request — this order is already being created." };
-        }
-
         try {
             const validationResult = OrderSchema.safeParse({
                 ...cleanOrderData,
@@ -537,8 +526,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             return { success: true, data };
         } catch (err) {
-            // Release idempotency key so the user can retry
-            guard.release(idempotencyKey);
             console.error("Error creating order:", err);
             return {
                 success: false,

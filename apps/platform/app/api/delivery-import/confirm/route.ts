@@ -145,15 +145,12 @@ async function handlePOST(request: NextRequest) {
             );
         }
 
-        // 2. Process all confirmed items concurrently
-        let processedCount = 0;
-        let failedCount = 0;
-        const errors: string[] = [];
+        // 2. Work out every order's change and its undo data before writing
+        // anything. Every audit row carries the caller's tenant:
+        // delivery_import_items is tenant-scoped by RLS (NEW-P1-13).
         const now = new Date().toISOString();
-        // Every audit row carries the caller's tenant: delivery_import_items is
-        // tenant-scoped by RLS, and rows written without it (1,201 live) are
-        // invisible to the merchant who imported them (NEW-P1-13).
-        const auditItemsToInsert: Array<{
+        const errors: string[] = [];
+        type AuditRow = {
             tenant_id: string;
             import_id: string;
             order_id: string | null;
@@ -168,17 +165,57 @@ async function handlePOST(request: NextRequest) {
             pdf_notes?: string;
             match_category: string;
             match_details: Record<string, unknown>;
-            action: string;
+            action: "confirmed" | "failed" | "skipped";
             previous_status: string | null;
             new_status: string | null;
             previous_values: Record<string, unknown> | null;
-        }> = [];
+        };
+        const auditRow = (
+            row: { pdfRowNumber: number; orderId: string | null; matchCategory: string },
+            fields: Pick<AuditRow, "match_details" | "action" | "previous_status" | "new_status" | "previous_values">,
+        ): AuditRow => {
+            const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === row.pdfRowNumber);
+            return {
+                tenant_id: caller.tenantId,
+                import_id: importRecord.id,
+                order_id: row.orderId,
+                pdf_row_number: row.pdfRowNumber,
+                pdf_shipment_number: pdfRow?.shipmentNumber,
+                pdf_phone: pdfRow?.phone,
+                pdf_amount: pdfRow?.shipmentAmount,
+                pdf_delivery_fee: pdfRow?.deliveryFee,
+                pdf_net_amount: pdfRow?.netToMerchant,
+                pdf_status: pdfRow?.status,
+                pdf_item_count: pdfRow?.itemCount,
+                pdf_notes: pdfRow?.notes,
+                match_category: row.matchCategory,
+                ...fields,
+            };
+        };
+        const failedRow = (item: (typeof confirmedItems)[number], msg: string): AuditRow =>
+            auditRow(item, {
+                match_details: { details: item.matchDetails, resolutionAction: item.resolutionAction, error: msg },
+                action: "failed",
+                previous_status: current.get(item.orderId)?.status ?? null,
+                new_status: null,
+                previous_values: null,
+            });
 
-        const updatePromises = confirmedItems.map(async (item) => {
+        type Planned = { item: (typeof confirmedItems)[number]; previousStatus: string; orderUpdate: Record<string, unknown> | null };
+        const planned: Planned[] = [];
+        const auditRows: AuditRow[] = [];
+        let failedCount = 0;
+
+        for (const item of confirmedItems) {
             const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
             const resAction = item.resolutionAction;
             const before = current.get(item.orderId);
-            if (!before) throw new Error("order not found in this store");
+            if (!before) {
+                failedCount++;
+                errors.push(`Row #${item.pdfRowNumber}: order not found in this store`);
+                auditRows.push(failedRow(item, "order not found in this store"));
+                continue;
+            }
             const previousStatus = before.status;
 
             // An order already delivered (e.g. by the Prime link) keeps its real delivery time.
@@ -238,21 +275,6 @@ async function handlePOST(request: NextRequest) {
 
             let previousValues: Record<string, unknown> | null = null;
             if (resAction !== "acknowledge_refund") {
-                // Only if nobody changed the order since it was read above.
-                const { data: moved, error: updateError } = await supabaseAdmin
-                    .from("orders")
-                    .update(orderUpdate)
-                    .eq("id", item.orderId)
-                    .eq("tenant_id", caller.tenantId)
-                    .eq("status", previousStatus)
-                    .select("id");
-
-                if (updateError) {
-                    throw new Error(updateError.message);
-                }
-                if (!moved || moved.length === 0) {
-                    throw new Error("order changed while importing; match the receipt again");
-                }
                 previousValues = Object.fromEntries(
                     Object.keys(orderUpdate).map((key) => [key, before[key as keyof OrderSnapshot] ?? null]),
                 );
@@ -260,119 +282,95 @@ async function handlePOST(request: NextRequest) {
                 previousValues.status = previousStatus;
             }
 
-            return { item, newStatus, pdfRow, resAction, previousStatus, previousValues };
-        });
+            planned.push({ item, previousStatus, orderUpdate: resAction === "acknowledge_refund" ? null : orderUpdate });
+            auditRows.push(auditRow(item, {
+                match_details: { details: item.matchDetails, resolutionAction: resAction, resolutionNote: item.resolutionNote },
+                action: "confirmed",
+                previous_status: previousStatus,
+                new_status: newStatus,
+                previous_values: previousValues,
+            }));
+        }
+        for (const item of skippedItems ?? []) {
+            auditRows.push(auditRow(item, {
+                match_details: { details: item.matchDetails },
+                action: "skipped",
+                previous_status: null,
+                new_status: null,
+                previous_values: null,
+            }));
+        }
 
-        const updateResults = await Promise.allSettled(updatePromises);
+        // 3. The undo data goes in BEFORE any order changes: rollback_delivery_import
+        // restores from these rows only. If they cannot be saved, nothing has been
+        // touched yet, so the import is withdrawn and the receipt can be confirmed again.
+        // An order that is then never written (a failed update, or the function
+        // stopped midway) is restored to the values it still has, which changes nothing.
+        for (let i = 0; i < auditRows.length; i += 500) {
+            const { error: insertError } = await supabaseAdmin
+                .from("delivery_import_items")
+                .insert(auditRows.slice(i, i + 500));
+            if (insertError) {
+                const { error: withdrawError } = await supabaseAdmin
+                    .from("delivery_imports")
+                    .delete()
+                    .eq("id", importRecord.id)
+                    .eq("tenant_id", caller.tenantId);
+                throw new Error(
+                    `Import not applied: its undo data could not be saved (${insertError.message})` +
+                    (withdrawError ? `; the empty import ${importRecord.id} could not be withdrawn (${withdrawError.message})` : ""),
+                );
+            }
+        }
 
-        for (let i = 0; i < updateResults.length; i++) {
-            const result = updateResults[i];
-            const item = confirmedItems[i];
-
-            if (result.status === "fulfilled") {
-                processedCount++;
-                const { newStatus, pdfRow, resAction, previousStatus, previousValues } = result.value;
-                auditItemsToInsert.push({
-                    tenant_id: caller.tenantId,
-                    import_id: importRecord.id,
-                    order_id: item.orderId,
-                    pdf_row_number: item.pdfRowNumber,
-                    pdf_shipment_number: pdfRow?.shipmentNumber,
-                    pdf_phone: pdfRow?.phone,
-                    pdf_amount: pdfRow?.shipmentAmount,
-                    pdf_delivery_fee: pdfRow?.deliveryFee,
-                    pdf_net_amount: pdfRow?.netToMerchant,
-                    pdf_status: pdfRow?.status,
-                    pdf_item_count: pdfRow?.itemCount,
-                    pdf_notes: pdfRow?.notes,
-                    match_category: item.matchCategory,
-                    match_details: {
-                        details: item.matchDetails,
-                        resolutionAction: resAction,
-                        resolutionNote: item.resolutionNote,
-                    },
-                    action: "confirmed",
-                    previous_status: previousStatus,
-                    new_status: newStatus,
-                    previous_values: previousValues,
-                });
-            } else {
+        // 4. Write the orders, a few at a time so a large receipt does not flood
+        // the database. Only an order nobody changed since it was read above moves.
+        let processedCount = 0;
+        const UPDATE_CONCURRENCY = 20;
+        const writeOrder = async ({ item, previousStatus, orderUpdate }: Planned) => {
+            if (!orderUpdate) return;
+            const { data: moved, error: updateError } = await supabaseAdmin
+                .from("orders")
+                .update(orderUpdate)
+                .eq("id", item.orderId)
+                .eq("tenant_id", caller.tenantId)
+                .eq("status", previousStatus)
+                .select("id");
+            if (updateError) throw new Error(updateError.message);
+            if (!moved || moved.length === 0) throw new Error("order changed while importing; match the receipt again");
+        };
+        for (let i = 0; i < planned.length; i += UPDATE_CONCURRENCY) {
+            const batch = planned.slice(i, i + UPDATE_CONCURRENCY);
+            const results = await Promise.allSettled(batch.map(writeOrder));
+            for (let j = 0; j < results.length; j++) {
+                const result = results[j];
+                const { item } = batch[j];
+                if (result.status === "fulfilled") {
+                    processedCount++;
+                    continue;
+                }
                 failedCount++;
                 const msg = result.reason instanceof Error ? result.reason.message : "Unknown error";
                 errors.push(`Row #${item.pdfRowNumber}: ${msg}`);
                 console.error(`[DeliveryImport] Failed to update order for row #${item.pdfRowNumber}:`, msg);
-
-                const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
-                auditItemsToInsert.push({
-                    tenant_id: caller.tenantId,
-                    import_id: importRecord.id,
-                    order_id: item.orderId,
-                    pdf_row_number: item.pdfRowNumber,
-                    pdf_shipment_number: pdfRow?.shipmentNumber,
-                    pdf_phone: pdfRow?.phone,
-                    pdf_amount: pdfRow?.shipmentAmount,
-                    pdf_delivery_fee: pdfRow?.deliveryFee,
-                    pdf_net_amount: pdfRow?.netToMerchant,
-                    pdf_status: pdfRow?.status,
-                    pdf_item_count: pdfRow?.itemCount,
-                    pdf_notes: pdfRow?.notes,
-                    match_category: item.matchCategory,
-                    match_details: {
-                        details: item.matchDetails,
-                        resolutionAction: item.resolutionAction,
-                        error: msg,
-                    },
-                    action: "failed",
-                    previous_status: current.get(item.orderId)?.status ?? null,
-                    new_status: null,
-                    previous_values: null,
-                });
-            }
-        }
-
-        // 3. Add skipped items to the audit insert array
-        if (skippedItems?.length) {
-            for (const item of skippedItems) {
-                const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
-                auditItemsToInsert.push({
-                    tenant_id: caller.tenantId,
-                    import_id: importRecord.id,
-                    order_id: item.orderId || null,
-                    pdf_row_number: item.pdfRowNumber,
-                    pdf_shipment_number: pdfRow?.shipmentNumber,
-                    pdf_phone: pdfRow?.phone,
-                    pdf_amount: pdfRow?.shipmentAmount,
-                    pdf_delivery_fee: pdfRow?.deliveryFee,
-                    pdf_net_amount: pdfRow?.netToMerchant,
-                    pdf_status: pdfRow?.status,
-                    pdf_item_count: pdfRow?.itemCount,
-                    pdf_notes: pdfRow?.notes,
-                    match_category: item.matchCategory,
-                    match_details: { details: item.matchDetails },
-                    action: "skipped",
-                    previous_status: null,
-                    new_status: null,
-                    previous_values: null,
-                });
-            }
-        }
-
-        // Insert all audit items in bulk
-        if (auditItemsToInsert.length > 0) {
-            for (let i = 0; i < auditItemsToInsert.length; i += 500) {
-                const { error: insertError } = await supabaseAdmin
+                // Its audit row said "confirmed"; the order did not move, so say so.
+                const failed = failedRow(item, msg);
+                const { error: markError } = await supabaseAdmin
                     .from("delivery_import_items")
-                    .insert(auditItemsToInsert.slice(i, i + 500));
-                    
-                if (insertError) {
-                    // These rows are what an undo restores from: say so instead of reporting a clean import.
-                    console.error("[DeliveryImport] Failed to insert audit items batch:", insertError);
-                    errors.push(`Audit rows ${i + 1}-${Math.min(i + 500, auditItemsToInsert.length)} were not saved (${insertError.message}); this import cannot be fully undone.`);
-                }
+                    .update({
+                        action: failed.action,
+                        match_details: failed.match_details,
+                        new_status: null,
+                        previous_values: null,
+                    })
+                    .eq("import_id", importRecord.id)
+                    .eq("tenant_id", caller.tenantId)
+                    .eq("pdf_row_number", item.pdfRowNumber);
+                if (markError) errors.push(`Row #${item.pdfRowNumber}: its history still reads confirmed (${markError.message}).`);
             }
         }
 
-        // 4. Update import record with final counts
+        // 5. Update import record with final counts
         const skippedCount = (skippedItems?.length || 0);
         const { error: countsError } = await supabaseAdmin
             .from("delivery_imports")
