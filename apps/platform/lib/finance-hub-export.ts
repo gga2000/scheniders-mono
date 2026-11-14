@@ -1,5 +1,5 @@
 import { formatIQD } from "@/lib/utils";
-import { translations, type Locale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
 import { baghdadDayKey } from "@/lib/order-window";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 import type { FinanceRevenueResult } from "@/hooks/use-finance-revenue";
@@ -8,16 +8,17 @@ import type { CashPositionResult } from "@/hooks/use-cash-position";
 export interface FinanceExportContext {
     /** Active UI language; Arabic prints right-to-left and words every label in Arabic. */
     language: Locale;
+    /** The app's translator for that language (useLanguage().t). */
+    t: (key: string) => string;
     overview: FinanceOverviewResult;
     revenue: FinanceRevenueResult;
     cash: CashPositionResult;
     period: { start: Date; end: Date };
 }
 
-/** One export label in the report's language (keys live under finances.export.* in lib/i18n.ts). */
-function labeller(language: Locale): (key: string) => string {
-    const dict = translations[language];
-    return (key) => dict[`finances.export.${key}`] ?? translations.en[`finances.export.${key}`] ?? key;
+/** One export label in the report's language (keys live under finances.export.*). */
+function labeller(ctx: FinanceExportContext): (key: string) => string {
+    return (key) => ctx.t(`finances.export.${key}`);
 }
 
 /** The period's Baghdad days. The UTC day would label a period that starts at Baghdad midnight with the day before. */
@@ -50,7 +51,7 @@ function escapeHtml(value: string | number): string {
 
 export function buildFinanceHubCsv(ctx: FinanceExportContext, generatedAt: string): string {
     const { overview, revenue, cash, period } = ctx;
-    const x = labeller(ctx.language);
+    const x = labeller(ctx);
     const rows: (string | number)[][] = [];
 
     rows.push([x("title")]);
@@ -171,7 +172,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
 
 export function buildFinanceHubPrintHtml(ctx: FinanceExportContext, generatedAt: string): string {
     const { overview, cash, period } = ctx;
-    const x = labeller(ctx.language);
+    const x = labeller(ctx);
     const rtl = ctx.language === "ar";
     const range = x("range").replace("{from}", ymd(period.start)).replace("{to}", ymd(period.end));
     const money = (n: number) =>

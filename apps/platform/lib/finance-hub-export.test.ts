@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 import type { FinanceRevenueResult } from "@/hooks/use-finance-revenue";
 import type { CashPositionResult } from "@/hooks/use-cash-position";
+import { translations } from "@/lib/i18n";
 import { buildFinanceHubCsv, buildFinanceHubPrintHtml, type FinanceExportContext } from "./finance-hub-export";
 
 const overview = {
@@ -16,8 +17,11 @@ const overview = {
     series: [],
 } as unknown as FinanceOverviewResult;
 
+const tr = (lang: "en" | "ar") => (key: string) => translations[lang][key] ?? key;
+
 const ctx: FinanceExportContext = {
     language: "en",
+    t: tr("en"),
     overview,
     revenue: { refunds: { top_refunded: [] } } as unknown as FinanceRevenueResult,
     cash: {
@@ -59,7 +63,7 @@ describe("buildFinanceHubPrintHtml", () => {
 });
 
 describe("Arabic export", () => {
-    const ar: FinanceExportContext = { ...ctx, language: "ar" };
+    const ar: FinanceExportContext = { ...ctx, language: "ar", t: tr("ar") };
 
     it("words the CSV in Arabic and still guards data cells", () => {
         const csv = buildFinanceHubCsv(ar, "2026-11-01T00:00:00.000Z");
