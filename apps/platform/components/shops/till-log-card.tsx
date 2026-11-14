@@ -4,7 +4,8 @@ import { useState } from "react";
 import { HandCoins, MinusCircle, Pencil, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTillEvents, type Shop, type TillEvent, type TillMember } from "@/hooks/use-shops";
-import { dateLocale, formatIqd } from "@/lib/till/cart";
+import { dateLocale } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 
 const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)]";
@@ -96,7 +97,7 @@ export function TillLogCard({ shops, members }: { shops: Shop[]; members: TillMe
                                         {nameOf(e.cashier_id)} · {shopOf(e.shop_id)} · {when(e.created_at)}
                                     </span>
                                 </span>
-                                <span className="shrink-0 text-base font-bold tabular-nums text-foreground">{formatIqd(d.amount)}</span>
+                                <span className="shrink-0 text-base font-bold tabular-nums text-foreground">{formatIqdNumber(d.amount)}</span>
                             </li>
                         );
                     })}

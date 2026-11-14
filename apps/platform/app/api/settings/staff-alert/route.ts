@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { normalizeIraqiPhone, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
+import { iraqMobileE164, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
 import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +76,7 @@ async function handlePUT(request: NextRequest) {
             const normalized: StaffNumberEntry[] = [];
             for (const entry of body.numbers) {
                 const phone = String(entry?.phone || "");
-                const norm = normalizeIraqiPhone(phone);
+                const norm = iraqMobileE164(phone);
                 if (!norm) {
                     return NextResponse.json({ error: `Invalid Iraqi phone: ${phone}` }, { status: 400 });
                 }
@@ -110,11 +110,11 @@ async function handlePOST(request: NextRequest) {
     try {
         const body = await request.json();
         const phone = String(body?.phone || "");
-        const norm = normalizeIraqiPhone(phone);
+        const norm = iraqMobileE164(phone);
         if (!norm) return NextResponse.json({ error: `Invalid Iraqi phone: ${phone}` }, { status: 400 });
 
         const current = await readSettings(r.tenantId);
-        if (current.numbers.some((n) => normalizeIraqiPhone(n.phone) === norm)) {
+        if (current.numbers.some((n) => iraqMobileE164(n.phone) === norm)) {
             return NextResponse.json(current);
         }
 
@@ -138,11 +138,11 @@ async function handleDELETE(request: NextRequest) {
     if ("error" in r) return r.error;
     try {
         const phone = new URL(request.url).searchParams.get("phone") || "";
-        const norm = normalizeIraqiPhone(phone);
+        const norm = iraqMobileE164(phone);
         if (!norm) return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
 
         const current = await readSettings(r.tenantId);
-        current.numbers = current.numbers.filter((n) => normalizeIraqiPhone(n.phone) !== norm);
+        current.numbers = current.numbers.filter((n) => iraqMobileE164(n.phone) !== norm);
         await writeSettings(r.tenantId, current);
         return NextResponse.json(current);
     } catch (err) {

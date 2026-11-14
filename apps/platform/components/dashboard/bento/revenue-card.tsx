@@ -18,10 +18,10 @@ import { Delta } from "./delta";
 import { RevenueLine } from "./revenue-line";
 import { Segmented } from "./segmented";
 import { useChartTooltip } from "./chart-tooltip";
+import { formatIqdCompact } from "@scheniders/shared";
 
 const WINDOWS: RevenueWindow[] = [7, 14, 30];
 const whole = (n: number) => Math.round(n).toLocaleString("en-US");
-const compactIQD = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}K` : String(Math.round(v)));
 
 /**
  * Revenue (or orders) over the last 7/14/30 Baghdad days, with the window before
@@ -118,7 +118,7 @@ export function RevenueCard() {
                         <RevenueLine
                             series={fig.series}
                             caption={t("dashboard.bento.lastDays", { n: String(days) })}
-                            tick={measure === "revenue" ? compactIQD : whole}
+                            tick={measure === "revenue" ? formatIqdCompact : whole}
                             describe={describe}
                             onTip={tip.show}
                             onTipEnd={tip.hide}

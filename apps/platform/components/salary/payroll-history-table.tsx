@@ -22,6 +22,7 @@ import { downloadPayslipBlob, fetchPayslipBlob } from "@/lib/payslip-download";
 import { PayslipPreviewModal } from "./payslip-preview-modal";
 import { ComparePayrollModal } from "./compare-payroll-modal";
 import { formatPayrollDate } from "@/lib/payroll-date";
+import { formatIqdNumber } from "@scheniders/shared";
 
 /** Cash handed over for a record: the part paid, or the full net. */
 function paidOut(r: PayrollRecord): number {
@@ -30,9 +31,6 @@ function paidOut(r: PayrollRecord): number {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-}
 
 function fmtDate(d: string | null | undefined, fmt = "MMM d, yyyy", locale?: Locale) {
     return formatPayrollDate(d, fmt, locale);
@@ -323,7 +321,7 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
                                         <span className="text-sm font-semibold text-foreground">{fmtMonth(monthKey, locale)}</span>
                                         <span className="text-xs text-muted">{t("payroll.history.records", { count: records.length })}</span>
                                     </div>
-                                    <span className="text-xs font-semibold text-foreground tabular-nums">{fmtIQD(monthTotal)} {t("common.iqd")}</span>
+                                    <span className="text-xs font-semibold text-foreground tabular-nums">{formatIqdNumber(monthTotal)} {t("common.iqd")}</span>
                                 </button>
 
                                 {/* Records */}
@@ -546,10 +544,10 @@ function RecordRow({
 
                 {/* Amount */}
                 <div className="text-right ml-1 min-w-[80px]">
-                    <p className={cn("font-bold text-sm tabular-nums", isVoided ? "text-muted line-through" : "text-foreground")}><bdi>{fmtIQD(paidOut(record))} {t("common.iqd")}</bdi></p>
+                    <p className={cn("font-bold text-sm tabular-nums", isVoided ? "text-muted line-through" : "text-foreground")}><bdi>{formatIqdNumber(paidOut(record))} {t("common.iqd")}</bdi></p>
                     {record.amount_paid != null && (
                         <p className="text-[11px] text-amber-700 dark:text-amber-400 tabular-nums">
-                            <bdi>{t("payroll.card.ofNet", { amount: fmtIQD(record.net_salary) })}</bdi>
+                            <bdi>{t("payroll.card.ofNet", { amount: formatIqdNumber(record.net_salary) })}</bdi>
                         </p>
                     )}
                     <p className="text-xs text-muted">{t("payroll.history.orders", { count: record.completed_orders_count })}</p>
@@ -664,7 +662,7 @@ function MonthCalendar({
             <div className="flex items-baseline justify-between gap-3 mb-3">
                 <p className="text-sm font-semibold text-foreground">{format(monthStart, "MMMM yyyy", { locale })}</p>
                 {monthTotal > 0 && (
-                    <p className="text-xs text-muted tabular-nums"><bdi>{fmtIQD(monthTotal)} {iqd}</bdi></p>
+                    <p className="text-xs text-muted tabular-nums"><bdi>{formatIqdNumber(monthTotal)} {iqd}</bdi></p>
                 )}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -709,7 +707,7 @@ function MonthCalendar({
                                 <bdi>{format(p.day, language === "ar" ? "d MMM" : "MMM d", { locale })}</bdi>
                             </span>
                             <bdi className="flex-1 truncate font-medium text-foreground">{p.name}</bdi>
-                            <span className="tabular-nums text-foreground"><bdi>{fmtIQD(p.amount)} {iqd}</bdi></span>
+                            <span className="tabular-nums text-foreground"><bdi>{formatIqdNumber(p.amount)} {iqd}</bdi></span>
                         </li>
                     ))}
                 </ul>
@@ -770,8 +768,8 @@ function YTDView({
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.count}</td>
-                                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground tabular-nums"><bdi>{fmtIQD(emp.totalNet)} {t("common.iqd")}</bdi></td>
-                                <td className="px-4 py-3 text-right text-sm text-muted tabular-nums"><bdi>{fmtIQD(emp.count > 0 ? emp.totalNet / emp.count : 0)} {t("common.iqd")}</bdi></td>
+                                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground tabular-nums"><bdi>{formatIqdNumber(emp.totalNet)} {t("common.iqd")}</bdi></td>
+                                <td className="px-4 py-3 text-right text-sm text-muted tabular-nums"><bdi>{formatIqdNumber(emp.count > 0 ? emp.totalNet / emp.count : 0)} {t("common.iqd")}</bdi></td>
                                 <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.totalOrders.toLocaleString("en-US")}</td>
                             </tr>
                         ))}
@@ -780,8 +778,8 @@ function YTDView({
                         <tr>
                             <td className="px-4 py-3 text-sm font-bold text-foreground">{t("payroll.history.total")}</td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandCount}</td>
-                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums"><bdi>{fmtIQD(grandTotal)} {t("common.iqd")}</bdi></td>
-                            <td className="px-4 py-3 text-right text-sm text-muted tabular-nums"><bdi>{fmtIQD(grandCount > 0 ? grandTotal / grandCount : 0)} {t("common.iqd")}</bdi></td>
+                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums"><bdi>{formatIqdNumber(grandTotal)} {t("common.iqd")}</bdi></td>
+                            <td className="px-4 py-3 text-right text-sm text-muted tabular-nums"><bdi>{formatIqdNumber(grandCount > 0 ? grandTotal / grandCount : 0)} {t("common.iqd")}</bdi></td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandOrders.toLocaleString("en-US")}</td>
                         </tr>
                     </tfoot>

@@ -260,6 +260,3 @@ export function commissionOf(sales: number, pct: number): number | null {
     return pct > 0 ? Math.floor((sales * pct) / 100) : null;
 }
 
-export function formatIqd(n: number): string {
-    return Math.round(n).toLocaleString("en-US");
-}

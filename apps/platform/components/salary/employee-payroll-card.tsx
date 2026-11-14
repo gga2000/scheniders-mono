@@ -18,12 +18,10 @@ import { PayrollAdjustmentModal } from "./payroll-adjustment-modal";
 import { SalaryConfigForm } from "./salary-config-form";
 import { OrderBreakdownModal } from "./order-breakdown-modal";
 import { formatPayrollDate } from "@/lib/payroll-date";
+import { formatIqdNumber } from "@scheniders/shared";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-}
 
 function fmtDate(d: string | null | undefined, fmt: string, locale: Locale | undefined) {
     if (!d) return "";
@@ -130,7 +128,7 @@ function CompactLineItem({
                 type === "total" && "text-foreground font-bold",
             )}>
                 {type === "positive" ? "+" : type === "negative" ? "−" : ""}
-                {fmtIQD(value)}
+                {formatIqdNumber(value)}
                 {showUnit && <span className="text-[10px] text-muted font-normal ml-0.5">{unit}</span>}
             </span>
             {/* fixed chevron slot keeps the amount column aligned across clickable + static rows */}
@@ -509,7 +507,7 @@ export function EmployeePayrollCard({
                             {orderBonus > 0 && (
                                 <CompactLineItem
                                     unit={iqd}
-                                    label={t("payroll.card.ordersLine", { count: paidUnits, rate: fmtIQD(perOrderBonus) })}
+                                    label={t("payroll.card.ordersLine", { count: paidUnits, rate: formatIqdNumber(perOrderBonus) })}
                                     value={orderBonus}
                                     type="positive"
                                 />
@@ -585,7 +583,7 @@ export function EmployeePayrollCard({
                                     {deductionLines >= 2 && <div className="flex items-end gap-1.5 pt-1 mt-0.5 border-t border-dashed border-[var(--card-border)] text-[11px]">
                                         <span className="text-muted shrink-0">{t("payroll.card.totalDeducted")}</span>
                                         <span aria-hidden className="flex-1 border-b border-dotted border-[var(--card-border)] mb-[3px] min-w-[10px]" />
-                                        <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0">−{fmtIQD(totalDeductions)}</span>
+                                        <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0">−{formatIqdNumber(totalDeductions)}</span>
                                         <span className="w-3 shrink-0" />
                                     </div>}
                                 </>
@@ -624,7 +622,7 @@ export function EmployeePayrollCard({
                                             {t("payroll.card.paid")}
                                         </span>
                                         <span className="text-xs text-muted tabular-nums">
-                                            <bdi>{fd(overlappingPayroll.paid_at, true)}</bdi> · <bdi>{fmtIQD(overlappingPayroll.net_salary)} {iqd}</bdi>
+                                            <bdi>{fd(overlappingPayroll.paid_at, true)}</bdi> · <bdi>{formatIqdNumber(overlappingPayroll.net_salary)} {iqd}</bdi>
                                         </span>
                                     </div>
                                     <p className="text-xs text-muted mt-1 tabular-nums">
@@ -668,7 +666,7 @@ export function EmployeePayrollCard({
                                     <div className="min-w-0">
                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">{t("payroll.line.netPayable")}</p>
                                         <p className="text-[26px] font-bold text-foreground tabular-nums tracking-tight leading-none mt-1">
-                                            {fmtIQD(animatedNet)}
+                                            {formatIqdNumber(animatedNet)}
                                             <span className="text-sm font-medium text-muted ml-1">{iqd}</span>
                                         </p>
                                         {overDeducted && (
@@ -676,7 +674,7 @@ export function EmployeePayrollCard({
                                                 className="text-[11px] text-amber-700 dark:text-amber-400 mt-1.5 tabular-nums"
                                                 title={t("payroll.card.cappedHint")}
                                             >
-                                                {t("payroll.card.capped", { amount: fmtIQD(-rawNet), currency: iqd })}
+                                                {t("payroll.card.capped", { amount: formatIqdNumber(-rawNet), currency: iqd })}
                                             </p>
                                         )}
                                     </div>
@@ -706,8 +704,8 @@ export function EmployeePayrollCard({
                                         {/* One isolate per sentence: in Arabic the label, amount and gain read right to left in order. */}
                                         <bdi>
                                             {t("payroll.projection.card", { count: calculation.inTransit.orders.toLocaleString("en-US") })}:{" "}
-                                            <bdi className="font-semibold text-foreground">{fmtIQD(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
-                                            <bdi className="text-emerald-700 dark:text-emerald-400">+{fmtIQD(calculation.inTransit.extraOrderBonus)}</bdi>
+                                            <bdi className="font-semibold text-foreground">{formatIqdNumber(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
+                                            <bdi className="text-emerald-700 dark:text-emerald-400">+{formatIqdNumber(calculation.inTransit.extraOrderBonus)}</bdi>
                                         </bdi>
                                     </p>
                                 )}
@@ -717,8 +715,8 @@ export function EmployeePayrollCard({
                                 {lastPayment && (
                                     <p className="text-xs text-muted mt-2 tabular-nums">
                                         <bdi>
-                                            {t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.amount_paid ?? lastPayment.net_salary)} {iqd}</bdi>
-                                            {lastPayment.amount_paid != null && <> {t("payroll.card.ofNet", { amount: fmtIQD(lastPayment.net_salary) })}</>}
+                                            {t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{formatIqdNumber(lastPayment.amount_paid ?? lastPayment.net_salary)} {iqd}</bdi>
+                                            {lastPayment.amount_paid != null && <> {t("payroll.card.ofNet", { amount: formatIqdNumber(lastPayment.net_salary) })}</>}
                                         </bdi>
                                     </p>
                                 )}
@@ -803,7 +801,7 @@ export function EmployeePayrollCard({
                                     {calculation.pendingAdvances.map(a => (
                                         <div key={a.id} className="flex items-center justify-between text-xs">
                                             <span className="text-muted truncate">{a.reason || t("payroll.card.noReason")} · {fd(a.created_at)}</span>
-                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(a.amount)} {iqd}</span>
+                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{formatIqdNumber(a.amount)} {iqd}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -818,7 +816,7 @@ export function EmployeePayrollCard({
                                     {calculation.pendingPenalties.map(p => (
                                         <div key={p.id} className="flex items-center justify-between text-xs">
                                             <span className="text-muted truncate">{p.reason || t("payroll.card.noReason")} · {fd(p.created_at)}</span>
-                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(p.amount)} {iqd}</span>
+                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{formatIqdNumber(p.amount)} {iqd}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -833,7 +831,7 @@ export function EmployeePayrollCard({
                                     {calculation.pendingBonuses.map(b => (
                                         <div key={b.id} className="flex items-center justify-between text-xs">
                                             <span className="text-muted truncate">{b.reason || t("payroll.card.noReason")} · {fd(b.created_at)}</span>
-                                            <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums shrink-0 ml-2">+{fmtIQD(b.amount)} {iqd}</span>
+                                            <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums shrink-0 ml-2">+{formatIqdNumber(b.amount)} {iqd}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -858,7 +856,7 @@ export function EmployeePayrollCard({
                                                     <p className="text-xs text-muted italic mt-0.5">&ldquo;{p.notes}&rdquo;</p>
                                                 )}
                                             </div>
-                                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">{fmtIQD(p.net_salary)} {iqd}</p>
+                                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">{formatIqdNumber(p.net_salary)} {iqd}</p>
                                         </div>
                                     ))}
                                 </div>

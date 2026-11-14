@@ -8,10 +8,10 @@ import { ar } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 import type { EffectiveSalaryRate } from "@/types/salary";
 import type { SalaryConfigHistoryRow } from "@/hooks/use-salary-config";
+import { formatIqdNumber } from "@scheniders/shared";
 
 function fmtIQD(n: number | null) {
-    if (n === null) return "—";
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
+    return n === null ? "—" : formatIqdNumber(n);
 }
 
 interface SalaryConfigFormProps {

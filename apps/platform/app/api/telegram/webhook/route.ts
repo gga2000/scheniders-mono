@@ -18,6 +18,7 @@ import {
     type CatalogProduct,
 } from "@/lib/telegram-product-match";
 import { withFailureReport } from "@/lib/job-monitor";
+import { formatIqdNumber } from "@scheniders/shared";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -331,7 +332,7 @@ async function handleProductReply(
     return sendMessage(
         msg.chat.id,
         `✅ <b>تم تأكيد الطلب ${result.data.order_id}.</b>\n` +
-            `${escapeHtml(match.product.name)} ×${match.quantity} — <b>${formatIQD(orderInput.price)}</b>${linkLine}\n\n` +
+            `${escapeHtml(match.product.name)} ×${match.quantity} — <b>${formatIqdNumber(orderInput.price)} IQD</b>${linkLine}\n\n` +
             `أرسل صورة جديدة لبدء طلب آخر.`
     );
 }
@@ -547,10 +548,6 @@ function pickImageFileId(msg: TgMessage): string | null {
     return null;
 }
 
-function formatIQD(n: number): string {
-    return new Intl.NumberFormat("en-US").format(Math.round(n)) + " IQD";
-}
-
 function escapeHtml(s: string): string {
     return s.replace(/[&<>"']/g, (c) =>
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)
@@ -564,7 +561,7 @@ function renderCustomerAndPicker(
     const row = (label: string, val: string) =>
         `<b>${label}:</b> ${escapeHtml(val) || "—"}`;
     const list = products
-        .map((p, i) => `${i + 1}. ${escapeHtml(p.name)} — <b>${formatIQD(p.price)}</b>`)
+        .map((p, i) => `${i + 1}. ${escapeHtml(p.name)} — <b>${formatIqdNumber(p.price)} IQD</b>`)
         .join("\n");
     return [
         "📋 <b>بيانات الزبون</b>",

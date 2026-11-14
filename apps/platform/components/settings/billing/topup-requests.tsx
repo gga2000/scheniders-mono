@@ -1,10 +1,10 @@
 "use client";
 
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { TopupRequest } from "@/hooks/use-wallet-topup";
-import { formatBillingDate, formatIQD } from "./billing-format";
+import { formatBillingDate } from "./billing-format";
 
 const STATE = {
     pending: { icon: Clock, style: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300" },

@@ -6,17 +6,12 @@ import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, Banknote, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DateRange } from "@/hooks/use-reports-metrics";
+import { formatIqdCompact } from "@scheniders/shared";
 
 interface PeriodComparisonProps {
     data: PeriodComparisonMetrics;
     currentRange: DateRange;
 }
-
-const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toFixed(0);
-};
 
 export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) {
     const { t } = useLanguage();
@@ -80,7 +75,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             current: data.current.totalRevenue,
             previous: data.previous.totalRevenue,
             change: relative(data.current.totalRevenue, data.previous.totalRevenue),
-            format: (v: number) => formatNumber(v),
+            format: (v: number) => formatIqdCompact(v),
             goodWhenPositive: true,
         },
         {

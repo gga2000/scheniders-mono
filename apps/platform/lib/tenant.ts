@@ -1,4 +1,4 @@
-import { createSupabaseServiceClient, createSupabaseServerClientWithToken } from '@/lib/supabase-server';
+import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { RESERVED_SLUGS } from "@/lib/tenant-slug";
 
@@ -82,13 +82,6 @@ export interface TenantUsage {
     orders_count: number;
     orders_charged: number;
     team_members_count: number;
-}
-
-export interface WalletInfo {
-    balance_iqd: number;
-    threshold_iqd: number;
-    total_charged_iqd: number;
-    total_topped_up_iqd: number;
 }
 
 // =============================================
@@ -194,45 +187,9 @@ function looksLikePlatformHost(slug: string): boolean {
 // =============================================
 
 /**
- * Get the tenant that a user currently belongs to.
- * Uses the user's access token to enforce RLS.
- */
-export async function getUserTenant(accessToken: string): Promise<Tenant | null> {
-    const client = createSupabaseServerClientWithToken(accessToken);
-
-    const { data: profile } = await client
-        .from('user_profiles')
-        .select('current_tenant_id')
-        .single();
-
-    if (!profile?.current_tenant_id) return null;
-
-    const { data: tenant } = await client
-        .from('tenants')
-        .select('*')
-        .eq('id', profile.current_tenant_id)
-        .single();
-
-    return tenant;
-}
-
-/**
- * Get a tenant by slug (service role — for signup/admin use only).
- */
-export async function getTenantBySlug(slug: string): Promise<Tenant | null> {
-    const adminClient = createSupabaseServiceClient();
-    const { data } = await adminClient
-        .from('tenants')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-    return data;
-}
-
-/**
  * Get a tenant by ID (service role — for internal use).
  */
-export async function getTenantById(tenantId: string): Promise<Tenant | null> {
+async function getTenantById(tenantId: string): Promise<Tenant | null> {
     const adminClient = createSupabaseServiceClient();
     const { data } = await adminClient
         .from('tenants')
@@ -249,7 +206,7 @@ export async function getTenantById(tenantId: string): Promise<Tenant | null> {
 /**
  * Get the plan limits for a given tier.
  */
-export async function getPlanLimits(plan: PlanTier): Promise<PlanLimits | null> {
+async function getPlanLimits(plan: PlanTier): Promise<PlanLimits | null> {
     const adminClient = createSupabaseServiceClient();
     const { data } = await adminClient
         .from('plan_limits')
@@ -259,18 +216,6 @@ export async function getPlanLimits(plan: PlanTier): Promise<PlanLimits | null> 
     return data;
 }
 
-/**
- * Get all plan limits (for pricing page, upgrade modal, etc.)
- */
-export async function getAllPlanLimits(): Promise<PlanLimits[]> {
-    const adminClient = createSupabaseServiceClient();
-    const { data } = await adminClient
-        .from('plan_limits')
-        .select('*')
-        .order('base_price_iqd', { ascending: true });
-    return data ?? [];
-}
-
 // =============================================
 // USAGE TRACKING
 // =============================================
@@ -278,7 +223,7 @@ export async function getAllPlanLimits(): Promise<PlanLimits[]> {
 /**
  * Get the current month's usage for a tenant.
  */
-export async function getCurrentUsage(tenantId: string): Promise<TenantUsage> {
+async function getCurrentUsage(tenantId: string): Promise<TenantUsage> {
     const adminClient = createSupabaseServiceClient();
     const now = new Date();
 
@@ -302,8 +247,6 @@ export async function canCreateOrder(tenantId: string): Promise<{
     reason?: string;
     warning?: string;
 }> {
-    const adminClient = createSupabaseServiceClient();
-
     // Check tenant status
     const tenant = await getTenantById(tenantId);
     if (!tenant) return { allowed: false, reason: 'Tenant not found' };
@@ -362,41 +305,3 @@ export async function canCreateOrder(tenantId: string): Promise<{
 // =============================================
 // WALLET
 // =============================================
-
-/**
- * Get wallet info for a tenant (service role).
- */
-export async function getWallet(tenantId: string): Promise<WalletInfo | null> {
-    const adminClient = createSupabaseServiceClient();
-    const { data } = await adminClient
-        .from('wallet')
-        .select('balance_iqd, threshold_iqd, total_charged_iqd, total_topped_up_iqd')
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
-    return data;
-}
-
-/**
- * Deduct from wallet for order charges (service role).
- * Uses the atomic charge_wallet_atomic RPC to prevent race conditions.
- */
-export async function chargeWallet(
-    tenantId: string,
-    amountIqd: number,
-    description: string,
-    referenceId?: string
-): Promise<{ newBalance: number }> {
-    const adminClient = createSupabaseServiceClient();
-
-    const { data, error } = await adminClient.rpc('charge_wallet_atomic', {
-        _tenant_id: tenantId,
-        _amount: amountIqd,
-        _description: description,
-        _order_id: referenceId ?? null,
-    });
-
-    if (error) throw new Error(`Failed to charge wallet: ${error.message}`);
-    if (!data?.success) throw new Error(data?.error ?? 'Wallet charge failed');
-
-    return { newBalance: data.new_balance };
-}

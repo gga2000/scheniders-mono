@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import type { FinanceOverviewResult } from "./use-finance-overview";
+import { formatIqdCompact } from "@scheniders/shared";
 
 export type InsightSeverity = "info" | "positive" | "warning" | "critical";
 
@@ -29,11 +30,7 @@ export interface MoneyUnits {
 const EN_UNITS: MoneyUnits = { iqd: "IQD", thousand: "K", million: "M" };
 
 export function formatIQD(n: number, units: MoneyUnits = EN_UNITS): string {
-    const abs = Math.abs(n);
-    const sign = n < 0 ? "-" : "";
-    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}${units.million} ${units.iqd}`;
-    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(0)}${units.thousand} ${units.iqd}`;
-    return `${n.toLocaleString("en-US")} ${units.iqd}`;
+    return `${formatIqdCompact(n, units)} ${units.iqd}`;
 }
 
 function pct(curr: number, prev: number): number {

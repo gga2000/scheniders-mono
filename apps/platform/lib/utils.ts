@@ -46,7 +46,7 @@ export function parseWholeNumber(raw: string, { allowNegative = false }: { allow
 /**
  * Format phone number for WhatsApp link
  */
-export function formatPhoneForWhatsApp(phone: string): string {
+function formatPhoneForWhatsApp(phone: string): string {
     // Remove all non-numeric characters
     const cleaned = phone.replace(/\D/g, '');
 

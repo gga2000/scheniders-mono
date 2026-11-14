@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AlertTriangle, Loader2, Plus, Wallet } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useBilling, useTrialOrderCount } from "@/hooks/use-billing";
 import { useTenant } from "@/hooks/use-tenant";
@@ -13,7 +13,6 @@ import { TopupForm } from "./billing/topup-form";
 import { TopupRequests } from "./billing/topup-requests";
 import { WalletHistory } from "./billing/wallet-history";
 import { MonthlyInvoices } from "./billing/monthly-invoices";
-import { formatIQD } from "./billing/billing-format";
 
 export function BillingSettings() {
     const { t } = useLanguage();

@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSaveShop, type Shop, type TillMember } from "@/hooks/use-shops";
 import { shopFormSchema, type ShopFormInput } from "@/lib/till/shop-forms";
 import { supabase } from "@/lib/supabase";
-import { formatIqd } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -36,7 +36,7 @@ export function ShopDialog({ shop, members, onClose }: Props) {
         address: shop?.address ?? "",
         phone: shop?.phone ?? "",
         receipt_footer: shop?.receipt_footer ?? "",
-        daily_goal: shop?.daily_goal ? formatIqd(shop.daily_goal) : "",
+        daily_goal: shop?.daily_goal ? formatIqdNumber(shop.daily_goal) : "",
         fib_qr_url: shop?.fib_qr_url ?? null,
         zaincash_qr_url: shop?.zaincash_qr_url ?? null,
     });
