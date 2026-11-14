@@ -32,6 +32,7 @@ import { belongsInWindow, windowCacheKey, type OrderWindow } from "@/lib/order-w
 import { FutureOrderDateError } from "@/lib/order-date-guard";
 import { reportOrderError } from "@/lib/order-telemetry";
 import type { OrderListPreview } from "@/lib/orders/list-preview";
+import { freshAccessToken } from "@/lib/authed-fetch";
 // Refetch trigger constants
 export const orderRefetchTriggers = {
     appReopen: "appReopen",
@@ -1276,12 +1277,12 @@ export function useCreateOrderMutation() {
     const queryClient = coverage(useQueryClient());
     // The server action derives the tenant from this token — the client no
     // longer tells the server which tenant to write into.
-    const { session, tenantId } = useAuth();
+    const { tenantId } = useAuth();
 
     return useMutation({
         mutationKey: [...ORDERS_LIST_MUTATION_KEY, "create"],
         mutationFn: async (orderData: CreateOrderInput) => {
-            const result = await createOrderAction(orderData, session?.access_token ?? "");
+            const result = await createOrderAction(orderData, await freshAccessToken());
             if (!result.success || !result.data) {
                 console.error("[createOrderMutation] Server action failed:", result.error);
                 throw new Error(result.error || "Failed to create order");

@@ -92,6 +92,12 @@ export const recordingSupabase = {
         recorded.push(query);
         return chainFor(query);
     },
+    // A signed-in session, so code that reads the access token at call time
+    // (freshAccessToken, authedFetch) gets the same "t" the auth mock holds.
+    auth: {
+        getSession: async () => ({ data: { session: { access_token: "t" } }, error: null }),
+        refreshSession: async () => ({ data: { session: { access_token: "t" } }, error: null }),
+    },
 };
 
 /** The module shape `@/lib/supabase` exports, with the recording client. */

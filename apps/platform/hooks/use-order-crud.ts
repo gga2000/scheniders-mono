@@ -36,6 +36,7 @@ import { orderWriteErrorMessage } from "@/lib/order-status-guard";
 import { useLanguage } from "@/hooks/use-language";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import { duplicateCandidateKeys } from "@/hooks/use-duplicate-window-alerts";
+import { freshAccessToken } from "@/lib/authed-fetch";
 
 // =============================================
 // ORDER CRUD HOOK
@@ -337,7 +338,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const newOrderNumber = cleanUpdates.order_id;
             delete cleanUpdates.order_id;
             if (newOrderNumber !== undefined && newOrderNumber !== previousOrder?.order_id) {
-                const renamed = await renameOrderNumberAction(orderId, newOrderNumber, authRef.current.session?.access_token ?? "");
+                const renamed = await renameOrderNumberAction(orderId, newOrderNumber, await freshAccessToken());
                 if (!renamed.success || !renamed.data) {
                     const error = renamed.error || "Failed to change the order number";
                     toast.error(error);
@@ -576,7 +577,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         try {
             const originalOrder = orders.find(o => o.id === originalOrderId);
 
-            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, session?.access_token ?? "");
+            const result = await splitOrderAction(originalOrderId, keptItems, returnedItems, await freshAccessToken());
 
             if (result.success) {
                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
@@ -613,7 +614,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     action: splitLogId ? {
                         label: tRef.current("orders.toast.undo"),
                         onClick: async () => {
-                            const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
+                            const undo = await unsplitOrderAction(splitLogId, await freshAccessToken());
                             if (!undo.success) {
                                 toast.error(tRef.current("orders.toast.splitUndoFailed"), undo.error);
                                 return;
@@ -1162,8 +1163,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         // the browser saw only its own tenant's numbers and called a number
         // another store had taken "available"; the save then failed. It throws
         // when it cannot check, so no caller shows "available" by mistake.
-        checkOrderIdExists: (orderId: string, excludeUuid?: string) =>
-            checkOrderIdExistsAction(orderId, excludeUuid, authRef.current.session?.access_token ?? ""),
+        checkOrderIdExists: async (orderId: string, excludeUuid?: string) =>
+            checkOrderIdExistsAction(orderId, excludeUuid, await freshAccessToken()),
     };
 
     const apiRef = useRef(latestFn);

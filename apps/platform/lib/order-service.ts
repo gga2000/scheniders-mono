@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import type { CreateOrderInput } from "@/types/order";
 import { Order } from "@/lib/supabase";
@@ -98,22 +99,26 @@ export async function createOrderForTenant(
             throw insertError;
         }
 
-        // ── 3. Post-creation: count the order in this month's usage ──
-        if (!isTake) trackOrderUsage(tenantId, supabase).catch((err) => {
-            reportOrderError(err, { operation: "trackOrderUsage", tenantId });
-        });
-
-        // ── 4. Staff WhatsApp alerts (fire-and-forget, tenant-scoped) ──
-        // Reads the tenant's staff_alert_numbers settings and fans out the
-        // new-order template to each registered phone. Failures are logged
-        // but do not affect the order creation result.
-        if (data && !isTake) {
-            import("@/lib/staff-alerts").then(({ sendNewOrderAlertToStaff }) => {
-                sendNewOrderAlertToStaff(data as Order, tenantId).catch((err) => {
-                    console.error('[createOrderForTenant] Staff alert fanout failed:', err);
+        // ── 3-4. After the response: usage count and staff WhatsApp alerts ──
+        // `after` keeps the function alive until they finish; a bare promise
+        // started here could be dropped when the instance froze after the
+        // reply, losing the alert with no error anywhere (audit R2 N5).
+        if (!isTake) {
+            const created = data as Order | null;
+            after(async () => {
+                await trackOrderUsage(tenantId, supabase).catch((err) => {
+                    reportOrderError(err, { operation: "trackOrderUsage", tenantId });
                 });
-            }).catch((err) => {
-                console.error('[createOrderForTenant] Staff alert module load failed:', err);
+                // Reads the tenant's staff_alert_numbers settings and fans out the
+                // new-order template to each registered phone. Failures are reported
+                // but never affect the order.
+                if (!created) return;
+                try {
+                    const { sendNewOrderAlertToStaff } = await import("@/lib/staff-alerts");
+                    await sendNewOrderAlertToStaff(created, tenantId);
+                } catch (err) {
+                    reportOrderError(err, { operation: "staffNewOrderAlert", tenantId });
+                }
             });
         }
 

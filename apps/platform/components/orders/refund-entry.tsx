@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { isAdminRole } from "@/lib/permissions";
 import { getBaseOrderId } from "@/lib/utils";
 import { RefundSheet, type RefundRequest } from "./refund-sheet";
+import { freshAccessToken } from "@/lib/authed-fetch";
 
 /**
  * The Refund button in order details and the sheet it opens. While a refund
@@ -22,7 +23,7 @@ import { RefundSheet, type RefundRequest } from "./refund-sheet";
 export function RefundEntry({ order }: { order: Order }) {
     const { t } = useLanguage();
     const statusLabel = useStatusLabel();
-    const { role, session, tenantId } = useAuth();
+    const { role, tenantId } = useAuth();
     const queryClient = useQueryClient();
     const [open, setOpen] = useState(false);
     const { data, error } = useRefundSheetData(order, true);
@@ -44,7 +45,7 @@ export function RefundEntry({ order }: { order: Order }) {
                 reason: request.reasonLabel,
                 notes: request.note || null,
             },
-            session?.access_token ?? "",
+            await freshAccessToken(),
         );
         if (!result.success) return { success: false, error: result.error };
 

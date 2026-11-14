@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { receiveAfterSaleItemAction, type ReceiveAfterSaleInput } from "@/app/actions/after-sale";
 import { DEFAULT_OVERDUE_DAYS, LOSS_DISPOSITIONS } from "@/lib/after-sale/intake";
+import { freshAccessToken } from "@/lib/authed-fetch";
 
 export interface PendingBackItem {
     id: string;
@@ -65,11 +66,11 @@ export function useAfterSaleIntake(enabled: boolean) {
 }
 
 export function useReceiveAfterSaleItem() {
-    const { tenantId, session } = useAuth();
+    const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (input: ReceiveAfterSaleInput) => {
-            const result = await receiveAfterSaleItemAction(input, session?.access_token ?? "");
+            const result = await receiveAfterSaleItemAction(input, await freshAccessToken());
             if (!result.success) throw new Error(result.error);
         },
         onSuccess: () => {

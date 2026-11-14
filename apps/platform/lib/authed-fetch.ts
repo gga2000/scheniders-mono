@@ -18,6 +18,17 @@ async function currentToken(): Promise<string> {
 }
 
 /**
+ * The signed-in user's access token for a server action, read at call time.
+ * The token in React state has expired right after a laptop wakes, so an
+ * action called with it answered "Unauthorized" until the client refreshed
+ * (audit R2 N4). Empty when signed out, which the action refuses as before.
+ */
+export async function freshAccessToken(): Promise<string> {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? "";
+}
+
+/**
  * fetch() for our own /api routes, signed in as the current user.
  *
  * Hooks used to send `session.access_token` captured from React state. After
