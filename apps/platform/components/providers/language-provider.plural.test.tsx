@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { LanguageProvider } from "./language-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -7,9 +7,11 @@ import { useLanguage } from "@/hooks/use-language";
 const wrapper = ({ children }: { children: ReactNode }) => <LanguageProvider>{children}</LanguageProvider>;
 
 describe("t() singular forms", () => {
-    it("uses the .one entry for a count of 1 and the plural otherwise", () => {
+    it("uses the .one entry for a count of 1 and the plural otherwise", async () => {
         localStorage.setItem("schneiders_language", "en");
         const { result } = renderHook(() => useLanguage(), { wrapper });
+        // English loads on demand; the page reads Arabic until it has arrived.
+        await waitFor(() => expect(result.current.language).toBe("en"));
         expect(result.current.t("finances.invoices.kpi.outSub", { count: 1 })).toBe("1 expense");
         expect(result.current.t("finances.invoices.kpi.outSub", { count: 3 })).toBe("3 expenses");
         expect(result.current.t("finances.invoices.kpi.outSub", { count: 0 })).toBe("0 expenses");
@@ -43,12 +45,13 @@ describe("t() singular forms", () => {
         expect(cadence(100)).toBe("يطلب كل ~100 يوم");
     });
 
-    it("uses the .zero entry for a count of 0 in both languages", () => {
+    it("uses the .zero entry for a count of 0 in both languages", async () => {
         localStorage.setItem("schneiders_language", "ar");
         const ar = renderHook(() => useLanguage(), { wrapper });
         expect(ar.result.current.t("customers.banner.rateBase", { count: 0 })).toBe("نسبة التوصيل · لا طلبات منتهية");
         localStorage.setItem("schneiders_language", "en");
         const en = renderHook(() => useLanguage(), { wrapper });
+        await waitFor(() => expect(en.result.current.language).toBe("en"));
         expect(en.result.current.t("customers.banner.rateBase", { count: 0 })).toBe("Delivery rate · none finished yet");
         expect(en.result.current.t("customers.banner.rateBase", { count: 4 })).toBe("Delivery rate · 4 finished");
     });
