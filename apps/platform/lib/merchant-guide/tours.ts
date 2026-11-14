@@ -44,6 +44,8 @@ export interface TourPhase {
     minutes: number;
     /** Offered on the first visit to this page (pathname prefix). */
     offerOn: string;
+    /** A page under `offerOn` that has none of this tour's stops, so the tour is not offered there. */
+    skipOn?: string;
     when?: (facts: GuideShopFacts) => boolean;
     stops: readonly TourStop[];
 }
@@ -102,6 +104,8 @@ export const TOUR_PHASES: readonly TourPhase[] = [
         labelKey: "guide.tour.money",
         minutes: 3,
         offerOn: "/finances",
+        // The new Finances page (in preview) has its own layout; this tour walks the current one.
+        skipOn: "/finances/new",
         stops: [
             { id: "numbers", path: "/finances", href: "/finances", selector: '[data-guide="money-numbers"]', line: "money.numbers", labelKey: "guide.tour.stop.moneyNumbers" },
             { id: "cash", path: "/finances", href: "/finances", selector: '[data-guide="money-cash"]', line: "money.cash", labelKey: "guide.tour.stop.moneyCash" },
@@ -234,7 +238,8 @@ export function tourOfferFor(
     return (
         TOUR_PHASES.find((p) => {
             const r = records[p.id];
-            return pathname.startsWith(p.offerOn) && phaseAvailable(p, facts) && !r?.started_at && !r?.later_at && !r?.done_at;
+            const here = pathname.startsWith(p.offerOn) && !(p.skipOn !== undefined && pathname.startsWith(p.skipOn));
+            return here && phaseAvailable(p, facts) && !r?.started_at && !r?.later_at && !r?.done_at;
         }) ?? null
     );
 }

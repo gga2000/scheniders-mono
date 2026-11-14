@@ -7,6 +7,7 @@ import { orderHistoryTranslations } from "@/lib/i18n-order-history";
 import { shieldTranslations } from "@/lib/i18n-shield";
 import { tillTranslations } from "@/lib/i18n-till";
 import { guideTranslations } from "@/lib/i18n-guide";
+import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
 
 export const en: Record<string, string> = {
     ...orderStatusTranslations("en"),
@@ -15,6 +16,7 @@ export const en: Record<string, string> = {
     ...shieldTranslations("en"),
     ...tillTranslations("en"),
     ...guideTranslations("en"),
+    ...financeSummaryTranslations("en"),
     // ── Navigation ──
     "nav.dashboard": "Dashboard",
     "nav.orders": "Orders",
