@@ -4,6 +4,9 @@ vi.mock("@/lib/supabase-server", () => ({ verifyAccessToken: vi.fn() }));
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({
     resolveActiveTenant: vi.fn(async () => ({ ok: true, tenantId: "t1", role: "employee", platformAdmin: false })),
 }));
+vi.mock("@/lib/auth/caller-has-permission", () => ({
+    callerHasPermission: vi.fn(async () => ({ ok: true })),
+}));
 vi.mock("@/lib/rate-limit", () => ({
     consumeRateLimit: vi.fn(async () => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
     rateLimitHeaders: () => ({}),

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from "zod";
-import { env } from "@/lib/env";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Field-level autosave PATCH endpoint                                  */
@@ -106,24 +104,6 @@ export function setByPath(
     return nextRoot;
 }
 
-async function getServerSupabase() {
-    const cookieStore = await cookies();
-    return createServerClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll() {
-                    // Route handlers can write cookies, but the SSR
-                    // client only needs reads for auth here.
-                },
-            },
-        },
-    );
-}
 
 export async function POST(request: Request): Promise<NextResponse> {
     let raw: unknown;
@@ -161,7 +141,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Value too large" }, { status: 400 });
     }
 
-    const supabase = await getServerSupabase();
+    const supabase = await createSupabaseServerClient();
 
     const {
         data: { user },

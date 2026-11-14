@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { authorizeWaseetCaller, WASEET_READ_ROLES } from "@/lib/waseet-caller";
+import { callerHasPermission } from "@/lib/auth/caller-has-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
     createWaseetOrder,
     mapOrderToWaseet,
@@ -30,6 +32,15 @@ export async function POST(request: NextRequest) {
         // Al-Waseet account: an active member of an allowed store, never a viewer.
         const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
         if (!caller.ok) return caller.response;
+        // The writes below use the service role, so the role list alone would
+        // let a member whose orders.edit was revoked still ship orders.
+        const permission = await callerHasPermission(
+            request,
+            { tenantId: caller.tenantId, platformAdmin: false },
+            PERMISSIONS.EDIT_ORDERS,
+            "waseet-submit-orders",
+        );
+        if (!permission.ok) return permission.response;
 
         // 2. Parse request
         const parsedBody = waseetSubmitBodySchema.safeParse(await request.json());
