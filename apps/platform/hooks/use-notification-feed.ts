@@ -277,12 +277,15 @@ export function useNotificationFeed(
     }, [live, refresh]);
 
     useEffect(() => {
-        if (!userId) return;
+        if (!userId || !tenantId) return;
         const channel = supabase
             .channel(`notifications:${userId}:${instanceId}`)
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "notifications" },
+                // The tenant filter runs in Realtime before the per-row RLS check,
+                // so other shops' notifications are never evaluated for this tab
+                // (Realtime polling was the DB's top consumer, audit R1 speed #6).
+                { event: "*", schema: "public", table: "notifications", filter: `tenant_id=eq.${tenantId}` },
                 (payload) => {
                     if (liveRef.current) {
                         invalidateAll();
@@ -332,7 +335,7 @@ export function useNotificationFeed(
         return () => {
             void supabase.removeChannel(channel);
         };
-    }, [userId, instanceId, invalidateAll, invalidateUnread, chime, t]);
+    }, [userId, tenantId, instanceId, invalidateAll, invalidateUnread, chime, t]);
 
     /**
      * Acting on a row edits the loaded pages in place. Refetching instead would

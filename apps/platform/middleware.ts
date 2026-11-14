@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Next.js Middleware — Supabase session refresh (@supabase/ssr).
  *
  * After the cookie migration the session lives in cookies, so the server can
- * refresh it. Calling supabase.auth.getUser() here rotates the access-token
+ * refresh it. Calling supabase.auth.getClaims() here rotates the access-token
  * cookie when it's near expiry — server-side, on a fresh connection — which
  * eliminates the old "reopen after idle → token refresh hangs on a stale TCP
  * socket" stall. The rotated cookie is written onto the response so the next
@@ -37,9 +37,12 @@ export async function middleware(request: NextRequest) {
         },
     );
 
-    // Touch the user to trigger a refresh + cookie rotation when needed.
+    // getClaims refreshes an expiring session (rotating the cookie) and then
+    // checks the token against the project's ES256 public key locally, with
+    // the key set cached across requests. getUser called Supabase Auth on
+    // every page and in-app click: p50 170 ms in Sentry (audit R1 speed #3).
     // (Do not gate or branch on the result here — refresh is the only job.)
-    await supabase.auth.getUser();
+    await supabase.auth.getClaims();
 
     return response;
 }
@@ -50,6 +53,6 @@ export const config = {
         // the Authorization header), static assets, and the Sentry tunnel
         // (/monitoring), which must accept error reports from signed-out pages,
         // and the Vercel Analytics / Speed Insights endpoints (/_vercel).
-        '/((?!api|monitoring|_vercel|_next/static|_next/image|favicon.ico|icons|manifest.json|till.webmanifest|sw.js|whatsapp).*)',
+        '/((?!api|monitoring|_vercel|_next/static|_next/image|favicon.ico|favicon-|icons|manifest.json|till.webmanifest|sw.js|whatsapp).*)',
     ],
 };

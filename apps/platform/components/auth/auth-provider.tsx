@@ -134,36 +134,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // The role that governs what this user may do is their role in the
             // current tenant (tenant_members.role), the same row RLS reads.
             // user_profiles.role only contributes super_admin (platform staff).
-            const { data: membership } = currentTenantId
-                ? await supabase
-                    .from('tenant_members')
-                    .select('role')
-                    .eq('tenant_id', currentTenantId)
-                    .eq('user_id', userId)
-                    .eq('status', 'active')
-                    .maybeSingle()
-                : { data: null };
-            const effectiveRole = resolveEffectiveRole(profileData.role, membership?.role);
+            // Membership, the role table and this tenant's user overrides are
+            // read together: role_permissions is a few dozen rows readable by
+            // any signed-in user, so taking all of it saves the round trip that
+            // used to wait for the role first (audit R1 speed #5). Overrides are
+            // per tenant: one granted in another store grants nothing here
+            // (has_tenant_permission applies the same rule).
+            const [membershipResult, rolePermsResult, userOverridesResult] = await Promise.all([
+                currentTenantId
+                    ? supabase
+                        .from('tenant_members')
+                        .select('role')
+                        .eq('tenant_id', currentTenantId)
+                        .eq('user_id', userId)
+                        .eq('status', 'active')
+                        .maybeSingle()
+                    : Promise.resolve({ data: null }),
+                supabase.from('role_permissions').select('role, permission'),
+                currentTenantId
+                    ? supabase.from('user_permissions').select('permission, is_granted')
+                        .eq('tenant_id', currentTenantId)
+                        .eq('user_id', userId)
+                    : Promise.resolve({ data: null }),
+            ]);
+            const effectiveRole = resolveEffectiveRole(profileData.role, membershipResult.data?.role);
             perfTrace.mark('auth:membership');
 
-            // Fetch role permissions + this tenant's user overrides in parallel.
-            // Overrides are per tenant: one granted in another store grants
-            // nothing here (has_tenant_permission applies the same rule).
-            const [rolePermsResult, userOverridesResult] = effectiveRole
-                ? await Promise.all([
-                    supabase.from('role_permissions').select('permission').eq('role', effectiveRole),
-                    currentTenantId
-                        ? supabase.from('user_permissions').select('permission, is_granted')
-                            .eq('tenant_id', currentTenantId)
-                            .eq('user_id', userId)
-                        : Promise.resolve({ data: null }),
-                ])
-                : [{ data: null }, { data: null }];
-
-            const perms = applyPermissionOverrides(
-                rolePermsResult.data?.map(p => p.permission) ?? [],
-                userOverridesResult.data ?? [],
-            );
+            const perms = effectiveRole
+                ? applyPermissionOverrides(
+                    (rolePermsResult.data ?? []).filter(p => p.role === effectiveRole).map(p => p.permission),
+                    userOverridesResult.data ?? [],
+                )
+                : [];
 
             setProfileMissing(false);
             setRole(effectiveRole);

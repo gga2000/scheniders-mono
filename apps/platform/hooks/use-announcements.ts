@@ -54,9 +54,11 @@ export function useAnnouncements() {
     const instanceId = useId();
 
     const fetchAnnouncements = useCallback(async () => {
+        if (!tenantId) return;
         const { data, error: fetchError } = await supabase
             .from('announcements')
             .select('*')
+            .eq('tenant_id', tenantId)
             .eq('is_active', true)
             .order('is_pinned', { ascending: false })
             .order('created_at', { ascending: false })
@@ -72,7 +74,7 @@ export function useAnnouncements() {
             setAnnouncements((data ?? []) as Announcement[]);
         }
         setLoading(false);
-    }, []);
+    }, [tenantId]);
 
     useEffect(() => {
         fetchAnnouncements();
@@ -80,15 +82,16 @@ export function useAnnouncements() {
 
     // Realtime subscription — all users get instant updates
     useEffect(() => {
+        if (!tenantId) return;
         const subscription = supabase
             .channel(`announcements-changes:${instanceId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements', filter: `tenant_id=eq.${tenantId}` }, () => {
                 fetchAnnouncements();
             })
             .subscribe();
 
         return () => { subscription.unsubscribe(); };
-    }, [fetchAnnouncements, instanceId]);
+    }, [fetchAnnouncements, instanceId, tenantId]);
 
     /** Returns true only when the row was actually written — callers keep the
      *  admin's typed draft on false rather than clearing it (REL-D1). */

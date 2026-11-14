@@ -1,12 +1,16 @@
 "use client";
 
 import React, { Profiler, Suspense, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useViewport } from "@/hooks/use-viewport";
-import { MobileOrdersPage } from "@/components/mobile/orders/MobileOrdersPage";
 import { OrderSearchParamSync } from "@/components/orders/order-search-param-sync";
 import { OrdersProvider } from "@/components/providers/orders-provider";
 import { perfTrace } from "@/lib/perf-trace";
+
+// Only phones render it, so desktop never downloads the mobile orders tree
+// (audit R1 speed #9).
+const MobileOrdersPage = dynamic(() => import("@/components/mobile/orders/MobileOrdersPage").then((m) => ({ default: m.MobileOrdersPage })));
 
 export default function OrdersLayout({
     children,
