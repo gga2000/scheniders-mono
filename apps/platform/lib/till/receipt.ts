@@ -6,7 +6,8 @@ import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import { escapeHtml } from "@/lib/html-escape";
 import { printHtmlDocument } from "@/lib/print-html";
 import { qrSvg } from "@/lib/print-codes";
-import { formatIqd, type PayMethod, type PaymentLine } from "@/lib/till/cart";
+import { type PayMethod, type PaymentLine } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 
 export interface ReceiptData {
     storeName: string;
@@ -69,17 +70,17 @@ export function receiptDocument(r: ReceiptData): string {
         row("التاريخ", escapeHtml(receiptTime(r.at))),
         r.customerName ? row("الزبون", escapeHtml(r.customerName)) : "",
     ].join("");
-    const items = r.lines.map((l) => row(escapeHtml(lineName(l)), formatIqd(l.price * l.quantity))).join("");
+    const items = r.lines.map((l) => row(escapeHtml(lineName(l)), formatIqdNumber(l.price * l.quantity))).join("");
     const cash = r.payments.filter((p) => p.method === "cash").reduce((s, p) => s + (p.tendered ?? p.amount), 0);
     const totals = [
-        r.discount > 0 ? row("المجموع قبل الخصم", formatIqd(r.subtotal)) : "",
-        r.discount > 0 ? row("الخصم", `−${formatIqd(r.discount)}`) : "",
-        row("المجموع", `${formatIqd(r.total)} د.ع`, true),
+        r.discount > 0 ? row("المجموع قبل الخصم", formatIqdNumber(r.subtotal)) : "",
+        r.discount > 0 ? row("الخصم", `−${formatIqdNumber(r.discount)}`) : "",
+        row("المجموع", `${formatIqdNumber(r.total)} د.ع`, true),
         ...r.payments
             .filter((p) => p.method !== "cash")
-            .map((p) => row(METHOD_AR[p.method], formatIqd(p.amount))),
-        cash > 0 ? row(METHOD_AR.cash, formatIqd(cash)) : "",
-        r.change > 0 ? row("الباقي للزبون", formatIqd(r.change)) : "",
+            .map((p) => row(METHOD_AR[p.method], formatIqdNumber(p.amount))),
+        cash > 0 ? row(METHOD_AR.cash, formatIqdNumber(cash)) : "",
+        r.change > 0 ? row("الباقي للزبون", formatIqdNumber(r.change)) : "",
     ].join("");
     // The till reads this code back from a scanner to find the sale for a return or exchange.
     const code = `<div class="qr">${qrSvg(r.orderNumber, { maxSizeMm: 18 })}<div class="qr-note"><span class="num">${escapeHtml(r.orderNumber)}</span> · امسح الرمز للإرجاع أو التبديل</div></div>`;
@@ -125,9 +126,9 @@ export function receiptWhatsAppText(r: ReceiptData): string {
     const lines = [
         r.customerName ? `هلا ${r.customerName}، شكراً لزيارتك ${r.shop.name}.` : `شكراً لزيارتك ${r.shop.name}.`,
         `فاتورتك: ${r.orderNumber}`,
-        ...r.lines.map((l) => `${lineName(l)}: ${formatIqd(l.price * l.quantity)}`),
-        r.discount > 0 ? `الخصم: ${formatIqd(r.discount)}` : "",
-        `المجموع: ${formatIqd(r.total)} د.ع`,
+        ...r.lines.map((l) => `${lineName(l)}: ${formatIqdNumber(l.price * l.quantity)}`),
+        r.discount > 0 ? `الخصم: ${formatIqdNumber(r.discount)}` : "",
+        `المجموع: ${formatIqdNumber(r.total)} د.ع`,
         r.shop.receipt_footer ?? "",
         r.storeName,
     ];

@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowDownRight, ArrowUpRight, CreditCard } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { WalletTransaction } from "@/hooks/use-billing";
-import { formatBillingDate, formatIQD } from "./billing-format";
+import { formatBillingDate } from "./billing-format";
 
 type Translate = ReturnType<typeof useLanguage>["t"];
 

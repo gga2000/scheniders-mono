@@ -8,6 +8,7 @@ import { Delta } from "../primitives/delta";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { RevenueDecomposition as Decomp } from "@/hooks/use-finance-revenue";
+import { formatIqdCompact } from "@scheniders/shared";
 
 interface Props {
     data: Decomp;
@@ -60,7 +61,7 @@ export function RevenueDecomposition({ data }: Props) {
                         <EffectCard
                             icon={Users}
                             label={t("finances.decomp.volumeEffect")}
-                            sublabel={t("finances.decomp.volumeSub", { orders: formatSignedNumber(data.deltaOrders), aov: formatShortIqd(data.aovPrev) })}
+                            sublabel={t("finances.decomp.volumeSub", { orders: formatSignedNumber(data.deltaOrders), aov: formatIqdCompact(data.aovPrev) })}
                             value={data.volumeEffect}
                             tone={data.volumeEffect >= 0 ? "emerald" : "rose"}
                         />
@@ -190,7 +191,7 @@ function WaterfallBridge({ data }: { data: Decomp }) {
                         className="flex-1 flex flex-col items-center justify-end gap-1.5 min-w-0"
                     >
                         <div className="text-[10px] font-semibold text-foreground/80 tabular-nums whitespace-nowrap">
-                            {s.isAnchor ? formatShortIqd(s.value) : formatSignedShortIqd(s.delta)}
+                            {s.isAnchor ? formatIqdCompact(s.value) : formatSignedShortIqd(s.delta)}
                         </div>
                         {/* A fixed-height track: a percentage height needs a parent with a definite height. */}
                         <div className="h-24 w-full flex items-end">
@@ -207,24 +208,17 @@ function WaterfallBridge({ data }: { data: Decomp }) {
     );
 }
 
-function formatShortIqd(n: number): string {
-    const abs = Math.abs(n);
-    if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${Math.round(n / 1_000)}K`;
-    return `${Math.round(n)}`;
-}
-
 function formatSignedShortIqd(n: number): string {
     // Treat sub-currency-rounding values as zero so the bridge doesn't show "+0".
     if (Math.round(n) === 0) return "—";
     const sign = n > 0 ? "+" : "-";
-    return `${sign}${formatShortIqd(Math.abs(n))}`;
+    return `${sign}${formatIqdCompact(Math.abs(n))}`;
 }
 
 function formatSignedIqd(n: number): string {
     if (n === 0) return "0";
     const sign = n > 0 ? "+" : "-";
-    return `${sign}${formatShortIqd(Math.abs(n))}`;
+    return `${sign}${formatIqdCompact(Math.abs(n))}`;
 }
 
 function formatSignedNumber(n: number): string {

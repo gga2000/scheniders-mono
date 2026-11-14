@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Check, Copy, FileUp, Loader2, Send } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -14,7 +14,6 @@ import {
     useWalletTopup,
     type TopupMethod,
 } from "@/hooks/use-wallet-topup";
-import { formatIQD } from "./billing-format";
 
 const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 

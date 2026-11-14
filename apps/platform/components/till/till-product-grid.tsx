@@ -5,7 +5,8 @@ import { Check, Flame, Heart, Package, ScanLine, TrendingDown, Wind, X } from "l
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 import { RECEIPT_CODE, type TillOverview } from "@/hooks/use-till";
-import { findByCode, formatIqd, isLow, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { findByCode, isLow, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { formatIqdNumber } from "@scheniders/shared";
 import { beep, flyToCart } from "@/lib/till/feedback";
 import { byNotes, notesInUse, similarTo } from "@/lib/till/scent";
 import { cn } from "@/lib/utils";
@@ -364,7 +365,7 @@ function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTML
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-semibold text-foreground" dir="auto">{product.name}</span>
-                <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(price)}</span>
+                <span className="text-base font-bold tabular-nums text-foreground">{formatIqdNumber(price)}</span>
                 <span className="flex"><StockTag product={product} /></span>
             </span>
         </button>
@@ -408,7 +409,7 @@ function ProductCard({ product, compact, onPick }: { product: TillProduct; compa
                 <span className="flex items-baseline justify-between gap-2">
                     <span className={cn("text-xl font-bold tabular-nums tracking-tight", out ? "text-muted" : "text-foreground")}>
                         {sizes > 1 && <span className="mr-1 text-xs font-medium text-muted">{t("till.sell.from")}</span>}
-                        {formatIqd(from)}
+                        {formatIqdNumber(from)}
                     </span>
                     <StockTag product={product} />
                 </span>
@@ -440,7 +441,7 @@ function VariantPicker({ product, onPick, onClose }: { product: TillProduct; onP
                                     {v.available === 0 ? t("till.sell.out") : t("till.sell.left", { n: v.available })}
                                 </span>
                             </span>
-                            <span className="text-lg font-bold tabular-nums text-foreground">{formatIqd(v.price)}</span>
+                            <span className="text-lg font-bold tabular-nums text-foreground">{formatIqdNumber(v.price)}</span>
                         </button>
                     ))}
                 </div>

@@ -5,6 +5,7 @@ import { Order } from "@/lib/supabase";
 import { formatOrderNamedDate } from "@/lib/order-format-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { exportReportStats } from "@/lib/export-report-stats";
+import { formatIQD } from "@scheniders/shared";
 
 // ============================================
 // TYPES
@@ -96,14 +97,6 @@ const STATUS_LABELS: Record<string, string> = {
 // HELPER
 // ============================================
 
-function formatIQDNumber(amount: number): string {
-    return new Intl.NumberFormat("en-IQ", {
-        style: "currency",
-        currency: "IQD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
 
 function applyHeaderStyle(row: ExcelJS.Row, columnCount: number) {
     row.height = 28;
@@ -204,10 +197,10 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
     // KPI Cards (using cells)
     const kpiData = [
         { label: "Total Orders", value: orders.length, bg: COLORS.kpiBlueBg },
-        { label: "Revenue", value: formatIQDNumber(totalRevenue), bg: COLORS.kpiGreenBg },
+        { label: "Revenue", value: formatIQD(totalRevenue), bg: COLORS.kpiGreenBg },
         { label: "Delivery Rate", value: `${deliveryRate.toFixed(1)}%`, bg: COLORS.kpiGreenBg },
         { label: "Rejection Rate", value: `${rejectionRate.toFixed(1)}%`, bg: COLORS.kpiRedBg },
-        { label: "Avg Order Value", value: formatIQDNumber(avgOrderValue), bg: COLORS.kpiPurpleBg },
+        { label: "Avg Order Value", value: formatIQD(avgOrderValue), bg: COLORS.kpiPurpleBg },
     ];
 
     // KPI Labels Row
@@ -283,7 +276,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
         const row = summarySheet.getRow(paymentStartRow + 2 + i);
         row.getCell(1).value = paymentLabels[status] || status;
         row.getCell(2).value = data.count;
-        row.getCell(3).value = formatIQDNumber(data.revenue);
+        row.getCell(3).value = formatIQD(data.revenue);
         applyDataRowStyle(row, 3, i % 2 === 1);
     });
 
@@ -464,11 +457,11 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
 
     // Revenue section
     const finItems = [
-        { label: "Total Revenue", value: formatIQDNumber(totalRevenue), bold: true },
+        { label: "Total Revenue", value: formatIQD(totalRevenue), bold: true },
         { label: "Total Orders", value: String(orders.length), bold: false },
-        { label: "Average Order Value", value: formatIQDNumber(avgOrderValue), bold: false },
-        { label: "Total Delivery Fees", value: formatIQDNumber(totalDeliveryFees), bold: false },
-        { label: "Net Revenue (after delivery)", value: formatIQDNumber(totalRevenue - totalDeliveryFees), bold: true },
+        { label: "Average Order Value", value: formatIQD(avgOrderValue), bold: false },
+        { label: "Total Delivery Fees", value: formatIQD(totalDeliveryFees), bold: false },
+        { label: "Net Revenue (after delivery)", value: formatIQD(totalRevenue - totalDeliveryFees), bold: true },
         { label: "", value: "", bold: false }, // Spacer
         { label: "DELIVERY PERFORMANCE", value: "", bold: true },
         { label: "Delivered Orders", value: String(delivered), bold: false },

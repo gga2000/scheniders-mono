@@ -6,6 +6,7 @@ import { ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
 import { RotateCcw, MapPin, TrendingDown, CheckCircle2, Banknote } from "lucide-react";
+import { formatIQD } from "@/lib/utils";
 
 interface ReturnBreakdownProps {
     data: ReturnAnalyticsMetrics;
@@ -13,13 +14,6 @@ interface ReturnBreakdownProps {
 
 
 // Format IQD currency
-function formatIQD(amount: number): string {
-    return new Intl.NumberFormat('ar-IQ', {
-        style: 'decimal',
-        maximumFractionDigits: 0,
-    }).format(amount) + ' IQD';
-}
-
 export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
     const { t } = useLanguage();
     const { totalReturns, totalReturnValue, returnRate, returnsByReason } = data;

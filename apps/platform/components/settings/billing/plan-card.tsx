@@ -1,10 +1,10 @@
 "use client";
 
 import { AlertTriangle, CalendarClock, Crown, ShoppingBag } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PlanLimitsData, SubscriptionData } from "@/hooks/use-billing";
-import { daysUntil, formatBillingDate, formatIQD } from "./billing-format";
+import { daysUntil, formatBillingDate } from "./billing-format";
 
 const STATUS_STYLE: Record<string, string> = {
     trial: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",

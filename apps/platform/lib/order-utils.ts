@@ -1,6 +1,7 @@
 import type { OrderItem } from "./supabase";
 import type { DeliverySlot } from "./orders/delivery-slot";
 import type { Order } from "@/types/order";
+import { normalizeIraqiMobile, toLatinDigits } from "@scheniders/shared";
 
 /**
  * Generate a unique order ID in the format LF-XXX-YYYY
@@ -183,37 +184,15 @@ export function unformatPhoneInput(display: string): string {
 }
 
 /**
- * Normalize phone input to standard Iraqi format (07XXXXXXXXX)
- * Accepts:
- *   - Arabic numerals (٠٧٨٠١٢٣٤٥٦٧)
- *   - +964 format (+9647801234567)
- *   - 964 format (9647801234567)
- *   - No-zero format (7801234567)
- *   - Standard format (07801234567)
- * Returns cleaned 07XXXXXXXXX string ready for storage/display
+ * Phone as typed -> the stored local form 07XXXXXXXXX. Accepts Arabic and
+ * Persian digits, +964 / 00964 / 964, and a missing leading 0 (the shared
+ * Iraqi-mobile rule). Input that is not an Iraqi mobile comes back as its
+ * digits, so the form can still show it and call it invalid.
  */
 export function normalizeIraqiPhone(phone: string): string {
     if (!phone) return '';
-
-    // Step 1: Convert Arabic/Eastern-Arabic numerals to Western digits
-    let cleaned = phone.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
-    // Also handle Eastern Arabic (Persian/Urdu) numerals ۰-۹
-    cleaned = cleaned.replace(/[۰-۹]/g, (d) => (d.charCodeAt(0) - 1776).toString());
-
-    // Step 2: Remove all non-digit characters
-    cleaned = cleaned.replace(/\D/g, '');
-
-    // Step 3: Strip country code prefix
-    if (cleaned.startsWith('964')) {
-        cleaned = cleaned.substring(3);
-    }
-
-    // Step 4: Ensure leading zero for Iraqi mobile (7XXXXXXXXX -> 07XXXXXXXXX)
-    if (cleaned.startsWith('7') && !cleaned.startsWith('0')) {
-        cleaned = '0' + cleaned;
-    }
-
-    return cleaned;
+    const digits = toLatinDigits(phone).replace(/\D/g, '');
+    return normalizeIraqiMobile(digits) ?? digits;
 }
 
 /**

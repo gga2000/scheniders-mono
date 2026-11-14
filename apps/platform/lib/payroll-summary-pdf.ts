@@ -1,6 +1,7 @@
 "use client";
 
 import type { EmployeePayrollData, OrderBreakdown } from "@/types/salary";
+import { formatIqdNumber } from "@scheniders/shared";
 
 const C = {
     ink:        [30, 30, 30]    as [number, number, number],
@@ -19,9 +20,6 @@ const C = {
     blueLight:  [219, 234, 254] as [number, number, number],
 };
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
-}
 
 function fmtDate(d: string) {
     return new Date(d + (d.includes("T") ? "" : "T00:00:00")).toLocaleDateString("en-US", {
@@ -92,9 +90,9 @@ export async function generatePayrollSummaryPDF(
 
     const cards = [
         { label: "Employees", value: String(data.length), bg: C.blueLight, color: C.blue },
-        { label: "Total Gross", value: `${fmtIQD(totalGross)} IQD`, bg: C.lightGray, color: C.ink },
-        { label: "Total Deductions", value: `${fmtIQD(totalDeductions)} IQD`, bg: C.redLight, color: C.red },
-        { label: "Total Net Payable", value: `${fmtIQD(totalNet)} IQD`, bg: C.greenLight, color: C.green },
+        { label: "Total Gross", value: `${formatIqdNumber(totalGross)} IQD`, bg: C.lightGray, color: C.ink },
+        { label: "Total Deductions", value: `${formatIqdNumber(totalDeductions)} IQD`, bg: C.redLight, color: C.red },
+        { label: "Total Net Payable", value: `${formatIqdNumber(totalNet)} IQD`, bg: C.greenLight, color: C.green },
         { label: "Completed Orders", value: String(completedTotal), bg: C.lightGray, color: C.ink },
         { label: "Payable Orders", value: String(payableTotal), bg: C.greenLight, color: C.green },
         { label: "Excluded (Repl/Ref)", value: String(excludedTotal), bg: C.redLight, color: C.red },
@@ -129,15 +127,15 @@ export async function generatePayrollSummaryPDF(
             name,
             d.employee.role,
             `${fmtDate(c.periodStart)} → ${fmtDate(c.periodEnd)}`,
-            fmtIQD(c.baseSalary),
-            fmtIQD(c.orderBonus),
+            formatIqdNumber(c.baseSalary),
+            formatIqdNumber(c.orderBonus),
             String(b.completedTotal),
             String(b.genuine),
             String(b.replacements + b.refunds),
-            fmtIQD(c.performanceBonusesTotal),
-            fmtIQD(c.grossSalary),
-            fmtIQD(totalDed),
-            fmtIQD(c.netSalary),
+            formatIqdNumber(c.performanceBonusesTotal),
+            formatIqdNumber(c.grossSalary),
+            formatIqdNumber(totalDed),
+            formatIqdNumber(c.netSalary),
             "", // signature blank
         ];
     });
@@ -147,15 +145,15 @@ export async function generatePayrollSummaryPDF(
         s + d.calculation.absenceDeduction + d.calculation.advancesTotal + d.calculation.penaltiesTotal, 0);
     tableRows.push([
         "TOTAL", "", "",
-        fmtIQD(data.reduce((s, d) => s + d.calculation.baseSalary, 0)),
-        fmtIQD(data.reduce((s, d) => s + d.calculation.orderBonus, 0)),
+        formatIqdNumber(data.reduce((s, d) => s + d.calculation.baseSalary, 0)),
+        formatIqdNumber(data.reduce((s, d) => s + d.calculation.orderBonus, 0)),
         String(completedTotal),
         String(payableTotal),
         String(excludedTotal),
-        fmtIQD(data.reduce((s, d) => s + d.calculation.performanceBonusesTotal, 0)),
-        fmtIQD(totalGross),
-        fmtIQD(totDed),
-        fmtIQD(totalNet),
+        formatIqdNumber(data.reduce((s, d) => s + d.calculation.performanceBonusesTotal, 0)),
+        formatIqdNumber(totalGross),
+        formatIqdNumber(totDed),
+        formatIqdNumber(totalNet),
         "",
     ]);
 
@@ -219,7 +217,7 @@ export async function generatePayrollSummaryPDF(
     doc.setFontSize(7);
     doc.setTextColor(...C.midGray);
     doc.text(`${companyName} — Confidential Payroll Register`, M, H - 4.5);
-    doc.text(`${periodLabel} · ${data.length} employees · ${fmtIQD(totalNet)} IQD total`, W - M, H - 4.5, { align: "right" });
+    doc.text(`${periodLabel} · ${data.length} employees · ${formatIqdNumber(totalNet)} IQD total`, W - M, H - 4.5, { align: "right" });
 
     return doc.output("blob");
 }
