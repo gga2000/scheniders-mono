@@ -4,7 +4,7 @@ import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { qiConfigFromEnv } from "@/lib/qi/client";
-import { settleQiPayment, type QiPaymentRow } from "@/lib/qi/settle";
+import { QI_PAYMENT_COLUMNS, qiPaymentRowSchema, settleQiPayment } from "@/lib/qi/settle";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +25,14 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: row, error } = await createSupabaseServiceClient()
         .from("qi_payments")
-        .select("id, tenant_id, qi_payment_id, status, amount_iqd")
+        .select(QI_PAYMENT_COLUMNS)
         .eq("id", id.data)
         .eq("tenant_id", caller.tenantId)
         .maybeSingle();
     if (error) throw error;
     if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-    const result = await settleQiPayment(config, row as QiPaymentRow);
+    const result = await settleQiPayment(config, qiPaymentRowSchema.parse(row));
     if (!result.success) {
         console.error("[qi] settle refused", { id: row.id, error: result.error });
         return NextResponse.json({ error: result.error }, { status: 409 });

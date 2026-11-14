@@ -7,9 +7,11 @@ import { useLanguage } from "@/hooks/use-language";
 import { useBilling, useTrialOrderCount } from "@/hooks/use-billing";
 import { useTenant } from "@/hooks/use-tenant";
 import { useWalletTopup } from "@/hooks/use-wallet-topup";
+import { useQiSavedCard } from "@/hooks/use-qi-topup";
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { PlanCard } from "./billing/plan-card";
 import { TopupForm } from "./billing/topup-form";
+import { QiAutoRefill } from "./billing/qi-auto-refill";
 import { QiReturnCheck } from "./billing/qi-return-check";
 import { TopupRequests } from "./billing/topup-requests";
 import { WalletHistory } from "./billing/wallet-history";
@@ -20,6 +22,7 @@ export function BillingSettings() {
     const { data: tenant, isLoading: tenantLoading } = useTenant();
     const { wallet, subscription, allPlans, transactions, isLoading, refetch } = useBilling();
     const { requests } = useWalletTopup();
+    const { refresh: refreshQiCard } = useQiSavedCard();
     const inTrial = tenant?.status === "trial";
     const { data: trialOrders } = useTrialOrderCount(inTrial);
     const [showTopUp, setShowTopUp] = useState(false);
@@ -47,7 +50,13 @@ export function BillingSettings() {
                 <p className="text-sm text-muted-foreground">{t("billing.page.subtitle")}</p>
             </div>
 
-            <QiReturnCheck onSettled={refetch} />
+            <QiReturnCheck
+                onSettled={() => {
+                    refetch();
+                    // A paid "save my card" top-up has just saved the card.
+                    void refreshQiCard();
+                }}
+            />
 
             {showLowBalance && (
                 <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30" data-testid="low-balance-warning">
@@ -101,6 +110,8 @@ export function BillingSettings() {
                                 </p>
                             )}
                         </div>
+
+                        {!exempt && <QiAutoRefill />}
 
                         {showTopUp ? (
                             <TopupForm

@@ -6,6 +6,7 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import type { PlanLimitsData, SubscriptionData, WalletTransaction } from "@/hooks/use-billing";
 import type { TenantSummary } from "@/hooks/use-tenant";
 import type { TopupPaymentDetails, TopupRequest } from "@/hooks/use-wallet-topup";
+import type { QiSavedCard } from "@/hooks/use-qi-topup";
 import { hasRoomForTopup, receiptProblem } from "@/hooks/use-wallet-topup";
 
 const state: {
@@ -16,7 +17,17 @@ const state: {
     payment: TopupPaymentDetails;
     requests: TopupRequest[];
     qiEnabled: boolean;
+    qiCard: QiSavedCard | null;
 } = {} as never;
+
+const SAVED_CARD: QiSavedCard = {
+    masked_pan: "521372******8582",
+    valid_to: null,
+    auto_refill: true,
+    refill_amount_iqd: 25_000,
+    refill_below_iqd: 5_000,
+    failures: 0,
+};
 
 const PLAN: PlanLimitsData = {
     plan: "starter",
@@ -74,11 +85,19 @@ vi.mock("@/hooks/use-wallet-topup", async (importOriginal) => {
 });
 
 const qiPay = vi.fn();
+const qiCardUpdate = vi.fn();
+const qiCardRemove = vi.fn();
 vi.mock("@/hooks/use-qi-topup", async (importOriginal) => {
     const real = await importOriginal<typeof import("@/hooks/use-qi-topup")>();
     return {
         ...real,
         useQiTopup: () => ({ enabled: state.qiEnabled, pay: { isPending: false, isSuccess: false, mutate: qiPay } }),
+        useQiSavedCard: () => ({
+            card: state.qiCard,
+            refresh: vi.fn(),
+            update: { isPending: false, mutate: qiCardUpdate },
+            remove: { isPending: false, mutate: qiCardRemove },
+        }),
     };
 });
 
@@ -120,7 +139,10 @@ beforeEach(() => {
     state.payment = { zain_cash: "07701234567", qi_card: null };
     state.requests = [];
     state.qiEnabled = false;
+    state.qiCard = null;
     qiPay.mockReset();
+    qiCardUpdate.mockReset();
+    qiCardRemove.mockReset();
 });
 afterEach(cleanup);
 
@@ -178,10 +200,51 @@ describe("BillingSettings", () => {
         expect(screen.getByTestId("qi-pay")).toBeTruthy();
         expect(screen.queryByTestId("topup-file")).toBeNull();
         fireEvent.click(screen.getByTestId("qi-pay-button"));
-        expect(qiPay).toHaveBeenCalledWith({ amount: 50_000, locale: "ar" }, expect.anything());
+        expect(qiPay).toHaveBeenCalledWith({ amount: 50_000, locale: "ar", saveCard: true }, expect.anything());
         fireEvent.click(screen.getByText("زين كاش"));
         expect(screen.queryByTestId("qi-pay")).toBeNull();
         expect(screen.getByTestId("topup-number").textContent).toBe("07701234567");
+    });
+
+    it("Qi pay offers to save the card for auto refill, and sends no save when switched off", () => {
+        state.qiEnabled = true;
+        show();
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        expect(screen.getByText("احفظ البطاقة للشحن التلقائي")).toBeTruthy();
+        fireEvent.click(screen.getByTestId("qi-save-card").querySelector("button") as HTMLButtonElement);
+        fireEvent.click(screen.getByTestId("qi-pay-button"));
+        expect(qiPay).toHaveBeenCalledWith({ amount: 50_000, locale: "ar", saveCard: false }, expect.anything());
+    });
+
+    it("with a saved card: shows auto refill with the card ending, changes the amount, removes the card", () => {
+        state.qiEnabled = true;
+        state.qiCard = { ...SAVED_CARD };
+        show();
+        const panel = screen.getByTestId("qi-auto-refill");
+        expect(panel.textContent).toContain("بطاقة تنتهي بـ 8582");
+        expect(panel.textContent).toMatch(/نشحن IQD\s25,000/);
+        fireEvent.click(screen.getByText(/^IQD\s100,000$/));
+        expect(qiCardUpdate).toHaveBeenCalledWith({ refillAmount: 100_000 }, expect.anything());
+        fireEvent.click(screen.getByTestId("qi-auto-refill-switch"));
+        expect(qiCardUpdate).toHaveBeenCalledWith({ autoRefill: false }, expect.anything());
+        fireEvent.click(screen.getByTestId("qi-remove-card"));
+        expect(qiCardRemove).toHaveBeenCalled();
+        // A saved card is kept: the pay form no longer offers to save one.
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        expect(screen.queryByTestId("qi-save-card")).toBeNull();
+    });
+
+    it("says auto refill stopped after 3 failed charges", () => {
+        state.qiEnabled = true;
+        state.qiCard = { ...SAVED_CARD, auto_refill: false, failures: 3 };
+        show();
+        expect(screen.getByTestId("qi-auto-refill").textContent).toContain("توقف الشحن التلقائي بعد 3 محاولات فاشلة");
+    });
+
+    it("hides the saved card when Qi payments are off", () => {
+        state.qiCard = { ...SAVED_CARD };
+        show();
+        expect(screen.queryByTestId("qi-auto-refill")).toBeNull();
     });
 
     it("lists the shop's receipts with their state", () => {

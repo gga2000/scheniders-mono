@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
+import { Switch } from "@scheniders/ui/switch";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { TOPUP_MAX_IQD, TOPUP_MIN_IQD } from "@/hooks/use-wallet-topup";
-import { QiTooManyOpenError, useQiTopup } from "@/hooks/use-qi-topup";
+import { QiTooManyOpenError, useQiSavedCard, useQiTopup } from "@/hooks/use-qi-topup";
 
 const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 
@@ -14,13 +15,17 @@ const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 export function QiPay({ onCancel }: { onCancel: () => void }) {
     const { t, language } = useLanguage();
     const { pay } = useQiTopup();
+    const { card } = useQiSavedCard();
     const [amount, setAmount] = useState<number>(50_000);
+    // A store with a saved card keeps it unless it asks to swap; a new one is offered auto refill.
+    const [saveCard, setSaveCard] = useState(true);
+    const offerSave = card === null;
     const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
 
     const start = () => {
         if (!amountOk || pay.isPending) return;
         pay.mutate(
-            { amount, locale: language === "ar" ? "ar" : "en" },
+            { amount, locale: language === "ar" ? "ar" : "en", saveCard: offerSave && saveCard },
             {
                 onError: (err) =>
                     toast.error(t(err instanceof QiTooManyOpenError ? "billing.qi.tooMany" : "billing.qi.failed")),
@@ -65,6 +70,16 @@ export function QiPay({ onCancel }: { onCancel: () => void }) {
                 />
                 {!amountOk && <p className="mt-1 text-xs text-red-600">{t("billing.topup.amountRange")}</p>}
             </div>
+
+            {offerSave && (
+                <label className="flex items-start gap-3 rounded-lg border border-(--card-border) p-3" data-testid="qi-save-card">
+                    <Switch checked={saveCard} onCheckedChange={setSaveCard} className="mt-0.5 shrink-0" />
+                    <span>
+                        <span className="block text-sm font-medium text-foreground">{t("billing.qi.saveCard")}</span>
+                        <span className="block text-xs leading-relaxed text-muted-foreground">{t("billing.qi.saveCardBody")}</span>
+                    </span>
+                </label>
+            )}
 
             <div className="flex gap-2">
                 <button

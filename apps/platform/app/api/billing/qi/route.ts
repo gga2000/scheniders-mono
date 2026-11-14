@@ -23,10 +23,12 @@ async function handleGET(request: NextRequest) {
 const bodySchema = z.object({
     amount: z.number().int().min(1_000).max(10_000_000),
     locale: z.enum(["ar", "en"]).default("ar"),
+    /** Keep the card for auto refill (Qi issues a token once the payment is paid). */
+    saveCard: z.boolean().default(false),
 });
 
 /**
- * POST /api/billing/qi  { amount, locale }
+ * POST /api/billing/qi  { amount, locale, saveCard }
  * Opens a Qi card payment for the caller's store (store admins only) and
  * returns Qi's payment page. The wallet is credited later, only after Qi's
  * status API says the payment succeeded (webhook or the return check).
@@ -43,7 +45,12 @@ async function handlePOST(request: NextRequest) {
 
     const { data: row, error: insertError } = await supabaseAdmin()
         .from("qi_payments")
-        .insert({ tenant_id: caller.tenantId, requested_by: caller.userId, amount_iqd: parsed.data.amount })
+        .insert({
+            tenant_id: caller.tenantId,
+            requested_by: caller.userId,
+            amount_iqd: parsed.data.amount,
+            save_card: parsed.data.saveCard,
+        })
         .select("id")
         .single();
     if (insertError?.message === "qi_payment_open_limit") {
@@ -60,6 +67,7 @@ async function handlePOST(request: NextRequest) {
             finishPaymentUrl: `${origin}/settings?section=billing&qi=${row.id}`,
             notificationUrl: `${origin}/api/webhooks/qi`,
             locale: parsed.data.locale === "ar" ? "ar_IQ" : "en_US",
+            saveCard: parsed.data.saveCard,
         });
     } catch (err) {
         if (!(err instanceof QiApiError)) throw err;
