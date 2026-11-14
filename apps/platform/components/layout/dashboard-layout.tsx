@@ -91,56 +91,57 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         return isCollapsed ? "88px" : "272px";
     };
 
+    // The guard wraps the page only: the sidebar already lists just the links
+    // this member may open, so it and the top bar paint at once while a
+    // restricted page waits for the member's role (audit R2 speed #3).
     return (
-        <PageGuard>
-            <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen: handleSetMobileMenuOpen }}>
-                {/* `isolate` gives the backdrop its own stacking floor: at -z-10 it paints
-                    above this root's background and below everything else. */}
-                <div className={cn("flex min-h-screen bg-background text-foreground", ambient && "ambient-page isolate")}>
-                    {ambient && <AmbientBackdrop />}
-                    {isMobile && mobileMenuOpen && (
-                        <div
-                            className="mobile-overlay active"
-                            onClick={() => handleSetMobileMenuOpen(false)}
-                        />
+        <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen: handleSetMobileMenuOpen }}>
+            {/* `isolate` gives the backdrop its own stacking floor: at -z-10 it paints
+                above this root's background and below everything else. */}
+            <div className={cn("flex min-h-screen bg-background text-foreground", ambient && "ambient-page isolate")}>
+                {ambient && <AmbientBackdrop />}
+                {isMobile && mobileMenuOpen && (
+                    <div
+                        className="mobile-overlay active"
+                        onClick={() => handleSetMobileMenuOpen(false)}
+                    />
+                )}
+
+                <Suspense fallback={<div className={cn("shrink-0 transition-all duration-500", isCollapsed ? "w-[88px]" : "w-[272px]")} />}>
+                    <Sidebar
+                        key={hydrated ? "client" : "server"}
+                        collapsed={isCollapsed}
+                        setCollapsed={setSidebarCollapsed}
+                        isMobile={isMobile}
+                        mobileMenuOpen={mobileMenuOpen}
+                        setMobileMenuOpen={handleSetMobileMenuOpen}
+                    />
+                </Suspense>
+
+                <main
+                    className={cn(
+                        "flex-1 min-w-0 transition-all duration-500 ease-in-out"
                     )}
+                    style={{
+                        marginLeft: getMainMargin(),
+                        paddingBottom: "0",
+                        // Exposes the sidebar offset to the sticky header so its
+                        // surface can bleed full-width behind the floating sidebar.
+                        ["--app-sidebar-gutter" as string]: getMainMargin(),
+                    }}
+                >
+                    <TrialBanner />
+                    <TenantPausedBanner />
+                    <TopBar
+                        onMenuClick={() => handleSetMobileMenuOpen(true)}
+                        isMobile={isMobile}
+                    />
 
-                    <Suspense fallback={<div className={cn("shrink-0 transition-all duration-500", isCollapsed ? "w-[88px]" : "w-[272px]")} />}>
-                        <Sidebar
-                            key={hydrated ? "client" : "server"}
-                            collapsed={isCollapsed}
-                            setCollapsed={setSidebarCollapsed}
-                            isMobile={isMobile}
-                            mobileMenuOpen={mobileMenuOpen}
-                            setMobileMenuOpen={handleSetMobileMenuOpen}
-                        />
-                    </Suspense>
-
-                    <main
-                        className={cn(
-                            "flex-1 min-w-0 transition-all duration-500 ease-in-out"
-                        )}
-                        style={{
-                            marginLeft: getMainMargin(),
-                            paddingBottom: "0",
-                            // Exposes the sidebar offset to the sticky header so its
-                            // surface can bleed full-width behind the floating sidebar.
-                            ["--app-sidebar-gutter" as string]: getMainMargin(),
-                        }}
-                    >
-                        <TrialBanner />
-                        <TenantPausedBanner />
-                        <TopBar
-                            onMenuClick={() => handleSetMobileMenuOpen(true)}
-                            isMobile={isMobile}
-                        />
-
-                        <div key={pathname} className="max-w-[1800px] mx-auto">
-                            {children}
-                        </div>
-                    </main>
-                </div>
-            </SidebarContext.Provider>
-        </PageGuard>
+                    <div key={pathname} className="max-w-[1800px] mx-auto">
+                        <PageGuard>{children}</PageGuard>
+                    </div>
+                </main>
+            </div>
+        </SidebarContext.Provider>
     );
 }

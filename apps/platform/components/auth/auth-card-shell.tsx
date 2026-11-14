@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
@@ -32,12 +31,9 @@ export function AuthCardShell({ children, showBack = true }: { children: React.R
                 />
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                className="w-full max-w-[440px] relative z-10"
-            >
+            {/* No entry fade: it started at opacity 0 in the server HTML, so the
+                card stayed invisible until all JS had run (6 s on a slow phone). */}
+            <div className="w-full max-w-[440px] relative z-10">
                 <div className="flex items-center justify-center gap-2.5 mb-7">
                     <Image src="/icons/icon-192.png" alt="" width={32} height={32} className="rounded-[9px] shadow-sm" />
                     <span className="text-[17px] font-semibold tracking-tight text-[#1E1E1E]">Scheniders</span>
@@ -62,7 +58,7 @@ export function AuthCardShell({ children, showBack = true }: { children: React.R
                         <span dir={dir}>{t("pwreset.brandFooter")}</span>
                     </div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }
