@@ -32,8 +32,8 @@ describe("dictionary split", () => {
                 const rel = path.relative(root, full);
                 if (rel === path.join("lib", "i18n.ts")) continue;
                 const src = readFileSync(full, "utf8");
-                if (/import\s*\{[^}]*\btranslations\b[^}]*\}\s*from\s*"@\/lib\/i18n"/.test(src)) offenders.push(rel);
-                if (/from\s*"@\/lib\/i18n-en"/.test(src)) offenders.push(rel);
+                if (/import\s*\{[^}]*\btranslations\b[^}]*\}\s*from\s*["']@\/lib\/i18n["']/.test(src)) offenders.push(rel);
+                if (/from\s*["']@\/lib\/i18n-en["']/.test(src)) offenders.push(rel);
             }
         };
         for (const dir of ["app", "components", "hooks", "lib"]) walk(path.join(root, dir));

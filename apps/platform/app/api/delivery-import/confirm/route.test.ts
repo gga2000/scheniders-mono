@@ -5,6 +5,7 @@ import {
     respond,
     resetRecording,
     queriesOn,
+    recorded,
 } from "@/lib/__fixtures__/recording-supabase";
 
 /*
@@ -19,7 +20,10 @@ const TENANT = "99999999-9999-4999-8999-999999999999";
 const ORDER_1 = "11111111-1111-4111-8111-111111111111";
 const ORDER_2 = "22222222-2222-4222-8222-222222222222";
 const ORDER_GONE = "33333333-3333-4333-8333-333333333333";
-const state = vi.hoisted(() => ({ importError: null as null | { code: string; message: string } }));
+const state = vi.hoisted(() => ({
+    importError: null as null | { code: string; message: string },
+    auditError: null as null | { message: string },
+}));
 
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
 vi.mock("@/lib/auth/require-request-caller", () => ({
@@ -43,7 +47,11 @@ const row = (rowNumber: number) => ({
 beforeEach(() => {
     resetRecording();
     state.importError = null;
+    state.auditError = null;
     respond((q) => {
+        if (q.target === "delivery_import_items" && q.ops.some((o) => o.op === "insert")) {
+            return { data: null, error: state.auditError };
+        }
         if (q.target === "delivery_imports" && q.ops.some((o) => o.op === "insert")) {
             return state.importError ? { data: null, error: state.importError } : { data: { id: "import-1" }, error: null };
         }
@@ -94,8 +102,15 @@ describe("POST /api/delivery-import/confirm", () => {
         const items = queriesOn("delivery_import_items")
             .flatMap((q) => q.ops.filter((o) => o.op === "insert").map((o) => o.args[0]))
             .flat() as Record<string, unknown>[];
-        expect(items.map((i) => i.action).sort()).toEqual(["confirmed", "failed", "skipped"]);
+        // Undo data goes in first for every order; the one whose update failed
+        // is then marked failed, inside the caller's tenant.
+        expect(items.map((i) => i.action).sort()).toEqual(["confirmed", "confirmed", "skipped"]);
         for (const item of items) expect(item.tenant_id).toBe(TENANT);
+        const marked = queriesOn("delivery_import_items").filter((q) => q.ops.some((o) => o.op === "update"));
+        expect(marked).toHaveLength(1);
+        expect(marked[0].ops.find((o) => o.op === "update")?.args[0]).toMatchObject({ action: "failed" });
+        expect(marked[0].ops.some((o) => o.op === "eq" && o.args[0] === "tenant_id" && o.args[1] === TENANT)).toBe(true);
+        expect(marked[0].ops.some((o) => o.op === "eq" && o.args[0] === "pdf_row_number" && o.args[1] === 2)).toBe(true);
     });
 
     const post = (confirmedItems: unknown[]) =>
@@ -141,6 +156,22 @@ describe("POST /api/delivery-import/confirm", () => {
         const res = await post([{ pdfRowNumber: 1, orderId: ORDER_1, matchCategory: "clean", matchDetails: "" }]);
         expect(res.status).toBe(409);
         expect(queriesOn("orders").some((q) => q.ops.some((o) => o.op === "update"))).toBe(false);
+    });
+
+    it("writes the undo data before any order, and changes nothing when it cannot", async () => {
+        await post([{ pdfRowNumber: 1, orderId: ORDER_1, matchCategory: "clean", matchDetails: "" }]);
+        const firstAudit = recorded.findIndex((q) => q.target === "delivery_import_items");
+        const firstOrderWrite = recorded.findIndex((q) => q.target === "orders" && q.ops.some((o) => o.op === "update"));
+        expect(firstAudit).toBeGreaterThanOrEqual(0);
+        expect(firstAudit).toBeLessThan(firstOrderWrite);
+
+        recorded.length = 0;
+        state.auditError = { message: "statement timeout" };
+        const res = await post([{ pdfRowNumber: 1, orderId: ORDER_1, matchCategory: "clean", matchDetails: "" }]);
+        expect(res.status).toBe(500);
+        expect(queriesOn("orders").some((q) => q.ops.some((o) => o.op === "update"))).toBe(false);
+        // The empty import is withdrawn so the receipt can be confirmed again.
+        expect(queriesOn("delivery_imports").some((q) => q.ops.some((o) => o.op === "delete"))).toBe(true);
     });
 
     it("refuses a malformed body", async () => {

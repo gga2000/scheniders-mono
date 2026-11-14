@@ -320,6 +320,12 @@ export type CreateOrderInput =
     Omit<Order, "id" | "created_at" | "updated_at" | OrderColumnsWithDbDefaults> &
     Partial<Pick<Order, OrderColumnsWithDbDefaults>> & {
         custom_created_at?: string | null;
+        /**
+         * One key per filled-in form. create_order_atomic returns the order
+         * already made with this key instead of making a second one, so a
+         * retry after a lost response cannot double the order.
+         */
+        idempotency_key?: string;
     };
 
 export type CreateOrderResult = { success: boolean; data?: Order; error?: string };

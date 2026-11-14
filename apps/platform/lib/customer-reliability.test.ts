@@ -1,3 +1,4 @@
+import { en } from '@/lib/i18n-en';
 import { describe, it, expect } from 'vitest';
 import { translations, type Locale } from './i18n';
 import {
@@ -19,6 +20,8 @@ import {
     daysAgoLabel,
     buildScoreBreakdown,
     tagNameMatchesRating,
+    RATING_LABEL_KEYS,
+    RATING_LABELS_EN,
     SCORE_FACTOR_TONE,
     firstDeliveryPending,
     statusFlags,
@@ -423,6 +426,12 @@ describe('valueTierKey', () => {
             expect(translations.ar[valueTierKey(tier)]).toBeTruthy();
             expect(translations.ar[valueTierKey(tier)]).not.toMatch(/زبون|زبائن/);
         }
+    });
+});
+
+describe('RATING_LABELS_EN', () => {
+    it('matches the English dictionary', () => {
+        for (const key of RATING_LABEL_KEYS) expect(RATING_LABELS_EN[key]).toBe(en[key]);
     });
 });
 
