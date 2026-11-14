@@ -25,10 +25,14 @@ describe("split_order_atomic definition", () => {
         const newest = fs.readFileSync(path.join(dir, definers[definers.length - 1]), "utf8");
         const body = newest.replace(/^--.*$/gm, "");
         expect(body).toMatch(/-\s*'idempotency_key'/);
-        // Audit F10: only a confirmed or in-transit order splits (a split order is
-        // 'delivered', so a second split is refused), and the kept + returned
-        // lines must equal the order's own lines at the order's own prices.
-        expect(body).toMatch(/status NOT IN \('confirmed', 'in_transit'\)/);
+        // Audit F10: the order details offer a split on confirmed, in-transit and
+        // delivered orders (a partial delivery is often marked delivered first),
+        // so all three split; a second split is refused by the split log, and a
+        // delivered order keeps its delivery day. The kept + returned lines must
+        // equal the order's own lines at the order's own prices.
+        expect(body).toMatch(/status NOT IN \('confirmed', 'in_transit', 'delivered'\)/);
+        expect(body).toMatch(/order_split_log l\s+WHERE l\.original_order_id = _original_order_id AND l\.undone_at IS NULL/);
+        expect(body).toMatch(/delivered_at = coalesce\(_original_order\.delivered_at, NOW\(\)\)/);
         expect(body).toMatch(/FULL JOIN requested r USING \(pid, vid, nm, sku, price\)/);
     });
 });
