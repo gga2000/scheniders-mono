@@ -5673,7 +5673,7 @@ export const en: Record<string, string> = {
     "payroll.period.label": "Pay period",
     "payroll.period.from": "From",
     "payroll.period.to": "To",
-    "payroll.period.sinceLastHint": "Each member from the day after their last payment to today (last 90 days if never paid)",
+    "payroll.period.sinceLastHint": "Each member from the day after their last payment to today. Never paid: from the day they joined, at most the last 90 days",
     "payroll.attribution.label": "Count orders",
     "payroll.tab.label": "Payroll views",
     "payroll.searchLabel": "Search members",
