@@ -21,6 +21,11 @@ import { z } from "zod";
  *   stock purchase an expense typed as `product_cost`: cash out, but never a
  *                  cost of the period, because the goods are already counted
  *                  as product cost on the day they sell
+ *   reached you    the courier's payments dated in the period, each payment
+ *                  file counted once
+ *   break-even     delivered orders a day that pay the daily bill (ads, other
+ *                  costs, salaries) out of what one order leaves after its
+ *                  goods, its delivery and the refunds
  */
 
 const DailySchema = z.object({
@@ -65,6 +70,13 @@ export const FinanceSummarySchema = z.object({
         stuck: CountAmountSchema,
         prime_linked: z.boolean(),
         prime_held: z.object({ parcels: z.number(), collected: z.number(), fee: z.number() }),
+        /** Courier payments dated in the period: each payment file once, net of the courier's fee. */
+        reached: z.object({
+            payments: z.number(),
+            amount: z.number(),
+            last_day: z.string().nullable(),
+            last_amount: z.number(),
+        }),
     }),
     failed: z.object({
         refused_orders: z.number(),
@@ -186,6 +198,28 @@ export function throughLens(amount: number, statement: ProfitStatement, lens: Le
     if (lens === "total") return amount;
     if (lens === "order") return perOrder(amount, statement.orders);
     return statement.sales > 0 ? Math.round((amount / statement.sales) * 1000) : null;
+}
+
+/** Under this many delivered orders, a period's averages are too jumpy to compare against. */
+const COMPARABLE_ORDERS = 20;
+
+/**
+ * A figure against the same figure of the period before, both read through the
+ * lens, as a percent change. Null when either side has no reading, the earlier
+ * one is zero (no honest percent exists), or an average is asked of an earlier
+ * period that delivered too few orders to have a steady one.
+ */
+export function lensChange(
+    amount: number,
+    statement: ProfitStatement,
+    amountBefore: number,
+    statementBefore: ProfitStatement,
+    lens: Lens,
+): number | null {
+    if (lens !== "total" && statementBefore.orders < COMPARABLE_ORDERS) return null;
+    const now = throughLens(amount, statement, lens);
+    if (now === null) return null;
+    return changePct(now, throughLens(amountBefore, statementBefore, lens));
 }
 
 export interface WaterfallStep {
@@ -318,6 +352,37 @@ export function productRows(summary: FinanceSummary): ProductProfitRow[] {
             };
         })
         .sort((a, b) => b.profit - a.profit);
+}
+
+export interface BreakEven {
+    /** What one delivered order leaves after its goods, its delivery and the period's refunds. */
+    leftPerOrder: number;
+    /** Ads, other costs and salaries for one day of the period. */
+    dailyBill: number;
+    /** Delivered orders a day that pay the daily bill; null when an order leaves nothing to pay it with. */
+    needed: number | null;
+    /** Delivered orders a day in the period. */
+    delivered: number;
+}
+
+/**
+ * How many delivered orders a day cover the costs that do not come with an
+ * order. Goods, delivery and refunds travel with each order, so they come off
+ * what an order leaves; ads, other costs and salaries are the daily bill that
+ * money has to pay. Null when nothing was delivered.
+ */
+export function breakEven(summary: FinanceSummary, statement: ProfitStatement): BreakEven | null {
+    const days = summary.daily.length;
+    if (statement.orders === 0 || days === 0) return null;
+    const line = (id: CostLineId) => statement.lines.find((l) => l.id === id)?.amount ?? 0;
+    const left = (statement.sales - line("product_cost") - line("delivery") - line("refunds")) / statement.orders;
+    const dailyBill = (line("ads") + line("other") + line("salaries")) / days;
+    return {
+        leftPerOrder: Math.round(left),
+        dailyBill: Math.round(dailyBill),
+        needed: left > 0 ? dailyBill / left : null,
+        delivered: statement.orders / days,
+    };
 }
 
 /** Of every parcel that reached a door in the period, the share the customer refused; null when none did. */

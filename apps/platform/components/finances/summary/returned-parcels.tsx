@@ -40,7 +40,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                 <p className="py-2 text-left text-[14px] text-muted" dir={dir}>{t("fin.failed.none")}</p>
             ) : (
                 <>
-                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-6">
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5">
                         <div className="grid grid-cols-[repeat(10,13px)] gap-[5px]" role="img" aria-label={t("fin.failed.share", { n: formatWhole(ofHundred) })}>
                             {Array.from({ length: SQUARES }, (_, i) => (
                                 <span
@@ -51,7 +51,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                             ))}
                         </div>
                         <div>
-                            <div className="text-left text-[34px] font-bold leading-none tracking-[-0.02em] text-foreground" dir={dir} data-testid="failed-share">
+                            <div className="whitespace-nowrap text-left text-[30px] font-bold leading-none tracking-[-0.02em] text-foreground" dir={dir} data-testid="failed-share">
                                 <span className="text-rose-600 dark:text-rose-400" dir="ltr">
                                     {ofHundred === 0 ? t("fin.failed.lessThanOne") : formatWhole(ofHundred)}
                                 </span>{" "}

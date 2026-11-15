@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Clock, HandCoins, Truck, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowUpRight, Clock, HandCoins, Truck, Wallet, type LucideIcon } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { primeOwes, type FinanceSummary } from "@/lib/finance/summary";
 import { Money, formatWhole, useMoneyText } from "./money";
@@ -20,15 +21,22 @@ interface StopProps {
     textDir: "rtl" | "ltr";
     /** Draw the dashed road down to the next stop. */
     road: boolean;
+    /** The last stop, where the money is in hand: its icon turns green. */
+    arrived?: boolean;
     children?: ReactNode;
     testId: string;
 }
 
-function Stop({ icon: Icon, label, note, amount, textDir, road, children, testId }: StopProps) {
+function Stop({ icon: Icon, label, note, amount, textDir, road, arrived = false, children, testId }: StopProps) {
     return (
         <li className="relative grid grid-cols-[44px_minmax(0,1fr)_auto] items-start gap-x-3.5 pb-6 last:pb-0" data-testid={testId}>
             {road && <span className="absolute bottom-1 left-[21px] top-[50px] border-l-2 border-dashed border-[var(--card-border)]" aria-hidden="true" />}
-            <span className="flex size-11 items-center justify-center rounded-[14px] bg-[var(--background-soft)] text-foreground">
+            <span
+                className={cn(
+                    "flex size-11 items-center justify-center rounded-[14px]",
+                    arrived ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" : "bg-[var(--background-soft)] text-foreground",
+                )}
+            >
                 <Icon className="size-5" aria-hidden="true" />
             </span>
             <div className="min-w-0 pt-0.5">
@@ -43,15 +51,27 @@ function Stop({ icon: Icon, label, note, amount, textDir, road, children, testId
 
 /**
  * The road order money takes to the merchant, as stops: parcels still with the
- * courier, then delivered parcels Prime has collected but not paid out. Both
- * are as of now, whatever period is picked.
+ * courier, then delivered parcels Prime has collected but not paid out (both as
+ * of now, whatever period is picked), and last the courier payments that
+ * reached the shop in the period.
  */
 export function MoneyRoute({ summary }: MoneyRouteProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, stuck, prime_linked: primeLinked, prime_held: held } = summary.cash;
-    const nothingOutside = road.count === 0 && held.parcels === 0;
+    const { in_transit: road, stuck, prime_linked: primeLinked, prime_held: held, reached } = summary.cash;
+    const nothingOutside = road.count === 0 && held.parcels === 0 && reached.payments === 0;
+    const dayText = useMemo(
+        () => new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { day: "numeric", month: "short", timeZone: "UTC" }),
+        [language],
+    );
+    const lastDay = reached.last_day === null ? "" : dayText.format(new Date(`${reached.last_day}T00:00:00Z`));
+    const reachedNote =
+        reached.payments === 0
+            ? t("fin.money.reached.none")
+            : reached.payments === 1
+              ? t("fin.money.reached.one", { date: lastDay })
+              : t("fin.money.reached.many", { n: formatWhole(reached.payments), date: lastDay, amount: money(reached.last_amount) });
 
     return (
         <SummaryCard title={t("fin.money.title")} sub={t("fin.money.sub")} textDir={dir} testId="money-route" className="h-full">
@@ -65,7 +85,7 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
                         note={t("fin.money.road.note", { n: formatWhole(road.count) })}
                         amount={road.amount}
                         textDir={dir}
-                        road={primeLinked}
+                        road
                         testId="money-road"
                     >
                         {stuck.count > 0 && (
@@ -94,7 +114,7 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
                             }
                             amount={primeOwes(summary)}
                             textDir={dir}
-                            road={false}
+                            road
                             testId="money-prime"
                         >
                             <Link
@@ -106,6 +126,16 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
                             </Link>
                         </Stop>
                     )}
+                    <Stop
+                        icon={Wallet}
+                        label={t("fin.money.reached")}
+                        note={reachedNote}
+                        amount={reached.amount}
+                        textDir={dir}
+                        road={false}
+                        arrived
+                        testId="money-reached"
+                    />
                 </ol>
             )}
         </SummaryCard>

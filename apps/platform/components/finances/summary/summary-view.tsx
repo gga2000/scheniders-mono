@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { buildStatement, productRows, type FinanceSummary } from "@/lib/finance/summary";
 import { AdReturn } from "./ad-return";
+import { BreakEven } from "./break-even";
 import { FinanceStrip } from "./finance-strip";
 import type { FinanceTab } from "./finance-tabs";
 import { MoneyRoute } from "./money-route";
@@ -29,7 +30,8 @@ interface SummaryViewProps {
  * The Summary tab, in the order a shop owner asks: did I make money (the dark
  * strip), where did my sales go (the statement), is the period building and
  * where is my cash (the path beside the money route), which product earns,
- * then what returns cost, whether the ads pay, and the money sitting in stock.
+ * then what returns cost, whether the ads pay, how many orders cover the
+ * costs, and the money sitting in stock.
  * Every figure comes from one database answer (useFinanceSummary).
  */
 export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) {
@@ -75,7 +77,7 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
                 </div>
             )}
 
-            <ProfitStatement summary={summary} statement={statement} onOpenTab={onOpenTab} />
+            <ProfitStatement summary={summary} statement={statement} previous={beforeFigures?.statement ?? null} onOpenTab={onOpenTab} />
 
             <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]")}>
                 {!nothingDelivered && <ProfitPath daily={summary.daily} />}
@@ -84,9 +86,10 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             {!nothingDelivered && <ProductRanking rows={products} />}
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                 <ReturnedParcels summary={summary} />
                 <AdReturn statement={statement} />
+                <BreakEven summary={summary} statement={statement} onOpenTab={onOpenTab} />
                 <StockShelf summary={summary} />
             </div>
         </div>

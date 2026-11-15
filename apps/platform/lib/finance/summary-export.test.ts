@@ -15,6 +15,7 @@ const summary: FinanceSummary = {
         stuck: { count: 0, amount: 0 },
         prime_linked: true,
         prime_held: { parcels: 0, collected: 0, fee: 0 },
+        reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 },
     },
     failed: { refused_orders: 0, refused_value: 0, prime_returned_parcels: 0, prime_returned_fee: 0 },
     daily: [
