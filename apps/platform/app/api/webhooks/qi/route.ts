@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import { withFailureReport } from "@/lib/job-monitor";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getQiPaymentStatus, qiConfigFromEnv, qiWebhookSchema, verifyQiSignature, type QiPayment } from "@/lib/qi/client";
-import { QI_PAYMENT_COLUMNS, qiPaymentRowSchema, settleQiPayment } from "@/lib/qi/settle";
+import { QI_PAYMENT_COLUMNS, attachQiPaymentId, qiMoneyAlarm, qiPaymentRowSchema, settleQiPayment } from "@/lib/qi/settle";
 
 export const dynamic = "force-dynamic";
 
@@ -43,28 +43,31 @@ async function handlePOST(request: NextRequest) {
     if (!found) return NextResponse.json({ ok: true, ignored: "not_ours" });
     let row = qiPaymentRowSchema.parse(found);
 
+    if (row.status !== "created") {
+        // Closed here. If Qi took the money anyway (a charge we closed as never
+        // opened), the wallet was not credited: a person must look.
+        if (row.status !== "success") {
+            const qi = await getQiPaymentStatus(config, row.qi_payment_id ?? parsed.data.paymentId);
+            if (qi.requestId === row.id && qi.status === "SUCCESS" && !qi.canceled) {
+                qiMoneyAlarm("Qi took a payment we had closed as not paid", { id: row.id, paymentId: qi.paymentId, amount: qi.amount, closedAs: row.status });
+            }
+        }
+        return NextResponse.json({ ok: true, status: row.status, duplicate: true });
+    }
+
     let known: QiPayment | undefined;
-    if (row.qi_payment_id === null && row.kind === "auto_refill") {
-        // An auto refill whose charge request timed out never learned Qi's
-        // payment id. Attach it only when Qi's own status API says this payment
+    if (row.qi_payment_id === null) {
+        // We never got Qi's answer to opening this payment, so we do not know
+        // its id. Attach it only when Qi's own status API says this payment
         // was opened for this row.
         known = await getQiPaymentStatus(config, parsed.data.paymentId);
         if (known.requestId !== row.id) return NextResponse.json({ ok: true, ignored: "not_ours" });
-        const { error: attachError } = await admin
-            .from("qi_payments")
-            .update({ qi_payment_id: known.paymentId })
-            .eq("id", row.id)
-            .is("qi_payment_id", null);
-        if (attachError) throw attachError;
-        row = { ...row, qi_payment_id: known.paymentId };
+        row = await attachQiPaymentId(admin, row, known.paymentId);
     }
     if (row.qi_payment_id !== parsed.data.paymentId) return NextResponse.json({ ok: true, ignored: "not_ours" });
 
     const result = await settleQiPayment(config, row, known);
-    if (!result.success) {
-        console.error("[qi] webhook settle refused", { id: row.id, error: result.error });
-        return NextResponse.json({ ok: true, ignored: result.error });
-    }
+    if (!result.success) return NextResponse.json({ ok: true, ignored: result.error });
     return NextResponse.json({ ok: true, status: result.status });
 }
 

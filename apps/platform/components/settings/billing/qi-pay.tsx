@@ -14,12 +14,12 @@ const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 /** Pay by Qi card on Qi's own page; no receipt, the wallet fills on success. */
 export function QiPay({ onCancel }: { onCancel: () => void }) {
     const { t, language } = useLanguage();
-    const { pay } = useQiTopup();
+    const { pay, canSaveCard } = useQiTopup();
     const { card } = useQiSavedCard();
     const [amount, setAmount] = useState<number>(50_000);
     // A store with a saved card keeps it unless it asks to swap; a new one is offered auto refill.
     const [saveCard, setSaveCard] = useState(true);
-    const offerSave = card === null;
+    const offerSave = card === null && canSaveCard;
     const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
 
     const start = () => {

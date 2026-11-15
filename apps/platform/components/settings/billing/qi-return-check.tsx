@@ -42,6 +42,7 @@ export function QiReturnCheck({ onSettled }: { onSettled: () => void }) {
                     const result = await checkQiPayment(id);
                     if (result.status === "success") {
                         toast.success(t("billing.qi.paid", { amount: formatIQD(result.amount) }));
+                        if (result.cardSaved === false) toast.warning(t("billing.qi.cardNotSaved"));
                         return;
                     }
                     if (result.status === "failed" || result.status === "canceled") {

@@ -3,7 +3,9 @@ import { z } from "zod";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { QiApiError, createQiPayment, qiConfigFromEnv } from "@/lib/qi/client";
+import { classifyQiFailure, createQiPayment, findQiPaymentByRequest, qiConfigFromEnv } from "@/lib/qi/client";
+import { closeUnopenedQiPayment } from "@/lib/qi/settle";
+import { qiTokenKeyFromEnv } from "@/lib/qi/token-seal";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +14,14 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
 
 /**
  * GET /api/billing/qi
- * Whether shops can pay by Qi card right now (the terminal is configured).
+ * Whether shops can pay by Qi card right now (the terminal is configured),
+ * and whether they can save the card (the token sealing key is set too).
  */
 async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
-    return NextResponse.json({ enabled: qiConfigFromEnv() !== null });
+    const enabled = qiConfigFromEnv() !== null;
+    return NextResponse.json({ enabled, saveCard: enabled && qiTokenKeyFromEnv() !== null });
 }
 
 const bodySchema = z.object({
@@ -42,6 +46,7 @@ async function handlePOST(request: NextRequest) {
 
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "invalid_amount" }, { status: 400 });
+    if (parsed.data.saveCard && !qiTokenKeyFromEnv()) return NextResponse.json({ error: "save_card_unavailable" }, { status: 409 });
 
     const { data: row, error: insertError } = await supabaseAdmin()
         .from("qi_payments")
@@ -70,8 +75,14 @@ async function handlePOST(request: NextRequest) {
             saveCard: parsed.data.saveCard,
         });
     } catch (err) {
-        if (!(err instanceof QiApiError)) throw err;
-        console.error("[qi] create payment refused", { status: err.status, code: err.code, message: err.message });
+        const failure = classifyQiFailure(err);
+        console.error("[qi] create payment not accepted", { failure, error: String(err) });
+        // Qi answered with an error and holds no payment for this request:
+        // close the row now so it does not count as open. Otherwise the cron
+        // finds out from Qi and closes or cancels it.
+        if (failure !== "unknown" && (await findQiPaymentByRequest(config, row.id)) === null) {
+            await closeUnopenedQiPayment(supabaseAdmin(), row.id, "not_opened");
+        }
         return NextResponse.json({ error: "qi_refused" }, { status: 502 });
     }
 

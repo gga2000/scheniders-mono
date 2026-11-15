@@ -6227,12 +6227,13 @@ export type Database = {
       qi_payments: {
         Row: {
           amount_iqd: number
+          card_saved: boolean | null
           created_at: string
           id: string
           kind: string
           masked_pan: string | null
           qi_payment_id: string | null
-          requested_by: string
+          requested_by: string | null
           save_card: boolean
           settled_at: string | null
           status: string
@@ -6240,12 +6241,13 @@ export type Database = {
         }
         Insert: {
           amount_iqd: number
+          card_saved?: boolean | null
           created_at?: string
           id?: string
           kind?: string
           masked_pan?: string | null
           qi_payment_id?: string | null
-          requested_by: string
+          requested_by?: string | null
           save_card?: boolean
           settled_at?: string | null
           status?: string
@@ -6253,12 +6255,13 @@ export type Database = {
         }
         Update: {
           amount_iqd?: number
+          card_saved?: boolean | null
           created_at?: string
           id?: string
           kind?: string
           masked_pan?: string | null
           qi_payment_id?: string | null
-          requested_by?: string
+          requested_by?: string | null
           save_card?: boolean
           settled_at?: string | null
           status?: string
@@ -6281,8 +6284,10 @@ export type Database = {
           failures: number
           last_attempt_at: string | null
           masked_pan: string | null
+          payment_system: string | null
           refill_amount_iqd: number
           refill_below_iqd: number
+          saved_at: string
           saved_by: string | null
           tenant_id: string
           token: string
@@ -6296,8 +6301,10 @@ export type Database = {
           failures?: number
           last_attempt_at?: string | null
           masked_pan?: string | null
+          payment_system?: string | null
           refill_amount_iqd?: number
           refill_below_iqd?: number
+          saved_at?: string
           saved_by?: string | null
           tenant_id: string
           token: string
@@ -6311,8 +6318,10 @@ export type Database = {
           failures?: number
           last_attempt_at?: string | null
           masked_pan?: string | null
+          payment_system?: string | null
           refill_amount_iqd?: number
           refill_below_iqd?: number
+          saved_at?: string
           saved_by?: string | null
           tenant_id?: string
           token?: string
@@ -9062,6 +9071,10 @@ export type Database = {
         Returns: number
       }
       clear_notification_feed: { Args: never; Returns: undefined }
+      close_unopened_qi_payment: {
+        Args: { _id: string; _outcome: string }
+        Returns: Json
+      }
       cod_risk_signals: {
         Args: { _address: string; _phone: string; _tenant_id: string }
         Returns: Json
@@ -9106,7 +9119,6 @@ export type Database = {
         Args: { _admin_id: string; _approve: boolean; _request_id: string }
         Returns: Json
       }
-      fail_qi_auto_refill: { Args: { _id: string }; Returns: Json }
       generate_seed_orders: { Args: never; Returns: undefined }
       get_current_tenant_id: { Args: never; Returns: string }
       get_abandoned_cart_recovery: {
@@ -9469,6 +9481,13 @@ export type Database = {
       }
       normalize_phone: { Args: { input_phone: string }; Returns: string }
       normalize_phone_for_search: { Args: { _phone: string }; Returns: string }
+      note_qi_auto_refill: {
+        Args: {
+          _outcome: string
+          _row: Database["public"]["Tables"]["qi_payments"]["Row"]
+        }
+        Returns: undefined
+      }
       notification_channel_enabled: {
         Args: {
           p_category: string
@@ -9645,16 +9664,6 @@ export type Database = {
         Args: { p_children: Json; p_product_id: string }
         Returns: undefined
       }
-      save_qi_card: {
-        Args: {
-          _masked_pan: string
-          _payment_row_id: string
-          _token: string
-          _token_type: string
-          _valid_to?: string
-        }
-        Returns: Json
-      }
       set_capi_token: {
         Args: { p_network: string; p_tenant_id: string; p_token: string }
         Returns: undefined
@@ -9766,6 +9775,8 @@ export type Database = {
         Args: {
           _amount: number
           _canceled: boolean
+          _card: Json
+          _confirmed_amount: number
           _id: string
           _masked_pan: string
           _qi_payment_id: string
@@ -9868,6 +9879,7 @@ export type Database = {
         }
         Returns: Json
       }
+      start_qi_auto_refill: { Args: { _tenant_id: string }; Returns: Json }
       storage_object_writable: {
         Args: { p_bucket: string; p_name: string; p_owner_id: string }
         Returns: boolean
