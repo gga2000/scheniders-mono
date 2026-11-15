@@ -12,6 +12,7 @@ import { ScrollToTopButton, BackupPrompt, IraqMap } from "@/components/orders/pa
 import { useOrdersPageModel } from "@/components/orders/page/use-orders-page-model";
 import { OrdersPageToolbar } from "@/components/orders/page/orders-page-toolbar";
 import { OrdersPageList } from "@/components/orders/page/orders-page-list";
+import { OrdersPageSkeleton } from "@/components/orders/page/orders-page-skeleton";
 
 export default function OrdersPage() {
     const m = useOrdersPageModel();
@@ -25,7 +26,9 @@ export default function OrdersPage() {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0, transition: { duration: 0.25, ease: EASE_CROSSFADE } }}
                     className="min-h-screen bg-[var(--background)]"
-                />
+                >
+                    <OrdersPageSkeleton />
+                </motion.div>
             ) : error ? (
                 <motion.div
                     key="error"

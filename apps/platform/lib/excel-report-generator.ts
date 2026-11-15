@@ -150,7 +150,7 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
     workbook.created = new Date();
 
     const {
-        byStatus, byPayment, byCity, totalRevenue, realizedOrders, totalDeliveryFees,
+        byStatus, byPayment, byCity, totalRevenue, realizedOrders, totalDeliveryFees, customersPaid,
         delivered, rejected, deliveryRate, rejectionRate, avgOrderValue,
     } = exportReportStats(orders);
 
@@ -460,8 +460,8 @@ export async function generateExcelReport(options: ExcelReportOptions): Promise<
         { label: "Total Revenue", value: formatIQD(totalRevenue), bold: true },
         { label: "Total Orders", value: String(orders.length), bold: false },
         { label: "Average Order Value", value: formatIQD(avgOrderValue), bold: false },
-        { label: "Total Delivery Fees", value: formatIQD(totalDeliveryFees), bold: false },
-        { label: "Net Revenue (after delivery)", value: formatIQD(totalRevenue - totalDeliveryFees), bold: true },
+        { label: "Delivery fees collected for couriers", value: formatIQD(totalDeliveryFees), bold: false },
+        { label: "Customers paid in total", value: formatIQD(customersPaid), bold: true },
         { label: "", value: "", bold: false }, // Spacer
         { label: "DELIVERY PERFORMANCE", value: "", bold: true },
         { label: "Delivered Orders", value: String(delivered), bold: false },
