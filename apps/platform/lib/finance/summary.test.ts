@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     FinanceSummarySchema,
-    averageOrder,
+    adReturn,
     barStep,
     buildStatement,
     changePct,
@@ -10,7 +10,11 @@ import {
     primeOwes,
     productRows,
     profitBars,
+    profitPath,
     refusedShare,
+    stockPurchases,
+    throughLens,
+    waterfall,
     type FinanceSummary,
     type FinanceSummaryDay,
 } from "./summary";
@@ -47,9 +51,10 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             day("2026-11-03", { courier: 5_000, salaries: 20_000 }),
         ],
         products: [
-            { key: "p1", name: "Envoy", units: 8, revenue: 300_000, cost: 110_000, missing_units: 0 },
-            { key: "p2", name: "Wayfarer", units: 4, revenue: 100_000, cost: 40_000, missing_units: 1 },
+            { key: "p1", name: "Envoy", image_url: "https://x.supabase.co/storage/v1/object/public/p/envoy.webp", units: 8, revenue: 300_000, cost: 110_000, missing_units: 0 },
+            { key: "p2", name: "Wayfarer", image_url: null, units: 4, revenue: 100_000, cost: 40_000, missing_units: 1 },
         ],
+        stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 2 },
         ...over,
     };
 }
@@ -125,30 +130,65 @@ describe("perOrder", () => {
     });
 });
 
-describe("averageOrder", () => {
-    it("splits the average order into slices that fill the bar", () => {
-        const avg = averageOrder(buildStatement(summary()));
-        expect(avg?.price).toBe(40_000);
-        expect(avg?.profit).toBe(6_500);
-        expect(avg?.slices.map((s) => [s.id, s.amount])).toEqual([
-            ["product_cost", 15_000],
-            ["ads", 6_000],
-            ["delivery", 4_500],
-            ["other", 8_000],
-            ["profit", 6_500],
-        ]);
-        expect(avg?.slices.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1);
+describe("stock purchases", () => {
+    const withPurchase = summary({ expenses: [...summary().expenses, { category: "product_cost", amount: 90_000 }] });
+
+    it("are cash out, never a cost of the period", () => {
+        expect(stockPurchases(withPurchase)).toBe(90_000);
+        expect(buildStatement(withPurchase).netProfit).toBe(buildStatement(summary()).netProfit);
+        expect(buildStatement(withPurchase).lines.find((l) => l.id === "other")?.parts.map((part) => part.key)).toEqual(["packaging", "other"]);
     });
 
-    it("drops the profit slice when the order loses money", () => {
-        const avg = averageOrder(buildStatement(summary({ salaries_paid: 200_000 })));
-        expect(avg?.slices.some((s) => s.id === "profit")).toBe(false);
-        expect(avg?.profit).toBe(-11_500);
-        expect(avg?.slices.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1);
+    it("are zero when none was typed", () => {
+        expect(stockPurchases(summary())).toBe(0);
+    });
+});
+
+describe("throughLens", () => {
+    const statement = buildStatement(summary());
+
+    it("reads a figure as a total, per delivered order, or per 1,000 IQD sold", () => {
+        expect(throughLens(60_000, statement, "total")).toBe(60_000);
+        expect(throughLens(60_000, statement, "order")).toBe(6_000);
+        expect(throughLens(60_000, statement, "thousand")).toBe(150);
+        expect(throughLens(statement.sales, statement, "thousand")).toBe(1_000);
     });
 
-    it("has nothing to show when no order was delivered", () => {
-        expect(averageOrder(buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } })))).toBeNull();
+    it("has no per-order or per-1,000 answer when nothing was delivered", () => {
+        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } }));
+        expect(throughLens(60_000, empty, "total")).toBe(60_000);
+        expect(throughLens(60_000, empty, "order")).toBeNull();
+        expect(throughLens(60_000, empty, "thousand")).toBeNull();
+    });
+});
+
+describe("waterfall", () => {
+    it("steps down from sales to the margin, each cost starting where the next one ends", () => {
+        const statement = buildStatement(summary());
+        const steps = waterfall(statement);
+        expect(steps.map((step) => step.id)).toEqual(["product_cost", "ads", "delivery", "refunds", "other", "salaries"]);
+        expect(steps[0].start).toBeCloseTo(0.625);
+        expect(steps[0].width).toBeCloseTo(0.375);
+        steps.slice(1).forEach((step, i) => expect(step.start + step.width).toBeCloseTo(steps[i].start));
+        expect(steps[steps.length - 1].start).toBeCloseTo(statement.margin ?? Number.NaN);
+    });
+
+    it("cuts a cost that is bigger than what is left, and skips empty lines", () => {
+        const steps = waterfall(buildStatement(summary({ salaries_paid: 200_000, refunds: { count: 0, amount: 0 } })));
+        expect(steps.map((step) => step.id)).not.toContain("refunds");
+        const salaries = steps[steps.length - 1];
+        expect(salaries.start).toBeCloseTo(0);
+        expect(salaries.width).toBeCloseTo(0.3125);
+    });
+});
+
+describe("adReturn", () => {
+    it("says what each 1,000 IQD of ads brought in sales", () => {
+        expect(adReturn(buildStatement(summary()))).toBe(6_667);
+    });
+
+    it("has no answer when nothing was spent on ads", () => {
+        expect(adReturn(buildStatement(summary({ expenses: [] })))).toBeNull();
     });
 });
 
@@ -192,6 +232,19 @@ describe("profitBars", () => {
     });
 });
 
+describe("profitPath", () => {
+    it("adds the days up, ending on the net profit", () => {
+        const { step, points } = profitPath(summary().daily);
+        expect(step).toBe("day");
+        expect(points.map((point) => point.running)).toEqual([80_000, 90_000, 65_000]);
+        expect(points[points.length - 1].running).toBe(buildStatement(summary()).netProfit);
+    });
+
+    it("is empty for an empty period", () => {
+        expect(profitPath([]).points).toEqual([]);
+    });
+});
+
 describe("productRows", () => {
     it("shows profit before ads and delivery, and flags pieces with no cost", () => {
         const rows = productRows(summary());
@@ -200,10 +253,32 @@ describe("productRows", () => {
         expect(rows[1].missingUnits).toBe(1);
     });
 
+    it("carries the picture, the profit on one piece and each product's part of the profit", () => {
+        const rows = productRows(summary());
+        expect(rows[0]).toMatchObject({ imageUrl: "https://x.supabase.co/storage/v1/object/public/p/envoy.webp", profitPerPiece: 23_750 });
+        expect(rows[0].profitShare).toBeCloseTo(0.76);
+        expect(rows[1]).toMatchObject({ imageUrl: null, profitPerPiece: 15_000 });
+        expect(rows[1].profitShare).toBeCloseTo(0.24);
+    });
+
+    it("ranks by what was earned, not by what was sold, and gives a losing product no part", () => {
+        const rows = productRows(summary({
+            products: [
+                { key: "big", name: "Big seller", image_url: null, units: 10, revenue: 500_000, cost: 480_000, missing_units: 0 },
+                { key: "earner", name: "Earner", image_url: null, units: 2, revenue: 100_000, cost: 20_000, missing_units: 0 },
+                { key: "loser", name: "Loser", image_url: null, units: 1, revenue: 10_000, cost: 30_000, missing_units: 0 },
+            ],
+        }));
+        expect(rows.map((row) => row.key)).toEqual(["earner", "big", "loser"]);
+        expect(rows[0].profitShare).toBeCloseTo(0.8);
+        expect(rows[2].profitShare).toBe(0);
+    });
+
     it("has no margin for a product given away", () => {
-        const rows = productRows(summary({ products: [{ key: "g", name: "Gift", units: 1, revenue: 0, cost: 5_000, missing_units: 0 }] }));
+        const rows = productRows(summary({ products: [{ key: "g", name: "Gift", image_url: null, units: 1, revenue: 0, cost: 5_000, missing_units: 0 }] }));
         expect(rows[0].margin).toBeNull();
         expect(rows[0].profit).toBe(-5_000);
+        expect(rows[0].profitPerPiece).toBe(-5_000);
     });
 });
 

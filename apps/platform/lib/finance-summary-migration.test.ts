@@ -55,6 +55,15 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/'courier', COALESCE\(pf\.fee, 0\) \+ COALESCE\(prt\.fee, 0\)/);
     });
 
+    it("keeps stock purchases out of each day's costs: the goods count when they sell", () => {
+        expect(core).toMatch(/exp_day AS \(\s*SELECT day, sum\(amount\) AS amount FROM exp\s+WHERE category IS DISTINCT FROM 'product_cost'/);
+    });
+
+    it("counts the shelf from the shop's own physical products that are not archived", () => {
+        expect(core).toMatch(/stock AS \([\s\S]*?pr\.tenant_id = _tenant_id\s+AND COALESCE\(pr\.is_archived, false\) = false\s+AND pr\.product_type = 'physical'/);
+        expect(core).toMatch(/LEFT JOIN public\.product_variants v ON v\.product_id = pr\.id AND v\.tenant_id = _tenant_id/);
+    });
+
     it("scopes every table it reads to the shop", () => {
         for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc"]) {
             const alias = table.split(" ")[1];

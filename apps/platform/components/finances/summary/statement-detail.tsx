@@ -12,13 +12,15 @@ interface StatementDetailProps {
     line: CostLine;
     summary: FinanceSummary;
     onOpenTab: (tab: FinanceTab) => void;
+    /** Reads a part's amount the way the statement is being read (total, per order, per 1,000); null when that has no answer. */
+    read: (amount: number) => number | null;
 }
 
 const linkClass =
     "inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current";
 
 /** What is inside one cost line of the statement, and where to go to change it. */
-export function StatementDetail({ line, summary, onOpenTab }: StatementDetailProps) {
+export function StatementDetail({ line, summary, onOpenTab, read }: StatementDetailProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const sentence = (text: string) => <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir}>{text}</p>;
@@ -34,12 +36,15 @@ export function StatementDetail({ line, summary, onOpenTab }: StatementDetailPro
             <ArrowUpRight className="size-3.5" aria-hidden="true" />
         </Link>
     );
-    const part = (key: string, label: string, amount: number) => (
-        <div key={key} className="flex items-baseline justify-between gap-4 text-[13px]">
-            <span className="text-left text-muted" dir={dir}>{label}</span>
-            <Money value={amount} className="font-medium text-foreground" />
-        </div>
-    );
+    const part = (key: string, label: string, amount: number) => {
+        const shown = read(amount);
+        return (
+            <div key={key} className="flex items-baseline justify-between gap-4 text-[13px]">
+                <span className="text-left text-muted" dir={dir}>{label}</span>
+                {shown === null ? <span className="text-muted">—</span> : <Money value={shown} className="font-medium text-foreground" />}
+            </div>
+        );
+    };
 
     let body: ReactNode;
     switch (line.id) {
@@ -112,5 +117,5 @@ export function StatementDetail({ line, summary, onOpenTab }: StatementDetailPro
             break;
     }
 
-    return <div className="space-y-2 pb-3 ps-7 pt-1">{body}</div>;
+    return <div className="space-y-2 pb-3 ps-5 pt-1">{body}</div>;
 }

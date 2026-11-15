@@ -40,7 +40,8 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             { day: "2026-11-01", orders: 6, revenue: 240_000, product_cost: 90_000, courier: 20_000, refunds: 0, expenses: 35_000, salaries: 0 },
             { day: "2026-11-02", orders: 4, revenue: 160_000, product_cost: 60_000, courier: 10_000, refunds: 40_000, expenses: 30_000, salaries: 0 },
         ],
-        products: [{ key: "p1", name: "Envoy", units: 12, revenue: 400_000, cost: 150_000, missing_units: 0 }],
+        stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 0 },
+        products: [{ key: "p1", name: "Envoy", image_url: null, units: 12, revenue: 400_000, cost: 150_000, missing_units: 0 }],
         ...over,
     };
 }
@@ -74,7 +75,7 @@ describe("SummaryView", () => {
         expect(stat("stuck")).toBe("0");
     });
 
-    it("lists every cost line with a minus, then the net profit and what stays of each 1,000", () => {
+    it("lists every cost line with a minus, folds the empty ones, then the net profit and what stays of each 1,000", () => {
         renderView(query(summary()));
         expect(line("sales")?.textContent).toContain("400,000");
         expect(line("product_cost")?.textContent).toContain("−150,000");
@@ -82,9 +83,34 @@ describe("SummaryView", () => {
         expect(line("delivery")?.textContent).toContain("−30,000");
         expect(line("refunds")?.textContent).toContain("−40,000");
         expect(line("other")?.textContent).toContain("−5,000");
-        expect(line("salaries")?.textContent).toContain("0");
+        expect(line("salaries")).toBeNull();
+        expect(byTestId("statement-quiet")?.textContent).toContain("رواتب مدفوعة");
         expect(line("net")?.textContent).toContain("115,000");
         expect(byTestId("statement-plain")?.textContent).toContain("288");
+    });
+
+    it("re-reads the statement per order and per 1,000 IQD sold", () => {
+        renderView(query(summary()));
+        const lens = (name: string) => document.querySelector(`[data-lens="${name}"]`);
+        expect(lens("total")?.getAttribute("aria-pressed")).toBe("true");
+        const perOrder = lens("order");
+        if (perOrder) fireEvent.click(perOrder);
+        expect(lens("order")?.getAttribute("aria-pressed")).toBe("true");
+        expect(line("sales")?.textContent).toContain("40,000");
+        expect(line("product_cost")?.textContent).toContain("−15,000");
+        expect(line("net")?.textContent).toContain("11,500");
+        const perThousand = lens("thousand");
+        if (perThousand) fireEvent.click(perThousand);
+        expect(line("sales")?.textContent).toContain("1,000");
+        expect(line("product_cost")?.textContent).toContain("−375");
+        expect(line("ads")?.textContent).toContain("−150");
+    });
+
+    it("sends the quiet line's link to Expenses", () => {
+        const onOpenTab = renderView(query(summary()));
+        const add = byTestId("statement-quiet")?.querySelector("button");
+        if (add) fireEvent.click(add);
+        expect(onOpenTab).toHaveBeenCalledWith("expenses");
     });
 
     it("opens a cost line to show what is inside, and its link opens the tab", () => {
@@ -122,10 +148,74 @@ describe("SummaryView", () => {
         expect(byTestId("money-road")?.textContent).toContain("160,000");
     });
 
-    it("says how often a parcel comes back", () => {
+    it("names the stuck parcels on the road they are stuck on", () => {
+        renderView(query(summary()));
+        expect(byTestId("money-stuck")).toBeNull();
+        cleanup();
+        const s = summary();
+        renderView(query(summary({ cash: { ...s.cash, stuck: { count: 2, amount: 50_000 } } })));
+        expect(byTestId("money-stuck")?.textContent).toContain("50,000");
+    });
+
+    it("says how often a parcel comes back, and what the way back cost", () => {
         renderView(query(summary()));
         // 2 refused of 12 that reached a door.
         expect(byTestId("failed-share")?.textContent).toContain("17");
+        expect(byTestId("returned-parcels")?.textContent).toContain("80,000");
+        expect(byTestId("failed-fee")).toBeNull();
+        cleanup();
+        const s = summary();
+        renderView(query(summary({ failed: { ...s.failed, prime_returned_parcels: 3, prime_returned_fee: 15_000 } })));
+        expect(byTestId("failed-fee")?.textContent).toContain("15,000");
+    });
+
+    it("ranks the products with the profit on one piece", () => {
+        renderView(query(summary()));
+        const row = document.querySelector('[data-product="p1"]');
+        // 250,000 profit on 12 pieces.
+        expect(row?.textContent).toContain("250,000");
+        expect(row?.textContent).toContain("20,833");
+        expect(row?.textContent).toContain("63%");
+    });
+
+    it("says what each 1,000 IQD of ads brought, or that nothing was spent", () => {
+        renderView(query(summary()));
+        // 400,000 of sales on 60,000 of ads.
+        expect(byTestId("ad-return-say")?.textContent).toContain("6,667");
+        cleanup();
+        renderView(query(summary({ expenses: [] })));
+        expect(byTestId("ad-return-say")).toBeNull();
+        expect(byTestId("ad-return")).not.toBeNull();
+    });
+
+    it("shows the stock on the shelf, and keeps a stock purchase out of the profit", () => {
+        renderView(query(summary()));
+        expect(byTestId("stock-say")?.textContent).toContain("120");
+        expect(byTestId("stock-say")?.textContent).toContain("900,000");
+        expect(byTestId("stock-missing")).toBeNull();
+        expect(byTestId("stock-bought")).toBeNull();
+        cleanup();
+        const s = summary();
+        renderView(query(summary({
+            expenses: [...s.expenses, { category: "product_cost", amount: 200_000 }],
+            stock: { ...s.stock, missing_cost_products: 4 },
+        })));
+        expect(stat("net_profit")).toContain("115,000");
+        expect(line("other")?.textContent).toContain("−5,000");
+        expect(byTestId("stock-bought")?.textContent).toContain("200,000");
+        expect(byTestId("stock-missing")?.textContent).toContain("4");
+    });
+
+    it("draws the profit path with a readout for the day under the pointer", () => {
+        renderView(query(summary()));
+        expect(byTestId("profit-path-readout")).toBeNull();
+        const second = document.querySelector('[data-point="2026-11-02"]');
+        if (second) fireEvent.mouseEnter(second);
+        // Day 2 sold 160,000 and left 20,000; the two days together left 115,000.
+        const readout = byTestId("profit-path-readout")?.textContent ?? "";
+        expect(readout).toContain("160,000");
+        expect(readout).toContain("20,000");
+        expect(readout).toContain("115,000");
     });
 
     it("compares against the period before only when that period is big enough to compare", () => {
@@ -155,8 +245,9 @@ describe("SummaryView", () => {
             products: [],
         })));
         expect(byTestId("summary-empty")).not.toBeNull();
-        expect(byTestId("daily-bars")).toBeNull();
-        expect(byTestId("order-slices")).toBeNull();
+        expect(byTestId("profit-path")).toBeNull();
+        expect(byTestId("product-ranking")).toBeNull();
+        expect(byTestId("money-route")).not.toBeNull();
         expect(line("ads")?.textContent).toContain("−60,000");
         expect(stat("profit_per_order")).toBe("—");
     });

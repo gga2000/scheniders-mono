@@ -2763,7 +2763,7 @@ export const ar: Record<string, string> = {
     "finances.products.table.open": "فتح المنتج",
     "finances.products.table.showAll": "عرض الكل ({count})",
     "finances.products.table.showLess": "عرض أقل",
-    "finances.expense.cat.product_cost": "تكلفة المنتج",
+    "finances.expense.cat.product_cost": "شراء بضاعة",
     "finances.expense.cat.packaging": "التغليف",
     "finances.expense.cat.sample_vial": "قنينة عيّنة",
     "finances.expense.cat.sample_perfume": "عطر عيّنة",

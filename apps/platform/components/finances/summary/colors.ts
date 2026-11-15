@@ -1,8 +1,8 @@
-import type { CostLineId, OrderSliceId } from "@/lib/finance/summary";
+import type { CostLineId } from "@/lib/finance/summary";
 
 /**
- * One colour per kind of money, the same in the statement, the order bar and
- * the chart, so a colour always means the same thing on the page. Mid-tones
+ * One colour per kind of money, the same in the statement, the chart and the
+ * small cards, so a colour always means the same thing on the page. Mid-tones
  * that hold on both the light and the dark card.
  */
 export const PROFIT_COLOR = "#13a06a";
@@ -15,12 +15,4 @@ export const COST_COLORS: Record<CostLineId, string> = {
     refunds: "#e1486a",
     other: "#8f8a84",
     salaries: "#8a63d2",
-};
-
-export const SLICE_COLORS: Record<OrderSliceId, string> = {
-    product_cost: COST_COLORS.product_cost,
-    ads: COST_COLORS.ads,
-    delivery: COST_COLORS.delivery,
-    other: COST_COLORS.other,
-    profit: PROFIT_COLOR,
 };
