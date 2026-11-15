@@ -38,6 +38,9 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
     const deliveredCount = data
         .filter(d => d.status === 'delivered' || d.status === 'completed')
         .reduce((sum, d) => sum + d.count, 0);
+    // Share of ALL orders in the period that were delivered. The KPI card's
+    // delivery rate is delivered ÷ (delivered + refused); the two used to share
+    // one label ("98%" next to "60.2%"), so this badge says "of all orders".
     const conversionRate = totalOrders > 0 ? (deliveredCount / totalOrders * 100) : 0;
 
     return (

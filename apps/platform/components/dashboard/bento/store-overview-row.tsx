@@ -63,7 +63,10 @@ function MetricCard({ metric, order, moneyOn }: { metric: OverviewMetric; order:
     const label = t(`dashboard.overview.${metric.key}`);
     return (
         <BentoCard label={label} order={order} className="flex flex-col justify-between gap-3 !p-5">
-            <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">{label}</h3>
+            {/* The row is always today, whatever the header's range chip says, so each card names its day. */}
+            <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">
+                {label} <span className="opacity-70">· {t("dashboard.overview.today")}</span>
+            </h3>
             <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
                     <p className="m-0 truncate text-[28px] font-semibold leading-none tracking-[-0.03em] text-foreground">

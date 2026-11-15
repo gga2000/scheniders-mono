@@ -256,14 +256,14 @@ export default function ReportsPage() {
                             <button
                                 onClick={handleExportExcel}
                                 className="pastel-card w-11 h-11 rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:shadow-md transition-all"
-                                title="Export to Excel"
+                                title={t("reports.exportExcel")}
                             >
                                 <FileSpreadsheet className="w-5 h-5" />
                             </button>
                             <button
                                 onClick={handlePrint}
                                 className="pastel-card w-11 h-11 rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:shadow-md transition-all"
-                                title="Print Report"
+                                title={t("reports.print")}
                             >
                                 <Printer className="w-5 h-5" />
                             </button>
@@ -272,7 +272,7 @@ export default function ReportsPage() {
                                 className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium text-sm shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 hover:scale-[1.02] transition-all"
                             >
                                 <Download className="w-4 h-4" />
-                                <span>Export</span>
+                                <span>{t("reports.export")}</span>
                             </button>
                         </div>
                     </div>

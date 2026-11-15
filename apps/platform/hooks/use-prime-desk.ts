@@ -25,9 +25,11 @@ const EMPTY: ReadonlyMap<string, PrimeDeskRow> = new Map();
  * For each desk order, what Prime would do with it before anything is sent:
  * its fee, what to fix first, or its case number once sent (POST
  * /api/prime/desk-preview). Keyed by each order's version, so fixing a phone
- * on the desk re-checks that order. Off without the Prime link.
+ * on the desk re-checks that order. Off without the Prime link. `failed` is
+ * true when the check did not answer, so the desk says so instead of showing
+ * 0 sent, 0 waiting, 0 to fix.
  */
-export function usePrimeDeskPreview(orders: readonly Order[], connected: boolean): { rows: ReadonlyMap<string, PrimeDeskRow>; loading: boolean } {
+export function usePrimeDeskPreview(orders: readonly Order[], connected: boolean): { rows: ReadonlyMap<string, PrimeDeskRow>; loading: boolean; failed: boolean; retry: () => void } {
     const { session, tenantId } = useAuth();
     const token = session?.access_token;
     const versions = orders.map((o) => `${o.id}:${o.version ?? 0}`).join(",");
@@ -48,5 +50,10 @@ export function usePrimeDeskPreview(orders: readonly Order[], connected: boolean
             return new Map(answer.rows.map((r) => [r.orderId, r]));
         },
     });
-    return { rows: query.data ?? EMPTY, loading: query.isPending && query.fetchStatus !== "idle" };
+    return {
+        rows: query.data ?? EMPTY,
+        loading: query.isPending && query.fetchStatus !== "idle",
+        failed: query.isError,
+        retry: () => void query.refetch(),
+    };
 }
