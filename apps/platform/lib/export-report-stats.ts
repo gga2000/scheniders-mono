@@ -12,8 +12,14 @@ export interface ExportReportStats {
     totalRevenue: number;
     /** Orders whose price is in totalRevenue. */
     realizedOrders: number;
-    /** The delivery fee charged on those same orders. */
+    /** The delivery fee charged on those same orders, collected for the courier. */
     totalDeliveryFees: number;
+    /**
+     * What customers paid in total on those orders: price plus delivery fee.
+     * The fee is never inside the price, so "revenue minus fees" understated
+     * revenue; this line replaces it (money-rules board R2, 2026-11-15).
+     */
+    customersPaid: number;
     delivered: number;
     rejected: number;
     deliveryRate: number;
@@ -79,6 +85,7 @@ export function exportReportStats(orders: readonly StatsOrder[]): ExportReportSt
         totalRevenue,
         realizedOrders,
         totalDeliveryFees,
+        customersPaid: totalRevenue + totalDeliveryFees,
         delivered,
         rejected,
         deliveryRate: shipped > 0 ? (delivered / shipped) * 100 : 0,

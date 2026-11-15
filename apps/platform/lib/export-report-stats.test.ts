@@ -32,4 +32,11 @@ describe("exportReportStats: export revenue is money earned", () => {
         ]);
         expect(s.totalDeliveryFees).toBe(5_000);
     });
+
+    it("reports what customers paid in total: price plus the fee, never price minus the fee (board R2)", () => {
+        const s = exportReportStats([row("delivered"), row("completed"), row("rejected")]);
+        expect(s.totalRevenue).toBe(50_000);
+        expect(s.totalDeliveryFees).toBe(10_000);
+        expect(s.customersPaid).toBe(60_000);
+    });
 });

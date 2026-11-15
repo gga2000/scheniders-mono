@@ -11,11 +11,16 @@ import { CreateOrderDetailsSection } from "./create-order/create-order-details-s
 import { CreateOrderCustomerSection } from "./create-order/create-order-customer-section";
 import { CreateOrderProductsSection } from "./create-order/create-order-products-section";
 import { CreateOrderTakeSection } from "./create-order/create-order-take-section";
+import { useTenant } from "@/hooks/use-tenant";
 export type { CreateOrderModalInitialData } from "./create-order/use-create-order-model";
 
 export function CreateOrderModal(props: CreateOrderModalProps) {
     const m = useCreateOrderModel(props);
     const { open, onCreate, t, limitWarning, limitBlocked, setOrderType, formData, setFormData, isCreating, stockWarning, showProductPicker, setShowProductPicker, showBulkUpload, setShowBulkUpload, createAndNew, setCreateAndNew, handleClose, updateField, handleProductSelect, handleClearFields, handleCreate, total } = m;
+    // The fake-customer "Test" fill is for the operator's own house store only
+    // (board O2): other shops never see it.
+    const { data: tenant } = useTenant();
+    const showTestFill = tenant?.plan === "internal";
 
     return (
         <>
@@ -43,6 +48,7 @@ export function CreateOrderModal(props: CreateOrderModalProps) {
                                     <RefreshCw className="h-3 w-3" />
                                     {t("orders.create.clear")}
                                 </button>
+                                {showTestFill && (
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -65,6 +71,7 @@ export function CreateOrderModal(props: CreateOrderModalProps) {
                                     >
                                         Test
                                     </button>
+                                )}
                             </div>
                         </DialogTitle>
                     </DialogHeader>

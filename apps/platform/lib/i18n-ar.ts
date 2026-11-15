@@ -5708,7 +5708,7 @@ export const ar: Record<string, string> = {
     "payroll.period.label": "فترة الراتب",
     "payroll.period.from": "من",
     "payroll.period.to": "إلى",
-    "payroll.period.sinceLastHint": "كل موظف من اليوم التالي لآخر صرف حتى اليوم (آخر 90 يوماً إن لم يُصرف له من قبل)",
+    "payroll.period.sinceLastHint": "كل موظف من اليوم التالي لآخر صرف حتى اليوم. من لم يُصرف له من قبل: من يوم انضمامه، وآخر 90 يوماً كحد أقصى",
     "payroll.attribution.label": "احتساب الطلبات",
     "payroll.tab.label": "عروض الرواتب",
     "payroll.searchLabel": "البحث عن موظف",

@@ -21,6 +21,7 @@ import { AbandonedCartRecoveryStrip } from "@/components/orders/page/lazy";
 import { VirtualizedOrderList } from "@/components/orders/virtualized-order-list";
 import { VirtualizedOrderTable } from "@/components/orders/virtualized-order-table";
 import type { OrdersPageModel } from "./use-orders-page-model";
+import { OrderRowsSkeleton } from "./order-rows-skeleton";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageList({ m }: { m: OrdersPageModel }) {
@@ -133,11 +134,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                            hydration — used to fall straight through to the empty
                                            state, and a merchant with 4,778 orders was told "No orders
                                            yet. When you receive orders, they'll appear here." */
-                                        <div className="space-y-3" aria-busy="true" aria-live="polite">
-                                            {[0, 1, 2, 3].map(i => (
-                                                <div key={i} className="w-full h-24 animate-pulse bg-muted/20 rounded-2xl" />
-                                            ))}
-                                        </div>
+                                        <OrderRowsSkeleton variant="cards" />
                                     ) : listOrders.length === 0 && primeQueue !== null ? (
                                         <PrimeQueueEmpty queue={primeQueue} />
                                     ) : listOrders.length === 0 ? (
@@ -182,11 +179,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
 
                             {/* Table View - State of the Art */}
                             {viewMode === "table" && (previewing && listOrders.length === 0 ? (
-                                <div className="space-y-3" aria-busy="true" aria-live="polite">
-                                    {[0, 1, 2, 3].map(i => (
-                                        <div key={i} className="w-full h-12 animate-pulse bg-muted/20 rounded-xl" />
-                                    ))}
-                                </div>
+                                <OrderRowsSkeleton variant="table" />
                             ) : (
                                 <VirtualizedOrderTable
                                     groupedOrders={groupedOrders}
