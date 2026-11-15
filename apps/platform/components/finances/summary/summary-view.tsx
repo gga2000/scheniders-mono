@@ -5,15 +5,16 @@ import { PackageOpen } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { averageOrder, buildStatement, productRows, type FinanceSummary } from "@/lib/finance/summary";
-import { DailyBars } from "./daily-bars";
-import { FailedDeliveries } from "./failed-deliveries";
+import { buildStatement, productRows, type FinanceSummary } from "@/lib/finance/summary";
+import { AdReturn } from "./ad-return";
 import { FinanceStrip } from "./finance-strip";
 import type { FinanceTab } from "./finance-tabs";
-import { MoneyLocation } from "./money-location";
-import { OrderSlices } from "./order-slices";
-import { ProductProfitTable } from "./product-profit-table";
+import { MoneyRoute } from "./money-route";
+import { ProductRanking } from "./product-ranking";
+import { ProfitPath } from "./profit-path";
 import { ProfitStatement } from "./profit-statement";
+import { ReturnedParcels } from "./returned-parcels";
+import { StockShelf } from "./stock-shelf";
 import { SummaryAlerts } from "./summary-alerts";
 import { SummarySkeleton } from "./summary-skeleton";
 
@@ -25,9 +26,11 @@ interface SummaryViewProps {
 }
 
 /**
- * The Summary tab: the dark strip, then the profit statement beside "where is
- * my money" and the average order, then the days, the products and refused
- * parcels. Every figure comes from one database answer (useFinanceSummary).
+ * The Summary tab, in the order a shop owner asks: did I make money (the dark
+ * strip), where did my sales go (the statement), is the period building and
+ * where is my cash (the path beside the money route), which product earns,
+ * then what returns cost, whether the ads pay, and the money sitting in stock.
+ * Every figure comes from one database answer (useFinanceSummary).
  */
 export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) {
     const { t } = useLanguage();
@@ -37,7 +40,6 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
     const statement = useMemo(() => (summary ? buildStatement(summary) : null), [summary]);
     const beforeFigures = useMemo(() => (before ? { summary: before, statement: buildStatement(before) } : null), [before]);
-    const average = useMemo(() => (statement ? averageOrder(statement) : null), [statement]);
     const products = useMemo(() => (summary ? productRows(summary) : []), [summary]);
 
     if (current.isError && !summary) {
@@ -73,27 +75,19 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
                 </div>
             )}
 
-            <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
-                <div className="lg:col-span-3">
-                    <ProfitStatement summary={summary} statement={statement} onOpenTab={onOpenTab} />
-                </div>
-                <div className="space-y-5 lg:col-span-2">
-                    <MoneyLocation summary={summary} />
-                    {average && <OrderSlices average={average} />}
-                </div>
+            <ProfitStatement summary={summary} statement={statement} onOpenTab={onOpenTab} />
+
+            <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]")}>
+                {!nothingDelivered && <ProfitPath daily={summary.daily} />}
+                <MoneyRoute summary={summary} />
             </div>
 
-            {!nothingDelivered && <DailyBars daily={summary.daily} />}
+            {!nothingDelivered && <ProductRanking rows={products} />}
 
-            <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
-                {!nothingDelivered && (
-                    <div className="lg:col-span-3">
-                        <ProductProfitTable rows={products} />
-                    </div>
-                )}
-                <div className="lg:col-span-2">
-                    <FailedDeliveries summary={summary} />
-                </div>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <ReturnedParcels summary={summary} />
+                <AdReturn statement={statement} />
+                <StockShelf summary={summary} />
             </div>
         </div>
     );

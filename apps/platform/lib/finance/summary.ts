@@ -15,9 +15,12 @@ import { z } from "zod";
  *                  parcels that came back (on the day they came back), plus
  *                  courier bills typed as `shipping` expenses
  *   refunds        money paid back, on the day it was paid
- *   other costs    every other expense category
+ *   other costs    every other expense category, except stock purchases
  *   salaries       payroll actually paid in the period
  *   net profit     sales minus all of the above
+ *   stock purchase an expense typed as `product_cost`: cash out, but never a
+ *                  cost of the period, because the goods are already counted
+ *                  as product cost on the day they sell
  */
 
 const DailySchema = z.object({
@@ -34,6 +37,7 @@ const DailySchema = z.object({
 const ProductSchema = z.object({
     key: z.string(),
     name: z.string(),
+    image_url: z.string().nullable(),
     units: z.number(),
     revenue: z.number(),
     cost: z.number(),
@@ -67,6 +71,13 @@ export const FinanceSummarySchema = z.object({
         refused_value: z.number(),
         prime_returned_parcels: z.number(),
         prime_returned_fee: z.number(),
+    }),
+    /** What is on the shelf now (not tied to the period). */
+    stock: z.object({
+        pieces: z.number(),
+        costed_pieces: z.number(),
+        cost_value: z.number(),
+        missing_cost_products: z.number(),
     }),
     daily: z.array(DailySchema),
     products: z.array(ProductSchema),
@@ -106,9 +117,16 @@ export interface ProfitStatement {
 
 const ADS_CATEGORY = "marketing";
 const COURIER_BILLS_CATEGORY = "shipping";
+const STOCK_PURCHASE_CATEGORY = "product_cost";
+const OUTSIDE_OTHER = new Set([ADS_CATEGORY, COURIER_BILLS_CATEGORY, STOCK_PURCHASE_CATEGORY]);
 
 function expenseTotal(summary: FinanceSummary, category: string): number {
     return summary.expenses.filter((e) => e.category === category).reduce((sum, e) => sum + e.amount, 0);
+}
+
+/** Money spent on new stock in the period: cash out, outside the profit statement. */
+export function stockPurchases(summary: FinanceSummary): number {
+    return expenseTotal(summary, STOCK_PURCHASE_CATEGORY);
 }
 
 export function buildStatement(summary: FinanceSummary): ProfitStatement {
@@ -116,7 +134,7 @@ export function buildStatement(summary: FinanceSummary): ProfitStatement {
     const ads = expenseTotal(summary, ADS_CATEGORY);
     const courierBills = expenseTotal(summary, COURIER_BILLS_CATEGORY);
     const otherParts = summary.expenses
-        .filter((e) => e.category !== ADS_CATEGORY && e.category !== COURIER_BILLS_CATEGORY && e.amount !== 0)
+        .filter((e) => !OUTSIDE_OTHER.has(e.category) && e.amount !== 0)
         .map((e) => ({ key: e.category, amount: e.amount }));
     const other = otherParts.reduce((sum, p) => sum + p.amount, 0);
 
@@ -159,52 +177,44 @@ export function perOrder(amount: number, orders: number): number | null {
     return orders > 0 ? Math.round(amount / orders) : null;
 }
 
-export const ORDER_SLICE_IDS = ["product_cost", "ads", "delivery", "other", "profit"] as const;
-export type OrderSliceId = (typeof ORDER_SLICE_IDS)[number];
+/** How the statement's figures are read: the period's totals, one average delivered order, or each 1,000 IQD sold. */
+export const LENSES = ["total", "order", "thousand"] as const;
+export type Lens = (typeof LENSES)[number];
 
-export interface OrderSlice {
-    id: OrderSliceId;
-    /** Dinars of the average delivered order that go here. */
-    amount: number;
-    /** Width of the slice in the bar, 0 to 1; the slices add up to 1. */
-    share: number;
+/** `amount` through a lens, as a whole number; null when the lens has no base (no order, or nothing sold). */
+export function throughLens(amount: number, statement: ProfitStatement, lens: Lens): number | null {
+    if (lens === "total") return amount;
+    if (lens === "order") return perOrder(amount, statement.orders);
+    return statement.sales > 0 ? Math.round((amount / statement.sales) * 1000) : null;
 }
 
-export interface AverageOrder {
-    price: number;
-    slices: OrderSlice[];
-    /** What the average order leaves; negative when it loses money. */
-    profit: number;
+export interface WaterfallStep {
+    id: CostLineId;
+    /** Where the cost's segment starts, as a share of sales (0 to 1): what is left after it. */
+    start: number;
+    /** The segment's width, as a share of sales. A cost bigger than what is left is cut to what is left. */
+    width: number;
 }
 
 /**
- * Where the money of one average delivered order goes. Refunds, other costs
- * and salaries are one slice ("other") so the bar stays readable. A losing
- * period has no profit slice: the costs fill the bar and `profit` is negative.
+ * The statement as a staircase: each cost bites its share off the right end of
+ * what the costs before it left, so the bars step down from sales to profit.
  */
-export function averageOrder(statement: ProfitStatement): AverageOrder | null {
-    if (statement.orders <= 0 || statement.sales <= 0) return null;
-    const cost = (id: CostLineId) => statement.lines.find((l) => l.id === id)?.amount ?? 0;
-    const costs: Array<[OrderSliceId, number]> = [
-        ["product_cost", cost("product_cost")],
-        ["ads", cost("ads")],
-        ["delivery", cost("delivery")],
-        ["other", cost("refunds") + cost("other") + cost("salaries")],
-    ];
-    const profit = Math.max(statement.netProfit, 0);
-    const whole = costs.reduce((sum, [, amount]) => sum + amount, 0) + profit;
-    const slices = [...costs, ["profit", profit] as [OrderSliceId, number]]
-        .filter(([, amount]) => amount > 0)
-        .map(([id, amount]): OrderSlice => ({
-            id,
-            amount: Math.round(amount / statement.orders),
-            share: amount / whole,
-        }));
-    return {
-        price: Math.round(statement.sales / statement.orders),
-        slices,
-        profit: Math.round(statement.netProfit / statement.orders),
-    };
+export function waterfall(statement: ProfitStatement): WaterfallStep[] {
+    let left = 1;
+    return statement.lines
+        .filter((line) => line.amount > 0)
+        .map((line) => {
+            const width = Math.min(line.share, left);
+            left -= width;
+            return { id: line.id, start: left, width };
+        });
+}
+
+/** Sales brought by each 1,000 IQD of ads, rounded; null when nothing was spent on ads. */
+export function adReturn(statement: ProfitStatement): number | null {
+    const ads = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
+    return ads > 0 ? Math.round((statement.sales / ads) * 1000) : null;
 }
 
 export interface ProfitBar {
@@ -251,9 +261,26 @@ export function profitBars(daily: readonly FinanceSummaryDay[]): { step: BarStep
     return { step, bars };
 }
 
+export interface PathPoint extends ProfitBar {
+    /** Net profit from the period's first day to the end of this point. */
+    running: number;
+}
+
+/** The period as a path: each day (week, month) with the profit added up so far. The last point is the net profit. */
+export function profitPath(daily: readonly FinanceSummaryDay[]): { step: BarStep; points: PathPoint[] } {
+    const { step, bars } = profitBars(daily);
+    let running = 0;
+    const points = bars.map((bar): PathPoint => {
+        running += bar.profit;
+        return { ...bar, running };
+    });
+    return { step, points };
+}
+
 export interface ProductProfitRow {
     key: string;
     name: string;
+    imageUrl: string | null;
     units: number;
     sales: number;
     cost: number;
@@ -261,24 +288,36 @@ export interface ProductProfitRow {
     profit: number;
     /** Profit as a share of sales; null when the product sold for nothing. */
     margin: number | null;
+    /** Profit on one piece, rounded; null when no piece was sold. */
+    profitPerPiece: number | null;
+    /** This product's part of all the profit the products made, 0 to 1 (0 for a losing product). */
+    profitShare: number;
     /** Pieces sold with no cost on file: the profit shown is too high by their cost. */
     missingUnits: number;
 }
 
+/** The products of the period, the one that earned most first. */
 export function productRows(summary: FinanceSummary): ProductProfitRow[] {
-    return summary.products.map((p) => {
-        const profit = p.revenue - p.cost;
-        return {
-            key: p.key,
-            name: p.name,
-            units: p.units,
-            sales: p.revenue,
-            cost: p.cost,
-            profit,
-            margin: p.revenue > 0 ? profit / p.revenue : null,
-            missingUnits: p.missing_units,
-        };
-    });
+    const profits = summary.products.map((p) => p.revenue - p.cost);
+    const earned = profits.reduce((sum, profit) => sum + Math.max(profit, 0), 0);
+    return summary.products
+        .map((p, i): ProductProfitRow => {
+            const profit = profits[i];
+            return {
+                key: p.key,
+                name: p.name,
+                imageUrl: p.image_url,
+                units: p.units,
+                sales: p.revenue,
+                cost: p.cost,
+                profit,
+                margin: p.revenue > 0 ? profit / p.revenue : null,
+                profitPerPiece: p.units > 0 ? Math.round(profit / p.units) : null,
+                profitShare: earned > 0 ? Math.max(profit, 0) / earned : 0,
+                missingUnits: p.missing_units,
+            };
+        })
+        .sort((a, b) => b.profit - a.profit);
 }
 
 /** Of every parcel that reached a door in the period, the share the customer refused; null when none did. */

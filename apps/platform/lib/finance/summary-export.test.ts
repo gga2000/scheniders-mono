@@ -21,7 +21,8 @@ const summary: FinanceSummary = {
         { day: "2026-11-01", orders: 2, revenue: 80_000, product_cost: 30_000, courier: 5_000, refunds: 0, expenses: 10_000, salaries: 0 },
         { day: "2026-11-02", orders: 0, revenue: 0, product_cost: 0, courier: 0, refunds: 0, expenses: 0, salaries: 0 },
     ],
-    products: [{ key: "p1", name: "", units: 2, revenue: 80_000, cost: 30_000, missing_units: 0 }],
+    stock: { pieces: 0, costed_pieces: 0, cost_value: 0, missing_cost_products: 0 },
+    products: [{ key: "p1", name: "", image_url: null, units: 2, revenue: 80_000, cost: 30_000, missing_units: 0 }],
 };
 
 describe("summaryCsvTable", () => {

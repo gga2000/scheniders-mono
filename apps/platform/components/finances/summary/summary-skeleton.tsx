@@ -15,12 +15,10 @@ export function SummarySkeleton() {
                     </div>
                 ))}
             </div>
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-                <div className={`${card} h-[420px] lg:col-span-3`} />
-                <div className="space-y-5 lg:col-span-2">
-                    <div className={`${card} h-[200px]`} />
-                    <div className={`${card} h-[200px]`} />
-                </div>
+            <div className={`${card} h-[380px]`} />
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+                <div className={`${card} h-[400px]`} />
+                <div className={`${card} h-[400px]`} />
             </div>
             <div className={`${card} h-[300px]`} />
         </div>

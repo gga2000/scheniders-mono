@@ -2751,7 +2751,7 @@ export const en: Record<string, string> = {
     "finances.products.table.open": "Open product",
     "finances.products.table.showAll": "Show all {count}",
     "finances.products.table.showLess": "Show less",
-    "finances.expense.cat.product_cost": "Product cost",
+    "finances.expense.cat.product_cost": "Stock purchase",
     "finances.expense.cat.packaging": "Packaging",
     "finances.expense.cat.sample_vial": "Sample vial",
     "finances.expense.cat.sample_perfume": "Sample perfume",

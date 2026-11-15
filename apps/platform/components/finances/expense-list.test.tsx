@@ -25,7 +25,7 @@ describe("ExpenseList", () => {
     it("shows every category filter in Arabic", () => {
         render(<ExpenseList expenses={[expense({ id: "a" })]} onEdit={() => {}} onDelete={() => {}} />);
         expect(screen.getByRole("button", { name: "الكل" })).toBeTruthy();
-        for (const name of ["الشحن", "التسويق", "التغليف", "تكلفة المنتج", "أخرى"]) {
+        for (const name of ["الشحن", "التسويق", "التغليف", "شراء بضاعة", "أخرى"]) {
             expect(screen.getAllByText(name).length).toBeGreaterThan(0);
         }
         expect(EXPENSE_CATEGORIES).toHaveLength(9);
