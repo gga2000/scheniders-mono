@@ -103,7 +103,16 @@ export interface SendTemplateResult {
 // =============================================
 
 const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
-const TEMPLATE_LANGUAGE = "ar";
+/**
+ * Language each order template was saved under in Interakt. All texts are
+ * Arabic, but order_reminder_v3 was registered as English ("en") and Meta
+ * approved it that way; Interakt only finds a template by name + language.
+ */
+const TEMPLATE_LANGUAGES = {
+    confirmation: "ar",
+    reminder: "en",
+    discount: "ar",
+} as const;
 const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
@@ -337,7 +346,7 @@ function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.confirmation,
-            languageCode: TEMPLATE_LANGUAGE,
+            languageCode: TEMPLATE_LANGUAGES.confirmation,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name
@@ -380,7 +389,7 @@ function buildReminderBody(order: Order, store: StoreContact, overridePhone?: st
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.reminder,
-            languageCode: TEMPLATE_LANGUAGE,
+            languageCode: TEMPLATE_LANGUAGES.reminder,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name
@@ -425,7 +434,7 @@ function buildDiscountBody(order: Order, store: StoreContact, discountPercent: n
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.discount,
-            languageCode: TEMPLATE_LANGUAGE,
+            languageCode: TEMPLATE_LANGUAGES.discount,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name

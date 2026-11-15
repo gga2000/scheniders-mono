@@ -96,7 +96,7 @@ describe("Interakt template variable sanitization", () => {
 describe("Interakt template header picture", () => {
     it.each([
         ["confirmation", "cod_order_confirm_v3", "ar", "order-confirm.png"],
-        ["reminder", "order_reminder_v3", "ar", "order-reminder.png"],
+        ["reminder", "order_reminder_v3", "en", "order-reminder.png"],
         ["discount", "order_discount_offer_v3", "ar", "order-discount.png"],
     ] as const)("sends %s as the approved copy with its picture", async (type, name, language, picture) => {
         await sendTemplateMessage(makeOrder(), type);
