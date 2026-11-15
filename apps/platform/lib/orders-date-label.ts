@@ -5,7 +5,8 @@
  * The preset the merchant picked wins; without one, the range is matched
  * against the presets. The two disagree on the rolling ranges (the picker's
  * "Last 7 Days" starts 6 days back, the fallback 7) and both are kept, so a
- * saved range keeps the label it always had.
+ * saved range keeps the label it always had. Dates read in the page's
+ * language, with Latin digits as elsewhere in the app.
  */
 type Translate = (key: string) => string;
 
@@ -57,6 +58,7 @@ export function ordersDateLabel(
     dateTo: string | null | undefined,
     preset: string | null | undefined,
     t: Translate,
+    language: "ar" | "en",
     now: Date = new Date(),
 ): string {
     if (!dateFrom) return t("orders.dateLabel.all");
@@ -69,6 +71,7 @@ export function ordersDateLabel(
     for (const [key, range] of GUESSED) {
         if (matches(range(now))) return t(`orders.dateLabel.${key}`);
     }
-    const show = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
+    const show = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
     return dateFrom === to ? show(dateFrom) : `${show(dateFrom)} — ${show(to)}`;
 }

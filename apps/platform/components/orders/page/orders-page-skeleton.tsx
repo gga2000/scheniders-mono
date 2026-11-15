@@ -1,4 +1,4 @@
-import { OrderRowsSkeleton } from "./order-rows-skeleton";
+import { OrderRowsSkeleton, SKELETON_BLOCK } from "./order-rows-skeleton";
 
 /**
  * The orders page's shape while the first load runs (board O3): the summary
@@ -6,7 +6,7 @@ import { OrderRowsSkeleton } from "./order-rows-skeleton";
  * places the real page puts them. It used to be an empty canvas for seconds.
  */
 export function OrdersPageSkeleton() {
-    const block = "animate-pulse bg-muted/20";
+    const block = SKELETON_BLOCK;
     return (
         <div className="min-h-screen p-4 md:p-6 lg:p-8" aria-busy="true">
             <div className="space-y-4 md:space-y-6">

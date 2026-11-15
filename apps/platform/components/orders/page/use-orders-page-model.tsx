@@ -146,7 +146,7 @@ export function useOrdersPageModel() {
         [products]
     );
     const isMobile = useIsMobile();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const datePreset = useOrderStore((s) => s.datePreset);
     const { can } = usePermission();
     const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
@@ -1041,6 +1041,7 @@ export function useOrdersPageModel() {
         oversoldCount,
         isMobile,
         t,
+        language,
         datePreset,
         can,
         canUnblock,

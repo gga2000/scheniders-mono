@@ -10,11 +10,14 @@ interface ScrollToTopButtonProps {
     threshold?: number;
     /** Custom className for the button */
     className?: string;
+    /** The button's text in the page's language, e.g. «للأعلى». */
+    label: string;
 }
 
 export function ScrollToTopButton({
     threshold = 400,
     className,
+    label,
 }: ScrollToTopButtonProps) {
     const [isVisible, setIsVisible] = useState(false);
     const rafRef = useRef<number | null>(null);
@@ -74,7 +77,6 @@ export function ScrollToTopButton({
                         )}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        aria-label="Scroll to top"
                     >
                         {/* Static gradient border — no infinite animation */}
                         <div
@@ -92,7 +94,7 @@ export function ScrollToTopButton({
 
                         {/* Text */}
                         <span className="relative z-10 text-sm font-medium text-[var(--foreground)]">
-                            Back to top
+                            {label}
                         </span>
                     </motion.button>
                 </motion.div>

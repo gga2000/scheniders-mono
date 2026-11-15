@@ -3,11 +3,10 @@
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DateRange } from "@/hooks/use-reports-metrics";
 import {
-    format,
     startOfMonth,
     endOfMonth,
     startOfWeek,
@@ -33,7 +32,11 @@ interface CustomDatePickerProps {
 }
 
 export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePickerProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    // Dates read in the page's language, Latin digits, as elsewhere in the app.
+    const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
+    const dayMonth = (d: Date) => d.toLocaleDateString(locale, { month: "short", day: "numeric" });
+    const dayMonthYear = (d: Date) => d.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(dateRange.from);
     const [selecting, setSelecting] = useState<'from' | 'to' | null>(null);
@@ -70,6 +73,10 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
     const calendarStart = startOfWeek(monthStart);
     const calendarEnd = endOfWeek(monthEnd);
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    // The first row is a full week from Sunday, so it names the columns.
+    const weekdayNames = days.slice(0, 7).map((d) =>
+        d.toLocaleDateString(locale, { weekday: language === "ar" ? "narrow" : "short" }).slice(0, language === "ar" ? undefined : 2),
+    );
 
     const handleDayClick = (day: Date) => {
         if (!selecting || selecting === 'from') {
@@ -121,7 +128,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                 )}
             >
                 <Calendar className="w-4 h-4 text-indigo-500" />
-                <span>{format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d, yyyy")}</span>
+                <span>{dayMonth(dateRange.from)} - {dayMonthYear(dateRange.to)}</span>
             </button>
 
             {/* Dropdown */}
@@ -167,7 +174,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                         <ChevronLeft className="w-5 h-5" />
                                     </button>
                                     <h3 className="font-semibold text-foreground">
-                                        {format(currentMonth, "MMMM yyyy")}
+                                        {currentMonth.toLocaleDateString(locale, { month: "long", year: "numeric" })}
                                     </h3>
                                     <button
                                         onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
@@ -179,8 +186,8 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
 
                                 {/* Day Headers */}
                                 <div className="grid grid-cols-7 gap-1 mb-2">
-                                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(day => (
-                                        <div key={day} className="text-center text-xs font-medium text-muted py-1">
+                                    {weekdayNames.map((day, i) => (
+                                        <div key={i} className="text-center text-xs font-medium text-muted py-1">
                                             {day}
                                         </div>
                                     ))}
@@ -212,7 +219,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                                     inRange && !isRangeStart(day) && !isRangeEnd(day) && "rounded-none"
                                                 )}
                                             >
-                                                {format(day, "d")}
+                                                {day.getDate()}
                                             </button>
                                         );
                                     })}
@@ -224,13 +231,13 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                         <div>
                                             <span className="text-muted">{t("reports.picker.from")} </span>
                                             <span className="font-medium">
-                                                {tempFrom ? format(tempFrom, "MMM d, yyyy") : "Select..."}
+                                                {tempFrom ? dayMonthYear(tempFrom) : t("reports.picker.select")}
                                             </span>
                                         </div>
                                         <div>
                                             <span className="text-muted">{t("reports.picker.to")} </span>
                                             <span className="font-medium">
-                                                {tempTo ? format(tempTo, "MMM d, yyyy") : "Select..."}
+                                                {tempTo ? dayMonthYear(tempTo) : t("reports.picker.select")}
                                             </span>
                                         </div>
                                     </div>

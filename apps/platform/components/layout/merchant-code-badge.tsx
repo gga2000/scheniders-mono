@@ -5,6 +5,7 @@ import { Hash, Check, Copy } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getMerchantCode } from "@scheniders/shared";
 import { useTenant } from "@/hooks/use-tenant";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,20 +13,23 @@ import { cn } from "@/lib/utils";
  * Click to copy. Useful for support: merchant reads the code aloud,
  * admin pastes it into the merchants search.
  *
- * Reads the canonical `display_id` from the tenants row when available;
- * falls back to a UUID hash for the brief window before the migration runs.
+ * Shows the store's `display_id` only. Every store has one (NOT NULL, from a
+ * sequence); until the store row arrives the badge holds its place empty.
+ * It used to show a code hashed from the store's UUID meanwhile, so for about
+ * a second the store read as #573054 before turning into #100012.
  */
 export function MerchantCodeBadge() {
   const { tenantId } = useAuth();
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const { data: tenantRow } = useTenant();
 
   if (!tenantId) return null;
-  const code = getMerchantCode({
-    id: tenantId,
-    display_id: tenantRow?.display_id ?? null,
-  });
+  if (tenantRow?.display_id == null) {
+    return <span aria-hidden className="inline-block h-[30px] w-[106px] rounded-full bg-(--card-bg) border border-(--card-border)" />;
+  }
+  const code = getMerchantCode({ display_id: tenantRow.display_id });
 
   async function handleCopy() {
     try {
@@ -41,8 +45,8 @@ export function MerchantCodeBadge() {
     <button
       type="button"
       onClick={handleCopy}
-      title={copied ? "Copied!" : `Merchant ID — click to copy`}
-      aria-label={`Merchant ID #${code}`}
+      title={copied ? t("layout.merchantCode.copied") : t("layout.merchantCode.copy")}
+      aria-label={t("layout.merchantCode.label", { code })}
       className={cn(
         "group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all",
         "bg-(--card-bg) border border-(--card-border) hover:border-(--foreground-muted)",

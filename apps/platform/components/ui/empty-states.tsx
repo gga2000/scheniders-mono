@@ -9,10 +9,10 @@ import {
     Phone,
     Sparkles,
     Search,
-    Calendar,
     Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/components/providers/language-provider";
 
 interface EmptyStateProps {
     type: "no-orders" | "no-results" | "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all";
@@ -23,57 +23,49 @@ interface EmptyStateProps {
 const stateConfigs = {
     "no-orders": {
         icon: Package,
-        title: "No orders yet",
-        description: "When you receive orders, they'll appear here.",
+        key: "noOrders",
         color: "text-amber-500",
         bg: "bg-amber-50",
     },
     "no-results": {
         icon: Search,
-        title: "No matching orders",
-        description: "Try adjusting your search or filters.",
+        key: "noResults",
         color: "text-blue-500",
         bg: "bg-blue-50",
     },
     "new": {
         icon: Sparkles,
-        title: "All caught up!",
-        description: "No new orders waiting for review.",
+        key: "new",
         color: "text-orange-500",
         bg: "bg-orange-50",
     },
     "contacted": {
         icon: Phone,
-        title: "No contacted orders",
-        description: "Orders you've reached out to will appear here.",
+        key: "contacted",
         color: "text-yellow-600",
         bg: "bg-yellow-50",
     },
     "confirmed": {
         icon: CheckCircle,
-        title: "No confirmed orders",
-        description: "Confirmed orders ready for fulfillment appear here.",
+        key: "confirmed",
         color: "text-green-500",
         bg: "bg-green-50",
     },
     "delivered": {
         icon: Truck,
-        title: "No delivered orders",
-        description: "Successfully delivered orders will appear here.",
+        key: "delivered",
         color: "text-teal-500",
         bg: "bg-teal-50",
     },
     "rejected": {
         icon: XCircle,
-        title: "No rejected orders",
-        description: "Rejected or cancelled orders appear here.",
+        key: "rejected",
         color: "text-rose-500",
         bg: "bg-rose-50",
     },
     "all": {
         icon: Package,
-        title: "No orders found",
-        description: "No orders match your current filters.",
+        key: "all",
         color: "text-gray-500",
         bg: "bg-gray-50",
     },
@@ -84,6 +76,7 @@ export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
     const effectiveType = (searchQuery || hasFilters) && type !== "no-orders" ? "no-results" : type;
     const config = stateConfigs[effectiveType] || stateConfigs["all"];
     const Icon = config.icon;
+    const { t } = useLanguage();
 
     return (
         <motion.div
@@ -125,7 +118,7 @@ export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
                 transition={{ delay: 0.2 }}
                 className="text-xl font-bold text-foreground mb-2 text-center"
             >
-                {config.title}
+                {t(`orders.emptyState.${config.key}.title`)}
             </motion.h3>
 
             <motion.p
@@ -136,10 +129,10 @@ export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
             >
                 {searchQuery ? (
                     <>
-                        No results for "<span className="font-medium text-foreground">{searchQuery}</span>"
+                        {t("orders.emptyState.noResultsFor")} «<span className="font-medium text-foreground">{searchQuery}</span>»
                     </>
                 ) : (
-                    config.description
+                    t(`orders.emptyState.${config.key}.desc`)
                 )}
             </motion.p>
 
@@ -152,7 +145,7 @@ export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
                     className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm"
                 >
                     <Filter className="w-4 h-4" />
-                    <span>Active filters applied</span>
+                    <span>{t("orders.emptyState.activeFilters")}</span>
                 </motion.div>
             )}
 

@@ -119,7 +119,7 @@ export default function OrdersPage() {
                     />
 
                     {/* Scroll to Top Button */}
-                    <ScrollToTopButton />
+                    <ScrollToTopButton label={t("orders.scrollTop")} />
 
                     {/* Monthly Backup Reminder */}
                     <BackupPrompt />
