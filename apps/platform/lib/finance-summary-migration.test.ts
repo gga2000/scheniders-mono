@@ -64,8 +64,15 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/LEFT JOIN public\.product_variants v ON v\.product_id = pr\.id AND v\.tenant_id = _tenant_id/);
     });
 
+    it("counts each courier payment once, on its Baghdad day, and leaves out a cancelled file", () => {
+        expect(core).toMatch(/payout_files AS \(\s*SELECT DISTINCT ON \(COALESCE\(NULLIF\(btrim\(di\.receipt_number\), ''\), di\.id::text\)\)/);
+        expect(core).toMatch(
+            /di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)\s+AND di\.payment_date >= w\.ts_from AND di\.payment_date < w\.ts_to/,
+        );
+    });
+
     it("scopes every table it reads to the shop", () => {
-        for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc"]) {
+        for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc", "delivery_imports di"]) {
             const alias = table.split(" ")[1];
             expect(core, table).toMatch(new RegExp(`public\\.${table.replace(" ", " ")}[\\s\\S]{0,160}${alias}\\.tenant_id = _tenant_id`));
         }

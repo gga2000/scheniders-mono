@@ -5,7 +5,14 @@ interface ChangeChipProps {
     value: number;
     /** A drop is the good direction (a cost): flips the colours. */
     lowerIsBetter?: boolean;
+    /** What the chip sits on: the dark strip and band (default), or a card that follows the theme. */
+    surface?: "dark" | "card";
 }
+
+const TONES = {
+    dark: { good: "text-emerald-400", bad: "text-rose-400" },
+    card: { good: "text-emerald-600 dark:text-emerald-400", bad: "text-rose-600 dark:text-rose-400" },
+} as const;
 
 /** Past this the earlier period was too small to compare against: "33 times more" is noise, so nothing is shown. */
 const INCOMPARABLE_PCT = 1000;
@@ -21,14 +28,14 @@ export function formatChange(value: number): string {
     return `${abs >= 10 ? String(Math.round(abs)) : abs.toFixed(1).replace(/\.0$/, "")}%`;
 }
 
-/** An arrow and a percent on the dark strip: green for the good direction, rose for the bad one. */
-export function ChangeChip({ value, lowerIsBetter = false }: ChangeChipProps) {
+/** An arrow and a percent: green for the good direction, rose for the bad one. */
+export function ChangeChip({ value, lowerIsBetter = false, surface = "dark" }: ChangeChipProps) {
     if (!isShownChange(value)) return null;
     const up = value > 0;
     const good = up !== lowerIsBetter;
     return (
         <span
-            className={cn("inline-flex items-center gap-[3px] text-[12px] font-semibold tabular-nums", good ? "text-emerald-400" : "text-rose-400")}
+            className={cn("inline-flex items-center gap-[3px] text-[12px] font-semibold tabular-nums", good ? TONES[surface].good : TONES[surface].bad)}
             dir="ltr"
         >
             <svg viewBox="0 0 12 12" className={cn("size-[10px]", !up && "rotate-180")} aria-hidden="true">

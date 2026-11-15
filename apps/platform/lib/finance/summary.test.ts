@@ -3,9 +3,11 @@ import {
     FinanceSummarySchema,
     adReturn,
     barStep,
+    breakEven,
     buildStatement,
     changePct,
     dayProfit,
+    lensChange,
     perOrder,
     primeOwes,
     productRows,
@@ -43,6 +45,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             stuck: { count: 1, amount: 40_000 },
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
+            reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 1, prime_returned_fee: 5_000 },
         daily: [
@@ -295,6 +298,66 @@ describe("money still outside", () => {
 
     it("takes Prime's own fee off what it collected", () => {
         expect(primeOwes(summary())).toBe(70_000);
+    });
+});
+
+describe("lensChange", () => {
+    const now = buildStatement(summary());
+    const before = buildStatement(summary({ sales: { orders: 20, revenue: 320_000, units: 22, product_cost: 120_000, missing_cost_units: 0 } }));
+
+    it("compares the figure on screen with the same figure before", () => {
+        // 150,000 against 120,000 in total; 15,000 an order against 6,000; 375 of each 1,000 both times
+        expect(lensChange(150_000, now, 120_000, before, "total")).toBe(25);
+        expect(lensChange(150_000, now, 120_000, before, "order")).toBe(150);
+        expect(lensChange(150_000, now, 120_000, before, "thousand")).toBe(0);
+        // ads: 6,000 an order now, 3,000 before
+        expect(lensChange(60_000, now, 60_000, before, "order")).toBe(100);
+    });
+
+    it("compares no average against a period that delivered too few orders, only the totals", () => {
+        const thin = buildStatement(summary({ sales: { orders: 8, revenue: 320_000, units: 9, product_cost: 120_000, missing_cost_units: 0 } }));
+        expect(lensChange(150_000, now, 120_000, thin, "total")).toBe(25);
+        expect(lensChange(150_000, now, 120_000, thin, "order")).toBeNull();
+        expect(lensChange(150_000, now, 120_000, thin, "thousand")).toBeNull();
+    });
+
+    it("has no answer when the period before delivered nothing", () => {
+        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } }));
+        expect(lensChange(150_000, now, 0, empty, "total")).toBeNull();
+        expect(lensChange(150_000, now, 0, empty, "order")).toBeNull();
+        expect(lensChange(150_000, empty, 120_000, before, "order")).toBeNull();
+    });
+});
+
+describe("breakEven", () => {
+    it("divides the daily bill by what one delivered order leaves", () => {
+        const s = summary();
+        const even = breakEven(s, buildStatement(s));
+        // one order leaves (400,000 - 150,000 - 45,000 - 40,000) / 10; ads + other + salaries are 100,000 over 3 days
+        expect(even?.leftPerOrder).toBe(16_500);
+        expect(even?.dailyBill).toBe(33_333);
+        expect(even?.needed).toBeCloseTo(100_000 / 3 / 16_500);
+        expect(even?.delivered).toBeCloseTo(10 / 3);
+    });
+
+    it("pays the whole net profit out of the orders past break-even", () => {
+        const s = summary();
+        const statement = buildStatement(s);
+        const even = breakEven(s, statement);
+        const past = (even?.delivered ?? 0) - (even?.needed ?? 0);
+        expect(past * 16_500 * s.daily.length).toBeCloseTo(statement.netProfit);
+    });
+
+    it("needs no orders when nothing is spent by the day, and has no answer when an order leaves nothing", () => {
+        const free = summary({ expenses: [], salaries_paid: 0 });
+        expect(breakEven(free, buildStatement(free))?.needed).toBe(0);
+        const losing = summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0 } });
+        expect(breakEven(losing, buildStatement(losing))?.needed).toBeNull();
+    });
+
+    it("has nothing to say when nothing was delivered", () => {
+        const none = summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } });
+        expect(breakEven(none, buildStatement(none))).toBeNull();
     });
 });
 

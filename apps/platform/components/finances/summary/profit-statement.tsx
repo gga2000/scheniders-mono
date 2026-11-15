@@ -6,6 +6,7 @@ import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import {
+    lensChange,
     throughLens,
     waterfall,
     type CostLineId,
@@ -13,6 +14,7 @@ import {
     type Lens,
     type ProfitStatement as Statement,
 } from "@/lib/finance/summary";
+import { ChangeChip, isShownChange } from "./change-chip";
 import { COST_COLORS } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { LensSwitch } from "./lens-switch";
@@ -23,6 +25,8 @@ import { SummaryCard } from "./summary-card";
 interface ProfitStatementProps {
     summary: FinanceSummary;
     statement: Statement;
+    /** The statement of the period before; null when no comparison is on (or it has not loaded). */
+    previous: Statement | null;
     onOpenTab: (tab: FinanceTab) => void;
 }
 
@@ -40,9 +44,10 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
  * biting its share off what the lines above left, down to the net profit in
  * the dark band. The switch re-reads every figure per order or per 1,000 IQD
  * sold. A cost line opens to show what is inside it; lines with nothing in
- * them fold into one quiet sentence.
+ * them fold into one quiet sentence. With a period to compare against, each
+ * line carries an arrow: the figure on screen against the same figure before.
  */
-export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStatementProps) {
+export function ProfitStatement({ summary, statement, previous, onOpenTab }: ProfitStatementProps) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const reduceMotion = useReducedMotion();
@@ -54,6 +59,16 @@ export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStateme
     const perThousand = statement.margin === null ? null : Math.round(Math.abs(statement.margin) * 1000);
     const shown = statement.lines.filter((line) => line.amount !== 0);
     const empty = statement.lines.filter((line) => line.amount === 0);
+    /** The change of a figure against the period before, through the chosen lens; null when it is not worth showing. */
+    const change = (value: number, before: number | undefined) => {
+        if (!previous || before === undefined) return null;
+        const pctChange = lensChange(value, statement, before, previous, lens);
+        return isShownChange(pctChange) ? pctChange : null;
+    };
+    const salesChange = change(statement.sales, previous?.sales);
+    const netChange = change(statement.netProfit, previous?.netProfit);
+    const lineChanges = new Map(shown.map((line) => [line.id, change(line.amount, previous?.lines.find((l) => l.id === line.id)?.amount)]));
+    const compared = salesChange !== null || netChange !== null || [...lineChanges.values()].some((value) => value !== null);
     /** A figure through the chosen lens; a dash when the lens has no base (no order delivered). */
     const amount = (value: number, className: string, options: { minus?: boolean; unitClassName?: string } = {}) => {
         const read = throughLens(value, statement, lens);
@@ -64,7 +79,7 @@ export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStateme
     return (
         <SummaryCard
             title={t("fin.statement.title")}
-            sub={t("fin.statement.sub")}
+            sub={compared ? `${t("fin.statement.sub")} ${t("fin.statement.compare")}` : t("fin.statement.sub")}
             textDir={dir}
             testId="profit-statement"
             action={<LensSwitch value={lens} onChange={setLens} />}
@@ -72,8 +87,13 @@ export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStateme
             <div className={cn(ROW, "py-[11px]")} data-line="sales">
                 <span className="text-left text-[15px] font-bold text-foreground" dir={dir}>{t("fin.line.sales")}</span>
                 <span className="h-[30px] rounded-[9px] bg-stone-900 dark:bg-stone-100" />
-                <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
-                    {t("fin.strip.sales.note", { n: formatWhole(statement.orders) })}
+                <span className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[13px] tabular-nums text-muted">
+                    <span dir={dir}>{t("fin.strip.sales.note", { n: formatWhole(statement.orders) })}</span>
+                    {salesChange !== null && (
+                        <span data-change="sales">
+                            <ChangeChip value={salesChange} surface="card" />
+                        </span>
+                    )}
                 </span>
                 {amount(statement.sales, "text-[20px] font-bold text-foreground")}
             </div>
@@ -81,6 +101,7 @@ export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStateme
             {shown.map((line) => {
                 const expanded = open === line.id;
                 const step = steps.get(line.id);
+                const lineChange = lineChanges.get(line.id) ?? null;
                 return (
                     <div key={line.id} className="border-t border-[var(--card-border)]" data-line={line.id}>
                         <button
@@ -114,8 +135,13 @@ export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStateme
                                     </>
                                 )}
                             </span>
-                            <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
-                                {statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}
+                            <span className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[13px] tabular-nums text-muted">
+                                <span dir={dir}>{statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}</span>
+                                {lineChange !== null && (
+                                    <span data-change={line.id}>
+                                        <ChangeChip value={lineChange} lowerIsBetter surface="card" />
+                                    </span>
+                                )}
                             </span>
                             {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
                         </button>
@@ -161,9 +187,14 @@ export function ProfitStatement({ summary, statement, onOpenTab }: ProfitStateme
             >
                 <div>
                     <div className="text-left text-[17px] font-bold" dir={dir}>{t("fin.line.net")}</div>
-                    {statement.margin !== null && (
-                        <div className="mt-0.5 text-left text-[12.5px] text-stone-400" dir={dir}>{t("fin.line.ofSales", { pct: pct(statement.margin) })}</div>
-                    )}
+                    <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-stone-400">
+                        {statement.margin !== null && <span dir={dir}>{t("fin.line.ofSales", { pct: pct(statement.margin) })}</span>}
+                        {netChange !== null && (
+                            <span data-change="net">
+                                <ChangeChip value={netChange} />
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <p className="text-left text-[14px] leading-relaxed text-stone-200" dir={dir} data-testid="statement-plain">
                     {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}

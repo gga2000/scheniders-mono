@@ -34,6 +34,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             stuck: { count: 0, amount: 0 },
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
+            reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 0, prime_returned_fee: 0 },
         daily: [
@@ -148,6 +149,16 @@ describe("SummaryView", () => {
         expect(byTestId("money-road")?.textContent).toContain("160,000");
     });
 
+    it("ends the road on the courier payments that reached the shop in the period", () => {
+        renderView(query(summary()));
+        expect(byTestId("money-reached")?.textContent).toContain("300,000");
+        expect(byTestId("money-reached")?.textContent).toContain("120,000");
+        cleanup();
+        const s = summary();
+        renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
+        expect(byTestId("money-reached")?.textContent).toContain("لا توجد دفعة");
+    });
+
     it("names the stuck parcels on the road they are stuck on", () => {
         renderView(query(summary()));
         expect(byTestId("money-stuck")).toBeNull();
@@ -216,6 +227,51 @@ describe("SummaryView", () => {
         expect(readout).toContain("160,000");
         expect(readout).toContain("20,000");
         expect(readout).toContain("115,000");
+    });
+
+    it("puts an arrow on each statement line that moved against the period before, through the chosen lens", () => {
+        const change = (id: string) => document.querySelector(`[data-change="${id}"]`)?.textContent ?? null;
+        const lens = (id: string) => {
+            const button = document.querySelector(`[data-lens="${id}"]`);
+            if (button) fireEvent.click(button);
+        };
+        const before = (orders: number) => query(summary({ sales: { orders, revenue: 320_000, units: orders, product_cost: 120_000, missing_cost_units: 0 } }));
+        renderView(query(summary()), before(20));
+        expect(change("sales")).toBe("25%");
+        expect(change("product_cost")).toBe("25%");
+        // the ads cost 60,000 both times: nothing to say in total
+        expect(change("ads")).toBeNull();
+        // 115,000 against 65,000
+        expect(change("net")).toBe("77%");
+        lens("order");
+        // goods went from 6,000 to 15,000 an order, ads from 3,000 to 6,000
+        expect(change("product_cost")).toBe("150%");
+        expect(change("ads")).toBe("100%");
+        cleanup();
+        // 8 delivered orders before: the totals still compare, the averages do not
+        renderView(query(summary()), before(8));
+        expect(change("product_cost")).toBe("25%");
+        lens("order");
+        expect(change("product_cost")).toBeNull();
+        cleanup();
+        renderView(query(summary()));
+        expect(change("sales")).toBeNull();
+    });
+
+    it("says how many delivered orders a day cover the costs, and what happens when none are needed or none can", () => {
+        renderView(query(summary()));
+        // one order leaves (400,000 - 150,000 - 30,000 - 40,000) / 10 = 18,000; ads and packaging are 32,500 a day
+        const say = byTestId("break-even-say")?.textContent ?? "";
+        expect(say).toContain("2");
+        expect(say).toContain("5");
+        expect(byTestId("break-even")?.textContent).toContain("18,000");
+        expect(byTestId("break-even")?.textContent).toContain("32,500");
+        cleanup();
+        renderView(query(summary({ expenses: [] })));
+        expect(byTestId("break-even-free")).not.toBeNull();
+        cleanup();
+        renderView(query(summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0 } })));
+        expect(byTestId("break-even-never")).not.toBeNull();
     });
 
     it("compares against the period before only when that period is big enough to compare", () => {
