@@ -102,6 +102,20 @@ describe("SummaryView", () => {
         expect(onOpenTab).toHaveBeenCalledWith("expenses");
     });
 
+    it("counts Prime's fee on parcels that came back in the delivery line", () => {
+        const s = summary();
+        renderView(query(summary({
+            failed: { ...s.failed, prime_returned_parcels: 3, prime_returned_fee: 15_000 },
+            daily: s.daily.map((d, i) => (i === 1 ? { ...d, courier: d.courier + 15_000 } : d)),
+        })));
+        // 30,000 on delivered parcels + 15,000 on the 3 that came back.
+        expect(line("delivery")?.textContent).toContain("−45,000");
+        expect(stat("net_profit")).toContain("100,000");
+        const toggle = line("delivery")?.querySelector("button");
+        if (toggle) fireEvent.click(toggle);
+        expect(line("delivery")?.textContent).toContain("15,000");
+    });
+
     it("shows what Prime still owes after its own fee", () => {
         renderView(query(summary()));
         expect(byTestId("money-prime")?.textContent).toContain("70,000");
