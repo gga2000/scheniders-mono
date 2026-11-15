@@ -14,7 +14,7 @@ interface PeriodComparisonProps {
 }
 
 export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const duration = currentRange.to.getTime() - currentRange.from.getTime();
     const days = Math.ceil(duration / (1000 * 60 * 60 * 24));
 
@@ -23,7 +23,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
         to: new Date(currentRange.from.getTime() - 1),
     };
 
-    const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const formatDate = (date: Date) => date.toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { month: "short", day: "numeric" });
 
     // Without a previous period there is nothing to compare against: no chip, no verdict.
     const hasBaseline = data.previous.totalOrders > 0;
