@@ -6,6 +6,7 @@ import { resolveActiveTenant } from '@/lib/auth/resolve-active-tenant';
 import { callerHasPermission } from '@/lib/auth/caller-has-permission';
 import { PERMISSIONS } from '@/lib/permissions';
 import { withFailureReport } from "@/lib/job-monitor";
+import { TRASHABLE_ORDERS_FILTER } from "@/lib/order-trash";
 
 /**
  * POST /api/orders/delete
@@ -70,15 +71,17 @@ async function handlePOST(request: NextRequest) {
         // Soft-delete only. original_order_id links on returns, replacements
         // and exchanges are left intact so the after-sale chain survives a
         // delete and a restore. Rows already in the trash are skipped, so a
-        // repeat delete does not restart their 30-day purge clock. RETURNING
-        // gives the audit record exactly the rows that changed (the old
-        // pre-read snapshot ignored its own error and cost a round trip).
+        // repeat delete does not restart their 30-day purge clock. Shipped
+        // orders are skipped too (board O1; the DB trigger refuses them, and
+        // one refused row would fail the whole batch). RETURNING gives the
+        // audit record exactly the rows that changed.
         const { data: deletedRows, error: deleteError } = await supabaseAdmin
             .from('orders')
             .update({ deleted_at: new Date().toISOString() })
             .in('id', ids)
             .eq('tenant_id', tenantId)
             .is('deleted_at', null)
+            .or(TRASHABLE_ORDERS_FILTER)
             .select('id, order_id, status');
 
         if (deleteError) {
@@ -91,28 +94,32 @@ async function handlePOST(request: NextRequest) {
 
         const newlyDeletedIds = (deletedRows || []).map(r => r.id);
 
+        // Ids the write skipped are either already in the trash or shipped.
         // Delete is idempotent: an id already in this tenant's trash is in the
         // state the caller asked for. Without this a stale list (a second tab,
         // a double click, a realtime event that has not landed yet) re-sends an
         // already-trashed id, nothing matches, and the client reports "No
-        // orders were deleted" with the row stuck on screen.
+        // orders were deleted" with the row stuck on screen. Shipped ones are
+        // named back so the screen can say why they stayed.
         const remainingIds = ids.filter(id => !newlyDeletedIds.includes(id));
         let alreadyDeletedIds: string[] = [];
+        let shippedOrderNumbers: string[] = [];
         if (remainingIds.length > 0) {
-            const { data: trashedRows, error: trashedError } = await supabaseAdmin
+            const { data: skippedRows, error: skippedError } = await supabaseAdmin
                 .from('orders')
-                .select('id')
+                .select('id, order_id, deleted_at')
                 .in('id', remainingIds)
-                .eq('tenant_id', tenantId)
-                .not('deleted_at', 'is', null);
-            if (trashedError) {
-                console.error('[Deletion] Error reading trashed orders:', trashedError.message);
+                .eq('tenant_id', tenantId);
+            if (skippedError) {
+                console.error('[Deletion] Error reading skipped orders:', skippedError.message);
                 return NextResponse.json(
-                    { success: false, error: trashedError.message },
+                    { success: false, error: skippedError.message },
                     { status: 500 }
                 );
             }
-            alreadyDeletedIds = (trashedRows || []).map(r => r.id);
+            const skipped = skippedRows || [];
+            alreadyDeletedIds = skipped.filter(r => r.deleted_at !== null).map(r => r.id);
+            shippedOrderNumbers = skipped.filter(r => r.deleted_at === null).map(r => String(r.order_id));
         }
         const deletedIds = [...newlyDeletedIds, ...alreadyDeletedIds];
 
@@ -153,6 +160,7 @@ async function handlePOST(request: NextRequest) {
             success: true,
             count: newlyDeletedIds.length,
             deletedIds,
+            shippedOrderNumbers,
         });
     } catch (error) {
         console.error('Delete orders error:', error);

@@ -1235,42 +1235,6 @@ export async function catchUpAfterOwnWrite(
 }
 
 /**
- * useDeleteOrderMutation - Optimistic delete
- */
-export function useDeleteOrderMutation() {
-    const queryClient = coverage(useQueryClient());
-    const { tenantId } = useAuth();
-
-    return useMutation({
-        mutationKey: [...ORDERS_LIST_MUTATION_KEY, "delete"],
-        mutationFn: async (orderId: string) => {
-            await orderRepository.update(orderId, { deleted_at: new Date().toISOString() });
-            return orderId;
-        },
-        onMutate: async (orderId) => {
-            await cancelListFetches(queryClient, tenantId);
-
-            const previousOrders = queryClient.getQueryData<Order[]>(orderKeys.lists());
-
-            // Optimistic update
-            queryClient.setQueryData<Order[]>(orderKeys.lists(), (old) => {
-                const updated = old?.filter((order) => order.id !== orderId) || [];
-                return updated;
-            });
-
-            return { previousOrders };
-        },
-        onError: (err, variables, context) => {
-            reportOrderError(err, { operation: "deleteOrder", orderId: variables });
-            if (context?.previousOrders) {
-                queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
-            }
-            toast.error(err instanceof Error ? err.message : "Failed to delete order");
-        },
-    });
-}
-
-/**
  * useCreateOrderMutation - Optimistic create
  */
 export function useCreateOrderMutation() {

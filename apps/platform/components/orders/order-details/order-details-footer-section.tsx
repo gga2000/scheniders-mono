@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { MessageCircle, Save, X, Trash2, AlertTriangle, Scissors, Send } from "lucide-react";
 import type { OrderDetailsView } from "./use-order-details-model";
 import { PrimeEditReview } from "./prime-edit-review";
+import { canMoveToTrash } from "@/lib/order-trash";
 
 /** One section of OrderDetailsModal. */
 export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
@@ -101,7 +102,7 @@ export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
                                         )}
 
                                     {/* Delete Button */}
-                                    {onDelete && !showDeleteConfirm && (
+                                    {onDelete && canMoveToTrash(order) && !showDeleteConfirm && (
                                         <button
                                             onClick={handleDeleteClick}
                                             className="flex items-center gap-2 px-3 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 transition-all font-medium"

@@ -310,6 +310,7 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
             // is independent: a later failure does not undo earlier deletions, and
             // the caller still receives the true deleted set.
             const deletedIds = new Set<string>();
+            const shippedOrderNumbers: string[] = [];
             let chunkError: string | null = null;
 
             for (let i = 0; i < uniqueOrderIds.length; i += MAX_ORDER_IDS_PER_REQUEST) {
@@ -328,6 +329,7 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
                     break;
                 }
                 for (const id of (result.deletedIds || []) as string[]) deletedIds.add(id);
+                shippedOrderNumbers.push(...((result.shippedOrderNumbers || []) as string[]));
             }
 
 
@@ -338,7 +340,10 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
             }
 
             if (deletedIds.size === 0) {
-                throw new Error("No orders were deleted.");
+                // Shipped orders are cancelled or returned, never trashed (board O1).
+                throw new Error(shippedOrderNumbers.length > 0
+                    ? tRef.current("orders.trash.shipped", { numbers: shippedOrderNumbers.join(", ") })
+                    : "No orders were deleted.");
             }
 
             optimisticUpdate((prev) => prev.filter((order) => !deletedIds.has(order.id)));
@@ -351,6 +356,7 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
                 count: deletedIds.size,
                 requestedCount: uniqueOrderIds.length,
                 deletedIds: Array.from(deletedIds),
+                shippedOrderNumbers,
             };
         } catch (err) {
             console.error("Error deleting orders:", err);

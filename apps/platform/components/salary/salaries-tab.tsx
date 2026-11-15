@@ -80,7 +80,7 @@ export function SalariesTab() {
         refresh: refreshDeductions,
     } = useSalaryDeductions();
 
-    const { runPayroll, voidPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory, isLoading: historyLoading, historyFailed } = usePayroll();
+    const { runPayroll, voidPayroll, payrollHistory, fetchAllHistory, isLoading: historyLoading, historyFailed } = usePayroll();
 
     // Changing the page period drops per-member overrides so the new period applies to everyone.
     const changePeriodMode = useCallback((mode: PeriodMode) => { setPeriodMode(mode); setPeriodOverrides(new Map()); }, []);
@@ -101,7 +101,7 @@ export function SalariesTab() {
         };
     }, [periodMode, customStart, customEnd]);
 
-    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, failed: salariesFailed, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
+    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, failed: salariesFailed, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
 
     const effectiveEmployeeData = useMemo(() => {
         let list = [...employeePayrollData];
@@ -190,22 +190,12 @@ export function SalariesTab() {
         if (!confirmData) return;
         const emp = confirmData.employee;
         const calc = confirmData.calculation;
-        const override = periodOverrides.get(emp.id);
-        let pStart = override?.start ?? periodStart;
-        let pEnd = override?.end ?? periodEnd;
-        if (!override && periodMode === "since_last") {
-            const lastDate = lastPayrollDates.get(emp.id);
-            pStart = lastDate
-                ? format(new Date(new Date(lastDate).getTime() + 86400000), "yyyy-MM-dd")
-                : format(subDays(new Date(), 90), "yyyy-MM-dd");
-            pEnd = format(new Date(), "yyyy-MM-dd");
-        }
         const blob = await generatePayslipPDF({
             record: {
                 id: "preview-" + Date.now(),
                 employee_id: emp.id,
-                period_start: pStart,
-                period_end: pEnd,
+                period_start: calc.periodStart,
+                period_end: calc.periodEnd,
                 base_salary: calc.baseSalary,
                 completed_orders_count: calc.completedOrdersCount,
                 order_bonus: calc.orderBonus,
@@ -229,35 +219,18 @@ export function SalariesTab() {
         });
         const name = emp.displayName || emp.email.split("@")[0];
         setPreviewBlob(blob);
-        setPreviewMeta({ name, periodEnd: pEnd });
+        setPreviewMeta({ name, periodEnd: calc.periodEnd });
         setPreviewOpen(true);
-    }, [confirmData, periodOverrides, periodStart, periodEnd, periodMode, lastPayrollDates]);
+    }, [confirmData]);
 
     const handleConfirmPayroll = useCallback(
         async (notes: string, paymentMethod: PaymentMethod, amountPaid: number | null) => {
             if (!confirmData || !user?.id) return;
             setPayingEmployeeId(confirmData.employee.id);
 
-            // Effective period: per-employee override takes priority, then since_last, then global
-            const override = periodOverrides.get(confirmData.employee.id);
-            let pStart = override?.start ?? periodStart;
-            let pEnd = override?.end ?? periodEnd;
-
-            if (!override && periodMode === "since_last") {
-                const lastDate = lastPayrollDates.get(confirmData.employee.id);
-                if (lastDate) {
-                    pStart = format(new Date(new Date(lastDate).getTime() + 86400000), "yyyy-MM-dd");
-                } else {
-                    pStart = format(subDays(new Date(), 90), "yyyy-MM-dd");
-                }
-                pEnd = today();
-            }
-
-            const calc = {
-                ...confirmData.calculation,
-                periodStart: pStart,
-                periodEnd: pEnd,
-            };
+            // The card's own period: override, else since last pay, else the page period,
+            // never before the join day (resolved once in useSalaries).
+            const calc = confirmData.calculation;
 
             const emp = confirmData.employee;
             const payslipMeta = {
@@ -299,7 +272,7 @@ export function SalariesTab() {
                 });
             }
         },
-        [confirmData, user, t, runPayroll, handleRefreshAll, periodMode, periodStart, periodEnd, lastPayrollDates, periodOverrides]
+        [confirmData, user, t, runPayroll, handleRefreshAll]
     );
 
     const handleBulkPayAll = useCallback(
@@ -315,21 +288,7 @@ export function SalariesTab() {
             for (let i = 0; i < eligible.length; i++) {
                 const data = eligible[i];
                 const emp = data.employee;
-                const override = periodOverrides.get(emp.id);
-                let pStart = override?.start ?? periodStart;
-                let pEnd = override?.end ?? periodEnd;
-
-                if (!override && periodMode === "since_last") {
-                    const lastDate = lastPayrollDates.get(emp.id);
-                    if (lastDate) {
-                        pStart = format(new Date(new Date(lastDate).getTime() + 86400000), "yyyy-MM-dd");
-                    } else {
-                        pStart = format(subDays(new Date(), 90), "yyyy-MM-dd");
-                    }
-                    pEnd = today();
-                }
-
-                const calc = { ...data.calculation, periodStart: pStart, periodEnd: pEnd };
+                const calc = data.calculation;
                 const payslipMeta = {
                     employeeName: emp.displayName || emp.email.split("@")[0],
                     employeeEmail: emp.email,
@@ -361,7 +320,7 @@ export function SalariesTab() {
                 });
             }
         },
-        [user, t, effectiveEmployeeData, periodOverrides, periodStart, periodEnd, periodMode, lastPayrollDates, runPayroll, handleRefreshAll]
+        [user, t, effectiveEmployeeData, runPayroll, handleRefreshAll]
     );
 
     const payableCount = effectiveEmployeeData.filter(d => d.calculation.netSalary > 0 && !d.overlappingPayroll?.fullyCovered).length;
