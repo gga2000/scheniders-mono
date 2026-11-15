@@ -869,6 +869,14 @@ describe("category_spotlight_pair — occasion triptych", () => {
 describe("testimonial_cards — the quote is the content", () => {
   const props = testimonial_cards.defaultProps;
 
+  it("accepts an empty list and renders nothing", () => {
+    // Content packs never invent reviews, so a new store saves items: [].
+    // That must parse (not be reported as schema_invalid on every view).
+    const empty = { ...props, items: [] };
+    expect(testimonial_cards.schema.safeParse(empty).success).toBe(true);
+    expect(render(testimonial_cards, empty)).toBe("");
+  });
+
   it("leads with the quote, not the name", () => {
     const html = render(testimonial_cards, props);
     // A testimonial where the customer's name outranks what they said

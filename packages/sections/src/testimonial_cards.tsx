@@ -42,7 +42,8 @@ const schema = z.object({
         context_i18n: i18nStringOptional,
       }),
     )
-    .min(1)
+    // No minimum: a store with no real testimonies yet saves an empty list
+    // (content packs never invent reviews) and the section renders nothing.
     // Raised from 6: a stage rotates, so it can carry every testimony a
     // merchant has rather than the three a static band has room for.
     // Widening a max can never invalidate a config that already parsed.
