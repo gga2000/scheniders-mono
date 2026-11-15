@@ -88,7 +88,12 @@ export function BusinessSettings() {
     const { t } = useLanguage();
 
     const { data: tenant, isLoading: loading } = useQuery({
-        queryKey: ["tenant", tenantId],
+        // Its own key: useTenant() caches a short row (status, plan…) under
+        // ["tenant", tenantId]. Sharing that key gave this form the short row,
+        // so it opened blank, and saving it wiped store_config, branding and the
+        // contact fields (audit R3 UI-1). The save still invalidates the
+        // ["tenant", tenantId] prefix, which refreshes both.
+        queryKey: ["tenant", tenantId, "business-settings"],
         queryFn: () => fetchTenantData(tenantId!),
         enabled: !!tenantId,
     });
