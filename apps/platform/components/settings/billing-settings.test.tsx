@@ -17,11 +17,13 @@ const state: {
     payment: TopupPaymentDetails;
     requests: TopupRequest[];
     qiEnabled: boolean;
+    qiCanSaveCard: boolean;
     qiCard: QiSavedCard | null;
 } = {} as never;
 
 const SAVED_CARD: QiSavedCard = {
     masked_pan: "521372******8582",
+    payment_system: null,
     valid_to: null,
     auto_refill: true,
     refill_amount_iqd: 25_000,
@@ -91,7 +93,7 @@ vi.mock("@/hooks/use-qi-topup", async (importOriginal) => {
     const real = await importOriginal<typeof import("@/hooks/use-qi-topup")>();
     return {
         ...real,
-        useQiTopup: () => ({ enabled: state.qiEnabled, pay: { isPending: false, isSuccess: false, mutate: qiPay } }),
+        useQiTopup: () => ({ enabled: state.qiEnabled, canSaveCard: state.qiCanSaveCard, pay: { isPending: false, isSuccess: false, mutate: qiPay } }),
         useQiSavedCard: () => ({
             card: state.qiCard,
             refresh: vi.fn(),
@@ -139,6 +141,7 @@ beforeEach(() => {
     state.payment = { zain_cash: "07701234567", qi_card: null };
     state.requests = [];
     state.qiEnabled = false;
+    state.qiCanSaveCard = true;
     state.qiCard = null;
     qiPay.mockReset();
     qiCardUpdate.mockReset();
@@ -214,6 +217,23 @@ describe("BillingSettings", () => {
         fireEvent.click(screen.getByTestId("qi-save-card").querySelector("button") as HTMLButtonElement);
         fireEvent.click(screen.getByTestId("qi-pay-button"));
         expect(qiPay).toHaveBeenCalledWith({ amount: 50_000, locale: "ar", saveCard: false }, expect.anything());
+    });
+
+    it("does not offer to save the card while card saving is not set up", () => {
+        state.qiEnabled = true;
+        state.qiCanSaveCard = false;
+        show();
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        expect(screen.queryByTestId("qi-save-card")).toBeNull();
+        fireEvent.click(screen.getByTestId("qi-pay-button"));
+        expect(qiPay).toHaveBeenCalledWith({ amount: 50_000, locale: "ar", saveCard: false }, expect.anything());
+    });
+
+    it("names the saved card's brand when Qi told us", () => {
+        state.qiEnabled = true;
+        state.qiCard = { ...SAVED_CARD, payment_system: "MASTER_CARD" };
+        show();
+        expect(screen.getByTestId("qi-auto-refill").textContent).toContain("Mastercard تنتهي بـ 8582");
     });
 
     it("with a saved card: shows auto refill with the card ending, changes the amount, removes the card", () => {

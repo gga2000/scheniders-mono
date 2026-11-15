@@ -1,6 +1,17 @@
 import { createSign, generateKeyPairSync } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { QiApiError, blockQiToken, chargeQiToken, createQiPayment, getQiPaymentStatus, qiSignedString, verifyQiSignature } from "./client";
+import {
+    QiApiError,
+    blockQiToken,
+    cancelQiPaymentByRequest,
+    chargeQiToken,
+    classifyQiFailure,
+    createQiPayment,
+    findQiPaymentByRequest,
+    getQiPaymentStatus,
+    qiSignedString,
+    verifyQiSignature,
+} from "./client";
 
 const config = { baseUrl: "https://qi.test/api/v1", terminalId: "237984", username: "u", password: "p" };
 
@@ -147,25 +158,123 @@ describe("Qi API calls", () => {
         });
     });
 
-    it("blocks a token, and treats already blocked or unknown as done", async () => {
+    it("blocks a token only when Qi confirms it, and treats already blocked or unknown as done", async () => {
         const fetchMock = vi
             .fn()
-            .mockResolvedValueOnce(new Response(null, { status: 200 }))
-            .mockResolvedValueOnce(json(400, { error: { code: 5, description: "Token is blocked" } }))
-            .mockResolvedValueOnce(json(400, { error: { code: 31, description: "Token not found" } }))
-            .mockResolvedValueOnce(json(400, { error: { code: 99, description: "Other" } }));
+            .mockResolvedValueOnce(json(200, { token: "tok-1", blocked: true }))
+            .mockResolvedValueOnce(json(403, { error: { code: 5, description: "Payment token is blocked." } }))
+            .mockResolvedValueOnce(json(403, { error: { code: 31, description: "Payment token not found." } }));
         vi.stubGlobal("fetch", fetchMock);
-        await blockQiToken(config, "tok-1", "r1");
-        await blockQiToken(config, "tok-1", "r2");
-        await blockQiToken(config, "tok-1", "r3");
-        await expect(blockQiToken(config, "tok-1", "r4")).rejects.toMatchObject({ code: 99 });
-        expect(fetchMock.mock.calls[0][0]).toBe("https://qi.test/api/v1/token/tok-1/block");
+        await blockQiToken(config, "tok-1");
+        await blockQiToken(config, "tok-1");
+        await blockQiToken(config, "tok-1");
+        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe("https://qi.test/api/v1/token/tok-1/block");
+        // Each block is its own request: a fresh UUID every time.
+        const ids = fetchMock.mock.calls.map(([, i]) => JSON.parse((i as RequestInit).body as string).requestId);
+        expect(ids.every((id) => /^[0-9a-f-]{36}$/.test(id))).toBe(true);
+        expect(new Set(ids).size).toBe(3);
+        expect(init.method).toBe("POST");
+    });
+
+    it("does not count a block as done when Qi did not confirm it", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce(json(200, { token: "tok-1", blocked: false }))
+                .mockResolvedValueOnce(json(403, { error: { code: 5, description: "RequestId 1 was already used." } }))
+                .mockResolvedValueOnce(json(400, { error: { code: 99, description: "Other" } }))
+                .mockResolvedValueOnce(json(500, {})),
+        );
+        await expect(blockQiToken(config, "tok-1")).rejects.toMatchObject({ status: 502 });
+        await expect(blockQiToken(config, "tok-1")).rejects.toMatchObject({ code: 5 });
+        await expect(blockQiToken(config, "tok-1")).rejects.toMatchObject({ code: 99 });
+        await expect(blockQiToken(config, "tok-1")).rejects.toMatchObject({ status: 500 });
     });
 
     it("never puts an odd token into the URL", async () => {
         const fetchMock = vi.fn();
         vi.stubGlobal("fetch", fetchMock);
-        await expect(blockQiToken(config, "../x", "r")).rejects.toBeInstanceOf(QiApiError);
+        await expect(blockQiToken(config, "../x")).rejects.toBeInstanceOf(QiApiError);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("reads the confirmed amount, the card brand and a blocked token", async () => {
+        const token = { token: "b6d6f1d0-5c4e-4bc1-9d38-0f6b6f0e3a11", type: "AUTH", blocked: true };
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue(json(200, { ...paid, confirmedAmount: 1000, details: { maskedPan: "521372******8582", paymentSystem: "MASTER_CARD" }, paymentToken: token })),
+        );
+        const payment = await getQiPaymentStatus(config, paid.paymentId);
+        expect(payment.confirmedAmount).toBe(1000);
+        expect(payment.details?.paymentSystem).toBe("MASTER_CARD");
+        expect(payment.paymentToken?.blocked).toBe(true);
+    });
+
+    it("treats a 2xx that is not a payment as an unknown outcome, never a refusal", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(200, { hello: "world" })));
+        const err = await getQiPaymentStatus(config, paid.paymentId).catch((e: unknown) => e);
+        expect(err).toMatchObject({ name: "QiApiError", status: 502 });
+        expect(classifyQiFailure(err)).toBe("unknown");
+    });
+
+    it("finds a payment by our request id, and answers null when Qi has none", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(json(200, paid))
+            .mockResolvedValueOnce(json(403, { error: { code: 12, description: "Payment with provided requestId not found." } }))
+            .mockResolvedValueOnce(json(401, { error: { code: 27, description: "Bad credentials" } }));
+        vi.stubGlobal("fetch", fetchMock);
+        await expect(findQiPaymentByRequest(config, paid.requestId)).resolves.toMatchObject({ paymentId: paid.paymentId });
+        await expect(findQiPaymentByRequest(config, paid.requestId)).resolves.toBeNull();
+        // Any other failure is not "no payment": it must not let a row be closed.
+        await expect(findQiPaymentByRequest(config, paid.requestId)).rejects.toMatchObject({ code: 27 });
+        expect(fetchMock.mock.calls[0][0]).toBe(`https://qi.test/api/v1/payment/status/by/request/${paid.requestId}`);
+    });
+
+    it("cancels by our request id with a fresh request id of its own", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(json(200, { ...paid, status: "CREATED", canceled: true }));
+        vi.stubGlobal("fetch", fetchMock);
+        const payment = await cancelQiPaymentByRequest(config, paid.requestId);
+        expect(payment.canceled).toBe(true);
+        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe(`https://qi.test/api/v1/payment/cancel/by/request/${paid.requestId}`);
+        const body = JSON.parse(init.body as string) as { requestId: string };
+        expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+        expect(body.requestId).not.toBe(paid.requestId);
+    });
+
+    it("never puts an odd request id into the URL", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        await expect(findQiPaymentByRequest(config, "../x")).rejects.toBeInstanceOf(QiApiError);
+        await expect(cancelQiPaymentByRequest(config, "1; drop")).rejects.toBeInstanceOf(QiApiError);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
+describe("classifyQiFailure", () => {
+    const qi = (status: number, code?: number, message = "x") => new QiApiError(message, status, code);
+    it.each([
+        ["network error", new TypeError("fetch failed"), "unknown"],
+        ["timeout", new DOMException("timeout", "TimeoutError"), "unknown"],
+        ["5xx with a code", qi(500, 1), "unknown"],
+        ["no code", qi(400), "unknown"],
+        ["Qi internal 23", qi(400, 23), "unknown"],
+        ["Qi internal 24", qi(400, 24), "unknown"],
+        ["bad credentials", qi(401, 27), "ours"],
+        ["unknown terminal", qi(403, 9), "ours"],
+        ["bad field", qi(400, 21), "ours"],
+        ["form domain", qi(400, 26), "ours"],
+        ["not found", qi(403, 12), "not_found"],
+        ["unknown token", qi(403, 31), "card_dead"],
+        ["token not allowed", qi(403, 32), "card_dead"],
+        ["bad token type", qi(403, 35), "card_dead"],
+        ["blocked token", qi(403, 5, "Payment token is blocked."), "card_dead"],
+        ["request id reused", qi(403, 5, "RequestId abc was already used."), "unknown"],
+        ["declined", qi(400, 7), "refused"],
+    ] as const)("%s → %s", (_, err, expected) => {
+        expect(classifyQiFailure(err)).toBe(expected);
     });
 });

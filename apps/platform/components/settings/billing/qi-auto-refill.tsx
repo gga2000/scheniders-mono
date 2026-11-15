@@ -14,6 +14,9 @@ function lastFour(maskedPan: string | null): string | null {
     return digits ? digits[1] : null;
 }
 
+/** Qi's card network names, as shops know them. */
+const CARD_BRANDS: Record<string, string> = { VISA: "Visa", MASTER_CARD: "Mastercard" };
+
 /**
  * The store's saved Qi card: auto refill on or off, how much it adds, and a
  * way to remove the card. Shows nothing until a card is saved (the shop saves
@@ -26,6 +29,7 @@ export function QiAutoRefill() {
     if (!enabled || !card) return null;
 
     const ending = lastFour(card.masked_pan);
+    const brand = (card.payment_system && CARD_BRANDS[card.payment_system]) ?? t("billing.qi.card.card");
     const stopped = !card.auto_refill && card.failures >= QI_REFILL_MAX_FAILURES;
     const busy = update.isPending || remove.isPending;
     const failed = () => toast.error(t("billing.qi.card.failed"));
@@ -39,7 +43,7 @@ export function QiAutoRefill() {
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{t("billing.qi.card.title")}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">
-                        {ending ? t("billing.qi.card.ending", { digits: ending }) : t("billing.qi.card.saved")}
+                        {ending ? t("billing.qi.card.ending", { brand, digits: ending }) : t("billing.qi.card.saved")}
                     </p>
                 </div>
                 <Switch

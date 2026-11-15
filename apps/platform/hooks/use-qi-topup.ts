@@ -14,9 +14,14 @@ export class QiTooManyOpenError extends Error {
     }
 }
 
-const enabledSchema = z.object({ enabled: z.boolean() });
+const enabledSchema = z.object({ enabled: z.boolean(), saveCard: z.boolean() });
 const openedSchema = z.object({ id: z.string().uuid(), formUrl: z.string().url() });
-const checkSchema = z.object({ status: z.enum(["created", "success", "failed", "canceled"]), amount: z.number() });
+const checkSchema = z.object({
+    status: z.enum(["created", "success", "failed", "canceled"]),
+    amount: z.number(),
+    /** null: the shop did not ask to save the card; false: Qi gave no card we may charge alone. */
+    cardSaved: z.boolean().nullable(),
+});
 export type QiPaymentCheck = z.infer<typeof checkSchema>;
 
 /** Wallet top-up by Qi card: open a payment on Qi's page, then check it on return. */
@@ -26,7 +31,7 @@ export function useQiTopup() {
         queryFn: async () => {
             const res = await authedFetch("/api/billing/qi");
             if (!res.ok) throw new Error(`qi_enabled_${res.status}`);
-            return enabledSchema.parse(await res.json()).enabled;
+            return enabledSchema.parse(await res.json());
         },
         staleTime: 10 * 60_000,
     });
@@ -46,7 +51,7 @@ export function useQiTopup() {
         },
     });
 
-    return { enabled: enabled.data === true, pay };
+    return { enabled: enabled.data?.enabled === true, canSaveCard: enabled.data?.saveCard === true, pay };
 }
 
 /** Asks the server to read the payment's status from Qi (and credit it if paid). */
@@ -59,6 +64,7 @@ export async function checkQiPayment(id: string): Promise<QiPaymentCheck> {
 /** The columns a store admin may read; the token itself never leaves the server. */
 const savedCardSchema = z.object({
     masked_pan: z.string().nullable(),
+    payment_system: z.string().nullable(),
     valid_to: z.string().nullable(),
     auto_refill: z.boolean(),
     refill_amount_iqd: z.number(),
@@ -82,7 +88,7 @@ export function useQiSavedCard() {
             if (!tenantId) return null;
             const { data, error } = await supabase
                 .from("qi_saved_cards")
-                .select("masked_pan, valid_to, auto_refill, refill_amount_iqd, refill_below_iqd, failures")
+                .select("masked_pan, payment_system, valid_to, auto_refill, refill_amount_iqd, refill_below_iqd, failures")
                 .eq("tenant_id", tenantId)
                 .maybeSingle();
             if (error) throw error;

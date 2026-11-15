@@ -94,6 +94,10 @@ const serverSchema = z.object({
     QI_PASSWORD: z.string().min(1).optional(),
     // Qi's RSA public key (PEM) for the X-Signature on its payment messages.
     QI_WEBHOOK_PUBLIC_KEY: z.string().includes("PUBLIC KEY").optional(),
+    // Our AES-256 key (32 random bytes, base64) that seals saved Qi card
+    // tokens before they reach the database. Without it (or with a malformed
+    // one, see lib/qi/token-seal) shops cannot save a card; nothing else stops.
+    QI_TOKEN_KEY: z.string().min(1).optional(),
     // Set by Vercel on every deployment. The Prime webhook is registered only
     // from Production, at the project's production domain (lib/prime/webhook).
     VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
@@ -169,6 +173,7 @@ function validateEnv() {
             QI_USERNAME: orUndef(process.env.QI_USERNAME),
             QI_PASSWORD: orUndef(process.env.QI_PASSWORD),
             QI_WEBHOOK_PUBLIC_KEY: orUndef(process.env.QI_WEBHOOK_PUBLIC_KEY?.replace(/\\n/g, "\n")),
+            QI_TOKEN_KEY: orUndef(process.env.QI_TOKEN_KEY),
             VERCEL_ENV: orUndef(process.env.VERCEL_ENV),
             VERCEL_PROJECT_PRODUCTION_URL: orUndef(process.env.VERCEL_PROJECT_PRODUCTION_URL),
             GEMINI_API_KEY: orUndef(process.env.GEMINI_API_KEY),

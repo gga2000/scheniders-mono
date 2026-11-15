@@ -5,6 +5,8 @@ import { withFailureReport } from "@/lib/job-monitor";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { QiApiError, blockQiToken, qiConfigFromEnv } from "@/lib/qi/client";
 import { REFILL_AMOUNTS } from "@/lib/qi/refill";
+import { qiMoneyAlarm } from "@/lib/qi/settle";
+import { QiTokenSealError, openQiToken, qiTokenKeyFromEnv } from "@/lib/qi/token-seal";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +61,8 @@ async function handleDELETE(request: NextRequest) {
     if (!caller.ok) return caller.response;
 
     const config = qiConfigFromEnv();
-    if (!config) return NextResponse.json({ error: "qi_not_configured" }, { status: 503 });
+    const key = qiTokenKeyFromEnv();
+    if (!config || !key) return NextResponse.json({ error: "qi_not_configured" }, { status: 503 });
 
     const { data: card, error } = await supabaseAdmin()
         .from("qi_saved_cards")
@@ -69,12 +72,22 @@ async function handleDELETE(request: NextRequest) {
     if (error) throw error;
     if (!card) return NextResponse.json({ ok: true });
 
+    let token: string | null = null;
     try {
-        await blockQiToken(config, card.token, crypto.randomUUID());
+        token = openQiToken(card.token, caller.tenantId, key);
     } catch (err) {
-        if (!(err instanceof QiApiError)) throw err;
-        console.error("[qi] block card refused", { status: err.status, code: err.code, message: err.message });
-        return NextResponse.json({ error: "qi_refused" }, { status: 502 });
+        if (!(err instanceof QiTokenSealError)) throw err;
+        // Without the token nobody, us included, can charge this card again; forget it.
+        qiMoneyAlarm("removed a saved card whose token does not open, so it was not blocked at Qi", { tenant: caller.tenantId });
+    }
+    if (token) {
+        try {
+            await blockQiToken(config, token);
+        } catch (err) {
+            if (!(err instanceof QiApiError)) throw err;
+            console.error("[qi] block card refused", { status: err.status, code: err.code, message: err.message });
+            return NextResponse.json({ error: "qi_refused" }, { status: 502 });
+        }
     }
 
     const { error: deleteError } = await supabaseAdmin()

@@ -1,1 +1,1 @@
-note_qi_auto_refill settle_qi_payment fail_qi_auto_refill save_qi_card qi_auto_refill_due
+note_qi_auto_refill settle_qi_payment close_unopened_qi_payment qi_auto_refill_due start_qi_auto_refill

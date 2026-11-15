@@ -33,11 +33,9 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
     if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
     const result = await settleQiPayment(config, qiPaymentRowSchema.parse(row));
-    if (!result.success) {
-        console.error("[qi] settle refused", { id: row.id, error: result.error });
-        return NextResponse.json({ error: result.error }, { status: 409 });
-    }
-    return NextResponse.json({ status: result.status, amount: row.amount_iqd });
+    if (!result.success) return NextResponse.json({ error: result.error }, { status: 409 });
+    // cardSaved: null when the shop did not ask to save the card, false when Qi gave none we may charge alone.
+    return NextResponse.json({ status: result.status, amount: row.amount_iqd, cardSaved: result.card_saved ?? null });
 }
 
 export const POST = withFailureReport("api/billing/qi/[id] POST", handlePOST);
