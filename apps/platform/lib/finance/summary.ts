@@ -11,8 +11,9 @@ import { z } from "zod";
  *   product cost   what the sold goods cost, frozen at delivery
  *   ads            `marketing` expenses (Meta spend is synced into them, so it
  *                  is never added a second time)
- *   delivery       the courier's fee on delivered Prime parcels, plus courier
- *                  bills typed as `shipping` expenses
+ *   delivery       the courier's fee on delivered Prime parcels and on the
+ *                  parcels that came back (on the day they came back), plus
+ *                  courier bills typed as `shipping` expenses
  *   refunds        money paid back, on the day it was paid
  *   other costs    every other expense category
  *   salaries       payroll actually paid in the period
@@ -80,7 +81,7 @@ export type CostLineId = (typeof COST_LINE_IDS)[number];
 
 /** What a cost line is made of, shown when the merchant opens the line. */
 export interface CostPart {
-    /** `prime_fee`, `courier_bills` or an expense category. */
+    /** `prime_fee`, `prime_returned_fee`, `courier_bills` or an expense category. */
     key: string;
     amount: number;
 }
@@ -123,9 +124,10 @@ export function buildStatement(summary: FinanceSummary): ProfitStatement {
         product_cost: { amount: summary.sales.product_cost, parts: [] },
         ads: { amount: ads, parts: [] },
         delivery: {
-            amount: summary.courier.prime_fee + courierBills,
+            amount: summary.courier.prime_fee + summary.failed.prime_returned_fee + courierBills,
             parts: [
                 { key: "prime_fee", amount: summary.courier.prime_fee },
+                { key: "prime_returned_fee", amount: summary.failed.prime_returned_fee },
                 { key: "courier_bills", amount: courierBills },
             ].filter((p) => p.amount !== 0),
         },

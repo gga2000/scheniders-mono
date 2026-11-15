@@ -49,6 +49,12 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/o\.take_kind IS NULL/);
     });
 
+    it("counts Prime's fee once per parcel: delivered ones on the delivery day, returned ones on the day they came back", () => {
+        expect(core).toMatch(/prime_fee AS \([\s\S]*?ps\.shipment_status IS DISTINCT FROM 'FAILED_DELIVER_RETURNED_TO_SENDER'/);
+        expect(core).toMatch(/prime_returned AS \(\s*SELECT \(ps\.status_changed_at AT TIME ZONE 'Asia\/Baghdad'\)::date AS day/);
+        expect(core).toMatch(/'courier', COALESCE\(pf\.fee, 0\) \+ COALESCE\(prt\.fee, 0\)/);
+    });
+
     it("scopes every table it reads to the shop", () => {
         for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc"]) {
             const alias = table.split(" ")[1];

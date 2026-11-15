@@ -44,7 +44,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
         daily: [
             day("2026-11-01", { orders: 6, revenue: 240_000, product_cost: 90_000, courier: 20_000, expenses: 50_000 }),
             day("2026-11-02", { orders: 4, revenue: 160_000, product_cost: 60_000, courier: 10_000, refunds: 40_000, expenses: 40_000 }),
-            day("2026-11-03", { salaries: 20_000 }),
+            day("2026-11-03", { courier: 5_000, salaries: 20_000 }),
         ],
         products: [
             { key: "p1", name: "Envoy", units: 8, revenue: 300_000, cost: 110_000, missing_units: 0 },
@@ -74,19 +74,27 @@ describe("buildStatement", () => {
         expect(line("other")?.parts.map((p) => p.key)).toEqual(["packaging", "other"]);
     });
 
-    it("adds the courier's fee on delivered parcels to typed courier bills", () => {
-        expect(line("delivery")?.amount).toBe(40_000);
+    it("adds the courier's fee on delivered and returned parcels to typed courier bills", () => {
+        expect(line("delivery")?.amount).toBe(45_000);
         expect(line("delivery")?.parts).toEqual([
             { key: "prime_fee", amount: 30_000 },
+            { key: "prime_returned_fee", amount: 5_000 },
             { key: "courier_bills", amount: 10_000 },
         ]);
     });
 
+    it("leaves a part out of the delivery line when it is zero", () => {
+        const s = summary();
+        const none = buildStatement({ ...s, failed: { ...s.failed, prime_returned_parcels: 0, prime_returned_fee: 0 } });
+        expect(none.lines.find((l) => l.id === "delivery")?.parts.map((p) => p.key)).toEqual(["prime_fee", "courier_bills"]);
+        expect(none.netProfit).toBe(70_000);
+    });
+
     it("subtracts every cost from sales exactly once", () => {
-        // 400,000 - 150,000 - 60,000 - 40,000 - 40,000 - 20,000 - 20,000
-        expect(statement.totalCosts).toBe(330_000);
-        expect(statement.netProfit).toBe(70_000);
-        expect(statement.margin).toBeCloseTo(0.175);
+        // 400,000 - 150,000 - 60,000 - 45,000 - 40,000 - 20,000 - 20,000
+        expect(statement.totalCosts).toBe(335_000);
+        expect(statement.netProfit).toBe(65_000);
+        expect(statement.margin).toBeCloseTo(0.1625);
     });
 
     it("gives each line its share of sales", () => {
@@ -95,7 +103,7 @@ describe("buildStatement", () => {
 
     it("reports a loss, and no margin when nothing was sold", () => {
         const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } }));
-        expect(empty.netProfit).toBe(-180_000);
+        expect(empty.netProfit).toBe(-185_000);
         expect(empty.margin).toBeNull();
         expect(empty.lines.every((l) => l.share === 0)).toBe(true);
     });
@@ -121,13 +129,13 @@ describe("averageOrder", () => {
     it("splits the average order into slices that fill the bar", () => {
         const avg = averageOrder(buildStatement(summary()));
         expect(avg?.price).toBe(40_000);
-        expect(avg?.profit).toBe(7_000);
+        expect(avg?.profit).toBe(6_500);
         expect(avg?.slices.map((s) => [s.id, s.amount])).toEqual([
             ["product_cost", 15_000],
             ["ads", 6_000],
-            ["delivery", 4_000],
+            ["delivery", 4_500],
             ["other", 8_000],
-            ["profit", 7_000],
+            ["profit", 6_500],
         ]);
         expect(avg?.slices.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1);
     });
@@ -135,7 +143,7 @@ describe("averageOrder", () => {
     it("drops the profit slice when the order loses money", () => {
         const avg = averageOrder(buildStatement(summary({ salaries_paid: 200_000 })));
         expect(avg?.slices.some((s) => s.id === "profit")).toBe(false);
-        expect(avg?.profit).toBe(-11_000);
+        expect(avg?.profit).toBe(-11_500);
         expect(avg?.slices.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1);
     });
 

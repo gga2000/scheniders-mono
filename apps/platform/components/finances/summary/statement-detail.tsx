@@ -75,7 +75,9 @@ export function StatementDetail({ line, summary, onOpenTab }: StatementDetailPro
                             p.key,
                             p.key === "prime_fee"
                                 ? t("fin.detail.delivery.prime", { n: formatWhole(summary.courier.prime_parcels) })
-                                : t("fin.detail.delivery.bills"),
+                                : p.key === "prime_returned_fee"
+                                  ? t("fin.detail.delivery.prime_returned", { n: formatWhole(summary.failed.prime_returned_parcels) })
+                                  : t("fin.detail.delivery.bills"),
                             p.amount,
                         ),
                     )}
