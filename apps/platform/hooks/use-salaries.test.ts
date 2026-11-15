@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isCompletedInPeriod, keptShare } from "./use-salaries";
+import { isCompletedInPeriod, keptShare, periodBaseSalary } from "./use-salaries";
 
 /**
  * Payroll buckets completed orders by `completed_at` (when the order was MARKED
@@ -67,5 +67,31 @@ describe("keptShare (commission on a partly refunded order)", () => {
         expect(keptShare({ refund_status: "partial", refunded_amount: 50000, price: 36750 })).toBe(0);
         expect(keptShare({ refund_status: "partial", refunded_amount: null, price: 36750 })).toBe(1);
         expect(keptShare({ refund_status: "partial", refunded_amount: 100, price: 0 })).toBe(0);
+    });
+});
+
+describe("periodBaseSalary (board P1: base follows the days paid)", () => {
+    // November 2026 has 25 working days (Sundays off), October 2026 has 27.
+    it("pays exactly one monthly salary for a whole month, whatever its working days", () => {
+        expect(periodBaseSalary(600_000, "2026-11-01", "2026-11-30")).toBe(600_000);
+        expect(periodBaseSalary(600_000, "2026-10-01", "2026-10-31")).toBe(600_000);
+    });
+
+    it("two half-month pays add up to one month", () => {
+        const first = periodBaseSalary(600_000, "2026-11-01", "2026-11-15");
+        const second = periodBaseSalary(600_000, "2026-11-16", "2026-11-30");
+        expect(first).toBe(288_000); // 12 of 25 working days
+        expect(second).toBe(312_000); // 13 of 25
+        expect(first + second).toBe(600_000);
+    });
+
+    it("a period across two months takes each month's share", () => {
+        // 16-31 Oct: 14 of 27 working days; 1-15 Nov: 12 of 25.
+        expect(periodBaseSalary(540_000, "2026-10-16", "2026-11-15")).toBe(Math.round(540_000 * 14 / 27 + 540_000 * 12 / 25));
+    });
+
+    it("pays nothing for no salary or an empty period", () => {
+        expect(periodBaseSalary(0, "2026-11-01", "2026-11-30")).toBe(0);
+        expect(periodBaseSalary(600_000, "2026-11-10", "2026-11-09")).toBe(0);
     });
 });

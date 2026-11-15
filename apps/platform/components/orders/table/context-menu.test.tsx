@@ -29,12 +29,8 @@ describe("OrderContextMenu delete", () => {
         expect(onClose).toHaveBeenCalled();
     });
 
-    it.each(["delivered", "completed"])("asks for a second click on a %s order", (status) => {
-        const { onDelete, onClose, deleteButton } = setup(status);
-        fireEvent.click(deleteButton());
-        expect(onDelete).not.toHaveBeenCalled();
-        expect(onClose).not.toHaveBeenCalled();
-        fireEvent.click(deleteButton());
-        expect(onDelete).toHaveBeenCalledWith("o1");
+    it.each(["in_transit", "delivered", "completed"])("offers no delete on a %s order: it is cancelled or returned (board O1)", (status) => {
+        setup(status);
+        expect(screen.queryByText("حذف")).toBeNull();
     });
 });

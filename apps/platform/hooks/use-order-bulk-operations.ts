@@ -307,9 +307,12 @@ export function useOrderBulkOperations() {
             const deletedIdSet = new Set(result.deletedIds || []);
             setSelectedOrders(new Set(ids.filter(id => !deletedIdSet.has(id))));
 
+            const shipped = result.shippedOrderNumbers ?? [];
             toast.warning(
                 t("orders.bulk.partialDeleteTitle"),
-                t("orders.bulk.partialDeleteBody", { done: deletedCount, total: ids.length }),
+                shipped.length > 0
+                    ? t("orders.trash.shipped", { numbers: shipped.join(", ") })
+                    : t("orders.bulk.partialDeleteBody", { done: deletedCount, total: ids.length }),
             );
             return;
         }

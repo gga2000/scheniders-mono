@@ -144,30 +144,6 @@ export function usePayroll() {
         return { error: null };
     }, []);
 
-    /**
-     * Get the last payroll date per employee.
-     * Returns a map of employeeId → period_end date string.
-     */
-    const getLastPayrollDates = useCallback(async (): Promise<Map<string, string>> => {
-        const map = new Map<string, string>();
-        if (!tenantId) return map;
-        const { data } = await supabase
-            .from("payroll_records")
-            .select("employee_id, period_end")
-            .eq("tenant_id", tenantId)
-            .eq("status", "paid")
-            .order("period_end", { ascending: false });
-
-        if (data) {
-            for (const row of data) {
-                if (!map.has(row.employee_id)) {
-                    map.set(row.employee_id, row.period_end);
-                }
-            }
-        }
-        return map;
-    }, [tenantId]);
-
     return {
         payrollHistory,
         isLoading,
@@ -176,6 +152,5 @@ export function usePayroll() {
         fetchHistory,
         runPayroll,
         voidPayroll,
-        getLastPayrollDates,
     };
 }

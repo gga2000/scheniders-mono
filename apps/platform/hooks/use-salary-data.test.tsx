@@ -49,7 +49,7 @@ function wrapper() {
 beforeEach(() => {
     calls = [];
     tables = {
-        tenant_members: { data: [{ user_id: "u1", role: "employee" }], error: null },
+        tenant_members: { data: [{ user_id: "u1", role: "employee", joined_at: null, invited_at: "2026-01-05T09:00:00Z" }], error: null },
         user_profiles: { data: [{ id: "u1", email: "a@x.iq", display_name: "Ahmed", role: "admin", avatar_url: null, is_active: true }], error: null },
     };
 });
@@ -67,6 +67,21 @@ describe("useSalaries", () => {
         expect(calls.find((c) => c.table === "orders")?.filters).toContainEqual(["deleted_at", null]);
         // Profiles are read for this store's members only.
         expect(calls.find((c) => c.table === "user_profiles")?.filters).toContainEqual(["id", ["u1"]]);
+    });
+
+    it("pays a new hire from the join day, and a quiet period never books a debt (board P1, P2)", async () => {
+        // Joined 20 Oct 12:30 Baghdad; 600,000 a month. 20-31 Oct is 11 of October's 27 working days.
+        tables.tenant_members = { data: [{ user_id: "u1", role: "employee", joined_at: "2026-10-20T09:30:00Z", invited_at: "2026-10-18T09:00:00Z" }], error: null };
+        tables.employee_salary_configs = { data: [{ employee_id: "u1", base_monthly_salary: 600_000, per_order_bonus: 0, use_role_defaults: false }], error: null };
+        const { result } = renderHook(() => useSalaries("2026-10-01", "2026-10-31"), { wrapper: wrapper() });
+        await waitFor(() => expect(result.current.employeePayrollData).toHaveLength(1));
+        const calc = result.current.employeePayrollData[0].calculation;
+        expect(calc.periodStart).toBe("2026-10-20");
+        expect(calc.baseSalary).toBe(Math.round(600_000 * 11 / 27));
+        // No activity logged: every working day counts as absent, but the deduction stops at the base.
+        expect(calc.absenceDays).toBe(11);
+        expect(calc.absenceDeduction).toBe(calc.baseSalary);
+        expect(calc.netSalary).toBe(0);
     });
 
     it("fails the load instead of under-counting when an order page fails", async () => {

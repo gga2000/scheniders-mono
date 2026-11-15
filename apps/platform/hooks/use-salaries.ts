@@ -181,6 +181,8 @@ interface UserProfileRow {
     role: string;
     avatar_url: string | null;
     is_active: boolean;
+    /** Baghdad day the member joined this store. Pay never starts before it (board P2). */
+    joined_on: string;
 }
 
 interface ActivityLogRow {
@@ -214,10 +216,7 @@ async function fetchAllRows<T>(
     return all;
 }
 
-/** Number of assumed working days per month (Mon–Sat) */
-const WORKING_DAYS_PER_MONTH = 26;
-
-/** Count Mon–Fri–Sat days in a date range (exclude Sunday only) */
+/** Count working days (every day but Sunday) in an inclusive range of day keys. */
 function countWorkingDays(startDate: string, endDate: string): number {
     let count = 0;
     const current = new Date(startDate + "T00:00:00Z");
@@ -227,6 +226,27 @@ function countWorkingDays(startDate: string, endDate: string): number {
         current.setUTCDate(current.getUTCDate() + 1);
     }
     return count;
+}
+
+/**
+ * The base salary a pay period earns (money-rules board P1, 2026-11-15).
+ * Each calendar month the period touches pays its share of the monthly salary:
+ * monthly × working days of the period in that month ÷ working days in that month.
+ * A whole month pays exactly one monthly salary, and two half-month periods add up to it.
+ */
+export function periodBaseSalary(monthly: number, periodStart: string, periodEnd: string): number {
+    if (monthly <= 0 || periodEnd < periodStart) return 0;
+    let total = 0;
+    let cursor = periodStart;
+    while (cursor <= periodEnd) {
+        const [year, month] = cursor.split("-").map(Number);
+        const monthFirst = `${cursor.slice(0, 7)}-01`;
+        const monthLast = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+        const segmentEnd = monthLast < periodEnd ? monthLast : periodEnd;
+        total += (monthly * countWorkingDays(cursor, segmentEnd)) / countWorkingDays(monthFirst, monthLast);
+        cursor = addDaysToDayKey(segmentEnd, 1);
+    }
+    return Math.round(total);
 }
 
 export type OrderAttributionMode = "all" | "last_touched";
@@ -299,7 +319,7 @@ export async function fetchPayrollSource(tenantId: string, fetchStart: string, f
     // start, which may predate the 90-day default fetch window.
     const [membersRes, configRes, roleRes, advRes, penRes, bonRes, payrollRes] = await Promise.all([
         // The roster is this store's active members; their role here sets the default rate.
-        supabase.from("tenant_members").select("user_id, role").eq("tenant_id", tenantId).eq("status", "active"),
+        supabase.from("tenant_members").select("user_id, role, joined_at, invited_at").eq("tenant_id", tenantId).eq("status", "active"),
         supabase.from("employee_salary_configs")
             .select("employee_id, base_monthly_salary, per_order_bonus, use_role_defaults")
             .eq("tenant_id", tenantId),
@@ -317,6 +337,12 @@ export async function fetchPayrollSource(tenantId: string, fetchStart: string, f
 
     const members = must(membersRes);
     const memberRole = new Map<string, string>(members.map((m) => [m.user_id, m.role]));
+    // A member who accepted an invite has joined_at; older rows only have invited_at.
+    const memberJoinedOn = new Map<string, string>();
+    for (const m of members) {
+        const day = toBaghdadDayKey(m.joined_at ?? m.invited_at);
+        if (day) memberJoinedOn.set(m.user_id, day);
+    }
     const profiles = memberRole.size === 0
         ? []
         : must(await supabase
@@ -324,7 +350,11 @@ export async function fetchPayrollSource(tenantId: string, fetchStart: string, f
             .select("id, email, display_name, role, avatar_url, is_active")
             .in("id", [...memberRole.keys()])
             .eq("is_active", true));
-    const employees: UserProfileRow[] = profiles.map((p) => ({ ...p, role: memberRole.get(p.id) ?? p.role }));
+    const employees: UserProfileRow[] = profiles.map((p) => ({
+        ...p,
+        role: memberRole.get(p.id) ?? p.role,
+        joined_on: memberJoinedOn.get(p.id) ?? "",
+    }));
 
     const lastPayrollDates = new Map<string, string>();
     for (const row of must(payrollRes)) {
@@ -549,16 +579,20 @@ export function useSalaries(
                     // Day after last payroll
                     periodStart = addDaysToDayKey(lastPaid, 1);
                 } else {
-                    periodStart = globalPeriodStart; // No history → use global (90-day fallback)
+                    periodStart = globalPeriodStart; // No history: the page's look-back, clamped to the join day below
                 }
                 periodEnd = globalPeriodEnd;
             } else {
                 periodStart = globalPeriodStart;
                 periodEnd = globalPeriodEnd;
             }
+            // Pay starts on the join day at the earliest: no base, and no "absence",
+            // for days before the member joined (board P2).
+            if (emp.joined_on > periodStart) periodStart = emp.joined_on;
 
             const workingDaysInPeriod = countWorkingDays(periodStart, periodEnd);
             const effectiveRate = getEffectiveRate(emp.id, emp.role);
+            const baseSalary = periodBaseSalary(effectiveRate.baseMonthlySalary, periodStart, periodEnd);
 
             // Filter logs to this employee's period
             const empLogs = activityLogs.filter(l =>
@@ -642,7 +676,8 @@ export function useSalaries(
             // Attendance: unique days with any activity log
             const activeDays = new Set(empLogs.map(l => toBaghdadDayKey(l.created_at)));
             const absenceDays = Math.max(0, workingDaysInPeriod - activeDays.size);
-            const dailyRate = effectiveRate.baseMonthlySalary / WORKING_DAYS_PER_MONTH;
+            // A day off costs that day's share of this period's base, so absence never exceeds the base.
+            const dailyRate = workingDaysInPeriod > 0 ? baseSalary / workingDaysInPeriod : 0;
             const absenceDeduction = Math.round(absenceDays * dailyRate);
 
             const pendingAdvances = advances.filter(a => a.employee_id === emp.id);
@@ -656,7 +691,7 @@ export function useSalaries(
             const performanceBonusesTotal = pendingBonuses.reduce((s, b) => s + b.amount, 0);
             const orderBonus = Math.round(payableUnits * effectiveRate.perOrderBonus);
 
-            const grossSalary = effectiveRate.baseMonthlySalary + orderBonus + performanceBonusesTotal;
+            const grossSalary = baseSalary + orderBonus + performanceBonusesTotal;
             const netSalary = Math.max(0, grossSalary + carriedIn - absenceDeduction - advancesTotal - penaltiesTotal);
             const inTransitCount = attributionMode === "all"
                 ? inTransitOrderIds.length
@@ -671,7 +706,7 @@ export function useSalaries(
                 employeeId: emp.id,
                 periodStart,
                 periodEnd,
-                baseSalary: effectiveRate.baseMonthlySalary,
+                baseSalary,
                 completedOrdersCount,
                 orderBreakdown,
                 orderStatusBreakdown,

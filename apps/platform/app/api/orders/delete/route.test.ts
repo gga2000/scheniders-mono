@@ -13,6 +13,7 @@ import { POST } from "./route";
 import { verifyAccessToken, createSupabaseServiceClient, createSupabaseServerClientWithToken } from "@/lib/supabase-server";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { reportOrderError } from "@/lib/order-telemetry";
+import { TRASHABLE_ORDERS_FILTER } from "@/lib/order-trash";
 
 const TENANT = "22222222-2222-4222-8222-222222222222";
 const A = "33333333-3333-4333-8333-333333333333";
@@ -22,7 +23,7 @@ type Call = { table: string; op: string; args: unknown[] };
 
 /**
  * Records every builder call. The first `select` (after `update`) resolves to
- * `updateResult`; the second (the already-trashed lookup) to `trashedResult`.
+ * `updateResult`; the second (the lookup of skipped ids) to `trashedResult`.
  */
 function serviceClient(
     updateResult: { data: unknown; error: unknown },
@@ -37,7 +38,7 @@ function serviceClient(
             calls.push({ table, op, args });
             return builder;
         };
-        for (const op of ["update", "in", "eq", "is", "not"]) builder[op] = chain(op);
+        for (const op of ["update", "in", "eq", "is", "or"]) builder[op] = chain(op);
         builder.select = (...args: unknown[]) => {
             calls.push({ table, op: "select", args });
             const result = selects++ === 0 ? updateResult : trashedResult;
@@ -85,11 +86,13 @@ describe("POST /api/orders/delete", () => {
         const res = await POST(request([A, B]));
         const body = await res.json();
 
-        expect(body).toEqual({ success: true, count: 1, deletedIds: [A] });
+        expect(body).toEqual({ success: true, count: 1, deletedIds: [A], shippedOrderNumbers: [] });
         const orderOps = calls.filter((c) => c.table === "orders").map((c) => [c.op, ...c.args.slice(0, 2)]);
         expect(orderOps).toContainEqual(["eq", "tenant_id", TENANT]);
         // Already-trashed rows keep their original deleted_at (purge clock).
         expect(orderOps).toContainEqual(["is", "deleted_at", null]);
+        // Shipped orders are never written (board O1).
+        expect(orderOps).toContainEqual(["or", TRASHABLE_ORDERS_FILTER]);
         // One write (no pre-read snapshot) plus one lookup for ids already in the trash.
         expect(calls.filter((c) => c.table === "orders" && c.op === "update")).toHaveLength(1);
         expect(calls.filter((c) => c.table === "orders" && c.op === "select")).toHaveLength(2);
@@ -100,19 +103,30 @@ describe("POST /api/orders/delete", () => {
 
     it("treats ids already in the caller's trash as deleted, without a new audit row", async () => {
         signedInAs("admin");
-        const calls = serviceClient({ data: [], error: null }, null, { data: [{ id: A }], error: null });
+        const calls = serviceClient({ data: [], error: null }, null, {
+            data: [{ id: A, order_id: 7001, deleted_at: "2026-11-01T10:00:00Z" }], error: null,
+        });
         const body = await (await POST(request([A]))).json();
-        expect(body).toEqual({ success: true, count: 0, deletedIds: [A] });
+        expect(body).toEqual({ success: true, count: 0, deletedIds: [A], shippedOrderNumbers: [] });
         expect(calls.some((c) => c.table === "order_deletion_log")).toBe(false);
-        const orderOps = calls.filter((c) => c.table === "orders").map((c) => [c.op, ...c.args.slice(0, 2)]);
-        expect(orderOps).toContainEqual(["not", "deleted_at", "is"]);
+    });
+
+    it("keeps shipped orders out of the trash and names them back (board O1)", async () => {
+        signedInAs("admin");
+        const calls = serviceClient({ data: [{ id: A, order_id: "7001", status: "new" }], error: null }, null, {
+            data: [{ id: B, order_id: 7002, deleted_at: null }], error: null,
+        });
+        const body = await (await POST(request([A, B]))).json();
+        expect(body).toEqual({ success: true, count: 1, deletedIds: [A], shippedOrderNumbers: ["7002"] });
+        const audit = calls.find((c) => c.table === "order_deletion_log" && c.op === "insert");
+        expect(audit?.args[0]).toMatchObject({ order_ids: [A] });
     });
 
     it("writes no audit row when nothing was deleted", async () => {
         signedInAs("admin");
         const calls = serviceClient({ data: [], error: null });
         const body = await (await POST(request([A]))).json();
-        expect(body).toEqual({ success: true, count: 0, deletedIds: [] });
+        expect(body).toEqual({ success: true, count: 0, deletedIds: [], shippedOrderNumbers: [] });
         expect(calls.some((c) => c.table === "order_deletion_log")).toBe(false);
     });
 
