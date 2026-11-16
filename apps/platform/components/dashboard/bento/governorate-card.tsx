@@ -132,7 +132,7 @@ export function GovernorateCard() {
                                     <Delta pct={periods[p].deltaPct} className="self-center text-xs" />
                                 </span>
                                 <span className="mt-1.5 block text-xs tracking-[-0.01em] text-[var(--foreground-muted)]">
-                                    {t(PREVIOUS_KEY[p], { n: whole(periods[p].previousTotal) })}
+                                    <bdi>{t(PREVIOUS_KEY[p], { n: whole(periods[p].previousTotal) })}</bdi>
                                 </span>
                             </button>
                         ))}

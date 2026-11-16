@@ -36,9 +36,9 @@ export function OrderSearchBanner({ count }: { count: number }) {
             )}
             <span className="min-w-0 truncate">
                 {orderSearch.failure ? (
-                    <span className="text-rose-600">
+                    <bdi className="text-rose-600">
                         {t(orderSearch.failure === "network" ? "orders.ui.searchFailedOffline" : "orders.ui.searchFailedServer")}
-                    </span>
+                    </bdi>
                 ) : orderSearch.pending ? (
                     <>{t("orders.ui.searchingFor", { query: filters.searchQuery ?? "" })}</>
                 ) : (

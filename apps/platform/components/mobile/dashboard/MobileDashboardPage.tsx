@@ -119,6 +119,7 @@ export function MobileDashboardPage() {
                 <WidgetBoundary label="mobile-order-pipeline">
                     <OrderPipeline
                         stages={dashboardMetrics.pipeline}
+                        period="all"
                         onStageClick={(status) => router.push(`/orders?status=${status}`)}
                     />
                 </WidgetBoundary>

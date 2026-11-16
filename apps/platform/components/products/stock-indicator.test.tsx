@@ -17,4 +17,14 @@ describe("product stock chip", () => {
         expect(text).toContain("(53)");
         expect(text).not.toContain("/");
     });
+
+    it("names an oversell with the count Orders shows, not «نفد المخزون (0)»", () => {
+        const { container } = render(
+            <LanguageProvider>
+                <StockIndicator status="out_of_stock" quantity={-55} threshold={10} size="sm" />
+            </LanguageProvider>,
+        );
+        const text = container.textContent ?? "";
+        expect(text).toBe("مباع بالزيادة (−55)");
+    });
 });

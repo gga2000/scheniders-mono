@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { ar as arLocale } from "date-fns/locale";
+import { getOrderAge } from "@/lib/order-format-utils";
 
 interface BatchAnalyticsProps {
     batches: BatchMetrics[];
@@ -242,11 +241,15 @@ export function BatchAnalytics({
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted mt-0.5 flex items-center gap-3">
-                                        <span>{t("reports.batch.ordersCount", { n: batch.orderCount })}</span>
+                                        <span>{t("reports.batch.ordersCount", { count: batch.orderCount })}</span>
                                         <span>•</span>
-                                        <span>{formatIQD(batch.totalValue)}</span>
+                                        {/* Refund labels carry negative prices, so a run of mostly refunds sums below zero. */}
+                                        <span>
+                                            {formatIQD(batch.totalValue)}
+                                            {batch.totalValue < 0 && <> {t("reports.batch.netOfRefunds")}</>}
+                                        </span>
                                         <span>•</span>
-                                        <span>{formatDistanceToNow(batch.createdAt, { addSuffix: true, locale: language === "ar" ? arLocale : undefined })}</span>
+                                        <span>{getOrderAge(batch.createdAt, language)}</span>
                                     </div>
                                 </div>
 

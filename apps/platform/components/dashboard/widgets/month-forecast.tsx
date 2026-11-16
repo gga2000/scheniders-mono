@@ -31,7 +31,7 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
             <div className="mb-4">
                 <div className="flex justify-between text-[10px] text-purple-900/50 mb-1">
                     <span>{t("dashboard.forecast.day")} {daysElapsed}</span>
-                    <span>{progressPct}% {t("dashboard.forecast.throughMonth")}</span>
+                    <bdi>{progressPct}% {t("dashboard.forecast.throughMonth")}</bdi>
                     <span>{t("dashboard.forecast.day")} {daysInMonth}</span>
                 </div>
                 <div className="h-2 rounded-full bg-purple-200/60 overflow-hidden">
@@ -48,7 +48,7 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
                     <p className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5">{t("dashboard.forecast.projectedOrders")}</p>
                     <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-bold text-purple-950">{projectedOrders.toLocaleString("en-US")}</span>
-                        <span className="text-xs text-purple-900/40">({ordersThisMonth} {t("dashboard.forecast.soFar")} · {ordersPerDay.toFixed(1)}{t("dashboard.forecast.perDay")})</span>
+                        <bdi className="text-xs text-purple-900/40">({ordersThisMonth} {t("dashboard.forecast.soFar")} · {ordersPerDay.toFixed(1)}{t("dashboard.forecast.perDay")})</bdi>
                     </div>
                 </div>
 

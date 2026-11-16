@@ -205,7 +205,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                     {data.changes.orders > 0 ? t("reports.period.increased") : t("reports.period.decreased")}
                                 </p>
                                 <p className={cn("text-sm", data.changes.orders > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300")}>
-                                    {t(data.changes.orders > 0 ? "reports.period.moreDesc" : "reports.period.fewerDesc", { pct: Math.abs(data.changes.orders).toFixed(1), n: days })}
+                                    <bdi>{t(data.changes.orders > 0 ? "reports.period.moreDesc" : "reports.period.fewerDesc", { pct: Math.abs(data.changes.orders).toFixed(1), count: days })}</bdi>
                                 </p>
                             </div>
                         </div>

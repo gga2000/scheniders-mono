@@ -73,10 +73,13 @@ export function CashHealthCard({ data }: Props) {
                 >
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                     <p className="text-[11px] text-rose-700 dark:text-rose-300 leading-relaxed">
-                        <bdi className="font-semibold">
-                            <FinanceValue value={data.cashAtRisk} currency="IQD" abbreviate className="text-inherit" />
-                        </bdi>{" "}
-                        <bdi>{t("finances.overview.cash.warn")}</bdi>
+                        {/* The amount opens the sentence; the line as a whole reads from the right. */}
+                        <bdi>
+                            <bdi className="font-semibold">
+                                <FinanceValue value={data.cashAtRisk} currency="IQD" abbreviate className="text-inherit" />
+                            </bdi>{" "}
+                            {t("finances.overview.cash.warn")}
+                        </bdi>
                     </p>
                 </motion.div>
             )}
@@ -97,7 +100,7 @@ function Tile({ label, value, accent, sublabel }: { label: string; value: number
                     accent === "emerald" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                 )}
             />
-            {sublabel && <div className="text-[10px] text-muted mt-0.5">{sublabel}</div>}
+            {sublabel && <div className="text-[10px] text-muted mt-0.5"><bdi>{sublabel}</bdi></div>}
         </div>
     );
 }

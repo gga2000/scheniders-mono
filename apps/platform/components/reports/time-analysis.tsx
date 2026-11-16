@@ -125,7 +125,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">{t("reports.time.peak", { hour: peakHour.hour })}</p>
-                                <p className="text-xs text-indigo-700 dark:text-indigo-300">{t("reports.time.received", { n: peakHour.count })}</p>
+                                <p className="text-xs text-indigo-700 dark:text-indigo-300"><bdi>{t("reports.time.received", { count: peakHour.count })}</bdi></p>
                             </div>
                         </div>
                     </div>

@@ -15,7 +15,6 @@ import {
     Phone,
     User,
     Hash,
-    Bell,
     MoreHorizontal,
     Settings as SettingsIcon,
     LogOut,
@@ -350,7 +349,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                         ) : orderSearch.failure ? (
                             <div className="py-8 text-center">
                                 <p className="text-rose-600 text-sm">
-                                    {t(orderSearch.failure === "network" ? "orders.ui.searchFailedOffline" : "orders.ui.searchFailedServer")}
+                                    <bdi>{t(orderSearch.failure === "network" ? "orders.ui.searchFailedOffline" : "orders.ui.searchFailedServer")}</bdi>
                                 </p>
                                 <button
                                     type="button"
@@ -373,17 +372,28 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
 
                         {/* Keyboard Hint */}
                         <div className="px-4 py-2 bg-background border-t border-(--card-border) flex items-center justify-between text-xs text-muted">
-                            {t("search.hint.select").split("↵").map((part, i, arr) => 
-                                i === arr.length - 1 ? part : <span key={i}>{part}<kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono mx-1">↵</kbd></span>
-                            )}
-                            {t("search.hint.close").split("esc").map((part, i, arr) => 
-                                i === arr.length - 1 ? part : <span key={i}>{part}<kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono mx-1">esc</kbd></span>
-                            )}
+                            {/* One isolated phrase per hint, key inside it: in Arabic it reads «اضغط ↵ للاختيار» from the right. */}
+                            <KeyHint text={t("search.hint.select")} keyLabel="↵" />
+                            <KeyHint text={t("search.hint.close")} keyLabel="esc" />
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+/** A hint sentence with its key drawn as a key cap, kept as one phrase so its words stay in order. */
+function KeyHint({ text, keyLabel }: { text: string; keyLabel: string }) {
+    const [before, ...rest] = text.split(keyLabel);
+    return (
+        <bdi>
+            {before}
+            {rest.length > 0 && (
+                <kbd className="px-1.5 py-0.5 bg-(--card-bg) rounded border border-(--card-border) font-mono mx-1">{keyLabel}</kbd>
+            )}
+            {rest.join(keyLabel)}
+        </bdi>
     );
 }
 

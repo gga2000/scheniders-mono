@@ -75,7 +75,8 @@ export const ProductListRow = React.memo(function ProductListRow({
     const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
     const quickEditable = canEdit && !product.is_archived;
     const stockStatus = getStockStatus(product);
-    const availableStock = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
+    // Not clamped: below zero is an oversell, which the chip names (Orders shows the same −N).
+    const availableStock = product.stock_quantity - (product.reserved_quantity || 0);
     const threshold = product.low_stock_threshold || 5;
     const stockRatio = Math.min(availableStock / threshold, 2);
     const hasReserved = (product.reserved_quantity || 0) > 0;
