@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
 import { everyRow } from "./every-row";
-import { staffReasonSchema } from "./staff-reason";
+import { REQUEST_REUSED } from "./billing-lock-tools";
+import { staffReasonSchema, staffRequestIdSchema } from "./staff-reason";
 import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
 
 /**
@@ -10,7 +11,8 @@ import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
  * store that matched an earlier store that is not paying: "review" for one
  * phone or email match, "no_trial" for a Prime match or two medium matches
  * (that one has already ended the trial). Staff read the rows here and decide
- * them through admin_trial_check_decide, which writes the staff log.
+ * them through admin_trial_check_decide_once, which writes the staff log and
+ * makes each request's change once.
  */
 
 /** The console's cache key for the list. */
@@ -178,37 +180,50 @@ export async function readTrialChecks(supabase: ReturnType<typeof createAdminCli
   };
 }
 
-/** What staff send: giving a trial back says for how many days. */
+/**
+ * What staff send: giving a trial back says for how many days. The request id
+ * (lib/request-ids.ts) makes a retry or a double click give the days once.
+ */
 export const trialCheckDecisionSchema = z.discriminatedUnion("decision", [
   z.object({
     decision: z.literal("allow_trial"),
     days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
     reason: staffReasonSchema,
+    request_id: staffRequestIdSchema,
   }),
-  z.object({ decision: z.literal("end_trial"), reason: staffReasonSchema }),
-  z.object({ decision: z.literal("checked"), reason: staffReasonSchema }),
+  z.object({ decision: z.literal("end_trial"), reason: staffReasonSchema, request_id: staffRequestIdSchema }),
+  z.object({ decision: z.literal("checked"), reason: staffReasonSchema, request_id: staffRequestIdSchema }),
 ]);
 
 export type TrialCheckDecisionInput = z.infer<typeof trialCheckDecisionSchema>;
 
 export type TrialCheckDecideResult =
-  | { ok: true; tenantId: string; decision: TrialCheckDecision }
-  | { ok: false; status: 400 | 404; error: string };
+  /** `repeat`: this request was answered before; nothing changed this time. */
+  | { ok: true; tenantId: string; decision: TrialCheckDecision; repeat: boolean }
+  | { ok: false; status: 400 | 404 | 409; error: string };
 
-const REFUSALS: Record<string, { status: 400 | 404; error: string }> = {
+const REFUSALS: Record<string, { status: 400 | 404 | 409; error: string }> = {
   not_found: { status: 404, error: "This store has no trial check" },
   not_trial: { status: 400, error: "This store is not on a trial any more" },
+  request_reused: REQUEST_REUSED,
 };
 
 const decideAnswerSchema = z.union([
-  z.object({ success: z.literal(true), tenant_id: z.string().uuid(), decision: decisionSchema }),
+  z.object({
+    success: z.literal(true),
+    tenant_id: z.string().uuid(),
+    decision: decisionSchema,
+    repeat: z.boolean().optional(),
+  }),
   z.object({ success: z.literal(false), error: z.string() }),
 ]);
 
 /**
  * Give the trial back (through admin_extend_trial, so it is never ended by the
  * check again), end it now, or mark the row checked. One transaction in
- * admin_trial_check_decide; it writes the staff log with the reason.
+ * admin_trial_check_decide; it writes the staff log with the reason. The
+ * _once wrapper keeps the first successful answer for the request id, so a
+ * repeat gets it back marked `repeat` and changes nothing.
  */
 export async function decideTrialCheck(
   supabase: ReturnType<typeof createAdminClient>,
@@ -216,7 +231,8 @@ export async function decideTrialCheck(
   input: TrialCheckDecisionInput,
   actor: { id: string; email?: string | null },
 ): Promise<TrialCheckDecideResult> {
-  const { data, error } = await supabase.rpc("admin_trial_check_decide", {
+  const { data, error } = await supabase.rpc("admin_trial_check_decide_once", {
+    _request_id: input.request_id,
     _tenant_id: tenantId,
     _decision: input.decision,
     _reason: input.reason,
@@ -232,7 +248,7 @@ export async function decideTrialCheck(
     if (!refusal) throw new Error(`Unexpected trial check answer: ${answer.error}`);
     return { ok: false, ...refusal };
   }
-  return { ok: true, tenantId: answer.tenant_id, decision: answer.decision };
+  return { ok: true, tenantId: answer.tenant_id, decision: answer.decision, repeat: answer.repeat === true };
 }
 
 const MATCH_WHAT: Record<TrialCheckSource, string> = {

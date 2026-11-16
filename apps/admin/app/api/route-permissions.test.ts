@@ -306,7 +306,12 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./trial-checks/[id]/route");
       return POST(
-        req(`/api/trial-checks/${TENANT}`, "POST", t, { decision: "allow_trial", days: 7, reason: "same owner, new brand" }),
+        req(`/api/trial-checks/${TENANT}`, "POST", t, {
+          decision: "allow_trial",
+          days: 7,
+          reason: "same owner, new brand",
+          request_id: REQ,
+        }),
         idParams,
       );
     },
@@ -709,6 +714,16 @@ describe("billing lock staff tools", () => {
  */
 describe("one change per staff request", () => {
   const CALLS = [
+    {
+      name: "trial-checks",
+      role: "support",
+      body: { decision: "allow_trial", days: 7, reason: "same owner, new brand" },
+      ok: { success: true, tenant_id: TENANT, decision: "allow_trial" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./trial-checks/[id]/route");
+        return POST(req(`/api/trial-checks/${TENANT}`, "POST", t, body), idParams);
+      },
+    },
     {
       name: "extend-trial",
       role: "support",

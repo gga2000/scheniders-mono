@@ -19,8 +19,12 @@ import {
   type TrialChecksResponse,
 } from "@/lib/trial-checks";
 import { formatDayTime } from "@/lib/format";
+import { createRequestIds } from "@/lib/request-ids";
 
 const GIVE_BACK_DAYS = [3, 7];
+
+/** Which button was pressed; the reason and the request id are added on send. */
+type DecisionAsk = { decision: "allow_trial"; days: number } | { decision: "end_trial" } | { decision: "checked" };
 
 /** Where the flagged store's trial stands now. */
 function trialState(check: TrialCheck): string {
@@ -37,9 +41,17 @@ function DecideActions({ check }: { check: TrialCheck }) {
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
   const onTrial = check.store?.status === "trial";
+  // One id per ask: a retry after a lost answer or a double click gives the days once.
+  const [requestIds] = useState(createRequestIds);
 
   const mutation = useMutation({
-    mutationFn: async (input: TrialCheckDecisionInput) => {
+    mutationFn: async (ask: DecisionAsk) => {
+      const days = ask.decision === "allow_trial" ? ask.days : "";
+      const input: TrialCheckDecisionInput = {
+        ...ask,
+        reason: reason.trim(),
+        request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}:${reason.trim()}`),
+      };
       const res = await fetch(`/api/trial-checks/${check.tenant_id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -52,6 +64,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
       return res.json();
     },
     onSuccess: () => {
+      requestIds.done();
       queryClient.invalidateQueries({ queryKey: TRIAL_CHECKS_KEY });
       queryClient.invalidateQueries({ queryKey: ["admin", "trials"] });
       setReason("");
@@ -72,7 +85,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
               key={days}
               type="button"
               disabled={busy}
-              onClick={() => mutation.mutate({ decision: "allow_trial", days, reason: reason.trim() })}
+              onClick={() => mutation.mutate({ decision: "allow_trial", days })}
               className={button}
             >
               <Undo2 className="w-3.5 h-3.5" />
@@ -83,7 +96,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
           <button
             type="button"
             disabled={busy}
-            onClick={() => mutation.mutate({ decision: "end_trial", reason: reason.trim() })}
+            onClick={() => mutation.mutate({ decision: "end_trial" })}
             className={button}
           >
             <Ban className="w-3.5 h-3.5" />
@@ -93,7 +106,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
         <button
           type="button"
           disabled={busy}
-          onClick={() => mutation.mutate({ decision: "checked", reason: reason.trim() })}
+          onClick={() => mutation.mutate({ decision: "checked" })}
           className={button}
         >
           <Check className="w-3.5 h-3.5" />

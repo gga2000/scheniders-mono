@@ -78,6 +78,20 @@ BEGIN
         RAISE EXCEPTION 'retry after a refusal answered %', again;
     END IF;
 
+    -- A trial check decision: giving 7 days back twice on one request gives them once.
+    first := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000006', b, 'allow_trial', 'owner explained', 7);
+    again := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000006', b, 'allow_trial', 'owner explained', 7);
+    SELECT count(*) INTO calls FROM public.stub_calls WHERE fn = 'trial_check_decide';
+    IF calls <> 1 THEN RAISE EXCEPTION 'repeat decision gave the days again: % calls', calls; END IF;
+    IF again <> first || '{"repeat": true}' THEN
+        RAISE EXCEPTION 'repeat decision answered %, first was %', again, first;
+    END IF;
+    -- The same id for free days on that shop is another action: refused.
+    again := public.admin_extend_trial_once('41000000-0000-4000-8000-000000000006', b, 7, 'owner explained');
+    IF again <> '{"success": false, "error": "request_reused"}' THEN
+        RAISE EXCEPTION 'decision id reused for free days answered %', again;
+    END IF;
+
     -- A missing request id is an error, not a free pass.
     BEGIN
         PERFORM public.admin_extend_trial_once(NULL, a, 7, 'no id');
@@ -112,6 +126,10 @@ BEGIN
     END IF;
     IF NOT has_function_privilege('service_role', 'public.admin_add_lock_orders_once(uuid, uuid, integer, text, uuid, text, boolean)', 'EXECUTE') THEN
         RAISE EXCEPTION 'service_role may not call admin_add_lock_orders_once';
+    END IF;
+    IF has_function_privilege('authenticated', 'public.admin_trial_check_decide_once(uuid, uuid, text, text, integer, uuid, text)', 'EXECUTE')
+       OR NOT has_function_privilege('service_role', 'public.admin_trial_check_decide_once(uuid, uuid, text, text, integer, uuid, text)', 'EXECUTE') THEN
+        RAISE EXCEPTION 'admin_trial_check_decide_once grants are wrong';
     END IF;
     IF has_function_privilege('service_role', 'public.staff_action_keep(uuid, uuid, text, jsonb)', 'EXECUTE')
        OR has_function_privilege('authenticated', 'public.staff_action_seen(uuid, uuid, text)', 'EXECUTE') THEN
