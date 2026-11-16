@@ -150,7 +150,7 @@ export const FinanceSummarySchema = z.object({
         statement_orders: z
             .array(
                 z.object({
-                    kind: z.enum(["refund_open", "undelivered", "price"]),
+                    kind: z.enum(["refund_open", "undelivered", "price", "prepaid"]),
                     id: z.string(),
                     code: z.string().nullable(),
                     amount: z.number(),

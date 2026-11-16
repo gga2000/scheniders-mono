@@ -80,7 +80,10 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                       note:
                           summary.refunds.amount === -refundsDone
                               ? t("fin.money.cash.part.refundsNote")
-                              : t("fin.money.cash.part.refundsNoteDiff", { amount: money(summary.refunds.amount) }),
+                              : t("fin.money.cash.part.refundsNoteDiff", {
+                            amount: money(summary.refunds.amount),
+                            diff: money(Math.abs(summary.refunds.amount + refundsDone)),
+                        }),
                       amount: refundsDone,
                   },
                   {
@@ -92,10 +95,11 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                   },
                   {
                       key: "prepaid",
-                      label: counted("fin.money.cash.part.prepaid", statement.prepaid_orders),
                       // A statement usually lists a prepaid order at nothing and keeps its fee.
+                      label: counted(statement.prepaid_gap < 0 ? "fin.money.cash.part.prepaidFee" : "fin.money.cash.part.prepaid", statement.prepaid_orders),
                       note: statement.prepaid_gap < 0 ? t("fin.money.cash.part.prepaidNote") : undefined,
                       amount: statement.prepaid_gap,
+                      orders: ordersOf("prepaid"),
                   },
                   { key: "price", label: counted("fin.money.cash.part.price", statement.price_gap_orders), amount: statement.price_gap, orders: ordersOf("price") },
                   {

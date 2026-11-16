@@ -150,7 +150,7 @@ describe("get_finance_summary gate", () => {
     it("names the orders a courier paid for that are not marked delivered", () => {
         expect(core).toMatch(/AND o\.status NOT IN \('delivered', 'completed'\)\) AS undelivered/);
         expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE si\.undelivered\), 0\) AS undelivered/);
-        expect(core).toMatch(/stmt_orders AS \([\s\S]*?SELECT 'refund_open' AS kind[\s\S]*?SELECT 'undelivered'[\s\S]*?SELECT 'price'[\s\S]*?WHERE n <= 10/);
+        expect(core).toMatch(/stmt_orders AS \([\s\S]*?SELECT 'refund_open' AS kind[\s\S]*?SELECT 'undelivered'[\s\S]*?SELECT 'price'[\s\S]*?SELECT 'prepaid'[\s\S]*?WHERE sf\.prepaid[\s\S]*?WHERE n <= 10/);
         expect(core).toMatch(/'statement_orders', COALESCE\(/);
     });
 
