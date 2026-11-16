@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ExternalLink, Pin } from "lucide-react";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
+import { SupportShopCheck } from "@/components/support/support-shop-check";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
 
 function formatIQD(amount: number): string {
@@ -27,7 +28,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /** Who is writing to us: the facts staff need before they answer. */
-export function SupportShopCard({ shop }: { shop: ShopCard }) {
+export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: string }) {
   const { tenant } = shop;
   const planLabel = isPlanTier(tenant.plan) ? PLAN_LABELS[tenant.plan] : tenant.plan;
 
@@ -48,6 +49,10 @@ export function SupportShopCard({ shop }: { shop: ShopCard }) {
           <ExternalLink className="h-3.5 w-3.5" />
           Open merchant page
         </Link>
+      </div>
+
+      <div className="border-b border-[var(--card-border)] p-4">
+        <SupportShopCheck key={caseId} caseId={caseId} />
       </div>
 
       <dl className="divide-y divide-[var(--card-border)] px-4">

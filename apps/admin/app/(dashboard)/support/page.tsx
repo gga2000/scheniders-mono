@@ -130,7 +130,7 @@ function SupportInbox() {
 
           <div className={PANE}>
             {detail.data && activeId !== null ? (
-              <SupportShopCard shop={detail.data.shop} />
+              <SupportShopCard shop={detail.data.shop} caseId={detail.data.case.id} />
             ) : (
               <div className="flex h-full items-center justify-center p-6 text-center text-sm text-foreground/40">
                 The shop&apos;s plan, wallet and orders show here.

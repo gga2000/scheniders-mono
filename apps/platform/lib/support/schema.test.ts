@@ -76,6 +76,7 @@ describe("support tables stay server-only", () => {
             "support_merchant_rate",
             "support_notify_staff",
             "support_scoreboard",
+            "support_shop_check",
         ]) {
             expect(sql).toMatch(new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\) from public, anon, authenticated`, "i"));
             expect(sql).not.toMatch(new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\) to[^;]*\\b(anon|authenticated|public)\\b`, "i"));

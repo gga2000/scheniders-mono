@@ -75,3 +75,8 @@ A new merchant message pings support staff on their phone or computer.
 - One shared list in `support_saved_replies` (server-only like the other support tables). Seeded with the four wave 1 replies plus "Checking order".
 - The reply box shows the list as buttons. Picking one fills `{name}` (merchant's first name), `{shop}` and `{order}` (newest order the merchant had open). A value the conversation does not have stays as written, so staff see the gap.
 - "Edit replies" opens the list: add, change text or order, remove (second click confirms). Every change is in the staff activity log with who made it.
+
+## Wave 2: scoreboard and shop check
+
+- **Scoreboard** tab on `/support` (7 or 30 days): waiting now, conversations, typical first reply and the slowest 1 in 10, share answered within 5 minutes, typical time to solve, merchant yes/no, reasons, team table. One SQL function, `support_scoreboard`; demo store left out; clock time until support hours are decided.
+- **Check this shop** button on the shop card beside a conversation. `support_shop_check` gathers store state (paused, payment lock, trial), real orders, products on the store and stock, wallet, WhatsApp (paused, 7-day sends), Al-Waseet calls, the Prime link, and errors merchants sent with their messages. The console marks each line fine, worth a look, broken or not in use, and links to where staff fix it (merchant page, WhatsApp page, the shop's Sentry issues). No fix buttons yet: each fix changes a shop, so it stays on the pages that already log it.

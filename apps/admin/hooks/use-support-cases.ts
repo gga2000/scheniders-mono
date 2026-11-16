@@ -8,6 +8,7 @@ import type {
   SupportCasesResponse,
   SupportScoreboard,
 } from "@/lib/support";
+import type { ShopCheck } from "@/lib/support-shop-check";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -71,5 +72,16 @@ export function useSupportScoreboard(days: ScoreboardDays) {
     queryKey: ["admin", "support", "scoreboard", days],
     queryFn: async () => readJson<SupportScoreboard>(await fetch(`/api/support/scoreboard?days=${days}`)),
     refetchInterval: 60_000,
+  });
+}
+
+/** "Check this shop": runs only when staff press the button, then on demand. */
+export function useSupportShopCheck(caseId: string, enabled: boolean) {
+  return useQuery<{ tenantId: string; check: ShopCheck }>({
+    queryKey: ["admin", "support", "shop-check", caseId],
+    queryFn: async () =>
+      readJson<{ tenantId: string; check: ShopCheck }>(await fetch(`/api/support/cases/${caseId}/check`)),
+    enabled,
+    staleTime: 30_000,
   });
 }
