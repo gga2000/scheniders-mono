@@ -10,6 +10,7 @@ import {
     DialogDescription,
 } from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Upload,
     Loader2,
@@ -42,12 +43,12 @@ export function DeliveryImportModal({
     onClose,
     onComplete,
 }: DeliveryImportModalProps) {
+    const { t } = useLanguage();
     const {
         step,
         isLoading,
         error,
         parsedPDF,
-        filename,
         matches,
         summary,
         existingImport,
@@ -78,12 +79,14 @@ export function DeliveryImportModal({
         setSelectedRows(cleanRows);
     }, [matches]);
 
-    // When step changes to review, auto-select clean
-    const prevStepRef = useRef<ImportStep>("upload");
-    if (step === "review" && prevStepRef.current !== "review") {
-        handleAutoSelect();
+    // When the step changes to review, select the clean rows. The previous step
+    // lives in state, not a ref: React may throw a render away, and a ref
+    // written during that render would skip the selection for good.
+    const [prevStep, setPrevStep] = useState<ImportStep>(step);
+    if (step !== prevStep) {
+        setPrevStep(step);
+        if (step === "review") handleAutoSelect();
     }
-    prevStepRef.current = step;
 
     const handleResolve = useCallback((resolution: RowResolution) => {
         setResolutions((prev) => {
@@ -211,13 +214,6 @@ export function DeliveryImportModal({
         handleClose();
     }, [onComplete, handleClose]);
 
-    const stepDescription: Record<ImportStep, string> = {
-        upload: "Upload a Prime delivery PDF statement to import",
-        processing: "Parsing PDF and matching orders...",
-        review: "Review matched orders before confirming",
-        confirming: "Updating order statuses...",
-        done: "Import complete",
-    };
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
@@ -225,10 +221,10 @@ export function DeliveryImportModal({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <Truck className="w-6 h-6 text-teal-600" />
-                        Import Delivery PDF
+                        {t("deliveryImport.modal.title")}
                     </DialogTitle>
                     <DialogDescription>
-                        {view === "history" ? "Receipts you imported, newest first" : stepDescription[step]}
+                        {view === "history" ? t("deliveryImport.modal.historyDesc") : t(`deliveryImport.step.${step}`)}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -248,7 +244,7 @@ export function DeliveryImportModal({
                                         : "border-transparent text-muted hover:text-foreground"
                                 )}
                             >
-                                {v === "new" ? "New import" : "Past imports"}
+                                {t(v === "new" ? "deliveryImport.tab.new" : "deliveryImport.tab.history")}
                             </button>
                         ))}
                     </div>
@@ -291,11 +287,11 @@ export function DeliveryImportModal({
                             />
                             <p className="text-lg font-medium text-foreground mb-2">
                                 {dragActive
-                                    ? "Drop the PDF here"
-                                    : "Drag & drop or click to select"}
+                                    ? t("deliveryImport.upload.drop")
+                                    : t("deliveryImport.upload.pick")}
                             </p>
                             <p className="text-sm text-muted">
-                                Supports Prime delivery PDF statements (.pdf)
+                                {t("deliveryImport.upload.supports")}
                             </p>
                         </div>
 
@@ -310,13 +306,12 @@ export function DeliveryImportModal({
 
                         <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200 dark:bg-blue-900/10 dark:border-blue-900/30">
                             <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-                                What happens:
+                                {t("deliveryImport.how.title")}
                             </p>
                             <ol className="text-sm text-blue-700 dark:text-blue-400 list-decimal list-inside space-y-1">
-                                <li>PDF is parsed to extract all order rows</li>
-                                <li>Each row is matched against your orders database</li>
-                                <li>Review matches and select which to mark as delivered</li>
-                                <li>Confirm to bulk-update order statuses</li>
+                                {(["1", "2", "3", "4"] as const).map((n) => (
+                                    <li key={n}>{t(`deliveryImport.how.${n}`)}</li>
+                                ))}
                             </ol>
                         </div>
                     </div>
@@ -327,10 +322,10 @@ export function DeliveryImportModal({
                     <div className="flex-1 flex flex-col items-center justify-center py-16">
                         <Loader2 className="w-16 h-16 text-teal-600 animate-spin mb-6" />
                         <p className="text-lg font-medium text-foreground mb-2">
-                            Processing PDF...
+                            {t("deliveryImport.processing.title")}
                         </p>
                         <p className="text-sm text-muted">
-                            Parsing rows and matching against your orders
+                            {t("deliveryImport.processing.hint")}
                         </p>
                     </div>
                 )}
@@ -350,7 +345,7 @@ export function DeliveryImportModal({
                                 )}
                             >
                                 <FileText className="w-4 h-4" />
-                                Summary
+                                {t("deliveryImport.tab.summary")}
                             </button>
                             <button
                                 onClick={() => setReviewTab("table")}
@@ -362,7 +357,7 @@ export function DeliveryImportModal({
                                 )}
                             >
                                 <Truck className="w-4 h-4" />
-                                Review Table
+                                {t("deliveryImport.tab.table")}
                                 {selectedRows.size > 0 && (
                                     <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-[10px]">
                                         {selectedRows.size}
@@ -412,10 +407,10 @@ export function DeliveryImportModal({
                     <div className="flex-1 flex flex-col items-center justify-center py-16">
                         <Loader2 className="w-16 h-16 text-teal-600 animate-spin mb-6" />
                         <p className="text-lg font-medium text-foreground mb-2">
-                            Updating orders...
+                            {t("deliveryImport.confirming.title")}
                         </p>
                         <p className="text-sm text-muted">
-                            Marking {selectedRows.size} orders as delivered
+                            {t("deliveryImport.confirming.hint", { count: selectedRows.size })}
                         </p>
                     </div>
                 )}
@@ -429,7 +424,7 @@ export function DeliveryImportModal({
                             <XCircle className="w-20 h-20 text-rose-500 mb-6" />
                         )}
                         <p className="text-2xl font-bold text-foreground mb-2">
-                            Import Complete
+                            {t("deliveryImport.step.done")}
                         </p>
 
                         <div className="flex gap-6 mt-4">
@@ -437,14 +432,14 @@ export function DeliveryImportModal({
                                 <p className="text-3xl font-bold text-emerald-600">
                                     {confirmResult.processed}
                                 </p>
-                                <p className="text-sm text-muted">Delivered</p>
+                                <p className="text-sm text-muted">{t("deliveryImport.delivered")}</p>
                             </div>
                             {confirmResult.skipped > 0 && (
                                 <div className="text-center">
                                     <p className="text-3xl font-bold text-amber-600">
                                         {confirmResult.skipped}
                                     </p>
-                                    <p className="text-sm text-muted">Skipped</p>
+                                    <p className="text-sm text-muted">{t("deliveryImport.skipped")}</p>
                                 </div>
                             )}
                             {confirmResult.failed > 0 && (
@@ -452,7 +447,7 @@ export function DeliveryImportModal({
                                     <p className="text-3xl font-bold text-rose-600">
                                         {confirmResult.failed}
                                     </p>
-                                    <p className="text-sm text-muted">Failed</p>
+                                    <p className="text-sm text-muted">{t("deliveryImport.failed")}</p>
                                 </div>
                             )}
                         </div>
@@ -460,7 +455,7 @@ export function DeliveryImportModal({
                         {confirmResult.errors.length > 0 && (
                             <div className="mt-6 p-4 bg-rose-50 rounded-xl max-w-md w-full dark:bg-rose-900/10">
                                 <p className="text-sm font-medium text-rose-700 mb-2">
-                                    Errors:
+                                    {t("deliveryImport.done.errors")}
                                 </p>
                                 <div className="text-xs text-rose-600 max-h-32 overflow-y-auto space-y-1">
                                     {confirmResult.errors.map((err, i) => (
@@ -479,7 +474,7 @@ export function DeliveryImportModal({
                             onClick={handleClose}
                             className="px-4 py-2 text-foreground bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--card-border)] rounded-xl transition-colors"
                         >
-                            Cancel
+                            {t("common.cancel")}
                         </button>
                     )}
 
@@ -495,13 +490,13 @@ export function DeliveryImportModal({
                                 className="flex items-center gap-2 px-4 py-2 text-foreground bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--card-border)] rounded-xl transition-colors"
                             >
                                 <ArrowRight className="w-4 h-4" />
-                                Start Over
+                                {t("deliveryImport.startOver")}
                             </button>
 
                             {existingImport && (
                                 <div className="flex items-center gap-1 text-amber-600 text-xs mr-auto">
                                     <AlertTriangle className="w-3.5 h-3.5" />
-                                    Duplicate receipt
+                                    {t("deliveryImport.duplicateReceipt")}
                                 </div>
                             )}
 
@@ -515,7 +510,7 @@ export function DeliveryImportModal({
                                         : "bg-[var(--card-border)] text-muted cursor-not-allowed"
                                 )}
                             >
-                                Confirm {selectedRows.size} Orders
+                                {t("deliveryImport.confirmCount", { count: selectedRows.size })}
                                 <ArrowLeft className="w-4 h-4" />
                             </button>
                         </>
@@ -526,7 +521,7 @@ export function DeliveryImportModal({
                             onClick={handleDone}
                             className="px-6 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white hover:opacity-90 rounded-xl font-medium transition-all shadow-lg shadow-teal-500/20"
                         >
-                            Done
+                            {t("deliveryImport.done")}
                         </button>
                     )}
                 </DialogFooter>

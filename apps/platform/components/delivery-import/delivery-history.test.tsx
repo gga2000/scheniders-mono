@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { DeliveryImport } from "@/types/delivery-import";
+import { LanguageProvider } from "@/components/providers/language-provider";
 
 /* Undo puts orders back, so it must ask first and only run on the second press. */
 
@@ -41,9 +42,14 @@ afterEach(() => {
 });
 
 function openUndoConfirm() {
-    render(<DeliveryHistory />);
-    fireEvent.click(screen.getByText("Receipt #52399154"));
-    fireEvent.click(screen.getByRole("button", { name: /undo import/i }));
+    // The app renders Arabic first, so the test reads what a merchant sees.
+    render(
+        <LanguageProvider>
+            <DeliveryHistory />
+        </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByText("وصل رقم 52399154"));
+    fireEvent.click(screen.getByRole("button", { name: "تراجع عن الاستيراد" }));
     return screen.getByRole("alertdialog");
 }
 
@@ -51,14 +57,14 @@ describe("DeliveryHistory undo", () => {
     it("asks before undoing and Keep cancels", () => {
         openUndoConfirm();
         expect(rollbackImport).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+        fireEvent.click(screen.getByRole("button", { name: "إبقاء" }));
         expect(screen.queryByRole("alertdialog")).toBeNull();
         expect(rollbackImport).not.toHaveBeenCalled();
     });
 
     it("undoes the receipt on confirm", async () => {
         const dialog = openUndoConfirm();
-        fireEvent.click(within(dialog).getByRole("button", { name: "Undo import" }));
+        fireEvent.click(within(dialog).getByRole("button", { name: "تراجع عن الاستيراد" }));
         await vi.waitFor(() => expect(rollbackImport).toHaveBeenCalledWith("imp-1"));
     });
 });
