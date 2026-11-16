@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
@@ -29,7 +29,7 @@ export function useShieldDanger(closedCount: number) {
         queryFn: async () => {
             const { data, error } = await supabase.rpc("shield_customer_trust");
             if (error) {
-                Sentry.captureException(error, { tags: { area: "orders", op: "shield.customer-trust" } });
+                reportError(error, { tags: { area: "orders", op: "shield.customer-trust" } });
                 throw error;
             }
             return z.array(rowSchema).parse(data ?? []);

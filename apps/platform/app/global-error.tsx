@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 
 /**
  * The last-resort boundary: errors thrown by the ROOT LAYOUT itself, which
@@ -39,7 +39,7 @@ export default function GlobalError({
     reset: () => void;
 }) {
     useEffect(() => {
-        Sentry.captureException(error, { tags: { boundary: "global-error" } });
+        reportError(error, { tags: { boundary: "global-error" } });
     }, [error]);
 
     return (

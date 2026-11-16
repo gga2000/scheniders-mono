@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import type { DashboardMetrics } from "@/lib/analytics/dashboard-metrics-schema";
@@ -101,7 +101,7 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
                         .join("; ")}`,
                 );
                 diag.error(`[Diag:RQ:Metrics] contract mismatch — ${contractError.message}`);
-                Sentry.captureException(contractError, {
+                reportError(contractError, {
                     tags: { area: "dashboard", rpc: "get_dashboard_metrics", range, kind: "contract" },
                     extra: { issues: parsed.error.issues.slice(0, 20) },
                 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
@@ -16,7 +16,7 @@ export default function ProductsError({
     const { t } = useLanguage();
 
     useEffect(() => {
-        Sentry.captureException(error, {
+        reportError(error, {
             tags: { area: "products", operation: "products-segment-render" },
             extra: { digest: error.digest },
         });

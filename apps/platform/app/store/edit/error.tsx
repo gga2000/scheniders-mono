@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 
 /**
@@ -21,7 +21,7 @@ export default function StoreEditError({
 }) {
     useEffect(() => {
         console.error("Store builder error:", error);
-        Sentry.captureException(error, { tags: { area: "store-builder" } });
+        reportError(error, { tags: { area: "store-builder" } });
     }, [error]);
 
     return (

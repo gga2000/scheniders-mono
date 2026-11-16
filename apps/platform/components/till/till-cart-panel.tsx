@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { AlertTriangle, ArrowUp, Bookmark, FlaskConical, Minus, Package, Pencil, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -87,7 +87,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
         if (removed > 0) {
             void logRemovedLines(sessionId, [
                 { product_id: l.product_id, variant_id: l.variant_id, name: l.name, variant_name: l.variant_name, quantity: removed, price: l.price },
-            ]).catch((err: unknown) => Sentry.captureException(err, { tags: { area: "till", op: "log_removed" } }));
+            ]).catch((err: unknown) => reportError(err, { tags: { area: "till", op: "log_removed" } }));
         }
         onChange({ ...ticket, cart: setQuantity(ticket.cart, l.key, quantity) });
     };

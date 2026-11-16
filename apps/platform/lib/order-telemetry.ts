@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { ExchangedOrderStatusError } from "@/lib/order-status-guard";
 
 /**
@@ -71,5 +71,5 @@ export function reportOrderError(error: unknown, context: OrderErrorContext): vo
         console.error(`[orders:${context.operation}]`, error, context);
     }
 
-    Sentry.captureException(error, buildOrderErrorReport(context));
+    reportError(error, buildOrderErrorReport(context));
 }

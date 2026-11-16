@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Component, ReactNode } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 interface Props {
@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
         // not, so anything this boundary caught died in the console — invisible in
         // production, which is the only place it matters. User and tenant come from
         // the context set in auth-provider.
-        Sentry.captureException(error, {
+        reportError(error, {
             tags: { area: "error-boundary", boundary: this.props.label ?? "unlabelled" },
             extra: { componentStack: errorInfo.componentStack },
         });
