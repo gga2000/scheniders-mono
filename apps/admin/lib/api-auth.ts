@@ -145,11 +145,18 @@ export async function requireAdminPermission(
 ): Promise<AdminContext | NextResponse> {
   const guard = await requireAdminFromRequest(request);
   if (guard instanceof NextResponse) return guard;
-  if (!hasPermission(guard.role, action)) {
-    return NextResponse.json(
-      { error: `Forbidden: missing permission "${action}"` },
-      { status: 403 },
-    );
-  }
+  if (!hasPermission(guard.role, action)) return forbidden(action);
   return guard;
+}
+
+/**
+ * The 403 for a login whose role lacks `action`, in words staff can act on.
+ * Every action belongs to the super admin role, so "ask a super admin" is
+ * always true. The action key stays in its own field for support and logs.
+ */
+export function forbidden(action: AdminAction): NextResponse {
+  return NextResponse.json(
+    { error: "Your login cannot do this. Ask a super admin.", permission: action },
+    { status: 403 },
+  );
 }

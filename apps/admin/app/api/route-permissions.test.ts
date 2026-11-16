@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import type { AdminRole } from "@/types/admin";
+import type { AdminAction, AdminRole } from "@/types/admin";
+import { hasPermission } from "@/lib/admin-permissions";
 import { AdminAuthError } from "@/lib/admin-auth-error";
 
 /**
@@ -738,6 +739,137 @@ describe("every admin API handler is guarded", () => {
     (_key, body) => {
       expect(body).toMatch(GUARD);
       expect(body).not.toMatch(/\brequireAdmin\(/);
+    },
+  );
+});
+
+/**
+ * Every role rule, proven from the source, so no list has to be kept by hand.
+ *
+ * - A handler that names a permission the support role does not hold is
+ *   called as support staff (403, no data touched) and with no login (401),
+ *   whatever its path or body: the guard has to come first.
+ * - A write that only checks "is an admin" must be listed in OPEN_WRITES with
+ *   the reason support staff may do it. A new write cannot fall open quietly.
+ * - A route never compares the role by hand: the permission table is the
+ *   only rule, so this test sees every rule there is.
+ */
+describe("every role rule is proven from the source", () => {
+  const API_DIR = path.resolve(__dirname);
+  type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  type Handler = { file: string; method: Method; body: string; permission: AdminAction | null };
+
+  const handlers: Handler[] = readdirSync(API_DIR, { recursive: true, encoding: "utf8" })
+    .filter((f) => f.endsWith(`${path.sep}route.ts`) || f === "route.ts")
+    .map((f) => f.split(path.sep).join("/"))
+    .sort()
+    .flatMap((file) => {
+      const parts = readFileSync(path.join(API_DIR, file), "utf8").split(
+        /export async function (GET|POST|PUT|PATCH|DELETE)\b/,
+      );
+      const found: Handler[] = [];
+      for (let i = 1; i < parts.length; i += 2) {
+        const body = parts[i + 1] ?? "";
+        const named = body.match(/requireAdminPermission\(\s*\w+\s*,\s*"(\w+)"/);
+        found.push({
+          file,
+          method: parts[i] as Method,
+          body,
+          permission: named ? (named[1] as AdminAction) : null,
+        });
+      }
+      return found;
+    });
+  const key = (h: Handler) => `${h.file} ${h.method}`;
+
+  /** Writes open to every active admin, each with the reason. */
+  const OPEN_WRITES: Record<string, string> = {
+    "admin/last-actors/route.ts POST": "a read: the ids are sent in the body",
+    "admin/watchlist/route.ts POST": "each admin's own watchlist",
+    "admin/watchlist/[tenantId]/route.ts DELETE": "each admin's own watchlist",
+    "leads/route.ts POST": "sales work: add a lead",
+    "leads/import/route.ts POST": "sales work: import leads",
+    "leads/bulk/route.ts POST": "sales work; delete needs delete_leads, checked in the handler",
+    "leads/analyze-profile/route.ts POST": "reads a lead's public profile",
+    "leads/[id]/route.ts PATCH": "sales work: edit a lead",
+    "leads/[id]/activities/route.ts POST": "sales work: log a call or message",
+    "leads/[id]/competitors/route.ts POST": "sales work: note a competitor",
+    "leads/[id]/competitors/route.ts DELETE": "sales work: remove a competitor note",
+    "leads/[id]/follow-ups/route.ts POST": "sales work: plan a follow-up",
+    "leads/[id]/follow-ups/[fid]/route.ts PATCH": "sales work: mark a follow-up done",
+  };
+
+  const superOnly = handlers.filter(
+    (h) => h.permission !== null && !hasPermission("support_staff", h.permission),
+  );
+
+  /** The URL of a handler's file, with every [param] filled in. */
+  const urlOf = (file: string) =>
+    `/api/${file.replace(/\/?route\.ts$/, "").replace(/\[[^\]]+\]/g, TENANT)}`;
+  /** Any route param (`id`, `tenantId`, `fid`) reads as the test id. */
+  const anyParams = { params: Promise.resolve(new Proxy({}, { get: () => TENANT })) };
+
+  async function callAs(h: Handler, token: string | null): Promise<Response> {
+    const mod = (await import(`./${h.file.replace(/\.ts$/, "")}`)) as Record<
+      string,
+      (request: NextRequest, context: typeof anyParams) => Promise<Response>
+    >;
+    const handler = mod[h.method];
+    if (!handler) throw new Error(`${key(h)} is not exported`);
+    return handler(req(urlOf(h.file), h.method, token, h.method === "GET" ? undefined : {}), anyParams);
+  }
+
+  it("finds the super-admin-only handlers, the shop change and admin access among them", () => {
+    const keys = superOnly.map(key);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "merchants/[id]/route.ts PATCH",
+        "admin-users/route.ts POST",
+        "admin-users/route.ts DELETE",
+        "seed-automation/route.ts POST",
+        "billing/route.ts GET",
+        "admin/leads-table-layout/route.ts PUT",
+        "billing/topup/route.ts POST",
+      ]),
+    );
+  });
+
+  it.each(superOnly.map((h) => [key(h), h] as const))(
+    "%s: support staff get 403 and touch no data",
+    async (_name, h) => {
+      const res = await callAs(h, "support");
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({
+        error: "Your login cannot do this. Ask a super admin.",
+        permission: h.permission,
+      });
+      expect(createAdminClient).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(superOnly.map((h) => [key(h), h] as const))("%s: no login gets 401", async (_name, h) => {
+    const res = await callAs(h, null);
+    expect(res.status).toBe(401);
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it.each(
+    handlers
+      .filter((h) => h.method !== "GET" && h.permission === null)
+      .map((h) => [key(h)] as const),
+  )("%s: a write with no named permission is listed as open, with a reason", (name) => {
+    expect(OPEN_WRITES[name], `${name} checks only "is an admin": name its permission, or list why support may do it`).toBeTruthy();
+  });
+
+  it("lists no open write that is gone or now names a permission", () => {
+    const openNow = new Set(handlers.filter((h) => h.method !== "GET" && h.permission === null).map(key));
+    expect(Object.keys(OPEN_WRITES).filter((name) => !openNow.has(name))).toEqual([]);
+  });
+
+  it.each(handlers.map((h) => [key(h), h.body] as const))(
+    "%s: compares no role by hand",
+    (_name, body) => {
+      expect(body).not.toMatch(/\.role\s*[!=]==/);
     },
   );
 });
