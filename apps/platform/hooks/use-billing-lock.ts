@@ -29,6 +29,12 @@ const billingLockSchema = z.object({
      */
     daily_spend_iqd: z.coerce.number().nullable().default(null),
     can_pay: z.boolean(),
+    /**
+     * The trial was ended because the shop matched an earlier store of the
+     * same merchant (Fermi B5: one free trial per merchant). Only a yes/no:
+     * the shop is never told which store or why.
+     */
+    previous_store: z.boolean().default(false),
 });
 
 export type BillingLock = z.infer<typeof billingLockSchema>;

@@ -8,7 +8,7 @@ import { useLanguage } from "@/hooks/use-language";
 import type { BillingLock } from "@/hooks/use-billing-lock";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { BILLING_SETTINGS_PATH } from "@/lib/billing/lock-routes";
-import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
+import { BillingLockPay, billingLockMessage, billingLockTitleKey } from "./billing-lock-pay";
 
 /**
  * What a billing-locked shop sees on a page it cannot use (handoff A1). The
@@ -29,6 +29,11 @@ export function BillingLockScreen({ lock }: { lock: BillingLock }) {
                 </div>
                 <h2 className="mb-2 text-xl font-bold text-foreground">{title}</h2>
                 <p className="mb-2 text-sm text-muted-foreground">{body}</p>
+                {lock.previous_store && (
+                    <p className="mb-2 text-sm text-muted-foreground" data-testid="billing-lock-previous-store">
+                        {t("billing.lock.previousStoreHelp")}
+                    </p>
+                )}
                 <p className="mb-1 text-sm font-medium tabular-nums text-foreground" data-testid="billing-lock-price">
                     {lock.plan
                         ? t("billing.lock.planPrice", { plan: planName(lock.plan, language), amount })
@@ -55,7 +60,7 @@ export function BillingLockScreen({ lock }: { lock: BillingLock }) {
                 </Link>
                 <ContactSupportButton
                     className="mt-3 w-full justify-center rounded-xl py-3"
-                    errorCode={lock.reason === "unpaid" ? "billing.lock.titleUnpaid" : "billing.lock.titleTrial"}
+                    errorCode={billingLockTitleKey(lock)}
                     errorMessage={`${title} ${body}`}
                 />
                 <p className="mt-4 text-xs text-muted-foreground">{t("billing.lock.stillOpen")}</p>

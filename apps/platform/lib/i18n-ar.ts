@@ -8068,6 +8068,10 @@ export const ar: Record<string, string> = {
     "billing.goToBilling": "الذهاب إلى إعدادات الفوترة",
     "billing.lock.titleTrial": "تجربتك خلصت",
     "billing.lock.titleUnpaid": "اشتراكك ما انخصم",
+    // Fermi B5: the trial was not given because the shop matched an earlier
+    // store of the same merchant. Kind, never accusing, never names the store.
+    "billing.lock.titlePreviousStore": "لگينا متجر سابق إلك ويانا. تريد نرجعلك بياناته وتكمل بالباقة؟",
+    "billing.lock.previousStoreHelp": "راسلنا من زر الدعم ونرجعلك بيانات متجرك السابق، أو ادفع وكمّل من هنا.",
     "billing.lock.ordersLeft": "متجرك بعده يستقبل طلبات (باقي {count} طلب). ادفع حتى ترجع كل الميزات.",
     "billing.lock.ordersLeft.one": "متجرك بعده يستقبل طلبات (باقي طلب واحد). ادفع حتى ترجع كل الميزات.",
     "billing.lock.ordersLeft.two": "متجرك بعده يستقبل طلبات (باقي طلبين). ادفع حتى ترجع كل الميزات.",
