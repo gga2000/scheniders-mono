@@ -57,7 +57,7 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
     const track = primeTrack(view);
     const action = primeBandAction(view, order.status);
     const chip = primeChipState(view, order.status);
-    const when = primeWhen(view.statusChangedAt ?? view.sentAt, t);
+    const when = primeWhen(view.statusChangedAt ?? view.sentAt, t, language);
     const title = view.stepName ?? t("orders.prime.band.sentTitle");
     const note =
         view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : null;

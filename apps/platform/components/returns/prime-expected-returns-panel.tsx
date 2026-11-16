@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * scanned list, where it is checked and filed like a scanned parcel.
  */
 export function PrimeExpectedReturnsPanel({ prime, onArrived }: { prime: PrimeQueues; onArrived: (orderNumber: string) => void }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const back = prime.queues?.back.problems ?? [];
     const rows = [...back].sort((a, b) => Date.parse(a.since) - Date.parse(b.since));
@@ -41,7 +41,7 @@ export function PrimeExpectedReturnsPanel({ prime, onArrived }: { prime: PrimeQu
                                     </span>
                                 </div>
                                 <div className="truncate text-xs text-[#4A4A4A] dark:text-white/70">
-                                    {primeWhen(problem.since, t)}
+                                    {primeWhen(problem.since, t, language)}
                                     {says && <span className="font-semibold text-[#8F1D13] dark:text-rose-300"> · {says}</span>}
                                 </div>
                             </div>

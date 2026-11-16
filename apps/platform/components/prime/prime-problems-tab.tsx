@@ -299,7 +299,7 @@ function ProblemRow({
     if (!view || !order) return null;
     const chip = primeChipState(view, order.status);
     const primeSays = primeReasonText(primeReasonNote(view), t);
-    const when = primeWhen(problem.since, t);
+    const when = primeWhen(problem.since, t, language);
     const what = view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : (view.stepName ?? view.status);
 
     return (

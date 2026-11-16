@@ -105,7 +105,7 @@ function PrimeCallBandFor({ m }: { m: OrderCardModel }) {
                     {record.recent.length > 0 && (
                         <span className="flex items-center gap-1" aria-hidden="true">
                             {record.recent.map((p, i) => (
-                                <span key={`${p.at}-${i}`} title={primeWhen(p.at, t)} className={cn("flex h-6 w-6 items-center justify-center rounded-full", TILE[p.kind])}>
+                                <span key={`${p.at}-${i}`} title={primeWhen(p.at, t, language)} className={cn("flex h-6 w-6 items-center justify-center rounded-full", TILE[p.kind])}>
                                     <ParcelIcon kind={p.kind} className="h-3.5 w-3.5" />
                                 </span>
                             ))}
@@ -141,7 +141,7 @@ function PrimeCallBandFor({ m }: { m: OrderCardModel }) {
                         ) : (
                             <ol className="grid grid-cols-6 gap-2.5">
                                 {record.recent.map((p, i) => (
-                                    <li key={`${p.at}-${i}`} title={primeWhen(p.at, t)} className={cn("flex flex-col items-center gap-1.5 rounded-[14px] px-1.5 py-3 text-center text-xs", TILE[p.kind])}>
+                                    <li key={`${p.at}-${i}`} title={primeWhen(p.at, t, language)} className={cn("flex flex-col items-center gap-1.5 rounded-[14px] px-1.5 py-3 text-center text-xs", TILE[p.kind])}>
                                         <ParcelIcon kind={p.kind} className="h-5 w-5" />
                                         <b>{t(`orders.prime.call.kind.${p.kind}`)}</b>
                                         <span>{month.format(new Date(p.at))}</span>

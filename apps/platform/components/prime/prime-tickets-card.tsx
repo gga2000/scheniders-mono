@@ -6,7 +6,7 @@ import { primeWhen } from "@/lib/prime/when";
 
 /** «تذاكر» on the Now tab: the latest open ticket with Prime and its last message. */
 export function PrimeTicketsCard({ tickets, onOpen }: { tickets: readonly PrimeTicketView[] | null; onOpen: () => void }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const latest = tickets?.find((x) => x.open) ?? null;
     const openCount = tickets?.filter((x) => x.open).length ?? 0;
@@ -27,7 +27,7 @@ export function PrimeTicketsCard({ tickets, onOpen }: { tickets: readonly PrimeT
                             {latest.customerName || latest.orderNumber} · {latest.subject ?? t("prime.page.ticket")}
                         </b>
                         <span className="block truncate text-[#4A4A4A] dark:text-white/70">{latest.latestMessage ?? "—"}</span>
-                        {latest.at && <span className="block text-xs text-muted">{primeWhen(latest.at, t)}</span>}
+                        {latest.at && <span className="block text-xs text-muted">{primeWhen(latest.at, t, language)}</span>}
                     </span>
                 </button>
             ) : (

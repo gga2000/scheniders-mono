@@ -39,7 +39,7 @@ function stepDot(stepCode: string | null, status: string | null): Dot {
  * Read from Prime when the panel opens.
  */
 export function PrimeJourneyList({ orderId, caseId }: { orderId: string; caseId: number }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const journey = usePrimeJourney(orderId, true);
 
@@ -84,7 +84,7 @@ export function PrimeJourneyList({ orderId, caseId }: { orderId: string; caseId:
                             {i < rows.length - 1 && <span aria-hidden="true" className="absolute bottom-[-2px] left-[10px] top-4 w-0.5 bg-[#ECE8E1] dark:bg-white/10" />}
                             <span aria-hidden="true" className={cn("relative z-[1] mx-[5px] mt-1 h-3 w-3 rounded-full", DOT[row.dot], i === 0 && "ring-4 ring-black/5 dark:ring-white/10")} />
                             <span dir={dir} className={cn("min-w-0 text-left text-[13px] leading-snug", i === 0 ? "font-bold text-foreground" : "text-[#4A4A4A] dark:text-white/70")}>{row.title}</span>
-                            <span dir={dir} className="whitespace-nowrap text-xs text-[#6B6B6B] tabular-nums dark:text-white/50">{row.at ? primeWhen(row.at, t) : ""}</span>
+                            <span dir={dir} className="whitespace-nowrap text-xs text-[#6B6B6B] tabular-nums dark:text-white/50">{row.at ? primeWhen(row.at, t, language) : ""}</span>
                         </li>
                     ))}
                 </ol>
