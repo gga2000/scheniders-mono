@@ -44,13 +44,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-/** Compact IQD formatter for tight KPI tiles. */
-function compactIQD(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${Math.round(v / 1_000)}K`;
-  return `${v}`;
-}
+import { formatCount } from "@/lib/format";
 
 const countFmt = (n: number) => Math.round(n).toLocaleString();
 
@@ -203,7 +197,7 @@ export function LeadsDesktopView() {
     {
       label: "Est. Revenue",
       raw: analytics?.total_estimated_revenue ?? null,
-      format: (n: number) => compactIQD(Math.round(n)),
+      format: formatCount,
       suffix: "IQD/mo",
       icon: Wallet,
       color: "#16A34A",

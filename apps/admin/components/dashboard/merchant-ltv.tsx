@@ -12,14 +12,12 @@ import {
 } from "recharts";
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import type { DashboardV2Stats } from "@/types/dashboard";
+import { formatIQD } from "@/lib/format";
 
 interface MerchantLTVProps {
   data: DashboardV2Stats["merchantLTV"] | undefined;
 }
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 const CustomTooltip = ({
   active,

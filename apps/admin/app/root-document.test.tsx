@@ -36,7 +36,7 @@ vi.mock("next/font/local", () => ({
 }));
 vi.mock("@/components/providers", () => ({ Providers: Passthrough }));
 
-import RootLayout from "./layout";
+import RootLayout, { metadata } from "./layout";
 
 const appRoot = join(__dirname, "..");
 const fontsDir = join(__dirname, "fonts");
@@ -61,6 +61,12 @@ describe("admin root document", () => {
     expect(tag).toBeDefined();
     expect(tag).toMatch(/\slang="en"/);
     expect(tag).not.toMatch(/\sdir=/);
+  });
+
+  it("sets no title, so the top bar's page name stays on the browser tab", () => {
+    // A root title is applied after the page mounts and wrote "Scheniders Admin"
+    // over "Wallets · Scheniders Admin" on every page but a shop's.
+    expect(metadata.title).toBeUndefined();
   });
 
   it("defines the Geist variables as their subset faces, then one fallback", () => {

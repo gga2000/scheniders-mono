@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Sparkline } from "@/components/shared/sparkline";
 import type { LeaderboardEntry } from "@/types/dashboard";
+import { formatIQD } from "@/lib/format";
 
 interface TopMerchantsProps {
   merchants: LeaderboardEntry[] | undefined;
@@ -14,9 +15,6 @@ const medals: Record<number, string> = {
   2: "\u{1F949}",
 };
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 function SkeletonRow() {
   return (

@@ -16,6 +16,7 @@ import { ExportButton } from "@/components/shared/export-button";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
+import { formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,9 +59,6 @@ interface BillingData {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();

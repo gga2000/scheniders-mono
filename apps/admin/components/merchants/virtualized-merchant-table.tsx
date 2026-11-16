@@ -19,18 +19,13 @@ import {
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LockedChip } from "./locked-chip";
 import { healthChipClass, listChurnRisk } from "@/lib/merchant-health";
+import { formatCount } from "@/lib/format";
 
 const DENSITY_CONFIG: Record<TableDensity, { rowHeight: number; cellPy: string; fontSize: string }> = {
   compact: { rowHeight: 52, cellPy: "py-1.5", fontSize: "text-[11px]" },
   comfortable: { rowHeight: 68, cellPy: "py-2.5", fontSize: "text-xs" },
   spacious: { rowHeight: 84, cellPy: "py-3.5", fontSize: "text-xs" },
 };
-
-function formatCompactIQD(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
-  return String(amount);
-}
 
 const STATUS_PILL: Record<string, string> = {
   active:
@@ -346,7 +341,7 @@ function renderCell(
             Balance
           </span>
           <span className="font-black tabular-nums text-foreground text-[13px]">
-            {formatCompactIQD(balance)}
+            {formatCount(balance)}
             <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
           </span>
         </div>
@@ -391,7 +386,7 @@ function renderCell(
             Our fees
           </span>
           <span className="font-black tabular-nums text-foreground/85 text-[13px]">
-            {formatCompactIQD(m.fees_30d)}
+            {formatCount(m.fees_30d)}
             <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
           </span>
         </div>

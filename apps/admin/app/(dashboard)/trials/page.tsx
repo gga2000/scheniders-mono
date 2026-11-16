@@ -16,6 +16,7 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
+import { formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,9 +53,6 @@ interface TrialsResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 /** Where a trial stands, in Baghdad calendar days (see the trials route). */
 function trialDayLabel({ is_expired, days_remaining: days }: Pick<Trial, "is_expired" | "days_remaining">): string {

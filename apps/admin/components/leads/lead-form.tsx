@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatIQD } from "@/lib/format";
 import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
 import { PLATFORM_CONFIG } from "@/types/leads";
 import { IRAQ_GOVERNORATES } from "@scheniders/shared";
@@ -1008,7 +1009,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                     {[
                       [estimatedDailyOrders.toLocaleString(), "orders/day"],
                       [(estimatedDailyOrders * 30).toLocaleString(), "orders/month"],
-                      [`${(estimatedMonthlyRevenue / 1000).toFixed(0)}K`, "IQD/month"],
+                      [formatIQD(estimatedMonthlyRevenue), "a month"],
                     ].map(([value, label]) => (
                       <div key={label}>
                         <div className="text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-300">

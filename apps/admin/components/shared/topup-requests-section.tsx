@@ -7,14 +7,12 @@ import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TOPUP_QUEUE_KEY, topupQueueItemSchema, topupWarnings, type TopupQueueItem } from "@/lib/topup-queue";
+import { formatIQD } from "@/lib/format";
 
 const responseSchema = z.object({ requests: z.array(topupQueueItemSchema) });
 
 const METHOD_LABEL: Record<TopupQueueItem["method"], string> = { zain_cash: "Zain Cash", qi_card: "Qi Card" };
 
-function formatIQD(amount: number): string {
-  return `${new Intl.NumberFormat("en-US").format(amount)} IQD`;
-}
 
 /** Shops waiting for our team to check a transfer receipt; refreshed every minute. */
 export function useTopupRequests() {

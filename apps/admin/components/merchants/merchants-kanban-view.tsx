@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TenantStatus } from "@/types/admin";
+import { formatIQD } from "@/lib/format";
 
 type StageKey = TenantStatus;
 
@@ -100,12 +101,6 @@ const PLAN_GRADIENTS: Record<string, string> = {
   starter: "from-sky-400 to-cyan-500",
   internal: "from-slate-400 to-slate-500",
 };
-
-function fmtCompactIQD(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
-  return String(amount);
-}
 
 interface MerchantsKanbanViewProps {
   merchants: AdminTenant[];
@@ -454,12 +449,12 @@ function KanbanCard({
       <div className="flex items-center gap-2 text-[10px] text-foreground/55 font-medium tabular-nums">
         <span className="flex items-center gap-1">
           <Wallet className="w-2.5 h-2.5 text-foreground/35" />
-          {fmtCompactIQD(balance)}
+          {formatIQD(balance)}
         </span>
         <span className="w-0.5 h-0.5 rounded-full bg-foreground/20" />
         <span className="flex items-center gap-1" title="Our fees, last 30 days">
           <TrendingUp className="w-2.5 h-2.5 text-foreground/35" />
-          {fmtCompactIQD(merchant.fees_30d)} fees
+          {formatIQD(merchant.fees_30d)} fees
         </span>
       </div>
     </div>

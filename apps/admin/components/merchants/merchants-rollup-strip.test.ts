@@ -27,10 +27,10 @@ describe("MerchantsRollupStrip", () => {
   it("names the plan prices of active shops and our fees for what they are", () => {
     expect(html).toContain("Plan prices");
     expect(html).toContain("active shops, a month");
-    expect(html).toMatch(/25K<span[^>]*>IQD/);
+    expect(html).toMatch(/25,000<span[^>]*>IQD/);
     expect(html).toContain("Our fees");
     expect(html).toContain("last 30 days");
-    expect(html).toMatch(/11K<span[^>]*>IQD/);
+    expect(html).toMatch(/11,055<span[^>]*>IQD/);
   });
 
   it("drops MRR, ARR and the year figure", () => {
