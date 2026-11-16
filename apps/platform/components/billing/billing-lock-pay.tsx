@@ -61,9 +61,15 @@ export function BillingLockPay({ lock, compact = false }: { lock: BillingLock; c
     );
 }
 
+/** The lock title's key: unpaid month, ended trial, or (Fermi B5) a trial withheld because the shop matched an earlier store. */
+export function billingLockTitleKey(lock: Pick<BillingLock, "reason" | "previous_store">): string {
+    if (lock.reason === "unpaid") return "billing.lock.titleUnpaid";
+    return lock.previous_store ? "billing.lock.titlePreviousStore" : "billing.lock.titleTrial";
+}
+
 /** The lock line: why, and how many store orders are left before it pauses. */
 export function billingLockMessage(t: (key: string, vars?: Record<string, string | number>) => string, lock: BillingLock): { title: string; body: string } {
-    const title = t(lock.reason === "unpaid" ? "billing.lock.titleUnpaid" : "billing.lock.titleTrial");
+    const title = t(billingLockTitleKey(lock));
     const left = lock.orders_left ?? 0;
     const body = left > 0 ? t("billing.lock.ordersLeft", { count: left }) : t("billing.lock.paused");
     return { title, body };

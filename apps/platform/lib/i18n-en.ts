@@ -7573,6 +7573,8 @@ export const en: Record<string, string> = {
     "billing.goToBilling": "Go to Billing Settings",
     "billing.lock.titleTrial": "Your trial has ended",
     "billing.lock.titleUnpaid": "Your subscription is unpaid",
+    "billing.lock.titlePreviousStore": "We found an earlier store of yours with us. Want us to bring its data back so you can carry on with a plan?",
+    "billing.lock.previousStoreHelp": "Message us with the support button and we will bring your earlier store's data back, or pay and carry on here.",
     "billing.lock.ordersLeft": "Your store still takes orders ({count} left). Pay to get every feature back.",
     "billing.lock.ordersLeft.one": "Your store still takes orders (1 left). Pay to get every feature back.",
     "billing.lock.paused": "Your store has stopped taking new orders. Pay to reopen it and get every feature back.",

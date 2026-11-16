@@ -48,6 +48,13 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *   manage_admins       — give or take away a person's console access and
  *                         set their role. Super admins only: a support login
  *                         that could do this could make itself super admin.
+ *   review_trials       — act on the one-trial check (Fermi B5): give a
+ *                         flagged store its trial back, end a flagged
+ *                         store's trial, or mark the row checked, each with a
+ *                         reason in the staff log. Open to support_staff on
+ *                         purpose: the handoff gives the triage to Mohammed,
+ *                         and every step can be undone (giving a trial back
+ *                         is the same move as extend_trial).
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -73,6 +80,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "check_payments",
     "manage_demo_store",
     "manage_admins",
+    "review_trials",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -84,6 +92,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "link_prime",
     "handle_support",
     "check_payments",
+    "review_trials",
   ]),
 };
 

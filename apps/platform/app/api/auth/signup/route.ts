@@ -122,7 +122,7 @@ async function handlePOST(request: NextRequest) {
         const userId = authData.user.id;
 
         // ── 2. Create tenant ──
-        const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+        let trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
         // Published from day one so the store's own address shows a designed
         // store, not a blank page. Stamped "signup": the onboarding wizard
@@ -233,6 +233,19 @@ async function handlePOST(request: NextRequest) {
             if (memberError) {
                 throw new Error(`tenant_members: ${memberError.message}`);
             }
+
+            // The one-trial check (Fermi B5) runs in the database when the
+            // store and its owner are written, and may already have ended this
+            // trial: the subscription follows the store's real trial end.
+            const { data: trialRow, error: trialError } = await adminClient
+                .from('tenants')
+                .select('trial_ends_at')
+                .eq('id', tenant.id)
+                .single();
+            if (trialError) {
+                throw new Error(`trial end: ${trialError.message}`);
+            }
+            trialEndsAt = trialRow.trial_ends_at ?? trialEndsAt;
 
             // ── 5. Create initial subscription (trial) ──
             const { error: subError } = await adminClient

@@ -89,6 +89,22 @@ describe("BillingLockGate", () => {
         expect(support.errorPrefill?.errorCode).toBe("billing.lock.titleTrial");
     });
 
+    it("a trial withheld for an earlier store asks kindly and offers the old data back (Fermi B5)", () => {
+        state.lock = { ...LOCKED, previous_store: true };
+        show();
+        expect(screen.getByText("billing.lock.titlePreviousStore")).toBeTruthy();
+        expect(screen.getByTestId("billing-lock-previous-store").textContent).toBe("billing.lock.previousStoreHelp");
+        expect(screen.queryByText("billing.lock.titleTrial")).toBeNull();
+        fireEvent.click(screen.getByText("support.contactButton"));
+        expect(useSupportStore.getState().errorPrefill?.errorCode).toBe("billing.lock.titlePreviousStore");
+    });
+
+    it("an ordinary ended trial says nothing about other stores", () => {
+        show();
+        expect(screen.getByText("billing.lock.titleTrial")).toBeTruthy();
+        expect(screen.queryByTestId("billing-lock-previous-store")).toBeNull();
+    });
+
     it("renders the page while the lock is still loading", () => {
         state.lock = undefined;
         show();

@@ -25,6 +25,7 @@ const LOGGED_READS = new Set(["export/route.ts GET"]);
 const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/extend-trial/route.ts POST": "admin_extend_trial",
   "trials/extend/route.ts POST": "admin_extend_trial",
+  "trial-checks/[id]/route.ts POST": "admin_trial_check_decide",
   "merchants/[id]/lock-orders/route.ts POST": "admin_add_lock_orders",
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",

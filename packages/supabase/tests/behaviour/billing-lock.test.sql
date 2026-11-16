@@ -179,6 +179,26 @@ SELECT pg_temp.check(
           AND s->'balance_iqd' = 'null'::jsonb AND s->'daily_spend_iqd' = 'null'::jsonb AND s->>'can_pay' = 'false'
      FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
   'a member sees the lock, orders left and the price, not the balance or the spend');
+SELECT pg_temp.check(
+  (SELECT s->>'previous_store' = 'false' FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
+  'an ordinary ended trial says nothing about an earlier store');
+-- Fermi B5: a trial the one-trial check ended says so (a yes/no only); a
+-- review flag, or a trial staff gave back, does not.
+INSERT INTO public.trial_checks (tenant_id, verdict, trial_withheld_at)
+VALUES ('20000000-0000-4000-8000-00000000000a', 'no_trial', now());
+SELECT pg_temp.check(
+  (SELECT s->>'previous_store' = 'true' FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
+  'a withheld trial shows the earlier-store message');
+UPDATE public.trial_checks SET staff_decision = 'allow_trial' WHERE tenant_id = '20000000-0000-4000-8000-00000000000a';
+SELECT pg_temp.check(
+  (SELECT s->>'previous_store' = 'false' FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
+  'a trial staff gave back never shows it');
+UPDATE public.trial_checks SET staff_decision = NULL, trial_withheld_at = NULL, verdict = 'review'
+ WHERE tenant_id = '20000000-0000-4000-8000-00000000000a';
+SELECT pg_temp.check(
+  (SELECT s->>'previous_store' = 'false' FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
+  'a review flag alone never shows it');
+DELETE FROM public.trial_checks;
 SELECT set_config('test.member_of', '20000000-0000-4000-8000-00000000000b', false);
 SELECT pg_temp.check(
   pg_temp.raises($q$SELECT public.billing_lock_status('20000000-0000-4000-8000-00000000000a')$q$) = 'forbidden',

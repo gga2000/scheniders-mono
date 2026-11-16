@@ -93,6 +93,7 @@ const LOCK: BillingLock = {
     balance_iqd: 20_000,
     daily_spend_iqd: null,
     can_pay: true,
+    previous_store: false,
 };
 
 const SUB: SubscriptionData = {
