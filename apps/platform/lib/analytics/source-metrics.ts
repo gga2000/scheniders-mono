@@ -5,7 +5,7 @@ import type { ReportOrder } from "@/lib/analytics/report-order-facts";
  *
  * ARCH-D4. This never measured employees, despite the name it carried: it groups
  * orders by `order.source` ("whatsapp", "meta", "manual"). The widget that
- * renders it is titled "Source Performance" and shows only `displayName`, so
+ * renders it is titled "Source Performance" and shows only the source's name, so
  * nothing false reaches the user — but the employee-shaped naming and a
  * fabricated `email` field made it read like real staff data to anyone editing
  * here. Renamed to what it measures. Real per-staff numbers come from
@@ -15,8 +15,6 @@ import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 export interface SourcePerformanceMetrics {
     /** The `order.source` value this row aggregates, e.g. "whatsapp". */
     sourceKey: string;
-    /** Human label for the source. */
-    displayName: string;
     ordersProcessed: number;
     ordersDelivered: number;
     ordersConfirmed: number;
@@ -109,17 +107,8 @@ export function calculateSourcePerformance(
         }
     });
 
-    // Convert to array and calculate metrics
-    const sourceNames: Record<string, string> = {
-        'manual': 'Manual Entry',
-        'lightfunnels': 'LightFunnels',
-        'whatsapp': 'WhatsApp',
-        'meta': 'Meta Ads',
-        'tiktok': 'TikTok',
-        'delivery_import': 'Delivery Import',
-        'other': 'Other',
-    };
-
+    // Convert to array and calculate metrics. Labels come from the dictionary
+    // (reports.source.name.<key>), so every language names every source.
     const sources: SourcePerformanceMetrics[] = [];
 
     sourceMap.forEach((stats, key) => {
@@ -129,7 +118,6 @@ export function calculateSourcePerformance(
 
         sources.push({
             sourceKey: key,
-            displayName: sourceNames[key] || key,
             ordersProcessed: stats.ordersProcessed,
             ordersDelivered: stats.ordersDelivered,
             ordersConfirmed: stats.ordersConfirmed,

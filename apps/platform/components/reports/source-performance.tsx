@@ -104,7 +104,7 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                             </div>
                             <div className="relative z-10">
                                 <div className="text-xs font-bold opacity-90">#{emp.rank}</div>
-                                <h4 className="text-lg font-bold mt-1 truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.displayName)}</h4>
+                                <h4 className="text-lg font-bold mt-1 truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.sourceKey)}</h4>
 
                                 <div className="mt-4 grid grid-cols-2 gap-2">
                                     <div>
@@ -136,7 +136,7 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                                     {emp.rank}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-semibold text-foreground truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.displayName)}</div>
+                                    <div className="font-semibold text-foreground truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.sourceKey)}</div>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
                                     <div className="text-center">
