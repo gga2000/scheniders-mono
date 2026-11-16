@@ -62,18 +62,14 @@ function reportLogFailure(action: string, error: unknown) {
   Sentry.captureException(new Error(`Admin audit log row not written for "${action}": ${reason}`));
 }
 
-/** Insert log rows; a refused insert and a failed request are both reported. */
-async function writeRows(action: string, rows: ReturnType<typeof buildRow> | ReturnType<typeof buildRow>[]) {
-  try {
-    const { error } = await createAdminClient().from("admin_activity_logs").insert(rows);
-    if (error) reportLogFailure(action, error);
-  } catch (error) {
-    reportLogFailure(action, error);
-  }
-}
-
+/** Insert one log row; a refused insert and a failed request are both reported. */
 export async function logAdminActivity(params: LogParams) {
-  await writeRows(params.action, buildRow(params, params.tenantId ?? null));
+  try {
+    const { error } = await createAdminClient().from("admin_activity_logs").insert(buildRow(params, params.tenantId ?? null));
+    if (error) reportLogFailure(params.action, error);
+  } catch (error) {
+    reportLogFailure(params.action, error);
+  }
 }
 
 /** The admin who made a request, as the route guards return it. */
@@ -98,15 +94,3 @@ export function logAdminAction(
   });
 }
 
-/**
- * Log one row per tenant for a bulk action, in a single insert. The envelope
- * (actor, action, details) is shared; only `tenant_id` varies.
- */
-export async function logAdminActivityBatch(
-  params: Omit<LogParams, "tenantId"> & { tenantIds: string[] }
-) {
-  const { tenantIds, ...envelope } = params;
-  if (tenantIds.length === 0) return;
-
-  await writeRows(envelope.action, tenantIds.map((tenantId) => buildRow(envelope, tenantId)));
-}

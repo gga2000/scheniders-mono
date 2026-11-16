@@ -8,6 +8,7 @@ import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { CARD_LINK, SummaryCard } from "./summary-card";
+import { UnpaidOrders } from "./unpaid-orders";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
@@ -210,6 +211,7 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                             )}
                         </PartRow>
                         <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
+                            <UnpaidOrders orders={summary.cash.unpaid_list} total={split.unpaid_orders} />
                             {/* Shown whenever Prime holds unpaid orders, link row or not (the demo store has none). */}
                             {split.unpaid_prime > 0 && (
                                 <Link href="/prime" className={`${CARD_LINK} mt-1.5`}>

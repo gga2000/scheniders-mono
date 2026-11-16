@@ -11,7 +11,6 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { SupportViewButton } from "@/components/support/support-view-button";
 import { OnboardingChecklist } from "@/components/merchants/onboarding-checklist";
-import { TenantComparison } from "@/components/merchants/tenant-comparison";
 import { OverviewTab } from "@/components/merchants/detail/overview-tab";
 import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
@@ -57,7 +56,6 @@ export default function MerchantDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
   // "Add a note" opens the Timeline with the note box ready to type in.
   const [focusNote, setFocusNote] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
   // "View as merchant" opens the merchant's own app; the server only allows it with handle_support.
   const { role } = useAdminAuth();
   const canViewAsMerchant = role ? hasPermission(role, "handle_support") : false;
@@ -178,12 +176,6 @@ export default function MerchantDetailPage() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setShowComparison(true)}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground hover:border-foreground/30 transition-all"
-            >
-              Compare
-            </button>
             <a
               href={`https://${storeAddress(tenant.slug)}`}
               target="_blank"
@@ -294,12 +286,6 @@ export default function MerchantDetailPage() {
           hasStorefront={!!(tenant.store_config && Object.keys(tenant.store_config).length > 0)}
         />
       )}
-
-      <TenantComparison
-        isOpen={showComparison}
-        onClose={() => setShowComparison(false)}
-        currentTenantId={tenant.id}
-      />
     </div>
   );
 }

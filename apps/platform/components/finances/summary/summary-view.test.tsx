@@ -45,6 +45,10 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
             split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_before: 0, reached_now: 0, reached_other: 0 },
+            unpaid_list: [
+                { id: "11111111-1111-4111-8111-111111111111", code: "4260905001", customer: "محمد كاظم", amount: 25_000, day: "2026-11-01", prime: false },
+                { id: "22222222-2222-4222-8222-222222222222", code: "1261112002", customer: "عباس عادل", amount: 15_000, day: "2026-11-02", prime: true },
+            ],
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 0, prime_returned_fee: 0 },
         daily: [
@@ -221,6 +225,37 @@ describe("SummaryView", () => {
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached: 370_000, reached_orders: 10, unpaid: 0, unpaid_orders: 0, unpaid_prime: 0 } } })));
         expect(byTestId("money-unpaid")?.textContent).toContain("كل الطلبات المسلّمة مدفوعة لك");
         expect(byTestId("money-split")?.querySelectorAll("i")).toHaveLength(2);
+    });
+
+    it("lists the unpaid orders, each opening its order, and says what the rest owe", () => {
+        renderView(query(summary()));
+        const list = byTestId("money-unpaid-list");
+        const links = Array.from(list?.querySelectorAll("a") ?? []);
+        expect(links.map((a) => a.getAttribute("href"))).toEqual([
+            "/orders?order=11111111-1111-4111-8111-111111111111",
+            "/orders?order=22222222-2222-4222-8222-222222222222",
+        ]);
+        expect(links[0]?.textContent).toBe("4260905001");
+        expect(list?.textContent).toContain("محمد كاظم");
+        expect(list?.textContent).toContain("25,000");
+        expect(list?.textContent).toContain("عند المندوب");
+        expect(list?.textContent).toContain("عند برايم");
+        // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا مبلغ لك فيه بعد أجرة التوصيل.");
+        cleanup();
+        const s = summary();
+        const full = Array.from({ length: 20 }, (_, i) => ({ ...s.cash.unpaid_list[0], id: `id-${i}`, code: `${i}` }));
+        renderView(query(summary({ cash: { ...s.cash, unpaid_list: full, split: { ...s.cash.split, unpaid_orders: 25 } } })));
+        // a long list shows the oldest five and a button for the rest
+        expect(byTestId("money-unpaid-list")?.querySelectorAll("li")).toHaveLength(5);
+        const more = byTestId("money-unpaid-list")?.querySelector("button");
+        expect(more?.textContent).toBe("اعرض الكل (20)");
+        if (more) fireEvent.click(more);
+        expect(byTestId("money-unpaid-list")?.querySelectorAll("li")).toHaveLength(20);
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("هذه أقدم 20 طلباً، والباقي (5) في صفحة الطلبات.");
+        cleanup();
+        renderView(query(summary({ cash: { ...s.cash, unpaid_list: [], split: { ...s.cash.split, unpaid: 0, unpaid_orders: 0, unpaid_prime: 0 } } })));
+        expect(byTestId("money-unpaid-list")).toBeNull();
     });
 
     it("names Prime's unpaid orders and links to Prime even with no link row (the demo store), and says Prime took part of the fee", () => {

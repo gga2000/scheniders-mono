@@ -127,6 +127,11 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/'reached_now', reached_now, 'reached_other', reached_other/);
     });
 
+    it("names the unpaid orders with money owed, oldest first and capped, scoped to the shop", () => {
+        expect(core).toMatch(/unpaid_list AS \([\s\S]*?JOIN public\.orders o ON o\.id = sf\.id AND o\.tenant_id = _tenant_id\s+WHERE NOT sf\.paid AND sf\.price - sf\.fee > 0\s+ORDER BY s\.day, o\.id\s+LIMIT 20/);
+        expect(core).toMatch(/'unpaid_list', COALESCE\(\(SELECT jsonb_agg\(jsonb_build_object\('id', u\.id, 'code', u\.code, 'customer', u\.customer,\s+'amount', u\.amount, 'day', u\.day, 'prime', u\.prime\) ORDER BY u\.day, u\.id\)/);
+    });
+
     it("scopes every table it reads to the shop", () => {
         for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc", "delivery_imports di"]) {
             const alias = table.split(" ")[1];

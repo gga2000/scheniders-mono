@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { merchantSearchFilter } from "./merchant-search";
 
 describe("merchantSearchFilter", () => {
-  it("searches name, slug and email for plain text", () => {
+  it("searches name, slug, email and phone for plain text", () => {
     expect(merchantSearchFilter("noor")).toBe(
-      'business_name.ilike."%noor%",slug.ilike."%noor%",contact_email.ilike."%noor%"',
+      'business_name.ilike."%noor%",slug.ilike."%noor%",contact_email.ilike."%noor%",contact_phone.ilike."%noor%"',
     );
+  });
+
+  it("finds a shop by part of its phone number", () => {
+    expect(merchantSearchFilter("07701")).toContain('contact_phone.ilike."%07701%"');
   });
 
   it("ignores spaces around the text", () => {
@@ -35,7 +39,7 @@ describe("merchantSearchFilter", () => {
 
   it("keeps commas, brackets and quotes in the text as text", () => {
     expect(merchantSearchFilter('Noor (Karrada), "new"')).toBe(
-      'business_name.ilike."%Noor (Karrada), \\"new\\"%",slug.ilike."%Noor (Karrada), \\"new\\"%",contact_email.ilike."%Noor (Karrada), \\"new\\"%"',
+      'business_name.ilike."%Noor (Karrada), \\"new\\"%",slug.ilike."%Noor (Karrada), \\"new\\"%",contact_email.ilike."%Noor (Karrada), \\"new\\"%",contact_phone.ilike."%Noor (Karrada), \\"new\\"%"',
     );
     expect(merchantSearchFilter("a\\b")).toContain('"%a\\\\b%"');
   });
