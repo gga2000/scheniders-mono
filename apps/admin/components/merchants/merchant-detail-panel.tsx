@@ -391,7 +391,13 @@ function PanelBody({
 
       <div className="min-h-[200px]">
         {activeTab === "Overview" && (
-          <OverviewTab merchantId={tenant.id} tenant={tenant} subscription={subscription} />
+          <OverviewTab
+            merchantId={tenant.id}
+            tenant={tenant}
+            subscription={subscription}
+            billingLock={data.billingLock}
+            canForceUnlock={data.canForceUnlock}
+          />
         )}
         {activeTab === "Billing" && (
           <BillingTab wallet={wallet} transactions={transactions} />

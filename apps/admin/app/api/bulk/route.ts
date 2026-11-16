@@ -7,6 +7,7 @@ import { logAdminActivityBatch } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
+import { staffReasonSchema } from "@/lib/staff-reason";
 
 const bulkTopupAmountSchema = topupAmountSchema.min(1000);
 
@@ -120,6 +121,13 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
+        const reason = staffReasonSchema.safeParse(params?.reason);
+        if (!reason.success) {
+          return NextResponse.json(
+            { error: `params.reason: ${reason.error.issues[0]?.message ?? "A reason is required"}` },
+            { status: 400 }
+          );
+        }
 
         // One RPC per shop: it moves the trial date and the bill date together,
         // refuses a shop that is not on trial, and writes that shop's audit row.
@@ -128,7 +136,7 @@ export async function POST(request: NextRequest) {
         let crashed = false;
         for (const tid of tenant_ids) {
           try {
-            const result = await extendTrial(supabase, tid, days, auth.user, "bulk");
+            const result = await extendTrial(supabase, tid, days, reason.data, auth.user, "bulk");
             if (result.ok) extended.push({ tenant_id: tid, trial_ends_at: result.trialEndsAt });
             else notExtended.push({ tenant_id: tid, error: result.error });
           } catch (error) {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
+import { hasPermission } from "@/lib/admin-permissions";
+import { readBillingLock } from "@/lib/billing-lock-tools";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 
@@ -37,6 +39,7 @@ export async function GET(
       notesResult,
       orderCountResult,
       planLimitsResult,
+      billingLock,
     ] = await Promise.all([
       supabase.from("tenants").select("*").eq("id", id).single(),
       supabase.from("wallet").select("*").eq("tenant_id", id).single(),
@@ -68,6 +71,8 @@ export async function GET(
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", id),
       supabase.from("plan_limits").select("*"),
+      // The lock the shop sees (Fermi A1), for the staff tools card.
+      readBillingLock(supabase, id),
     ]);
 
     if (tenantResult.error) {
@@ -92,6 +97,9 @@ export async function GET(
       notes: notesResult.data ?? [],
       orderCount: orderCountResult.count ?? 0,
       planLimits,
+      billingLock,
+      // A free unlock grants paid time without a payment: super admins only.
+      canForceUnlock: hasPermission(auth.role, "manage_subscription"),
     });
   } catch (error) {
     console.error("Merchant detail API error:", error);
