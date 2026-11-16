@@ -399,3 +399,59 @@ describe("support scoreboard", () => {
     expect((await board("support")).status).toBe(500);
   });
 });
+
+describe("support shop check", () => {
+  async function check(token: string | null, id = CASE_ID): Promise<Response> {
+    const { GET } = await import("./[id]/check/route");
+    return GET(req(`/api/support/cases/${id}/check`, "GET", token), { params: Promise.resolve({ id }) });
+  }
+
+  const FACTS = {
+    store: {
+      status: "active",
+      is_prospect: false,
+      is_demo: false,
+      paused: false,
+      blocks_new_orders: false,
+      paused_until: null,
+      pause_reason: null,
+      lock_reason: null,
+      lock_since: null,
+      trial_ends_at: null,
+    },
+    products: { on_store: 1, sold_out_marked: 0, no_stock: 0 },
+    waseet: { calls_7d: 0, failed_7d: 0, last_error: null, last_error_at: null },
+    prime: null,
+    whatsapp: { paused: false, pause_reason: null, paused_at: null, sent_7d: 0, delivered_7d: 0, failed_7d: 0 },
+    wallet: { balance_iqd: 0, threshold_iqd: 5000 },
+    orders: { last_at: null, last_7d: 0 },
+    errors: { count_7d: 0, last_message: null, last_path: null, last_at: null },
+    checked_at: "2026-11-16T09:37:53Z",
+  };
+
+  it("turns away a caller with no session", async () => {
+    expect((await check(null)).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("answers 404 for an id that is not a conversation", async () => {
+    expect((await check("support", "nope")).status).toBe(404);
+    expect(dbCalls).toHaveLength(0);
+    dbResult = { data: null, error: null };
+    expect((await check("support")).status).toBe(404);
+    expect(rpcCall()).toBeUndefined();
+  });
+
+  it("checks the shop that wrote the conversation, never one the caller names", async () => {
+    dbQueue.push({ data: { tenant_id: TENANT }, error: null }, { data: FACTS, error: null });
+    const res = await check("support");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ tenantId: TENANT, check: FACTS });
+    expect(rpcCall()?.args).toEqual(["support_shop_check", { p_tenant_id: TENANT }]);
+  });
+
+  it("says it failed when the answer is not the expected shape", async () => {
+    dbQueue.push({ data: { tenant_id: TENANT }, error: null }, { data: { store: {} }, error: null });
+    expect((await check("support")).status).toBe(500);
+  });
+});
