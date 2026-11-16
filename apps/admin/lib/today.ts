@@ -1,12 +1,15 @@
 /*
- * The Today desk (board h1, h2, h3, h6, h7): the shops that need someone now,
- * grouped by why, read from staff_today_desk, and the numbers above the list,
- * read from staff_today_numbers (20261116125015, 20261116125017). The database
- * decides who waits and in which group; this file words each row.
+ * The Today desk (board h1, h2, h3, h6, h7, h8): the shops that need someone
+ * now, grouped by why, read from staff_today_desk; the numbers above the list,
+ * read from staff_today_numbers; and what staff dealt with today, read from
+ * staff_today_handled (20261116125015, 20261116125017, 20261116130612). The
+ * database decides who waits and what counts as handled; this file words each
+ * row.
  */
 import { z } from "zod";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { formatCount, formatDay, formatIQD } from "@/lib/format";
+import { changeTitle } from "@/lib/shop-timeline";
 import type { ShopTone } from "@/lib/shop-status";
 
 export const TODAY_GROUPS = ["money", "locked", "lock_soon", "support"] as const;
@@ -71,9 +74,74 @@ export const todayNumbersSchema = z.object({
 });
 export type TodayNumbers = z.infer<typeof todayNumbersSchema>;
 
+const handledFields = {
+  tenant_id: z.string().uuid(),
+  display_id: z.number().int().nullable(),
+  business_name: z.string(),
+  at: z.string(),
+  /** The staff member: their name, else their email. */
+  who: z.string(),
+};
+
+export const handledSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("receipt"),
+    ...handledFields,
+    outcome: z.enum(["approved", "rejected"]),
+    amount_iqd: num,
+    credited_iqd: num.nullable(),
+    reject_reason: z.string().nullable(),
+  }),
+  z.object({ kind: z.literal("reply"), ...handledFields, case_id: z.string().uuid() }),
+  z.object({
+    kind: z.literal("change"),
+    ...handledFields,
+    action: z.string(),
+    details: z.record(z.string(), z.unknown()).nullable(),
+  }),
+]);
+export type HandledRow = z.infer<typeof handledSchema>;
+
+export const handledTodaySchema = z.object({ handled: z.array(handledSchema) });
+
+/** How many handled rows show before "Show all" (board h8: a short list). */
+export const HANDLED_PREVIEW = 5;
+
 export interface TodayResponse {
   shops: TodayShop[];
   numbers: TodayNumbers;
+  /** What staff dealt with since midnight, newest first (board h8). */
+  handled: HandledRow[];
+}
+
+/** A support step: left out with the Support page for a login that does not handle support. */
+export function isSupportWork(row: HandledRow): boolean {
+  return row.kind === "reply" || (row.kind === "change" && row.action.startsWith("support_"));
+}
+
+/** What was done, in the words of the shop timeline: "Receipt approved, 15,000 IQD". */
+export function handledWords(row: HandledRow): string {
+  switch (row.kind) {
+    case "receipt": {
+      if (row.outcome === "rejected") {
+        const reason = row.reject_reason?.trim();
+        return `Receipt for ${formatIQD(row.amount_iqd)} rejected${reason ? `: ${reason}` : ""}`;
+      }
+      const credited = row.credited_iqd ?? row.amount_iqd;
+      return credited === row.amount_iqd
+        ? `Receipt approved, ${formatIQD(credited)}`
+        : `Receipt for ${formatIQD(row.amount_iqd)} approved, ${formatIQD(credited)} added`;
+    }
+    case "reply":
+      return "Question answered";
+    case "change": {
+      const amount = row.details?.amount_iqd;
+      if ((row.action === "top_up_wallet" || row.action === "top_up") && typeof amount === "number") {
+        return `Added ${formatIQD(amount)}`;
+      }
+      return changeTitle(row.action, row.details) ?? "Changed the shop";
+    }
+  }
 }
 
 /** The rows of each group in the database's order: longest wait, or soonest lock, first. */

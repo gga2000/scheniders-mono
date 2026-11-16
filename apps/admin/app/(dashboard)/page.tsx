@@ -11,12 +11,13 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { formatCount, formatDayTime } from "@/lib/format";
 import { TodayNumbers } from "@/components/today/today-numbers";
 import { TodayList } from "@/components/today/today-list";
+import { HandledToday } from "@/components/today/handled-today";
 import { LoadError } from "@/components/shared/load-error";
 
 /**
  * Today, the console's home page (board h1): the shops that need someone now,
- * grouped by why, with four numbers above them, in place of 18 charts. The
- * charts moved to Numbers.
+ * grouped by why, with four numbers above them and what staff handled today
+ * under them (board h8), in place of 18 charts. The charts moved to Numbers.
  */
 export default function TodayPage() {
   const router = useRouter();
@@ -62,7 +63,7 @@ export default function TodayPage() {
               value={find}
               onChange={(event) => setFind(event.target.value)}
               placeholder="Find a shop by name, number or phone"
-              className="w-80 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] py-2 pl-9 pr-3 text-[15px] text-foreground placeholder:text-foreground/45 focus:border-foreground/40 focus:outline-none"
+              className="w-96 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] py-2 pl-9 pr-3 text-[15px] text-foreground placeholder:text-foreground/45 focus:border-foreground/40 focus:outline-none"
             />
           </label>
         </form>
@@ -76,11 +77,10 @@ export default function TodayPage() {
           Looking for shops that need someone...
         </p>
       ) : today.data && now ? (
-        <TodayList
-          shops={today.data.shops}
-          canCheckReceipts={canCheckReceipts}
-          now={now}
-        />
+        <>
+          <TodayList shops={today.data.shops} canCheckReceipts={canCheckReceipts} now={now} />
+          <HandledToday rows={today.data.handled} />
+        </>
       ) : (
         <LoadError what="who is waiting" error={today.error} onRetry={() => today.refetch()} retrying={today.isFetching} />
       )}
