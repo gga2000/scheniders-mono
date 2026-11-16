@@ -580,12 +580,348 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   .sbar{display:none}
 }
 @media (prefers-reduced-motion:reduce){[data-rv]{opacity:1;transform:none;transition:none}.swipe i{animation:none}}
+
+/* ===================== FEATURES (inside the film stage) =====================
+   After the last scene the film frame shrinks into a phone, the app wakes up inside it,
+   seven app icons fly out to become the chapter rail, then each chapter plays one feature
+   inside the same phone. Everything is driven by the film's scroll (FX.update). */
+.fx{position:absolute;inset:0;z-index:3;pointer-events:none;direction:rtl;visibility:hidden}
+.fx.live{visibility:visible}
+.fxbg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.fxbg .glow{position:absolute;width:150vmax;height:150vmax;left:50%;top:50%;transform:translate(-50%,-50%);opacity:0;
+  background:radial-gradient(closest-side,rgba(229,36,59,.30),rgba(229,36,59,.08) 45%,rgba(0,0,0,0) 70%)}
+.fxbg .grain{position:absolute;inset:0;opacity:0;background:
+  radial-gradient(120% 80% at 50% 110%,rgba(229,36,59,.10),rgba(0,0,0,0) 60%),
+  linear-gradient(180deg,#111214,#0b0b0d)}
+
+/* the phone: same geometry for the transition and every chapter */
+.dev{--W:calc(var(--H) * .4839);position:absolute;left:50%;width:var(--W);height:var(--H);
+  --H:min(600px,calc(100svh - 228px - 92px - env(safe-area-inset-bottom,0px)));
+  bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%)}
+.dev .bz{position:absolute;inset:calc(var(--W) * -.035);border-radius:calc(var(--W) * .17);opacity:0;
+  background:linear-gradient(145deg,#3a3b40,#121316 40%,#2a2b30 70%,#0d0e10);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),inset 0 0 0 1.5px rgba(255,255,255,.10),0 40px 90px rgba(0,0,0,.65),0 0 80px rgba(229,36,59,.18)}
+.dev .scr{position:absolute;inset:0;border-radius:calc(var(--W) * .135);overflow:hidden;background:#f4f4f6;opacity:0}
+.dev .isl{position:absolute;top:calc(var(--W) * .03);left:50%;width:30%;height:calc(var(--W) * .085);transform:translateX(-50%);
+  border-radius:99px;background:#000;z-index:9;opacity:0}
+.dev .shine{position:absolute;inset:0;border-radius:inherit;z-index:8;pointer-events:none;
+  background:linear-gradient(115deg,rgba(255,255,255,.16),rgba(255,255,255,0) 32%,rgba(255,255,255,0) 70%,rgba(255,255,255,.05))}
+/* every app screen is laid out at 300 x 620 and scaled to the phone */
+.sc{position:absolute;top:0;left:0;width:300px;height:620px;transform-origin:0 0;direction:rtl;color:#17181b;
+  font-family:var(--ar);background:#f4f4f6;visibility:hidden}
+.sc .n,.fx .n{font-family:var(--en);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.xsb{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font:600 12px var(--en);direction:ltr;color:#17181b}
+.xsb i{display:inline-block;width:22px;height:10px;border:1.5px solid #17181b;border-radius:3px;position:relative}
+.xsb i::after{content:"";position:absolute;inset:1.5px;right:5px;background:#17181b;border-radius:1px}
+.xab{display:flex;align-items:center;justify-content:space-between;padding:4px 16px 8px}
+.xab h4{margin:0;font:800 19px var(--ar)}
+.xab .xsym{width:22px;height:auto}
+.xab .tg{font:700 10.5px var(--ar);padding:4px 9px;border-radius:99px;background:#fff;box-shadow:0 1px 0 rgba(0,0,0,.05);color:#6b6e76}
+.xcd{background:#fff;border-radius:16px;margin:0 12px 9px;padding:11px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 18px rgba(0,0,0,.04)}
+.xlb{font:700 10.5px var(--ar);color:#6b6e76}
+.xbg{font:800 25px var(--en);letter-spacing:-.01em}
+.xchip{display:inline-flex;align-items:center;gap:4px;font:700 10.5px var(--ar);padding:3px 8px;border-radius:99px;white-space:nowrap}
+.c-new{background:var(--c-new);color:var(--c-new-t)}.c-ok{background:var(--c-ok);color:var(--c-ok-t)}
+.c-del{background:var(--c-del);color:var(--c-del-t)}.c-ret{background:var(--c-ret);color:var(--c-ret-t)}.c-stk{background:var(--c-stk);color:var(--c-stk-t)}
+.c-ink{background:#17181b;color:#fff}
+/* pop-ins driven by [data-at] */
+.sc [data-at]{opacity:0;transform:translateY(10px) scale(.98);transition:opacity .45s ease,transform .55s cubic-bezier(.2,.9,.25,1.15),max-height .5s ease,margin .5s ease,padding .5s ease}
+.sc [data-at].on{opacity:1;transform:none}
+.sc .xgr[data-at]{max-height:0;overflow:hidden;margin-top:0;margin-bottom:0;padding-top:0;padding-bottom:0}
+.sc .xgr[data-at].on{max-height:220px;margin-bottom:9px;padding-top:11px;padding-bottom:11px}
+.sc .xgr.flat[data-at].on{padding-top:0;padding-bottom:0}
+
+/* words of each chapter */
+.fxt{position:absolute;left:max(20px,env(safe-area-inset-left,0px));right:max(20px,env(safe-area-inset-right,0px));
+  top:calc(58px + env(safe-area-inset-top,0px));text-align:center;visibility:hidden}
+.fxt .k{display:inline-flex;align-items:center;gap:7px;font:700 12px var(--ar);color:var(--muted);margin-bottom:6px}
+.fxt .k b{font:700 11px var(--en);letter-spacing:.14em;color:var(--red)}
+.fxt h2{margin:0;font:800 clamp(25px,6.7vw,46px)/1.16 var(--ar);text-wrap:balance}
+.fxt p{margin:7px auto 0;max-width:34ch;font:600 clamp(14px,3.8vw,17px)/1.45 var(--ar);color:rgba(255,255,255,.78);text-wrap:balance}
+.fxt .w{display:inline-block;white-space:pre;will-change:opacity,transform,filter}
+.fxt .pf{display:none}
+
+/* chapter rail (takes the clock's place) */
+.rail{position:absolute;top:calc(9px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));z-index:5;
+  display:flex;gap:4px;direction:rtl;pointer-events:none}
+.rail button{all:unset;position:relative;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;cursor:pointer;
+  color:rgba(255,255,255,.55);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);opacity:0;
+  transition:background .3s,color .3s,box-shadow .3s}
+.rail.live button{pointer-events:auto}
+.rail button svg{width:17px;height:17px}
+.rail button::after{content:"";position:absolute;left:6px;right:6px;bottom:-5px;height:2px;border-radius:2px;background:rgba(255,255,255,.14)}
+.rail button i{position:absolute;right:6px;bottom:-5px;height:2px;border-radius:2px;background:var(--red);width:0;z-index:1;box-shadow:0 0 6px rgba(229,36,59,.8)}
+.rail button.on{color:#fff;background:var(--red);box-shadow:0 6px 18px rgba(229,36,59,.45)}
+.rail button.done{color:#fff}
+.rail button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* ---------- intro screen: the app's home ---------- */
+.s0 .xhi{padding:2px 16px 10px}
+.s0 .xhi small{font:700 11px var(--ar);color:#6b6e76}
+.s0 .xhi b{display:block;font:800 21px var(--ar)}
+.s0 .xkp{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin:0 12px 9px}
+.s0 .xkp div{background:#fff;border-radius:14px;padding:9px 9px 8px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.s0 .xkp b{display:block;font:800 17px var(--en);margin-top:2px}
+.s0 .xkp em{font:700 9.5px var(--en);font-style:normal;color:var(--c-ok-t)}
+.s0 .xspark{height:74px;display:flex;align-items:flex-end;gap:5px;padding-top:6px}
+.s0 .xspark i{flex:1;border-radius:5px 5px 2px 2px;background:linear-gradient(#ff5a6c,#E5243B);opacity:.9}
+.s0 .xtiles{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:0 12px}
+.s0 .xtiles div{background:#fff;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:3px;font:700 11px var(--ar);color:#6b6e76}
+.s0 .xtiles b{font:800 18px var(--en);color:#17181b}
+
+/* ---------- 1 · store editor ---------- */
+.s1 .xeb{display:flex;align-items:center;gap:6px;padding:0 12px 8px}
+.s1 .xeb .xseg{display:flex;background:#fff;border-radius:99px;padding:3px;gap:2px;font:700 10px var(--ar)}
+.s1 .xeb .xseg span{padding:3px 8px;border-radius:99px}.s1 .xeb .xseg span:first-child{background:#17181b;color:#fff}
+.s1 .xeb .xpub{margin-right:auto;font:800 11px var(--ar);color:#fff;background:#17181b;border-radius:99px;padding:6px 12px;transition:background .3s,transform .3s}
+.s1.s-pub .xeb .xpub{background:#17a34a;transform:scale(1.06)}
+.s1 .xpv{margin:0 12px;border-radius:16px;overflow:hidden;background:#fff;height:440px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.05);
+  --acc:#c9902f;--acc2:#fff4dc;transition:--acc .4s}
+.s1.s-t2 .xpv{--acc:#E5243B;--acc2:#ffe6e9}
+.s1.s-t3 .xpv{--acc:#0f8b8d;--acc2:#dff6f5}
+.s1 .xan{background:#17181b;color:#fff;font:700 9.5px var(--ar);text-align:center;padding:5px}
+.s1 .xan b{font-family:var(--en);color:var(--acc);transition:color .4s}
+.s1 .xnv{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font:800 13px var(--ar)}
+.s1 .xnv i{width:16px;height:10px;border-top:2px solid #17181b;border-bottom:2px solid #17181b;position:relative}
+.s1 .xhero{margin:0 10px;border-radius:14px;height:150px;position:relative;overflow:hidden;
+  background:radial-gradient(90% 90% at 25% 70%,var(--acc2),#fff 70%);transition:background .5s}
+.s1 .xhero h5{position:absolute;right:12px;top:22px;margin:0;font:800 17px/1.15 var(--ar);width:55%}
+.s1 .xhero .xbtn{position:absolute;right:12px;bottom:18px;font:800 10px var(--ar);color:#fff;background:var(--acc);border-radius:99px;padding:6px 12px;transition:background .4s}
+.s1 .xbottle{position:absolute;left:22px;bottom:14px;width:62px;height:96px}
+.s1 .xbottle::before{content:"";position:absolute;left:21px;top:0;width:20px;height:18px;border-radius:5px 5px 2px 2px;background:#2a2116}
+.s1 .xbottle::after{content:"";position:absolute;left:0;top:16px;width:62px;height:80px;border-radius:14px 14px 18px 18px;
+  background:linear-gradient(120deg,rgba(255,255,255,.55),rgba(255,255,255,0) 40%),linear-gradient(var(--acc),#3b2a12);transition:background .5s}
+.s1 .xtr{display:flex;justify-content:space-around;padding:9px 6px;font:700 9px var(--ar);color:#6b6e76}
+.s1 .xtr span{display:flex;align-items:center;gap:4px}.s1 .xtr b{width:6px;height:6px;border-radius:50%;background:var(--acc);transition:background .4s}
+.s1 .xgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 10px}
+.s1 .xgrid div{height:62px;border-radius:12px;background:var(--acc2);position:relative;transition:background .5s}
+.s1 .xgrid div::after{content:"";position:absolute;right:8px;bottom:8px;width:44%;height:6px;border-radius:3px;background:rgba(0,0,0,.18)}
+.s1 .xgrid div::before{content:"";position:absolute;left:8px;bottom:8px;width:24%;height:6px;border-radius:3px;background:var(--acc)}
+.s1 .xdrag{position:absolute;left:24px;top:300px;font:800 10.5px var(--ar);background:#17181b;color:#fff;border-radius:10px;padding:7px 10px;
+  box-shadow:0 10px 24px rgba(0,0,0,.25);display:flex;gap:6px;align-items:center;opacity:0;transform:translate(-90px,120px) rotate(-6deg);
+  transition:opacity .35s,transform .7s cubic-bezier(.2,.9,.25,1)}
+.s1.s-drag .xdrag{opacity:1;transform:translate(0,0) rotate(-3deg)}
+.s1.s-drop .xdrag{opacity:0;transform:translate(0,10px) scale(.9)}
+.s1 .xsw{display:flex;gap:7px;align-items:center;padding:10px 14px 0;font:700 10px var(--ar);color:#6b6e76}
+.s1 .xsw i{width:20px;height:20px;border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 3px transparent;transition:box-shadow .3s}
+.s1 .xsw i:nth-of-type(1){background:#c9902f}.s1 .xsw i:nth-of-type(2){background:#E5243B}.s1 .xsw i:nth-of-type(3){background:#0f8b8d}
+.s1 .xsw i:nth-of-type(1){box-shadow:0 0 0 2px #fff,0 0 0 4px #17181b}
+.s1.s-t2 .xsw i:nth-of-type(1){box-shadow:0 0 0 2px #fff,0 0 0 3px transparent}.s1.s-t2 .xsw i:nth-of-type(2){box-shadow:0 0 0 2px #fff,0 0 0 4px #17181b}
+.s1.s-t3 .xsw i:nth-of-type(2){box-shadow:0 0 0 2px #fff,0 0 0 3px transparent}.s1.s-t3 .xsw i:nth-of-type(3){box-shadow:0 0 0 2px #fff,0 0 0 4px #17181b}
+.s1 .xlive{position:absolute;left:12px;right:12px;bottom:14px;background:#17181b;color:#fff;border-radius:14px;padding:10px 12px;display:flex;gap:9px;align-items:center;
+  font:800 12px var(--ar);opacity:0;transform:translateY(16px);transition:opacity .4s,transform .5s cubic-bezier(.2,.9,.25,1.2)}
+.s1 .xlive small{display:block;font:600 10.5px var(--en);color:#b9bcc4;direction:ltr;text-align:right}
+.s1 .xlive .xok{width:26px;height:26px;border-radius:50%;background:#17a34a;display:grid;place-items:center;flex:none}
+.s1.s-pub .xlive{opacity:1;transform:none}
+
+/* ---------- 2 · orders ---------- */
+.s2 .xpipe{display:flex;gap:5px;padding:0 12px 9px;overflow:hidden}
+.s2 .xpipe .xchip{font-size:10px;padding:4px 8px}
+.s2 .xpipe .xchip b{font:800 10.5px var(--en);background:rgba(255,255,255,.7);border-radius:99px;padding:0 5px;min-width:12px;text-align:center}
+.s2 .xsrc{display:flex;gap:5px;padding:0 12px 8px}
+.s2 .xsrc span{font:700 10px var(--ar);display:flex;align-items:center;gap:4px;background:#fff;border-radius:99px;padding:4px 8px;color:#6b6e76}
+.s2 .xsrc span i{width:7px;height:7px;border-radius:50%}
+.xoc{position:relative;background:#fff;border-radius:14px;margin:0 12px 7px;padding:9px 10px 9px 10px;box-shadow:0 1px 2px rgba(0,0,0,.05);
+  border-right:4px solid var(--b,#ececef);display:grid;grid-template-columns:1fr auto;gap:3px 8px}
+.xoc .xnm{font:800 12.5px var(--ar);display:flex;gap:6px;align-items:center}
+.xoc .xid{font:700 10px var(--en);color:#6b6e76}
+.xoc .xam{font:800 13.5px var(--en);text-align:left}
+.xoc .xrow{grid-column:1/-1;display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.xoc .xring{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:800 8.5px var(--en);background:conic-gradient(var(--rc,#17a34a) calc(var(--v,90)*1%),#ececef 0);position:relative}
+.xoc .xring::before{content:"";position:absolute;inset:2.5px;border-radius:50%;background:#fff}
+.xoc .xring span{position:relative}
+.s2 .xdup{--b:#E5243B;transition:max-height .5s ease,opacity .4s ease,transform .5s ease,margin .5s,padding .5s;max-height:120px}
+.s2 .xdup .xwarn{grid-column:1/-1;display:flex;align-items:center;gap:6px;font:800 10.5px var(--ar);color:var(--c-ret-t);background:var(--c-ret);border-radius:9px;padding:5px 7px;margin-top:2px}
+.s2 .xdup .xwarn u{margin-right:auto;text-decoration:none;background:#17181b;color:#fff;border-radius:99px;padding:2px 8px}
+.s2.s-merge .xoc.xdup.xgr.on{max-height:0;opacity:0;transform:translateY(-30px) scale(.94);margin-bottom:0;padding-top:0;padding-bottom:0;overflow:hidden}
+.s2 .xst{transition:background .3s,color .3s}
+.s2 .xwa{font:700 10px var(--ar);color:#17a34a;display:none;align-items:center;gap:3px}
+.s2.s-read .xwa{display:inline-flex}
+.s2 .ok1 .xst{background:var(--c-new);color:var(--c-new-t)}
+.s2.s-conf .ok1 .xst{background:var(--c-ok);color:var(--c-ok-t)}
+.s2.s-ship .ok1 .xst{background:var(--c-del);color:var(--c-del-t)}
+.s2 .ok1{transition:box-shadow .4s}
+.s2.s-conf .ok1{box-shadow:0 0 0 2px var(--c-ok),0 6px 18px rgba(23,115,58,.12)}
+.s2 .xprime{grid-column:1/-1;display:flex;align-items:center;gap:6px;font:700 10px var(--ar);color:#6b6e76;max-height:0;overflow:hidden;transition:max-height .5s}
+.s2.s-ship .xprime{max-height:30px}
+.s2 .xprime .xtk{flex:1;height:5px;border-radius:5px;background:#ececef;position:relative;overflow:hidden}
+.s2 .xprime .xtk::after{content:"";position:absolute;inset:0;width:0;background:linear-gradient(90deg,#2754a8,#5b8def);border-radius:5px;transition:width 1.2s ease}
+.s2.s-ship .xprime .xtk::after{width:62%}
+
+/* ---------- 3 · shield ---------- */
+.s3 .xwho{display:flex;gap:10px;align-items:center}
+.s3 .xav{width:40px;height:40px;border-radius:50%;background:#ececef;display:grid;place-items:center;font:800 16px var(--ar);color:#6b6e76;flex:none}
+.s3 .xwho b{display:block;font:800 13.5px var(--ar)}
+.s3 .xwho small{font:600 10.5px var(--en);color:#6b6e76}
+.s3 .xscan{position:relative;overflow:hidden}
+.s3 .xscan::after{content:"";position:absolute;left:0;right:0;top:-40%;height:40%;background:linear-gradient(rgba(229,36,59,0),rgba(229,36,59,.16),rgba(229,36,59,0));
+  animation:fxscan 1.6s linear infinite}
+.s3.s-done .xscan::after{display:none}
+@keyframes fxscan{to{top:110%}}
+.s3 .xtag{margin-right:auto;font:800 10px var(--ar);padding:3px 8px;border-radius:99px;background:#ececef;color:#6b6e76;transition:background .3s,color .3s}
+.s3.s-done .xtag{background:var(--c-ret);color:var(--c-ret-t)}
+.s3 .xmid{display:grid;grid-template-columns:104px 1fr;gap:10px;align-items:center}
+.s3 .xgauge{position:relative;width:104px;height:104px}
+.s3 .xgauge svg{width:104px;height:104px;transform:rotate(-90deg)}
+.s3 .xgauge .v{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.s3 .xgauge .v b{font:800 28px var(--en);color:#E5243B;line-height:1}
+.s3 .xgauge .v small{display:block;font:700 9.5px var(--ar);color:#6b6e76;margin-top:2px}
+.s3 .xwhy{display:flex;flex-direction:column;gap:5px;font:700 10.5px var(--ar)}
+.s3 .xwhy span{display:flex;gap:6px;align-items:center}
+.s3 .xwhy i{width:7px;height:7px;border-radius:50%;background:#E5243B;flex:none}
+.s3 .xwhy i.g{background:#17a34a}
+.s3 .xseq{display:flex;gap:5px;margin-top:6px}
+.s3 .xseq span{flex:1;height:26px;border-radius:8px;display:grid;place-items:center;font:800 9.5px var(--ar)}
+.s3 .xvs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.s3 .xvs div{background:#f4f4f6;border-radius:10px;padding:6px 8px;font:700 9.5px var(--ar);color:#6b6e76}
+.s3 .xvs b{display:block;font:800 13px var(--en);color:#17181b;margin-top:1px}
+.s3 .xadv{background:#17181b;color:#fff}
+.s3 .xadv b{display:block;font:800 13.5px var(--ar)}
+.s3 .xadv small{font:600 10.5px var(--ar);color:#c9ccd3}
+.s3 .xadv .xbt{display:flex;gap:6px;margin-top:8px}
+.s3 .xadv .xbt span{flex:1;text-align:center;font:800 11px var(--ar);padding:7px;border-radius:10px;background:rgba(255,255,255,.1)}
+.s3 .xadv .xbt span:first-child{background:#E5243B}
+.s3 .ximp{display:flex;align-items:center;gap:10px}
+.s3 .ximp .xic{width:34px;height:34px;border-radius:11px;background:var(--c-ok);color:var(--c-ok-t);display:grid;place-items:center;flex:none}
+.s3 .ximp b{font:800 13px var(--ar)}
+.s3 .ximp small{display:block;font:600 10px var(--ar);color:#6b6e76}
+
+/* ---------- 4 · money ---------- */
+.s4 .xnet .xbg{font-size:30px;color:#17181b}
+.s4 .xnet .xrow{display:flex;justify-content:space-between;align-items:baseline}
+.s4 .xnet em{font:700 10.5px var(--en);font-style:normal;color:var(--c-ok-t);background:var(--c-ok);border-radius:99px;padding:2px 7px}
+.xwf{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.xwf div{display:grid;grid-template-columns:78px 1fr 64px;gap:6px;align-items:center;font:700 10px var(--ar);color:#6b6e76}
+.xwf div b{font:700 10px var(--en);color:#17181b;text-align:left}
+.xwf i{height:12px;border-radius:4px;position:relative;background:#f1f1f4;overflow:hidden}
+.xwf i::after{content:"";position:absolute;top:0;bottom:0;right:var(--s,0%);width:0;border-radius:4px;background:var(--c,#E5243B);transition:width .8s cubic-bezier(.2,.9,.25,1)}
+.xwf div.on i::after{width:var(--w)}
+.xwf div{opacity:.35;transition:opacity .4s}
+.xwf div.on{opacity:1}
+.s4 .xper{font:800 13.5px/1.45 var(--ar)}
+.s4 .xper b{font-family:var(--en);color:#E5243B}
+.xroad{display:flex;align-items:flex-start;gap:0;margin-top:6px}
+.xroad div{flex:1;text-align:center;font:700 9.5px var(--ar);color:#6b6e76;position:relative}
+.xroad div i{display:block;width:30px;height:30px;margin:0 auto 4px;border-radius:50%;display:grid;place-items:center;background:#f1f1f4;color:#6b6e76}
+.xroad div b{display:block;font:800 11.5px var(--en);color:#17181b}
+.xroad div:not(:last-child)::after{content:"";position:absolute;top:15px;left:-30%;width:60%;height:2px;background:repeating-linear-gradient(90deg,#c9ccd3 0 4px,transparent 4px 8px);
+  animation:fxroad 1s linear infinite}
+@keyframes fxroad{to{background-position:-8px 0}}
+.xroad div.xme i{background:#17181b;color:#fff}
+
+/* ---------- 5 · team ---------- */
+.s5 .xros{display:flex;justify-content:space-between}
+.s5 .xros div{display:flex;flex-direction:column;align-items:center;gap:3px;font:700 9.5px var(--ar);color:#6b6e76;width:23%}
+.s5 .xros b{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font:800 15px var(--ar);color:#fff}
+.s5 .xros b::after{content:"";position:absolute;right:0;bottom:1px;width:11px;height:11px;border-radius:50%;background:var(--p,#17a34a);box-shadow:0 0 0 2px #fff}
+.s5 .xros b.away::after{--p:#f0b429}
+.s5 .xros b.on::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid #17a34a;opacity:.5;animation:fxpulse 1.8s ease-out infinite}
+@keyframes fxpulse{from{transform:scale(.9);opacity:.6}to{transform:scale(1.25);opacity:0}}
+.xfeed div{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f1f1f4;font:700 11px var(--ar)}
+.xfeed div:last-child{border-bottom:0}
+.xfeed i{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;flex:none;font:800 10px var(--ar);color:#fff}
+.xfeed small{margin-right:auto;font:600 9.5px var(--ar);color:#9a9da5;white-space:nowrap}
+.xfeed.xgr.on{padding-top:4px;padding-bottom:4px}
+.s5 .xgl{display:flex;align-items:center;gap:10px}
+.s5 .xgl .xrg{width:50px;height:50px;border-radius:50%;background:conic-gradient(#E5243B calc(var(--g,0)*1%),#f1f1f4 0);display:grid;place-items:center;position:relative;flex:none;transition:--g .6s}
+.s5 .xgl .xrg::before{content:"";position:absolute;inset:6px;border-radius:50%;background:#fff}
+.s5 .xgl .xrg span{position:relative;font:800 12px var(--en)}
+.s5 .xgl b{font:800 12.5px var(--ar)}.s5 .xgl small{display:block;font:600 10px var(--ar);color:#6b6e76}
+.s5 .xperm{display:flex;justify-content:space-between;align-items:center;font:700 11px var(--ar)}
+.xtog{width:34px;height:20px;border-radius:99px;background:#17a34a;position:relative;transition:background .3s;flex:none}
+.xtog::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .3s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.s5.s-off .xtog.x{background:#c9ccd3}.s5.s-off .xtog.x::after{left:16px}
+.s5 .xpay{font:700 11px/1.5 var(--ar)}
+.s5 .xpay b{font-family:var(--en)}
+
+/* ---------- 6 · till ---------- */
+.s6 .xscanbox{position:relative;height:70px;border-radius:14px;background:#17181b;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.s6 .xscanbox .xcode{display:flex;gap:2px;height:36px}
+.s6 .xscanbox .xcode i{width:2px;background:#fff;opacity:.85}
+.s6 .xscanbox .xcode i:nth-child(3n){width:4px}.s6 .xscanbox .xcode i:nth-child(5n){width:1px}
+.s6 .xscanbox::after{content:"";position:absolute;left:12px;right:12px;height:2px;top:20%;background:#E5243B;box-shadow:0 0 12px 2px rgba(229,36,59,.8);animation:fxbeam 1.2s ease-in-out infinite alternate}
+@keyframes fxbeam{to{top:78%}}
+.s6 .xbeep{position:absolute;top:8px;left:10px;font:800 10px var(--ar);color:#fff;background:#17a34a;border-radius:99px;padding:3px 8px;opacity:0;transition:opacity .2s}
+.s6.s-b1 .xbeep{opacity:1}
+.xcart div{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f1f4;font:700 11.5px var(--ar)}
+.xcart div:last-child{border-bottom:0}
+.xcart div i{width:28px;height:28px;border-radius:9px;flex:none;background:linear-gradient(135deg,#f6e3c0,#c9902f)}
+.xcart div small{display:block;font:700 9.5px var(--ar);color:var(--c-stk-t)}
+.xcart div b{margin-right:auto;font:800 11.5px var(--en)}
+.xcart .xgr.on{padding-top:6px;padding-bottom:6px;margin-bottom:0}
+.s6 .xtot{display:flex;justify-content:space-between;align-items:baseline;font:800 13px var(--ar)}
+.s6 .xtot b{font:800 22px var(--en)}
+.s6 .xnotes{display:flex;gap:6px;margin-top:8px}
+.s6 .xnotes span{flex:1;text-align:center;font:800 10.5px var(--en);padding:7px 0;border-radius:9px;background:#e9f4ec;color:#17733a;transition:transform .2s,background .2s}
+.s6.s-n1 .xnotes span:nth-child(1),.s6.s-n2 .xnotes span:nth-child(2){background:#17733a;color:#fff;transform:scale(.94)}
+.s6 .xchg{display:flex;justify-content:space-between;font:800 12px var(--ar);margin-top:8px;color:#17733a}
+.s6 .xchg b{font-family:var(--en)}
+.s6 .xsync{display:flex;gap:9px;align-items:center;background:#17181b;color:#fff}
+.s6 .xsync .xic{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.1);display:grid;place-items:center;flex:none}
+.s6 .xsync b{font:800 12px var(--ar)}.s6 .xsync small{display:block;font:600 10px var(--ar);color:#c9ccd3}
+
+/* ---------- 7 · meta ads ---------- */
+.s7 .xhon{background:#17181b;color:#fff}
+.s7 .xhon small{font:700 10px var(--ar);color:#c9ccd3}
+.s7 .xhon p{margin:3px 0 0;font:800 13px/1.5 var(--ar)}
+.s7 .xhon p b{font-family:var(--en)}
+.s7 .xhon p s{color:#9a9da5;text-decoration-thickness:2px;text-decoration-color:#E5243B}
+.s7 .xbe{display:flex;justify-content:space-between;align-items:center;font:700 10.5px var(--ar);color:#6b6e76;margin-bottom:4px}
+.s7 .xbe b{font:800 11px var(--en);color:#17181b}
+.xcmp div{display:grid;grid-template-columns:1fr 62px;gap:2px 8px;align-items:center;padding:7px 0;border-bottom:1px solid #f1f1f4;font:800 11px var(--ar)}
+.xcmp div:last-child{border-bottom:0}
+.xcmp small{grid-column:1;font:600 9.5px var(--ar);color:#9a9da5}
+.xcmp .cp{grid-row:1/3;grid-column:2;text-align:center;font:800 11px var(--en);border-radius:9px;padding:6px 0}
+.xcmp .g{background:var(--c-ok);color:var(--c-ok-t)}.xcmp .r{background:var(--c-ret);color:var(--c-ret-t)}
+.xcmp .bar2{grid-column:1;height:5px;border-radius:5px;background:#f1f1f4;position:relative;overflow:hidden}
+.xcmp .bar2 i{position:absolute;inset:0;width:0;border-radius:5px;transition:width .8s cubic-bezier(.2,.9,.25,1)}
+.xcmp div.on .bar2 i{width:var(--w)}
+.s7 .xtired{display:flex;gap:8px;align-items:center;background:var(--c-stk);color:var(--c-stk-t);font:800 11px var(--ar)}
+.s7 .xtired small{display:block;font:600 10px var(--ar)}
+.s7 .xcov{display:flex;align-items:center;gap:10px;font:700 11px var(--ar)}
+.s7 .xcov .xpc{font:800 20px var(--en);color:#17a34a}
+
+/* desktop: words beside the phone */
+@media (min-width:900px){
+  .dev{--H:min(680px,calc(100svh - 150px));left:30%;bottom:auto;top:calc(50% + 10px);transform:translate(-50%,-50%)}
+  .fxt{left:auto;right:max(6vw,40px);width:min(500px,40vw);top:50%;transform:translateY(-50%);text-align:right}
+  .fxt h2{font-size:clamp(36px,3.6vw,54px)}
+  .fxt p{margin:12px 0 0;font-size:18px;max-width:36ch}
+  .fxt .pf{display:flex;flex-direction:column;gap:8px;margin:18px 0 0;padding:0;list-style:none}
+  .fxt .pf li{display:flex;gap:10px;align-items:center;font:600 15px var(--ar);color:rgba(255,255,255,.82)}
+  .fxt .pf li::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--red);flex:none}
+  .rail{left:50%;transform:translateX(-50%);gap:8px}
+  .rail button{width:40px;height:40px;border-radius:12px}
+  .rail button svg{width:19px;height:19px}
+}
+@media (max-height:700px) and (max-width:899px){
+  .fxt p{display:none}
+  .dev{--H:min(600px,calc(100svh - 168px - 92px - env(safe-area-inset-bottom,0px)))}
+}
+
+/* light mentions after the film */
+.more2{padding:72px 0 56px;overflow:hidden}
+.more2 .rh{max-width:16ch}
+.more2 .rh b{font-family:var(--en);color:var(--red)}
+.mq{display:flex;gap:8px;width:max-content;animation:fxmq 46s linear infinite;margin-top:10px}
+.mq.rev{animation-direction:reverse;animation-duration:54s}
+.mq span{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font:700 14px var(--ar);color:#fff;padding:10px 14px;border-radius:99px;
+  background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+.mq span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--red)}
+@keyframes fxmq{to{transform:translateX(50%)}}
+.more2 .mqw{margin-top:22px;-webkit-mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.more2 .end{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;text-align:center}
+.more2 .end small{font:500 12px var(--ar);color:rgba(255,255,255,.5)}
+@media (prefers-reduced-motion:reduce){.mq{animation:none;flex-wrap:wrap;width:auto}.mq .d{display:none}.mq.rev{display:none}.s3 .xscan::after,.s6 .xscanbox::after,.xroad div::after,.s5 .xros b.on::before{animation:none}}
+/* the film chrome (clock + logo) sits above the FX layer; it holds nothing clickable, so let taps reach the rail */
+.chrome{pointer-events:none}
 </style>
 </head>
 <body>
 
 <section class="film" id="film" aria-label="Fermi film: a merchant's day">
   <div class="stage">
+    <div class="fxbg" id="fxbg"><div class="grain"></div><div class="glow"></div></div>
     <canvas id="cv" role="img" aria-label="Film of a merchant's day in a Baghdad home, from morning chaos to a delivered order at sunset"></canvas>
     <div class="shade"></div>
     <div class="bar" id="bar"></div>
@@ -850,6 +1186,251 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
       <div class="sub">جرّبه على طلباتك الحقيقية. <span class="n">7</span> أيام مجاناً بالكامل.</div>
     </div>
 
+
+    <!-- ===== FEATURES: the film frame becomes a phone, then 7 chapters play inside it ===== -->
+    <div class="fx" id="fx" aria-label="أهم 7 ميزات بفيرمي">
+
+      <div class="fxt" data-c="0">
+        <div class="k"><b class="n">18:30</b> وبعد؟</div>
+        <h2 class="kt">هذا اليوم كله… <span class="hl">بتطبيق واحد.</span></h2>
+        <p class="kt">7 أشياء تخلي فيرمي أقوى نظام طلبات بالعراق.</p>
+      </div>
+      <div class="fxt" data-c="1">
+        <div class="k"><b class="n">01</b> متجرك أونلاين</div>
+        <h2 class="kt">موقع مجاني. <span class="hl">وتعدّله بإيدك.</span></h2>
+        <p class="kt">أكثر من 60 قسم جاهز، تسحب وتحط. 3 لغات ودومين باسمك. ينبني بثواني.</p>
+        <ul class="pf"><li>6 ستايلات جاهزة، وألوانك تنسحب من اللوغو</li><li>فورم طلب بصفحة المنتج، الدفع عند الاستلام</li><li>نسخ واختبارات A/B ومواعيد للعروض</li></ul>
+      </div>
+      <div class="fxt" data-c="2">
+        <div class="k"><b class="n">02</b> إدارة الطلبات</div>
+        <h2 class="kt">أقوى نظام طلبات <span class="hl">بالعراق.</span></h2>
+        <p class="kt">الانستا والواتساب والموقع بقائمة وحدة. يكشف المكرر ويأكد بالواتساب.</p>
+        <ul class="pf"><li>192 ميزة بصفحة الطلبات وحدها</li><li>رسالة تأكيد بضغطة، وتشوف إذا الزبون قراها</li><li>ربط مباشر ويا شركة التوصيل لحد ما توصل الفلوس</li></ul>
+      </div>
+      <div class="fxt" data-c="3">
+        <div class="k"><b class="n">03</b> الدرع</div>
+        <h2 class="kt">يكشف اللي يرفض <span class="hl">قبل لا تشحن.</span></h2>
+        <p class="kt">كل طلب ياخذ نقاط ثقة من سجل الزبون. إذا رفض قبل، ينبّهك وانت تقرر.</p>
+        <ul class="pf"><li>سجل الزبون بمتجرك وبمتاجر ثانية على فيرمي</li><li>ما نذكر اسم أي متجر، ولا نشارك أسعار أو عناوين</li><li>يشتغل بكل الباقات، وما ينطفي</li></ul>
+      </div>
+      <div class="fxt" data-c="4">
+        <div class="k"><b class="n">04</b> الفلوس</div>
+        <h2 class="kt">ربحك الحقيقي. <span class="hl">مو تخمين.</span></h2>
+        <p class="kt">البضاعة والتوصيل والراجع والإعلان والرواتب محسوبة. ووين فلوسك هسه.</p>
+        <ul class="pf"><li>الربح ينحسب على يوم التوصيل، مو يوم الطلب</li><li>شكد طلب تحتاج باليوم حتى تغطي مصاريفك</li><li>ربح كل منتج، وكل حملة، وكل محافظة</li></ul>
+      </div>
+      <div class="fxt" data-c="5">
+        <div class="k"><b class="n">05</b> الفريق</div>
+        <h2 class="kt">فريقك قدامك، <span class="hl">حتى لو انت برا.</span></h2>
+        <p class="kt">منو أكد، منو طبع، منو غيّر سعر. صلاحيات وأهداف ورواتب بالطلب.</p>
+        <ul class="pf"><li>سجل كامل لكل حركة على كل طلب</li><li>صلاحيات لكل شخص: منو يشوف الأرباح ومنو لا</li><li>راتب أساسي ومكافأة على كل طلب واصل</li></ul>
+      </div>
+      <div class="fxt" data-c="6">
+        <div class="k"><b class="n">06</b> المحل والكاشير</div>
+        <h2 class="kt">محلك وموقعك <span class="hl">بمخزن واحد.</span></h2>
+        <p class="kt">كاشير على أي تلفون. القطعة اللي تنباع بالمحل تنزل من الموقع بنفس اللحظة.</p>
+        <ul class="pf"><li>سكان باركود، كاش وكارت وزين كاش</li><li>وصل يطبع أو ينرسل بالواتساب</li><li>رمز سري لكل كاشير وحد للخصم</li></ul>
+      </div>
+      <div class="fxt" data-c="7">
+        <div class="k"><b class="n">07</b> إعلانات ميتا</div>
+        <h2 class="kt">تعرف أي إعلان <span class="hl">يجيب فلوس.</span></h2>
+        <p class="kt">صرفك جنب الطلبات اللي وصلت فعلاً. كلفة الطلب الواصل لكل حملة.</p>
+        <ul class="pf"><li>خط تعادل: شكد يتحمل الطلب الواصل إعلان</li><li>ينبّهك إذا الإعلان تعب، ويقترح تبدله</li><li>كل طلب يعرف من أي حملة إجه</li></ul>
+      </div>
+
+      <div class="dev" id="dev">
+        <div class="bz"></div>
+        <div class="scr" id="scr">
+          <div class="isl"></div>
+          <div class="shine"></div>
+
+          <!-- 0 · home -->
+          <div class="sc s0" data-c="0">
+            <div class="xsb"><span class="n">18:30</span><i></i></div>
+            <div class="xab"><svg class="xsym" viewBox="0 0 114.02 100" aria-hidden="true"><use href="#fsym"/></svg><span class="tg">اليوم</span></div>
+            <div class="xhi"><small>مساء الخير</small><b>ليالي للعطور</b></div>
+            <div class="xkp">
+              <div><span class="xlb">طلبات اليوم</span><b class="n">47</b><em class="n">+12</em></div>
+              <div><span class="xlb">واصلة</span><b class="n">39</b><em class="n">83%</em></div>
+              <div><span class="xlb">صافي اليوم</span><b class="n">412k</b><em class="n">+9%</em></div>
+            </div>
+            <div class="xcd"><span class="xlb">الطلبات حسب الساعة</span>
+              <div class="xspark"><i style="height:22%"></i><i style="height:35%"></i><i style="height:28%"></i><i style="height:52%"></i><i style="height:64%"></i><i style="height:48%"></i><i style="height:80%"></i><i style="height:100%"></i><i style="height:72%"></i><i style="height:58%"></i></div>
+            </div>
+            <div class="xtiles">
+              <div>تنتظر تأكيد<b class="n">6</b></div><div>بالطريق<b class="n">46</b></div>
+              <div>زبون خطر<b class="n">2</b></div><div>تنطبع اليوم<b class="n">18</b></div>
+            </div>
+          </div>
+
+          <!-- 1 · store editor -->
+          <div class="sc s1" data-c="1" data-k=".42:drag,.55:drop,.66:t2,.78:t3,.9:pub">
+            <div class="xsb"><span class="n">18:31</span><i></i></div>
+            <div class="xab"><h4>محرر المتجر</h4><span class="tg">يحفظ تلقائياً</span></div>
+            <div class="xeb"><span class="xseg"><span>بسيط</span><span>متقدم</span></span><span class="xpub">نشر</span></div>
+            <div class="xpv">
+              <div class="xan" data-at=".05">ينتهي العرض بعد <b class="n">03:12:40</b></div>
+              <div class="xnv" data-at=".1"><i></i>ليالي<span style="width:16px"></span></div>
+              <div class="xhero" data-at=".18"><h5>عطور تليق بيك، بسعر يناسبك</h5><span class="xbtn">اطلب هسه</span><span class="xbottle"></span></div>
+              <div class="xtr" data-at=".3"><span><b></b>الدفع عند الاستلام</span><span><b></b>18 محافظة</span><span><b></b>توصيل 24 ساعة</span></div>
+              <div class="xgrid" data-at=".55"><div></div><div></div><div></div><div></div></div>
+            </div>
+            <div class="xsw">لون المتجر<i></i><i></i><i></i></div>
+            <div class="xdrag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>شبكة منتجات</div>
+            <div class="xlive"><span class="xok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><div>متجرك صار لايف<small>layali.usefermi.com</small></div></div>
+          </div>
+
+          <!-- 2 · orders -->
+          <div class="sc s2" data-c="2" data-k=".4:merge,.58:read,.68:conf,.84:ship">
+            <div class="xsb"><span class="n">18:32</span><i></i></div>
+            <div class="xab"><h4>الطلبات</h4><span class="tg">اليوم</span></div>
+            <div class="xpipe">
+              <span class="xchip c-new">جديد <b class="n" data-count="12" data-c0=".02" data-c1=".3">12</b></span>
+              <span class="xchip c-ok">مؤكد <b class="n" data-count="31" data-c0=".02" data-c1=".3">31</b></span>
+              <span class="xchip c-del">بالطريق <b class="n" data-count="46" data-c0=".02" data-c1=".3">46</b></span>
+              <span class="xchip c-ok">واصل <b class="n" data-count="128" data-c0=".02" data-c1=".3">128</b></span>
+            </div>
+            <div class="xsrc"><span><i style="background:#d62976"></i>انستا</span><span><i style="background:#25d366"></i>واتساب</span><span><i style="background:#17181b"></i>الموقع</span></div>
+            <div class="xoc ok1 xgr" data-at=".08" style="--b:#f0b429">
+              <div class="xnm">زهراء ك. <span class="xring" style="--v:94"><span class="n">94</span></span></div><div class="xam n">34,750</div>
+              <div class="xrow"><span class="xid n">#4412</span><span class="xchip c-new xst" data-done=".68" data-t0="جديد" data-t1="مؤكد">جديد</span><span class="xchip" style="background:#fdeef6;color:#b0105c">انستا</span><span class="xwa">✓✓ قرت رسالة التأكيد</span></div>
+              <div class="xprime"><span>مع المندوب</span><span class="xtk"></span><span class="n">2/3</span></div>
+            </div>
+            <div class="xoc xgr" data-at=".16" style="--b:#25d366">
+              <div class="xnm">مصطفى ع. <span class="xring" style="--v:88"><span class="n">88</span></span></div><div class="xam n">29,000</div>
+              <div class="xrow"><span class="xid n">#4413</span><span class="xchip c-new">جديد</span><span class="xchip" style="background:#e6f9ee;color:#128c4a">واتساب</span></div>
+            </div>
+            <div class="xoc xdup xgr" data-at=".24">
+              <div class="xnm">مصطفى ع. <span class="xring" style="--v:88"><span class="n">88</span></span></div><div class="xam n">29,000</div>
+              <div class="xrow"><span class="xid n">#4414</span><span class="xchip" style="background:#f1f1f4;color:#17181b">الموقع</span></div>
+              <div class="xwarn">مكرر: نفس الزبون والمنتج قبل <span class="n">20</span> دقيقة <u>دمج</u></div>
+            </div>
+            <div class="xoc xgr" data-at=".32" style="--b:#17181b">
+              <div class="xnm">نور هـ. <span class="xring" style="--v:76;--rc:#f0b429"><span class="n">76</span></span></div><div class="xam n">52,500</div>
+              <div class="xrow"><span class="xid n">#4415</span><span class="xchip c-new">جديد</span><span class="xchip" style="background:#f1f1f4;color:#17181b">الموقع</span></div>
+            </div>
+            <div class="xoc xgr" data-at=".5" style="--b:#d62976">
+              <div class="xnm">علي ح. <span class="xring" style="--v:100"><span class="n">100</span></span></div><div class="xam n">41,250</div>
+              <div class="xrow"><span class="xid n">#4416</span><span class="xchip c-new">جديد</span><span class="xchip" style="background:#fdeef6;color:#b0105c">انستا</span></div>
+            </div>
+          </div>
+
+          <!-- 3 · shield -->
+          <div class="sc s3" data-c="3" data-k=".46:done">
+            <div class="xsb"><span class="n">18:33</span><i></i></div>
+            <div class="xab"><h4>الدرع</h4><span class="tg">طلب جديد</span></div>
+            <div class="xcd xscan">
+              <div class="xwho"><span class="xav">ح</span><div><b>حسن م. · البصرة</b><small class="n">0780 ••• 2291</small></div><span class="xtag" data-done=".46" data-t0="يفحص…" data-t1="خطر عالي">يفحص…</span></div>
+            </div>
+            <div class="xcd">
+              <div class="xmid">
+                <div class="xgauge"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" fill="none" stroke="#f1f1f4" stroke-width="11"/><circle id="shG" cx="60" cy="60" r="50" fill="none" stroke="#E5243B" stroke-width="11" stroke-linecap="round" stroke-dasharray="314.2" stroke-dashoffset="314.2"/></svg>
+                  <div class="v"><div><b class="n" data-count="32" data-c0=".08" data-c1=".44">32</b><small>نقاط الثقة</small></div></div></div>
+                <div class="xwhy">
+                  <span data-at=".16"><i></i>رفض <span class="n">3</span> طلبات قبل</span>
+                  <span data-at=".24"><i></i>ما رد على المندوب مرتين</span>
+                  <span data-at=".32"><i></i>العنوان بس «البصرة»</span>
+                  <span data-at=".4"><i class="g"></i>رقم عراقي صحيح</span>
+                </div>
+              </div>
+              <div class="xseq" data-at=".3">
+                <span class="c-ok">وصل</span><span class="c-ret">رفض</span><span class="c-ret">ما رد</span><span class="c-ok">وصل</span><span class="c-ret">رفض</span>
+              </div>
+              <div class="xvs" data-at=".38"><div>بمتجرك<b class="n">0 / 1</b></div><div>بمتاجر ثانية<b class="n">2 / 6</b></div></div>
+            </div>
+            <div class="xcd xadv xgr" data-at=".52"><b>لا تشحن قبل مكالمة واضحة</b><small>أكد العنوان الكامل، أو اطلب عربون.</small><div class="xbt"><span>اتصل هسه</span><span>أجّل الطلب</span></div></div>
+            <div class="xcd ximp xgr" data-at=".72"><span class="xic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><div><b>هالشهر: <span class="n" data-count="23" data-c0=".72" data-c1=".92">23</span> طلب خطر انمسك</b><small>قبل لا يطلع ويرجع عليك</small></div></div>
+          </div>
+
+          <!-- 4 · money -->
+          <div class="sc s4" data-c="4">
+            <div class="xsb"><span class="n">18:34</span><i></i></div>
+            <div class="xab"><h4>الفلوس</h4><span class="tg">آخر 30 يوم</span></div>
+            <div class="xcd xnet"><span class="xlb">صافي الربح</span><div class="xrow"><span class="xbg n" data-count="3920000" data-c0=".04" data-c1=".6">3,920,000</span><em class="n">+14%</em></div>
+              <div class="xwf">
+                <div data-at=".06" style="--w:100%;--c:#17181b">مبيعات واصلة<i></i><b class="n">13,050,000</b></div>
+                <div data-at=".14" style="--w:40%;--c:#E5243B">البضاعة<i></i><b class="n">−5,220,000</b></div>
+                <div data-at=".22" style="--w:11%;--c:#ff7a45;--s:40%">التوصيل<i></i><b class="n">−1,440,000</b></div>
+                <div data-at=".3" style="--w:5%;--c:#f0b429;--s:51%">الراجع<i></i><b class="n">−650,000</b></div>
+                <div data-at=".38" style="--w:11%;--c:#7b61ff;--s:56%">الإعلانات<i></i><b class="n">−1,420,000</b></div>
+                <div data-at=".46" style="--w:3%;--c:#2754a8;--s:67%">الرواتب<i></i><b class="n">−400,000</b></div>
+                <div data-at=".54" style="--w:30%;--c:#17a34a;--s:70%">يبقى إلك<i></i><b class="n">3,920,000</b></div>
+              </div>
+            </div>
+            <div class="xcd xper xgr" data-at=".62">من كل <b>1,000</b> دينار تبيعها، <b>300</b> تبقى إلك.</div>
+            <div class="xcd xgr" data-at=".74"><span class="xlb">وين فلوسي هسه؟</span>
+              <div class="xroad">
+                <div><i><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg></i>ويا المندوب<b class="n">1,840k</b></div>
+                <div><i><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V8l8-5 8 5v13M9 21v-6h6v6"/></svg></i>عند الشركة<b class="n">920k</b></div>
+                <div class="xme"><i><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16v12H4zM16 13h.01M4 10h16"/></svg></i>وصلتك<b class="n">10,290k</b></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5 · team -->
+          <div class="sc s5" data-c="5" data-k=".8:off">
+            <div class="xsb"><span class="n">18:35</span><i></i></div>
+            <div class="xab"><h4>الفريق</h4><span class="tg">هسه</span></div>
+            <div class="xcd xros">
+              <div><b class="on" style="background:#E5243B">س</b>سارة</div><div><b class="on" style="background:#2754a8">ح</b>حسين</div>
+              <div><b class="away" style="background:#7b61ff">ز</b>زينب</div><div><b style="background:#17181b">ع</b>علي</div>
+            </div>
+            <div class="xcd xfeed flat xgr on" data-at="0">
+              <div class="xgr" data-at=".08"><i style="background:#E5243B">س</i>سارة أكدت <span class="n">#4412</span><small>هسه</small></div>
+              <div class="xgr" data-at=".2"><i style="background:#2754a8">ح</i>حسين طبع <span class="n">12</span> وصل<small>قبل دقيقة</small></div>
+              <div class="xgr" data-at=".32"><i style="background:#7b61ff">ز</i>زينب رجّعت طرد للمخزن<small>قبل 6 د</small></div>
+              <div class="xgr" data-at=".44"><i style="background:#17181b">ع</i>علي غيّر سعر منتج<small>قبل 9 د</small></div>
+            </div>
+            <div class="xcd xgl xgr" data-at=".56"><span class="xrg" style="--g:60"><span class="n">3/5</span></span><div><b>أهداف سارة اليوم</b><small>40 تأكيد · خلصت 31</small></div></div>
+            <div class="xcd xperm xgr" data-at=".68"><span>حسين يشوف الأرباح</span><span class="xtog x"></span></div>
+            <div class="xcd xpay xgr" data-at=".86">راتب سارة: <b>250,000</b> + <b>1,000</b> لكل طلب واصل = <b>412,000</b></div>
+          </div>
+
+          <!-- 6 · till -->
+          <div class="sc s6" data-c="6" data-k=".14:b1,.32:x1,.62:n1,.7:n2">
+            <div class="xsb"><span class="n">18:36</span><i></i></div>
+            <div class="xab"><h4>الكاشير</h4><span class="tg">المحل</span></div>
+            <div class="xcd" style="padding:8px"><div class="xscanbox"><div class="xcode"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="xbeep">بيب ✓</span></div></div>
+            <div class="xcd xcart">
+              <div class="xgr" data-at=".14"><i></i><div>عود ملكي <span class="n">100ml</span><small>باقي <span class="n">3</span> بالمخزن</small></div><b class="n">32,000</b></div>
+              <div class="xgr" data-at=".3"><i style="background:linear-gradient(135deg,#ffe0e6,#E5243B)"></i><div>مسك الورد<small>آخر قطعة</small></div><b class="n">13,750</b></div>
+            </div>
+            <div class="xcd xgr" data-at=".44"><div class="xtot">المجموع<b class="n">45,750</b></div>
+              <div class="xnotes"><span class="n">25,000</span><span class="n">25,000</span><span class="n">10,000</span></div>
+              <div class="xchg" data-at=".72">الباقي للزبون<b class="n">4,250</b></div>
+            </div>
+            <div class="xcd xsync xgr" data-at=".84"><span class="xic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4"/></svg></span><div><b>المخزون نزل بالموقع هم</b><small>والوصل انرسل بالواتساب</small></div></div>
+          </div>
+
+          <!-- 7 · meta ads -->
+          <div class="sc s7" data-c="7">
+            <div class="xsb"><span class="n">18:37</span><i></i></div>
+            <div class="xab"><h4>إعلانات ميتا</h4><span class="tg">آخر 7 أيام</span></div>
+            <div class="xcd xhon xgr" data-at=".04"><small>الرقم الصادق</small><p>ميتا يگول <s class="n">512</s> شراء. اللي وصل فعلاً <b class="n">341</b>.</p></div>
+            <div class="xcd">
+              <div class="xbe">خط التعادل: الطلب الواصل يتحمل<b class="n">16,000</b></div>
+              <div class="xcmp">
+                <div data-at=".18" style="--w:42%">عرض العيد · فيديو<small>صرف <span class="n">640k</span> · واصل <span class="n">94</span></small><span class="cp g n">6,800</span><span class="bar2"><i style="background:#17a34a"></i></span></div>
+                <div data-at=".28" style="--w:70%">ريلز المسك<small>صرف <span class="n">380k</span> · واصل <span class="n">34</span></small><span class="cp g n">11,200</span><span class="bar2"><i style="background:#17a34a"></i></span></div>
+                <div data-at=".38" style="--w:100%">صور المنتج القديمة<small>صرف <span class="n">300k</span> · واصل <span class="n">14</span></small><span class="cp r n">21,400</span><span class="bar2"><i style="background:#E5243B"></i></span></div>
+              </div>
+            </div>
+            <div class="xcd xtired xgr" data-at=".56"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg><div>«صور المنتج القديمة» تعبت<small>التكرار صعد والنقرات نزلت. جرّب إعلان جديد.</small></div></div>
+            <div class="xcd xcov xgr" data-at=".74"><span class="xpc n" data-count="94" data-c0=".74" data-c1=".92">94</span><span class="xpc n" style="margin-right:-8px">%</span><div>من طلبات الإعلان معروف من أي حملة إجت</div></div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="rail" id="rail" aria-label="الميزات">
+        <button data-go="1" aria-label="متجرك أونلاين"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18M9 20v-6h6v6"/></svg><i></i></button>
+        <button data-go="2" aria-label="إدارة الطلبات"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><i></i></button>
+        <button data-go="3" aria-label="الدرع"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><i></i></button>
+        <button data-go="4" aria-label="الفلوس"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><i></i></button>
+        <button data-go="5" aria-label="الفريق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.6.8 2.7 2.5 3 5.2"/></svg><i></i></button>
+        <button data-go="6" aria-label="المحل والكاشير"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M7 10V5h10v5M7 14h2M11 14h2M15 14h2"/></svg><i></i></button>
+        <button data-go="7" aria-label="إعلانات ميتا"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 001 1h3l6 4V6L7 10H4a1 1 0 00-1 1z"/><path d="M17 8a5 5 0 010 8M19.5 5.5a8.5 8.5 0 010 13"/></svg><i></i></button>
+      </nav>
+    </div>
     <div class="hint" id="hint">مرّر للأسفل<i></i></div>
     <a class="cta" id="cta" href="#pricing" data-signup>جرّب 7 أيام مجاناً</a>
   </div>
@@ -857,65 +1438,19 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 
 <main class="rest" id="after">
 
-  <!-- 1 · more than orders -->
-  <section class="rs" id="more">
+  <!-- 1 · and the rest, mentioned lightly -->
+  <section class="rs more2" id="more">
     <div class="rw">
-      <div class="rk">وبعد أكثر</div>
-      <h2 class="rh" data-rv>مو بس طلبات. <span class="hl">شغلك كله بمكان واحد.</span></h2>
-      <p class="swipe"><i></i>8 ميزات، اسحب وشوفهن</p>
-      <div class="feat">
-        <article class="fc wh" data-rv>
-          <span class="pl">بكل الباقات</span>
-          <span class="ic" style="background:#fff1f2;color:#E5243B"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
-          <h3>الدرع: يحمي متجرك من الزبون اللي يرفض</h3>
-          <p>ينبّهك على الطلب الخطر قبل الشحن. وما ينطفي أبداً، حتى لو خلصت تجربتك.</p>
-          <p class="pf"><b>بمتجر عطور حقيقي:</b> نبّه على <span class="n">6</span> طلبات خطرة بـ <span class="n">90</span> يوم، و<span class="n">3</span> منها انوگفت قبل لا تطلع.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl">بكل الباقات</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v9h16v-9M3 6l1.5-2h15L21 6l-1 4H4zM9 19v-5h6v5"/></svg></span>
-          <h3>متجرك جاهز بدقايق</h3>
-          <p><span class="n">6</span> إطلالات جاهزة، بالعربي والإنگليزي والكردي، دومين باسمك، وفورم طلب بنفس صفحة المنتج بالدفع عند الاستلام.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl t">باقة فريق</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg></span>
-          <h3>صافي ربحك الحقيقي</h3>
-          <p>المبيعات مو ربح. فيرمي يطرح البضاعة والراجع والتوصيل والمصاريف، ويطلعلك اللي بقى بجيبك.</p>
-          <p class="pf"><b>نفس المتجر، آخر <span class="n">30</span> يوم:</b> مبيعات <span class="n">13,000,000</span>، صافي <span class="n">3,900,000</span> د.ع.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl t">باقة فريق</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.3 3.3-5 6.5-5s5.7 1.7 6.5 5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 15.3c1.8.7 3 2.3 3.5 4.7"/></svg></span>
-          <h3>فريقك قدام عينك</h3>
-          <p>منو أكّد شكد طلب اليوم، ومنو گاعد. أهداف يومية وصلاحيات لكل موظف.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl">إضافة لباقة فريق · مشمول بأعمال</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 8h4M7 11h7"/></svg></span>
-          <h3>الكاشير: محلك وصفحتك بنظام واحد</h3>
-          <p>نقطة بيع برمز لكل موظف، وسجل لكل خصم وحذف وتغيير سعر. تعرف شنو صار بالمحل وانت بالبيت.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl t">باقة فريق</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></span>
-          <h3>إعلاناتك بالرقم الصح</h3>
-          <p>شكد يكلفك الطلب <b style="color:#fff">الواصل</b>، مو الطلب اللي انكتب بس. وشكد تتحمل تدفع إعلان على الطلب قبل لا تخسر.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl">بكل الباقات</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg></span>
-          <h3>السلات المتروكة</h3>
-          <p>الزبون كتب رقمه وما كمّل؟ الرقم ينحفظ وتگدر تراسله بضغطة.</p>
-          <p class="pf"><b>نفس المتجر:</b> النظام لگى <span class="n">156</span> زبون ما كمّل طلبه، ورقم كل واحد محفوظ.</p>
-        </article>
-        <article class="fc" data-rv>
-          <span class="pl">بكل الباقات</span>
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5V7M15.5 12H17"/></svg></span>
-          <h3>خزينة بياناتك</h3>
-          <p>زبائنك وطلباتك ومنتجاتك تنزل Excel بأي وقت، بدون ما تطلب من أحد. وبباقة فريق نسخة احتياطية كل ليلة. بياناتك إلك، مو إلنا.</p>
-        </article>
-      </div>
+      <div class="rk">وهذا مو كلشي</div>
+      <h2 class="rh" data-rv>وأكثر من <b>900</b> ميزة ثانية <span class="hl">تكتشفها يوم بعد يوم.</span></h2>
+    </div>
+    <div class="mqw" aria-label="ميزات ثانية">
+      <div class="mq"><span>ربط Prime والوسيط</span><span>طلب كامل من سكرين شوت المحادثة</span><span>استيراد من Excel</span><span>رسائل واتساب تلقائية</span><span>الراجع بكاميرا التلفون</span><span>طباعة الوصولات دفعة وحدة</span><span>استرجاع السلات المتروكة</span><span>نقاط ولاء وإحالة</span><span>أكواد خصم وعروض</span><span class="d" aria-hidden="true">ربط Prime والوسيط</span><span class="d" aria-hidden="true">طلب كامل من سكرين شوت المحادثة</span><span class="d" aria-hidden="true">استيراد من Excel</span><span class="d" aria-hidden="true">رسائل واتساب تلقائية</span><span class="d" aria-hidden="true">الراجع بكاميرا التلفون</span><span class="d" aria-hidden="true">طباعة الوصولات دفعة وحدة</span><span class="d" aria-hidden="true">استرجاع السلات المتروكة</span><span class="d" aria-hidden="true">نقاط ولاء وإحالة</span><span class="d" aria-hidden="true">أكواد خصم وعروض</span></div>
+      <div class="mq rev"><span>نسخة احتياطية لكل بياناتك</span><span>شات الفريق على كل طلب</span><span>رواتب وقسائم PDF</span><span>تقارير PDF و Excel</span><span>تنبيهات فورية</span><span>متجر بالعربي والإنكليزي والكوردي</span><span>دومين باسمك</span><span>منتجات بقياسات وألوان</span><span>مساعد ذكي داخل التطبيق</span><span class="d" aria-hidden="true">نسخة احتياطية لكل بياناتك</span><span class="d" aria-hidden="true">شات الفريق على كل طلب</span><span class="d" aria-hidden="true">رواتب وقسائم PDF</span><span class="d" aria-hidden="true">تقارير PDF و Excel</span><span class="d" aria-hidden="true">تنبيهات فورية</span><span class="d" aria-hidden="true">متجر بالعربي والإنكليزي والكوردي</span><span class="d" aria-hidden="true">دومين باسمك</span><span class="d" aria-hidden="true">منتجات بقياسات وألوان</span><span class="d" aria-hidden="true">مساعد ذكي داخل التطبيق</span></div>
+    </div>
+    <div class="rw end">
+      <a class="rb" href="#pricing" data-signup>جرّب كلشي 7 أيام ببلاش</a>
+      <small>الشاشات فوق بأسماء وأرقام تجريبية.</small>
     </div>
   </section>
 
@@ -1462,7 +1997,8 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
   var segs=[],u0=0;
   for(var i=0;i<10;i++){segs.push({hold:true,scene:i+1,a:u0,len:HOLDS[i]});u0+=HOLDS[i];if(i<CLIPS){segs.push({hold:false,clip:i,a:u0,len:1});u0+=1}}
   var total=u0;
-  film.style.height=CSS.supports('height','1svh')?'calc('+(total*VH_PER_UNIT)+'svh + 100svh)':(total*VH_PER_UNIT+100)+'vh';
+  var FXL=window.FX_LEN={intro:2.6,ch:1.8,n:7}, FXU=FXL.intro+FXL.ch*FXL.n; window.FX_FILM_UNITS=total;
+  film.style.height=CSS.supports('height','1svh')?'calc('+((total+FXU)*VH_PER_UNIT)+'svh + 100svh)':((total+FXU)*VH_PER_UNIT+100)+'vh';
 
   /* local time of scene k: -1..0 incoming clip, 0..1 its pause, 1..2 outgoing clip */
   function localT(u,k){
@@ -1519,10 +2055,10 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
   try{FM=FermiMotion($('#lg'),{layout:'symbol',bg:false,lattice:false,tagline:false,latinVB:[100,30],arabicVB:[100,30]})}catch(e){FM=null}
   var lastKey='';
   function draw(force){
-    var span=film.offsetHeight-window.innerHeight, p=cl(-film.getBoundingClientRect().top/span,0,1), u=p*total;
+    var span=film.offsetHeight-window.innerHeight, p=cl(-film.getBoundingClientRect().top/span,0,1), U=p*(total+FXU), u=Math.min(U,total-1e-4);
     var seg=segs[segs.length-1];for(var i=0;i<segs.length;i++){if(u<segs[i].a+segs[i].len){seg=segs[i];break}}
     var sceneNow=seg.hold?seg.scene:seg.clip+1+(u-seg.a);
-    bar.style.width=(p*100).toFixed(2)+'%';hint.style.opacity=p>.006?0:1;
+    bar.style.width=(u/total*100).toFixed(2)+'%';hint.style.opacity=p>.006?0:1;
 
     /* picture */
     var clip,frame,useKey=-1;
@@ -1581,11 +2117,143 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
         if(last>=0){var cs=O.sts[last],chip=$('#trkChip');chip.textContent=cs.textContent.trim();chip.style.background=cs.dataset.bg;chip.style.color=cs.style.getPropertyValue('--c')}}
     });
     cta.classList.toggle('glow',sceneNow>=9.6);
+    if(window.FX)window.FX.update(U-total);
   }
   var tick=false;function onScroll(){if(!tick){tick=true;requestAnimationFrame(function(){tick=false;draw()})}}
   window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',size);
   if(!reduce)loadClip(0);
   status();size();
+})();
+</script>
+<script>
+/* Features after the film. The film script calls FX.update(v) on every scroll frame, where v is how far
+   past the last scene we are, in film units. v 0..intro: the frame shrinks into a phone and the app wakes up;
+   then one chapter per feature. Only transform, opacity and clip-path move. */
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var L=window.FX_LEN, fx=$('#fx'); if(!L||!fx)return;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var film=$('#film'), stage=fx.parentNode, cv=$('#cv'), dev=$('#dev'), scr=$('#scr'), bz=$('.bz',dev), isl=$('.isl',dev),
+      rail=$('#rail'), btns=$$('button',rail), glow=$('#fxbg .glow'), grain=$('#fxbg .grain');
+  var fades=[$('.tx[data-s="10"]'),$('.ov.o10'),$('#clock')].filter(Boolean), shade=$('.shade');
+  function cl(v,a,b){return v<a?a:v>b?b:v}
+  function ease(x){return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2}
+  function out3(x){return 1-Math.pow(1-x,3)}
+  function fmt(n){return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+  function split(el){var out=[];(function walk(node){[].slice.call(node.childNodes).forEach(function(ch){
+      if(ch.nodeType===3){var frag=document.createDocumentFragment();ch.textContent.split(/(\s+)/).forEach(function(p){if(!p)return;
+        if(/^\s+$/.test(p)){frag.appendChild(document.createTextNode(p));return}
+        var s=document.createElement('span');s.className='w';s.textContent=p;frag.appendChild(s);out.push(s)});node.replaceChild(frag,ch)}
+      else if(ch.nodeType===1){if(ch.classList.contains('n')){ch.classList.add('w');out.push(ch)}else walk(ch)}})})(el);return out}
+
+  /* chapter windows, in v units */
+  function start(c){return c===0?L.intro*.5:L.intro+(c-1)*L.ch}
+  function end(c){return c===0?L.intro:c===L.n?1e9:L.intro+c*L.ch}
+  var texts=$$('.fxt',fx).map(function(el){var w=[];$$('.kt',el).forEach(function(k){w=w.concat(split(k))});
+    return {el:el,c:+el.dataset.c,words:w,kick:$('.k',el),pf:$('.pf',el)}});
+  var screens=$$('.sc',scr).map(function(el){
+    var ks=(el.dataset.k||'').split(',').filter(Boolean).map(function(p){var a=p.split(':');return {q:+a[0],cls:'s-'+a[1]}});
+    return {el:el,c:+el.dataset.c,pops:$$('[data-at]',el),counts:$$('[data-count]',el),dones:$$('[data-done]',el),ks:ks}});
+  var shG=$('#shG');
+
+  /* geometry: the phone screen's box inside the stage, the app scale, where each rail icon flies from */
+  var G=null;
+  function geo(){
+    var sr=stage.getBoundingClientRect(), r=scr.getBoundingClientRect();
+    G={W:sr.width,H:sr.height,x:r.left-sr.left,y:r.top-sr.top,w:r.width,h:r.height,rad:parseFloat(getComputedStyle(scr).borderTopLeftRadius)||0};
+    var k=G.w/300;screens.forEach(function(S){S.el.style.transform='scale('+k.toFixed(4)+')'});
+    var cxp=r.left+r.width/2, cyp=r.top+r.height/2;
+    btns.forEach(function(b){var t=b.style.transform;b.style.transform='none';var br=b.getBoundingClientRect();b.style.transform=t;
+      b._dx=cxp-(br.left+br.width/2);b._dy=cyp-(br.top+br.height/2)});
+  }
+
+  var live=false,last=0;
+  function reset(){
+    live=false;fx.classList.remove('live');rail.classList.remove('live');
+    cv.style.transform='';cv.style.clipPath='';cv.style.opacity='';shade.style.opacity='';
+    fades.forEach(function(el){el.style.opacity=''});grain.style.opacity=0;glow.style.opacity=0;
+    /* children carry inline visibility, which beats the parent's hidden, so put them back by hand */
+    texts.forEach(function(T){T.el.style.visibility='hidden'});screens.forEach(function(S){S.el.style.visibility='hidden'});
+    bz.style.opacity=0;isl.style.opacity=0;scr.style.opacity=0;btns.forEach(function(bt){bt.style.opacity=0});
+  }
+  function env(v,a,b,f){if(v<=a||v>=b)return 0;return Math.min(1,(v-a)/f,(b-v)/f)}
+
+  function update(v){
+    last=v;
+    if(v<=0){if(live)reset();return}
+    if(!live){live=true;fx.classList.add('live');G=null}
+    if(!G)geo();
+    var o=cl(v/L.intro,0,1);
+
+    /* 1 · the film frame shrinks into the phone screen */
+    var e=ease(cl((o-.04)/.42,0,1));
+    if(reduce){cv.style.opacity=(1-e).toFixed(3)}
+    else{
+      var ar=G.w/G.h, cw=G.W, ch=G.H; if(G.W/G.H>ar)cw=G.H*ar; else ch=G.W/ar;
+      var s=G.w/cw, ix=(G.W-cw)/2*e, iy=(G.H-ch)/2*e, rad=G.rad/s*e;
+      var tx=(G.x+G.w/2-G.W/2)*e, ty=(G.y+G.h/2-G.H/2)*e, sc=1+(s-1)*e;
+      cv.style.clipPath='inset('+iy.toFixed(1)+'px '+ix.toFixed(1)+'px round '+rad.toFixed(1)+'px)';
+      cv.style.transform='translate('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px) scale('+sc.toFixed(4)+')';
+    }
+    var f=1-cl(o/.12,0,1);
+    fades.forEach(function(el){var base=el.style.opacity===''?1:parseFloat(el.style.opacity);el.style.opacity=(el.classList.contains('ov')?base:1)*f})
+    shade.style.opacity=(1-e).toFixed(3);
+    grain.style.opacity=cl((o-.06)/.3,0,1).toFixed(3);
+    var gl=cl((o-.3)/.3,0,1);glow.style.opacity=(gl*.95).toFixed(3);glow.style.transform='translate(-50%,-50%) scale('+(.6+.4*out3(gl)).toFixed(3)+')';
+    var bzo=cl((o-.26)/.18,0,1);bz.style.opacity=bzo;isl.style.opacity=cl((o-.5)/.1,0,1);
+    scr.style.opacity=cl((o-.44)/.16,0,1).toFixed(3);
+
+    /* 2 · words */
+    texts.forEach(function(T){
+      var a=start(T.c)-(T.c?.12:0), b=end(T.c)+.12, ee=env(v,a,b,.3);
+      if(ee<=0){if(T.el.style.visibility!=='hidden')T.el.style.visibility='hidden';return}
+      T.el.style.visibility='visible';
+      var leaving=v>(a+Math.min(b,a+L.ch))/2&&b<1e8, n=T.words.length;
+      T.kick.style.opacity=ee.toFixed(3);if(T.pf)T.pf.style.opacity=ee.toFixed(3);
+      T.words.forEach(function(w,i){var k=leaving?(n-1-i):i, x=cl((ee*(n+3)-k)/3,0,1), d=1-x;
+        w.style.opacity=x.toFixed(3);
+        if(reduce)return;
+        w.style.transform='translateY('+(d*(leaving?-.3:.4)).toFixed(3)+'em)';
+        w.style.filter=d>.01?'blur('+(d*8).toFixed(1)+'px)':'none'});
+    });
+
+    /* 3 · app screens: switch like apps, then play by scroll */
+    screens.forEach(function(S){
+      var a=S.c===0?L.intro*.42:start(S.c)-.15, b=end(S.c)+.15, ee=env(v,a,b,.3);
+      if(ee<=0){if(S.el.style.visibility!=='hidden')S.el.style.visibility='hidden';return}
+      S.el.style.visibility='visible';S.el.style.opacity=ee.toFixed(3);
+      var leaving=v>a+.5&&b<1e8&&v>b-.3, k=G.w/300, z=reduce?1:(leaving?.94+.06*ee:1.05-.05*ee);
+      S.el.style.transform='scale('+(k*z).toFixed(4)+')';S.el.style.transformOrigin='0 0';
+      S.el.style.translate=reduce?'':((1-z)*150*k).toFixed(1)+'px '+((1-z)*310*k).toFixed(1)+'px';
+      if(!S.c)return;
+      var q=cl((v-start(S.c)-.1*L.ch)/(.78*L.ch),0,1);
+      S.pops.forEach(function(el){var on=q>=+el.dataset.at;if(el.classList.contains('on')!==on)el.classList.toggle('on',on)});
+      S.ks.forEach(function(K){var on=q>=K.q;if(S.el.classList.contains(K.cls)!==on)S.el.classList.toggle(K.cls,on)});
+      S.dones.forEach(function(el){var d=q>=+el.dataset.done;if(el.dataset.t0)el.textContent=d?el.dataset.t1:el.dataset.t0});
+      S.counts.forEach(function(el){var c0=+el.dataset.c0,c1=+el.dataset.c1,x=out3(cl((q-c0)/(c1-c0),0,1));el.textContent=fmt(x*+el.dataset.count)});
+      if(S.c===3&&shG)shG.style.strokeDashoffset=(314.2*(1-.32*out3(cl((q-.08)/.36,0,1)))).toFixed(1);
+    });
+
+    /* 4 · rail: icons fly out of the phone, then track the chapters */
+    var railOn=o>.6;if(rail.classList.contains('live')!==railOn)rail.classList.toggle('live',railOn);
+    var cur=v<L.intro?0:Math.min(L.n,Math.floor((v-L.intro)/L.ch)+1);
+    btns.forEach(function(bt,i){
+      var fe=out3(cl((o-.6-.035*i)/.22,0,1));
+      bt.style.opacity=fe.toFixed(3);
+      bt.style.transform=reduce||fe>=1?'':'translate('+(bt._dx*(1-fe)).toFixed(1)+'px,'+(bt._dy*(1-fe)).toFixed(1)+'px) scale('+(.35+.65*fe).toFixed(3)+')';
+      var c=i+1, pr=cl((v-start(c))/L.ch,0,1);
+      bt.classList.toggle('on',c===cur);bt.classList.toggle('done',c<cur);
+      bt.querySelector('i').style.width='calc((100% - 12px) * '+pr.toFixed(3)+')';
+      bt.setAttribute('aria-current',c===cur?'step':'false');
+    });
+  }
+  window.FX={update:update};
+  btns.forEach(function(bt){bt.addEventListener('click',function(){
+    var c=+bt.dataset.go, total=window.FX_FILM_UNITS, U=total+L.intro+(c-1)*L.ch+.22*L.ch, all=total+L.intro+L.n*L.ch;
+    var span=film.offsetHeight-window.innerHeight, top=film.getBoundingClientRect().top+window.scrollY;
+    window.scrollTo({top:top+U/all*span,behavior:reduce?'auto':'smooth'})})});
+  window.addEventListener('resize',function(){G=null;if(live)update(last)});
+  window.dispatchEvent(new Event('scroll'));
 })();
 </script>
 <script>
