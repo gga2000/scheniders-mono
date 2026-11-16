@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { CaseActionSchema, formatWait, sortInbox, supportRefusal, type SupportCaseRow } from "./support";
+import {
+  CaseActionSchema,
+  fillSavedReply,
+  formatWait,
+  latestOrderNumber,
+  sortInbox,
+  supportRefusal,
+  type SupportCaseRow,
+  type SupportMessageRow,
+} from "./support";
 
 function row(over: Partial<SupportCaseRow>): SupportCaseRow {
   return {
@@ -70,5 +79,45 @@ describe("CaseActionSchema", () => {
       action: "reply",
       body: "hi",
     });
+  });
+});
+
+describe("fillSavedReply", () => {
+  it("fills the first name, the shop and the order", () => {
+    expect(
+      fillSavedReply("أهلاً {name} من {shop}، نراجع الطلب {order}", { name: " Ali Hassan ", shop: "Kawkab", order: "4261102017" }),
+    ).toBe("أهلاً Ali من Kawkab، نراجع الطلب #4261102017");
+  });
+
+  it("does not double the # on an order that already has one", () => {
+    expect(fillSavedReply("{order}", { order: "#77" })).toBe("#77");
+  });
+
+  it("leaves a token the conversation cannot fill, so staff see the gap", () => {
+    expect(fillSavedReply("نراجع الطلب {order} يا {name}", { name: "", order: null })).toBe("نراجع الطلب {order} يا {name}");
+  });
+
+  it("leaves other braces alone", () => {
+    expect(fillSavedReply("{phone} {name}", { name: "Noor" })).toBe("{phone} Noor");
+  });
+});
+
+describe("latestOrderNumber", () => {
+  const msg = (sender_kind: SupportMessageRow["sender_kind"], orderNumber?: string): SupportMessageRow => ({
+    id: Math.random().toString(),
+    case_id: "c",
+    sender_kind,
+    sender_name: null,
+    body: "x",
+    context: orderNumber ? { orderNumber } : {},
+    created_at: "2026-11-16T10:00:00Z",
+  });
+
+  it("takes the newest order a merchant had open", () => {
+    expect(latestOrderNumber([msg("merchant", "1"), msg("merchant"), msg("merchant", "2"), msg("staff")])).toBe("2");
+  });
+
+  it("is null when no merchant message names an order", () => {
+    expect(latestOrderNumber([msg("merchant"), msg("staff")])).toBeNull();
   });
 });

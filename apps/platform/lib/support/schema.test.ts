@@ -46,9 +46,10 @@ describe("supportRefusal", () => {
 
 /*
  * support_cases and support_messages hold every shop's conversations with
- * staff, and admin_push_subscriptions holds staff devices. They are
- * server-only: if a later migration grants them to the browser roles or adds a
- * permissive policy, one shop could read another's messages.
+ * staff, admin_push_subscriptions holds staff devices and
+ * support_saved_replies holds the team's own wording. They are server-only:
+ * if a later migration grants them to the browser roles or adds a permissive
+ * policy, one shop could read another's messages.
  */
 describe("support tables stay server-only", () => {
     const dir = path.resolve(__dirname, "../../../../packages/supabase/migrations");
@@ -59,7 +60,7 @@ describe("support tables stay server-only", () => {
         .map((f) => fs.readFileSync(path.join(dir, f), "utf8").replace(/^\s*--.*$/gm, ""))
         .join("\n");
 
-    it.each(["support_cases", "support_messages", "admin_push_subscriptions"])("%s has RLS on and no browser grants", (table) => {
+    it.each(["support_cases", "support_messages", "admin_push_subscriptions", "support_saved_replies"])("%s has RLS on and no browser grants", (table) => {
         expect(sql).toMatch(new RegExp(`alter table public\\.${table} enable row level security`, "i"));
         expect(sql).toMatch(new RegExp(`revoke all on table public\\.${table} from public, anon, authenticated`, "i"));
         expect(sql).not.toMatch(new RegExp(`grant[^;]*on (table )?public\\.${table} to[^;]*\\b(anon|authenticated)\\b`, "i"));

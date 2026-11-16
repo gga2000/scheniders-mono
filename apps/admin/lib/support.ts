@@ -196,3 +196,52 @@ export const StaffPushRemoveSchema = z.object({
 });
 
 export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
+
+/** A ready answer the team keeps in `support_saved_replies`. */
+export interface SupportSavedReply {
+  id: string;
+  title: string;
+  body: string;
+  position: number;
+  updated_at: string;
+}
+
+export const SUPPORT_SAVED_REPLY_COLUMNS = "id, title, body, position, updated_at";
+
+export const SavedReplySchema = z.object({
+  title: z.string().trim().min(1).max(40),
+  body: z.string().trim().min(1).max(2000),
+  position: z.number().int().min(0).max(100_000).optional(),
+});
+
+export type SavedReplyInput = z.infer<typeof SavedReplySchema>;
+
+/** What a saved reply can fill in from the conversation. */
+export interface SavedReplyFill {
+  name?: string | null;
+  shop?: string | null;
+  order?: string | null;
+}
+
+/**
+ * Fills {name}, {shop} and {order}. A value the conversation does not have is
+ * left as written, so staff see the gap and fill it before sending.
+ */
+export function fillSavedReply(body: string, fill: SavedReplyFill): string {
+  const firstName = fill.name?.trim().split(/\s+/)[0] ?? "";
+  const values: Record<string, string> = {
+    name: firstName,
+    shop: fill.shop?.trim() ?? "",
+    order: fill.order?.trim() ? `#${fill.order.trim().replace(/^#/, "")}` : "",
+  };
+  return body.replace(/\{(name|shop|order)\}/g, (token, key: string) => values[key] || token);
+}
+
+/** The order the merchant had open most recently in this conversation. */
+export function latestOrderNumber(messages: SupportMessageRow[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const order = messages[i].sender_kind === "merchant" ? messages[i].context.orderNumber : undefined;
+    if (order) return order;
+  }
+  return null;
+}

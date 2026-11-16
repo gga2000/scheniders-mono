@@ -263,3 +263,85 @@ describe("support phone alerts", () => {
     ]);
   });
 });
+
+describe("support saved replies", () => {
+  const REPLY_ID = "66666666-6666-4666-8666-666666666666";
+  const replyParams = { params: Promise.resolve({ id: REPLY_ID }) };
+
+  async function list(token: string | null): Promise<Response> {
+    const { GET } = await import("../replies/route");
+    return GET(req("/api/support/replies", "GET", token));
+  }
+  async function add(token: string | null, body: unknown): Promise<Response> {
+    const { POST } = await import("../replies/route");
+    return POST(req("/api/support/replies", "POST", token, body));
+  }
+  async function one(method: "PATCH" | "DELETE", token: string | null, body?: unknown, params = replyParams) {
+    const route = await import("../replies/[id]/route");
+    return route[method](req(`/api/support/replies/${REPLY_ID}`, method, token, body), params);
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await list(null)).status).toBe(401);
+    expect((await add(null, { title: "Hi", body: "أهلاً" })).status).toBe(401);
+    expect((await one("PATCH", null, { title: "Hi", body: "أهلاً" })).status).toBe(401);
+    expect((await one("DELETE", null)).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("lists replies in the team's order", async () => {
+    dbResult = { data: [{ id: REPLY_ID, title: "Greeting", body: "أهلاً", position: 10, updated_at: "x" }], error: null };
+    const res = await list("support");
+    expect(res.status).toBe(200);
+    expect((await res.json()).replies).toHaveLength(1);
+    const order = dbCalls.filter((c) => c.method === "order").map((c) => c.args[0]);
+    expect(order).toEqual(["position", "title"]);
+  });
+
+  it.each([
+    ["no body", undefined],
+    ["an empty title", { title: "  ", body: "أهلاً" }],
+    ["a title over 40 characters", { title: "x".repeat(41), body: "أهلاً" }],
+    ["an empty text", { title: "Hi", body: "   " }],
+    ["a text over 2000 characters", { title: "Hi", body: "x".repeat(2001) }],
+    ["a negative order", { title: "Hi", body: "أهلاً", position: -1 }],
+  ])("refuses %s", async (_name, body) => {
+    expect((await add("support", body)).status).toBe(400);
+    expect((await one("PATCH", "support", body)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("records who added a reply, whatever the body claims", async () => {
+    dbResult = { data: { id: REPLY_ID }, error: null };
+    const res = await add("support", { title: " Hi ", body: " أهلاً {name} ", created_by: "someone" });
+    expect(res.status).toBe(200);
+    const insert = dbCalls.find((c) => c.method === "insert" && (c.args[0] as { title?: string }).title === "Hi");
+    expect(insert?.args[0]).toEqual({
+      title: "Hi",
+      body: "أهلاً {name}",
+      position: 1000,
+      created_by: SUPPORT_ID,
+      updated_by: SUPPORT_ID,
+    });
+  });
+
+  it("changes one reply and records who changed it", async () => {
+    dbResult = { data: { id: REPLY_ID }, error: null };
+    const res = await one("PATCH", "support", { title: "Hi", body: "أهلاً", position: 5 });
+    expect(res.status).toBe(200);
+    const update = dbCalls.find((c) => c.method === "update");
+    expect(update?.args[0]).toMatchObject({ title: "Hi", body: "أهلاً", position: 5, updated_by: SUPPORT_ID });
+    expect(dbCalls.find((c) => c.method === "eq")?.args).toEqual(["id", REPLY_ID]);
+  });
+
+  it("answers 404 for a reply that is gone, every time", async () => {
+    dbResult = { data: null, error: null };
+    for (let i = 0; i < 2; i++) {
+      const res = await one("DELETE", "support");
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "This saved reply no longer exists." });
+    }
+    const bad = await one("PATCH", "support", { title: "Hi", body: "أهلاً" }, { params: Promise.resolve({ id: "1" }) });
+    expect(bad.status).toBe(404);
+  });
+});
