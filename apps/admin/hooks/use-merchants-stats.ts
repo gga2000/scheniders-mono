@@ -6,8 +6,10 @@ import { useAdminStore } from "@/store/use-admin-store";
 export interface MerchantsStats {
   total: number;
   total_wallet_iqd: number;
-  subscription_mrr_iqd: number;
-  usage_charges_30d_iqd: number;
+  /** A month of plan price for each active shop, at the list price. */
+  plan_prices_iqd: number;
+  /** Our fees (monthly fee, delivered orders, paid messages), last 30 Baghdad days. */
+  fees_30d_iqd: number;
   status: {
     trial: number;
     active: number;

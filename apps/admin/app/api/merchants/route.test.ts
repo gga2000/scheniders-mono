@@ -74,8 +74,8 @@ describe("GET /api/merchants", () => {
     expect(merchants[0]).toMatchObject({
       id: "shop-1",
       orders_30d: 1203,
-      monthly_revenue: 9085,
-      daily_revenue: 55,
+      fees_30d: 9085,
+      fees_today: 55,
       last_active_at: "2026-11-16T05:30:00+00:00",
       usage: { orders_count: 1203, orders_charged: 1100, team_members_count: 3 },
       // The team is the shop's active members today, not the usage row's number from sign-up.
@@ -83,7 +83,7 @@ describe("GET /api/merchants", () => {
       billing_lock: null,
       tags: [],
     });
-    expect(merchants[1]).toMatchObject({ orders_30d: 0, monthly_revenue: 0, last_active_at: null, usage: null });
+    expect(merchants[1]).toMatchObject({ orders_30d: 0, fees_30d: 0, last_active_at: null, usage: null });
   });
 
   it("uses the last order as last activity when it is later than the last wallet line, whatever the time zone it is written in", async () => {
@@ -221,7 +221,7 @@ describe("GET /api/merchants", () => {
       expect(merchants.map((m: { id: string }) => m.id).sort()).toEqual([A, C]);
       expect(merchants.find((m: { id: string }) => m.id === C)).toMatchObject({
         orders_30d: 12,
-        monthly_revenue: 660,
+        fees_30d: 660,
         team_members: 2,
       });
     });

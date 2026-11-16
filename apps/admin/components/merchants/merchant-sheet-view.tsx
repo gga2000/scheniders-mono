@@ -80,10 +80,10 @@ const SHEET_COLUMNS: SheetColumn[] = [
   { id: "balance", label: "Balance", width: "min-w-[110px]", align: "text-right" },
   { id: "charged", label: "Charged", width: "min-w-[110px]", align: "text-right" },
   { id: "topped_up", label: "Topped Up", width: "min-w-[120px]", align: "text-right" },
-  { id: "orders", label: "Orders", width: "w-20", align: "text-right" },
+  { id: "orders", label: "Orders, 30 days", width: "w-28", align: "text-right" },
   { id: "team", label: "Team", width: "w-16", align: "text-right" },
   { id: "health", label: "Health", width: "w-24", align: "text-center" },
-  { id: "revenue", label: "Revenue/mo", width: "min-w-[120px]", align: "text-right" },
+  { id: "revenue", label: "Our fees, 30 days", width: "min-w-[120px]", align: "text-right" },
   { id: "lastActive", label: "Last Active", width: "min-w-[110px]", align: "text-left" },
   { id: "tags", label: "Tags", width: "min-w-[160px]", align: "text-left" },
   { id: "created", label: "Created", width: "min-w-[110px]", align: "text-left" },
@@ -322,7 +322,7 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="w-20 shrink-0 px-2 flex items-center justify-end font-black tabular-nums text-foreground border-r border-[var(--card-border)]/30">
-                  {m.usage?.orders_count ?? 0}
+                  {m.orders_30d ?? 0}
                 </div>
 
                 <div className="w-16 shrink-0 px-2 flex items-center justify-end font-bold tabular-nums text-foreground/70 border-r border-[var(--card-border)]/30">
@@ -342,8 +342,8 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="min-w-[120px] shrink-0 px-2 flex items-center justify-end tabular-nums text-foreground/85 font-black border-r border-[var(--card-border)]/30">
-                  {formatCompactIQD(m.monthly_revenue ?? 0)}
-                  <span className="text-[9px] font-bold text-foreground/40 ml-1">/mo</span>
+                  {formatCompactIQD(m.fees_30d)}
+                  <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/55 text-[10px] font-medium border-r border-[var(--card-border)]/30">

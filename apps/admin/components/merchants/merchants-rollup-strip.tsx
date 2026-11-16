@@ -5,7 +5,6 @@ import {
   Repeat,
   ShoppingBag,
   CheckCircle2,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
@@ -24,9 +23,8 @@ export function MerchantsRollupStrip() {
   const { data } = useMerchantsStats();
 
   const totalWallet = data?.total_wallet_iqd ?? 0;
-  const mrr = data?.subscription_mrr_iqd ?? 0;
-  const arr = mrr * 12;
-  const usage30d = data?.usage_charges_30d_iqd ?? 0;
+  const planPrices = data?.plan_prices_iqd ?? 0;
+  const fees30d = data?.fees_30d_iqd ?? 0;
   const activeCount = data?.status.active ?? 0;
   const total = data?.total ?? 0;
 
@@ -50,29 +48,21 @@ export function MerchantsRollupStrip() {
         "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm shadow-emerald-500/30",
     },
     {
-      label: "MRR",
-      sublabel: "active subscriptions",
-      value: !data ? "—" : formatCompactIQD(mrr),
-      suffix: "IQD/mo",
+      // A promise, not money in: what the active shops' plans cost a month at list price.
+      label: "Plan prices",
+      sublabel: "active shops, a month",
+      value: !data ? "—" : formatCompactIQD(planPrices),
+      suffix: "IQD",
       icon: Repeat,
       accent: "text-violet-700 dark:text-violet-300",
       iconWrap:
         "bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-sm shadow-violet-500/30",
     },
     {
-      label: "ARR",
-      sublabel: "MRR × 12",
-      value: !data ? "—" : formatCompactIQD(arr),
-      suffix: "IQD/yr",
-      icon: Sparkles,
-      accent: "text-amber-700 dark:text-amber-300",
-      iconWrap:
-        "bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm shadow-amber-500/30",
-    },
-    {
-      label: "Usage Charges",
-      sublabel: "last 30d",
-      value: !data ? "—" : formatCompactIQD(usage30d),
+      // Money in: monthly fees, delivered orders and paid messages.
+      label: "Our fees",
+      sublabel: "last 30 days",
+      value: !data ? "—" : formatCompactIQD(fees30d),
       suffix: "IQD",
       icon: ShoppingBag,
       accent: "text-rose-700 dark:text-rose-300",
@@ -92,7 +82,7 @@ export function MerchantsRollupStrip() {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
       {tiles.map((tile) => {
         const Icon = tile.icon;
         return (

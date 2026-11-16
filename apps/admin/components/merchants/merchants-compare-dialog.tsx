@@ -96,7 +96,7 @@ export function MerchantsCompareDialog({
         key: "revenue",
         label: "Our fees, 30 days",
         icon: TrendingUp,
-        values: merchants.map((m) => m.monthly_revenue),
+        values: merchants.map((m) => m.fees_30d),
         format: (n) => fmtCompactIQD(n),
         suffix: "IQD",
         bestIs: "high",

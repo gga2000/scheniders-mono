@@ -40,6 +40,8 @@ export function KPICards({ metrics }: KPICardsProps) {
             value: metrics.totalOrders,
             change: metrics.totalOrdersChange,
             icon: Package,
+            // Orders' «كل الطلبات» counts returns too; this card does not.
+            hint: t("reports.kpi.totalHint"),
         },
         {
             title: t("reports.kpi.delivery"),

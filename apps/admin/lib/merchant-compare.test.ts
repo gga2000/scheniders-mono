@@ -10,7 +10,7 @@ const row = (extra: Record<string, unknown> = {}) => ({
   created_at: "2026-06-08T07:00:00+00:00",
   wallet: { balance_iqd: 43_800, threshold_iqd: 0 },
   orders_30d: 328,
-  monthly_revenue: 9_085,
+  fees_30d: 9_085,
   team_members: 7,
   order_sparkline: new Array(30).fill(1),
   staff_health_score: 80,
@@ -40,7 +40,7 @@ describe("parseComparisonShops", () => {
   });
 
   it("refuses an answer that leaves a number out, so a missing number is never drawn as 0", () => {
-    for (const missing of ["orders_30d", "monthly_revenue", "team_members", "staff_health_score"]) {
+    for (const missing of ["orders_30d", "fees_30d", "team_members", "staff_health_score"]) {
       const shop = Object.fromEntries(Object.entries(row()).filter(([key]) => key !== missing));
       expect(() => parseComparisonShops({ merchants: [shop] }), missing).toThrow();
     }

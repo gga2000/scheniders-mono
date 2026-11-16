@@ -301,15 +301,17 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
     }, [deferredSearchResults, deferredResultsAreSearch, deferredLoadedKey, deferredInTransit, dDateFrom, dDateTo, dStatus]);
 
     // Whether the list on screen is the answer for the current filter: its
-    // deferred render has caught up with the rows and filter just committed,
-    // and those rows cover the window (search hits and a Prime queue stand
-    // alone). Until then an empty list is not "nothing matched": when a window's
-    // rows land, the render before the deferred one still holds the previous
-    // window's empty list, and the slow link showed «لا توجد طلبات مطابقة» for
-    // 1.5 s above a 9-order week (round 13).
-    const listIsCurrent = snapshot === deferredSnapshot
+    // deferred render holds the window just loaded, the current filter and the
+    // same kind of rows (window, or search / Prime queue hits, which stand
+    // alone), and those rows cover the window. Until then an empty list is not
+    // "nothing matched": when a window's rows land, the render before the
+    // deferred one still holds the previous window's empty list, and the slow
+    // link showed «لا توجد طلبات مطابقة» for 1.5 s above a 9-order week
+    // (round 13). Keys, not row identities: a realtime row or the in-transit
+    // read must not flash placeholders over a day that is truly empty.
+    const listIsCurrent = deferredLoadedKey === loadedWindowKey
         && filters === deferredFilters
-        && searchResults === deferredSearchResults
+        && (searchResults === null) === (deferredSearchResults === null)
         && (deferredSearchResults !== null || countViewFacts.covered);
 
     // The head of the list fetch, through the list's own filter and sort —

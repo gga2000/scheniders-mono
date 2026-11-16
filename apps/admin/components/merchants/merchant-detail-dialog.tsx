@@ -39,7 +39,7 @@ import { RecentOrdersSection } from "./detail/recent-orders-section";
 import { AuditLogTab } from "./detail/audit-log-tab";
 import { LastActorBadge } from "./last-actor-badge";
 import { useLastActor } from "@/hooks/use-last-actors";
-import type { TenantStatus, PlanTier, AdminTenant, TenantRestrictions } from "@/types/admin";
+import type { TenantStatus, PlanTier, TenantRestrictions } from "@/types/admin";
 import { TenantTimeline } from "./tenant-timeline";
 import { OnboardingChecklist } from "./onboarding-checklist";
 import Link from "next/link";
@@ -154,53 +154,6 @@ export function MerchantDetailDialog() {
 
 // ── Adapters & helpers ──────────────────────────────────────────────────
 
-function buildAdminTenantShape(data: MerchantDetail): AdminTenant {
-  const totalOrders = data.usage.reduce((sum, u) => sum + (u.orders_count ?? 0), 0);
-  const teamCount = data.team.length;
-  const status = data.tenant.status as TenantStatus;
-  return {
-    id: data.tenant.id,
-    business_name: data.tenant.business_name,
-    slug: data.tenant.slug,
-    plan: data.tenant.plan as PlanTier,
-    status,
-    trial_ends_at: data.tenant.trial_ends_at,
-    branding: {
-      logo_url: data.tenant.branding?.logo_url ?? null,
-      primary_color: data.tenant.branding?.primary_color ?? "#1E1E1E",
-      secondary_color: data.tenant.branding?.secondary_color ?? "#1E1E1E",
-    },
-    settings: {
-      timezone: "Asia/Baghdad",
-      language: "en",
-      currency: "IQD",
-    },
-    contact_email: data.tenant.contact_email,
-    contact_phone: data.tenant.contact_phone,
-    address: data.tenant.address,
-    city: data.tenant.city,
-    created_at: data.tenant.created_at,
-    is_prospect: data.tenant.is_prospect,
-    prospect_lead_id: data.tenant.prospect_lead_id ?? null,
-    tags: [],
-    last_active_at: null,
-    monthly_revenue: data.wallet?.total_charged_iqd ?? 0,
-    // No daily breakdown available in MerchantDetail's wallet/usage payload;
-    // fall back to 0 so the AdminTenant contract is satisfied. The list-view
-    // adapter computes this from a different source.
-    daily_revenue: 0,
-    order_sparkline: data.usage.map((u) => u.orders_count ?? 0),
-    staff_health_score: data.tenant.staff_health_score,
-    staff_health_parts: data.tenant.staff_health_parts,
-    wallet: data.wallet ?? undefined,
-    usage: {
-      orders_count: totalOrders,
-      orders_charged: data.usage.reduce((s, u) => s + (u.orders_charged ?? 0), 0),
-      team_members_count: teamCount,
-    },
-  } satisfies AdminTenant;
-}
-
 function buildOrderSparkline(usage: MerchantDetail["usage"]): number[] {
   return [...usage]
     .sort((a, b) => (a.year - b.year) || (a.month - b.month))
@@ -256,7 +209,6 @@ function DialogBody({
     data;
   const primaryColor = tenant.branding?.primary_color || "#1E1E1E";
 
-  const adapterTenant = useMemo(() => buildAdminTenantShape(data), [data]);
   const healthScore = tenant.staff_health_score;
   // The same facts the Merchants list reads: the newest usage month, not six months added up.
   const churnRisk = isChurnRisk({
@@ -274,12 +226,11 @@ function DialogBody({
   const chargeDelta = useMemo(() => pctDelta(chargeSpark), [chargeSpark]);
   const balanceDelta = useMemo(() => pctDelta(balanceSpark), [balanceSpark]);
 
-  // MRR: only when subscription is active and we have plan pricing.
-  const mrr = useMemo(() => {
-    if (!subscription || subscription.status !== "active") return 0;
-    return planLimits?.base_price_iqd ?? 0;
-  }, [subscription, planLimits]);
-  const ltv = wallet?.total_charged_iqd ?? 0;
+  // The plan price the shop pays each month; nothing while the subscription is not active.
+  const paysForPlan = subscription?.status === "active";
+  const planPerMonth = paysForPlan ? (planLimits?.base_price_iqd ?? 0) : 0;
+  // Every charge the wallet took, test charges included: not the same as our fees.
+  const walletCharges = wallet?.total_charged_iqd ?? 0;
 
   const isLimited = tenant.status === "limited";
   const restrictions = (tenant.restrictions ?? null) as TenantRestrictions | null;
@@ -323,11 +274,11 @@ function DialogBody({
                 {tenant.plan}
               </span>
               <HealthScoreTooltip
-                merchant={adapterTenant}
+                merchant={tenant}
                 score={healthScore}
                 isChurnRisk={churnRisk}
               />
-              <MerchantAlertFlag merchant={adapterTenant} />
+              <MerchantAlertFlag merchant={tenant} />
               {lastActor && (
                 <span className="inline-flex items-center gap-1 px-1 py-0.5 rounded-full bg-foreground/[0.04]">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-foreground/45 ml-1">
@@ -401,27 +352,27 @@ function DialogBody({
         />
         <DialogStatCard
           icon={TrendingUp}
-          label="MRR"
-          value={fmt(mrr)}
+          label="Plan, a month"
+          value={fmt(planPerMonth)}
           unit="IQD"
           tone="rose"
           onClick={() => setActiveTab("Billing")}
           title={
-            subscription?.status === "active"
-              ? "Monthly recurring revenue from active subscription"
-              : "No active subscription — MRR is 0"
+            paysForPlan
+              ? "The plan price this shop pays each month"
+              : `Pays no plan now: the subscription is ${subscription?.status ?? "missing"}`
           }
         />
         <DialogStatCard
           icon={Coins}
-          label="LTV"
-          value={fmt(ltv)}
+          label="Wallet charges"
+          value={fmt(walletCharges)}
           unit="IQD"
           tone="amber"
           spark={chargeSpark}
           delta={chargeDelta !== null ? { value: chargeDelta } : null}
           onClick={() => setActiveTab("Billing")}
-          title="Lifetime billed amount"
+          title="Every charge to the wallet since the shop opened, test charges included. Our fees are on the Revenue page."
         />
         <DialogStatCard
           icon={ShoppingBag}
