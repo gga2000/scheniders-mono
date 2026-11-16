@@ -240,3 +240,44 @@ SELECT pg_temp.check((SELECT (r->>'charged')::numeric = 35000
                      'Team + 2 members (35,000) is not paid from 6,945');
 SELECT pg_temp.check((SELECT status::text FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000b') = 'past_due',
                      'so the shop is locked, not charged a part');
+
+-- 14. The demo store (B13, 20261116114258): its month renews at no charge,
+-- whatever the made-up wallet holds, and it is never locked.
+INSERT INTO public.tenants (id, plan, status, trial_ends_at, is_demo) VALUES
+  ('a0000000-0000-4000-8000-000000000010', 'growth', 'active', NULL, true),
+  ('a0000000-0000-4000-8000-000000000011', 'growth', 'suspended', NULL, true);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, pending_plan) VALUES
+  ('a0000000-0000-4000-8000-000000000010', 'growth', 'active', now() - interval '31 days', now() - interval '1 day', 'professional'),
+  ('a0000000-0000-4000-8000-000000000011', 'growth', 'active', now() - interval '31 days', now() - interval '1 day', NULL);
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('a0000000-0000-4000-8000-000000000010', 1000),
+  ('a0000000-0000-4000-8000-000000000011', 0);
+INSERT INTO public.usage_tracking (tenant_id, year, month, orders_count, orders_charged, last_updated_at)
+VALUES ('a0000000-0000-4000-8000-000000000010', extract(year FROM now() AT TIME ZONE 'UTC')::int,
+        extract(month FROM now() AT TIME ZONE 'UTC')::int, 40, 40, now());
+SELECT pg_temp.check((SELECT r->>'outcome' = 'plan_changed' AND r->>'plan' = 'professional'
+                             AND (r->>'charged')::numeric = 0 AND (r->>'demo')::boolean
+                        FROM public.renew_subscription_core(
+                               (SELECT id FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000010'),
+                               (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000010')) r),
+                     'the demo store renews onto Business (89,000) at no charge from 1,000');
+SELECT pg_temp.check((SELECT s.status::text = 'active' AND s.current_period_end > now() + interval '29 days'
+                        FROM public.subscriptions s WHERE s.tenant_id = 'a0000000-0000-4000-8000-000000000010')
+                     AND pg_temp.plan_of('a0000000-0000-4000-8000-000000000010') = 'professional',
+                     'its next month starts: active, not past_due, so never locked');
+SELECT pg_temp.check(pg_temp.balance('a0000000-0000-4000-8000-000000000010') = 1000
+                     AND NOT EXISTS (SELECT 1 FROM public.wallet_transactions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000010'),
+                     'its wallet and ledger are untouched');
+SELECT pg_temp.check((SELECT orders_count = 0 FROM public.usage_tracking WHERE tenant_id = 'a0000000-0000-4000-8000-000000000010'),
+                     'its month of orders starts again, like any shop');
+SELECT pg_temp.check((SELECT r->>'outcome' = 'already_processed'
+                        FROM public.renew_subscription_core(
+                               (SELECT id FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000010'),
+                               now() - interval '1 day') r),
+                     'a retry of the same month does nothing');
+SELECT pg_temp.check((SELECT r->>'outcome' = 'on_hold' AND r ? 'demo' IS NOT TRUE
+                        FROM public.renew_subscription_core(
+                               (SELECT id FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011'),
+                               (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011')) r)
+                     AND (SELECT status::text FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011') = 'active',
+                     'a demo store on staff hold stays on hold, untouched');
