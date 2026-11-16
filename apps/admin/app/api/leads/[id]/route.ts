@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { notAnId } from "@/lib/route-id";
+import { leadUpdateSchema, type LeadUpdate } from "@/lib/lead-update";
 
 export async function GET(
   _request: NextRequest,
@@ -103,53 +104,64 @@ export async function PATCH(
     const { id } = await params;
     const missing = notAnId(id);
     if (missing) return missing;
-    const body = await request.json();
+    const parsed = leadUpdateSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid lead" }, { status: 400 });
+    }
+    const changes: LeadUpdate & { last_contacted_at?: string; assigned_at?: string | null } = { ...parsed.data };
+    if (Object.keys(changes).length === 0) {
+      return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
+    }
     const supabase = createAdminClient();
 
-    // If status is changing, log an activity
-    if (body.status) {
-      const { data: current } = await supabase
+    // The status and the owner are compared with what is stored, so an edit
+    // that leaves them alone neither writes history nor restarts assigned_at.
+    let statusFrom: string | null = null;
+    if (parsed.data.status !== undefined || parsed.data.assigned_to !== undefined) {
+      const { data: current, error: readError } = await supabase
         .from("leads")
-        .select("status")
+        .select("status, assigned_to")
         .eq("id", id)
-        .single();
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!current) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
-      if (current && current.status !== body.status) {
-        await supabase.from("lead_activities").insert({
-          lead_id: id,
-          activity_type: "status_change",
-          title: `Status changed from ${current.status} to ${body.status}`,
-          metadata: { from: current.status, to: body.status },
-          created_by: admin.user.id,
-        });
-
-        // Update last_contacted_at if moving to contacted
-        if (body.status === "contacted") {
-          body.last_contacted_at = new Date().toISOString();
-        }
+      if (parsed.data.status !== undefined && current.status !== parsed.data.status) {
+        statusFrom = current.status;
+        if (parsed.data.status === "contacted") changes.last_contacted_at = new Date().toISOString();
       }
-    }
-
-    // If assigned_to is changing, log activity and set assigned_at
-    if (body.assigned_to !== undefined) {
-      body.assigned_at = body.assigned_to ? new Date().toISOString() : null;
-    }
-
-    // Whitelist allowed fields
-    const ALLOWED_FIELDS = ["merchant_name", "industry_id", "industry_detail", "platform", "platform_url", "handle", "follower_count", "post_count", "management_name", "management_info", "page_phone", "phone_numbers", "contact_via_dm", "website_url", "email", "avg_view_count", "avg_like_count", "avg_comments_count", "avg_order_count", "address", "city", "governorate_code", "is_online_only", "branches", "status", "priority", "assigned_to", "tags", "source_campaign", "source_medium", "source_referrer", "next_follow_up_at", "custom_fields", "last_contacted_at", "assigned_at", "is_draft"] as const;
-    const updateData: Record<string, unknown> = {};
-    for (const key of ALLOWED_FIELDS) {
-      if (key in body) updateData[key] = body[key];
+      if (parsed.data.assigned_to !== undefined && current.assigned_to !== parsed.data.assigned_to) {
+        changes.assigned_at = parsed.data.assigned_to ? new Date().toISOString() : null;
+      }
     }
 
     const { data: lead, error } = await supabase
       .from("leads")
-      .update(updateData)
+      .update(changes)
       .eq("id", id)
       .select("*, industry:industries(*)")
       .single();
 
     if (error) throw error;
+
+    // History is written once the change is saved: a refused change (a
+    // converted lead is locked) leaves no "Status changed" line behind.
+    if (statusFrom !== null) {
+      const { error: historyError } = await supabase.from("lead_activities").insert({
+        lead_id: id,
+        activity_type: "status_change",
+        title: `Status changed from ${statusFrom} to ${parsed.data.status}`,
+        metadata: { from: statusFrom, to: parsed.data.status },
+        created_by: admin.user.id,
+      });
+      if (historyError) {
+        console.error("Lead PATCH history error:", historyError);
+        return NextResponse.json(
+          { error: "The lead was saved, but its status change could not be added to its history." },
+          { status: 500 },
+        );
+      }
+    }
 
     return NextResponse.json({ lead });
   } catch (error) {

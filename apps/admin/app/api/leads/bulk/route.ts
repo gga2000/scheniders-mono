@@ -5,6 +5,7 @@ import { forbidden, requireBearerAdmin } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
+import { MANUAL_LEAD_STATUSES } from "@/lib/lead-update";
 
 const leadIds = z.array(z.uuid()).min(1, "lead_ids required").max(100, "Max 100 leads per bulk action");
 
@@ -12,7 +13,7 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("change_status"),
     lead_ids: leadIds,
-    payload: z.object({ status: z.enum(["new", "contacted", "interested", "store_built", "lost"]) }),
+    payload: z.object({ status: z.enum(MANUAL_LEAD_STATUSES) }),
   }),
   // The person pressing takes the leads; the id comes from the session, never the body.
   z.object({ action: z.literal("assign_to_me"), lead_ids: leadIds }),

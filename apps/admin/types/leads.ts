@@ -123,11 +123,14 @@ export const PLATFORM_CONFIG: Record<LeadSourcePlatform, { label: string; icon: 
 
 // ── Pipeline flow (valid transitions) ───────────────────────────────────
 
+// Moves a person can make by hand (the board and the phone "Move" sheet).
+// "converted" is never one: it comes only from Convert, which links the store
+// and records who closed it; the server refuses it as a plain status change.
 export const LEAD_STATUS_FLOW: Record<LeadStatus, LeadStatus[]> = {
   new: ["contacted", "lost"],
   contacted: ["interested", "lost"],
-  interested: ["store_built", "converted", "lost"],
-  store_built: ["converted", "lost"],
+  interested: ["store_built", "lost"],
+  store_built: ["lost"],
   converted: [],
   lost: ["new"],
 };
