@@ -16,10 +16,18 @@ interface UnpaidOrdersProps {
 }
 
 /** The server lists at most this many: past it, the rest are only counted. */
-const LIST_CAP = 20;
+export const UNPAID_LIST_CAP = 20;
 /** Up to this many rows show at once; a longer list shows the oldest few and a button for the rest. */
 const SHOW_ALL_UP_TO = 7;
 const SHOWN_FOLDED = 5;
+/** Money owed this many days after delivery is late: the row says so in amber. */
+const LATE_AFTER_DAYS = 14;
+
+/** Whole days from a YYYY-MM-DD day to today in Baghdad. */
+function daysSince(day: string, now: Date): number {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(now);
+    return Math.max(Math.round((Date.parse(today) - Date.parse(day)) / 86_400_000), 0);
+}
 
 /**
  * The delivered orders that still owe the shop money, oldest first, so the
@@ -38,12 +46,13 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
     const rest = Math.max(total - orders.length, 0);
     const folds = orders.length > SHOW_ALL_UP_TO;
     const visible = folds && !open ? orders.slice(0, SHOWN_FOLDED) : orders;
+    const now = new Date();
     if (orders.length === 0 && rest === 0) return null;
 
     const restNote =
         rest === 0
             ? null
-            : orders.length >= LIST_CAP
+            : orders.length >= UNPAID_LIST_CAP
               ? t("fin.money.unpaid.more", { shown: formatWhole(orders.length), n: formatWhole(rest) })
               : t("fin.money.unpaid.rest", { n: formatWhole(rest), count: rest });
 
@@ -54,6 +63,7 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                     {visible.map((order) => {
                         // An order made before codes existed has none: its short id still opens it.
                         const code = order.code ?? order.id.slice(0, 8);
+                        const days = daysSince(order.day, now);
                         return (
                             <li key={order.id} className="flex items-center justify-between gap-4 py-2 first:pt-0 last:pb-0">
                                 <div className="min-w-0">
@@ -73,7 +83,13 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                                         )}
                                     </div>
                                     <p className="text-left text-[12px] text-muted" dir={dir}>
-                                        {t("fin.money.unpaid.row.day", { day: dayFormat.format(new Date(order.day)) })}
+                                        <span
+                                            className={days > LATE_AFTER_DAYS ? "font-semibold text-amber-700 dark:text-amber-400" : undefined}
+                                            title={dayFormat.format(new Date(order.day))}
+                                            data-late={days > LATE_AFTER_DAYS || undefined}
+                                        >
+                                            {t("fin.money.unpaid.row.age", { n: formatWhole(days), count: days })}
+                                        </span>
                                         {" · "}
                                         {t(order.prime ? "fin.money.unpaid.row.prime" : "fin.money.unpaid.row.courier")}
                                     </p>

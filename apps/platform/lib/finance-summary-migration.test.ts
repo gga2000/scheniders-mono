@@ -121,7 +121,6 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/AND di\.payment_date >= \(SELECT ts_from FROM w\)\s+AND di\.payment_date < \(SELECT ts_to FROM w\)\) AS file_now/);
         expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND file_before\), 0\) AS reached_before/);
         expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT file_before AND file_now\), 0\) AS reached_now/);
-        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT file_before AND NOT file_now\), 0\) AS reached_other/);
         // Prime's payments are the same courier files, so there is no separate Prime part
         expect(core).not.toMatch(/reached_prime/);
         expect(core).toMatch(/'reached_now', reached_now, 'reached_other', reached_other/);
@@ -130,6 +129,21 @@ describe("get_finance_summary gate", () => {
     it("names the unpaid orders with money owed, oldest first and capped, scoped to the shop", () => {
         expect(core).toMatch(/unpaid_list AS \([\s\S]*?JOIN public\.orders o ON o\.id = sf\.id AND o\.tenant_id = _tenant_id\s+WHERE NOT sf\.paid AND sf\.price - sf\.fee > 0\s+ORDER BY s\.day, o\.id\s+LIMIT 20/);
         expect(core).toMatch(/'unpaid_list', COALESCE\(\(SELECT jsonb_agg\(jsonb_build_object\('id', u\.id, 'code', u\.code, 'customer', u\.customer,\s+'amount', u\.amount, 'day', u\.day, 'prime', u\.prime\) ORDER BY u\.day, u\.id\)/);
+    });
+
+    it("counts an order the customer paid up front as paid, apart while no payment file names it", () => {
+        expect(core).toMatch(/COALESCE\(o\.payment_status = 'prepaid', false\) AS prepaid/);
+        expect(core).toMatch(/\(s\.prepaid OR s\.id IN \(SELECT id FROM paid_ids\)\) AS paid/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE prepaid AND NOT settled\), 0\) AS reached_prepaid/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE settled AND NOT file_before AND NOT file_now\), 0\) AS reached_other/);
+    });
+
+    it("takes the period's courier payments apart from their own rows", () => {
+        expect(core).toMatch(/stmt_items AS \(\s*SELECT [\s\S]*?FROM payout_files f\s+JOIN public\.delivery_import_items i ON i\.import_id = f\.import_id/);
+        expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE si\.is_return\), 0\) AS returns/);
+        expect(core).toMatch(/sum\(si\.amount - sf\.price\) FILTER \(WHERE sf\.prepaid\), 0\) AS prepaid_gap/);
+        expect(core).toMatch(/LEFT JOIN sold_fee sf ON sf\.id = si\.order_id AND NOT si\.is_return AND NOT sf\.file_before AND sf\.file_now/);
+        expect(core).toMatch(/'statement', \(SELECT jsonb_build_object\('returns', returns/);
     });
 
     it("scopes every table it reads to the shop", () => {
