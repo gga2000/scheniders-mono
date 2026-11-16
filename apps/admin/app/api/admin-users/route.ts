@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
       // Minimal profile so actor joins / display work. role keeps its 'employee'
       // default and there's NO tenant membership → no main-app access.
-      await supabase
+      const { error: profileErr } = await supabase
         .from("user_profiles")
         .upsert(
           {
@@ -167,6 +167,12 @@ export async function POST(request: NextRequest) {
           },
           { onConflict: "id" },
         );
+      if (profileErr) {
+        return NextResponse.json(
+          { error: `The login was created, but its profile could not be saved. Add the person again. (${profileErr.message})` },
+          { status: 500 },
+        );
+      }
     } else {
       // An existing login can belong to someone other than the mailbox owner:
       // store admins create staff logins with a password they choose, and
@@ -200,7 +206,15 @@ export async function POST(request: NextRequest) {
     }
     if (userId && existingAccount && password) {
       // Existing user and a password was supplied → reset it as a convenience.
-      await supabase.auth.admin.updateUserById(userId, { password });
+      // A refused reset stops here: access is not granted, and the log never
+      // says a password was set when it was not.
+      const { error: resetErr } = await supabase.auth.admin.updateUserById(userId, { password });
+      if (resetErr) {
+        return NextResponse.json(
+          { error: `Could not set the new password: ${resetErr.message}` },
+          { status: resetErr.status && resetErr.status < 500 ? 400 : 500 },
+        );
+      }
     }
 
     // 3. Grant admin-console access (idempotent).
