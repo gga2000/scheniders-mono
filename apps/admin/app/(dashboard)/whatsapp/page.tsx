@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Loader2, MessageCircle, MessageCircleOff, Gi
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
+import { okOrLoadFailure } from "@/lib/load-failure";
 import {
   INTERAKT_COST_IQD,
   baghdadMonth,
@@ -113,11 +114,10 @@ export default function WhatsAppPage() {
   const { role } = useAdminAuth();
   const current = baghdadMonth(new Date());
   const [month, setMonth] = useState(current);
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["admin", "whatsapp", month],
     queryFn: async () => {
-      const res = await adminFetch(`/api/whatsapp?month=${month}`);
-      if (!res.ok) throw new Error(`WhatsApp report failed: ${res.status}`);
+      const res = okOrLoadFailure(await adminFetch(`/api/whatsapp?month=${month}`), "the WhatsApp numbers");
       return responseSchema.parse(await res.json());
     },
     staleTime: 60_000,
@@ -125,7 +125,7 @@ export default function WhatsAppPage() {
   });
 
   if (isError && !data) {
-    return <LoadError what="the WhatsApp numbers" onRetry={() => refetch()} retrying={isFetching} />;
+    return <LoadError what="the WhatsApp numbers" onRetry={() => refetch()} retrying={isFetching} error={error} />;
   }
 
   const canPause = role === "super_admin";
