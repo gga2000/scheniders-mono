@@ -23,6 +23,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 interface TenantData {
     id: string;
@@ -109,8 +110,9 @@ export function BusinessSettings() {
 
     if (!tenant) {
         return (
-            <div className="text-center py-20 text-muted-foreground">
-                {t("settings.biz.notFound")}
+            <div className="flex flex-col items-center gap-4 py-20 text-center text-muted-foreground">
+                <p>{t("settings.biz.notFound")}</p>
+                <ContactSupportButton errorCode="settings.biz.notFound" errorMessage={t("settings.biz.notFound")} />
             </div>
         );
     }

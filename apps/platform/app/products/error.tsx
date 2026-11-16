@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 export default function ProductsError({
     error,
@@ -42,6 +43,12 @@ export default function ProductsError({
                 <RefreshCw className="h-4 w-4" />
                 {t("products.errorRetry")}
             </button>
+
+            <ContactSupportButton
+                className="mt-3"
+                errorCode="products.errorBody"
+                errorMessage={t("products.errorBody")}
+            />
         </div>
     );
 }

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 export default function CustomersError({
     error,
@@ -37,6 +38,12 @@ export default function CustomersError({
                 <RefreshCw className="h-4 w-4" />
                 {t("customers.profile.retry")}
             </button>
+
+            <ContactSupportButton
+                className="mt-3"
+                errorCode="customers.loadFailedHint"
+                errorMessage={t("customers.loadFailedHint")}
+            />
         </div>
     );
 }

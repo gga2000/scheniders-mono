@@ -39,6 +39,7 @@ import { useNetworkStatus } from "@/hooks/use-network-status";
 import { loadFailureKind } from "@/lib/load-failure";
 import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
 import { useAppHeaderOffset } from "@/hooks/use-app-header-offset";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
@@ -256,7 +257,8 @@ function CustomersPageContent() {
     const listFailed = isError && !data;
     const online = useNetworkStatus();
     // Only a request that never reached the server is the connection's fault.
-    const failureHint = loadFailureKind(error, online) === "network" ? t("customers.loadFailedOfflineHint") : t("customers.loadFailedHint");
+    const failureKind = loadFailureKind(error, online);
+    const failureHint = failureKind === "network" ? t("customers.loadFailedOfflineHint") : t("customers.loadFailedHint");
     const subtitle = filtered && !listFailed
         ? t("customers.subtitleFiltered", {
             // The total picks the noun's form ("of 2 customers" is a dual in Arabic).
@@ -366,6 +368,12 @@ function CustomersPageContent() {
                         >
                             {t("customers.profile.retry")}
                         </button>
+                        {/* A failure on our side, not the merchant's connection: offer support. */}
+                        {failureKind !== "network" && (
+                            <div className="mt-3">
+                                <ContactSupportButton errorCode="customers.loadFailedHint" errorMessage={failureHint} />
+                            </div>
+                        )}
                     </div>
                 ) : displayed.length === 0 ? (
                     <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">
