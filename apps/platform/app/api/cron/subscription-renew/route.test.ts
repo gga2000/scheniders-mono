@@ -137,4 +137,13 @@ describe("subscription-renew cron", () => {
         expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0, errors: 0 });
         expect(body.results[0].outcome).toBe("exempt");
     });
+
+    it("reports a shop on staff hold as on_hold: not charged, not renewed, not an error", async () => {
+        renewResult = { success: true, outcome: "on_hold", plan: "starter", error: "Shop is limited: not charged" };
+        const res = await GET(cronRequest());
+        const body = await res.json();
+        expect(res.status).toBe(200);
+        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0, errors: 0 });
+        expect(body.results[0]).toMatchObject({ outcome: "on_hold", details: "Shop is limited: not charged" });
+    });
 });

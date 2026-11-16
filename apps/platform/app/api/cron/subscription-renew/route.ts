@@ -15,14 +15,14 @@ interface RenewalResult {
     tenant_id: string;
     business_name: string;
     plan: string;
-    outcome: "renewed" | "plan_changed" | "suspended" | "already_processed" | "exempt" | "error";
+    outcome: "renewed" | "plan_changed" | "suspended" | "already_processed" | "exempt" | "on_hold" | "error";
     details?: string;
 }
 
 /** What renew_subscription_atomic returns (packages/supabase/migrations/20261025232022_*). */
 const renewResultSchema = z.object({
     success: z.boolean(),
-    outcome: z.enum(["renewed", "plan_changed", "suspended", "already_processed", "exempt", "error"]),
+    outcome: z.enum(["renewed", "plan_changed", "suspended", "already_processed", "exempt", "on_hold", "error"]),
     plan: z.string().optional(),
     charged: z.coerce.number().optional(),
     error: z.string().optional(),
@@ -122,7 +122,7 @@ async function runScheduled(request: Request) {
         const r = parsed.data;
         const plan = r.plan ?? sub.plan;
         const details =
-            r.outcome === "suspended" || r.outcome === "error"
+            r.outcome === "suspended" || r.outcome === "on_hold" || r.outcome === "error"
                 ? r.error
                 : r.outcome === "already_processed"
                   ? "Period already renewed by another run"
