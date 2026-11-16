@@ -63,6 +63,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.96.2(react@19.2.1)
+      '@tanstack/react-virtual':
+        specifier: ^3.13.23
+        version: 3.13.23(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       '@vercel/analytics':
         specifier: ^2.0.1
         version: 2.0.1(next@16.4.1(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(@types/node@20.19.39)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react@19.2.1)

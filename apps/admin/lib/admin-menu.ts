@@ -8,7 +8,7 @@
  * typing its address (Lead numbers) is on the menu now.
  */
 
-export type MenuIcon = "today" | "merchants" | "leads" | "support" | "money" | "numbers" | "settings";
+export type MenuIcon = "dashboard" | "merchants" | "leads" | "support" | "money" | "numbers" | "settings";
 
 /** Work waiting on staff, counted beside a place on the menu. */
 export type MenuCount = "leads" | "support" | "payments";
@@ -29,7 +29,7 @@ export interface MenuSection {
 }
 
 export const MENU: readonly MenuSection[] = [
-  { label: "Today", href: "/", icon: "today", links: [] },
+  { label: "Dashboard", href: "/", icon: "dashboard", links: [] },
   {
     label: "Merchants",
     href: "/merchants",
@@ -69,7 +69,6 @@ export const MENU: readonly MenuSection[] = [
     links: [
       { label: "Our fees", href: "/revenue" },
       { label: "Orders by hour", href: "/usage" },
-      { label: "Platform numbers", href: "/numbers" },
     ],
   },
 ];

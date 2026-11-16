@@ -1,16 +1,22 @@
 -- =============================================================================
--- staff_wallet_balance, staff_locked, staff_health_score and
--- staff_health_parts: behaviour test
+-- staff_wallet_balance, staff_needs_attention, staff_locked, staff_health_score
+-- and staff_health_parts: behaviour test
 -- =============================================================================
 --
--- WHAT THIS PROVES (after the staff_list_filters, staff_health_parts and
--- staff_locked_tab migrations)
+-- WHAT THIS PROVES (after the staff_list_filters, staff_health_parts,
+-- staff_locked_tab and staff_needs_attention_back migrations)
 --   Access:
---     * anon and authenticated can run none of the four; the service role can.
---     * staff_needs_attention is gone: the list no longer has that filter.
+--     * anon and authenticated can run none of the five; the service role can.
 --   Wallet balance:
 --     * the balance of the shop's wallet row; 0 for a shop with no wallet row.
---   Locked (the list's Locked tab):
+--   Needs attention (the old Merchants page's filter and stats strip):
+--     * a paying shop with money does not;
+--     * a paused shop and a cancelled shop do, whatever is in the wallet;
+--     * a trial that ends within 3 days does, one that ends later does not;
+--     * under 5,000 IQD does, exactly 5,000 does not;
+--     * a locked shop does even with a full wallet: a trial that ended unpaid,
+--       and a paying shop whose month is unpaid.
+--   Locked:
 --     * exactly the shops tenant_billing_lock locks: a trial that ended unpaid,
 --       and a paying shop whose month is unpaid, whatever the wallet holds;
 --     * not a trial that ends soon, a low wallet, a paused or cancelled shop;
@@ -56,6 +62,7 @@ DECLARE
 BEGIN
     FOREACH _fn IN ARRAY ARRAY[
         'public.staff_wallet_balance(public.tenants)',
+        'public.staff_needs_attention(public.tenants)',
         'public.staff_locked(public.tenants)',
         'public.staff_health_score(public.tenants)',
         'public.staff_health_parts(public.tenants)'
@@ -64,8 +71,6 @@ BEGIN
         PERFORM pg_temp.check('access: authenticated can run ' || _fn, NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
         PERFORM pg_temp.check('access: service role cannot run ' || _fn, has_function_privilege('service_role', _fn, 'EXECUTE'));
     END LOOP;
-    PERFORM pg_temp.check('catalog: staff_needs_attention still exists',
-        to_regprocedure('public.staff_needs_attention(public.tenants)') IS NULL);
 END $$;
 
 -- The shops. One row each: name, status, plan, trial end, wallet, newest usage orders.
@@ -77,34 +82,35 @@ CREATE TEMP TABLE tt_shops (
     trial_ends_at timestamptz,
     balance numeric,          -- NULL: the shop has no wallet row
     orders integer,           -- NULL: the shop has no usage row
+    want_attention boolean NOT NULL,
     want_locked boolean NOT NULL,
     want_score integer NOT NULL
 ) ON COMMIT DROP;
 
-INSERT INTO tt_shops (name, status, plan, trial_ends_at, balance, orders, want_locked, want_score) VALUES
+INSERT INTO tt_shops (name, status, plan, trial_ends_at, balance, orders, want_attention, want_locked, want_score) VALUES
     -- status, balance and orders ladders
-    ('paying, full wallet, busy',        'active',    'starter', NULL,                         60000,  60,   false, 95),
-    ('paying, 50,001 IQD, 51 orders',    'active',    'starter', NULL,                         50001,  51,   false, 95),
-    ('paying, 50,000 IQD, 50 orders',    'active',    'starter', NULL,                         50000,  50,   false, 80),
-    ('paying, 10,001 IQD, 11 orders',    'active',    'starter', NULL,                         10001,  11,   false, 80),
-    ('paying, 10,000 IQD, 10 orders',    'active',    'starter', NULL,                         10000,  10,   false, 60),
-    ('paying, 5,000 IQD, 1 order',       'active',    'starter', NULL,                         5000,   1,    false, 60),
-    ('paying, 4,999 IQD, 0 orders',      'active',    'starter', NULL,                         4999,   0,    false, 55),
-    ('paying, no wallet, no usage',      'active',    'starter', NULL,                         NULL,   NULL, false, 55),
-    ('limited, full wallet',             'limited',   'starter', NULL,                         60000,  NULL, false, 65),
+    ('paying, full wallet, busy',        'active',    'starter', NULL,                         60000,  60,   false, false, 95),
+    ('paying, 50,001 IQD, 51 orders',    'active',    'starter', NULL,                         50001,  51,   false, false, 95),
+    ('paying, 50,000 IQD, 50 orders',    'active',    'starter', NULL,                         50000,  50,   false, false, 80),
+    ('paying, 10,001 IQD, 11 orders',    'active',    'starter', NULL,                         10001,  11,   false, false, 80),
+    ('paying, 10,000 IQD, 10 orders',    'active',    'starter', NULL,                         10000,  10,   false, false, 60),
+    ('paying, 5,000 IQD, 1 order',       'active',    'starter', NULL,                         5000,   1,    false, false, 60),
+    ('paying, 4,999 IQD, 0 orders',      'active',    'starter', NULL,                         4999,   0,    true, false, 55),
+    ('paying, no wallet, no usage',      'active',    'starter', NULL,                         NULL,   NULL, true, false, 55),
+    ('limited, full wallet',             'limited',   'starter', NULL,                         60000,  NULL, false, false, 65),
     -- paused and cancelled: never locked, whatever the wallet holds
-    ('paused, full wallet',              'suspended', 'starter', NULL,                         100000, 60,   false, 60),
-    ('paused, empty, quiet',             'suspended', 'starter', NULL,                         0,      0,    false, 20),
-    ('cancelled, full wallet',           'cancelled', 'starter', NULL,                         100000, NULL, false, 65),
+    ('paused, full wallet',              'suspended', 'starter', NULL,                         100000, 60,   true, false, 60),
+    ('paused, empty, quiet',             'suspended', 'starter', NULL,                         0,      0,    true, false, 20),
+    ('cancelled, full wallet',           'cancelled', 'starter', NULL,                         100000, NULL, true, false, 65),
     -- trials
-    ('trial, ends in 4 days',            'trial',     'starter', now() + interval '4 days',    20000,  3,    false, 65),
-    ('trial, ends in 2 days',            'trial',     'starter', now() + interval '2 days',    20000,  3,    false, 65),
-    ('trial, ended yesterday, full',     'trial',     'starter', now() - interval '1 day',     80000,  3,    true,  75),
+    ('trial, ends in 4 days',            'trial',     'starter', now() + interval '4 days',    20000,  3,    false, false, 65),
+    ('trial, ends in 2 days',            'trial',     'starter', now() + interval '2 days',    20000,  3,    true, false, 65),
+    ('trial, ended yesterday, full',     'trial',     'starter', now() - interval '1 day',     80000,  3,    true, true,  75),
     -- our own shop: a trial date long gone, never locked
-    ('internal, old trial date',         'trial',     'internal', now() - interval '300 days', 80000,  3,    false, 75),
-    ('internal, paying',                 'active',    'internal', NULL,                        80000,  3,    false, 85),
+    ('internal, old trial date',         'trial',     'internal', now() - interval '300 days', 80000,  3,    true, false, 75),
+    ('internal, paying',                 'active',    'internal', NULL,                        80000,  3,    false, false, 85),
     -- locked for an unpaid month with a full wallet
-    ('paying, month unpaid, full',       'active',    'growth',  NULL,                         80000,  60,   true,  95);
+    ('paying, month unpaid, full',       'active',    'growth',  NULL,                         80000,  60,   true, true,  95);
 
 INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at)
 SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at FROM tt_shops s;
@@ -129,6 +135,7 @@ DO $$
 DECLARE
     _r record;
     _n integer;
+    _attention integer;
     _locked integer;
     _low integer;
     _at_risk integer;
@@ -142,8 +149,9 @@ BEGIN
         NOT EXISTS (SELECT 1 FROM tt_shops s, public.tenant_billing_lock(s.id) l WHERE s.name LIKE 'internal%'));
 
     FOR _r IN
-        SELECT s.name, s.balance, s.want_locked, s.want_score,
+        SELECT s.name, s.balance, s.want_attention, s.want_locked, s.want_score,
                public.staff_wallet_balance(t) AS balance_got,
+               public.staff_needs_attention(t) AS attention_got,
                public.staff_locked(t) AS locked_got,
                public.staff_health_score(t) AS score_got,
                public.staff_health_parts(t) AS parts_got
@@ -151,6 +159,8 @@ BEGIN
     LOOP
         PERFORM pg_temp.check(format('%s: balance %s, got %s', _r.name, coalesce(_r.balance, 0), _r.balance_got),
             _r.balance_got = coalesce(_r.balance, 0));
+        PERFORM pg_temp.check(format('%s: needs attention %s, got %s', _r.name, _r.want_attention, _r.attention_got),
+            _r.attention_got = _r.want_attention);
         PERFORM pg_temp.check(format('%s: locked %s, got %s', _r.name, _r.want_locked, _r.locked_got),
             _r.locked_got = _r.want_locked);
         PERFORM pg_temp.check(format('%s: health %s, got %s', _r.name, _r.want_score, _r.score_got),
@@ -182,10 +192,12 @@ BEGIN
 
     -- As the API uses them: a filter over the table, counted in the database.
     SET LOCAL ROLE service_role;
+    SELECT count(*) INTO _attention FROM public.tenants t WHERE t.staff_needs_attention AND t.slug LIKE 'tt-%';
     SELECT count(*) INTO _locked FROM public.tenants t WHERE t.staff_locked AND t.slug LIKE 'tt-%';
     SELECT count(*) INTO _low FROM public.tenants t WHERE t.staff_wallet_balance < 10000 AND t.slug LIKE 'tt-%';
     SELECT count(*) INTO _at_risk FROM public.tenants t WHERE t.staff_health_score < 40 AND t.slug LIKE 'tt-%';
     RESET ROLE;
+    PERFORM pg_temp.check('filter: needs attention finds 9 shops, got ' || _attention, _attention = 9);
     PERFORM pg_temp.check('filter: locked finds 2 shops, got ' || _locked, _locked = 2);
     PERFORM pg_temp.check('filter: under 10,000 IQD finds 4 shops, got ' || _low, _low = 4);
     PERFORM pg_temp.check('filter: health under 40 finds 1 shop, got ' || _at_risk, _at_risk = 1);
@@ -199,6 +211,16 @@ BEGIN
     END;
     RESET ROLE;
     PERFORM pg_temp.check('authenticated: ran staff_locked', _n = 0);
+
+    SET LOCAL ROLE authenticated;
+    BEGIN
+        PERFORM 1 FROM public.tenants t WHERE t.staff_needs_attention;
+        _n := 1;
+    EXCEPTION WHEN insufficient_privilege THEN
+        _n := 0;
+    END;
+    RESET ROLE;
+    PERFORM pg_temp.check('authenticated: ran staff_needs_attention', _n = 0);
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1

@@ -377,6 +377,20 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
+    name: "PUT /api/merchants/[id]/tags (manage_tags)",
+    call: async (t) => {
+      const { PUT } = await import("./merchants/[id]/tags/route");
+      return PUT(req(`/api/merchants/${TENANT}/tags`, "PUT", t, { tags: ["vip"] }), idParams);
+    },
+  },
+  {
+    name: "GET /api/merchants/[id]/tags",
+    call: async (t) => {
+      const { GET } = await import("./merchants/[id]/tags/route");
+      return GET(req(`/api/merchants/${TENANT}/tags`, "GET", t), idParams);
+    },
+  },
+  {
     name: "GET /api/merchants/[id]/orders",
     call: async (t) => {
       const { GET } = await import("./merchants/[id]/orders/route");
@@ -388,6 +402,15 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { GET } = await import("./merchants/[id]/timeline/route");
       return GET(req(`/api/merchants/${TENANT}/timeline`, "GET", t), idParams);
+    },
+  },
+  {
+    name: "DELETE /api/admin/watchlist/[tenantId]",
+    call: async (t) => {
+      const { DELETE } = await import("./admin/watchlist/[tenantId]/route");
+      return DELETE(req(`/api/admin/watchlist/${TENANT}`, "DELETE", t), {
+        params: Promise.resolve({ tenantId: TENANT }),
+      });
     },
   },
 ];
@@ -432,6 +455,19 @@ describe("handlers open to every active admin", () => {
 });
 
 describe("actor attribution", () => {
+  it("watchlist DELETE removes only the caller's own entry", async () => {
+    dbResult = { data: null, error: null };
+    const { DELETE } = await import("./admin/watchlist/[tenantId]/route");
+    const res = await DELETE(req(`/api/admin/watchlist/${TENANT}`, "DELETE", "support"), {
+      params: Promise.resolve({ tenantId: TENANT }),
+    });
+
+    expect(res.status).toBe(200);
+    const eqs = dbCalls.filter((c) => c.method === "eq").map((c) => c.args);
+    expect(eqs).toContainEqual(["admin_user_id", SUPPORT_ID]);
+    expect(eqs).toContainEqual(["tenant_id", TENANT]);
+  });
+
   it("a new note is attributed to the admin who wrote it, not 'system'", async () => {
     dbResult = { data: { id: "n1" }, error: null };
     const { POST } = await import("./merchants/[id]/notes/route");
@@ -879,6 +915,9 @@ describe("every role rule is proven from the source", () => {
 
   /** Writes open to every active admin, each with the reason. */
   const OPEN_WRITES: Record<string, string> = {
+    "admin/last-actors/route.ts POST": "a read: the ids are sent in the body",
+    "admin/watchlist/route.ts POST": "each admin's own watchlist",
+    "admin/watchlist/[tenantId]/route.ts DELETE": "each admin's own watchlist",
     "leads/route.ts POST": "sales work: add a lead",
     "leads/import/route.ts POST": "sales work: import leads",
     "leads/bulk/route.ts POST": "sales work; delete needs delete_leads, checked in the handler",
@@ -918,6 +957,7 @@ describe("every role rule is proven from the source", () => {
         "merchants/[id]/route.ts PATCH",
         "admin-users/route.ts POST",
         "admin-users/route.ts DELETE",
+        "seed-automation/route.ts POST",
         "billing/route.ts GET",
         "admin/leads-table-layout/route.ts PUT",
         "billing/topup/route.ts POST",

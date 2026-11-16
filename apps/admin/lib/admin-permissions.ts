@@ -8,6 +8,9 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *
  *   manage_subscription — extend a paid subscription / convert a trial to
  *                         paid (grants paid time without a payment).
+ *   manage_tags         — overwrite a merchant's tags. Open to support_staff
+ *                         on purpose: tags are the team's working labels and
+ *                         move no money, plan or subscription state.
  *   manage_commissions  — edit commission configs / recalculate payouts.
  *   convert_lead        — turn a sales lead into a live merchant on the
  *                         starter plan (30-day subscription row, 14-day trial
@@ -62,9 +65,11 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "suspend_tenant",
     "reactivate_tenant",
     "add_note",
+    "bulk_action",
     "export_data",
     "update_settings",
     "manage_subscription",
+    "manage_tags",
     "manage_commissions",
     "convert_lead",
     "delete_leads",
@@ -80,6 +85,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "extend_trial",
     "add_note",
     "export_data",
+    "manage_tags",
     "convert_lead",
     "link_prime",
     "handle_support",
