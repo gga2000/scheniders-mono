@@ -8,6 +8,7 @@ import {
   calculateOnboardingProgress,
   calculatePeakHours,
   calculatePlatformOrderStats,
+  calculatePlanMovements,
   calculatePlatformPipeline,
   calculateRevenueBreakdown,
   calculateGeoStats,
@@ -17,6 +18,7 @@ import {
   getDateKey,
   MIN_ENDED_FOR_RATE,
   type DashboardTenant,
+  type SubscriptionRow,
 } from "./dashboard-calculations";
 import { dashboardStats, incomeStats, SHOP_A, SHOP_B, SHOP_C, TODAY, usageStats } from "./console-stats.test-data";
 import { ONBOARDING_STEPS } from "./onboarding-steps";
@@ -280,5 +282,58 @@ describe("smaller widgets", () => {
     expect(byCity).toHaveLength(10);
     expect(byCity[0]).toMatchObject({ label: "Wasit", value: 11_000 });
     expect(byCity.map((c) => c.label)).not.toContain("Baghdad");
+  });
+});
+
+describe("calculatePlanMovements", () => {
+  const now = new Date("2026-11-16T22:00:00Z");
+  const sub = (tenant_id: string, over: Partial<SubscriptionRow> = {}): SubscriptionRow => ({
+    tenant_id,
+    plan: "starter",
+    status: "active",
+    pending_plan: null,
+    cancelled_at: null,
+    ...over,
+  });
+  const shops = new Set([SHOP_A, SHOP_B, SHOP_C]);
+
+  it("counts a cancellation only when it is dated in the last 30 days", () => {
+    const moves = calculatePlanMovements(
+      [
+        sub(SHOP_A, { status: "cancelled", cancelled_at: "2026-11-01T10:00:00Z" }),
+        // Ended in May: not a move of the last 30 days.
+        sub(SHOP_B, { plan: "internal", status: "cancelled", cancelled_at: "2026-05-09T10:00:00Z" }),
+        // No date at all: nothing proves when it happened.
+        sub(SHOP_C, { status: "cancelled" }),
+      ],
+      shops,
+      now,
+    );
+    expect(moves).toEqual([{ fromPlan: "starter", toPlan: "cancelled", count: 1, type: "cancellation" }]);
+  });
+
+  it("shows a waiting plan change as an upgrade or a downgrade", () => {
+    const moves = calculatePlanMovements(
+      [
+        sub(SHOP_A, { plan: "starter", pending_plan: "growth" }),
+        sub(SHOP_B, { plan: "professional", pending_plan: "growth" }),
+        sub(SHOP_C, { plan: "growth", pending_plan: "growth" }),
+      ],
+      shops,
+      now,
+    );
+    expect(moves.map((m) => `${m.fromPlan}>${m.toPlan}:${m.type}`)).toEqual([
+      "starter>growth:upgrade",
+      "professional>growth:downgrade",
+    ]);
+  });
+
+  it("leaves out shops that are not listed, such as the demo store", () => {
+    const moves = calculatePlanMovements(
+      [sub("demo-store", { plan: "growth", pending_plan: "starter" })],
+      shops,
+      now,
+    );
+    expect(moves).toEqual([]);
   });
 });

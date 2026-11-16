@@ -109,6 +109,21 @@ describe("GET /api/dashboard/v2", () => {
     expect(body.walletHealth).toMatchObject({ healthy: 1, critical: 1 });
   });
 
+  it("lists plan moves of real shops only, with no undated or old cancellation", async () => {
+    stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true });
+    stub.state.tables.subscriptions = [
+      { id: "s-1", tenant_id: SHOP_A, plan: "growth", status: "active", pending_plan: "starter", cancelled_at: null },
+      // Ended in May, and the shop is active again: not a move of the last 30 days.
+      { id: "s-2", tenant_id: SHOP_B, plan: "internal", status: "cancelled", pending_plan: null, cancelled_at: "2026-05-09T10:00:00Z" },
+      // The demo store is in no platform number.
+      { id: "s-3", tenant_id: "demo-shop", plan: "starter", status: "active", pending_plan: "growth", cancelled_at: null },
+    ];
+
+    const body = await (await call()).json();
+
+    expect(body.planMovements).toEqual([{ fromPlan: "growth", toPlan: "starter", count: 1, type: "downgrade" }]);
+  });
+
   it("answers 500 when the database totals cannot be read", async () => {
     stub.state.functions.admin_dashboard_stats = () => ({ data: null, error: { message: "permission denied" } });
     const res = await call();
