@@ -58,7 +58,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                                 {t("fin.failed.back")}
                             </div>
                             <p className="mt-2 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
-                                {t("fin.failed.kept", { kept: formatWhole(SQUARES - ofHundred), refused: formatWhole(refused) })}
+                                {t("fin.failed.kept", { kept: formatWhole(SQUARES - ofHundred), refused: formatWhole(refused), count: refused })}
                             </p>
                         </div>
                     </div>
@@ -69,7 +69,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                         </div>
                         {fee > 0 && (
                             <div className="rounded-[14px] bg-[var(--background-soft)] px-3.5 py-3" data-testid="failed-fee">
-                                <dt className="text-left text-[12.5px] text-muted" dir={dir}>{t("fin.failed.fee", { n: formatWhole(returnedParcels) })}</dt>
+                                <dt className="text-left text-[12.5px] text-muted" dir={dir}>{t("fin.failed.fee", { n: formatWhole(returnedParcels), count: returnedParcels })}</dt>
                                 <dd className="mt-0.5"><Money value={fee} className="text-[18px] font-bold text-foreground" /></dd>
                             </div>
                         )}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Clock, HandCoins, Truck, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Clock, FileUp, HandCoins, Truck, Wallet, type LucideIcon } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -11,6 +11,8 @@ import { SummaryCard } from "./summary-card";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
+    /** Opens the courier payment file import: how a payment gets onto the last stop. */
+    onAddPayment: () => void;
 }
 
 interface StopProps {
@@ -53,14 +55,17 @@ function Stop({ icon: Icon, label, note, amount, textDir, road, arrived = false,
  * The road order money takes to the merchant, as stops: parcels still with the
  * courier, then delivered parcels Prime has collected but not paid out (both as
  * of now, whatever period is picked), and last the courier payments that
- * reached the shop in the period.
+ * reached the shop in the period. Payments are dated by the courier, sales by
+ * the delivery, so the last line says how many of the period's delivered orders
+ * are already paid: without it the card looks as if money were missing.
  */
-export function MoneyRoute({ summary }: MoneyRouteProps) {
+export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, stuck, prime_linked: primeLinked, prime_held: held, reached } = summary.cash;
-    const nothingOutside = road.count === 0 && held.parcels === 0 && reached.payments === 0;
+    const { in_transit: road, stuck, returning, prime_linked: primeLinked, prime_held: held, reached } = summary.cash;
+    const { orders, paid_orders: paid } = summary.sales;
+    const nothingOutside = road.count === 0 && returning.count === 0 && held.parcels === 0 && reached.payments === 0;
     const dayText = useMemo(
         () => new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { day: "numeric", month: "short", timeZone: "UTC" }),
         [language],
@@ -72,22 +77,41 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
             : reached.payments === 1
               ? t("fin.money.reached.one", { date: lastDay })
               : t("fin.money.reached.many", { n: formatWhole(reached.payments), date: lastDay, amount: money(reached.last_amount) });
+    const addPayment = (
+        <button
+            type="button"
+            onClick={onAddPayment}
+            className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
+            data-testid="money-add-payment"
+        >
+            <FileUp className="size-3.5" aria-hidden="true" />
+            {t("fin.money.addPayment")}
+        </button>
+    );
 
     return (
         <SummaryCard title={t("fin.money.title")} sub={t("fin.money.sub")} textDir={dir} testId="money-route" className="h-full">
             {nothingOutside ? (
-                <p className="py-2 text-left text-[14px] text-muted" dir={dir}>{t("fin.money.none")}</p>
+                <div className="py-2">
+                    <p className="text-left text-[14px] text-muted" dir={dir}>{t("fin.money.none")}</p>
+                    {addPayment}
+                </div>
             ) : (
                 <ol>
                     <Stop
                         icon={Truck}
                         label={t("fin.money.road")}
-                        note={t("fin.money.road.note", { n: formatWhole(road.count) })}
+                        note={t("fin.money.road.note", { n: formatWhole(road.count), count: road.count })}
                         amount={road.amount}
                         textDir={dir}
                         road
                         testId="money-road"
                     >
+                        {returning.count > 0 && (
+                            <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
+                                {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
+                            </p>
+                        )}
                         {stuck.count > 0 && (
                             <Link
                                 href="/orders?status=in_transit"
@@ -95,7 +119,7 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
                                 data-testid="money-stuck"
                             >
                                 <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-                                <span dir={dir}>{t("fin.money.stuck", { n: formatWhole(stuck.count), amount: money(stuck.amount) })}</span>
+                                <span dir={dir}>{t("fin.money.stuck", { n: formatWhole(stuck.count), count: stuck.count, amount: money(stuck.amount) })}</span>
                             </Link>
                         )}
                     </Stop>
@@ -108,6 +132,7 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
                                     ? t("fin.money.prime.none")
                                     : t("fin.money.prime.note", {
                                           n: formatWhole(held.parcels),
+                                          count: held.parcels,
                                           collected: money(held.collected),
                                           fee: money(held.fee),
                                       })
@@ -135,8 +160,21 @@ export function MoneyRoute({ summary }: MoneyRouteProps) {
                         road={false}
                         arrived
                         testId="money-reached"
-                    />
+                    >
+                        {addPayment}
+                    </Stop>
                 </ol>
+            )}
+            {orders > 0 && paid > 0 && (
+                <p
+                    className="mt-5 border-t border-[var(--card-border)] pt-3.5 text-left text-[13px] leading-relaxed text-muted"
+                    dir={dir}
+                    data-testid="money-paid"
+                >
+                    {paid >= orders
+                        ? t("fin.money.paidAll", { orders: formatWhole(orders) })
+                        : t("fin.money.paid", { orders: formatWhole(orders), paid: formatWhole(paid) })}
+                </p>
             )}
         </SummaryCard>
     );

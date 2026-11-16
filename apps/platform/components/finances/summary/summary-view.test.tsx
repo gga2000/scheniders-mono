@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { render, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import type { FinanceSummary } from "@/lib/finance/summary";
@@ -15,13 +15,20 @@ vi.mock("@/components/ui/number-ticker", async (importOriginal) => ({
     ),
 }));
 
+// The real import dialog talks to the server: stand in a dialog that can only be closed.
+vi.mock("@/components/delivery-import/delivery-import-modal", () => ({
+    DeliveryImportModal: ({ onClose }: { onClose: () => void }) => (
+        <button type="button" data-testid="import-dialog" onClick={onClose}>close</button>
+    ),
+}));
+
 afterEach(cleanup);
 
 function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
     return {
         from: "2026-11-01",
         to: "2026-11-02",
-        sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 150_000, missing_cost_units: 0 },
+        sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 150_000, missing_cost_units: 0, paid_orders: 0 },
         refunds: { count: 1, amount: 40_000 },
         expenses: [
             { category: "marketing", amount: 60_000 },
@@ -32,6 +39,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
         cash: {
             in_transit: { count: 4, amount: 160_000 },
             stuck: { count: 0, amount: 0 },
+            returning: { count: 0, amount: 0 },
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
@@ -112,6 +120,8 @@ describe("SummaryView", () => {
         const add = byTestId("statement-quiet")?.querySelector("button");
         if (add) fireEvent.click(add);
         expect(onOpenTab).toHaveBeenCalledWith("expenses");
+        // the empty lines are named, and so is what that means for the profit under them
+        expect(byTestId("statement-quiet")?.textContent).toContain("لا يشملها");
     });
 
     it("opens a cost line to show what is inside, and its link opens the tab", () => {
@@ -124,9 +134,24 @@ describe("SummaryView", () => {
         // Prime's fee on the 6 delivered parcels.
         expect(row?.textContent).toContain("6");
         expect(row?.textContent).toContain("30,000");
+        // ... of the shop's 10 delivered orders
+        expect(row?.textContent).toContain("10");
+        expect(byTestId("detail-totals")).toBeNull();
         const link = [...(row?.querySelectorAll("button") ?? [])].at(-1);
         if (link) fireEvent.click(link);
         expect(onOpenTab).toHaveBeenCalledWith("expenses");
+    });
+
+    it("keeps the inside of a line as real totals when the statement is read per order, and says so", () => {
+        renderView(query(summary()));
+        const toggle = line("delivery")?.querySelector("button");
+        if (toggle) fireEvent.click(toggle);
+        const perOrder = document.querySelector('[data-lens="order"]');
+        if (perOrder) fireEvent.click(perOrder);
+        // the line is 3,000 an order; Prime's fee on its 6 parcels is still 30,000, not 3,000
+        expect(line("delivery")?.querySelector("button")?.textContent).toContain("−3,000");
+        expect(byTestId("detail-totals")).not.toBeNull();
+        expect(line("delivery")?.textContent).toContain("30,000");
     });
 
     it("counts Prime's fee on parcels that came back in the delivery line", () => {
@@ -159,6 +184,25 @@ describe("SummaryView", () => {
         expect(byTestId("money-reached")?.textContent).toContain("لا توجد دفعة");
     });
 
+    it("names the parcels on their way back beside the road, and says how many delivered orders are already paid", () => {
+        renderView(query(summary()));
+        expect(byTestId("money-returning")).toBeNull();
+        expect(byTestId("money-paid")).toBeNull();
+        cleanup();
+        const s = summary();
+        renderView(query(summary({
+            sales: { ...s.sales, paid_orders: 7 },
+            cash: { ...s.cash, returning: { count: 5, amount: 90_000 } },
+        })));
+        // 3 to 10 take the plural noun in Arabic
+        expect(byTestId("money-returning")?.textContent).toContain("5 طرود راجعة");
+        expect(byTestId("money-paid")?.textContent).toContain("10");
+        expect(byTestId("money-paid")?.textContent).toContain("7");
+        cleanup();
+        renderView(query(summary({ sales: { ...s.sales, paid_orders: 10 } })));
+        expect(byTestId("money-paid")?.textContent).toContain("كلها");
+    });
+
     it("names the stuck parcels on the road they are stuck on", () => {
         renderView(query(summary()));
         expect(byTestId("money-stuck")).toBeNull();
@@ -166,6 +210,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, stuck: { count: 2, amount: 50_000 } } })));
         expect(byTestId("money-stuck")?.textContent).toContain("50,000");
+        expect(byTestId("money-stuck")?.textContent).toContain("طردان عالقان");
     });
 
     it("says how often a parcel comes back, and what the way back cost", () => {
@@ -187,6 +232,8 @@ describe("SummaryView", () => {
         expect(row?.textContent).toContain("250,000");
         expect(row?.textContent).toContain("20,833");
         expect(row?.textContent).toContain("63%");
+        // the only product made all of the products' profit
+        expect(document.querySelector('[data-share="p1"]')?.textContent).toBe("100%");
     });
 
     it("says what each 1,000 IQD of ads brought, or that nothing was spent", () => {
@@ -201,6 +248,8 @@ describe("SummaryView", () => {
 
     it("shows the stock on the shelf, and keeps a stock purchase out of the profit", () => {
         renderView(query(summary()));
+        // 100 of the 120 pieces have a cost: the worth is theirs alone
+        expect(byTestId("stock-say")?.textContent).toContain("100");
         expect(byTestId("stock-say")?.textContent).toContain("120");
         expect(byTestId("stock-say")?.textContent).toContain("900,000");
         expect(byTestId("stock-missing")).toBeNull();
@@ -235,7 +284,7 @@ describe("SummaryView", () => {
             const button = document.querySelector(`[data-lens="${id}"]`);
             if (button) fireEvent.click(button);
         };
-        const before = (orders: number) => query(summary({ sales: { orders, revenue: 320_000, units: orders, product_cost: 120_000, missing_cost_units: 0 } }));
+        const before = (orders: number) => query(summary({ sales: { orders, revenue: 320_000, units: orders, product_cost: 120_000, missing_cost_units: 0, paid_orders: 0 } }));
         renderView(query(summary()), before(20));
         expect(change("sales")).toBe("25%");
         expect(change("product_cost")).toBe("25%");
@@ -254,6 +303,11 @@ describe("SummaryView", () => {
         lens("order");
         expect(change("product_cost")).toBeNull();
         cleanup();
+        // the period before sold a fortieth of today: its refunds could still be compared, and one arrow alone would read as a mistake
+        renderView(query(summary()), query(summary({ sales: { orders: 20, revenue: 10_000, units: 20, product_cost: 4_000, missing_cost_units: 0, paid_orders: 0 } })));
+        expect(document.querySelector("[data-change]")).toBeNull();
+        expect(byTestId("profit-statement")?.textContent).not.toContain("الأسهم تقارن");
+        cleanup();
         renderView(query(summary()));
         expect(change("sales")).toBeNull();
     });
@@ -270,15 +324,15 @@ describe("SummaryView", () => {
         renderView(query(summary({ expenses: [] })));
         expect(byTestId("break-even-free")).not.toBeNull();
         cleanup();
-        renderView(query(summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0 } })));
+        renderView(query(summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0, paid_orders: 0 } })));
         expect(byTestId("break-even-never")).not.toBeNull();
     });
 
     it("compares against the period before only when that period is big enough to compare", () => {
-        renderView(query(summary()), query(summary({ sales: { orders: 8, revenue: 320_000, units: 9, product_cost: 120_000, missing_cost_units: 0 } })));
+        renderView(query(summary()), query(summary({ sales: { orders: 8, revenue: 320_000, units: 9, product_cost: 120_000, missing_cost_units: 0, paid_orders: 0 } })));
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("25%");
         cleanup();
-        renderView(query(summary()), query(summary({ sales: { orders: 1, revenue: 1_000, units: 1, product_cost: 0, missing_cost_units: 0 } })));
+        renderView(query(summary()), query(summary({ sales: { orders: 1, revenue: 1_000, units: 1, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } })));
         expect(document.querySelector('[data-cell="sales"]')?.textContent).not.toContain("%");
     });
 
@@ -288,7 +342,7 @@ describe("SummaryView", () => {
         cleanup();
         const s = summary();
         renderView(query(summary({
-            sales: { ...s.sales, missing_cost_units: 3 },
+            sales: { ...s.sales, missing_cost_units: 3, paid_orders: 0 },
             cash: { ...s.cash, stuck: { count: 2, amount: 50_000 } },
         })));
         expect(document.querySelector('[data-alert="stuck"]')?.textContent).toContain("50,000");
@@ -297,7 +351,7 @@ describe("SummaryView", () => {
 
     it("keeps the costs on screen when nothing was delivered, without the charts", () => {
         renderView(query(summary({
-            sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 },
+            sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 },
             products: [],
         })));
         expect(byTestId("summary-empty")).not.toBeNull();
@@ -306,6 +360,20 @@ describe("SummaryView", () => {
         expect(byTestId("money-route")).not.toBeNull();
         expect(line("ads")?.textContent).toContain("−60,000");
         expect(stat("profit_per_order")).toBe("—");
+    });
+
+    it("opens the courier payment file import from the money card and reads the figures again after it", async () => {
+        renderView(query(summary()));
+        expect(byTestId("import-dialog")).toBeNull();
+        const add = byTestId("money-add-payment");
+        expect(add?.textContent).toContain("استيراد كشف التوصيل");
+        if (add) fireEvent.click(add);
+        await waitFor(() => expect(byTestId("import-dialog")).not.toBeNull());
+        refetch.mockClear();
+        const dialog = byTestId("import-dialog");
+        if (dialog) fireEvent.click(dialog);
+        expect(byTestId("import-dialog")).toBeNull();
+        expect(refetch).toHaveBeenCalledTimes(1);
     });
 
     it("shows a skeleton while loading and a retry when the load fails", () => {

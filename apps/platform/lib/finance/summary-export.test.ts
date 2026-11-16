@@ -5,7 +5,7 @@ import type { FinanceSummary } from "./summary";
 const summary: FinanceSummary = {
     from: "2026-11-01",
     to: "2026-11-02",
-    sales: { orders: 2, revenue: 80_000, units: 2, product_cost: 30_000, missing_cost_units: 0 },
+    sales: { orders: 2, revenue: 80_000, units: 2, product_cost: 30_000, missing_cost_units: 0, paid_orders: 0 },
     refunds: { count: 0, amount: 0 },
     expenses: [{ category: "marketing", amount: 10_000 }],
     salaries_paid: 0,
@@ -13,6 +13,7 @@ const summary: FinanceSummary = {
     cash: {
         in_transit: { count: 0, amount: 0 },
         stuck: { count: 0, amount: 0 },
+        returning: { count: 0, amount: 0 },
         prime_linked: true,
         prime_held: { parcels: 0, collected: 0, fee: 0 },
         reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 },

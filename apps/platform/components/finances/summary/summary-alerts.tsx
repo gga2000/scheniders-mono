@@ -32,7 +32,7 @@ export function SummaryAlerts({ summary }: SummaryAlertsProps) {
         alerts.push({
             key: "stuck",
             icon: Clock,
-            text: t("fin.alert.stuck", { n: formatWhole(summary.cash.stuck.count), amount: money(summary.cash.stuck.amount) }),
+            text: t("fin.alert.stuck", { n: formatWhole(summary.cash.stuck.count), count: summary.cash.stuck.count, amount: money(summary.cash.stuck.amount) }),
             href: "/orders?status=in_transit",
             action: t("fin.alert.stuck.open"),
         });

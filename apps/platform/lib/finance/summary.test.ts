@@ -7,6 +7,7 @@ import {
     buildStatement,
     changePct,
     dayProfit,
+    isComparablePeriod,
     lensChange,
     perOrder,
     primeOwes,
@@ -30,7 +31,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
     return {
         from: "2026-11-01",
         to: "2026-11-03",
-        sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 150_000, missing_cost_units: 0 },
+        sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 150_000, missing_cost_units: 0, paid_orders: 0 },
         refunds: { count: 1, amount: 40_000 },
         expenses: [
             { category: "marketing", amount: 60_000 },
@@ -43,6 +44,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
         cash: {
             in_transit: { count: 4, amount: 160_000 },
             stuck: { count: 1, amount: 40_000 },
+            returning: { count: 0, amount: 0 },
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
@@ -110,7 +112,7 @@ describe("buildStatement", () => {
     });
 
     it("reports a loss, and no margin when nothing was sold", () => {
-        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } }));
+        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } }));
         expect(empty.netProfit).toBe(-185_000);
         expect(empty.margin).toBeNull();
         expect(empty.lines.every((l) => l.share === 0)).toBe(true);
@@ -158,7 +160,7 @@ describe("throughLens", () => {
     });
 
     it("has no per-order or per-1,000 answer when nothing was delivered", () => {
-        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } }));
+        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } }));
         expect(throughLens(60_000, empty, "total")).toBe(60_000);
         expect(throughLens(60_000, empty, "order")).toBeNull();
         expect(throughLens(60_000, empty, "thousand")).toBeNull();
@@ -290,7 +292,7 @@ describe("money still outside", () => {
         expect(refusedShare(summary())).toBeCloseTo(2 / 12);
         expect(
             refusedShare(summary({
-                sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 },
+                sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 },
                 failed: { refused_orders: 0, refused_value: 0, prime_returned_parcels: 0, prime_returned_fee: 0 },
             })),
         ).toBeNull();
@@ -303,7 +305,7 @@ describe("money still outside", () => {
 
 describe("lensChange", () => {
     const now = buildStatement(summary());
-    const before = buildStatement(summary({ sales: { orders: 20, revenue: 320_000, units: 22, product_cost: 120_000, missing_cost_units: 0 } }));
+    const before = buildStatement(summary({ sales: { orders: 20, revenue: 320_000, units: 22, product_cost: 120_000, missing_cost_units: 0, paid_orders: 0 } }));
 
     it("compares the figure on screen with the same figure before", () => {
         // 150,000 against 120,000 in total; 15,000 an order against 6,000; 375 of each 1,000 both times
@@ -315,17 +317,33 @@ describe("lensChange", () => {
     });
 
     it("compares no average against a period that delivered too few orders, only the totals", () => {
-        const thin = buildStatement(summary({ sales: { orders: 8, revenue: 320_000, units: 9, product_cost: 120_000, missing_cost_units: 0 } }));
+        const thin = buildStatement(summary({ sales: { orders: 8, revenue: 320_000, units: 9, product_cost: 120_000, missing_cost_units: 0, paid_orders: 0 } }));
         expect(lensChange(150_000, now, 120_000, thin, "total")).toBe(25);
         expect(lensChange(150_000, now, 120_000, thin, "order")).toBeNull();
         expect(lensChange(150_000, now, 120_000, thin, "thousand")).toBeNull();
     });
 
     it("has no answer when the period before delivered nothing", () => {
-        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } }));
+        const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } }));
         expect(lensChange(150_000, now, 0, empty, "total")).toBeNull();
         expect(lensChange(150_000, now, 0, empty, "order")).toBeNull();
         expect(lensChange(150_000, empty, 120_000, before, "order")).toBeNull();
+    });
+});
+
+describe("isComparablePeriod", () => {
+    const now = buildStatement(summary());
+    const sold = (revenue: number) => buildStatement(summary({ sales: { orders: 20, revenue, units: 22, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } }));
+
+    it("takes a period before that sold a fair share of today's sales", () => {
+        expect(isComparablePeriod(now, sold(320_000))).toBe(true);
+        // today's 400,000 is ten times 40,000: still a base
+        expect(isComparablePeriod(now, sold(40_000))).toBe(true);
+    });
+
+    it("refuses a period before that sold nothing, or under a tenth of today's sales", () => {
+        expect(isComparablePeriod(now, sold(0))).toBe(false);
+        expect(isComparablePeriod(now, sold(30_000))).toBe(false);
     });
 });
 
@@ -351,12 +369,12 @@ describe("breakEven", () => {
     it("needs no orders when nothing is spent by the day, and has no answer when an order leaves nothing", () => {
         const free = summary({ expenses: [], salaries_paid: 0 });
         expect(breakEven(free, buildStatement(free))?.needed).toBe(0);
-        const losing = summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0 } });
+        const losing = summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0, paid_orders: 0 } });
         expect(breakEven(losing, buildStatement(losing))?.needed).toBeNull();
     });
 
     it("has nothing to say when nothing was delivered", () => {
-        const none = summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0 } });
+        const none = summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } });
         expect(breakEven(none, buildStatement(none))).toBeNull();
     });
 });
