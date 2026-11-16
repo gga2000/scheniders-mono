@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
+import { z } from "zod";
 import { requireBearerAdmin } from "@/lib/api-auth";
+
+/** A staff id is a user id; anything else could change the leads filter below. */
+const staffId = z.string().uuid();
 
 export async function GET(
   _request: NextRequest,
@@ -10,7 +14,9 @@ export async function GET(
     const admin = await requireBearerAdmin(_request);
     if (admin instanceof NextResponse) return admin;
 
-    const { id } = await params;
+    const parsedId = staffId.safeParse((await params).id);
+    if (!parsedId.success) return NextResponse.json({ error: "Not a staff id" }, { status: 400 });
+    const id = parsedId.data;
     const supabase = createAdminClient();
 
     const [userResult, adminResult, leadsResult, actionsResult, commissionsResult, achievementsResult] =
