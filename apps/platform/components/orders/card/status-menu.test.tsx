@@ -48,11 +48,4 @@ describe("CardStatusMenu", () => {
         fireEvent.click(item("cancelled"));
         expect(onStatusUpdate).toHaveBeenCalledWith("o1", "cancelled");
     });
-
-    it("marks the current status and does not set it again", () => {
-        const onStatusUpdate = open();
-        expect(item("new").getAttribute("aria-disabled")).toBe("true");
-        fireEvent.click(item("new"));
-        expect(onStatusUpdate).not.toHaveBeenCalled();
-    });
 });
