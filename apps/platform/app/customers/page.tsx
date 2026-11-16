@@ -300,13 +300,17 @@ function CustomersPageContent() {
                     )}
                 </motion.div>
 
-                {/* Saved views: the one place each count is shown */}
-                {stats && (
+                {/* Saved views: the one place each count is shown. Until the counts
+                    arrive an empty row of the same height (h-8 buttons) holds the
+                    place, so the toolbar and the grid do not jump down (CLS 0.21). */}
+                {stats ? (
                     <CustomerSegmentTabs
                         stats={stats}
                         current={{ value: valueFilter, risk: riskFilter, lane: laneFilter }}
                         onSelect={onSegmentSelect}
                     />
+                ) : (
+                    <div aria-hidden className="h-8" />
                 )}
 
                 <CustomerToolbar
