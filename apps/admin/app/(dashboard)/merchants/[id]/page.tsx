@@ -38,10 +38,11 @@ import { LoadError } from "@/components/shared/load-error";
 import { loadFailureKind } from "@/lib/load-failure";
 import { usePageHeader } from "@/store/use-page-header";
 
-/** "Starter plan", or the plan's own word for a plan this console does not sell. */
+/** "Starter plan", or "Growth plan" from the plan's own word for a plan this console does not sell. */
 function planLabel(plan: string): string {
   const tier = PLAN_TIERS.find((t) => t === plan);
-  return tier ? (tier === "internal" ? PLAN_LABELS.internal : `${PLAN_LABELS[tier]} plan`) : `${plan} plan`;
+  if (tier) return tier === "internal" ? PLAN_LABELS.internal : `${PLAN_LABELS[tier]} plan`;
+  return `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`;
 }
 
 const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;

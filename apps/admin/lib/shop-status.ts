@@ -32,6 +32,12 @@ function shortBy(balance: number, price: number): string {
   return balance >= price ? "" : ` Wallet ${formatIQD(balance)}, short by ${formatIQD(price - balance)}.`;
 }
 
+/** The same, for a charge still to come: an unpaid trial end or renewal locks the shop. */
+function shortByThen(balance: number, price: number): string {
+  const short = shortBy(balance, price);
+  return short && `${short} It locks that day unless money is added.`;
+}
+
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
   const { tenant, wallet, subscription, planLimits, billingLock } = detail;
   const balance = wallet?.balance_iqd ?? 0;
@@ -77,7 +83,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       tone: "trial",
       label: "Trial",
       sentence: ends ? `Trial until ${formatDayTime(ends, now)}.` : "On trial.",
-      next: ends && price > 0 ? `First charge ${formatIQD(price)} on ${formatDay(ends, now)}.${shortBy(balance, price)}` : null,
+      next: ends && price > 0 ? `First charge ${formatIQD(price)} on ${formatDay(ends, now)}.${shortByThen(balance, price)}` : null,
     };
   }
 
@@ -106,6 +112,6 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       subscription.status === "past_due"
         ? "The last month is not paid yet."
         : `Paying. This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`,
-    next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortBy(balance, price)}` : null,
+    next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
   };
 }
