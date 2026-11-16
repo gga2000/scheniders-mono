@@ -44,7 +44,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
-            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1 },
+            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_prime: 0, reached_before: 0 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 0, prime_returned_fee: 0 },
         daily: [
@@ -257,6 +257,13 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
         expect(byTestId("money-payments")?.textContent).toContain("لم تستلم من المندوب أي دفعة");
+        cleanup();
+        // when the server says where "paid to you" came from, the line names each part instead
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_before: 200_000, reached_prime: 50_000 } } })));
+        const why = byTestId("money-payments")?.textContent ?? "";
+        expect(why).toContain("«دُفع لك» أعلاه يشمل 200,000 د.ع دُفعت بكشوف مؤرَّخة قبل هذه الفترة");
+        expect(why).toContain("، و50,000 د.ع دفعتها برايم.");
+        expect(why).not.toContain("أيّاً كان تاريخ الدفعة");
     });
 
     it("names the parcels on their way back beside the road", () => {
@@ -266,7 +273,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
-        expect(byTestId("money-returning")?.textContent).toContain("5 طرود راجعة");
+        expect(byTestId("money-returning")?.textContent).toContain("5 طرود في طريق العودة إليك الآن");
     });
 
     it("leaves the stuck parcels to the strip and the banner: the money card does not say them a third time", () => {
@@ -322,7 +329,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("13 طرداً راجعاً");
+        expect(byTestId("returned-parcels")?.textContent).toContain("منها 13 طلباً رجعت عبر برايم");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
@@ -491,6 +498,9 @@ describe("SummaryView", () => {
         expect(bar?.textContent).toContain("32,500");
         // and what each order leaves after the daily costs: the strip's profit per order
         expect(bar?.textContent).toContain("و11,500 د.ع بعدها");
+        // the brackets name only the daily costs this period has: no salaries here
+        expect(bar?.textContent).toContain("مصروفاتك اليومية (إعلانات، مصروفات أخرى)");
+        expect(byTestId("break-even-bulk")).toBeNull();
         cleanup();
         // four times the ads: 122,500 a day asks for 7 orders, and the shop delivers 5
         renderView(query(summary({ expenses: [{ category: "marketing", amount: 240_000 }, { category: "packaging", amount: 5_000 }] })));

@@ -116,6 +116,14 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/money_split AS \(\s*SELECT COALESCE\(sum\(price - fee\) FILTER \(WHERE paid\), 0\) AS reached,[\s\S]*?COALESCE\(sum\(fee\), 0\) AS fee,\s+COALESCE\(sum\(price - fee\) FILTER \(WHERE NOT paid\), 0\) AS unpaid,[\s\S]*?FROM sold_fee\s+\)/);
     });
 
+    it("says what part of the paid orders Prime paid, and what courier files dated before the period paid", () => {
+        expect(core).toMatch(/AND ps\.payment_id IS NOT NULL\) AS by_prime/);
+        expect(core).toMatch(/WHERE i\.order_id = s\.id AND di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)\s+AND di\.payment_date < \(SELECT ts_from FROM w\)\) AS file_before/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND by_prime\), 0\) AS reached_prime/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT by_prime AND file_before\), 0\) AS reached_before/);
+        expect(core).toMatch(/'reached_prime', reached_prime, 'reached_before', reached_before/);
+    });
+
     it("scopes every table it reads to the shop", () => {
         for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc", "delivery_imports di"]) {
             const alias = table.split(" ")[1];

@@ -107,6 +107,17 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
             : payments.payments === 1
               ? t("fin.money.payments.one", { amount: money(payments.amount) })
               : t("fin.money.payments", { n: formatWhole(payments.payments), count: payments.payments, amount: money(payments.amount) });
+    // Where "paid to you" came from when it is not the courier payments of the period.
+    const sources = [
+        split.reached_before > 0 ? t("fin.money.payments.part.before", { amount: money(split.reached_before) }) : null,
+        split.reached_prime > 0 ? t("fin.money.payments.part.prime", { amount: money(split.reached_prime) }) : null,
+    ].filter((part): part is string => part !== null);
+    const paymentsWhy =
+        sources.length > 0
+            ? t("fin.money.payments.parts", { parts: sources.join(t("fin.money.payments.and")) })
+            : payments.payments > 0
+              ? t("fin.money.payments.why")
+              : null;
 
     return (
         <SummaryCard
@@ -128,7 +139,7 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
             footer={
                 <div className="w-full">
                     <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments">
-                        {paymentsNote} {payments.payments > 0 && t("fin.money.payments.why")}
+                        {paymentsNote} {paymentsWhy}
                     </p>
                     <button type="button" onClick={onAddPayment} className={`${CARD_LINK} mt-1.5`} data-testid="money-add-payment">
                         <FileUp className="size-3.5" aria-hidden="true" />
