@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import { PipelineStage } from "@/lib/analytics/dashboard-calculations";
+import type { DateRangeKey, PipelineStage } from "@/lib/analytics/dashboard-calculations";
 import { useLanguage } from "@/hooks/use-language";
 
 /** Below this share of the bar (about 40 px at 1440) a segment shows no count or label. */
@@ -9,10 +9,12 @@ const MIN_LABELLED_PCT = 6;
 
 interface OrderPipelineProps {
     stages: PipelineStage[];
+    /** The dashboard period the stages were counted over: orders created in it, by their status now. */
+    period: DateRangeKey;
     onStageClick?: (status: string) => void;
 }
 
-export function OrderPipeline({ stages, onStageClick }: OrderPipelineProps) {
+export function OrderPipeline({ stages, period, onStageClick }: OrderPipelineProps) {
     const { t } = useLanguage();
     const total = stages.reduce((s, stage) => s + stage.count, 0);
 
@@ -31,7 +33,10 @@ export function OrderPipeline({ stages, onStageClick }: OrderPipelineProps) {
         <div className="pastel-card p-4 md:p-5">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t("dashboard.pipeline.title")}</h3>
-                <span className="text-xs text-muted">{total} {t("dashboard.pipeline.totalActive")}</span>
+                {/* Names its period: Orders' «قيد التوصيل» counts every day, this bar only the dashboard's period. */}
+                <span className="text-xs text-muted" title={t("dashboard.pipeline.scopeHint")}>
+                    {t("dashboard.pipeline.periodTotal", { count: total, period: t(`dashboard.pipeline.period.${period}`) })}
+                </span>
             </div>
 
             {/* Desktop: proportional bar */}

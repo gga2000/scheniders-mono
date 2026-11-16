@@ -52,7 +52,7 @@ export function SectionCard({
                     )}
                     <div className="min-w-0">
                         <h3 className="text-[15px] font-semibold text-foreground sm:truncate">{title}</h3>
-                        {subtitle && <p className="text-xs text-muted mt-0.5 sm:truncate">{subtitle}</p>}
+                        {subtitle && <p className="text-xs text-muted mt-0.5 sm:truncate"><bdi>{subtitle}</bdi></p>}
                     </div>
                 </div>
                 {action && <div className="min-w-0 max-w-full sm:shrink-0">{action}</div>}

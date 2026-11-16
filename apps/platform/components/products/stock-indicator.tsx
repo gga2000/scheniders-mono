@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { AlertTriangle, CheckCircle, XCircle, Package } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { StockStatus } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -89,6 +89,10 @@ export function StockIndicator({
 }: StockIndicatorProps) {
     const { t } = useLanguage();
     const config = statusConfig[status];
+    // Confirmed orders beyond the shelf: say so, with the count Orders shows ("−55").
+    const oversold = quantity !== undefined && quantity < 0;
+    const labelKey = oversold ? "products.stock.oversold" : config.key;
+    const shownQuantity = quantity === undefined ? undefined : oversold ? `−${Math.abs(quantity)}` : String(quantity);
     const sizeStyles = sizeConfig[size];
     const Icon = config.icon;
 
@@ -99,7 +103,7 @@ export function StockIndicator({
         : 1;
 
     // Build accessible label
-    const accessibleLabel = [t(config.key), quantity !== undefined ? `${quantity}` : ""].filter(Boolean).join(" ");
+    const accessibleLabel = [t(labelKey), shownQuantity ?? ""].filter(Boolean).join(" ");
 
     // Tooltip data
     const total = quantity !== undefined ? quantity + (reserved ?? 0) : undefined;
@@ -140,9 +144,9 @@ export function StockIndicator({
             <Icon className={sizeStyles.icon} aria-hidden="true" />
             {showLabel && (
                 <span className={sizeStyles.text}>
-                    {t(config.key)}
+                    {t(labelKey)}
                     {/* The count alone: "53/10" read as 53 out of 10. The alert level lives in the tooltip. */}
-                    {quantity !== undefined && <span className="opacity-75"> ({quantity})</span>}
+                    {shownQuantity !== undefined && <span className="opacity-75"> ({shownQuantity})</span>}
                 </span>
             )}
         </div>

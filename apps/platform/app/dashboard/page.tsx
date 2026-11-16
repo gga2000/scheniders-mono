@@ -202,7 +202,12 @@ export default function Home() {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-              {getGreeting()}{profile?.display_name ? `, ${profile.display_name}` : ''}
+              {/* «صباح الخير، علي»: the language's own comma, and the name after the greeting in Arabic order. */}
+              <bdi>
+                {profile?.display_name
+                  ? t("dashboard.greeting.withName", { greeting: getGreeting(), name: profile.display_name })
+                  : getGreeting()}
+              </bdi>
             </h1>
             <p className="text-muted mt-2 text-lg">
               {t("dashboard.subtitle")}
@@ -284,7 +289,7 @@ export default function Home() {
         {/* Order Pipeline */}
         <WidgetBoundary label="order-pipeline">
           {rangeScoped ? (
-            <OrderPipeline stages={rangeScoped.pipeline} onStageClick={handlePipelineStageClick} />
+            <OrderPipeline stages={rangeScoped.pipeline} period={dateRange} onStageClick={handlePipelineStageClick} />
           ) : rangePlaceholder}
         </WidgetBoundary>
 

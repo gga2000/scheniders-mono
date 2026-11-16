@@ -201,7 +201,8 @@ export function calculateProductScore(
         flags: {
             isDeadStock,
             isSlowMover: rate < 1 / 7 && rate > 0 && !(daysSinceLastSale >= 60),
-            isOverstocked: daysOfSupply > 90,
+            // Nothing on the shelf is never a surplus, even with no recent sales.
+            isOverstocked: availableStock > 0 && daysOfSupply > 90,
             isUnderstocked: daysOfSupply < 7 && daysOfSupply > 0,
             isNegativeMargin: marginPct < 0,
         },
