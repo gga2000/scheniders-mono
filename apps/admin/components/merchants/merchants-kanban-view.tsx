@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Ban,
   XCircle,
+  PauseCircle,
   Wallet,
   TrendingUp,
   ArrowRight,
@@ -16,7 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TenantStatus } from "@/types/admin";
 
-type StageKey = "trial" | "active" | "suspended" | "cancelled";
+type StageKey = TenantStatus;
 
 interface Stage {
   key: StageKey;
@@ -29,8 +30,12 @@ interface Stage {
   dot: string;
 }
 
-const STAGES: Stage[] = [
-  {
+/**
+ * One column per status, so every shop is on the board. Keyed by status, so a
+ * status added to `TenantStatus` cannot be left without a column.
+ */
+const STAGE_BY_STATUS: Record<TenantStatus, Stage> = {
+  trial: {
     key: "trial",
     label: "Trial",
     description: "Evaluating",
@@ -40,7 +45,7 @@ const STAGES: Stage[] = [
     border: "border-amber-200 dark:border-amber-400/20",
     dot: "bg-amber-500",
   },
-  {
+  active: {
     key: "active",
     label: "Active",
     description: "Paying",
@@ -50,7 +55,17 @@ const STAGES: Stage[] = [
     border: "border-emerald-200 dark:border-emerald-400/20",
     dot: "bg-emerald-500",
   },
-  {
+  limited: {
+    key: "limited",
+    label: "Paused",
+    description: "Resume from the shop page",
+    icon: PauseCircle,
+    gradient: "from-yellow-400 to-amber-500",
+    bg: "bg-gradient-to-br from-yellow-50/60 to-amber-50/60 dark:from-yellow-400/5 dark:to-amber-400/5",
+    border: "border-yellow-200 dark:border-yellow-400/20",
+    dot: "bg-yellow-500",
+  },
+  suspended: {
     key: "suspended",
     label: "Suspended",
     description: "Action needed",
@@ -60,7 +75,7 @@ const STAGES: Stage[] = [
     border: "border-rose-200 dark:border-rose-400/20",
     dot: "bg-rose-500",
   },
-  {
+  cancelled: {
     key: "cancelled",
     label: "Cancelled",
     description: "Lost",
@@ -70,7 +85,16 @@ const STAGES: Stage[] = [
     border: "border-slate-200 dark:border-slate-400/20",
     dot: "bg-slate-400",
   },
-];
+};
+
+const STAGES = Object.values(STAGE_BY_STATUS);
+
+/**
+ * A pause is set and lifted with Pause and Resume on the shop page, which keep
+ * its end date and what it blocks; the database refuses a plain status change
+ * to or from it. So paused shops are shown here but not dragged in or out.
+ */
+const isPaused = (status: StageKey) => status === "limited";
 
 const PLAN_GRADIENTS: Record<string, string> = {
   starter: "from-sky-400 to-cyan-500",
@@ -106,7 +130,7 @@ export function MerchantsKanbanView({
     const byStage = new Map<StageKey, AdminTenant[]>();
     for (const stage of STAGES) byStage.set(stage.key, []);
     for (const m of merchants) {
-      const status = ((m as { status?: string }).status ?? "active") as StageKey;
+      const status = m.status;
       const bucket = byStage.get(status);
       if (bucket) bucket.push(m);
     }
@@ -155,8 +179,8 @@ export function MerchantsKanbanView({
       const id = e.dataTransfer.getData("text/plain");
       const merchant = merchants.find((m) => m.id === id);
       if (!merchant) return;
-      const from = ((merchant as { status?: string }).status ?? "active") as StageKey;
-      if (from === target) {
+      const from = merchant.status;
+      if (from === target || isPaused(from) || isPaused(target)) {
         setHoverCol(null);
         setDraggingId(null);
         return;
@@ -175,7 +199,7 @@ export function MerchantsKanbanView({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3">
         {STAGES.map((stage) => {
           const Icon = stage.icon;
           const items = buckets.get(stage.key) ?? [];
@@ -185,6 +209,7 @@ export function MerchantsKanbanView({
             <div
               key={stage.key}
               onDragOver={(e) => {
+                if (isPaused(stage.key)) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
                 setHoverCol(stage.key);
@@ -252,6 +277,7 @@ export function MerchantsKanbanView({
                     <KanbanCard
                       key={m.id}
                       merchant={m}
+                      canDrag={!isPaused(stage.key)}
                       isDragging={draggingId === m.id}
                       onDragStart={(e) => handleDragStart(e, m)}
                       onDragEnd={handleDragEnd}
@@ -369,6 +395,7 @@ export function MerchantsKanbanView({
 
 interface KanbanCardProps {
   merchant: AdminTenant;
+  canDrag: boolean;
   isDragging: boolean;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
@@ -377,6 +404,7 @@ interface KanbanCardProps {
 
 function KanbanCard({
   merchant,
+  canDrag,
   isDragging,
   onDragStart,
   onDragEnd,
@@ -389,12 +417,13 @@ function KanbanCard({
 
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      draggable={canDrag}
+      onDragStart={canDrag ? onDragStart : undefined}
+      onDragEnd={canDrag ? onDragEnd : undefined}
       onClick={onClick}
       className={cn(
-        "group relative rounded-xl bg-[var(--card-bg)] border border-foreground/[0.06] p-2.5 cursor-grab active:cursor-grabbing shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 transition-all",
+        "group relative rounded-xl bg-[var(--card-bg)] border border-foreground/[0.06] p-2.5 shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 transition-all",
+        canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         isDragging && "opacity-40 scale-95"
       )}
     >
