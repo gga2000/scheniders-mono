@@ -90,7 +90,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             const digits = Number.isInteger(n) ? String(n) : n.toFixed(1);
             return value < 0 ? `\u2066−${digits}\u2069` : digits;
         };
-        if (abs >= 1_000_000) return t("fin.path.scale.million", { n: short(abs / 1_000_000) });
+        if (abs >= 1_000_000) return t("fin.path.scale.million", { n: short(abs / 1_000_000), count: abs / 1_000_000 });
         if (abs >= 1_000) return t("fin.path.scale.thousand", { n: short(abs / 1_000) });
         return short(abs);
     };
