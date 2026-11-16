@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { LeadIndustryManager } from "@/components/leads/lead-industry-manager";
 import { PaymentDetailsCard } from "@/components/settings/payment-details-card";
+import { DemoStoreCard } from "@/components/settings/demo-store-card";
 import { hasPermission } from "@/lib/admin-permissions";
 
 // The rows of `admin_settings` are storage that other code reads (the leads
@@ -42,6 +43,8 @@ export default function SettingsPage() {
       </div>
 
       <PaymentDetailsCard canEdit={role ? hasPermission(role, "update_settings") : false} />
+
+      {role && hasPermission(role, "manage_demo_store") && <DemoStoreCard />}
 
       {/* Store industries */}
       <div className="pastel-card p-6">
