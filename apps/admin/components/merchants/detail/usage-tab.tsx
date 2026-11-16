@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { BarChart3, ShoppingBag, Coins, Users } from "lucide-react";
+import { BarChart3, ShoppingBag, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
+import { usageMonthNow } from "@/lib/usage-month";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
@@ -26,16 +27,14 @@ export function UsageTab({ usage }: UsageTabProps) {
       (acc, u) => ({
         orders: acc.orders + (u.orders_count ?? 0),
         charged: acc.charged + (u.orders_charged ?? 0),
-        team: Math.max(acc.team, u.team_members_count ?? 0),
       }),
-      { orders: 0, charged: 0, team: 0 }
+      { orders: 0, charged: 0 }
     );
     const peakOrders = Math.max(1, ...usage.map((u) => u.orders_count ?? 0));
     return { sorted, totals, peakOrders };
   }, [usage]);
 
-  const now = new Date();
-  const currentYM = `${now.getFullYear()}-${now.getMonth() + 1}`;
+  const current = usageMonthNow();
 
   if (usage.length === 0) {
     return (
@@ -50,7 +49,7 @@ export function UsageTab({ usage }: UsageTabProps) {
           </div>
           <p className="text-sm font-medium">No usage data yet</p>
           <p className="text-xs text-foreground/35 mt-1">
-            Monthly orders, charges, and team size will appear here.
+            Monthly orders and charges will appear here.
           </p>
         </div>
       </div>
@@ -66,9 +65,9 @@ export function UsageTab({ usage }: UsageTabProps) {
         />
         <p className="relative text-[10px] uppercase tracking-[0.1em] font-black text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
           <BarChart3 className="w-3 h-3" />
-          Lifetime usage
+          {sorted.length === 1 ? "Usage, newest month" : `Usage, newest ${sorted.length} months`}
         </p>
-        <div className="relative grid grid-cols-3 gap-3 mt-3">
+        <div className="relative grid grid-cols-2 gap-3 mt-3">
           <div>
             <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
               <ShoppingBag className="w-2.5 h-2.5" />
@@ -85,15 +84,6 @@ export function UsageTab({ usage }: UsageTabProps) {
             </p>
             <p className="text-2xl font-black tabular-nums leading-none mt-1.5 text-amber-700 dark:text-amber-300 tracking-tight">
               {compact(totals.charged)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
-              <Users className="w-2.5 h-2.5" />
-              Peak team
-            </p>
-            <p className="text-2xl font-black tabular-nums leading-none mt-1.5 text-violet-700 dark:text-violet-300 tracking-tight">
-              {totals.team}
             </p>
           </div>
         </div>
@@ -117,7 +107,7 @@ export function UsageTab({ usage }: UsageTabProps) {
               month: "short",
               year: "numeric",
             });
-            const isCurrent = `${u.year}-${u.month}` === currentYM;
+            const isCurrent = u.year === current.year && u.month === current.month;
             const orderRatio = (u.orders_count ?? 0) / peakOrders;
             const chargeRatio =
               u.orders_count > 0 ? u.orders_charged / u.orders_count : 0;
@@ -148,7 +138,7 @@ export function UsageTab({ usage }: UsageTabProps) {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
                       <ShoppingBag className="w-2.5 h-2.5" />
@@ -165,15 +155,6 @@ export function UsageTab({ usage }: UsageTabProps) {
                     </p>
                     <p className="text-lg font-black tabular-nums mt-1 text-amber-700 dark:text-amber-300">
                       {fmt(u.orders_charged ?? 0)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
-                      <Users className="w-2.5 h-2.5" />
-                      Team
-                    </p>
-                    <p className="text-lg font-black tabular-nums mt-1 text-violet-700 dark:text-violet-300">
-                      {u.team_members_count ?? 0}
                     </p>
                   </div>
                 </div>

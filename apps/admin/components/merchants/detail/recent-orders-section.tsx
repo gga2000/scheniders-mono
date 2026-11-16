@@ -1,7 +1,6 @@
 "use client";
 
-import { ShoppingBag, ChevronRight, Loader2, Inbox } from "lucide-react";
-import Link from "next/link";
+import { ShoppingBag, Loader2, Inbox } from "lucide-react";
 import { useMerchantRecentOrders } from "@/hooks/use-merchant-detail";
 import { cn } from "@/lib/utils";
 
@@ -47,19 +46,10 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
 
   return (
     <div className="pastel-card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[10px] font-black uppercase tracking-wider text-foreground/50 flex items-center gap-1.5">
-          <ShoppingBag className="w-3 h-3" />
-          Recent orders
-        </h3>
-        <Link
-          href={`/merchants/${merchantId}/orders`}
-          className="text-[11px] font-bold text-foreground/55 hover:text-foreground inline-flex items-center gap-0.5 transition-colors"
-        >
-          See all
-          <ChevronRight className="w-3 h-3" />
-        </Link>
-      </div>
+      <h3 className="mb-3 text-[10px] font-black uppercase tracking-wider text-foreground/50 flex items-center gap-1.5">
+        <ShoppingBag className="w-3 h-3" />
+        Recent orders
+      </h3>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-6 text-foreground/40">

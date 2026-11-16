@@ -18,6 +18,8 @@ export interface PlanLimits {
 export interface MerchantDetail {
   tenant: {
     id: string;
+    /** The shop number staff and merchants quote, as in "#100095". */
+    display_id: number | null;
     business_name: string;
     slug: string;
     plan: string;
