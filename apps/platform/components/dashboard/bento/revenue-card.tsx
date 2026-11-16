@@ -81,7 +81,7 @@ export function RevenueCard() {
                         label={t("dashboard.bento.window")}
                         value={days}
                         onChange={setDays}
-                        items={WINDOWS.map((d) => ({ value: d, label: t("dashboard.bento.days", { n: String(d) }) }))}
+                        items={WINDOWS.map((d) => ({ value: d, label: t("dashboard.bento.days", { count: d }) }))}
                     />
                 </div>
             </div>
@@ -117,7 +117,7 @@ export function RevenueCard() {
                     <div className="mt-5 flex flex-1">
                         <RevenueLine
                             series={fig.series}
-                            caption={t("dashboard.bento.lastDays", { n: String(days) })}
+                            caption={t("dashboard.bento.lastDays", { count: days })}
                             tick={measure === "revenue" ? formatIqdCompact : whole}
                             describe={describe}
                             onTip={tip.show}

@@ -66,7 +66,7 @@ export function PlanCard({
                         <TrialMeter
                             icon={<CalendarClock className="w-3.5 h-3.5" />}
                             label={t("billing.trial.days")}
-                            value={daysLeft === null ? "-" : t("billing.trial.daysLeft", { n: daysLeft })}
+                            value={daysLeft === null ? "-" : t("billing.trial.daysLeft", { count: daysLeft })}
                             percent={daysLeft === null ? 0 : ((trialDays - daysLeft) / trialDays) * 100}
                         />
                         <TrialMeter
