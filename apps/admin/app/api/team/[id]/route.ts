@@ -65,11 +65,11 @@ export async function GET(
         leads_converted: userLeads.filter((l) => l.status === "converted").length,
         stores_built: userLeads.filter((l) => l.prospect_tenant_id).length,
         total_actions: actionsResult.data?.length ?? 0,
-        commission_earned: (commissionsResult.data ?? [])
-          .filter((c) => c.status === "paid")
-          .reduce((sum, c) => sum + c.amount_earned, 0),
+        // As on the Team page (admin_team_counts): every commission is earned,
+        // and the ones not paid yet (pending or approved) are waiting.
+        commission_earned: (commissionsResult.data ?? []).reduce((sum, c) => sum + c.amount_earned, 0),
         commission_pending: (commissionsResult.data ?? [])
-          .filter((c) => c.status === "pending")
+          .filter((c) => c.status !== "paid")
           .reduce((sum, c) => sum + c.amount_earned, 0),
         achievements: (achievementsResult.data ?? []).map((a) => a.achievement_key),
       },

@@ -48,8 +48,9 @@ export function TeamCommissionDashboard({
       (sum, e) => sum + e.commission_pending,
       0
     );
-    // Paid this month = earned - pending (approximation)
-    const totalPaid = Math.max(0, totalEarned - totalPending);
+    // Every commission is earned and "pending" is the part not paid yet
+    // (admin_team_counts), so earned minus pending is exactly what was paid.
+    const totalPaid = totalEarned - totalPending;
     return { totalEarned, totalPending, totalPaid };
   }, [employees]);
 
@@ -192,10 +193,7 @@ export function TeamCommissionDashboard({
                   const initial = (emp.display_name ?? emp.email)
                     .charAt(0)
                     .toUpperCase();
-                  const paid = Math.max(
-                    0,
-                    emp.commission_earned - emp.commission_pending
-                  );
+                  const paid = emp.commission_earned - emp.commission_pending;
                   const isActive = emp.commission_earned > 0 || emp.leads_converted > 0;
 
                   return (
