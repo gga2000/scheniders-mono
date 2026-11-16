@@ -123,6 +123,19 @@ describe("POST /api/bulk top_up", () => {
   });
 
   // null, not undefined: an undefined argument would fall back to the helper's default id.
+  it.each([undefined, null, "", "  ", "ok", 42, "x".repeat(501)])(
+    "refuses a bulk top-up with no usable reason (%s) before any wallet",
+    async (description) => {
+      const res = await POST(
+        req({ action: "top_up", tenant_ids: [T1, T2], params: { amount_iqd: 5000, description, request_id: REQUEST } }),
+      );
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/reason/i);
+      expect(rpc).not.toHaveBeenCalled();
+      expect(logAdminActivityBatch).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([null, "", "not-a-uuid"])("refuses a top-up without a valid request id (%s)", async (requestId) => {
     const res = await POST(topUp(10_000, [T1, T2], requestId));
     expect(res.status).toBe(400);

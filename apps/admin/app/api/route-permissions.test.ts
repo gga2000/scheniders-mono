@@ -136,6 +136,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
         req("/api/billing/topup", "POST", t, {
           tenant_id: TENANT,
           amount: 5000,
+          description: "Qi transfer, receipt 12",
           request_id: "55555555-5555-4555-8555-555555555555",
         }),
       );

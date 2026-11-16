@@ -215,10 +215,15 @@ export async function POST(request: NextRequest) {
         }
         const requestId = requestIdParsed.data;
 
-        const description =
-          typeof params?.description === "string" && params.description.trim()
-            ? params.description.trim()
-            : "Bulk top-up";
+        // Why the money is added: on every wallet line and in the staff log.
+        const reason = staffReasonSchema.safeParse(params?.description);
+        if (!reason.success) {
+          return NextResponse.json(
+            { error: `params.description: ${reason.error.issues[0]?.message ?? "A reason is required"}` },
+            { status: 400 }
+          );
+        }
+        const description = reason.data;
 
         // `duplicate` marks a wallet this same request already credited: a
         // retry after a partial failure moves no money for it.

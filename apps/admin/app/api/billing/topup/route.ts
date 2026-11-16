@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivity } from "@/lib/activity-logger";
+import { staffReasonSchema } from "@/lib/staff-reason";
 import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
 
 const topupSchema = z.object({
   tenant_id: z.string().uuid(),
   amount: topupAmountSchema,
-  description: z.string().trim().max(500).optional(),
+  // Why the money is added. It goes on the wallet line and in the staff log.
+  description: staffReasonSchema,
   request_id: topupRequestIdSchema,
 });
 
@@ -25,13 +27,12 @@ export async function POST(request: NextRequest) {
   const parsed = topupSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid input", details: parsed.error.flatten() },
+      { error: parsed.error.issues[0]?.message ?? "Invalid input", details: parsed.error.flatten() },
       { status: 400 }
     );
   }
 
-  const { tenant_id, amount, request_id } = parsed.data;
-  const description = parsed.data.description || "Admin top-up";
+  const { tenant_id, amount, request_id, description } = parsed.data;
 
   const result = await topUpWallet({
     tenantId: tenant_id,

@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
-import { isStaffReason } from "@/lib/billing-lock-tools";
+import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 
 // ---------------------------------------------------------------------------
@@ -179,9 +179,13 @@ export function BulkActionDialog({
           return;
         }
         const description = topUpDescription.trim();
+        if (!isStaffReason(description)) {
+          setError("Write a reason (at least 3 characters)");
+          return;
+        }
         params = {
           amount_iqd: amount,
-          ...(description && { description }),
+          description,
           // Same amount, note and shops asked again (a retry) reuses the id,
           // so a wallet this request already credited is not credited twice.
           request_id: requestIds.idFor(
@@ -292,14 +296,14 @@ export function BulkActionDialog({
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground/70">
-                  Description <span className="font-normal text-foreground/40">(optional)</span>
+                  Reason <span className="font-normal text-foreground/40">(saved in the log)</span>
                 </label>
                 <input
                   type="text"
                   value={topUpDescription}
                   onChange={(e) => setTopUpDescription(e.target.value)}
                   placeholder="e.g. Monthly credit bonus"
-                  maxLength={200}
+                  maxLength={STAFF_REASON_MAX}
                   className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
                 />
               </div>
