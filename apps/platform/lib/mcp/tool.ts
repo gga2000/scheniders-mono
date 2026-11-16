@@ -38,8 +38,17 @@ export type ToolDefinition<S extends z.ZodObject> = {
     input: S;
     /** `write` tools are marked destructive so the client asks before running them. */
     kind: "read" | "write";
+    /**
+     * Still works while the store is billing-locked (Fermi A1): orders,
+     * shipping, returns, and the lookups an order needs. Every other tool
+     * refuses a locked store, as the dashboard shows it the lock screen.
+     */
+    openWhileLocked?: true;
     run: (caller: McpCaller, input: z.output<S>) => Promise<string>;
 };
+
+const LOCKED_TOOL_MESSAGE =
+    "This store is locked until its bill is paid, so this tool is off. Orders, shipping and returns still work. Pay from the wallet in the app (Settings, Billing) to unlock everything at once.";
 
 function text(body: string, isError = false): CallToolResult {
     return { content: [{ type: "text", text: body }], ...(isError ? { isError: true } : {}) };
@@ -94,6 +103,7 @@ export function registerTool<S extends z.ZodObject>(server: McpServer, def: Tool
 
         let body: string;
         try {
+            if (caller.billingLocked && !def.openWhileLocked) throw new McpToolError(LOCKED_TOOL_MESSAGE);
             body = await def.run(caller, input);
         } catch (err) {
             const known = err instanceof McpToolError;

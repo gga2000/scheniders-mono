@@ -44,7 +44,7 @@ async function handleGET(request: NextRequest) {
 
 /** Save credentials (tenant admins only), then run a first sync so a bad token fails loudly now. */
 async function handlePUT(request: NextRequest) {
-    const caller = await requireRequestCaller(request, "tenant-admin");
+    const caller = await requireRequestCaller(request, "tenant-admin", { refuseWhileLocked: true });
     if (!caller.ok) return caller.response;
 
     const parsed = connectSchema.safeParse(await request.json().catch(() => null));
@@ -82,7 +82,7 @@ const AUTO_SYNC_MIN_AGE_MS = 4 * 60_000;
 
 /** Sync (tenant admins only). Throttled unless ?force=1, so a page left open cannot hammer Meta. */
 async function handlePOST(request: NextRequest) {
-    const caller = await requireRequestCaller(request, "tenant-admin");
+    const caller = await requireRequestCaller(request, "tenant-admin", { refuseWhileLocked: true });
     if (!caller.ok) return caller.response;
 
     const db = createSupabaseServiceClient();

@@ -95,6 +95,7 @@ function linesText(lines: RefundableLine[]): string[] {
 export function registerDeliveryTools(server: McpServer): void {
     registerTool(server, {
         name: "ship_orders",
+        openWhileLocked: true,
         title: "Prepare a courier batch",
         kind: "write",
         description:
@@ -182,6 +183,7 @@ export function registerDeliveryTools(server: McpServer): void {
 
     registerTool(server, {
         name: "refund_order",
+        openWhileLocked: true,
         title: "Refund a delivered order",
         kind: "write",
         description:
@@ -244,6 +246,7 @@ export function registerDeliveryTools(server: McpServer): void {
 
     registerTool(server, {
         name: "replace_order",
+        openWhileLocked: true,
         title: "Replace items of a delivered order",
         kind: "write",
         description:
@@ -328,6 +331,7 @@ export function registerDeliveryTools(server: McpServer): void {
 
     registerTool(server, {
         name: "pending_returns",
+        openWhileLocked: true,
         title: "Items waiting to come back",
         kind: "read",
         description:
@@ -368,6 +372,7 @@ export function registerDeliveryTools(server: McpServer): void {
 
     registerTool(server, {
         name: "receive_return",
+        openWhileLocked: true,
         title: "Receive a returned item",
         kind: "write",
         description:

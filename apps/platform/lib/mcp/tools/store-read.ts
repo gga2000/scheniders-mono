@@ -49,6 +49,7 @@ const stockText = (r: ProductRow | VariantRow) =>
 export function registerStoreReadTools(server: McpServer): void {
     registerTool(server, {
         name: "get_store",
+        openWhileLocked: true,
         title: "Store and session",
         kind: "read",
         description:
@@ -133,6 +134,7 @@ export function registerStoreReadTools(server: McpServer): void {
 
     registerTool(server, {
         name: "find_customer",
+        openWhileLocked: true,
         title: "Look up a customer",
         kind: "read",
         description:
@@ -242,6 +244,7 @@ export function registerStoreReadTools(server: McpServer): void {
 
     registerTool(server, {
         name: "list_products",
+        openWhileLocked: true,
         title: "Products and stock",
         kind: "read",
         description:

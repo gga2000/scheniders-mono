@@ -446,3 +446,37 @@ SELECT pg_temp.check(
      FROM public.billing_lock_snapshot('20000000-0000-4000-8000-000000000012') s),
   'a running trial is not locked');
 SELECT pg_temp.check(public.billing_lock_snapshot(gen_random_uuid()) IS NULL, 'an unknown shop has no snapshot');
+
+-- 17. The lock closes the store's finances on the server too: its expenses
+--     cannot be read or written by a signed-in user, and the finance summary
+--     refuses with PT402 (HTTP 402). V is locked, Z (running trial) is not.
+INSERT INTO public.expenses (tenant_id, amount) VALUES
+  ('20000000-0000-4000-8000-000000000014', 1000),
+  ('20000000-0000-4000-8000-000000000012', 2000);
+SELECT set_config('test.uid', '30000000-0000-4000-8000-000000000001', false);
+SELECT set_config('test.member_of', '20000000-0000-4000-8000-000000000014', false);
+SELECT set_config('test.admin_of', '20000000-0000-4000-8000-000000000014', false);
+SET ROLE authenticated;
+SELECT pg_temp.check((SELECT count(*) FROM public.expenses) = 0, 'a locked store cannot read its expenses');
+SELECT pg_temp.check(
+  pg_temp.raises($q$INSERT INTO public.expenses (tenant_id, amount) VALUES ('20000000-0000-4000-8000-000000000014', 5)$q$) LIKE '%row-level security%',
+  'a locked store cannot add an expense');
+RESET ROLE;
+SELECT pg_temp.check(
+  pg_temp.raises($q$SELECT public.get_finance_summary('20000000-0000-4000-8000-000000000014', current_date - 30, current_date)$q$) = 'this store is locked until its bill is paid',
+  'the finance summary refuses a locked store');
+SELECT pg_temp.check(
+  pg_temp.raises($q$SELECT public.get_finance_summary('20000000-0000-4000-8000-000000000012', current_date - 30, current_date)$q$) = 'not allowed to read this shop''s finances',
+  'a stranger is refused before the lock is read');
+SELECT set_config('test.member_of', '20000000-0000-4000-8000-000000000012', false);
+SELECT set_config('test.admin_of', '20000000-0000-4000-8000-000000000012', false);
+SET ROLE authenticated;
+SELECT pg_temp.check((SELECT count(*) FROM public.expenses) = 1, 'an unlocked store reads its own expenses');
+INSERT INTO public.expenses (tenant_id, amount) VALUES ('20000000-0000-4000-8000-000000000012', 7);
+RESET ROLE;
+SELECT pg_temp.check(
+  (public.get_finance_summary('20000000-0000-4000-8000-000000000012', current_date - 30, current_date))->>'tenant_id' = '20000000-0000-4000-8000-000000000012',
+  'an unlocked store reads its finance summary');
+SELECT set_config('test.uid', '', false);
+SELECT set_config('test.member_of', '', false);
+SELECT set_config('test.admin_of', '', false);

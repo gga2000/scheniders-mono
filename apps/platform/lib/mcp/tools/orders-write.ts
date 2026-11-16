@@ -181,6 +181,7 @@ async function changeOrderStatus(
 export function registerOrderWriteTools(server: McpServer): void {
     registerTool(server, {
         name: "update_order_status",
+        openWhileLocked: true,
         title: "Change order status",
         kind: "write",
         description:
@@ -236,6 +237,7 @@ export function registerOrderWriteTools(server: McpServer): void {
 
     registerTool(server, {
         name: "update_order",
+        openWhileLocked: true,
         title: "Edit an order",
         kind: "write",
         description:
@@ -364,6 +366,7 @@ export function registerOrderWriteTools(server: McpServer): void {
 
     registerTool(server, {
         name: "add_order_note",
+        openWhileLocked: true,
         title: "Add a note to an order",
         kind: "write",
         description: "Add a note to an order's notes thread (visible to the team on the order page).",
@@ -384,6 +387,7 @@ export function registerOrderWriteTools(server: McpServer): void {
 
     registerTool(server, {
         name: "create_order",
+        openWhileLocked: true,
         title: "Create an order",
         kind: "write",
         description:

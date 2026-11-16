@@ -141,3 +141,26 @@ describe("read tools", () => {
         ]);
     });
 });
+
+describe("while the store is billing-locked (Fermi A1)", () => {
+    beforeEach(() => {
+        resolveMcpCaller.mockResolvedValue({
+            ok: true,
+            caller: { userId: "u1", email: null, displayName: "Sara", tenantId: STORE, role: "admin", clientId: "c", db: env.db, token: "t", billingLocked: true },
+        });
+    });
+
+    it("orders still work", async () => {
+        expect(await call("search_orders", { include_archived: false, limit: 20 })).toContain("2 order(s) match");
+    });
+
+    it("reports refuse, as the dashboard shows them the lock screen, and the refusal is logged", async () => {
+        const text = await call("sales_summary", { from: "2026-10-30" });
+        expect(text).toMatch(/locked until its bill is paid/);
+        expect(text).not.toContain("30,000");
+        expect(env.calls.some((c) => c.table === "orders")).toBe(false);
+        expect(env.tables.activity_logs).toEqual([
+            expect.objectContaining({ details: expect.objectContaining({ tool: "sales_summary", ok: false }) }),
+        ]);
+    });
+});

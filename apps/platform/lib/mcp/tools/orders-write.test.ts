@@ -69,6 +69,7 @@ function asCaller(role: McpCaller["role"] = "admin") {
             db: env.db,
             token: "tok",
             appUrl: "https://app.test",
+            billingLocked: false,
         } satisfies McpCaller,
     });
 }

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { assertNotBlocked, blockedResponseBody, TenantBlockedError } from "@/lib/restrictions";
 import { sendTeamInviteEmail } from "@/lib/team-invite-email";
 import { withFailureReport } from "@/lib/job-monitor";
+import { billingLockRefusal } from "@/lib/billing/lock-refusal";
 
 const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
 
@@ -44,6 +45,10 @@ async function handlePOST(request: Request) {
         if ((await activeTenantRole(user.id, tenantId)) !== "admin") {
             return NextResponse.json({ error: "Admins only" }, { status: 403 });
         }
+
+        // The team page is locked while the store's bill is unpaid (Fermi A1).
+        const locked = await billingLockRefusal(tenantId);
+        if (locked) return locked;
 
         // Respect tenant pause (same guard as adding members).
         try {

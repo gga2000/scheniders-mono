@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// The billing lock (Fermi A1) is read from the database: the store is not
+// locked unless a test locks it.
+const lockState = vi.hoisted(() => ({ locked: false }));
+vi.mock("@/lib/billing/lock-refusal", async () => {
+    const { NextResponse } = await import("next/server");
+    return {
+        billingLockRefusal: async () =>
+            lockState.locked ? NextResponse.json({ code: "billing_locked" }, { status: 402 }) : null,
+    };
+});
+
 vi.mock("@/lib/supabase-server", () => ({
     verifyAccessToken: vi.fn(),
 }));
@@ -39,6 +50,7 @@ const COPY = {
 beforeEach(() => {
     vi.clearAllMocks();
     process.env.ANTHROPIC_API_KEY = "test-key";
+    lockState.locked = false;
 });
 
 describe("POST /api/ai/product-copy", () => {
@@ -78,6 +90,17 @@ describe("POST /api/ai/product-copy", () => {
         const res = await POST(req({ name: "X" }) as never);
         expect(res.status).toBe(403);
         expect(vi.mocked(callerHasPermission).mock.calls[0][2]).toBe("products.edit");
+        expect(consumeRateLimit).not.toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("402s a store locked until its bill is paid, before spending the AI budget", async () => {
+        (verifyAccessToken as ReturnType<typeof vi.fn>).mockResolvedValue({ user: { id: "u1" }, error: null });
+        lockState.locked = true;
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const res = await POST(req({ name: "X" }) as never);
+        expect(res.status).toBe(402);
         expect(consumeRateLimit).not.toHaveBeenCalled();
         expect(fetchMock).not.toHaveBeenCalled();
     });

@@ -2,6 +2,17 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// The billing lock (Fermi A1) is read from the database: the store is not
+// locked unless a test locks it.
+const lockState = vi.hoisted(() => ({ locked: false }));
+vi.mock("@/lib/billing/lock-refusal", async () => {
+    const { NextResponse } = await import("next/server");
+    return {
+        billingLockRefusal: async () =>
+            lockState.locked ? NextResponse.json({ code: "billing_locked" }, { status: 402 }) : null,
+    };
+});
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* Mock @supabase/ssr + next/headers before importing the route.        */
 /* POST handler now calls supabase.rpc() — mocked below.               */
@@ -10,11 +21,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 interface FakeState {
     user: { id: string } | null;
     rpcError: { code?: string; message?: string } | null;
+    rpcCalls: number;
 }
 
 const state: FakeState = {
     user: null,
     rpcError: null,
+    rpcCalls: 0,
 };
 
 function makeFakeSupabase() {
@@ -23,6 +36,7 @@ function makeFakeSupabase() {
             getUser: async () => ({ data: { user: state.user } }),
         },
         rpc(_fn: string, _args: unknown) {
+            state.rpcCalls += 1;
             return Promise.resolve({ error: state.rpcError });
         },
     };
@@ -48,6 +62,8 @@ function makeRequest(body: unknown): Request {
 beforeEach(() => {
     state.user = null;
     state.rpcError = null;
+    state.rpcCalls = 0;
+    lockState.locked = false;
 });
 
 describe("setByPath", () => {
@@ -163,6 +179,16 @@ describe("POST /api/store-config-v2/patch", () => {
         expect(json.ok).toBe(true);
         expect(json.applied.path).toEqual(["pages", 0, "title"]);
         expect(json.applied.value).toBe("new title");
+    });
+
+    it("returns 402 for a store locked until its bill is paid, and patches nothing", async () => {
+        state.user = { id: "u1" };
+        lockState.locked = true;
+        const res = await POST(
+            makeRequest({ tenant_id: TENANT_UUID, is_draft: true, path: ["pages", 0, "title"], value: "x" }),
+        );
+        expect(res.status).toBe(402);
+        expect(state.rpcCalls).toBe(0);
     });
 
     /* ── M1: path allowlist + size guards ──────────────────────────── */

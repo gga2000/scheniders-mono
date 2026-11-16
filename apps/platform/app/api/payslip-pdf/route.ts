@@ -5,6 +5,7 @@ import { isAllowedPdfRequest } from "@/lib/pdf-request-allowlist";
 import { buildPayslipHTML } from "@/lib/payslip-html";
 import { payslipRequestSchema } from "@/lib/payslip-schema";
 import { withFailureReport } from "@/lib/job-monitor";
+import { billingLockRefusal } from "@/lib/billing/lock-refusal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,10 @@ async function handlePOST(req: NextRequest) {
             const status = auth.error === "Unauthorized" ? 401 : auth.error === ACCOUNT_CHECK_FAILED ? 503 : 403;
             return NextResponse.json({ error: auth.error }, { status });
         }
+
+        // Salaries are locked while the store's bill is unpaid (Fermi A1).
+        const locked = await billingLockRefusal(auth.tenantId);
+        if (locked) return locked;
 
         const html = buildPayslipHTML(data);
 

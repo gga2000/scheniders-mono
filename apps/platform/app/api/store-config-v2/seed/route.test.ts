@@ -1,4 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// The billing lock (Fermi A1) is read from the database: the store is not
+// locked unless a test locks it.
+const lockState = vi.hoisted(() => ({ locked: false }));
+vi.mock("@/lib/billing/lock-refusal", async () => {
+    const { NextResponse } = await import("next/server");
+    return {
+        billingLockRefusal: async () =>
+            lockState.locked ? NextResponse.json({ code: "billing_locked" }, { status: 402 }) : null,
+    };
+});
 import { CONTENT_PACKS } from "@/lib/store-templates/content-packs";
 import { starterTaxonomy } from "@/lib/starter-store";
 

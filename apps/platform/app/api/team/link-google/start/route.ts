@@ -4,6 +4,7 @@ import { linkTargetAllowed } from "@/lib/auth/link-target";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { withFailureReport } from "@/lib/job-monitor";
+import { billingLockRefusal } from "@/lib/billing/lock-refusal";
 
 const TTL_MINUTES = 20;
 
@@ -36,6 +37,10 @@ async function handlePOST(request: Request) {
         if ((await activeTenantRole(user.id, tenantId)) !== "admin") {
             return NextResponse.json({ error: "Admins only" }, { status: 403 });
         }
+
+        // The team page is locked while the store's bill is unpaid (Fermi A1).
+        const locked = await billingLockRefusal(tenantId);
+        if (locked) return locked;
 
         // The link signs its opener in as the target, so the target must be a
         // non-admin member of this store only (lib/auth/link-target).
