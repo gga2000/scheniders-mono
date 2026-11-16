@@ -44,7 +44,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
             className="h-full"
             footer={
                 refused > 0 && (
-                    <Link href="/orders?status=rejected" className={CARD_LINK}>
+                    <Link href="/orders?status=rejected&dates=all" className={CARD_LINK}>
                         {t("fin.failed.open")}
                         <ArrowUpRight className="size-3.5" aria-hidden="true" />
                     </Link>

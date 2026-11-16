@@ -355,14 +355,37 @@ export interface ProductProfitRow {
     profitPerPiece: number | null;
     /** This product's part of all the profit the products made, 0 to 1 (0 for a losing product). */
     profitShare: number;
+    /** profitShare as a whole percent; the rows' percents add up to exactly 100. */
+    sharePercent: number;
     /** Pieces sold with no cost on file: the profit shown is too high by their cost. */
     missingUnits: number;
+}
+
+/**
+ * Whole percents of `shares` (parts of one) that add up to exactly 100 when
+ * the shares add up to one: each is rounded down, then the points left go to
+ * the largest remainders. Plain rounding showed 42 + 37 + 20 = 99.
+ */
+export function wholePercents(shares: readonly number[]): number[] {
+    const raw = shares.map((share) => share * 100);
+    const floors = raw.map(Math.floor);
+    const total = raw.reduce((sum, value) => sum + value, 0);
+    let left = Math.round(total) - floors.reduce((sum, value) => sum + value, 0);
+    const byRemainder = raw.map((value, i) => ({ i, rest: value - floors[i] })).sort((a, b) => b.rest - a.rest || a.i - b.i);
+    for (const { i } of byRemainder) {
+        if (left <= 0) break;
+        floors[i] += 1;
+        left -= 1;
+    }
+    return floors;
 }
 
 /** The products of the period, the one that earned most first. */
 export function productRows(summary: FinanceSummary): ProductProfitRow[] {
     const profits = summary.products.map((p) => p.revenue - p.cost);
     const earned = profits.reduce((sum, profit) => sum + Math.max(profit, 0), 0);
+    const shares = profits.map((profit) => (earned > 0 ? Math.max(profit, 0) / earned : 0));
+    const percents = wholePercents(shares);
     return summary.products
         .map((p, i): ProductProfitRow => {
             const profit = profits[i];
@@ -376,7 +399,8 @@ export function productRows(summary: FinanceSummary): ProductProfitRow[] {
                 profit,
                 margin: p.revenue > 0 ? profit / p.revenue : null,
                 profitPerPiece: p.units > 0 ? Math.round(profit / p.units) : null,
-                profitShare: earned > 0 ? Math.max(profit, 0) / earned : 0,
+                profitShare: shares[i],
+                sharePercent: percents[i],
                 missingUnits: p.missing_units,
             };
         })

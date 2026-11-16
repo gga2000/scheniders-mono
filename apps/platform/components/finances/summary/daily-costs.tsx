@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { adReturn, breakEven, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { adReturn, breakEven, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
@@ -18,6 +18,11 @@ interface DailyCostsProps {
 /** 14 / 3.5: orders a day, with one decimal only under ten. */
 function rate(value: number): string {
     return value >= 10 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, "");
+}
+
+/** The count an Arabic noun after "3.5"/"14" agrees with: none for a fraction, which takes the plain form. */
+function countOf(text: string): { count?: number } {
+    return /^\d+$/.test(text) ? { count: Number(text) } : {};
 }
 
 /**
@@ -59,7 +64,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                             </span>
                             <span className={label}>
                                 <span className={dot} style={{ background: PROFIT_COLOR }} aria-hidden="true" />
-                                <span dir={dir}>{t("fin.even.profit", { n: rate(have - need), have: rate(have) })}</span>
+                                <span dir={dir}>{t("fin.even.profit", { n: rate(have - need), have: rate(have), ...countOf(rate(have)) })}</span>
                             </span>
                         </>
                     ) : (
@@ -89,7 +94,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                     )}
                 </div>
                 <p className="mt-2.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir}>
-                    {t("fin.even.how", { left: money(even.leftPerOrder), bill: money(even.dailyBill) })}
+                    {t("fin.even.how", { left: money(even.leftPerOrder), bill: money(even.dailyBill), after: money(perOrder(statement.netProfit, statement.orders) ?? 0) })}
                 </p>
             </div>
         );

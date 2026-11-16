@@ -90,7 +90,7 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                             />
                                         </span>
                                         <span className="w-9 shrink-0 text-right text-[12.5px] font-semibold tabular-nums text-muted" dir="ltr" data-share={row.key}>
-                                            {Math.round(row.profitShare * 100)}%
+                                            {row.sharePercent}%
                                         </span>
                                     </span>
                                     <div className="text-right">
