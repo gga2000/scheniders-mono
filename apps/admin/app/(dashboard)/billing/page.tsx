@@ -15,6 +15,7 @@ import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
+import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ export default function BillingPage() {
     mutationFn: async (payload: {
       tenant_id: string;
       amount: number;
-      description?: string;
+      description: string;
       request_id: string;
     }) => {
       const res = await fetch("/api/billing/topup", {
@@ -124,14 +125,14 @@ export default function BillingPage() {
 
   function handleTopup(e: React.FormEvent) {
     e.preventDefault();
-    if (!topupTenantId || !topupAmount || topupAmount <= 0) return;
-    const description = topupDescription || undefined;
+    const description = topupDescription.trim();
+    if (!topupTenantId || !topupAmount || topupAmount <= 0 || !isStaffReason(description)) return;
     topupMutation.mutate({
       tenant_id: topupTenantId,
       amount: topupAmount,
       description,
-      // Same shop, amount and note asked again (a retry) reuses the id.
-      request_id: requestIds.idFor(`${topupTenantId}:${topupAmount}:${description ?? ""}`),
+      // Same shop, amount and reason asked again (a retry) reuses the id.
+      request_id: requestIds.idFor(`${topupTenantId}:${topupAmount}:${description}`),
     });
   }
 
@@ -234,16 +235,17 @@ export default function BillingPage() {
             />
           </div>
 
-          {/* Description */}
+          {/* Reason: on the wallet line and in the staff log */}
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-foreground/70 mb-1">
-              Description (optional)
+              Reason (saved in the log)
             </label>
             <input
               type="text"
               value={topupDescription}
               onChange={(e) => setTopupDescription(e.target.value)}
-              placeholder="Manual top-up"
+              placeholder="e.g. Qi transfer, receipt 12"
+              maxLength={STAFF_REASON_MAX}
               className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
             />
           </div>
@@ -255,6 +257,7 @@ export default function BillingPage() {
               !topupTenantId ||
               !topupAmount ||
               topupAmount <= 0 ||
+              !isStaffReason(topupDescription) ||
               topupMutation.isPending
             }
             className="px-5 py-2 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap flex items-center gap-2"

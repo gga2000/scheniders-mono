@@ -37,12 +37,12 @@ vi.mock("@/lib/activity-logger", () => ({ logAdminActivity }));
 
 const { POST } = await import("./route");
 
-/** Every request carries the browser-made request id unless a test removes it. */
+/** Every request carries the browser-made request id and a reason unless a test removes them. */
 const req = (body: Record<string, unknown>) =>
   new NextRequest("http://admin.test/api/billing/topup", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ request_id: REQUEST, ...body }),
+    body: JSON.stringify({ request_id: REQUEST, description: "Qi transfer, receipt 12", ...body }),
   });
 
 beforeEach(() => {
@@ -131,6 +131,26 @@ describe("POST /api/billing/topup", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true, newBalance: 30000, duplicate: true });
     expect(logAdminActivity).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "", "  ", "ok", 42, "x".repeat(501)])(
+    "refuses a top-up with no usable reason (%s): money never moves unexplained",
+    async (description) => {
+      const res = await POST(req({ tenant_id: TENANT, amount: 5000, description }));
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/reason/i);
+      expect(rpc).not.toHaveBeenCalled();
+      expect(logAdminActivity).not.toHaveBeenCalled();
+    },
+  );
+
+  it("writes the reason, trimmed, on the wallet line and in the staff log", async () => {
+    rpc.mockResolvedValue({ data: { success: true, new_balance: 30000 }, error: null });
+    await POST(req({ tenant_id: TENANT, amount: 5000, description: "  Refund for order 4261  " }));
+    expect(rpc).toHaveBeenCalledWith("admin_topup_wallet", expect.objectContaining({ _description: "Refund for order 4261" }));
+    expect(logAdminActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ details: expect.objectContaining({ description: "Refund for order 4261" }) }),
+    );
   });
 
   it.each([0, -5000, 1500.5, 10_000_001])("rejects amount %s", async (amount) => {
