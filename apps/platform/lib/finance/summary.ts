@@ -472,15 +472,25 @@ const BULK_DAY_OVER_USUAL = 3;
  * rough. Null when no day stands out.
  */
 export function bulkDays(daily: readonly { orders: number }[]): { days: number; share: number } | null {
+    const bulk = bulkOf(daily);
+    if (bulk.length === 0) return null;
     const total = daily.reduce((sum, day) => sum + day.orders, 0);
-    if (total === 0) return null;
+    return { days: bulk.length, share: bulk.reduce((sum, day) => sum + day.orders, 0) / total };
+}
+
+/** The dates of the bulk-marked days (as `bulkDays` counts them), so the chart can say its big days were bulk marking. */
+export function bulkDates(daily: readonly { day: string; orders: number }[]): Set<string> {
+    return new Set(bulkOf(daily).map((day) => day.day));
+}
+
+function bulkOf<T extends { orders: number }>(daily: readonly T[]): T[] {
+    const total = daily.reduce((sum, day) => sum + day.orders, 0);
+    if (total === 0) return [];
     const sorted = daily.map((day) => day.orders).sort((x, y) => x - y);
     const usual = sorted[Math.floor((sorted.length - 1) / 2)];
-    const bulk = daily.filter(
+    return daily.filter(
         (day) => day.orders >= BULK_DAY_ORDERS && day.orders >= total * BULK_DAY_SHARE && day.orders >= usual * BULK_DAY_OVER_USUAL,
     );
-    if (bulk.length === 0) return null;
-    return { days: bulk.length, share: bulk.reduce((sum, day) => sum + day.orders, 0) / total };
 }
 
 export interface BreakEven {

@@ -11,6 +11,7 @@ function shop(over: {
   wallet?: number;
   subscription?: Partial<NonNullable<MerchantDetail["subscription"]>> | null;
   lock?: Detail["billingLock"];
+  stoppedBy?: Detail["stoppedBy"];
 }): Detail {
   return {
     tenant: {
@@ -31,6 +32,7 @@ function shop(over: {
           },
     planLimits: { plan: "starter", max_orders_per_month: -1, max_team_members: 2, base_price_iqd: 9_000, order_price_iqd: 55, overage_price_iqd: 0, features: {} },
     billingLock: over.lock ?? null,
+    stoppedBy: over.stoppedBy ?? null,
   };
 }
 
@@ -70,6 +72,22 @@ describe("shopStatusLine", () => {
 
   it("reads a shop stopped by staff as On hold, with no fee", () => {
     expect(shopStatusLine(shop({ tenant: { status: "suspended" } }), now)).toMatchObject({ label: "On hold", next: null });
+  });
+
+  it("says who put a shop on hold and since when", () => {
+    const line = shopStatusLine(shop({ tenant: { status: "suspended" }, stoppedBy: { who: "Ali", at: "2026-11-16T08:00:00Z" } }), now);
+    expect(line.sentence).toBe("On hold since Mon 16 Nov, by Ali. No monthly fee while on hold.");
+  });
+
+  it("says who paused a shop", () => {
+    const line = shopStatusLine(
+      shop({
+        tenant: { status: "limited", restrictions: { paused_until: "2026-11-18T09:00:00Z" } },
+        stoppedBy: { who: "Noor", at: "2026-11-16T08:00:00Z" },
+      }),
+      now,
+    );
+    expect(line.sentence).toBe("Paused by Noor until Wed 18 Nov, 12:00.");
   });
 
   it("reads a paused shop with its end and reason", () => {

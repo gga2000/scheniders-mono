@@ -195,7 +195,7 @@ export function BillingSettings() {
             )}
 
             <TopupRequests requests={requests} onSendAgain={() => setShowTopUp(true)} onPrintReceipt={printReceipt} />
-            {!exempt && tenant && <MonthlyInvoices tenantId={tenant.id} displayId={tenant.display_id} legalName={legalName} />}
+            {!exempt && tenant && <MonthlyInvoices tenantId={tenant.id} displayId={tenant.display_id} legalName={legalName} createdAt={tenant.created_at} />}
             <WalletHistory transactions={transactions} />
         </div>
     );

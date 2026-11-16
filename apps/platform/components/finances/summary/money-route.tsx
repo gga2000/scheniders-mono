@@ -107,28 +107,25 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
             : payments.payments === 1
               ? t("fin.money.payments.one", { amount: money(payments.amount) })
               : t("fin.money.payments", { n: formatWhole(payments.payments), count: payments.payments, amount: money(payments.amount) });
-    // "Paid to you" by the date of the statement that paid it, so its parts add up to it; then
-    // why the period's payments differ from the part they paid (deductions, or other periods' orders).
+    // "Paid to you" by the date of the statement that paid it, listed under it so the parts visibly
+    // add up; the footer then says why the period's payments differ from the part they paid.
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0;
-    const sources = [
-        split.reached_now > 0 ? t("fin.money.payments.part.now", { amount: money(split.reached_now) }) : null,
-        split.reached_before > 0 ? t("fin.money.payments.part.before", { amount: money(split.reached_before) }) : null,
-        split.reached_other > 0 ? t("fin.money.payments.part.other", { amount: money(split.reached_other) }) : null,
-    ].filter((part): part is string => part !== null);
+    const sources = fromElsewhere
+        ? [
+              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now },
+              { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before },
+              { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other },
+          ].filter((source) => source.amount > 0)
+        : [];
     const gap = payments.amount - split.reached_now;
-    const gapLine =
-        payments.payments > 0 && split.reached_now > 0 && gap !== 0
-            ? t(gap < 0 ? "fin.money.payments.less" : "fin.money.payments.more", { gap: money(Math.abs(gap)), now: money(split.reached_now) })
-            : null;
-    const paymentsWhy = fromElsewhere
-        ? [t("fin.money.payments.parts", { total: money(split.reached), parts: sources.join(t("fin.money.payments.and")) }), gapLine]
-              .filter(Boolean)
-              .join(" ")
-        : split.reached_now > 0
-          ? gapLine
-          : payments.payments > 0
-            ? t("fin.money.payments.why")
-            : null;
+    const paymentsWhy =
+        payments.payments > 0 && split.reached_now > 0
+            ? gap === 0
+                ? null
+                : t(gap < 0 ? "fin.money.payments.less" : "fin.money.payments.more", { gap: money(Math.abs(gap)), now: money(split.reached_now) })
+            : payments.payments > 0 && !fromElsewhere
+              ? t("fin.money.payments.why")
+              : null;
 
     return (
         <SummaryCard
@@ -182,7 +179,23 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                             note={t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders })}
                             amount={split.reached}
                             textDir={dir}
-                        />
+                        >
+                            {sources.length > 0 && (
+                                <dl className="mt-2 space-y-1 border-s-2 border-[var(--card-border)] ps-3" data-testid="money-reached-parts">
+                                    {sources.map((source) => (
+                                        <div key={source.key} className="flex items-baseline justify-between gap-4 text-[13px]">
+                                            <dt className="min-w-0 text-left text-muted" dir={dir}>
+                                                {source.label}
+                                                {source.note && <span className="block text-[12px]">{source.note}</span>}
+                                            </dt>
+                                            <dd className="shrink-0">
+                                                <Money value={source.amount} className="font-semibold text-foreground" />
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            )}
+                        </PartRow>
                         <PartRow
                             part="fee"
                             label={t("fin.money.fee")}

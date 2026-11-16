@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { readBillingLock } from "@/lib/billing-lock-tools";
+import { logActor } from "@/lib/shop-timeline";
 import { updateShop } from "@/lib/shop-update";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
@@ -23,6 +24,50 @@ const patchSchema = z
  */
 const TEAM_COLUMNS =
   "id, user_id, role, status, invited_at, joined_at, user_profiles!tenant_members_user_id_fkey(email, display_name, avatar_url)";
+
+/** The staff steps that put a shop on hold, or pause it. */
+const STOP_ACTIONS: Record<string, readonly string[]> = {
+  suspended: ["suspend", "bulk_suspend", "status_change"],
+  limited: ["pause_tenant"],
+};
+
+/**
+ * Who stopped a shop by hand and when (board m9): the newest log row of the
+ * step that put it where it is now. Null for a running shop, or when the log
+ * has no such step.
+ */
+async function readStoppedBy(
+  supabase: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+  status: string,
+): Promise<{ who: string; at: string } | null> {
+  const actions = STOP_ACTIONS[status];
+  if (!actions) return null;
+  const { data, error } = await supabase
+    .from("admin_activity_logs")
+    .select("admin_user_id, admin_label, actor_email, action, details, created_at")
+    .eq("tenant_id", tenantId)
+    .in("action", actions)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  const row = (data ?? []).find(
+    (entry) => entry.action !== "status_change" || (entry.details as { status?: unknown } | null)?.status === "suspended",
+  );
+  if (!row) return null;
+  const names = new Map<string, string>();
+  if (row.admin_user_id) {
+    const { data: profile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("id, display_name, email")
+      .eq("id", row.admin_user_id)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    const name = profile?.display_name?.trim() || profile?.email;
+    if (profile && name) names.set(profile.id, name);
+  }
+  return { who: logActor(row, names), at: row.created_at };
+}
 
 export async function GET(
   request: NextRequest,
@@ -102,6 +147,7 @@ export async function GET(
     }
 
     const tenant = tenantResult.data;
+    const stoppedBy = await readStoppedBy(supabase, id, tenant.status);
     const planLimits = (planLimitsResult.data ?? []).find(
       (p: { plan: string }) => p.plan === tenant.plan
     ) ?? null;
@@ -118,6 +164,7 @@ export async function GET(
       billingLock,
       // A free unlock grants paid time without a payment: super admins only.
       canForceUnlock: hasPermission(auth.role, "manage_subscription"),
+      stoppedBy,
     });
   } catch (error) {
     console.error("Merchant detail API error:", error);

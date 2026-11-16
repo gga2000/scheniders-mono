@@ -4,7 +4,7 @@ import { useId, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { profitPath, scaleMarks, type FinanceSummaryDay, type PathPoint } from "@/lib/finance/summary";
+import { bulkDates, profitPath, scaleMarks, type FinanceSummaryDay, type PathPoint } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { SummaryCard } from "./summary-card";
@@ -117,6 +117,12 @@ export function ProfitPath({ daily }: ProfitPathProps) {
         bigDays === null || points.length <= chart.called.length || rest === 0
             ? null
             : t(`fin.path.rest.${step}.${rest < 0 ? "loss" : "gain"}`, { amount: money(Math.abs(rest)) });
+    // Big days that were bulk marking (a statement import) are not a day's sales: say so beside them.
+    const bulk = useMemo(() => bulkDates(daily), [daily]);
+    const bulkLine =
+        step === "day" && bigDays !== null && chart.called.every((day) => bulk.has(points[day.i].from))
+            ? t(chart.called.length === 2 ? "fin.path.bulkTwo" : "fin.path.bulkOne")
+            : null;
     const sign = (value: number) => (value < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400");
 
     return (
@@ -275,7 +281,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                     </div>
                 </div>
                 {bigDays && (
-                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{bigDays}{restLine && ` ${restLine}`}</p>
+                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{[bigDays, bulkLine, restLine].filter(Boolean).join(" ")}</p>
                 )}
             </div>
         </SummaryCard>

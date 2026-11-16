@@ -35,6 +35,14 @@ describe("monthly invoice dates", () => {
         expect(recentMonths(new Date("2027-02-10T12:00:00Z"), 4)).toEqual(["2027-02", "2027-01", "2026-12", "2026-11"]);
     });
 
+    it("leaves out months before the shop was made", () => {
+        const now = new Date("2026-11-16T12:00:00Z");
+        expect(recentMonths(now, 6, new Date("2026-11-08T18:36:00Z"))).toEqual(["2026-11"]);
+        // 22:00 UTC on 30 Sep is already 1 Oct in Baghdad.
+        expect(recentMonths(now, 6, new Date("2026-09-30T22:00:00Z"))).toEqual(["2026-11", "2026-10"]);
+        expect(recentMonths(now, 3, new Date("2025-01-01T00:00:00Z"))).toEqual(["2026-11", "2026-10", "2026-09"]);
+    });
+
     it("names the month in Iraqi Arabic", () => {
         expect(arabicMonth("2026-11")).toBe("تشرين الثاني 2026");
     });

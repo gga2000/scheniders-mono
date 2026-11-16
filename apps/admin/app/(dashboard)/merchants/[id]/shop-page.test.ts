@@ -1,7 +1,7 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoadFailure } from "@/lib/load-failure";
 
 /*
@@ -80,6 +80,7 @@ const shop = {
   planLimits: null,
   billingLock: null,
   canForceUnlock: false,
+  stoppedBy: null,
 };
 
 describe("the shop page, loaded", () => {
@@ -118,6 +119,39 @@ describe("the shop page, loaded", () => {
     const html = render();
     expect(html).toContain('data-testid="shop-status"');
     expect(html).toContain("Paying");
+  });
+});
+
+describe("the shop page header (board m6)", () => {
+  beforeEach(() => {
+    query = { ...query, data: shop };
+  });
+
+  it("opens the shop's own store address, not a test address", () => {
+    const html = render();
+    expect(html).toContain('href="https://scheniders-iraq.usefermi.com"');
+    expect(html).toContain("Open store<");
+    expect(html).not.toContain("Impersonate");
+    expect(html).not.toContain("localhost");
+  });
+
+  it("offers View as merchant only to a login that may handle support", () => {
+    expect(render()).toContain("View as merchant");
+    role = null;
+    expect(render()).not.toContain("View as merchant");
+  });
+});
+
+describe("the shop page's Setting up tab", () => {
+  it("counts a logo the merchant uploaded, whatever colour the shop kept", () => {
+    search = new URLSearchParams("tab=Onboarding");
+    const starting = { logo_url: null, primary_color: "#3b82f6", secondary_color: "#8b5cf6" };
+    query = { ...query, data: { ...shop, tenant: { ...shop.tenant, branding: starting } } };
+    expect(render()).toContain("No logo yet");
+    query = { ...query, data: { ...shop, tenant: { ...shop.tenant, branding: { ...starting, logo_url: "https://x/logo.png" } } } };
+    const html = render();
+    expect(html).toContain("The shop has its own logo");
+    expect(html).not.toContain("No logo yet");
   });
 });
 
@@ -164,5 +198,52 @@ describe("the shop page's one timeline (board m5)", () => {
     expect(html).toContain("wallet 945");
     expect(html).not.toContain(">Order fee<");
     expect(html).not.toContain("Show older");
+  });
+});
+
+describe("the Usage and Team tabs, in plain words", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-16T09:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts this month's orders against what the plan allows, and never calls a count money", () => {
+    search = new URLSearchParams("tab=Usage");
+    query = {
+      ...query,
+      data: {
+        ...shop,
+        planLimits: { plan: "starter", max_orders_per_month: 500, max_team_members: 3, base_price_iqd: 9000, order_price_iqd: 55, overage_price_iqd: 0, features: {} },
+      },
+    };
+    const html = render();
+    expect(html).toContain("Orders counted this month");
+    expect(html).toContain(" of 500 the plan allows");
+    expect(html).toContain("328");
+    expect(html).toContain("Oct 2026");
+    expect(html).not.toContain("billed");
+    expect(html).not.toMatch(/Charged/);
+  });
+
+  it("lists the team owner first, with the role and since when in words", () => {
+    search = new URLSearchParams("tab=Team");
+    const member = (id: string, role: string, name: string, joined: string | null) => ({
+      id, user_id: id, role, status: "active", invited_at: "2026-11-01T09:00:00Z", joined_at: joined,
+      user_profiles: { email: `${id}@shop.iq`, display_name: name, avatar_url: null },
+    });
+    query = {
+      ...query,
+      data: { ...shop, team: [member("e1", "employee", "Sara Ali", null), member("o1", "owner", "Karim", "2026-11-02T09:00:00Z")] },
+    };
+    const html = render();
+    expect(html).toContain("2 active members");
+    expect(html.indexOf("Karim")).toBeLessThan(html.indexOf("Sara Ali"));
+    expect(html).toContain("Owner");
+    expect(html).toContain("Staff");
+    expect(html).toContain("Joined Mon 2 Nov");
+    expect(html).toContain("Added Sun 1 Nov, not signed in yet");
   });
 });
