@@ -35,8 +35,9 @@ const stateSchema = z.object({
 type LinkState = z.infer<typeof stateSchema>;
 type LinkBody = { phone: string } | { shopId: number } | { recheck: true };
 
-const errorSchema = z.object({ error: z.string().optional() });
+const errorSchema = z.object({ error: z.string().optional(), code: z.string().optional() });
 
+/** A refusal from /api/prime/link; its message is shown as is when the server wrote one for the merchant. */
 class LinkError extends Error {}
 
 function linkStateKey(tenantId: string) {
@@ -79,7 +80,11 @@ export function PrimeConnect() {
                 body: JSON.stringify(body),
             });
             const json: unknown = await res.json().catch(() => null);
-            if (!res.ok) throw new LinkError(errorSchema.safeParse(json).data?.error ?? "");
+            // Only a wrong number and "too many tries" carry words meant for the merchant.
+            if (!res.ok) {
+                const refusal = errorSchema.safeParse(json).data;
+                throw new LinkError(refusal?.code === "bad_phone" || res.status === 429 ? (refusal?.error ?? "") : "");
+            }
             return stateSchema.parse(json);
         },
         onSuccess: (answer) => {
@@ -101,7 +106,7 @@ export function PrimeConnect() {
         send.mutate({ phone: normalized });
     };
 
-    const failure = send.isError ? send.error.message || t("prime.link.failed") : null;
+    const failure = send.isError ? (send.error instanceof LinkError && send.error.message) || t("prime.link.failed") : null;
     const errorLine = failure && (
         <span dir={dir} role="alert" className="text-xs text-red-600">
             {failure}
