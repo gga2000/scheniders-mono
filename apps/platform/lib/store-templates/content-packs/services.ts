@@ -147,7 +147,7 @@ export const servicesPack: ContentPack = {
                 en: "How do I cancel an order?",
             },
             a_i18n: {
-                ar: "تكدر تلغي خلال أول ١٢ ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
+                ar: "تكدر تلغي خلال أول 12 ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
                 en: "You can cancel within the first 12 hours over WhatsApp. After that the order has usually shipped.",
             },
         },
@@ -157,7 +157,7 @@ export const servicesPack: ContentPack = {
                 en: "When will my order arrive?",
             },
             a_i18n: {
-                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب.",
+                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال 1–3 أيام من تثبيت الطلب.",
                 en: "Baghdad usually within a day; other governorates within 1–3 days of confirmation.",
             },
         },
@@ -203,7 +203,7 @@ export const servicesPack: ContentPack = {
                 en: "Appointments",
             },
             body_i18n: {
-                ar: "تختار الوقت ونأكده على واتساب. تكدر تغيّره لحد ٦ ساعات قبل الموعد.",
+                ar: "تختار الوقت ونأكده على واتساب. تكدر تغيّره لحد 6 ساعات قبل الموعد.",
                 en: "Choose the time and we confirm it on WhatsApp. You can change it up to 6 hours before.",
             },
         },

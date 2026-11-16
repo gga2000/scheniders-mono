@@ -28,7 +28,7 @@ export type SectionFactory = ReturnType<typeof makeSectionFactory>;
 export const TRUST_MESSAGES = [
     { en: "Cash on delivery", ar: "الدفع عند الاستلام" },
     { en: "Delivery to every governorate", ar: "توصيل لكل المحافظات" },
-    { en: "Free returns within 14 days", ar: "إرجاع مجاني خلال ١٤ يوم" },
+    { en: "Free returns within 14 days", ar: "إرجاع مجاني خلال 14 يوم" },
 ];
 
 /** WhatsApp-wired secondary CTA for hero sections. */
