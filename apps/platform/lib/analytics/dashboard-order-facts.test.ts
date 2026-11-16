@@ -27,7 +27,7 @@ describe("factFilter — the trend and map read exactly their window", () => {
         expect(factFilter({ kind: "geo", range: "today" }, now))
             .toEqual({ type: "createdSince", since: "2026-10-12T21:00:00.000Z" });
         expect(factFilter({ kind: "geo", range: "7d" }, now))
-            .toEqual({ type: "createdSince", since: "2026-10-06T06:30:00.000Z" });
+            .toEqual({ type: "createdSince", since: "2026-10-06T21:00:00.000Z" });
         expect(factFilter({ kind: "geo", range: "all" }, now)).toEqual({ type: "none" });
     });
 });

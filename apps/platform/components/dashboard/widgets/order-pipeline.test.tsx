@@ -43,4 +43,25 @@ describe("dashboard order pipeline", () => {
         screen.getAllByText("تم التوصيل")[0].click();
         expect(opened).toEqual(["delivered"]);
     });
+
+    it("gives «مكتمل» its own stage and writes counts with separators, like the Orders chips", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const opened: string[] = [];
+        render(
+            <LanguageProvider>
+                <OrderPipeline
+                    period="all"
+                    stages={[stage("in_transit", 46), stage("delivered", 6), stage("completed", 3198), stage("other", 2181)]}
+                    onStageClick={(status) => opened.push(status)}
+                />
+            </LanguageProvider>,
+        );
+        expect(screen.getByText("5,431 طلباً · كل الأيام")).toBeTruthy();
+        screen.getAllByText("مكتمل")[0].click();
+        expect(opened).toEqual(["completed"]);
+        // The hover title takes the plural form, not «192 طلبات».
+        const completed = screen.getAllByText("3,198")[0].closest("[title]");
+        expect(completed?.getAttribute("title")).toBe("مكتمل: 3,198 طلباً");
+        expect(screen.getAllByText("6")[0].closest("[title]")?.getAttribute("title")).toBe("تم التوصيل: 6 طلبات");
+    });
 });

@@ -8,6 +8,8 @@ import {
     baghdadHour,
     baghdadDayOfWeek,
     parseUtcNaiveTimestamp,
+    ordersDrillQuery,
+    periodWindow,
     rangeCutoff,
     trendWindowStart,
     calculateRevenueTrend,
@@ -148,13 +150,45 @@ describe("rangeCutoff — the same window boundaries as get_dashboard_metrics(p_
         expect(rangeCutoff("today", lateEvening)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
     });
 
-    it("7d and 30d are rolling windows ending now, as the SQL computes them", () => {
-        expect(rangeCutoff("7d", now)?.toISOString()).toBe("2026-10-06T06:30:00.000Z");
-        expect(rangeCutoff("30d", now)?.toISOString()).toBe("2026-09-13T06:30:00.000Z");
+    it("7d and 30d are 7 and 30 Baghdad calendar days, today included, as the SQL and the Orders picker count them", () => {
+        // 7 Oct 00:00 Baghdad through now on the 13th: 7 days.
+        expect(rangeCutoff("7d", now)?.toISOString()).toBe("2026-10-06T21:00:00.000Z");
+        // 14 Sep 00:00 Baghdad: 30 days.
+        expect(rangeCutoff("30d", now)?.toISOString()).toBe("2026-09-13T21:00:00.000Z");
+    });
+
+    it("compares each period with the same stretch of time one period earlier", () => {
+        const week = periodWindow("7d", now);
+        expect(week.previousStart.toISOString()).toBe("2026-09-29T21:00:00.000Z");
+        // Up to 09:30 on the 6th, not the end of that day: six days and nine and a
+        // half hours against six days and nine and a half hours.
+        expect(week.previousEnd.toISOString()).toBe("2026-10-06T06:30:00.000Z");
+        const today = periodWindow("today", now);
+        expect(today.start.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+        expect(today.previousStart.toISOString()).toBe("2026-10-11T21:00:00.000Z");
+        expect(today.previousEnd.toISOString()).toBe("2026-10-12T06:30:00.000Z");
     });
 
     it("all has no cutoff", () => {
         expect(rangeCutoff("all", now)).toBeNull();
+    });
+});
+
+describe("ordersDrillQuery — a pipeline stage opens Orders on the days it counted", () => {
+    // 00:30 on 13 Oct in Baghdad is still the 12th in UTC: the days are Baghdad's.
+    const justAfterMidnight = new Date("2026-10-12T21:30:00.000Z");
+
+    it("names the period's Baghdad days and the picker preset", () => {
+        expect(ordersDrillQuery("completed", "30d", justAfterMidnight))
+            .toBe("status=completed&from=2026-09-14&to=2026-10-13&preset=last30");
+        expect(ordersDrillQuery("delivered", "7d", justAfterMidnight))
+            .toBe("status=delivered&from=2026-10-07&to=2026-10-13&preset=last7");
+        expect(ordersDrillQuery("new", "today", justAfterMidnight))
+            .toBe("status=new&from=2026-10-13&to=2026-10-13&preset=today");
+    });
+
+    it("opens every day for all", () => {
+        expect(ordersDrillQuery("completed", "all", justAfterMidnight)).toBe("status=completed&dates=all");
     });
 });
 

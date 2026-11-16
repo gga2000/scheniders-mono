@@ -3,8 +3,9 @@ import {
     baghdadHour,
     calculateRevenueTrend,
     isRealizedRevenue,
-    rangeCutoff,
+    periodWindow,
     realizedAt,
+    realizedRevenueBetween,
     type ChartLocale,
     type RevenueTrendPoint,
     trendWindowStart,
@@ -61,9 +62,20 @@ export function revenueCardFigures(
     const days: RevenueTrendPoint[] = calculateRevenueTrend(facts, BENTO_FACT_DAYS, locale, now);
     const pick = (p: RevenueTrendPoint) => (measure === "orders" ? p.orders : p.revenue);
     const current = days.slice(-window);
-    const previous = days.slice(-2 * window, -window);
     const total = current.reduce((s, p) => s + pick(p), 0);
-    const previousTotal = previous.reduce((s, p) => s + pick(p), 0);
+
+    // The same stretch of time one window earlier (periodWindow), not the whole
+    // days before it: at 09:30 a full previous week against six and a half days
+    // read as a fall that was only the clock.
+    const span = window * DAY_MS;
+    const previousStart = new Date(trendWindowStart(window, now).getTime() - span);
+    const previousEnd = new Date(now.getTime() - span);
+    const previousTotal = measure === "orders"
+        ? facts.filter((f) => {
+            const at = new Date(f.created_at);
+            return at >= previousStart && at < previousEnd;
+        }).length
+        : realizedRevenueBetween(facts, previousStart, previousEnd);
 
     // Same first instant as the plotted days, so the average matches the line.
     const windowStart = trendWindowStart(window, now).getTime();
@@ -100,7 +112,11 @@ export function orderLane(source: string | null): OrderLane | null {
 }
 
 export interface HourlyWaves {
-    /** [week][hour]; week 0 is the last 7 days, 1 and 2 the weeks before. */
+    /**
+     * [week][hour]. Week 0 is the dashboard's last 7 days (periodWindow: 7 Baghdad
+     * days, today so far included); weeks 1 and 2 are the same stretch of time one
+     * and two weeks earlier, so the three lines and the change compare like with like.
+     */
     online: number[][];
     chat: number[][];
     /** Orders with a lane, last 7 days. */
@@ -117,17 +133,22 @@ export function hourlyWaves(facts: TrendFact[], now: Date = new Date()): HourlyW
     const empty = () => Array.from({ length: WAVE_WEEKS }, () => new Array<number>(24).fill(0));
     const online = empty();
     const chat = empty();
+    const { start } = periodWindow("7d", now);
+    const startMs = start.getTime();
     const nowMs = now.getTime();
 
     for (const f of facts) {
         const lane = orderLane(f.source);
         if (!lane) continue;
         const created = new Date(f.created_at);
-        const age = nowMs - created.getTime();
-        if (age < 0) continue;
-        const week = Math.floor(age / (7 * DAY_MS));
-        if (week >= WAVE_WEEKS) continue;
-        (lane === "online" ? online : chat)[week][baghdadHour(created)]++;
+        const at = created.getTime();
+        for (let week = 0; week < WAVE_WEEKS; week++) {
+            const shift = week * 7 * DAY_MS;
+            if (at >= startMs - shift && at <= nowMs - shift) {
+                (lane === "online" ? online : chat)[week][baghdadHour(created)]++;
+                break;
+            }
+        }
     }
 
     const weekTotal = (w: number) =>
@@ -177,21 +198,6 @@ export interface GovernoratePeriod {
     deltaPct: number | null;
 }
 
-/**
- * Period bounds. `today` is the Baghdad day so far, compared with the same hours of
- * yesterday (a full yesterday against a half-finished today is always "down").
- * `7d`/`30d` are the rolling windows get_dashboard_metrics uses, compared with the
- * window before.
- */
-function periodBounds(period: GovPeriod, now: Date) {
-    const start = rangeCutoff(period, now);
-    if (!start) throw new Error(`period ${period} has no start`);
-    const length = now.getTime() - start.getTime();
-    const previousStart = period === "today" ? new Date(start.getTime() - DAY_MS) : new Date(start.getTime() - length);
-    const previousEnd = period === "today" ? new Date(now.getTime() - DAY_MS) : start;
-    return { start, previousStart, previousEnd };
-}
-
 export function governorateOf(f: Pick<TrendFact, "governorate_code" | "validated_governorate_code">): string {
     const code = f.validated_governorate_code || f.governorate_code;
     return code && GOVERNORATE_REGION[code] ? code : UNKNOWN_GOVERNORATE;
@@ -200,7 +206,8 @@ export function governorateOf(f: Pick<TrendFact, "governorate_code" | "validated
 export function governoratePeriods(facts: TrendFact[], now: Date = new Date()): Record<GovPeriod, GovernoratePeriod> {
     const out = {} as Record<GovPeriod, GovernoratePeriod>;
     for (const period of GOV_PERIODS) {
-        const { start, previousStart, previousEnd } = periodBounds(period, now);
+        // The days get_dashboard_metrics counts, compared with the same stretch of time one period earlier.
+        const { start, previousStart, previousEnd } = periodWindow(period, now);
         const counts = new Map<string, number>();
         let total = 0;
         let previousTotal = 0;

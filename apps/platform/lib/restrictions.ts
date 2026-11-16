@@ -12,8 +12,9 @@
  *   merchants can still see their data.
  * - Active tenants (`status !== 'limited'`) are a no-op.
  * - If `paused_until` has passed, the pause is treated as expired:
- *   we return `null` and best-effort flip the tenant back to `active` in
- *   the background. The caller is not delayed by the backfill.
+ *   we return `null` and best-effort lift the pause in the background
+ *   (public.lift_tenant_pause: the status it had before). The caller is
+ *   not delayed by the backfill.
  */
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -46,22 +47,20 @@ export class TenantBlockedError extends Error {
 }
 
 /**
- * Best-effort: clear an expired pause. Fire-and-forget; we don't wait.
- * Resets status → 'active' and clears restrictions.
+ * Best-effort: lift an expired pause. Fire-and-forget; we don't wait.
+ *
+ * public.lift_tenant_pause gives the shop back the status it had before the
+ * pause (trial stays trial, so the trial end and unpaid months still lock it)
+ * and empties restrictions. This used to write status 'active' and
+ * restrictions NULL itself: the column is NOT NULL, so the write failed, and
+ * a lifted trial would have come back as a paying shop.
  */
 function clearExpiredRestrictions(tenantId: string): void {
     try {
         const admin = createSupabaseServiceClient();
         // Don't await — the caller has already moved on. Errors logged only.
         void admin
-            .from("tenants")
-            .update({
-                status: "active",
-                restrictions: null,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", tenantId)
-            .eq("status", "limited") // guard: only if still limited
+            .rpc("lift_tenant_pause", { _tenant_id: tenantId })
             .then(({ error }) => {
                 if (error) {
                     console.warn(
@@ -82,7 +81,7 @@ function clearExpiredRestrictions(tenantId: string): void {
  *  1. Tenant not found.
  *  2. Status is not `'limited'`.
  *  3. Status is `'limited'` but `paused_until` has elapsed (we
- *     simultaneously trigger a background reset to `active`).
+ *     simultaneously lift the pause in the background).
  */
 export async function getActiveRestrictions(
     tenantId: string

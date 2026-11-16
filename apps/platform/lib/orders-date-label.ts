@@ -75,3 +75,27 @@ export function ordersDateLabel(
     const show = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
     return dateFrom === to ? show(dateFrom) : `${show(dateFrom)} — ${show(to)}`;
 }
+
+/** Picker presets a dashboard link may name (packages/ui DateRangePicker ids). */
+const DRILL_PRESETS: ReadonlySet<string> = new Set(["today", "last7", "last30"]);
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+export interface DrillDays {
+    from: string | undefined;
+    to: string | undefined;
+    preset: string | null;
+}
+
+/**
+ * The days a dashboard link asks Orders to show (ordersDrillQuery): `from`/`to`
+ * Baghdad day keys with the picker preset that names them, or `dates=all` for
+ * every day. Null when the link names no days, so Orders keeps its own.
+ */
+export function drillDays(params: URLSearchParams): DrillDays | null {
+    if (params.get("dates") === "all") return { from: undefined, to: undefined, preset: null };
+    const from = params.get("from");
+    const to = params.get("to");
+    if (!from || !to || !DAY_KEY.test(from) || !DAY_KEY.test(to) || from > to) return null;
+    const preset = params.get("preset");
+    return { from, to, preset: preset && DRILL_PRESETS.has(preset) ? preset : null };
+}

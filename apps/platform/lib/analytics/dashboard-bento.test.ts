@@ -142,6 +142,30 @@ describe("governorates", () => {
     });
 });
 
+describe("last 7 days on every card (round 12)", () => {
+    // Today is 31 Oct; the 7 days are 25-31 Oct in Baghdad. An order from 17:00 on
+    // 24 Oct is under seven 24-hour days old, and used to count as this week on
+    // the hourly and governorate cards while the orders card left it out.
+    const eveningOf24 = fact({ created_at: ago(7 * DAY - 2 * HOUR), governorate_code: "BGD" });
+    const morningOf25 = fact({ created_at: ago(6 * DAY + 14 * HOUR), governorate_code: "BGD" });
+    const facts = [eveningOf24, morningOf25];
+
+    it("counts the same orders on the orders, hourly and governorate cards", () => {
+        expect(revenueCardFigures(facts, 7, "orders", "en", NOW).total).toBe(1);
+        expect(hourlyWaves(facts, NOW).thisWeek).toBe(1);
+        expect(governoratePeriods(facts, NOW)["7d"].total).toBe(1);
+    });
+
+    it("compares with the same stretch of time a week earlier", () => {
+        // 24 Oct 14:00 is before 15:00, the hour it is now a week on: last week.
+        // 24 Oct 17:00 is after it: in neither stretch.
+        const lastWeek = [fact({ created_at: ago(7 * DAY + HOUR) }), eveningOf24];
+        expect(revenueCardFigures(lastWeek, 7, "orders", "en", NOW).previousTotal).toBe(1);
+        expect(hourlyWaves(lastWeek, NOW).lastWeek).toBe(1);
+        expect(governoratePeriods(lastWeek, NOW)["7d"].previousTotal).toBe(1);
+    });
+});
+
 describe("seasonality", () => {
     const month = (i: number, orders: number, revenue: number | null = orders * 1000): MonthlySales => {
         const d = new Date(Date.UTC(2024, 10 + i, 1));

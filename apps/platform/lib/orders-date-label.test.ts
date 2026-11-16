@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ordersDateLabel } from "./orders-date-label";
+import { drillDays, ordersDateLabel } from "./orders-date-label";
 
 const t = (k: string) => k.replace("orders.dateLabel.", "");
 // Wednesday 15 Oct 2026, local time.
@@ -31,5 +31,24 @@ describe("ordersDateLabel", () => {
     it("shows the dates in Arabic on an Arabic page", () => {
         // Intl joins the month's two words with a no-break space.
         expect(ordersDateLabel("2026-10-03", null, null, t, "ar", now)).toBe("3 تشرين\u00a0الأول");
+    });
+});
+
+describe("drillDays: the days a dashboard link opens Orders on", () => {
+    it("takes the period's Baghdad days and its picker preset", () => {
+        expect(drillDays(new URLSearchParams("status=completed&from=2026-10-18&to=2026-11-16&preset=last30")))
+            .toEqual({ from: "2026-10-18", to: "2026-11-16", preset: "last30" });
+    });
+
+    it("opens every day for dates=all", () => {
+        expect(drillDays(new URLSearchParams("status=completed&dates=all")))
+            .toEqual({ from: undefined, to: undefined, preset: null });
+    });
+
+    it("leaves Orders' own dates alone when the link names none or names them badly", () => {
+        expect(drillDays(new URLSearchParams("status=rejected"))).toBeNull();
+        expect(drillDays(new URLSearchParams("from=2026-11-16&to=2026-10-18"))).toBeNull();
+        expect(drillDays(new URLSearchParams("from=yesterday&to=2026-10-18"))).toBeNull();
+        expect(drillDays(new URLSearchParams("from=2026-10-18&to=2026-10-18&preset=thisYear"))?.preset).toBeNull();
     });
 });

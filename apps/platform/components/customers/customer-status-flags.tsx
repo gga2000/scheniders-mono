@@ -72,7 +72,8 @@ export function CustomerStatusFlags({
                     {/* ltr: the count stays "+1" in Arabic too */}
                     <span dir="ltr" className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 rounded-full bg-muted/40 tabular-nums cursor-default">
                         +{hidden.length}
-                        <span className="sr-only"> {hidden.map(named).join(language === "ar" ? "، " : ", ")}</span>
+                        {/* dir="auto": the list reads in its own language inside the "+N" pill's ltr. */}
+                        <span className="sr-only" dir="auto"> {hidden.map(named).join(language === "ar" ? "، " : ", ")}</span>
                     </span>
                 </Tooltip>
             )}

@@ -8,7 +8,7 @@ import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { Plus, Download } from "lucide-react";
-import { baghdadHour, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { baghdadHour, ordersDrillQuery, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
 import { useGeoFacts } from "@/hooks/use-dashboard-order-facts";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
@@ -166,7 +166,7 @@ export default function Home() {
 
   const handlePipelineStageClick = (status: string) => {
     track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'order-pipeline', status });
-    router.push(`/orders?status=${status}`);
+    router.push(`/orders?${ordersDrillQuery(status, dateRange)}`);
   };
 
   // DV-D2: every widget that shows a problem should be able to show the orders

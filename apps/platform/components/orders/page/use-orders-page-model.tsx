@@ -38,6 +38,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { dropFirstLoadHold, raiseFirstLoadHold } from "@/lib/first-load-hold";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
+import { drillDays } from "@/lib/orders-date-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
 import type { VirtualizedOrderList } from "@/components/orders/virtualized-order-list";
 
@@ -132,13 +133,18 @@ export function useOrdersPageModel() {
         const statusParam = params.get('status');
         const cityParam = params.get('city');
         const productParam = params.get('product');
-        if (!statusParam && !cityParam && !productParam) return;
+        // The days the dashboard counted (ordersDrillQuery). Without them the
+        // list kept the merchant's own date filter and opened empty.
+        const days = drillDays(params);
+        if (!statusParam && !cityParam && !productParam && !days) return;
         setFilters(prev => ({
             ...prev,
             ...(statusParam ? { status: statusParam as OrderFilters['status'] } : {}),
             ...(cityParam ? { city: cityParam } : {}),
             ...(productParam ? { product: productParam } : {}),
+            ...(days ? { dateFrom: days.from, dateTo: days.to } : {}),
         }));
+        if (days) useOrderStore.getState().setDatePreset(days.preset);
     }, [filtersSettled, setFilters]);
 
     // Products for Excel import matching, and the oversold count on Stock today.

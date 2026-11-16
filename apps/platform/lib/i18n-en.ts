@@ -504,14 +504,16 @@ export const en: Record<string, string> = {
     "dashboard.pipeline.period.30d": "last 30 days",
     "dashboard.pipeline.period.all": "all time",
     "dashboard.pipeline.scopeHint": "Orders created in this period, by their status now. The Orders page counts every day.",
-    "dashboard.pipeline.orders": "orders",
+    "dashboard.pipeline.stageTitle": "{stage}: {count} orders",
+    "dashboard.pipeline.stageTitle.one": "{stage}: 1 order",
     "dashboard.pipeline.new": "New",
     "dashboard.pipeline.contacted": "Contacted",
     "dashboard.pipeline.confirmed": "Confirmed",
     "dashboard.pipeline.inTransit": "In Transit",
     "dashboard.pipeline.delivered": "Delivered",
+    "dashboard.pipeline.completed": "Completed",
     "dashboard.pipeline.other": "Other",
-    "dashboard.pipeline.otherHint": "Cancelled, rejected, returned or no answer · {count}",
+    "dashboard.pipeline.otherHint": "Cancelled, rejected, no answer, on hold, returned or replacement · {count}",
 
     // Revenue Trend Chart
 
@@ -570,7 +572,7 @@ export const en: Record<string, string> = {
 
     // Month Forecast
     "dashboard.forecast.title": "Month Forecast",
-    "dashboard.forecast.atCurrentPace": "At current pace",
+    "dashboard.forecast.atCurrentPace": "At this month's average so far",
     "dashboard.forecast.day": "Day",
     "dashboard.forecast.throughMonth": "through month",
     "dashboard.forecast.projectedOrders": "Projected Orders",
@@ -4714,6 +4716,8 @@ export const en: Record<string, string> = {
     "reports.channels.subtitleNoMoney": "Orders by the ad network the customer came from",
     "reports.channels.orders": "orders",
     "reports.channels.orders.one": "order",
+    "reports.channels.ordersOne": "1 order",
+    "reports.channels.ordersTwo": "2 orders",
     "reports.channels.ofOrders": "of orders",
     "reports.channels.delivered": "delivered",
     "reports.channels.perOrder": "per order",

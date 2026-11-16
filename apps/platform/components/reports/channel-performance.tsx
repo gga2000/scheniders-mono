@@ -1,5 +1,6 @@
 "use client";
 
+import { CountWithWord } from "./count-with-word";
 import { motion } from "framer-motion";
 import { AlertTriangle, CircleHelp, Megaphone, RefreshCw } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
@@ -63,15 +64,12 @@ function Stats({ row, showMoney }: { row: ChannelPerformanceRow; showMoney: bool
 }
 
 function Headline({ row }: { row: ChannelPerformanceRow }) {
-    const { t } = useLanguage();
     return (
         <div className="flex items-center gap-4 text-xs">
             {row.realizedRevenue !== null && (
                 <span className="font-bold text-foreground tabular-nums">{formatIQD(row.realizedRevenue)}</span>
             )}
-            <bdi className="text-muted">
-                <span className="tabular-nums">{row.orders}</span> {t("reports.channels.orders", { count: row.orders })}
-            </bdi>
+            <CountWithWord count={row.orders} word="reports.channels.orders" className="text-muted" numberClassName="tabular-nums" />
         </div>
     );
 }
@@ -133,7 +131,7 @@ export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPer
                         )}
                         <div className="text-xs text-muted">
                             <bdi>
-                                <span className="tabular-nums">{data.totalOrders}</span> {t("reports.channels.orders", { count: data.totalOrders })}
+                                <CountWithWord count={data.totalOrders} word="reports.channels.orders" numberClassName="tabular-nums" />
                                 {" · "}
                                 <span data-testid="channel-coverage">
                                     {t("reports.channels.coverage", { pct: data.attributedShare.toFixed(0) })}

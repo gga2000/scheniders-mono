@@ -79,7 +79,7 @@ const COPY: Record<"en" | "ar", Copy> = {
             thisWeek: "هذا الأسبوع",
             thisMonth: "هذا الشهر",
             last7: "آخر 7 أيام",
-            last30: "آخر 30 يوم",
+            last30: "آخر 30 يوماً",
             thisYear: "هذه السنة",
             pastYear: "آخر سنة",
         },

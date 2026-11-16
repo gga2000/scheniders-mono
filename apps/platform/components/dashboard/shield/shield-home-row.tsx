@@ -90,7 +90,7 @@ function ShieldCallFirstCard({ rows, asOf }: { rows: RiskyOpenOrder[]; asOf: num
                                     )}
                                     <span className={cn("w-7 shrink-0 text-right font-mono text-xs font-bold tabular-nums", tone.text)}>{r.trust}</span>
                                     <span className="shrink-0 text-right font-mono text-xs text-muted tabular-nums">#{r.order_id}</span>
-                                    <span className="w-11 shrink-0 whitespace-nowrap text-right text-xs text-muted tabular-nums">{t(age.key, { n: age.n })}</span>
+                                    <span className="w-11 shrink-0 whitespace-nowrap text-right text-xs text-muted tabular-nums"><bdi>{t(age.key, { n: age.n })}</bdi></span>
                                 </Link>
                             </li>
                         );

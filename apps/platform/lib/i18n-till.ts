@@ -841,7 +841,7 @@ const ar: Record<string, string> = {
     "till.sell.all": "الكل",
     "till.sell.best": "الأكثر مبيعاً",
     "till.sell.best30": "الأكثر مبيعاً، 30 يوم",
-    "till.sell.bestHere": "الأكثر مبيعاً، آخر 30 يوم",
+    "till.sell.bestHere": "الأكثر مبيعاً، آخر 30 يوماً",
     "till.sell.allProducts": "كل المنتجات",
     "till.sell.moreProducts": "بقية المنتجات",
     "till.cart.newCustomer": "زبون جديد: لا توجد طلبات بهذا الرقم.",

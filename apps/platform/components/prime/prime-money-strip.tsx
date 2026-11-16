@@ -45,7 +45,7 @@ export function PrimeMoneyStrip({ onRoad, admin }: { onRoad: number; admin: bool
                         <Money value={statements.isPending ? null : waitingTotal} className="text-foreground" />
                         {/* Always takes its line, so the strip does not grow when the statements answer. */}
                         <span className="min-h-4 text-xs text-muted">
-                            {waiting.length > 0 && t("prime.page.moneyWaitingCount", { count: waiting.length })}
+                            {waiting.length > 0 && <bdi>{t("prime.page.moneyWaitingCount", { count: waiting.length })}</bdi>}
                         </span>
                     </div>
                     <div data-prime-money="diff" className={tile}>
