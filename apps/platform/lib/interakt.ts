@@ -17,7 +17,7 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 import { SHOP_DAILY_CAP_REACHED, SHOP_DEMO_NOT_SENT, takeDailySendSlot, whatsappSendRefusal } from "@/lib/whatsapp-wallet";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { ORDER_TEMPLATES, WHATSAPP_TEMPLATES, type WhatsAppCategory, type WhatsAppTemplate } from "@scheniders/shared/whatsapp-templates";
+import { ORDER_TEMPLATES, WHATSAPP_TEMPLATES, type PlatformWhatsAppTemplate, type WhatsAppCategory, type WhatsAppTemplate } from "@scheniders/shared/whatsapp-templates";
 import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
 
 // =============================================
@@ -691,6 +691,41 @@ export async function sendNamedTemplate(input: NamedTemplateInput): Promise<Send
             languageCode: input.template.language,
             bodyValues: input.bodyValues.map(sanitizeTemplateVar),
             ...(input.headerValues ? { headerValues: input.headerValues } : {}),
+        },
+    };
+    return postTemplate(apiKey, body, input.label);
+}
+
+/** A template Fermi sends as itself (PLATFORM_WHATSAPP_TEMPLATES), to a new shop's owner. */
+export interface PlatformTemplateInput {
+    phone: string;
+    template: PlatformWhatsAppTemplate;
+    bodyValues: string[];
+    /** By button index, as Interakt takes them: an authentication template's copy-code button carries the code. */
+    buttonValues?: Record<string, string[]>;
+    /** Names the send in the logs; never the code. */
+    label: string;
+}
+
+/**
+ * Sends a template from Fermi's own number with no shop behind it, so no
+ * shop's sender list, wallet, trial or daily cap applies (Fermi B11). Callers
+ * keep their own record of it: it is not a shop message and never goes in
+ * whatsapp_logs.
+ */
+export async function sendPlatformTemplate(input: PlatformTemplateInput): Promise<SendTemplateResult> {
+    const apiKey = env.INTERAKT_API_KEY;
+    if (!apiKey) return { success: false, error: "Interakt API key not configured" };
+    const { countryCode, phoneNumber } = formatPhoneForInterakt(input.phone);
+    const body: InteraktTemplateBody = {
+        countryCode,
+        phoneNumber,
+        type: "Template",
+        template: {
+            name: input.template.name,
+            languageCode: input.template.language,
+            bodyValues: input.bodyValues.map(sanitizeTemplateVar),
+            ...(input.buttonValues ? { buttonValues: input.buttonValues } : {}),
         },
     };
     return postTemplate(apiKey, body, input.label);

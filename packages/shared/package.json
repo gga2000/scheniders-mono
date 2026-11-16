@@ -23,7 +23,8 @@
     "./whatsapp-templates": "./src/whatsapp-templates.ts",
     "./store-address": "./src/store-address.ts",
     "./plans": "./src/plans.ts",
-    "./support-hours": "./src/support-hours.ts"
+    "./support-hours": "./src/support-hours.ts",
+    "./signup-whatsapp": "./src/signup-whatsapp.ts"
   },
   "scripts": {
     "test": "vitest run"

@@ -6907,6 +6907,65 @@ export type Database = {
           },
         ]
       }
+      signup_phone_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string | null
+          message_id: string | null
+          phone: string
+          tenant_id: string | null
+          used_at: string | null
+          verified_at: string | null
+          welcome_error: string | null
+          welcome_message_id: string | null
+          welcome_sent_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip?: string | null
+          message_id?: string | null
+          phone: string
+          tenant_id?: string | null
+          used_at?: string | null
+          verified_at?: string | null
+          welcome_error?: string | null
+          welcome_message_id?: string | null
+          welcome_sent_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          message_id?: string | null
+          phone?: string
+          tenant_id?: string | null
+          used_at?: string | null
+          verified_at?: string | null
+          welcome_error?: string | null
+          welcome_message_id?: string | null
+          welcome_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signup_phone_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       smart_collections: {
         Row: {
           created_at: string | null
@@ -8146,6 +8205,7 @@ export type Database = {
           config_version: number
           contact_email: string | null
           contact_phone: string | null
+          contact_phone_verified_at: string | null
           created_at: string
           display_id: number
           id: string
@@ -8175,6 +8235,7 @@ export type Database = {
           config_version?: number
           contact_email?: string | null
           contact_phone?: string | null
+          contact_phone_verified_at?: string | null
           created_at?: string
           display_id?: number
           id?: string
@@ -8204,6 +8265,7 @@ export type Database = {
           config_version?: number
           contact_email?: string | null
           contact_phone?: string | null
+          contact_phone_verified_at?: string | null
           created_at?: string
           display_id?: number
           id?: string
@@ -10044,6 +10106,13 @@ export type Database = {
           _qi_status: string
         }
         Returns: Json
+      }
+      signup_phone_code_check: {
+        Args: { p_code_hash: string; p_phone: string }
+        Returns: {
+          proof: string | null
+          result: string
+        }[]
       }
       shipping_export_history: {
         Args: { p_order_ids: string[]; p_tenant_id: string }

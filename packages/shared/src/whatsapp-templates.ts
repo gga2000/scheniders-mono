@@ -73,3 +73,23 @@ export function whatsappPurposeOf(templateName: string | null | undefined): What
     if (templateName === WHATSAPP_TEMPLATES.cartRecovery.name) return "cartRecovery";
     return "other";
 }
+
+export interface PlatformWhatsAppTemplate {
+    name: string;
+    category: "authentication" | "utility";
+    language: "ar" | "en";
+}
+
+/**
+ * Templates Fermi sends as itself, not for a shop (Fermi B11): to a new
+ * owner at signup. No shop pays them, so they never go in whatsapp_logs (which
+ * charges the shop's wallet and counts in its trial); signup_phone_codes keeps
+ * their message ids. Each is off until staff switch it on in the console's
+ * Settings, after Interakt approves it under exactly this name and language.
+ */
+export const PLATFORM_WHATSAPP_TEMPLATES = {
+    /** Meta authentication template: the code in the body and on its copy-code button. */
+    signupCode: { name: "signup_code_v1", category: "authentication", language: "ar" },
+    /** {{1}} the store's name, {{2}} its link, {{3}} the short how-to video. */
+    welcome: { name: "merchant_welcome_v1", category: "utility", language: "ar" },
+} as const satisfies Record<string, PlatformWhatsAppTemplate>;

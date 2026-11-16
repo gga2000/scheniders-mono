@@ -1,15 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug, isSlugFree, suggestFreeSlug } from '@/lib/tenant';
 import { normalizeSlug, slugRejection } from '@/lib/tenant-slug';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { requestIp } from '@/lib/request-ip';
 import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { buildStarterStoreConfigV2, SIGNUP_TEMPLATE_ID } from '@/lib/starter-store';
 import { DEFAULT_PACK_ID } from '@/lib/store-templates/content-packs';
 import { attributeTemplatesFor, BUSINESS_TYPE_IDS, mergeAttributeSets, packIdFor } from '@/lib/business-types';
 import { withFailureReport } from "@/lib/job-monitor";
+import { normalizeIraqiMobile } from '@scheniders/shared';
+import { env } from '@/lib/env';
+import { buildStorefrontUrl } from '@/lib/storefront-url';
+import { linkSignupProof, loadSignupWhatsApp, releaseSignupProof, sendSignupWelcome, spendSignupProof } from '@/lib/signup-phone-code';
 
 /**
  * Every self-serve signup starts a 7-day trial on Team, with no order cap
@@ -52,6 +57,11 @@ const signupSchema = z.object({
      */
     slug: z.string().max(64).optional().transform((v) => (v === undefined ? undefined : normalizeSlug(v))),
     captcha_token: z.string().optional(),
+    /**
+     * The proof /api/auth/phone-code/verify handed back for contact_phone
+     * (Fermi B11). Needed while the console's code switch is on.
+     */
+    phone_proof: z.uuid().optional(),
 });
 
 // Two sign-ups picking the same free slug at once: the loser's insert hits the
@@ -59,11 +69,6 @@ const signupSchema = z.object({
 const SLUG_ATTEMPTS = 3;
 const UNIQUE_VIOLATION = '23505';
 
-function clientIp(request: NextRequest): string {
-    const real = request.headers.get('x-real-ip');
-    if (real) return real.trim();
-    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-}
 
 // =============================================
 // POST /api/auth/signup
@@ -72,7 +77,7 @@ function clientIp(request: NextRequest): string {
 
 async function handlePOST(request: NextRequest) {
     try {
-        const ip = clientIp(request);
+        const ip = requestIp(request);
         const limit = await consumeRateLimit(`signup:${ip}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
         if (limit.error) {
             // Fails open so signup keeps working, but never silently.
@@ -92,7 +97,7 @@ async function handlePOST(request: NextRequest) {
                 { status: 400 },
             );
         }
-        const { email, password, business_name, contact_phone, city, business_types, slug: chosenSlug, captcha_token } = parsed.data;
+        const { email, password, business_name, contact_phone: typedPhone, city, business_types, slug: chosenSlug, captcha_token, phone_proof } = parsed.data;
 
         // This route creates the account with the service role, so Supabase's
         // own CAPTCHA never sees it: check the Turnstile token here first.
@@ -134,6 +139,27 @@ async function handlePOST(request: NextRequest) {
         }
         const firstSlug = chosenSlug ?? (await ensureUniqueSlug(baseSlug));
 
+        // ── 0. The owner's mobile, proven by a WhatsApp code (B11) ──
+        // While the console's switch is on, the store is made only for a
+        // number its owner proved; the proof is spent here and given back if
+        // the account is not made.
+        const signupWhatsApp = await loadSignupWhatsApp(adminClient);
+        let verified: { phone: string; proof: string } | null = null;
+        if (signupWhatsApp.phone_code) {
+            const phone = normalizeIraqiMobile(typedPhone);
+            if (!phone || !phone_proof || !(await spendSignupProof(adminClient, phone_proof, phone))) {
+                return NextResponse.json(
+                    { error: 'Confirm your WhatsApp number first.', code: 'phone_unverified' },
+                    { status: 422 },
+                );
+            }
+            verified = { phone, proof: phone_proof };
+        }
+        const contact_phone = verified?.phone ?? typedPhone;
+        const giveBackProof = async () => {
+            if (verified) await releaseSignupProof(adminClient, verified.proof);
+        };
+
         // ── 1. Create Supabase auth user ──
         // Unconfirmed: the browser then asks Supabase to send the confirm mail, and
         // the account cannot sign in until its owner opens that link.
@@ -144,6 +170,7 @@ async function handlePOST(request: NextRequest) {
         });
 
         if (authError) {
+            await giveBackProof();
             if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
                 return NextResponse.json(
                     { error: 'An account with this email already exists' },
@@ -181,6 +208,7 @@ async function handlePOST(request: NextRequest) {
                 config_version: 2,
                 contact_email: email,
                 contact_phone,
+                contact_phone_verified_at: verified ? new Date().toISOString() : null,
                 city,
                 business_types,
                 store_config: {
@@ -222,6 +250,7 @@ async function handlePOST(request: NextRequest) {
         if (tenantError) {
             // Rollback: delete the auth user
             await adminClient.auth.admin.deleteUser(userId);
+            await giveBackProof();
             if (chosenSlug !== undefined && tenantError.code === UNIQUE_VIOLATION) {
                 // Another sign-up took the chosen address a moment ago.
                 return NextResponse.json(
@@ -234,6 +263,8 @@ async function handlePOST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        if (verified) await linkSignupProof(adminClient, verified.proof, tenant.id);
 
         // ── 3. Create user profile ──
         const { error: profileError } = await adminClient
@@ -250,6 +281,7 @@ async function handlePOST(request: NextRequest) {
             // Rollback
             await adminClient.auth.admin.deleteUser(userId);
             await adminClient.from('tenants').delete().eq('id', tenant.id);
+            await giveBackProof();
             return NextResponse.json(
                 { error: `Failed to create user profile: ${profileError.message}` },
                 { status: 500 }
@@ -371,6 +403,28 @@ async function handlePOST(request: NextRequest) {
                 });
                 setupErrors.push(`product_attribute_defs: ${attributesError.message}`);
             }
+        }
+
+        // ── 9. Welcome on WhatsApp (B11) ──
+        // To the proven number only, after the response: the merchant is not
+        // kept waiting on WhatsApp, and a failed send is reported, never a
+        // reason to fail the signup.
+        const welcomeVideo = signupWhatsApp.welcome ? signupWhatsApp.welcome_video_url : null;
+        if (verified && welcomeVideo) {
+            const welcome = {
+                proof: verified.proof,
+                tenantId: tenant.id,
+                phone: verified.phone,
+                businessName: business_name,
+                storeUrl: buildStorefrontUrl({
+                    slug: tenant.slug,
+                    customDomain: null,
+                    rootDomain: env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN,
+                    hostname: request.nextUrl.host,
+                }),
+                videoUrl: welcomeVideo,
+            };
+            after(() => sendSignupWelcome(adminClient, welcome));
         }
 
         return NextResponse.json({

@@ -14,12 +14,13 @@ import {
 import { LeadIndustryManager } from "@/components/leads/lead-industry-manager";
 import { PaymentDetailsCard } from "@/components/settings/payment-details-card";
 import { DemoStoreCard } from "@/components/settings/demo-store-card";
+import { SignupWhatsAppCard } from "@/components/settings/signup-whatsapp-card";
 import { hasPermission } from "@/lib/admin-permissions";
 
 // The rows of `admin_settings` are storage that other code reads (the leads
 // table layout, the top-up payment details shops see): JSON objects, not text.
 // Printing one as text crashed this page, so it does not list them; the one
-// staff edit here (how shops pay us) has its own form.
+// staff edits here (how shops pay us, WhatsApp at signup) have their own forms.
 
 export default function SettingsPage() {
   const { user, role } = useAdminAuth();
@@ -37,6 +38,8 @@ export default function SettingsPage() {
       </div>
 
       <PaymentDetailsCard canEdit={role ? hasPermission(role, "update_settings") : false} />
+
+      <SignupWhatsAppCard canEdit={role ? hasPermission(role, "update_settings") : false} />
 
       {role && hasPermission(role, "manage_demo_store") && <DemoStoreCard />}
 
