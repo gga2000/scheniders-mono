@@ -50,6 +50,7 @@ CREATE TABLE public.orders (
     order_id text,
     status text NOT NULL,
     is_test boolean DEFAULT false,
+    is_return boolean DEFAULT false,
     guide_practice boolean DEFAULT false,
     take_kind text,
     till_session_id uuid
