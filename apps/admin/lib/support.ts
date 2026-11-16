@@ -52,7 +52,7 @@ export type CaseAction = z.infer<typeof CaseActionSchema>;
 
 /** The `support_cases` columns (plus the shop) every list and detail read selects. */
 export const SUPPORT_CASE_COLUMNS =
-  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, created_at, tenants(business_name, display_id, plan, status)";
+  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, created_at, tenants(business_name, display_id, plan, status)";
 
 export interface SupportCaseShop {
   business_name: string;
@@ -77,6 +77,8 @@ export interface SupportCaseRow {
   last_message_at: string;
   last_message_preview: string;
   last_sender_kind: "merchant" | "staff";
+  /** merchant: they pressed Help. staff: we wrote first from Needs us. */
+  started_by: "merchant" | "staff";
   created_at: string;
   tenants: SupportCaseShop | null;
 }
@@ -151,6 +153,8 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_empty_message: { status: 400, error: "Write a message first." },
   support_case_not_found: { status: 404, error: "This conversation no longer exists." },
   support_case_solved: { status: 409, error: "This conversation is already solved." },
+  support_shop_not_found: { status: 404, error: "This shop no longer exists." },
+  support_shop_has_nobody: { status: 409, error: "This shop has no active member to write to." },
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null):
@@ -281,6 +285,8 @@ export const SupportScoreboardSchema = z.object({
   days: z.number().int(),
   opened: count,
   answered: count,
+  /** Conversations we started from Needs us; not in opened or reply times. */
+  reached_out: count,
   first_reply_median_s: seconds,
   first_reply_p90_s: seconds,
   answered_within_5m: count,
@@ -313,4 +319,97 @@ export function formatDuration(totalSeconds: number | null): string {
 /** A share as a whole percent, or null when there is nothing to divide. */
 export function percentOf(part: number, whole: number): number | null {
   return whole === 0 ? null : Math.round((part / whole) * 100);
+}
+
+/**
+ * "Needs us": shops with something wrong right now, from
+ * `support_shops_needing_us()`. The lines are set in the database migration
+ * 20261116104616_support_reach_out.sql.
+ */
+export const SHOP_PROBLEMS = [
+  "store_paused",
+  "billing_locked",
+  "wallet_empty",
+  "whatsapp_paused",
+  "prime_error",
+  "waseet_failing",
+  "orders_stopped",
+  "trial_ending",
+] as const;
+
+export type ShopProblemCode = (typeof SHOP_PROBLEMS)[number];
+
+export const SHOP_PROBLEM_LABELS: Record<ShopProblemCode, string> = {
+  store_paused: "Store paused",
+  billing_locked: "Locked for billing",
+  wallet_empty: "Wallet empty",
+  whatsapp_paused: "WhatsApp paused",
+  prime_error: "Prime link failing",
+  waseet_failing: "Al-Waseet failing",
+  orders_stopped: "Orders stopped",
+  trial_ending: "Trial ends soon",
+};
+
+/** The first lines staff can send, in the merchant's Arabic; they edit before sending. */
+export const SHOP_PROBLEM_OPENERS: Record<ShopProblemCode, string> = {
+  store_paused: "هلا، لاحظنا أن متجرك متوقف حالياً وما يستقبل طلبات جديدة. نكدر نساعدك ترجعه يشتغل؟",
+  billing_locked: "هلا، لاحظنا أن متجرك مقفل بسبب الاشتراك. إذا تحتاج مساعدة بالدفع أو عندك سؤال، احنا هنا.",
+  wallet_empty: "هلا، رصيد محفظتك خلص، فالطلبات الجديدة راح تتوقف. تحب نساعدك بالتعبئة؟",
+  whatsapp_paused: "هلا، رسائل الواتساب لزبائنك متوقفة لأن أغلبها ما وصل. خلي نرتبها سوا حتى ترجع توصل.",
+  prime_error: "هلا، الربط مع برايم فشل بآخر محاولة. نكدر نساعدك نرجعه يشتغل.",
+  waseet_failing: "هلا، إرسال الطلبات للوسيط يفشل من اليوم. خلي نشوف المشكلة سوا.",
+  orders_stopped: "هلا، لاحظنا ما وصلتك طلبات من يومين. كلشي تمام؟ إذا تحتاج مساعدة بالمتجر أو الإعلانات احنا هنا.",
+  trial_ending: "هلا، تجربتك المجانية تخلص قريباً. إذا عندك أي سؤال قبل الاشتراك، احنا هنا.",
+};
+
+const problemCode = z.enum(SHOP_PROBLEMS);
+
+export const NeedsUsShopSchema = z.object({
+  tenant_id: z.string().uuid(),
+  business_name: z.string(),
+  display_id: z.number().int().nullable(),
+  status: z.string(),
+  problems: z
+    .array(z.object({ code: problemCode, since: z.string().nullable(), detail: z.string().nullable() }))
+    .min(1),
+  owner_name: z.string().nullable(),
+  open_case: z.object({ id: z.string().uuid(), status: z.enum(["waiting_us", "waiting_merchant"]) }).nullable(),
+  last_contact_at: z.string().nullable(),
+});
+
+export const NeedsUsSchema = z.array(NeedsUsShopSchema);
+
+export type NeedsUsShop = z.infer<typeof NeedsUsShopSchema>;
+
+export const StartConversationSchema = z.object({
+  tenantId: z.string().uuid(),
+  body: z.string().trim().min(1).max(4000),
+});
+
+export type StartConversation = z.infer<typeof StartConversationSchema>;
+
+/** What a problem's detail means in words, when there is one worth showing. */
+export function problemDetail(code: ShopProblemCode, detail: string | null): string | null {
+  if (detail === null || detail.trim() === "") return null;
+  switch (code) {
+    case "waseet_failing":
+      return `${detail} failed in 24 h`;
+    case "orders_stopped":
+      return `none in 48 h, ${detail} in the 2 weeks before`;
+    case "wallet_empty":
+      return `${Number(detail).toLocaleString("en-US")} IQD`;
+    default:
+      return detail;
+  }
+}
+
+/** The problem to open with: the first by SHOP_PROBLEMS order (the store being down comes before a trial ending). */
+export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblemCode {
+  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0].code;
+}
+
+/** "3 h ago", "2 d ago"; "just now" under a minute. */
+export function formatAgo(at: string, now: number): string {
+  const seconds = Math.max(0, (now - Date.parse(at)) / 1000);
+  return seconds < 60 ? "just now" : `${formatDuration(seconds)} ago`;
 }

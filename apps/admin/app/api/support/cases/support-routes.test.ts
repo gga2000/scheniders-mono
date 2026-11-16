@@ -351,6 +351,7 @@ describe("support scoreboard", () => {
     days: 30,
     opened: 3,
     answered: 2,
+    reached_out: 1,
     first_reply_median_s: 90,
     first_reply_p90_s: 300,
     answered_within_5m: 2,
@@ -453,5 +454,92 @@ describe("support shop check", () => {
   it("says it failed when the answer is not the expected shape", async () => {
     dbQueue.push({ data: { tenant_id: TENANT }, error: null }, { data: { store: {} }, error: null });
     expect((await check("support")).status).toBe(500);
+  });
+});
+
+describe("support needs us", () => {
+  const SHOP = {
+    tenant_id: TENANT,
+    business_name: "Amal",
+    display_id: 100012,
+    status: "active",
+    problems: [
+      { code: "orders_stopped", since: "2026-11-14T04:01:05+00:00", detail: "262" },
+      { code: "wallet_empty", since: "2026-11-15T23:43:51+00:00", detail: "0" },
+    ],
+    owner_name: "Amal Owner",
+    open_case: null,
+    last_contact_at: null,
+  };
+
+  async function list(token: string | null): Promise<Response> {
+    const { GET } = await import("../needs-us/route");
+    return GET(req("/api/support/needs-us", "GET", token));
+  }
+
+  async function start(token: string | null, body: unknown): Promise<Response> {
+    const { POST } = await import("../needs-us/route");
+    return POST(req("/api/support/needs-us", "POST", token, body));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await list(null)).status).toBe(401);
+    expect((await start(null, { tenantId: TENANT, body: "hi" })).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("passes on the database's list of shops", async () => {
+    dbResult = { data: [SHOP], error: null };
+    const res = await list("support");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ shops: [SHOP] });
+    expect(rpcCall()?.args).toEqual(["support_shops_needing_us"]);
+  });
+
+  it("says it failed rather than showing an empty list when the answer is not the expected shape", async () => {
+    dbResult = { data: [{ ...SHOP, problems: [{ code: "made_up", since: null, detail: null }] }], error: null };
+    expect((await list("support")).status).toBe(500);
+  });
+
+  it.each([
+    ["no shop", { body: "hi" }],
+    ["a shop id that is not an id", { tenantId: "1", body: "hi" }],
+    ["an empty message", { tenantId: TENANT, body: "   " }],
+    ["a message over 4000 characters", { tenantId: TENANT, body: "x".repeat(4001) }],
+  ])("refuses %s", async (_label, body) => {
+    expect((await start("support", body)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("writes first as the signed-in admin, whatever the body claims, and logs it", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { case_id: CASE_ID, tenant_id: TENANT, message_id: "m1", started: true }, error: null },
+    );
+    const res = await start("support", { tenantId: TENANT, body: "  هلا  ", p_admin_id: "x", adminName: "Boss" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ caseId: CASE_ID, started: true });
+    expect(rpcCall()?.args).toEqual([
+      "support_staff_start",
+      { p_tenant_id: TENANT, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "هلا" },
+    ]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      tenant_id: TENANT,
+      action: "support_reached_out",
+      details: { case_id: CASE_ID, started: true },
+    });
+  });
+
+  it.each([
+    ["support_shop_not_found", 404],
+    ["support_shop_has_nobody", 409],
+    ["support_empty_message", 400],
+  ])("maps the database refusal %s to %i", async (message, status) => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: null, error: { code: "P0001", message } },
+    );
+    expect((await start("support", { tenantId: TENANT, body: "hi" })).status).toBe(status);
   });
 });
