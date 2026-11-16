@@ -1476,6 +1476,8 @@ export const ar: Record<string, string> = {
     "orders.payment.checkedTip": "تم التحقق من الدفع",
     "orders.filter.paymentUnchecked": "فلوس بعدها ما تأكدت",
     "orders.filter.paymentUncheckedTip": "مُسلَّمة أو مكتملة خلال آخر {days} يوماً، وبعد محد أكّد إن المندوب سلّمنا فلوسها",
+    "orders.filter.lockTime": "طلبات وصلت وقت القفل",
+    "orders.filter.lockTimeTip": "طلبات وصلت من متجرك وحسابك مقفول، خلال آخر {days} يوماً",
     "orders.filter.risk": "زبائن خطرين",
     "orders.filter.riskTip": "طلبات من زبائن خطرين ضمن الأيام المختارة",
     "orders.gift.label": "هدية",

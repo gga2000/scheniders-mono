@@ -8,6 +8,7 @@ import { useStuckInTransit } from "@/hooks/use-stuck-in-transit";
 import { useScheduledLater } from "@/hooks/use-scheduled-later";
 import { usePrimeRowSets } from "@/hooks/use-prime-shipments";
 import { usePaymentUnchecked } from "@/hooks/use-payment-unchecked";
+import { useLockTimeOrders } from "@/hooks/use-lock-time-orders";
 import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
 import { useStockShortfallGuard } from "@/hooks/use-stock-shortfall-guard";
 import { useShallow } from "zustand/react/shallow";
@@ -475,6 +476,10 @@ export function useOrdersPageModel() {
     const defFilterPaymentUnchecked = React.useDeferredValue(filterPaymentUnchecked);
     const paymentUncheckedIds = usePaymentUnchecked();
     const paymentUncheckedSet = useMemo(() => new Set(paymentUncheckedIds), [paymentUncheckedIds]);
+    const filterLockTime = useOrderStore(s => s.filterLockTime);
+    const defFilterLockTime = React.useDeferredValue(filterLockTime);
+    const lockTimeIds = useLockTimeOrders();
+    const lockTimeSet = useMemo(() => new Set(lockTimeIds), [lockTimeIds]);
     const filterPrimeBucket = useOrderStore(s => s.filterPrimeBucket);
     const defFilterPrimeBucket = React.useDeferredValue(filterPrimeBucket);
     const { sets: primeRowSets } = usePrimeRowSets();
@@ -548,6 +553,11 @@ export function useOrdersPageModel() {
             result = result.filter(o => paymentUncheckedSet.has(o.id));
         }
 
+        // 1.8b. Came in while the shop was billing-locked (lib/billing/lock-orders.ts).
+        if (defFilterLockTime) {
+            result = result.filter(o => lockTimeSet.has(o.id));
+        }
+
         // 1.9. In transit, one bucket of the Prime row (lib/prime/track.ts).
         if (defFilterPrimeBucket) {
             const ids = primeRowSets.get(defFilterPrimeBucket);
@@ -555,7 +565,7 @@ export function useOrdersPageModel() {
         }
 
         return result;
-    }, [hookFilteredOrders, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterScheduledLater, scheduledLaterSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
+    }, [hookFilteredOrders, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterScheduledLater, scheduledLaterSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterLockTime, lockTimeSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
 
     const filteredOrders = useMemo(() => {
         // A copy: sortDesktopList sorts in place, and preDangerOrders is memoized.
@@ -615,9 +625,10 @@ export function useOrdersPageModel() {
         stuckTransit: defFilterStuckTransit,
         scheduledLater: defFilterScheduledLater,
         paymentUnchecked: defFilterPaymentUnchecked,
+        lockTime: defFilterLockTime,
         primeBucket: defFilterPrimeBucket !== null,
         primeQueue: defPrimeQueue !== null,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterScheduledLater, defFilterPaymentUnchecked, defFilterPrimeBucket, defPrimeQueue]);
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterScheduledLater, defFilterPaymentUnchecked, defFilterLockTime, defFilterPrimeBucket, defPrimeQueue]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:

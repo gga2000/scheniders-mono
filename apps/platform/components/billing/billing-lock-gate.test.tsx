@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 /*
  * Handoff A1: a billing-locked shop keeps its orders, shipping, labels,
@@ -26,8 +26,10 @@ vi.mock("@/hooks/use-billing-lock", () => ({
     usePayBillingLock: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
+vi.mock("@/components/providers/language-provider", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
 
 const { BillingLockGate } = await import("./billing-lock-gate");
+const { useSupportStore } = await import("@/store/use-support-store");
 
 const LOCKED = {
     locked: true, reason: "trial_ended", since: "2026-11-15T18:36:20Z", orders_left: 50, allowance: 50,
@@ -77,6 +79,14 @@ describe("BillingLockGate", () => {
         state.tenant = { status: "trial", plan: "internal" };
         show();
         expect(screen.getByText("page")).toBeTruthy();
+    });
+
+    it("opens the support chat with the lock attached", () => {
+        show();
+        fireEvent.click(screen.getByText("support.contactButton"));
+        const support = useSupportStore.getState();
+        expect(support.isOpen).toBe(true);
+        expect(support.errorPrefill?.errorCode).toBe("billing.lock.titleTrial");
     });
 
     it("renders the page while the lock is still loading", () => {

@@ -29,6 +29,7 @@ import { LeadQualityStrip } from "@/components/orders/lead-quality-strip";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
 import { ScheduledLaterChip } from "@/components/orders/scheduled-later-chip";
 import { PaymentUncheckedChip } from "@/components/orders/payment-unchecked-chip";
+import { LockTimeChip } from "@/components/orders/lock-time-chip";
 import { PrimeTransitRow } from "@/components/orders/prime-transit-row";
 import type { PaymentStatus } from "@/lib/supabase";
 
@@ -201,7 +202,7 @@ export function OrdersFilterBar({
                                 afterAbandonedChips={<PrimeQueueChips />}
                                 productRowEnd={<ScheduledLaterChip filters={filters} setFilters={setFilters} />}
                                 showProductRowEnd
-                                queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /></>}
+                                queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /><LockTimeChip filters={filters} setFilters={setFilters} /></>}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
                                 countsHidden={countsHidden}
