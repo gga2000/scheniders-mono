@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseProviderBaseUrls, providerBaseUrlSchema, type RawEnv } from "@scheniders/shared/provider-base-url";
+import { STORE_ROOT_DOMAIN } from "@scheniders/shared/store-address";
 
 /**
  * Environment Variable Validation
@@ -29,10 +30,11 @@ const clientSchema = z.object({
         .string()
         .url("NEXT_PUBLIC_SITE_URL must be a valid URL")
         .optional(),
+    // Stores live at <slug>.<this> (Fermi A4: usefermi.com).
     NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN: z
         .string()
         .min(1)
-        .default("scheniders.com"),
+        .default(STORE_ROOT_DOMAIN),
     // Cloudflare Turnstile site key (public). Unset = no CAPTCHA box; only
     // safe while Supabase Auth CAPTCHA protection is off.
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),

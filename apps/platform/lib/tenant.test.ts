@@ -93,6 +93,8 @@ describe("ensureUniqueSlug", () => {
         await expect(ensureUniqueSlug("support")).resolves.toBe("store-support");
         await expect(ensureUniqueSlug("admin")).resolves.toBe("store-admin");
         await expect(ensureUniqueSlug("scheniders-official")).resolves.toBe("store-scheniders-official");
+        await expect(ensureUniqueSlug("usefermi-shop")).resolves.toBe("store-usefermi-shop");
+        await expect(ensureUniqueSlug("partners")).resolves.toBe("store-partners");
     });
 
     it("fails loudly when a lookup fails instead of assuming the slug is free", async () => {

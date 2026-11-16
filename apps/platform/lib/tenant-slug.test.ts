@@ -24,7 +24,7 @@ describe("isValidSlug (handle claim, UX2-13)", () => {
     });
 
     it("rejects reserved platform subdomains", () => {
-        for (const r of ["www", "api", "admin", "app", "store", "login"]) {
+        for (const r of ["www", "api", "admin", "app", "store", "login", "partners", "fermi", "usefermi"]) {
             expect(slugRejection(r)).toBe("reserved");
         }
     });

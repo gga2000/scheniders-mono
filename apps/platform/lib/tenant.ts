@@ -179,7 +179,7 @@ export async function ensureUniqueSlug(requested: string): Promise<string> {
 
 /** Reserved platform subdomains, and anything posing as the platform's name. */
 function looksLikePlatformHost(slug: string): boolean {
-    return RESERVED_SLUGS.has(slug) || slug.startsWith("schenider");
+    return RESERVED_SLUGS.has(slug) || slug.startsWith("schenider") || slug.startsWith("usefermi");
 }
 
 // =============================================

@@ -4,7 +4,7 @@ import {
   parseAdUrlParams,
   serializeAdAttribution,
 } from "@scheniders/shared/ad-attribution";
-import { extractSlug, storefrontRootDomain } from "@/lib/store-host";
+import { extractSlug, legacyStoreSlug, storefrontLegacyRootDomains, storefrontRootDomain } from "@/lib/store-host";
 import { QUIET_VIEW_HEADER, QUIET_VIEW_PARAM } from "@/lib/quiet-view";
 import { BOTID_ROUTE_PREFIX } from "@/lib/checkout-bot-paths";
 import {
@@ -151,6 +151,8 @@ function ensureMetaCookies(request: NextRequest, response: NextResponse): void {
 const ROOT_DOMAIN = storefrontRootDomain();
 /** No subdomains on a local root (localhost:3001), so stores use /s/<slug>. */
 const ROOT_IS_LOCAL = ROOT_DOMAIN.startsWith("localhost");
+/** Roots stores used to live under (`<slug>.scheniders.com`). */
+const LEGACY_ROOTS = storefrontLegacyRootDomains(ROOT_DOMAIN);
 /** A slug that is a valid single DNS label. */
 const SUBDOMAIN_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
 
@@ -185,7 +187,7 @@ function isPreviewPath(pathname: string): boolean {
 
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
-  const { slug, isCustom } = extractSlug(host, ROOT_DOMAIN);
+  const { slug, isCustom } = extractSlug(host, ROOT_DOMAIN, LEGACY_ROOTS);
   const url = request.nextUrl.clone();
   const storePath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
 
@@ -210,6 +212,17 @@ export function proxy(request: NextRequest) {
     (url.pathname.includes(".") && !TENANT_ROOT_FILES.has(url.pathname))
   ) {
     return NextResponse.next();
+  }
+
+  // A store page on its old address (`<slug>.scheniders.com`) moves to the
+  // same path on `<slug>.<root>`, so shared links and ads keep landing. Only
+  // page loads: a form or API call from a page opened before the move is
+  // still served here (cross-origin, a redirected POST would fail).
+  if (!ROOT_IS_LOCAL && (request.method === "GET" || request.method === "HEAD")) {
+    const legacy = legacyStoreSlug(host, LEGACY_ROOTS);
+    if (legacy && SUBDOMAIN_SLUG.test(legacy)) {
+      return NextResponse.redirect(`https://${legacy}.${ROOT_DOMAIN}${storePath}`, 308);
+    }
   }
 
   if (!slug && !isCustom) {

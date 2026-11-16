@@ -21,6 +21,7 @@ import {
   Settings2,
   Zap,
 } from "lucide-react";
+import { storeAddress } from "@scheniders/shared/store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -428,7 +429,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                   <p className="text-xs text-[var(--muted)]">
                     This will create a prospect store at{" "}
                     <span className="font-semibold text-[var(--foreground)]">
-                      scheniders.com/{slug || "..."}
+                      {storeAddress(slug || "...")}
                     </span>
                   </p>
                 </div>

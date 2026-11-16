@@ -15,8 +15,11 @@
         "dist/**"
       ],
       "env": [
+        "DASHBOARD_HOST",
+        "DASHBOARD_OLD_HOSTS",
         "NEXT_PUBLIC_CATEGORIES_V2",
         "NEXT_PUBLIC_DEV_ROOT_DOMAIN",
+        "NEXT_PUBLIC_LEGACY_ROOT_DOMAINS",
         "NEXT_PUBLIC_PLATFORM_ORIGIN",
         "NEXT_PUBLIC_ROOT_DOMAIN",
         "NEXT_PUBLIC_SENTRY_DSN",

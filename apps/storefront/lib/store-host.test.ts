@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { extractSlug, storeKeyFromRequest, storefrontRootDomain } from "./store-host";
+import {
+  extractSlug,
+  legacyStoreSlug,
+  storeKeyFromRequest,
+  storefrontLegacyRootDomains,
+  storefrontRootDomain,
+} from "./store-host";
 
 const ROOT = "scheniders.test";
 const h = (init: Record<string, string>): Headers => new Headers(init);
@@ -37,6 +43,33 @@ describe("extractSlug", () => {
 
   it("treats any other host as a store's own domain", () => {
     expect(extractSlug("shop.example.com", ROOT)).toEqual({ slug: "shop.example.com", isCustom: true });
+  });
+});
+
+describe("old store root (stores moved to a new root)", () => {
+  const LEGACY = ["scheniders.com"];
+
+  it("reads <slug>.<old root> as the same store", () => {
+    expect(extractSlug("Acme.Scheniders.com", "usefermi.com", LEGACY)).toEqual({ slug: "acme", isCustom: false });
+    expect(legacyStoreSlug("acme.scheniders.com:443", LEGACY)).toBe("acme");
+  });
+
+  it("leaves the old root and its www to the store that verified them", () => {
+    expect(extractSlug("www.scheniders.com", "usefermi.com", LEGACY)).toEqual({ slug: "www.scheniders.com", isCustom: true });
+    expect(extractSlug("scheniders.com", "usefermi.com", LEGACY)).toEqual({ slug: "scheniders.com", isCustom: true });
+    expect(legacyStoreSlug("www.scheniders.com", LEGACY)).toBeNull();
+    expect(legacyStoreSlug("notscheniders.com", LEGACY)).toBeNull();
+  });
+
+  it("reads the list from the environment, never including the current root", () => {
+    vi.stubEnv("NEXT_PUBLIC_LEGACY_ROOT_DOMAINS", " Scheniders.com , usefermi.com,, old.test ");
+    expect(storefrontLegacyRootDomains("usefermi.com\n")).toEqual(["scheniders.com", "old.test"]);
+    expect(storeKeyFromRequest(h({ host: "shop.scheniders.com" }), "usefermi.com")).toBe("shop");
+  });
+
+  it("is empty when unset", () => {
+    expect(storefrontLegacyRootDomains("usefermi.com")).toEqual([]);
+    expect(extractSlug("acme.scheniders.com", "usefermi.com")).toEqual({ slug: "acme.scheniders.com", isCustom: true });
   });
 });
 
