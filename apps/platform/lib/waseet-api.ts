@@ -272,7 +272,9 @@ async function waseetRequest<T>(
 
         } catch (error) {
             lastError = error instanceof Error ? error.message : "Network error";
-            console.error(`[Waseet] Error on attempt ${attempt + 1}/${MAX_RETRIES + 1}:`, lastError);
+            // A warning, not an error: a retry often succeeds, and a final
+            // failure is returned to the caller, which reports it once.
+            console.warn(`[Waseet] Error on attempt ${attempt + 1}/${MAX_RETRIES + 1}:`, lastError);
 
             // A POST that may have reached Al-Waseet (timeout, dropped
             // connection) is not sent again: create-order would make a
@@ -617,8 +619,27 @@ export interface LocationSyncResult {
     duplicates: number;
     districts: number;
     splitNames: number;
+    municipalities: number;
+    postalCodes: number;
+    overrides: number;
     reviewPairs: number;
 }
+
+/** Al-Waseet's city and area lists: a reply of any other shape is refused, never half-saved. */
+const waseetIdSchema = z.union([z.string().regex(/^\d+$/), z.number().int()]).transform(Number);
+const citiesReplySchema = z.array(z.object({ id: waseetIdSchema, city_name: z.string().min(1) })).min(1);
+const regionsReplySchema = z.array(z.object({ id: waseetIdSchema, region_name: z.string().min(1) }));
+
+/** waseet_refresh_all's one row of counts; a step that found nothing may say null. */
+const refreshAllSchema = z.array(z.object({
+    districts: z.number().int().nullable(),
+    split_names: z.number().int().nullable(),
+    duplicates: z.number().int().nullable(),
+    municipalities: z.number().int().nullable(),
+    postal_codes: z.number().int().nullable(),
+    overrides: z.number().int().nullable(),
+    review_pairs: z.number().int().nullable(),
+})).length(1);
 
 /**
  * Refresh the local mirror of Al-Waseet's delivery destinations into
@@ -635,17 +656,23 @@ export interface LocationSyncResult {
 export async function syncLocationCatalog(triggeredBy = "manual"): Promise<WaseetApiResult<LocationSyncResult>> {
     const supabaseAdmin = createSupabaseServiceClient();
 
-    const citiesResult = await waseetRequest<WaseetCity[]>("citys", "GET", undefined, undefined, {
+    const citiesResult = await waseetRequest<unknown>("citys", "GET", undefined, undefined, {
         requiresAuth: false,
         triggeredBy,
     });
 
-    if (!citiesResult.success || !citiesResult.data) {
+    // Nothing is written until the city list is a real one: an HTML page, an
+    // error or an empty list leaves every saved city and area as it was.
+    if (!citiesResult.success) {
         return { success: false, error: citiesResult.error || "Al-Waseet returned no cities" };
     }
+    const cities = citiesReplySchema.safeParse(citiesResult.data);
+    if (!cities.success) {
+        return { success: false, error: "Al-Waseet sent a city list of the wrong shape or an empty one" };
+    }
 
-    const cityRows = citiesResult.data.map(c => ({
-        id: Number(c.id),
+    const cityRows = cities.data.map(c => ({
+        id: c.id,
         name_ar: c.city_name,
         synced_at: new Date().toISOString(),
     }));
@@ -662,18 +689,19 @@ export async function syncLocationCatalog(triggeredBy = "manual"): Promise<Wasee
     const failedCities: number[] = [];
 
     for (const city of cityRows) {
-        const regionsResult = await waseetRequest<WaseetRegion[]>("regions", "GET", { city_id: city.id }, undefined, {
+        const regionsResult = await waseetRequest<unknown>("regions", "GET", { city_id: city.id }, undefined, {
             requiresAuth: false,
             triggeredBy,
         });
+        const regions = regionsResult.success ? regionsReplySchema.safeParse(regionsResult.data) : null;
 
-        if (!regionsResult.success || !regionsResult.data) {
+        if (!regions?.success) {
             failedCities.push(city.id);
             continue;
         }
 
-        const regionRows = regionsResult.data.map(r => ({
-            id: Number(r.id),
+        const regionRows = regions.data.map(r => ({
+            id: r.id,
             city_id: city.id,
             name_ar: r.region_name,
             synced_at: new Date().toISOString(),
@@ -694,72 +722,41 @@ export async function syncLocationCatalog(triggeredBy = "manual"): Promise<Wasee
     }
 
     // Name cleaning is done by generated columns, so it is already applied by
-    // the time the upsert returns. Grouping is not: duplicates, districts and
-    // the review queue all have to look across sibling rows, so they are
-    // rebuilt here — in this order, since districts read the canonical names
-    // and the review queue only compares canonical rows.
-    const { data: duplicates, error: canonicalError } = await supabaseAdmin
-        .rpc("waseet_refresh_canonical_regions");
+    // the time the upsert returns. Everything that looks across sibling rows
+    // (districts, the un-glue pass, duplicates, municipalities, postal codes,
+    // the review queue) and the manual overrides, which must come last, run
+    // inside the database in their one correct order, as one call. It takes
+    // about a minute: the function carries its own 4-minute statement timeout,
+    // which the API applies instead of its 8-second default.
+    const { data: refreshed, error: refreshError } = await supabaseAdmin.rpc("waseet_refresh_all");
 
-    if (canonicalError) {
-        return { success: false, error: `Failed to refresh canonical regions: ${canonicalError.message}` };
+    if (refreshError) {
+        return { success: false, error: `Failed to rebuild districts and areas: ${refreshError.message}` };
     }
 
-    // Districts, the un-glue pass and districts again: splitting a run-together
-    // name needs the district vocabulary, and the split then exposes districts
-    // that were hidden inside a glued token.
-    const { error: firstDistrictError } = await supabaseAdmin.rpc("waseet_refresh_districts");
-
-    if (firstDistrictError) {
-        return { success: false, error: `Failed to refresh districts: ${firstDistrictError.message}` };
-    }
-
-    const { data: splitCount, error: splitError } = await supabaseAdmin
-        .rpc("waseet_refresh_split_names");
-
-    if (splitError) {
-        return { success: false, error: `Failed to split run-together names: ${splitError.message}` };
-    }
-
-    const { data: districtRows, error: districtError } = await supabaseAdmin
-        .rpc("waseet_refresh_districts");
-
-    if (districtError) {
-        return { success: false, error: `Failed to refresh districts: ${districtError.message}` };
-    }
-
-    // Reference data that hangs off the names: the official postal code, and
-    // the curated area -> municipality gazetteer. Both key off the cleaned
-    // names, so they run after the split.
-    const { error: postalError } = await supabaseAdmin.rpc("waseet_refresh_postal_codes");
-
-    if (postalError) {
-        return { success: false, error: `Failed to match postal codes: ${postalError.message}` };
-    }
-
-    const { error: municipalityError } = await supabaseAdmin.rpc("waseet_refresh_municipalities");
-
-    if (municipalityError) {
-        return { success: false, error: `Failed to match municipalities: ${municipalityError.message}` };
-    }
-
-    const { data: reviewPairs, error: reviewError } = await supabaseAdmin
-        .rpc("waseet_refresh_region_review");
-
-    if (reviewError) {
-        return { success: false, error: `Failed to refresh the region review queue: ${reviewError.message}` };
-    }
-
-    return {
-        success: true,
-        data: {
-            cities: cityRows.length,
-            regions: regionCount,
-            failedCities,
-            duplicates: duplicates ?? 0,
-            districts: districtRows?.[0]?.districts ?? 0,
-            splitNames: splitCount ?? 0,
-            reviewPairs: reviewPairs ?? 0,
-        },
+    const [counts] = refreshAllSchema.parse(refreshed);
+    const data: LocationSyncResult = {
+        cities: cityRows.length,
+        regions: regionCount,
+        failedCities,
+        duplicates: counts.duplicates ?? 0,
+        districts: counts.districts ?? 0,
+        splitNames: counts.split_names ?? 0,
+        municipalities: counts.municipalities ?? 0,
+        postalCodes: counts.postal_codes ?? 0,
+        overrides: counts.overrides ?? 0,
+        reviewPairs: counts.review_pairs ?? 0,
     };
+
+    // The cities that answered are saved and rebuilt; the rest keep their last
+    // good areas. Still a failed run, so the job raises it.
+    if (failedCities.length > 0) {
+        return {
+            success: false,
+            error: `Al-Waseet areas failed for ${failedCities.length} of ${cityRows.length} cities; they keep their last good list`,
+            data,
+        };
+    }
+
+    return { success: true, data };
 }
