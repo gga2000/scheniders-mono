@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { monthOf, monthsEnding } from "@/lib/console-stats";
+import { everyRow } from "@/lib/every-row";
+
+interface TenantRow {
+  id: string;
+  business_name: string;
+  plan: string;
+  status: string;
+  city: string | null;
+  created_at: string;
+}
+
+interface WalletRow {
+  tenant_id: string;
+  balance_iqd: number;
+  threshold_iqd: number;
+}
+
+interface UsageRow {
+  tenant_id: string;
+  orders_count: number;
+  team_members_count: number;
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -15,31 +38,43 @@ export async function GET(request: NextRequest) {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
-    const [tenantsResult, walletsResult, ordersResult, usageResult] =
-      await Promise.all([
+    // Every list is read to its last row and a failed read throws: a short or
+    // empty list here would say "no shops at risk" when the truth is unknown.
+    const [tenants, wallets, ordersResult, usage] = await Promise.all([
+      everyRow<TenantRow>((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, city, created_at"),
+          .select("id, business_name, plan, status, city, created_at")
+          .order("id")
+          .range(from, to)
+      ),
+      everyRow<WalletRow>((from, to) =>
         supabase
           .from("wallet")
-          .select("tenant_id, balance_iqd, threshold_iqd"),
-        supabase
-          .from("orders")
-          .select("id, tenant_id, created_at", { count: "exact", head: true })
-          .gte("created_at", twentyFourHoursAgo),
+          .select("tenant_id, balance_iqd, threshold_iqd")
+          .order("tenant_id")
+          .range(from, to)
+      ),
+      supabase
+        .from("orders")
+        .select("id, tenant_id, created_at", { count: "exact", head: true })
+        .gte("created_at", twentyFourHoursAgo),
+      everyRow<UsageRow>((from, to) =>
         supabase
           .from("usage_tracking")
           .select("tenant_id, orders_count, team_members_count")
           .eq("year", currentYear)
-          .eq("month", currentMonth),
-      ]);
+          .eq("month", currentMonth)
+          .order("tenant_id")
+          .range(from, to)
+      ),
+    ]);
 
-    const tenants = tenantsResult.data ?? [];
-    const wallets = walletsResult.data ?? [];
+    if (ordersResult.error) throw ordersResult.error;
     const ordersLast24h = ordersResult.count ?? 0;
-    const usage = usageResult.data ?? [];
 
     // Build lookup maps
+    const tenantMap = new Map(tenants.map((t) => [t.id, t]));
     const walletMap = new Map(wallets.map((w) => [w.tenant_id, w]));
     const usageMap = new Map(usage.map((u) => [u.tenant_id, u]));
 
@@ -113,32 +148,23 @@ export async function GET(request: NextRequest) {
 
     const lowBalanceWallets = wallets
       .filter((w) => w.balance_iqd < w.threshold_iqd)
-      .map((w) => {
-        const tenant = tenants.find((t) => t.id === w.tenant_id);
-        return {
-          tenant_id: w.tenant_id,
-          business_name: tenant?.business_name ?? "Unknown",
-          balance_iqd: w.balance_iqd,
-          threshold_iqd: w.threshold_iqd,
-        };
-      })
+      .map((w) => ({
+        tenant_id: w.tenant_id,
+        business_name: tenantMap.get(w.tenant_id)?.business_name ?? "Unknown",
+        balance_iqd: w.balance_iqd,
+        threshold_iqd: w.threshold_iqd,
+      }))
       .sort((a, b) => a.balance_iqd - b.balance_iqd);
 
     // ---------------------------------------------------------------------------
     // Tenant Growth
     // ---------------------------------------------------------------------------
 
-    const thisMonthStart = new Date(currentYear, currentMonth - 1, 1);
-    const lastMonthStart = new Date(currentYear, currentMonth - 2, 1);
-
-    const thisMonth = tenants.filter(
-      (t) => new Date(t.created_at) >= thisMonthStart
-    ).length;
-
-    const lastMonth = tenants.filter((t) => {
-      const d = new Date(t.created_at);
-      return d >= lastMonthStart && d < thisMonthStart;
-    }).length;
+    // Months are Baghdad months: a shop that signs up at 01:00 on the 1st in
+    // Baghdad belongs to the new month, though it is still the old one in UTC.
+    const [lastMonthKey, thisMonthKey] = monthsEnding(monthOf(now), 2);
+    const thisMonth = tenants.filter((t) => monthOf(t.created_at) === thisMonthKey).length;
+    const lastMonth = tenants.filter((t) => monthOf(t.created_at) === lastMonthKey).length;
 
     return NextResponse.json({
       platformHealth: {

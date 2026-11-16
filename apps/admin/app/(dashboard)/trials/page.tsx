@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { LoadError } from "@/components/shared/load-error";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -163,15 +165,18 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 // ---------------------------------------------------------------------------
 
 export default function TrialsPage() {
-  const { data, isLoading } = useQuery<TrialsResponse>({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialsResponse>({
     queryKey: ["admin", "trials"],
     queryFn: async () => {
-      const res = await fetch("/api/trials");
-      if (!res.ok) throw new Error("Failed to fetch trials");
+      const res = okOrLoadFailure(await fetch("/api/trials"), "the trials");
       return res.json();
     },
     staleTime: 30_000,
   });
+
+  if (isError && !data) {
+    return <LoadError what="the trials" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
 
   const trials = data?.trials ?? [];
   const summary = data?.summary ?? { total: 0, expiringSoon: 0, expired: 0, healthy: 0 };

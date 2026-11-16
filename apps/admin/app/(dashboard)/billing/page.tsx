@@ -13,6 +13,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
+import { LoadError } from "@/components/shared/load-error";
+import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
 
 // ---------------------------------------------------------------------------
@@ -88,8 +90,7 @@ const PRESET_AMOUNTS = [25_000, 50_000, 100_000, 250_000, 500_000];
 // ---------------------------------------------------------------------------
 
 async function fetchBilling(): Promise<BillingData> {
-  const res = await fetch("/api/billing");
-  if (!res.ok) throw new Error("Failed to fetch billing data");
+  const res = okOrLoadFailure(await fetch("/api/billing"), "the wallets");
   return res.json();
 }
 
@@ -99,7 +100,7 @@ async function fetchBilling(): Promise<BillingData> {
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery<BillingData>({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<BillingData>({
     queryKey: ["admin", "billing"],
     queryFn: fetchBilling,
     staleTime: 30_000,
@@ -150,6 +151,10 @@ export default function BillingPage() {
       // Same shop, amount and note asked again (a retry) reuses the id.
       request_id: requestIds.idFor(`${topupTenantId}:${topupAmount}:${description ?? ""}`),
     });
+  }
+
+  if (isError && !data) {
+    return <LoadError what="the wallets" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   const wallets = data?.wallets ?? [];

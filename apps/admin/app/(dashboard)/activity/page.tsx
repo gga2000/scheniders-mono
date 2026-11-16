@@ -10,6 +10,8 @@ import {
   ChevronDown,
   Loader2,
 } from "lucide-react";
+import { LoadError } from "@/components/shared/load-error";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -157,15 +159,18 @@ export default function ActivityLogPage() {
   params.set("limit", String(limit));
   if (actionFilter) params.set("action", actionFilter);
 
-  const { data, isLoading } = useQuery<ActivityResponse>({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ActivityResponse>({
     queryKey: ["admin", "activity", page, actionFilter],
     queryFn: async () => {
-      const res = await fetch(`/api/activity?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch activity logs");
+      const res = okOrLoadFailure(await fetch(`/api/activity?${params.toString()}`), "the activity log");
       return res.json();
     },
     staleTime: 30_000,
   });
+
+  if (isError && !data) {
+    return <LoadError what="the activity log" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
 
   const logs = data?.logs ?? [];
   const total = data?.total ?? 0;

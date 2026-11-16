@@ -7,6 +7,7 @@ import { TeamLeaderboard } from "@/components/team/team-leaderboard";
 import { TeamCommissionDashboard } from "@/components/team/team-commission-dashboard";
 import { TeamAchievementWall } from "@/components/team/team-achievement-wall";
 import { AddEmployeeDialog } from "@/components/team/add-employee-dialog";
+import { LoadError } from "@/components/shared/load-error";
 import { cn } from "@/lib/utils";
 import { Users, Loader2, UserPlus } from "lucide-react";
 
@@ -14,7 +15,7 @@ const tabs = ["Leaderboard", "Commissions", "Achievements"] as const;
 type Tab = (typeof tabs)[number];
 
 export default function TeamPage() {
-  const { data: employees, isLoading } = useAdminTeam();
+  const { data: employees, isLoading, isError, error, refetch, isFetching } = useAdminTeam();
   const { role } = useAdminAuth();
   const [activeTab, setActiveTab] = useState<Tab>("Leaderboard");
   const [addOpen, setAddOpen] = useState(false);
@@ -25,6 +26,10 @@ export default function TeamPage() {
         <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
       </div>
     );
+  }
+
+  if (isError && !employees) {
+    return <LoadError what="the team" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   const team = employees ?? [];
