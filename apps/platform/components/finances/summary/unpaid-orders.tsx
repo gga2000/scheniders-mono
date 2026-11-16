@@ -93,6 +93,8 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                                         </span>
                                         {" · "}
                                         {t(order.prime ? "fin.money.unpaid.row.prime" : "fin.money.unpaid.row.courier")}
+                                        {/* A replacement order (RPL-…) owes only what was charged for the swap, so its small amount needs a name. */}
+                                        {order.code?.startsWith("RPL-") && <>{" · "}{t("fin.money.unpaid.row.replacement")}</>}
                                     </p>
                                 </div>
                                 <Money value={order.amount} className="shrink-0 text-[13px] font-semibold text-foreground" />

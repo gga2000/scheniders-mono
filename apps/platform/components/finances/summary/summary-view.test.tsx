@@ -235,11 +235,11 @@ describe("SummaryView", () => {
         vi.setSystemTime(new Date("2026-11-20T09:00:00Z"));
         renderView(query(summary()));
         const ages = Array.from(byTestId("money-unpaid-list")?.querySelectorAll("li p span") ?? []);
-        expect(ages.map((age) => age.textContent)).toEqual(["سُلِّم قبل 19 يوماً", "سُلِّم قبل 5 أيام"]);
+        expect(ages.map((age) => age.textContent)).toEqual(["تسلّمه الزبون قبل 19 يوماً", "تسلّمه الزبون قبل 5 أيام"]);
         // over two weeks is late: only the first row is marked
         expect(ages.map((age) => age.hasAttribute("data-late"))).toEqual([true, false]);
         // a late row says once what to do about it
-        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة بالبرتقالي سُلِّمت قبل أكثر من أسبوعين ولم يُدفع ثمنها بعد: اسأل عنها شركة التوصيل.");
+        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة بالبرتقالي تسلّمها الزبائن قبل أكثر من أسبوعين ولم يُدفع لك ثمنها بعد: اسأل عنها شركة التوصيل التي أوصلتها.");
         vi.useRealTimers();
         const list = byTestId("money-unpaid-list");
         const links = Array.from(list?.querySelectorAll("a") ?? []);
@@ -434,7 +434,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً (ضمن بند التوصيل)");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً أرجعتها برايم (ضمن بند التوصيل)");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
