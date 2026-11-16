@@ -273,11 +273,11 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           className="w-9 h-9 flex items-center justify-center rounded-xl text-foreground/70 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           aria-label="Toggle theme"
         >
-          {theme === "dark" ? (
-            <Sun className="w-[18px] h-[18px]" />
-          ) : (
-            <Moon className="w-[18px] h-[18px]" />
-          )}
+          {/* The server does not know the saved theme; the dark class on <html>
+              is set before paint, so CSS picks the icon and the first render
+              matches the server's. */}
+          <Sun className="w-[18px] h-[18px] hidden dark:block" />
+          <Moon className="w-[18px] h-[18px] dark:hidden" />
         </button>
 
         {user && (
