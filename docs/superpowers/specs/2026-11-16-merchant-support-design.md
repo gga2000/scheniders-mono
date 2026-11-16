@@ -142,3 +142,9 @@ A new merchant message pings support staff on their phone or computer.
 - **Call me back.** Under the chat header the merchant can press "Call me" and leave a number, filled in from the shop's contact mobile. `support_request_call_back` makes a `call_back` task, due now or at 9 AM Baghdad when asked at night. It also writes «اتصلوا بي على 07…» into the chat, so the inbox, the phone alerts and the 5-minute late alert treat it like any merchant message. Each shop has one open call-back: asking again with the same number changes nothing, and a new number updates the task. Once the call is logged as done, a new request makes a new task. The demo store is refused.
 - In the staff console's **Today** tab, call-backs come first, whoever owns the shop. Each shows the number as a tap-to-call button and who asked. Done, No answer and Later work as on any call.
 - Migration `20261116115400_support_call_back.sql`. The first-week kinds stay one per shop, and a call-back never stops a new shop's plan. Behaviour suite `support-owners`.
+
+## Wave 5, part 1: quick answers in the Help chat
+
+- An empty chat lists ten common questions (top up, wallet charges, add a product, add staff, Prime, labels, order status, store look, blacklist, expenses). Each has a two-line answer and an "Open the page" button that closes the chat on that page.
+- While the merchant types, up to three matching answers show above the input ("This may answer it"). Arabic spellings are folded (alef forms, taa marbuta, tashkeel) so «اضافة» and «إضافة» meet.
+- The answers live in `apps/platform/lib/support/quick-answers.ts` and follow the app's own screen words, so changing a screen means changing its answer there. No money amounts are quoted; money answers point to Billing.
