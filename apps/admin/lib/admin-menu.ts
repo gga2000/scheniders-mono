@@ -1,0 +1,140 @@
+/*
+ * The console's menu: six places named in words, and Settings at the foot.
+ *
+ * It had fifteen links in two lists ("Navigation", "Analytics"), opened as
+ * icons with no words, and called leads "Prospects". Pages that are opened
+ * once a month sit one level down, under the place they belong to, and show
+ * when that place is open: two clicks away, never gone. A page reached only by
+ * typing its address (Lead numbers) is on the menu now.
+ */
+
+export type MenuIcon = "today" | "merchants" | "leads" | "support" | "money" | "numbers" | "settings";
+
+/** Work waiting on staff, counted beside a place on the menu. */
+export type MenuCount = "support" | "payments";
+
+export interface MenuLink {
+  label: string;
+  href: string;
+}
+
+export interface MenuSection {
+  label: string;
+  /** Where a click on the place goes: its first page. */
+  href: string;
+  icon: MenuIcon;
+  /** The pages under the place; empty when the place is one page. */
+  links: MenuLink[];
+  count?: MenuCount;
+}
+
+export const MENU: readonly MenuSection[] = [
+  { label: "Today", href: "/", icon: "today", links: [] },
+  {
+    label: "Merchants",
+    href: "/merchants",
+    icon: "merchants",
+    links: [
+      { label: "All merchants", href: "/merchants" },
+      { label: "Trials", href: "/trials" },
+      { label: "Shops at risk", href: "/health" },
+    ],
+  },
+  {
+    label: "Leads",
+    href: "/leads",
+    icon: "leads",
+    links: [
+      { label: "All leads", href: "/leads" },
+      { label: "Lead numbers", href: "/leads/analytics" },
+    ],
+  },
+  { label: "Support", href: "/support", icon: "support", links: [], count: "support" },
+  {
+    label: "Money",
+    href: "/payments",
+    icon: "money",
+    count: "payments",
+    links: [
+      { label: "Payments to check", href: "/payments" },
+      { label: "Wallets", href: "/billing" },
+      { label: "WhatsApp costs", href: "/whatsapp" },
+    ],
+  },
+  {
+    label: "Numbers",
+    href: "/revenue",
+    icon: "numbers",
+    links: [
+      { label: "Our fees", href: "/revenue" },
+      { label: "Orders by hour", href: "/usage" },
+    ],
+  },
+];
+
+export const SETTINGS_SECTION: MenuSection = {
+  label: "Settings",
+  href: "/settings",
+  icon: "settings",
+  links: [
+    { label: "Settings", href: "/settings" },
+    { label: "Team", href: "/team" },
+    { label: "Activity log", href: "/activity" },
+  ],
+};
+
+const ALL_SECTIONS: readonly MenuSection[] = [...MENU, SETTINGS_SECTION];
+
+/** Whether `pathname` is `href` or a page inside it ("/merchants/123" is in "/merchants"). */
+function within(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * The page link that `pathname` is on: the longest match, so "/leads/analytics"
+ * is Lead numbers and not All leads.
+ */
+export function activeLink(pathname: string): string | null {
+  let best: string | null = null;
+  for (const section of ALL_SECTIONS) {
+    for (const href of [section.href, ...section.links.map((l) => l.href)]) {
+      if (within(pathname, href) && (best === null || href.length > best.length)) best = href;
+    }
+  }
+  return best;
+}
+
+/** The place on the menu that `pathname` belongs to, or null for a page off the menu. */
+export function activeSection(pathname: string): MenuSection | null {
+  const link = activeLink(pathname);
+  if (link === null) return null;
+  return ALL_SECTIONS.find((s) => s.href === link || s.links.some((l) => l.href === link)) ?? null;
+}
+
+/**
+ * What the top bar and the browser tab call the page at `pathname`: the menu's
+ * word for it ("Wallets", "Lead numbers"), the place's own name for its first
+ * page ("Merchants", not "All merchants"), or null for a page off the menu.
+ */
+export function pageTitle(pathname: string): string | null {
+  const link = activeLink(pathname);
+  const section = activeSection(pathname);
+  if (link === null || section === null) return null;
+  if (link === section.href) return section.label;
+  return section.links.find((l) => l.href === link)?.label ?? section.label;
+}
+
+/** Every page on the menu once, with the place it sits under: what the command palette lists. */
+export function menuPages(): { label: string; href: string; section: MenuSection }[] {
+  const seen = new Set<string>();
+  const pages: { label: string; href: string; section: MenuSection }[] = [];
+  for (const section of ALL_SECTIONS) {
+    for (const href of [section.href, ...section.links.map((l) => l.href)]) {
+      if (seen.has(href)) continue;
+      seen.add(href);
+      pages.push({ label: pageTitle(href) ?? section.label, href, section });
+    }
+  }
+  return pages;
+}

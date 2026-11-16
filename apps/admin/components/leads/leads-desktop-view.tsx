@@ -132,8 +132,8 @@ export function LeadsDesktopView() {
   const clearPageHeader = usePageHeader((s) => s.clearHeader);
   useEffect(() => {
     setPageHeader({
-      title: "Prospects",
-      subtitle: `${total.toLocaleString()} ${total === 1 ? "prospect" : "prospects"} in pipeline`,
+      title: "Leads",
+      subtitle: `${total.toLocaleString()} ${total === 1 ? "lead" : "leads"} in the pipeline`,
     });
     return () => clearPageHeader();
   }, [total, setPageHeader, clearPageHeader]);

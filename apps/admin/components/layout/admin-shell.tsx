@@ -64,8 +64,9 @@ function subscribeSidebar(listener: () => void) {
   };
 }
 
+/** The menu opens with its words; only someone who chose icons gets icons. */
 function readSidebarCollapsed() {
-  return localStorage.getItem(SIDEBAR_KEY) !== "false";
+  return localStorage.getItem(SIDEBAR_KEY) === "true";
 }
 
 function setSidebarCollapsed(collapsed: boolean) {
@@ -78,11 +79,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { user, profile, role, signOut } = useAdminAuth();
   const commandPalette = useCommandPalette();
 
-  // The server renders the sidebar collapsed; the saved choice is read once
-  // the page is live. Reading it during the first render drew a different
-  // sidebar than the server sent (React error 418) on every page load for
-  // anyone who keeps the sidebar open.
-  const isCollapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => true);
+  // The server renders the menu open; the saved choice is read once the page
+  // is live. Reading it during the first render drew a different sidebar than
+  // the server sent (React error 418) on every page load for anyone who had
+  // changed it.
+  const isCollapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => false);
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

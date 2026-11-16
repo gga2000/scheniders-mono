@@ -27,6 +27,7 @@ import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
 import { loadFailureKind } from "@/lib/load-failure";
+import { usePageHeader } from "@/store/use-page-header";
 
 const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
@@ -62,6 +63,14 @@ export default function MerchantDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [noteText, setNoteText] = useState("");
   const [showComparison, setShowComparison] = useState(false);
+
+  // The browser tab names the shop, so ten open shops can be told apart.
+  const setTab = usePageHeader((s) => s.setTab);
+  const shopName = data?.tenant.business_name ?? null;
+  useEffect(() => {
+    setTab(shopName);
+    return () => setTab(null);
+  }, [shopName, setTab]);
 
   // Keep URL in sync with active tab so deep links and reloads remember the position.
   useEffect(() => {
