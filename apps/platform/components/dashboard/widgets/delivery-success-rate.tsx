@@ -33,7 +33,7 @@ export function DeliverySuccessRate({ metrics }: DeliverySuccessRateProps) {
                         trendPositive ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700'
                     }`}>
                         {trendPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                        {trendPositive ? '+' : ''}{trend}pp {t("dashboard.deliveryRate.vsLastWeek")}
+                        {t("dashboard.wow.points", { n: `${trendPositive ? '+' : ''}${trend}` })} {t("dashboard.deliveryRate.vsLastWeek")}
                     </span>
                 )}
                 {hasTrend && trendNeutral && (

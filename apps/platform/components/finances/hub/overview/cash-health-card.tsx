@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { Landmark, ArrowRight, AlertTriangle } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
-import type { CashPositionResult } from "@/hooks/use-cash-position";
+import { dayRange, type CashPositionResult } from "@/hooks/use-cash-position";
 
 interface Props {
     data: CashPositionResult;
@@ -15,6 +15,7 @@ interface Props {
 
 export function CashHealthCard({ data }: Props) {
     const { t } = useLanguage();
+    const dir = useTextDir();
     const totalFloat = data.aging.reduce((s, b) => s + b.value, 0);
     const hasRisk = data.stuckCount > 0;
 
@@ -56,8 +57,8 @@ export function CashHealthCard({ data }: Props) {
                     <AgingBar buckets={data.aging} tip={(b) => t("finances.overview.cash.agingTip", { label: t(`finances.cash.bucket.${b.id}`), count: b.count })} />
                     <div className="mt-2 flex items-center justify-between text-[10px] text-muted tabular-nums">
                         {data.aging.map((b) => (
-                            <span key={b.id} className={cn(toneText(b.tone))}>
-                                {b.count} · {b.minDays}{b.maxDays === null ? "+" : `-${b.maxDays}`}&nbsp;{t("finances.cash.daysUnit")}
+                            <span key={b.id} dir={dir} className={cn("whitespace-nowrap", toneText(b.tone))}>
+                                <bdi>{b.count}</bdi> · <bdi>{dayRange(t, b)}</bdi>
                             </span>
                         ))}
                     </div>

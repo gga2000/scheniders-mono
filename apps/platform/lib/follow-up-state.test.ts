@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import type { Order } from "@/types/order";
-import { translations } from "@/lib/i18n";
 import {
     AUTOMATION_SENDER_NAME,
     BOT_AVATAR,
@@ -119,24 +118,22 @@ describe("followUpState", () => {
 
 describe("sentAgoLabel", () => {
     const now = new Date("2026-09-11T12:00:00.000Z");
-    // The real Arabic table, so the test reads the copy agents see.
-    const tAr = (key: string, vars: Record<string, string | number> = {}) =>
-        (translations.ar[key] ?? key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k]));
 
-    it("rounds through minutes, hours and days", () => {
-        expect(sentAgoLabel("2026-09-11T11:59:40.000Z", tAr, now)).toBe("الآن");
-        expect(sentAgoLabel("2026-09-11T11:30:00.000Z", tAr, now)).toBe("قبل 30 دقيقة");
-        expect(sentAgoLabel("2026-09-11T09:00:00.000Z", tAr, now)).toBe("قبل 3 ساعة");
-        expect(sentAgoLabel("2026-09-09T12:00:00.000Z", tAr, now)).toBe("قبل 2 يوم");
+    it("reads like the order age beside it, with Arabic counts", () => {
+        expect(sentAgoLabel("2026-09-11T11:59:40.000Z", "ar", now)).toBe("الآن");
+        expect(sentAgoLabel("2026-09-11T11:30:00.000Z", "ar", now)).toBe("قبل 30 دقيقة");
+        expect(sentAgoLabel("2026-09-11T09:00:00.000Z", "ar", now)).toBe("قبل 3 ساعات");
+        expect(sentAgoLabel("2026-09-10T12:00:00.000Z", "ar", now)).toBe("قبل يوم واحد");
+        expect(sentAgoLabel("2026-09-09T12:00:00.000Z", "ar", now)).toBe("قبل يومين");
     });
 
     it("returns nothing for a missing or unparseable timestamp", () => {
-        expect(sentAgoLabel(undefined, tAr, now)).toBeUndefined();
-        expect(sentAgoLabel("not-a-date", tAr, now)).toBeUndefined();
+        expect(sentAgoLabel(undefined, "ar", now)).toBeUndefined();
+        expect(sentAgoLabel("not-a-date", "ar", now)).toBeUndefined();
     });
 
     it("never reports a negative age from small clock skew", () => {
-        expect(sentAgoLabel("2026-09-11T12:00:30.000Z", tAr, now)).toBe("الآن");
+        expect(sentAgoLabel("2026-09-11T12:00:30.000Z", "ar", now)).toBe("الآن");
     });
 });
 

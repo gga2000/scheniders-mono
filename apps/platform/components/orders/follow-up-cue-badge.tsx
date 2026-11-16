@@ -3,6 +3,7 @@
 import { Bell, Gift, Check, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import type { Locale } from "@/lib/i18n";
 import {
     sentAgoLabel,
     type FollowUpKind,
@@ -30,21 +31,22 @@ interface FollowUpCueBadgeProps {
 /** "Discount sent by Ali · 30m ago" — the tooltip line for one recorded send. */
 function describeSend(
     t: Translate,
+    language: Locale,
     template: "orders.followUp.by" | "orders.followUp.lastContact",
     type: FollowUpKind,
     who: FollowUpSender,
 ): string {
     const line = t(template, { action: t(`orders.followUp.sent.${type}`), name: who.name });
-    const ago = sentAgoLabel(who.at, t);
+    const ago = sentAgoLabel(who.at, language);
     return ago ? t("orders.followUp.withAgo", { label: line, ago }) : line;
 }
 
 export function FollowUpCueBadge({ state, hoursSinceCreated, className }: FollowUpCueBadgeProps) {
-    const { t: translate } = useLanguage();
+    const { t: translate, language } = useLanguage();
     const t: Translate = (key, vars) => translate(key, vars);
     const isDiscount = state.kind === "discount";
     const sender = state.sentBy;
-    const ago = sentAgoLabel(sender?.at, t);
+    const ago = sentAgoLabel(sender?.at, language);
 
     // Someone (or the system) messaged this customer, but not the message that is
     // due now. The cue stays loud — the work is still owed — while the face says
@@ -63,7 +65,7 @@ export function FollowUpCueBadge({ state, hoursSinceCreated, className }: Follow
                     "flex items-center gap-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-[11px] font-bold text-muted shadow-sm ml-1 dark:bg-white/5",
                     className,
                 )}
-                title={describeSend(t, "orders.followUp.by", state.sentType ?? "manual", sender)}
+                title={describeSend(t, language, "orders.followUp.by", state.sentType ?? "manual", sender)}
             >
                 <SenderAvatar sender={sender} tone="neutral" />
                 {ago && <span className="whitespace-nowrap">{ago}</span>}
@@ -89,9 +91,9 @@ export function FollowUpCueBadge({ state, hoursSinceCreated, className }: Follow
             )}
             title={
                 sender
-                    ? describeSend(t, "orders.followUp.by", state.kind, sender)
+                    ? describeSend(t, language, "orders.followUp.by", state.kind, sender)
                     : earlier
-                        ? describeSend(t, "orders.followUp.lastContact", state.sentType ?? "manual", earlier)
+                        ? describeSend(t, language, "orders.followUp.lastContact", state.sentType ?? "manual", earlier)
                         : undefined
             }
         >

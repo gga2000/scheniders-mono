@@ -15,6 +15,19 @@ export interface AgingBucket {
     tone: "emerald" | "amber" | "orange" | "rose";
 }
 
+/**
+ * "0-3 يوم" / "15+ يوم": one translated string, so the caller can lay it out in
+ * the reader's direction. Built from loose pieces it reordered to "يوم 3-0".
+ */
+export function dayRange(
+    t: (key: string, vars: Record<string, number>) => string,
+    bucket: Pick<AgingBucket, "minDays" | "maxDays">,
+): string {
+    return bucket.maxDays === null
+        ? t("finances.cash.dayRangeOpen", { min: bucket.minDays })
+        : t("finances.cash.dayRange", { min: bucket.minDays, max: bucket.maxDays });
+}
+
 export interface StuckOrder {
     id: string;
     order_id: string;
