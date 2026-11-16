@@ -13,7 +13,11 @@ import {
     Download,
     Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
+import { formatIqdNumber } from "@scheniders/shared";
+import { useLanguage } from "@/hooks/use-language";
+import { getOrderStatusLabel } from "@/lib/order-status-labels";
+import type { Locale } from "@/lib/i18n";
 import type { MatchedRow, MatchCategory, RowResolution, ResolutionAction } from "@/types/delivery-import";
 
 interface ImportReviewTableProps {
@@ -44,23 +48,24 @@ const BULK_DEFAULT_ACTION: Partial<Record<MatchCategory, ResolutionAction>> = {
     not_found: "skip",
 };
 
-type FilterMode = "all" | "clean" | "review" | "critical" | "handled";
+export type FilterMode = "all" | "clean" | "review" | "critical" | "handled";
+type Translate = ReturnType<typeof useLanguage>["t"];
 
 const CATEGORY_CONFIG: Record<
     MatchCategory,
-    { icon: typeof CheckCircle | typeof AlertTriangle | typeof XCircle | typeof Info; label: string; color: string; group: FilterMode }
+    { icon: typeof CheckCircle | typeof AlertTriangle | typeof XCircle | typeof Info; color: string; group: FilterMode }
 > = {
-    clean: { icon: CheckCircle, label: "Clean Match", color: "text-emerald-600", group: "clean" },
-    pending_confirmation: { icon: AlertTriangle, label: "Confirms Pending", color: "text-amber-600", group: "review" },
-    price_changed: { icon: AlertTriangle, label: "Price Changed", color: "text-amber-600", group: "review" },
-    partial_delivery: { icon: AlertTriangle, label: "Partial Delivery", color: "text-amber-600", group: "review" },
-    amount_mismatch: { icon: AlertTriangle, label: "Amount Mismatch", color: "text-amber-600", group: "review" },
-    phone_mismatch: { icon: AlertTriangle, label: "Phone Mismatch", color: "text-amber-600", group: "review" },
-    negative_refund: { icon: XCircle, label: "Negative/Refund", color: "text-rose-600", group: "critical" },
-    not_found: { icon: XCircle, label: "Not Found", color: "text-rose-600", group: "critical" },
-    already_delivered: { icon: CheckCircle, label: "Already Handled", color: "text-emerald-600", group: "handled" },
-    wrong_status: { icon: XCircle, label: "Wrong Status", color: "text-rose-600", group: "critical" },
-    reorder: { icon: Info, label: "Reorder", color: "text-blue-600", group: "clean" },
+    clean: { icon: CheckCircle, color: "text-emerald-600", group: "clean" },
+    pending_confirmation: { icon: AlertTriangle, color: "text-amber-600", group: "review" },
+    price_changed: { icon: AlertTriangle, color: "text-amber-600", group: "review" },
+    partial_delivery: { icon: AlertTriangle, color: "text-amber-600", group: "review" },
+    amount_mismatch: { icon: AlertTriangle, color: "text-amber-600", group: "review" },
+    phone_mismatch: { icon: AlertTriangle, color: "text-amber-600", group: "review" },
+    negative_refund: { icon: XCircle, color: "text-rose-600", group: "critical" },
+    not_found: { icon: XCircle, color: "text-rose-600", group: "critical" },
+    already_delivered: { icon: CheckCircle, color: "text-emerald-600", group: "handled" },
+    wrong_status: { icon: XCircle, color: "text-rose-600", group: "critical" },
+    reorder: { icon: Info, color: "text-blue-600", group: "clean" },
 };
 
 /** Inline resolution UI for a single issue row — action buttons instead of radio */
@@ -75,7 +80,8 @@ function ResolveSection({
     onResolve: (resolution: RowResolution) => void;
     onClear: () => void;
 }) {
-    const options = getResolutionOptions(match);
+    const { t, language } = useLanguage();
+    const options = getResolutionOptions(match, t, language);
     const [note, setNote] = useState(resolution?.note ?? "");
     const [showNote, setShowNote] = useState(!!resolution?.note);
 
@@ -122,7 +128,7 @@ function ResolveSection({
                 <div className="flex items-center gap-1.5">
                     <Wrench className="w-3.5 h-3.5 text-muted" />
                     <span className="text-xs font-semibold text-foreground">
-                        Resolve This Row
+                        {t("deliveryImport.resolve.title")}
                     </span>
                 </div>
                 {currentAction && (
@@ -134,7 +140,7 @@ function ResolveSection({
                         }}
                         className="text-[10px] text-rose-600 hover:underline"
                     >
-                        Clear
+                        {t("deliveryImport.resolve.clear")}
                     </button>
                 )}
             </div>
@@ -167,7 +173,7 @@ function ResolveSection({
                             onClick={() => setShowNote(true)}
                             className="text-[10px] text-muted hover:text-foreground hover:underline"
                         >
-                            + Add note
+                            {t("deliveryImport.resolve.addNote")}
                         </button>
                     ) : (
                         <input
@@ -181,7 +187,7 @@ function ResolveSection({
                                     note: e.target.value || undefined,
                                 });
                             }}
-                            placeholder="Optional note..."
+                            placeholder={t("deliveryImport.resolve.notePlaceholder")}
                             autoFocus
                             className="w-full px-2 py-1 text-xs bg-white dark:bg-gray-800 border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--ink)]"
                         />
@@ -194,97 +200,106 @@ function ResolveSection({
 
 /** Get available resolution options for a given match category */
 function getResolutionOptions(
-    match: MatchedRow
+    match: MatchedRow,
+    t: Translate,
+    language: Locale,
 ): Array<{ action: ResolutionAction; label: string; description?: string }> {
+    const skipRow = { action: "skip" as const, label: t("deliveryImport.opt.skipRow") };
     switch (match.category) {
         case "amount_mismatch":
             return [
                 {
                     action: "process_with_pdf_price",
-                    label: `Process with PDF price (${match.pdfRow.shipmentAmount.toLocaleString()} IQD)`,
-                    description: "Update order price to match PDF, then mark as delivered",
+                    label: t("deliveryImport.opt.pdfPrice", { amount: formatIQD(match.pdfRow.shipmentAmount) }),
+                    description: t("deliveryImport.opt.pdfPriceDesc"),
                 },
                 {
                     action: "process_with_system_price",
-                    label: `Process with system price (${match.order ? Math.round(match.order.price).toLocaleString() : "N/A"} IQD)`,
-                    description: "Mark as delivered without changing the price",
+                    label: t("deliveryImport.opt.systemPrice", {
+                        amount: match.order ? formatIQD(Math.round(match.order.price)) : "—",
+                    }),
+                    description: t("deliveryImport.opt.keepPriceDesc"),
                 },
-                { action: "skip", label: "Skip this row" },
+                skipRow,
             ];
         case "price_changed":
             return [
                 {
                     action: "process_with_pdf_price",
-                    label: `Update to new price (${(match.pdfRow.newPrice ?? match.pdfRow.shipmentAmount).toLocaleString()} IQD)`,
-                    description: "Update order price to the new price, then mark as delivered",
+                    label: t("deliveryImport.opt.newPrice", {
+                        amount: formatIQD(match.pdfRow.newPrice ?? match.pdfRow.shipmentAmount),
+                    }),
+                    description: t("deliveryImport.opt.newPriceDesc"),
                 },
                 {
                     action: "process_with_system_price",
-                    label: "Process with original price",
-                    description: "Mark as delivered without changing the price",
+                    label: t("deliveryImport.opt.originalPrice"),
+                    description: t("deliveryImport.opt.keepPriceDesc"),
                 },
-                { action: "skip", label: "Skip this row" },
+                skipRow,
             ];
         case "partial_delivery":
             return [
                 {
                     action: "process_with_system_price",
-                    label: "Mark as delivered",
-                    description: "Treat as full delivery",
+                    label: t("deliveryImport.opt.markDelivered"),
+                    description: t("deliveryImport.opt.markDeliveredDesc"),
                 },
-                { action: "skip", label: "Skip this row" },
+                skipRow,
             ];
         case "phone_mismatch":
             return [
                 {
                     action: "process_with_system_price",
-                    label: "Process anyway",
-                    description: "Order ID matched — phone mismatch is likely a typo",
+                    label: t("deliveryImport.opt.processAnyway"),
+                    description: t("deliveryImport.opt.processAnywayDesc"),
                 },
-                { action: "skip", label: "Skip this row" },
+                skipRow,
             ];
         case "already_delivered":
             return [
-                { action: "skip", label: "Skip (already handled)" },
+                { action: "skip", label: t("deliveryImport.opt.skipHandled") },
                 {
                     action: "force_deliver",
-                    label: "Re-confirm delivery",
-                    description: "Update delivered_at timestamp",
+                    label: t("deliveryImport.opt.reconfirm"),
+                    description: t("deliveryImport.opt.reconfirmDesc"),
                 },
             ];
         case "wrong_status":
             return [
                 {
                     action: "force_deliver",
-                    label: "Force deliver",
-                    description: `Override current status (${match.order?.status})`,
+                    label: t("deliveryImport.opt.force"),
+                    description: t("deliveryImport.opt.forceDesc", {
+                        status: match.order ? getOrderStatusLabel(match.order.status, language) : "—",
+                    }),
                 },
-                { action: "skip", label: "Skip this row" },
+                skipRow,
             ];
         case "negative_refund":
             if (match.order) {
                 return [
                     {
                         action: "mark_refund_delivered",
-                        label: "Refund Delivered",
-                        description: "Mark return order as refund_delivered",
+                        label: t("deliveryImport.opt.refundDelivered"),
+                        description: t("deliveryImport.opt.refundDeliveredDesc"),
                     },
                     {
                         action: "mark_refund_failed",
-                        label: "Refund Failed",
-                        description: "Mark return order as refund_failed",
+                        label: t("deliveryImport.opt.refundFailed"),
+                        description: t("deliveryImport.opt.refundFailedDesc"),
                     },
                     {
                         action: "acknowledge_refund",
-                        label: "Acknowledge Only",
-                        description: "Record in audit trail, no status change",
+                        label: t("deliveryImport.opt.acknowledge"),
+                        description: t("deliveryImport.opt.acknowledgeDesc"),
                     },
-                    { action: "skip", label: "Skip" },
+                    { action: "skip", label: t("deliveryImport.opt.skip") },
                 ];
             }
-            return [{ action: "skip", label: "Skip" }];
+            return [{ action: "skip", label: t("deliveryImport.opt.skip") }];
         case "not_found":
-            return [{ action: "skip", label: "Skip (no matching order)" }];
+            return [{ action: "skip", label: t("deliveryImport.opt.skipNoOrder") }];
         default:
             return [];
     }
@@ -300,12 +315,16 @@ function BulkResolveBar({
     resolutions: Map<number, RowResolution>;
     onBulkResolve: (resolutions: RowResolution[]) => void;
 }) {
+    const { t, language } = useLanguage();
     const issueRows = useMemo(
         () =>
             matches.filter(
-                (m) => m.category !== "clean" && m.category !== "reorder" && getResolutionOptions(m).length > 0
+                (m) =>
+                    m.category !== "clean" &&
+                    m.category !== "reorder" &&
+                    getResolutionOptions(m, t, language).length > 0
             ),
-        [matches]
+        [matches, t, language]
     );
 
     if (issueRows.length === 0) return null;
@@ -337,28 +356,28 @@ function BulkResolveBar({
         <div className="border border-[var(--card-border)] rounded-xl p-3 bg-[var(--background)] space-y-3">
             <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-semibold text-foreground">Bulk resolve issues</span>
-                <span className="text-[11px] text-muted">
-                    {resolvedCount}/{issueRows.length} resolved
+                <span className="text-xs font-semibold text-foreground">{t("deliveryImport.bulk.title")}</span>
+                <span className="text-[11px] text-muted tabular-nums">
+                    {t("deliveryImport.bulk.resolved", { done: resolvedCount, total: issueRows.length })}
                 </span>
             </div>
 
             {alreadyDelivered.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted min-w-[110px]">
-                        Already delivered ({alreadyDelivered.length})
+                        {t("deliveryImport.bulk.alreadyDelivered", { count: alreadyDelivered.length })}
                     </span>
                     <button
                         onClick={() => apply(alreadyDelivered, "skip")}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]/30 transition-all"
                     >
-                        Skip all (already handled)
+                        {t("deliveryImport.bulk.skipAll")}
                     </button>
                     <button
                         onClick={() => apply(alreadyDelivered, "force_deliver")}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 transition-all"
                     >
-                        Re-confirm all delivery
+                        {t("deliveryImport.bulk.reconfirmAll")}
                     </button>
                 </div>
             )}
@@ -366,24 +385,27 @@ function BulkResolveBar({
             {otherIssues.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted min-w-[110px]">
-                        Other issues ({otherIssues.length})
+                        {t("deliveryImport.bulk.otherIssues", { count: otherIssues.length })}
                     </span>
                     {[...otherByCategory.entries()].map(([cat, rows]) => (
                         <button
                             key={cat}
                             onClick={() => apply(rows, BULK_DEFAULT_ACTION[cat] ?? "skip")}
-                            title={`Apply the recommended action to all ${rows.length} "${CATEGORY_CONFIG[cat].label}" rows`}
+                            title={t("deliveryImport.bulk.applyCategory", {
+                                count: rows.length,
+                                category: t(`deliveryImport.category.${cat}`),
+                            })}
                             className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]/30 transition-all"
                         >
-                            {CATEGORY_CONFIG[cat].label} ({rows.length})
+                            {t(`deliveryImport.category.${cat}`)} ({rows.length})
                         </button>
                     ))}
                     <button
                         onClick={() => applyRecommended(otherIssues)}
-                        title="Use the PDF price for price/amount mismatches, process phone mismatches, mark partial deliveries delivered, and skip refunds / not-found rows"
+                        title={t("deliveryImport.bulk.recommendedHint")}
                         className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--ink)] text-white hover:opacity-90 transition-all"
                     >
-                        Resolve all (recommended)
+                        {t("deliveryImport.bulk.resolveAll")}
                     </button>
                 </div>
             )}
@@ -402,6 +424,7 @@ export function ImportReviewTable({
     onClearResolution,
     onBulkResolve,
 }: ImportReviewTableProps) {
+    const { t, language } = useLanguage();
     const [filter, setFilter] = useState<FilterMode>("all");
     const [search, setSearch] = useState("");
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -466,7 +489,7 @@ export function ImportReviewTable({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                     <input
                         type="text"
-                        placeholder="Search by shipment #, phone, or name..."
+                        placeholder={t("deliveryImport.table.search")}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
@@ -480,13 +503,13 @@ export function ImportReviewTable({
                             key={f}
                             onClick={() => setFilter(f)}
                             className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize",
+                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                 filter === f
                                     ? "bg-[var(--ink)] text-white"
                                     : "text-muted hover:text-foreground"
                             )}
                         >
-                            {f}
+                            {t(`deliveryImport.filter.${f}`)}
                         </button>
                     ))}
                 </div>
@@ -496,13 +519,13 @@ export function ImportReviewTable({
                     onClick={onSelectAllClean}
                     className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors dark:bg-emerald-900/20 dark:border-emerald-900/40 dark:text-emerald-400"
                 >
-                    Select All Clean
+                    {t("deliveryImport.table.selectAllClean")}
                 </button>
                 <button
                     onClick={onDeselectAll}
                     className="px-3 py-1.5 text-xs font-medium text-muted bg-[var(--background)] border border-[var(--card-border)] rounded-lg hover:bg-[var(--card-border)] transition-colors"
                 >
-                    Deselect All
+                    {t("deliveryImport.table.deselectAll")}
                 </button>
                 <button
                     onClick={() => {
@@ -540,15 +563,15 @@ export function ImportReviewTable({
                         a.click();
                         URL.revokeObjectURL(url);
                     }}
-                    title="Download the current filtered view as CSV"
+                    title={t("deliveryImport.table.exportHint")}
                     className="px-3 py-1.5 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors dark:bg-sky-900/20 dark:border-sky-900/40 dark:text-sky-400 inline-flex items-center gap-1.5"
                 >
                     <Download className="w-3.5 h-3.5" />
-                    Export CSV
+                    {t("deliveryImport.table.exportCsv")}
                 </button>
 
-                <span className="text-sm text-muted">
-                    {selectedCount} of {matches.length} selected
+                <span className="text-sm text-muted tabular-nums">
+                    {t("deliveryImport.table.selectedOf", { selected: selectedCount, total: matches.length })}
                 </span>
             </div>
 
@@ -566,16 +589,16 @@ export function ImportReviewTable({
                         <thead>
                             <tr className="bg-[var(--background)] border-b border-[var(--card-border)]">
                                 <th className="w-10 px-3 py-3 text-center">
-                                    <span className="sr-only">Select</span>
+                                    <span className="sr-only">{t("deliveryImport.col.select")}</span>
                                 </th>
                                 <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">#</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">Status</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">Shipment #</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">Phone</th>
-                                <th className="px-3 py-3 text-right text-xs font-semibold text-muted uppercase">PDF Amount</th>
-                                <th className="px-3 py-3 text-right text-xs font-semibold text-muted uppercase">System Amount</th>
-                                <th className="px-3 py-3 text-right text-xs font-semibold text-muted uppercase">Net</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">System Status</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.status")}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.shipment")}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.phone")}</th>
+                                <th className="px-3 py-3 text-right text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.pdfAmount")}</th>
+                                <th className="px-3 py-3 text-right text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.systemAmount")}</th>
+                                <th className="px-3 py-3 text-right text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.net")}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase">{t("deliveryImport.col.systemStatus")}</th>
                                 <th className="w-8 px-3 py-3"></th>
                             </tr>
                         </thead>
@@ -597,7 +620,7 @@ export function ImportReviewTable({
                                                     className="w-full px-3 py-3 flex items-center justify-center gap-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
                                                 >
                                                     {showHandled ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                                    {showHandled ? "Hide" : "Show"} {handledCount} Handled Rows
+                                                    {t(showHandled ? "deliveryImport.table.hideHandled" : "deliveryImport.table.showHandled", { count: handledCount })}
                                                 </button>
                                             </td>
                                         </tr>
@@ -658,11 +681,11 @@ export function ImportReviewTable({
                                                             config.color
                                                         )}
                                                     >
-                                                        {config.label}
+                                                        {t(`deliveryImport.category.${match.category}`)}
                                                     </span>
                                                     {resolutions.has(match.pdfRow.rowNumber) && (
                                                         <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                            Resolved
+                                                            {t("deliveryImport.table.resolved")}
                                                         </span>
                                                     )}
                                                 </div>
@@ -681,12 +704,12 @@ export function ImportReviewTable({
                                             >
                                                 {match.pdfRow.shipmentAmount === 0
                                                     ? "-"
-                                                    : match.pdfRow.shipmentAmount.toLocaleString()}
+                                                    : formatIqdNumber(match.pdfRow.shipmentAmount)}
                                             </td>
                                             <td className="px-3 py-2 text-right font-mono text-xs">
                                                 {match.order
-                                                    ? Math.round(match.order.price).toLocaleString()
-                                                    : "N/A"}
+                                                    ? formatIqdNumber(match.order.price)
+                                                    : "—"}
                                             </td>
                                             <td
                                                 className={cn(
@@ -694,7 +717,7 @@ export function ImportReviewTable({
                                                     match.pdfRow.netToMerchant < 0 && "text-rose-600"
                                                 )}
                                             >
-                                                {match.pdfRow.netToMerchant.toLocaleString()}
+                                                {formatIqdNumber(match.pdfRow.netToMerchant)}
                                             </td>
                                             <td className="px-3 py-2">
                                                 {match.order && (
@@ -715,7 +738,7 @@ export function ImportReviewTable({
                                                                 "bg-gray-100 text-gray-600"
                                                         )}
                                                     >
-                                                        {match.order.status}
+                                                        {getOrderStatusLabel(match.order.status, language)}
                                                     </span>
                                                 )}
                                             </td>
@@ -735,38 +758,41 @@ export function ImportReviewTable({
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                                                         <div className="space-y-2">
                                                             <h4 className="font-semibold text-foreground">
-                                                                PDF Data
+                                                                {t("deliveryImport.detail.pdfData")}
                                                             </h4>
                                                             <div className="space-y-1">
                                                                 <p>
-                                                                    <span className="text-muted">Address:</span>{" "}
+                                                                    <span className="text-muted">{t("deliveryImport.detail.address")}</span>{" "}
                                                                     {match.pdfRow.address}
                                                                 </p>
                                                                 <p>
-                                                                    <span className="text-muted">Entry Date:</span>{" "}
+                                                                    <span className="text-muted">{t("deliveryImport.detail.entryDate")}</span>{" "}
                                                                     {match.pdfRow.entryDate}
                                                                 </p>
                                                                 <p>
-                                                                    <span className="text-muted">Items:</span>{" "}
+                                                                    <span className="text-muted">{t("deliveryImport.detail.items")}</span>{" "}
                                                                     {match.pdfRow.itemCount}
                                                                 </p>
                                                                 <p>
-                                                                    <span className="text-muted">Delivery Fee:</span>{" "}
-                                                                    {match.pdfRow.deliveryFee.toLocaleString()} IQD
+                                                                    <span className="text-muted">{t("deliveryImport.detail.deliveryFee")}</span>{" "}
+                                                                    {formatIQD(match.pdfRow.deliveryFee)}
                                                                 </p>
                                                                 <p>
-                                                                    <span className="text-muted">PDF Status:</span>{" "}
+                                                                    <span className="text-muted">{t("deliveryImport.detail.pdfStatus")}</span>{" "}
                                                                     {match.pdfRow.status}
                                                                 </p>
                                                                 {match.pdfRow.notes && (
                                                                     <p>
-                                                                        <span className="text-muted">Notes:</span>{" "}
+                                                                        <span className="text-muted">{t("deliveryImport.detail.notes")}</span>{" "}
                                                                         {match.pdfRow.notes}
                                                                     </p>
                                                                 )}
                                                                 {match.pdfRow.isPriceChanged && (
                                                                     <p className="text-amber-600 font-medium">
-                                                                        Price Change: {match.pdfRow.originalPrice?.toLocaleString()} → {match.pdfRow.newPrice?.toLocaleString()} IQD
+                                                                        {t("deliveryImport.detail.priceChange", {
+                                                                            from: formatIQD(match.pdfRow.originalPrice ?? 0),
+                                                                            to: formatIQD(match.pdfRow.newPrice ?? 0),
+                                                                        })}
                                                                     </p>
                                                                 )}
                                                             </div>
@@ -774,45 +800,45 @@ export function ImportReviewTable({
 
                                                         <div className="space-y-2">
                                                             <h4 className="font-semibold text-foreground">
-                                                                System Data
+                                                                {t("deliveryImport.detail.systemData")}
                                                             </h4>
                                                             {match.order ? (
                                                                 <div className="space-y-1">
                                                                     <p>
-                                                                        <span className="text-muted">Order ID:</span>{" "}
+                                                                        <span className="text-muted">{t("deliveryImport.detail.orderId")}</span>{" "}
                                                                         <span className="font-mono">{match.order.order_id}</span>
                                                                     </p>
                                                                     <p>
-                                                                        <span className="text-muted">Customer:</span>{" "}
+                                                                        <span className="text-muted">{t("deliveryImport.detail.customer")}</span>{" "}
                                                                         {match.order.customer_name}
                                                                     </p>
                                                                     <p>
-                                                                        <span className="text-muted">Phone:</span>{" "}
+                                                                        <span className="text-muted">{t("deliveryImport.detail.phone")}</span>{" "}
                                                                         <span dir="ltr">{match.order.phone}</span>
                                                                     </p>
                                                                     <p>
-                                                                        <span className="text-muted">Price:</span>{" "}
-                                                                        {Math.round(match.order.price).toLocaleString()} IQD
+                                                                        <span className="text-muted">{t("deliveryImport.detail.price")}</span>{" "}
+                                                                        {formatIQD(Math.round(match.order.price))}
                                                                     </p>
                                                                     <p>
-                                                                        <span className="text-muted">Status:</span>{" "}
-                                                                        {match.order.status}
+                                                                        <span className="text-muted">{t("deliveryImport.detail.status")}</span>{" "}
+                                                                        {getOrderStatusLabel(match.order.status, language)}
                                                                     </p>
                                                                     <p>
-                                                                        <span className="text-muted">Matched By:</span>{" "}
-                                                                        {match.matchedBy}
+                                                                        <span className="text-muted">{t("deliveryImport.detail.matchedBy")}</span>{" "}
+                                                                        {t(`deliveryImport.matchedBy.${match.matchedBy}`)}
                                                                     </p>
                                                                 </div>
                                                             ) : (
                                                                 <p className="text-muted italic">
-                                                                    No matching order in system
+                                                                    {t("deliveryImport.detail.noMatch")}
                                                                 </p>
                                                             )}
                                                         </div>
 
                                                         <div className="md:col-span-2">
                                                             <p className={cn("text-sm", CATEGORY_CONFIG[match.category]?.color)}>
-                                                                <strong>Match Details:</strong> {match.matchDetails}
+                                                                <strong>{t("deliveryImport.detail.matchDetails")}</strong> {match.matchDetails}
                                                             </p>
                                                         </div>
 
@@ -842,7 +868,7 @@ export function ImportReviewTable({
 
             {filteredMatches.length === 0 && (
                 <div className="text-center py-8 text-muted">
-                    No rows match the current filter
+                    {t("deliveryImport.table.empty")}
                 </div>
             )}
         </div>

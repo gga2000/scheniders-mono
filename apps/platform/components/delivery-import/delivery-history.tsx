@@ -13,10 +13,14 @@ import {
     RotateCcw,
 } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
+import { formatTime } from "@/lib/order-format-utils";
 import { useDeliveryHistory } from "@/hooks/use-delivery-history";
 import type { DeliveryImport } from "@/types/delivery-import";
 
 export function DeliveryHistory() {
+    const { t, language } = useLanguage();
     const { imports, isLoading, error, completeImport, rollbackImport } = useDeliveryHistory();
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [completingId, setCompletingId] = useState<string | null>(null);
@@ -47,28 +51,28 @@ export function DeliveryHistory() {
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
                         <CheckCircle className="w-3 h-3" />
-                        Confirmed
+                        {t("deliveryImport.status.confirmed")}
                     </span>
                 );
             case "completed":
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
                         <CheckCircle className="w-3 h-3" />
-                        Completed
+                        {t("deliveryImport.status.completed")}
                     </span>
                 );
             case "pending":
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
                         <Clock className="w-3 h-3" />
-                        Pending
+                        {t("deliveryImport.status.pending")}
                     </span>
                 );
             case "cancelled":
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400">
                         <XCircle className="w-3 h-3" />
-                        Cancelled
+                        {t("deliveryImport.status.cancelled")}
                     </span>
                 );
             default:
@@ -101,9 +105,9 @@ export function DeliveryHistory() {
         return (
             <div className="text-center py-16 text-muted">
                 <Truck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-lg font-medium">No delivery imports yet</p>
+                <p className="text-lg font-medium">{t("deliveryImport.history.empty")}</p>
                 <p className="text-sm mt-1">
-                    Import a Prime delivery PDF to get started
+                    {t("deliveryImport.history.emptyHint")}
                 </p>
             </div>
         );
@@ -137,12 +141,12 @@ export function DeliveryHistory() {
                                 <div className="flex items-center gap-2">
                                     <FileText className="w-4 h-4 text-teal-600" />
                                     <span className="font-semibold text-foreground">
-                                        Receipt #{imp.receipt_number}
+                                        {t("deliveryImport.history.receipt", { receipt: imp.receipt_number })}
                                     </span>
                                     {statusBadge(imp.status)}
                                 </div>
                                 <p className="text-xs text-muted mt-1">
-                                    {new Date(imp.created_at).toLocaleDateString()} &middot;{" "}
+                                    {formatBaghdadDate(imp.created_at, language)} &middot;{" "}
                                     {imp.pdf_filename || "—"}
                                 </p>
                             </div>
@@ -152,33 +156,33 @@ export function DeliveryHistory() {
                                     <p className="font-bold text-foreground">
                                         {imp.total_orders}
                                     </p>
-                                    <p className="text-[10px] text-muted">Total</p>
+                                    <p className="text-[10px] text-muted">{t("deliveryImport.history.total")}</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="font-bold text-emerald-600">
                                         {imp.processed_count}
                                     </p>
-                                    <p className="text-[10px] text-muted">Delivered</p>
+                                    <p className="text-[10px] text-muted">{t("deliveryImport.delivered")}</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="font-bold text-amber-600">
                                         {imp.skipped_count}
                                     </p>
-                                    <p className="text-[10px] text-muted">Skipped</p>
+                                    <p className="text-[10px] text-muted">{t("deliveryImport.skipped")}</p>
                                 </div>
                                 {imp.failed_count > 0 && (
                                     <div className="text-center">
                                         <p className="font-bold text-rose-600">
                                             {imp.failed_count}
                                         </p>
-                                        <p className="text-[10px] text-muted">Failed</p>
+                                        <p className="text-[10px] text-muted">{t("deliveryImport.failed")}</p>
                                     </div>
                                 )}
                                 <div className="text-right min-w-[100px]">
                                     <p className="font-bold text-foreground">
                                         {formatIQD(imp.total_amount)}
                                     </p>
-                                    <p className="text-[10px] text-muted">Net Amount</p>
+                                    <p className="text-[10px] text-muted">{t("deliveryImport.history.netAmount")}</p>
                                 </div>
                             </div>
                         </div>
@@ -188,27 +192,27 @@ export function DeliveryHistory() {
                             <div className="border-t border-[var(--card-border)] p-4 bg-[var(--background)]">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                                     <div>
-                                        <p className="text-xs text-muted">Payment Date</p>
+                                        <p className="text-xs text-muted">{t("deliveryImport.field.paymentDate")}</p>
                                         <p className="font-medium text-foreground">
                                             {imp.payment_date}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-muted">Agent</p>
+                                        <p className="text-xs text-muted">{t("deliveryImport.field.agent")}</p>
                                         <p className="font-medium text-foreground">
                                             {imp.receiving_agent || "—"}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-muted">Confirmed At</p>
+                                        <p className="text-xs text-muted">{t("deliveryImport.history.confirmedAt")}</p>
                                         <p className="font-medium text-foreground">
                                             {imp.confirmed_at
-                                                ? new Date(imp.confirmed_at).toLocaleString()
+                                                ? `${formatBaghdadDate(imp.confirmed_at, language)} ${formatTime(imp.confirmed_at)}`
                                                 : "—"}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-muted">Actual Received</p>
+                                        <p className="text-xs text-muted">{t("deliveryImport.history.actualReceived")}</p>
                                         <p className="font-medium text-foreground">
                                             {imp.actual_amount_received != null
                                                 ? formatIQD(imp.actual_amount_received)
@@ -222,7 +226,7 @@ export function DeliveryHistory() {
                                     <div className="flex items-center gap-3 pt-3 border-t border-[var(--card-border)]">
                                         <div className="flex-1">
                                             <label className="text-xs text-muted block mb-1">
-                                                Actual amount received (IQD)
+                                                {t("deliveryImport.history.actualAmountLabel")}
                                             </label>
                                             <input
                                                 type="number"
@@ -250,7 +254,7 @@ export function DeliveryHistory() {
                                             ) : (
                                                 <CheckCircle className="w-4 h-4" />
                                             )}
-                                            Mark as Completed
+                                            {t("deliveryImport.history.markCompleted")}
                                         </button>
                                         <button
                                             onClick={(e) => {
@@ -268,7 +272,7 @@ export function DeliveryHistory() {
                                             ) : (
                                                 <RotateCcw className="w-4 h-4" />
                                             )}
-                                            Undo import
+                                            {t("deliveryImport.history.undo")}
                                         </button>
                                     </div>
                                 )}
@@ -276,25 +280,24 @@ export function DeliveryHistory() {
                                 {imp.status === "confirmed" && confirmUndoId === imp.id && (
                                     <div
                                         role="alertdialog"
-                                        aria-label={`Undo receipt ${imp.receipt_number}`}
+                                        aria-label={t("deliveryImport.history.undoLabel", { receipt: imp.receipt_number })}
                                         className="mt-3 p-3 rounded-xl border border-rose-300 text-sm text-foreground space-y-3"
                                     >
                                         <p>
-                                            Undo receipt #{imp.receipt_number}? Its {imp.processed_count} orders go back to how they were before it.
-                                            Orders your team or the courier changed since then stay as they are.
+                                            {t("deliveryImport.history.undoBody", { receipt: imp.receipt_number, count: imp.processed_count })}
                                         </p>
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 onClick={() => setConfirmUndoId(null)}
                                                 className="px-3 py-1.5 rounded-lg border border-[var(--card-border)] hover:bg-[var(--card-bg)]"
                                             >
-                                                Keep
+                                                {t("deliveryImport.history.keep")}
                                             </button>
                                             <button
                                                 onClick={() => handleRollback(imp)}
                                                 className="px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
                                             >
-                                                Undo import
+                                                {t("deliveryImport.history.undo")}
                                             </button>
                                         </div>
                                     </div>
