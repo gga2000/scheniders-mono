@@ -48,6 +48,7 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
     const visible = folds && !open ? orders.slice(0, SHOWN_FOLDED) : orders;
     const now = new Date();
     if (orders.length === 0 && rest === 0) return null;
+    const anyLate = orders.some((order) => daysSince(order.day, now) > LATE_AFTER_DAYS);
 
     const restNote =
         rest === 0
@@ -104,6 +105,11 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                 <button type="button" className={`${CARD_LINK} mt-2`} aria-expanded={open} onClick={() => setOpen((was) => !was)}>
                     {open ? t("fin.money.unpaid.showLess") : t("fin.money.unpaid.showAll", { n: formatWhole(orders.length) })}
                 </button>
+            )}
+            {anyLate && (
+                <p className="mt-2 text-left text-[12px] leading-relaxed text-amber-700 dark:text-amber-400" dir={dir} data-testid="money-unpaid-late">
+                    {t("fin.money.unpaid.lateNote")}
+                </p>
             )}
             {restNote && (
                 <p className="mt-2 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-rest">

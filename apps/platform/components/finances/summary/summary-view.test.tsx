@@ -212,7 +212,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-sold")?.textContent).toContain("10 طلبات");
         // 330,000 + 30,000 + 40,000 = 400,000
         expect(byTestId("money-reached")?.textContent).toContain("330,000");
-        expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات بعد أجرة التوصيل");
+        expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات مسلَّمة في هذه الفترة، بعد أجرة التوصيل");
         expect(byTestId("money-fee")?.textContent).toContain("30,000");
         // the statement's delivery line has nothing more here, so no second figure to explain
         expect(byTestId("money-fee-statement")).toBeNull();
@@ -238,6 +238,8 @@ describe("SummaryView", () => {
         expect(ages.map((age) => age.textContent)).toEqual(["سُلِّم قبل 19 يوماً", "سُلِّم قبل 5 أيام"]);
         // over two weeks is late: only the first row is marked
         expect(ages.map((age) => age.hasAttribute("data-late"))).toEqual([true, false]);
+        // a late row says once what to do about it
+        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة بالبرتقالي سُلِّمت قبل أكثر من أسبوعين ولم يُدفع ثمنها بعد: اسأل عنها شركة التوصيل.");
         vi.useRealTimers();
         const list = byTestId("money-unpaid-list");
         const links = Array.from(list?.querySelectorAll("a") ?? []);
@@ -316,7 +318,7 @@ describe("SummaryView", () => {
                     returns_orders: 3,
                     returns_open: -20_000,
                     returns_open_orders: 1,
-                    prepaid_gap: -10_000,
+                    prepaid_gap: -9_999,
                     prepaid_orders: 2,
                     price_gap: 5_000,
                     price_gap_orders: 1,
@@ -328,18 +330,19 @@ describe("SummaryView", () => {
                     { kind: "refund_open", id: "r-1", code: "RTN-4108-1", amount: -20_000 },
                     { kind: "undelivered", id: "u-1", code: "4261102012", amount: 3_000 },
                     { kind: "prepaid", id: "pp-1", code: "1261030001", amount: -4_999 },
+                    { kind: "prepaid", id: "pp-2", code: "1261104002", amount: -5_000 },
                 ],
             },
         })));
         const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
-            "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في كشف الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
+            "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
             "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». حتى ذلك الحين صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
-            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً.1261030001−4,999د.ع−10,000د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً. الطلب 1261030001 كتب الكشف أن شركة التوصيل قبضت عنه 1 د.ع، فخصمت منه 4,999 د.ع بدل 5,000 د.ع.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
-            "فروق أخرى−28,000د.ع",
+            "فروق أخرى−28,001د.ع",
         ]);
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
@@ -444,7 +447,7 @@ describe("SummaryView", () => {
         expect(figure).toContain("6,667");
         expect(figure).toContain("دينار مبيعات لكل 1,000 دينار إعلان");
         expect(figure).not.toContain("د.ع");
-        expect(byTestId("ad-return")?.textContent).toContain("كل 1,000 دينار صرفتها على الإعلانات جاءتك بمبيعات قدرها 6,667 د.ع.");
+        expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة.");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
         // the cost per order stays in the dark strip only
         expect(byTestId("ad-return")?.textContent).not.toContain("6,000");
