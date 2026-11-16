@@ -3,7 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CaseAction,
+  NeedsUsShop,
   ScoreboardDays,
+  StartConversation,
   SupportCaseDetailResponse,
   SupportCasesResponse,
   SupportScoreboard,
@@ -83,5 +85,30 @@ export function useSupportShopCheck(caseId: string, enabled: boolean) {
       readJson<{ tenantId: string; check: ShopCheck }>(await fetch(`/api/support/cases/${caseId}/check`)),
     enabled,
     staleTime: 30_000,
+  });
+}
+
+/** Shops with something wrong right now. Refreshes every minute. */
+export function useSupportNeedsUs() {
+  return useQuery<NeedsUsShop[]>({
+    queryKey: ["admin", "support", "needs-us"],
+    queryFn: async () => (await readJson<{ shops: NeedsUsShop[] }>(await fetch("/api/support/needs-us"))).shops,
+    refetchInterval: 60_000,
+  });
+}
+
+/** Write first to a shop that needs us; answers the conversation it went into. */
+export function useSupportStartConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: StartConversation) =>
+      readJson<{ caseId: string; started: boolean }>(
+        await fetch("/api/support/needs-us", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
   });
 }

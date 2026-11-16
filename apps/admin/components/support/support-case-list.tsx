@@ -93,7 +93,10 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
                 {c.opened_by_name}
                 {c.tenants?.display_id ? ` · #${c.tenants.display_id}` : ""}
               </span>
-              <span className="shrink-0">{c.owner_name ?? "No owner"}</span>
+              <span className="shrink-0">
+                {c.started_by === "staff" ? "We wrote first · " : ""}
+                {c.owner_name ?? "No owner"}
+              </span>
             </div>
           </button>
         </li>

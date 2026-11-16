@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   CaseActionSchema,
   fillSavedReply,
+  formatAgo,
   formatDuration,
+  leadProblem,
+  problemDetail,
   formatWait,
   latestOrderNumber,
   percentOf,
@@ -30,6 +33,7 @@ function row(over: Partial<SupportCaseRow>): SupportCaseRow {
     last_message_at: "2026-11-16T10:00:00Z",
     last_message_preview: "",
     last_sender_kind: "merchant",
+    started_by: "merchant",
     created_at: "2026-11-16T10:00:00Z",
     tenants: null,
     ...over,
@@ -166,5 +170,34 @@ describe("filePaths", () => {
 
   it("keeps only voice notes inside this shop's own folder", () => {
     expect(filePaths(rows, T, "voice")).toEqual([`${T}/v.webm`]);
+  });
+});
+
+describe("leadProblem", () => {
+  const p = (code: Parameters<typeof problemDetail>[0]) => ({ code, since: null, detail: null });
+
+  it("opens with the store being down before anything smaller", () => {
+    expect(leadProblem([p("trial_ending"), p("wallet_empty"), p("store_paused")])).toBe("store_paused");
+    expect(leadProblem([p("trial_ending"), p("orders_stopped")])).toBe("orders_stopped");
+  });
+});
+
+describe("problemDetail", () => {
+  it("puts counts into words and leaves free text alone", () => {
+    expect(problemDetail("waseet_failing", "4")).toBe("4 failed in 24 h");
+    expect(problemDetail("orders_stopped", "262")).toBe("none in 48 h, 262 in the 2 weeks before");
+    expect(problemDetail("wallet_empty", "-1500")).toBe("-1,500 IQD");
+    expect(problemDetail("prime_error", "token expired")).toBe("token expired");
+    expect(problemDetail("trial_ending", null)).toBeNull();
+    expect(problemDetail("store_paused", " ")).toBeNull();
+  });
+});
+
+describe("formatAgo", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  it("says how long ago, in the console's words", () => {
+    expect(formatAgo("2026-11-16T11:59:30Z", now)).toBe("just now");
+    expect(formatAgo("2026-11-16T09:00:00Z", now)).toBe("3 h ago");
+    expect(formatAgo("2026-11-14T08:00:00Z", now)).toBe("2 d 4 h ago");
   });
 });

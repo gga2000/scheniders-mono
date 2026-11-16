@@ -43,6 +43,8 @@ CREATE TABLE public.support_cases (
     solved_at timestamptz,
     rating text CHECK (rating IN ('yes', 'no')),
     reopened_count integer NOT NULL DEFAULT 0,
+    -- From 20261116104616_support_reach_out.sql.
+    started_by text NOT NULL DEFAULT 'merchant',
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT support_cases_solved_has_time CHECK ((status = 'solved') = (solved_at IS NOT NULL)),
     CONSTRAINT support_cases_solved_has_reason CHECK (status <> 'solved' OR reason IS NOT NULL),

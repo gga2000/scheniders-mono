@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireAdminPermission, type AdminContext } from "@/lib/api-auth";
+import { requireAdminPermission } from "@/lib/api-auth";
+import { adminDisplayName } from "@/lib/support-admin-name";
 import { logAdminActivity } from "@/lib/activity-logger";
 import {
   CaseActionSchema,
@@ -30,18 +31,6 @@ async function signPaths(supabase: AdminDb, bucket: string, paths: string[]): Pr
     if (link.path && link.signedUrl && !link.error) links.set(link.path, link.signedUrl);
   }
   return links;
-}
-
-/** The name merchants and teammates see on this admin's replies. */
-async function adminDisplayName(supabase: AdminDb, admin: AdminContext): Promise<string> {
-  const { data, error } = await supabase
-    .from("admin_users")
-    .select("display_name, email")
-    .eq("user_id", admin.user.id)
-    .maybeSingle();
-  if (error) throw error;
-  const row = data as { display_name: string | null; email: string | null } | null;
-  return row?.display_name?.trim() || row?.email || admin.user.email || "Support";
 }
 
 async function loadShopCard(supabase: AdminDb, tenantId: string, caseId: string): Promise<SupportShopCard> {

@@ -42,7 +42,7 @@ function Board({ board }: { board: SupportScoreboard }) {
         <Tile
           label="Conversations"
           value={String(board.opened)}
-          note={`${board.answered} answered · ${board.solved} solved`}
+          note={`${board.answered} answered · ${board.solved} solved${board.reached_out > 0 ? ` · we wrote first to ${board.reached_out}` : ""}`}
         />
         <Tile
           label="First reply, typical"
