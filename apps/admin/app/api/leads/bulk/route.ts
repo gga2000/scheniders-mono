@@ -14,11 +14,8 @@ const bodySchema = z.discriminatedUnion("action", [
     lead_ids: leadIds,
     payload: z.object({ status: z.enum(["new", "contacted", "interested", "store_built", "lost"]) }),
   }),
-  z.object({
-    action: z.literal("assign"),
-    lead_ids: leadIds,
-    payload: z.object({ assigned_to: z.uuid().nullable() }),
-  }),
+  // The person pressing takes the leads; the id comes from the session, never the body.
+  z.object({ action: z.literal("assign_to_me"), lead_ids: leadIds }),
   z.object({
     action: z.literal("change_priority"),
     lead_ids: leadIds,
@@ -60,13 +57,10 @@ export async function POST(request: NextRequest) {
         if (error) throw error;
         break;
       }
-      case "assign": {
+      case "assign_to_me": {
         const { error } = await supabase
           .from("leads")
-          .update({
-            assigned_to: body.payload.assigned_to,
-            assigned_at: body.payload.assigned_to ? new Date().toISOString() : null,
-          })
+          .update({ assigned_to: admin.user.id, assigned_at: new Date().toISOString() })
           .in("id", lead_ids);
         if (error) throw error;
         break;

@@ -9,12 +9,12 @@ import {
   useCreateLead,
   useUpdateLead,
   useDeleteLead,
-  useBulkLeadAction,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
+import { LeadBulkBar } from "@/components/leads/lead-bulk-bar";
 import { LeadCard } from "@/components/leads/lead-card";
 import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
@@ -34,7 +34,7 @@ import {
   AlertTriangle,
   SlidersHorizontal,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount } from "@/lib/format";
 
@@ -64,7 +64,6 @@ export function LeadsDesktopView() {
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
-  const bulkAction = useBulkLeadAction();
 
   const leads = data?.leads ?? [];
   const total = data?.total ?? 0;
@@ -366,62 +365,7 @@ export function LeadsDesktopView() {
       {/* Bulk Action Bar */}
       <AnimatePresence>
         {selectedLeads.size > 0 && (
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 bg-[#1E1E1E] text-white rounded-2xl shadow-2xl border border-white/10"
-          >
-            <span className="text-sm font-medium">{selectedLeads.size} selected</span>
-            <div className="w-px h-5 bg-white/20" />
-            <button
-              onClick={() => {
-                bulkAction.mutate(
-                  {
-                    lead_ids: Array.from(selectedLeads),
-                    action: "change_status",
-                    payload: { status: "contacted" },
-                  },
-                  { onSuccess: () => clearSelection() },
-                );
-              }}
-              disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              Change Status
-            </button>
-            <button
-              onClick={() => {
-                bulkAction.mutate(
-                  { lead_ids: Array.from(selectedLeads), action: "assign" },
-                  { onSuccess: () => clearSelection() },
-                );
-              }}
-              disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              Assign
-            </button>
-            <button
-              onClick={() => {
-                bulkAction.mutate(
-                  { lead_ids: Array.from(selectedLeads), action: "delete" },
-                  { onSuccess: () => clearSelection() },
-                );
-              }}
-              disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--ink-red)]"
-            >
-              Delete
-            </button>
-            <div className="w-px h-5 bg-white/20" />
-            <button
-              onClick={clearSelection}
-              className="text-sm text-zinc-400 hover:text-white transition-colors"
-            >
-              Clear
-            </button>
-          </motion.div>
+          <LeadBulkBar selectedIds={Array.from(selectedLeads)} role={role} onClear={clearSelection} />
         )}
       </AnimatePresence>
 
