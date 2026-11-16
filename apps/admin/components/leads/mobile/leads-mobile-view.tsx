@@ -147,7 +147,7 @@ export function LeadsMobileView() {
                 style={
                   isActive
                     ? {
-                        backgroundColor: `${ui.solid}26`,
+                        backgroundColor: ui.strong,
                         borderColor: ui.solid,
                         color: ui.solid,
                       }

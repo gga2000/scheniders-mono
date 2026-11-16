@@ -192,7 +192,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           {!query && (
             <button
               onClick={onOpenCommandPalette}
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-foreground/70 hover:text-foreground transition-colors"
             >
               <kbd className="bg-foreground/5 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
             </button>

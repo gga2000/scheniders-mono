@@ -91,7 +91,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
             </div>
             <Dialog.Close
               aria-label="Close"
-              className="rounded-lg p-1.5 text-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              className="rounded-lg p-1.5 text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </Dialog.Close>
@@ -100,7 +100,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {replies.isLoading ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-foreground/40" />
+                <Loader2 className="h-5 w-5 animate-spin text-foreground/70" />
               </div>
             ) : replies.isError ? (
               <p className="py-6 text-center text-sm text-red-700">{replies.error.message}</p>
@@ -114,7 +114,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-foreground">
                         {reply.title}
-                        <span className="ml-2 text-xs font-medium text-foreground/40">order {reply.position}</span>
+                        <span className="ml-2 text-xs font-medium text-foreground/70">order {reply.position}</span>
                       </p>
                       <p dir="auto" className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/70">
                         {reply.body}
@@ -125,7 +125,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                         type="button"
                         onClick={() => edit(reply)}
                         aria-label={`Edit ${reply.title}`}
-                        className="rounded-lg p-1.5 text-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                        className="rounded-lg p-1.5 text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -139,7 +139,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                         className={
                           confirmDelete === reply.id
                             ? "inline-flex items-center gap-1 rounded-lg bg-red-700 px-2 py-1 text-xs font-semibold text-white"
-                            : "rounded-lg p-1.5 text-foreground/50 transition-colors hover:bg-red-100 hover:text-red-700"
+                            : "rounded-lg p-1.5 text-foreground/70 transition-colors hover:bg-red-100 hover:text-red-700"
                         }
                       >
                         <Trash2 className="h-4 w-4" />
@@ -194,7 +194,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                   <button
                     type="button"
                     onClick={() => setDraft(null)}
-                    className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-foreground/60 transition-colors hover:bg-foreground/5"
+                    className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-foreground/70 transition-colors hover:bg-foreground/5"
                   >
                     Cancel
                   </button>

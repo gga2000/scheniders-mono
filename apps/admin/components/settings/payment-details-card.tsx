@@ -52,14 +52,14 @@ export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
         </div>
         <div>
           <h2 className="text-sm font-semibold text-foreground">How shops pay us</h2>
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-foreground/70">
             Every shop sees these when it pays by transfer. {canEdit ? "" : "Only a super admin can change them."}
           </p>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/40">
+        <div className="flex items-center justify-center py-6 text-foreground/70">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError || !data ? (
@@ -105,7 +105,7 @@ function PaymentDetailsForm({
             className="rounded-xl bg-white/80 px-3 py-1.5 text-sm ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 disabled:opacity-60 dark:bg-white/10"
             data-testid={`payment-details-${f.key}`}
           />
-          <span className="text-xs text-foreground/45">{f.hint}</span>
+          <span className="text-xs text-foreground/70">{f.hint}</span>
         </label>
       ))}
       {canEdit && (

@@ -43,13 +43,13 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   return (
     <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg px-3 py-2 shadow-xl text-xs">
       <p className="font-semibold text-foreground">{label}</p>
-      <p className="text-foreground/60">{new Intl.NumberFormat("en-IQ").format(payload[0].value)} IQD</p>
+      <p className="text-foreground/70">{new Intl.NumberFormat("en-IQ").format(payload[0].value)} IQD</p>
     </div>
   );
 }
 
 function EmptyChart({ text }: { text: string }) {
-  return <p className="text-sm text-foreground/40 py-16 text-center">{text}</p>;
+  return <p className="text-sm text-foreground/70 py-16 text-center">{text}</p>;
 }
 
 export default function RevenuePage() {
@@ -71,7 +71,7 @@ export default function RevenuePage() {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -100,7 +100,7 @@ export default function RevenuePage() {
       </NumberStrip>
 
       {data.otherCharges > 0 && (
-        <p className="text-xs text-foreground/50">
+        <p className="text-xs text-foreground/70">
           Not counted as income: {new Intl.NumberFormat("en-IQ").format(data.otherCharges)} IQD of other wallet
           charges in these six months (corrections and test reversals).
         </p>
@@ -108,7 +108,7 @@ export default function RevenuePage() {
 
       {/* Fees by month */}
       <div className="pastel-card p-5">
-        <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+        <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
           Fees by month
         </h2>
         {totalRevenue === 0 ? (
@@ -131,17 +131,17 @@ export default function RevenuePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Cohort Analysis */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
             Fees by signup month
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr>
-                  <th className="p-2 text-left text-foreground/50 font-medium">Cohort</th>
-                  <th className="p-2 text-center text-foreground/50 font-medium">#</th>
+                  <th className="p-2 text-left text-foreground/70 font-medium">Cohort</th>
+                  <th className="p-2 text-center text-foreground/70 font-medium">#</th>
                   {[0, 1, 2, 3, 4, 5].map((m) => (
-                    <th key={m} className="p-2 text-center text-foreground/50 font-medium">M{m}</th>
+                    <th key={m} className="p-2 text-center text-foreground/70 font-medium">M{m}</th>
                   ))}
                 </tr>
               </thead>
@@ -151,7 +151,7 @@ export default function RevenuePage() {
                   return (
                     <tr key={cohort.cohort} className="border-t border-[var(--card-border)]">
                       <td className="p-2 font-medium text-foreground">{cohort.cohort}</td>
-                      <td className="p-2 text-center text-foreground/50">{cohort.tenantCount}</td>
+                      <td className="p-2 text-center text-foreground/70">{cohort.tenantCount}</td>
                       {cohort.months.map((rev, i) => {
                         const intensity = rev / maxVal;
                         return (
@@ -176,7 +176,7 @@ export default function RevenuePage() {
 
         {/* LTV Distribution */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
             Shops by fees paid, all time
           </h2>
           <div className="h-[200px]">
@@ -193,17 +193,17 @@ export default function RevenuePage() {
 
           {/* Top LTV merchants */}
           <div className="mt-4 pt-3 border-t border-[var(--card-border)]">
-            <h3 className="text-xs font-semibold text-foreground/50 mb-2">Top shops by fees paid</h3>
+            <h3 className="text-xs font-semibold text-foreground/70 mb-2">Top shops by fees paid</h3>
             <div className="space-y-1.5">
               {data.topLTV.slice(0, 5).map((m, i) => (
                 <div key={m.id} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 text-foreground/30 font-bold">{i + 1}</span>
+                  <span className="w-4 text-foreground/70 font-bold">{i + 1}</span>
                   <span className="flex-1 text-foreground font-medium truncate">{m.name}</span>
-                  <span className="text-foreground/50 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
+                  <span className="text-foreground/70 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
                 </div>
               ))}
               {data.topLTV.length === 0 && (
-                <p className="text-xs text-foreground/40">No shop has paid a fee yet.</p>
+                <p className="text-xs text-foreground/70">No shop has paid a fee yet.</p>
               )}
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function RevenuePage() {
 
       {/* Fees by plan */}
       <div className="pastel-card p-5">
-        <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+        <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
           Fees by plan (the plan each shop is on today)
         </h2>
         {data.revenueByPlan.length === 0 ? (
@@ -250,7 +250,7 @@ export default function RevenuePage() {
         )}
         <div className="flex items-center gap-4 mt-3">
           {data.revenueByPlan.map((p) => (
-            <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/60">
+            <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/70">
               <span className="w-3 h-3 rounded" style={{ backgroundColor: PLAN_COLORS[p.plan] || "#d1d5db" }} />
               <span className="capitalize">{p.plan}</span>
             </div>

@@ -111,13 +111,13 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
           <p className="mt-1 text-[22px] font-semibold text-foreground">
             {lock.reason ? REASON_LABEL[lock.reason] : "Locked"}
           </p>
-          <p className="mt-1 text-[13px] text-foreground/65">
+          <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}
             Paying {formatIQD(lock.price_iqd)} from the wallet unlocks it
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="flex items-center justify-end gap-1.5 text-[13px] text-foreground/60">
+          <p className="flex items-center justify-end gap-1.5 text-[13px] text-foreground/70">
             <ShoppingBag className="h-4 w-4" aria-hidden />
             Store orders left
           </p>
@@ -128,15 +128,15 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
             )}
           >
             {ordersLeft}
-            <span className="ml-1 text-[15px] font-medium text-foreground/50">/ {lock.allowance}</span>
+            <span className="ml-1 text-[15px] font-medium text-foreground/70">/ {lock.allowance}</span>
           </p>
-          <p className="mt-1 text-[13px] text-foreground/60">
+          <p className="mt-1 text-[13px] text-foreground/70">
             {paused ? "Storefront paused" : "Then the storefront pauses"}
           </p>
         </div>
       </div>
 
-      <p className="mb-4 text-[13px] text-foreground/65">
+      <p className="mb-4 text-[13px] text-foreground/70">
         Orders, shipping, labels, export and paying stay open for the merchant. Everything else shows the lock screen.
       </p>
 
@@ -212,7 +212,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
                     Unlock for {unlockDays} days
                   </button>
                 </div>
-                <p className="mt-1.5 text-[13px] text-foreground/60">
+                <p className="mt-1.5 text-[13px] text-foreground/70">
                   Opens a paid period with no wallet charge. When it ends, renewal charges the wallet as usual.
                 </p>
               </div>

@@ -49,7 +49,7 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
           ))}
         </div>
       ) : growth.length === 0 ? (
-        <p className="text-sm text-foreground/40 py-6 text-center">
+        <p className="text-sm text-foreground/70 py-6 text-center">
           No growth data available.
         </p>
       ) : (
@@ -60,14 +60,14 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
                 key={metric.label}
                 className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4"
               >
-                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-2">
                   {metric.label}
                 </p>
                 <p className="text-xl font-bold text-foreground tracking-tight">
                   {formatNumber(metric, metric.current)}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-xs text-foreground/40">
+                  <span className="text-xs text-foreground/70">
                     {metric.current === null && metric.emptyNote
                       ? metric.emptyNote
                       : `before: ${formatNumber(metric, metric.previous, false)}`}

@@ -92,7 +92,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
             />
           </div>
           <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="text-[13px] text-foreground/55">Staff only. Enter adds it; Shift and Enter start a new line.</p>
+            <p className="text-[13px] text-foreground/70">Staff only. Enter adds it; Shift and Enter start a new line.</p>
             <button
               type="button"
               onClick={submit}
@@ -115,7 +115,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
       </div>
 
       {timeline.isLoading ? (
-        <p className="flex items-center gap-2 py-6 text-[13px] text-foreground/60">
+        <p className="flex items-center gap-2 py-6 text-[13px] text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Loading the timeline...
         </p>
@@ -127,7 +127,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
           </button>
         </p>
       ) : days.length === 0 ? (
-        <p className="py-6 text-[13px] text-foreground/60">
+        <p className="py-6 text-[13px] text-foreground/70">
           {filter === "all"
             ? "Nothing yet. Money, changes and notes show here as they happen."
             : "Nothing of this kind in the loaded part of the timeline."}
@@ -136,7 +136,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
         <ol className="space-y-5">
           {days.map((entries) => (
             <li key={formatDayKey(entries[0].at)}>
-              <h3 className="mb-1 text-[13px] font-semibold text-foreground/60">{formatDay(entries[0].at)}</h3>
+              <h3 className="mb-1 text-[13px] font-semibold text-foreground/70">{formatDay(entries[0].at)}</h3>
               <ul className="divide-y divide-[var(--card-border)]">
                 {entries.map((entry) => (
                   <Row key={entry.id} entry={entry} />
@@ -165,12 +165,12 @@ function Row({ entry }: { entry: TimelineEntry }) {
   const Icon = KIND_ICON[entry.kind];
   return (
     <li className="grid grid-cols-[3rem_1.25rem_1fr_auto] items-start gap-x-3 py-3">
-      <span className="pt-0.5 text-[13px] tabular-nums text-foreground/55">{formatTime(entry.at)}</span>
-      <Icon className="mt-1 h-4 w-4 text-foreground/45" aria-hidden />
+      <span className="pt-0.5 text-[13px] tabular-nums text-foreground/70">{formatTime(entry.at)}</span>
+      <Icon className="mt-1 h-4 w-4 text-foreground/70" aria-hidden />
       <div className="min-w-0">
         <p className="text-[15px] text-foreground">
           <span className="font-semibold">{entry.title}</span>
-          <span className="text-[13px] text-foreground/55"> · {entry.who}</span>
+          <span className="text-[13px] text-foreground/70"> · {entry.who}</span>
         </p>
         {entry.detail && (
           <p
@@ -184,7 +184,7 @@ function Row({ entry }: { entry: TimelineEntry }) {
         )}
       </div>
       {entry.amount === 0 ? (
-        <p className="text-right text-[13px] text-foreground/55">No fee</p>
+        <p className="text-right text-[13px] text-foreground/70">No fee</p>
       ) : entry.amount !== null ? (
         <div className="text-right">
           <p
@@ -197,7 +197,7 @@ function Row({ entry }: { entry: TimelineEntry }) {
             {formatCount(Math.abs(entry.amount))} IQD
           </p>
           {entry.walletAfter !== null && (
-            <p className="text-[13px] tabular-nums text-foreground/55">wallet {formatCount(entry.walletAfter)}</p>
+            <p className="text-[13px] tabular-nums text-foreground/70">wallet {formatCount(entry.walletAfter)}</p>
           )}
         </div>
       ) : (

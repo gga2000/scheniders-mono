@@ -71,7 +71,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
         <>
           {/* Avg LTV */}
           <div className="mb-4">
-            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-1">
+            <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1">
               Average fees paid per shop, all time
             </p>
             <AnimatedCounter
@@ -122,7 +122,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
           {/* Top 5 merchants */}
           {data.topMerchants.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
+              <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-2">
                 Top 5 by fees paid
               </p>
               <div className="space-y-1.5">
@@ -131,7 +131,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
                     key={m.tenantId}
                     className="flex items-center gap-3 py-1.5 px-2 rounded-lg bg-[var(--background)]/50"
                   >
-                    <span className="text-xs font-bold text-foreground/40 w-5 text-center">
+                    <span className="text-xs font-bold text-foreground/70 w-5 text-center">
                       #{idx + 1}
                     </span>
                     <span className="text-sm font-medium text-foreground flex-1 truncate">

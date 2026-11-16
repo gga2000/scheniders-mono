@@ -1,5 +1,6 @@
 "use client";
 
+import { PlatformChip } from "@/components/leads/lead-chips";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
@@ -9,7 +10,7 @@ import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
-  PLATFORM_CONFIG,
+  LEAD_TIER_UI,
 } from "@/types/leads";
 import type { LeadFormData } from "@/types/leads";
 import {
@@ -114,7 +115,6 @@ export function LeadDetailDesktop() {
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
-  const platformCfg = PLATFORM_CONFIG[lead.platform];
 
   const engagementRate =
     ((lead.avg_like_count + lead.avg_comments_count) /
@@ -156,12 +156,7 @@ export function LeadDetailDesktop() {
                 </p>
               )}
               <div className="flex items-center gap-2 mt-2">
-                <span
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold"
-                  style={{ backgroundColor: `${platformCfg.color}20`, color: platformCfg.color }}
-                >
-                  {platformCfg.label}
-                </span>
+                <PlatformChip platform={lead.platform} />
               </div>
             </div>
           </div>
@@ -173,7 +168,7 @@ export function LeadDetailDesktop() {
               {/* Tier */}
               <span
                 className="px-2.5 py-1 rounded-lg text-xs font-bold"
-                style={{ backgroundColor: `${tierCfg.color}20`, color: tierCfg.color }}
+                style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
               >
                 {tierCfg.label}
               </span>
@@ -358,7 +353,7 @@ export function LeadDetailDesktop() {
           </p>
           <span
             className="text-xs font-bold px-1.5 py-0.5 rounded mt-1 inline-block"
-            style={{ backgroundColor: `${tierCfg.color}15`, color: tierCfg.color }}
+            style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
           >
             {tierCfg.label}
           </span>

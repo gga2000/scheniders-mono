@@ -35,7 +35,7 @@ function NextStep({ shop, canCheckReceipts }: { shop: TodayShop; canCheckReceipt
       return canCheckReceipts ? (
         <Link href="/payments" className={FILLED}>Check receipt</Link>
       ) : (
-        <span className="text-[13px] text-foreground/60">A manager checks it</span>
+        <span className="text-[13px] text-foreground/70">A manager checks it</span>
       );
     case "support":
       return <Link href={`/support?case=${shop.case_id}`} className={QUIET}>Reply</Link>;
@@ -59,7 +59,7 @@ function Row({ shop, canCheckReceipts, now }: { shop: TodayShop; canCheckReceipt
         <Link href={`/merchants/${shop.tenant_id}`} dir="auto" className="block text-[15px] font-semibold text-foreground hover:underline">
           {shop.business_name}
         </Link>
-        <p className="text-[13px] tabular-nums text-foreground/55">#{getMerchantCode({ id: shop.tenant_id, display_id: shop.display_id })}</p>
+        <p className="text-[13px] tabular-nums text-foreground/70">#{getMerchantCode({ id: shop.tenant_id, display_id: shop.display_id })}</p>
       </td>
       <td className="py-3 pr-4">
         <p className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
@@ -70,7 +70,7 @@ function Row({ shop, canCheckReceipts, now }: { shop: TodayShop; canCheckReceipt
       </td>
       <td className="py-3 pr-4 text-right text-[15px] tabular-nums text-foreground">{formatCount(shop.wallet_iqd)}</td>
       <td className="py-3 pr-4 text-[15px] tabular-nums text-foreground" dir="ltr">
-        {shop.contact_phone ? formatIraqiPhoneDisplay(shop.contact_phone) : <span className="text-foreground/50">Not set</span>}
+        {shop.contact_phone ? formatIraqiPhoneDisplay(shop.contact_phone) : <span className="text-foreground/70">Not set</span>}
       </td>
       <td className="whitespace-nowrap py-3 pr-4 text-[13px] text-foreground/70">{waitWords(shop, now)}</td>
       <td className="py-3 pr-5 text-right">
@@ -103,7 +103,7 @@ export function TodayList({
       <div className="pastel-card flex items-center gap-3 px-5 py-6">
         <CircleCheck className="h-5 w-5 text-emerald-700" aria-hidden />
         <p className="text-[15px] font-semibold text-foreground">Nobody is waiting.</p>
-        <p className="text-[13px] text-foreground/60">Last checked at {formatTime(now)}</p>
+        <p className="text-[13px] text-foreground/70">Last checked at {formatTime(now)}</p>
       </div>
     );
   }
@@ -111,7 +111,7 @@ export function TodayList({
   return (
     <div className="pastel-card overflow-hidden">
       <table className="w-full text-left">
-        <thead className="border-b border-[var(--card-border)] text-[13px] text-foreground/60">
+        <thead className="border-b border-[var(--card-border)] text-[13px] text-foreground/70">
           <tr>
             <th scope="col" className="py-2.5 pl-5 font-medium">Shop</th>
             <th scope="col" className="py-2.5 font-medium">Why it is here</th>
@@ -129,7 +129,7 @@ export function TodayList({
               <tr className="bg-foreground/[0.03]">
                 <th scope="rowgroup" colSpan={6} className="py-2 pl-5 pr-5 text-left">
                   <span className="text-[15px] font-semibold text-foreground">{GROUP_TITLE[group]}</span>
-                  <span className="ml-2 text-[13px] font-normal text-foreground/60">{groupCount(group, rows)}</span>
+                  <span className="ml-2 text-[13px] font-normal text-foreground/70">{groupCount(group, rows)}</span>
                   {rows.length > GROUP_PREVIEW && (
                     <button
                       type="button"

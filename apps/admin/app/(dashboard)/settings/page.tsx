@@ -57,7 +57,7 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-foreground">
                 Store Industries
               </h2>
-              <p className="text-xs text-foreground/50">
+              <p className="text-xs text-foreground/70">
                 Categories shown in the store-creation wizard. Add, remove, or reorder.
               </p>
             </div>
@@ -69,7 +69,7 @@ export default function SettingsPage() {
             Manage
           </button>
         </div>
-        <p className="text-xs text-foreground/40">
+        <p className="text-xs text-foreground/70">
           Changes take effect immediately for new merchants going through onboarding.
         </p>
       </div>
@@ -89,7 +89,7 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold text-foreground">
               Admin Users
             </h2>
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-foreground/70">
               Admin user management coming soon
             </p>
           </div>
@@ -99,7 +99,7 @@ export default function SettingsPage() {
           <div className="pastel-card p-4 bg-foreground/[0.02]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-foreground/10 flex items-center justify-center">
-                <User className="w-5 h-5 text-foreground/60" />
+                <User className="w-5 h-5 text-foreground/70" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -112,14 +112,14 @@ export default function SettingsPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-foreground/50 mt-0.5">
+                <p className="text-xs text-foreground/70 mt-0.5">
                   Last login: {lastLogin}
                 </p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center py-8 text-foreground/40">
+          <div className="flex items-center justify-center py-8 text-foreground/70">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         )}
@@ -148,7 +148,7 @@ export default function SettingsPage() {
               <p className="text-sm font-medium text-foreground">
                 Purge Activity Logs
               </p>
-              <p className="text-xs text-foreground/50 mt-0.5">
+              <p className="text-xs text-foreground/70 mt-0.5">
                 Permanently delete all admin activity logs. This action cannot
                 be undone.
               </p>
@@ -168,7 +168,7 @@ export default function SettingsPage() {
               <p className="text-sm font-medium text-foreground">
                 Reset All Settings
               </p>
-              <p className="text-xs text-foreground/50 mt-0.5">
+              <p className="text-xs text-foreground/70 mt-0.5">
                 Reset all platform settings to their default values. This will
                 affect all merchants.
               </p>

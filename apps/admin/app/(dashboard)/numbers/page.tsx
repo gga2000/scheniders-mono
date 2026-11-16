@@ -71,7 +71,7 @@ export default function PlatformNumbersPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -86,7 +86,7 @@ export default function PlatformNumbersPage() {
       {/* Header */}
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Platform numbers</h1>
-        <p className="text-[13px] text-foreground/60">Every shop together, except the demo store.</p>
+        <p className="text-[13px] text-foreground/70">Every shop together, except the demo store.</p>
       </div>
 
       <motion.div

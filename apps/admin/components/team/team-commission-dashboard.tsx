@@ -72,7 +72,7 @@ export function TeamCommissionDashboard({
       <div className="pastel-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-foreground/50" />
+            <Settings className="w-4 h-4 text-foreground/70" />
             <h3 className="font-bold text-foreground text-sm">
               Commission Configurations
             </h3>
@@ -81,10 +81,10 @@ export function TeamCommissionDashboard({
 
         {configsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-foreground/30" />
+            <Loader2 className="w-5 h-5 animate-spin text-foreground/70" />
           </div>
         ) : !configs || configs.length === 0 ? (
-          <p className="text-sm text-foreground/40 py-4">
+          <p className="text-sm text-foreground/70 py-4">
             No commission configurations set up yet.
           </p>
         ) : (
@@ -119,12 +119,12 @@ export function TeamCommissionDashboard({
                       Active
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs font-medium text-foreground/40">
+                    <span className="flex items-center gap-1 text-xs font-medium text-foreground/70">
                       <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                       Inactive
                     </span>
                   )}
-                  <button className="ml-auto text-xs font-semibold text-foreground/50 hover:text-foreground transition-colors">
+                  <button className="ml-auto text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors">
                     Edit
                   </button>
                 </div>
@@ -143,7 +143,7 @@ export function TeamCommissionDashboard({
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value as Period)}
-            className="text-xs font-semibold text-foreground/60 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            className="text-xs font-semibold text-foreground/70 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[var(--primary)]"
           >
             <option value="month">This Month</option>
             <option value="quarter">This Quarter</option>
@@ -154,25 +154,25 @@ export function TeamCommissionDashboard({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                   Employee
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Merchants
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Conversions
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Earned
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Pending
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Paid
                 </th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/70">
                   Status
                 </th>
               </tr>
@@ -182,7 +182,7 @@ export function TeamCommissionDashboard({
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-12 text-center text-foreground/40 text-sm"
+                    className="px-4 py-12 text-center text-foreground/70 text-sm"
                   >
                     No employees found
                   </td>

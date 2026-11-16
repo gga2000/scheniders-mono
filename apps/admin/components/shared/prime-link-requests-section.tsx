@@ -79,7 +79,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
 
   return (
     <div className="border-b border-[var(--card-border)]" data-testid="prime-link-requests">
-      <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-foreground/40">Prime link requests</p>
+      <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-foreground/70">Prime link requests</p>
       {requests.map((req) => {
         const shops = req.prime_shops ?? [];
         const shopId = req.prime_shop_id ?? picked[req.id] ?? null;
@@ -90,12 +90,12 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
             <span className="mt-0.5 text-[#315EA8]"><Truck className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{req.tenants?.business_name ?? req.tenant_id}</p>
-              <p className="text-xs text-foreground/50 tabular-nums mt-0.5">
+              <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
                 Prime account {req.prime_phone}
                 {req.prime_name ? ` · ${req.prime_name}` : ""}
                 {req.prime_login_id && req.prime_login_id !== req.prime_phone ? ` (${req.prime_login_id})` : ""}
               </p>
-              <p className="text-xs text-foreground/60 mt-1">{WAITING_ON[req.outcome ?? "unchecked"]}</p>
+              <p className="text-xs text-foreground/70 mt-1">{WAITING_ON[req.outcome ?? "unchecked"]}</p>
               {req.prime_login_id && req.prime_shop_id === null && shops.length > 1 && (
                 <select
                   aria-label="Prime shop"
@@ -109,7 +109,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
                   ))}
                 </select>
               )}
-              <p className="text-xs text-foreground/30 mt-1">{formatWhen(req.created_at)}</p>
+              <p className="text-xs text-foreground/70 mt-1">{formatWhen(req.created_at)}</p>
             </div>
             {canApprove && (
               <button

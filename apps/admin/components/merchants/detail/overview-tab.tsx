@@ -55,7 +55,7 @@ export function OverviewTab({
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-3">
           {details.map((row) => (
             <div key={row.label}>
-              <dt className="text-[13px] text-foreground/60">{row.label}</dt>
+              <dt className="text-[13px] text-foreground/70">{row.label}</dt>
               <dd className="mt-1 text-[15px] font-medium text-foreground">
                 {row.copyable && row.value ? <CopyableText value={row.value} /> : row.value || "None"}
               </dd>

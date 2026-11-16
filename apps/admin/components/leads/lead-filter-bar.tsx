@@ -205,7 +205,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
                 )}
                 style={
                   active
-                    ? { backgroundColor: `${ui.solid}26`, borderColor: ui.solid, color: ui.solid }
+                    ? { backgroundColor: ui.strong, borderColor: ui.solid, color: ui.solid }
                     : { backgroundColor: ui.soft, color: ui.solid }
                 }
               >

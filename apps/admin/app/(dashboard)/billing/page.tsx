@@ -187,7 +187,7 @@ export default function BillingPage() {
         >
           {/* Merchant Select */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/60 mb-1">
+            <label className="block text-xs font-medium text-foreground/70 mb-1">
               Merchant
             </label>
             <select
@@ -206,7 +206,7 @@ export default function BillingPage() {
 
           {/* Amount */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/60 mb-1">
+            <label className="block text-xs font-medium text-foreground/70 mb-1">
               Amount (IQD)
             </label>
             <div className="flex gap-1.5 flex-wrap mb-1.5">
@@ -218,7 +218,7 @@ export default function BillingPage() {
                   className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
                     topupAmount === preset
                       ? "bg-foreground text-background border-foreground"
-                      : "bg-[var(--card-bg)] text-foreground/60 border-[var(--card-border)] hover:border-foreground/30"
+                      : "bg-[var(--card-bg)] text-foreground/70 border-[var(--card-border)] hover:border-foreground/30"
                   }`}
                 >
                   {formatCount(preset)}
@@ -239,7 +239,7 @@ export default function BillingPage() {
 
           {/* Description */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/60 mb-1">
+            <label className="block text-xs font-medium text-foreground/70 mb-1">
               Description (optional)
             </label>
             <input
@@ -296,10 +296,10 @@ export default function BillingPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+              <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
             </div>
           ) : sortedWallets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+            <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
               <Wallet className="w-10 h-10 mb-2" />
               <p className="text-sm">No wallets found</p>
             </div>
@@ -308,16 +308,16 @@ export default function BillingPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--card-border)]">
-                    <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Business
                     </th>
-                    <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Plan
                     </th>
-                    <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Balance
                     </th>
-                    <th className="p-3 text-center text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
@@ -376,10 +376,10 @@ export default function BillingPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+              <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
             </div>
           ) : transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+            <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
               <CreditCard className="w-10 h-10 mb-2" />
               <p className="text-sm">No transactions yet</p>
             </div>
@@ -412,12 +412,12 @@ export default function BillingPage() {
                   </div>
 
                   {/* Business name */}
-                  <span className="text-xs text-foreground/60 truncate flex-1 min-w-0">
+                  <span className="text-xs text-foreground/70 truncate flex-1 min-w-0">
                     {tx.tenants?.business_name ?? "Unknown"}
                   </span>
 
                   {/* Time ago */}
-                  <span className="text-xs text-foreground/40 shrink-0">
+                  <span className="text-xs text-foreground/70 shrink-0">
                     {formatWhen(tx.created_at)}
                   </span>
                 </div>

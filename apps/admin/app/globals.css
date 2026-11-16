@@ -16,6 +16,44 @@
   --text-xs--line-height: calc(1.125 / 0.8125);
 }
 
+/*
+ * Board v7: every text passes WCAG AA (4.5:1) on the page and on cards, in
+ * light and dark. The console has two inks: foreground and muted (muted is
+ * text-foreground/70 or var(--muted), never fainter). `--muted` labels 291
+ * places but was never defined, so they fell back to full ink.
+ *
+ * Status and tier colours read from --ink-*: a dark shade in light mode, a
+ * light shade in dark mode, each tested on its own 12% tint.
+ */
+:root {
+  --muted: #626262;
+  --ink-amber: #92400e;
+  --ink-orange: #9a3412;
+  --ink-yellow: #854d0e;
+  --ink-green: #166534;
+  --ink-teal: #115e59;
+  --ink-cyan: #155e75;
+  --ink-blue: #1d4ed8;
+  --ink-violet: #6d28d9;
+  --ink-fuchsia: #a21caf;
+  --ink-red: #b91c1c;
+  --ink-slate: #475569;
+}
+.dark {
+  --muted: #a3a3a3;
+  --ink-amber: #fcd34d;
+  --ink-orange: #fdba74;
+  --ink-yellow: #fde047;
+  --ink-green: #86efac;
+  --ink-teal: #5eead4;
+  --ink-cyan: #67e8f9;
+  --ink-blue: #93c5fd;
+  --ink-violet: #c4b5fd;
+  --ink-fuchsia: #f0abfc;
+  --ink-red: #fca5a5;
+  --ink-slate: #cbd5e1;
+}
+
 /* Performance: Inform browser to optimize font rendering */
 body {
   text-rendering: optimizeLegibility;

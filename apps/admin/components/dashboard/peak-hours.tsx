@@ -84,7 +84,7 @@ export function PeakHours({ cells }: PeakHoursProps) {
               {Array.from({ length: 24 }).map((_, h) => (
                 <div
                   key={h}
-                  className="flex-1 text-center text-xs text-foreground/40 font-medium"
+                  className="flex-1 text-center text-xs text-foreground/70 font-medium"
                 >
                   {HOUR_LABELS.includes(h) ? h : ""}
                 </div>
@@ -94,7 +94,7 @@ export function PeakHours({ cells }: PeakHoursProps) {
             {/* Grid rows */}
             {DAY_REORDER.map((dow, rowIdx) => (
               <div key={dow} className="flex items-center gap-1 mb-[2px]">
-                <span className="w-8 text-xs text-foreground/60 font-medium text-right pr-1 flex-shrink-0">
+                <span className="w-8 text-xs text-foreground/70 font-medium text-right pr-1 flex-shrink-0">
                   {DAY_LABELS[rowIdx]}
                 </span>
                 {Array.from({ length: 24 }).map((_, h) => {

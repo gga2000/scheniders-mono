@@ -42,11 +42,11 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
     <section className="pastel-card p-5" aria-label="Latest orders">
       <h2 className="mb-3 text-[15px] font-semibold text-foreground">Latest orders</h2>
       {isLoading ? (
-        <div className="flex justify-center py-6 text-foreground/40">
+        <div className="flex justify-center py-6 text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-label="Loading orders" />
         </div>
       ) : orders.length === 0 ? (
-        <p className="py-4 text-[13px] text-foreground/60">No orders yet.</p>
+        <p className="py-4 text-[13px] text-foreground/70">No orders yet.</p>
       ) : (
         <ul className="divide-y divide-[var(--card-border)]">
           {orders.map((o) => {
@@ -57,7 +57,7 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
                   <p className="truncate text-[15px] font-medium text-foreground">
                     {o.customer_name ?? "No name"}
                   </p>
-                  <p className="truncate text-[13px] text-foreground/60">
+                  <p className="truncate text-[13px] text-foreground/70">
                     {formatWhen(o.created_at)}
                     {o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : ""}
                     {o.customer_phone ? ` · ${o.customer_phone}` : ""}

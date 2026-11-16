@@ -12,7 +12,7 @@ const STATE_ICON: Record<CheckState, { icon: typeof CheckCircle2; className: str
   ok: { icon: CheckCircle2, className: "text-green-700", label: "Fine" },
   look: { icon: AlertTriangle, className: "text-amber-600", label: "Worth a look" },
   broken: { icon: XCircle, className: "text-red-700", label: "Broken" },
-  none: { icon: MinusCircle, className: "text-foreground/30", label: "Not in use" },
+  none: { icon: MinusCircle, className: "text-foreground/70", label: "Not in use" },
 };
 
 /** One button runs every check on the shop that wrote; red lines first. */
@@ -64,13 +64,13 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-foreground">
           {broken > 0 ? `${broken} broken` : look > 0 ? `${look} worth a look` : "All fine"}
-          <span className="ml-1.5 font-normal text-foreground/40">at {checkedAt}</span>
+          <span className="ml-1.5 font-normal text-foreground/70">at {checkedAt}</span>
         </p>
         <button
           type="button"
           onClick={() => check.refetch()}
           disabled={check.isFetching}
-          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-foreground/60 transition-colors hover:bg-foreground/5 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5 disabled:opacity-50"
         >
           <RotateCw className={cn("h-3 w-3", check.isFetching && "animate-spin")} />
           Check again

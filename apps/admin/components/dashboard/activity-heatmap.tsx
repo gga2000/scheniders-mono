@@ -124,7 +124,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
           <h3 className="font-bold text-foreground text-sm">Platform Activity</h3>
         </div>
         {/* Color scale legend */}
-        <div className="flex items-center gap-1 text-xs text-foreground/50">
+        <div className="flex items-center gap-1 text-xs text-foreground/70">
           <span>Less</span>
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <span
@@ -147,7 +147,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       {!days ? (
         <SkeletonContent />
       ) : days.length === 0 ? (
-        <p className="text-sm text-foreground/40 py-6 text-center">
+        <p className="text-sm text-foreground/70 py-6 text-center">
           No activity data yet.
         </p>
       ) : (
@@ -224,7 +224,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               <span className="font-semibold text-foreground">
                 {tooltip.count} {tooltip.count === 1 ? "action" : "actions"}
               </span>
-              <span className="text-foreground/50 ml-1.5">{tooltip.date}</span>
+              <span className="text-foreground/70 ml-1.5">{tooltip.date}</span>
             </div>
           )}
         </div>

@@ -87,12 +87,12 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
   if (message.sender_kind === "system") {
     const solved = message.body === "solved";
     return (
-      <div className="flex items-center justify-center gap-1.5 py-1 text-xs font-medium text-foreground/50">
+      <div className="flex items-center justify-center gap-1.5 py-1 text-xs font-medium text-foreground/70">
         {solved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
         {solved
           ? `Marked solved${message.sender_name ? ` by ${message.sender_name}` : ""}`
           : "Merchant said it is not solved. Reopened."}
-        <span className="text-foreground/30">· {formatDayTime(message.created_at)}</span>
+        <span className="text-foreground/70">· {formatDayTime(message.created_at)}</span>
       </div>
     );
   }
@@ -123,18 +123,18 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
           </a>
         )}
         {message.context.screenshot && !message.screenshot_url && (
-          <p className="mb-1 text-xs text-foreground/50">The picture of the screen is no longer stored.</p>
+          <p className="mb-1 text-xs text-foreground/70">The picture of the screen is no longer stored.</p>
         )}
         {message.voice_url && <VoiceNote url={message.voice_url} />}
         {message.context.voice && !message.voice_url && (
-          <p className="mb-1 text-xs text-foreground/50">The voice note is no longer stored.</p>
+          <p className="mb-1 text-xs text-foreground/70">The voice note is no longer stored.</p>
         )}
         <p dir="auto" className="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {message.body}
         </p>
       </div>
       {!fromStaff && <ContextChips message={message} />}
-      <span className="mt-1 text-xs text-foreground/40">
+      <span className="mt-1 text-xs text-foreground/70">
         {message.sender_name ? `${message.sender_name} · ` : ""}
         {formatDayTime(message.created_at)}
       </span>
@@ -269,7 +269,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
           <MessageLine key={message.id} message={message} />
         ))}
         {isSolved && supportCase.rating && (
-          <p className="py-1 text-center text-xs font-medium text-foreground/50">
+          <p className="py-1 text-center text-xs font-medium text-foreground/70">
             {supportCase.rating === "yes" ? "Merchant confirmed: solved." : "Merchant said: not solved."}
           </p>
         )}
@@ -306,7 +306,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
             <button
               type="button"
               onClick={() => setEditingReplies(true)}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
               <Pencil className="h-3 w-3" />
               Edit replies

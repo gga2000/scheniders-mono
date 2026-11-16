@@ -83,7 +83,7 @@ export default function MerchantDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -99,12 +99,12 @@ export default function MerchantDetailPage() {
       <div className="p-4 md:p-6 space-y-4">
         <Link
           href="/merchants"
-          className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Merchants
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <UserCircle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Merchant not found</p>
         </div>
@@ -120,7 +120,7 @@ export default function MerchantDetailPage() {
       {/* Back button */}
       <Link
         href="/merchants"
-        className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Merchants
@@ -163,7 +163,7 @@ export default function MerchantDetailPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">{tenant.business_name}</h1>
-              <div className="flex items-center gap-2 text-sm text-foreground/50">
+              <div className="flex items-center gap-2 text-sm text-foreground/70">
                 <span>{tenant.slug}</span>
                 <span className="w-0.5 h-0.5 rounded-full bg-foreground/20 shrink-0" />
                 <CopyableText
@@ -237,7 +237,7 @@ export default function MerchantDetailPage() {
           { label: "Team now", value: formatCount(team.filter((member) => member.status === "active").length) },
         ].map((tile) => (
           <div key={tile.label} className="px-5 py-4" title={tile.title}>
-            <dt className="text-[13px] text-foreground/60">{tile.label}</dt>
+            <dt className="text-[13px] text-foreground/70">{tile.label}</dt>
             <dd className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">{tile.value}</dd>
           </div>
         ))}
@@ -255,7 +255,7 @@ export default function MerchantDetailPage() {
             className={`px-4 py-2.5 text-sm font-semibold transition-colors ${
               activeTab === tab
                 ? "text-foreground border-b-2 border-foreground"
-                : "text-foreground/50 hover:text-foreground/70"
+                : "text-foreground/70 hover:text-foreground"
             }`}
           >
             {tab}

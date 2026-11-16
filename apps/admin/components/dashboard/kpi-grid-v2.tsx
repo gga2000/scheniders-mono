@@ -41,7 +41,7 @@ export function KpiGridV2({ kpis }: KpiGridV2Props) {
         if (!kpi) return <NumberCell key={key} label={LOADING_LABELS[key]} value="..." />;
         return (
           <NumberCell key={key} label={kpi.label} value={formatKpiValue(kpi)} note={<DeltaChip deltaPct={kpi.deltaPct} />}>
-            <div className="mt-2 text-foreground/40">
+            <div className="mt-2 text-foreground/70">
               <Sparkline data={kpi.sparkline} color="currentColor" height={20} />
             </div>
           </NumberCell>

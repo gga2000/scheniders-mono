@@ -23,7 +23,7 @@ export default function TeamPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -43,7 +43,7 @@ export default function TeamPage() {
             <Users className="w-6 h-6" />
             Team Management
           </h1>
-          <p className="text-foreground/50 mt-1">
+          <p className="text-foreground/70 mt-1">
             {team.length} employee{team.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function TeamPage() {
               "px-4 py-2.5 text-sm font-semibold transition-colors",
               activeTab === tab
                 ? "text-foreground border-b-2 border-[#1E1E1E]"
-                : "text-foreground/50 hover:text-foreground/70"
+                : "text-foreground/70 hover:text-foreground"
             )}
           >
             {tab}

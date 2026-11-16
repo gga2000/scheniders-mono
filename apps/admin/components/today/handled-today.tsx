@@ -21,7 +21,7 @@ export function HandledToday({ rows }: { rows: HandledRow[] }) {
     <section aria-labelledby="handled-today" className="pastel-card overflow-hidden">
       <div className="flex items-baseline gap-2 border-b border-[var(--card-border)] bg-foreground/[0.03] px-5 py-2">
         <h2 id="handled-today" className="text-[15px] font-semibold text-foreground">Handled today</h2>
-        <span className="text-[13px] text-foreground/60">{formatCount(rows.length)} so far</span>
+        <span className="text-[13px] text-foreground/70">{formatCount(rows.length)} so far</span>
         {rows.length > HANDLED_PREVIEW && (
           <button
             type="button"
@@ -44,14 +44,14 @@ export function HandledToday({ rows }: { rows: HandledRow[] }) {
         <tbody className="divide-y divide-[var(--card-border)]">
           {shown.map((row, index) => (
             <tr key={`${row.kind}-${row.tenant_id}-${row.at}-${index}`} className="align-baseline">
-              <td className="w-20 whitespace-nowrap py-2.5 pl-5 pr-4 text-[13px] tabular-nums text-foreground/60">
+              <td className="w-20 whitespace-nowrap py-2.5 pl-5 pr-4 text-[13px] tabular-nums text-foreground/70">
                 {formatTime(row.at)}
               </td>
               <td className="w-64 py-2.5 pr-4">
                 <Link href={`/merchants/${row.tenant_id}`} dir="auto" className="text-[15px] font-semibold text-foreground hover:underline">
                   {row.business_name}
                 </Link>
-                <span className="ml-2 text-[13px] tabular-nums text-foreground/55">
+                <span className="ml-2 text-[13px] tabular-nums text-foreground/70">
                   #{getMerchantCode({ id: row.tenant_id, display_id: row.display_id })}
                 </span>
               </td>

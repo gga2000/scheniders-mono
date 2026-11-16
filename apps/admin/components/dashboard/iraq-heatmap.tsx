@@ -117,7 +117,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all capitalize ${
                 view === v
                   ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                  : "text-foreground/50 hover:text-foreground"
+                  : "text-foreground/70 hover:text-foreground"
               }`}
             >
               {v === "revenue" ? "Shop sales" : "Orders"}
@@ -203,7 +203,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
 
           {/* Legend */}
           <div className="flex items-center justify-center gap-1 mt-3">
-            <span className="text-xs text-foreground/50">Less</span>
+            <span className="text-xs text-foreground/70">Less</span>
             {scale.map((color, i) => (
               <div
                 key={i}
@@ -211,7 +211,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                 style={{ backgroundColor: color }}
               />
             ))}
-            <span className="text-xs text-foreground/50">More</span>
+            <span className="text-xs text-foreground/70">More</span>
           </div>
         </>
       )}

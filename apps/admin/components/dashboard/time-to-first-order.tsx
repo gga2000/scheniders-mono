@@ -58,7 +58,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
       {!buckets ? (
         <Skeleton />
       ) : buckets.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           No data available
         </p>
       ) : (

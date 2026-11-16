@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
-import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI, LEAD_PRIORITY_UI, LEAD_TIER_CONFIG, PLATFORM_CONFIG } from "@/types/leads";
+import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI, LEAD_PRIORITY_UI, LEAD_TIER_CONFIG, LEAD_TIER_UI, PLATFORM_CONFIG } from "@/types/leads";
 
 function compactFollowers(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K`;
@@ -41,7 +41,7 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
     >
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold"
-        style={{ backgroundColor: `${tier.color}1A`, color: tier.color, border: `1px solid ${tier.color}40` }}
+        style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid, border: `1px solid ${LEAD_TIER_UI[lead.tier].strong}` }}
       >
         {lead.merchant_name.trim().charAt(0).toUpperCase() || "?"}
       </div>
@@ -57,7 +57,7 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
         <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
           <span style={{ color: platform.color }}>{platform.label}</span>
           {" · "}{compactFollowers(lead.follower_count)}
-          {" · "}<span style={{ color: tier.color }}>{tier.label}</span>
+          {" · "}<span style={{ color: LEAD_TIER_UI[lead.tier].solid }}>{tier.label}</span>
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">

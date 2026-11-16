@@ -149,12 +149,12 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
       ))}
       <button
         onClick={() => setIsOpen(false)}
-        className="px-2 py-1 rounded-lg text-xs text-foreground/40 hover:text-foreground/70 transition-colors"
+        className="px-2 py-1 rounded-lg text-xs text-foreground/70 hover:text-foreground transition-colors"
       >
         Cancel
       </button>
       {mutation.isPending && (
-        <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/40" />
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/70" />
       )}
       {mutation.isError && (
         <span className="text-xs text-red-600 font-medium">
@@ -229,10 +229,10 @@ export default function TrialsPage() {
       {/* Trial List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+          <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
         </div>
       ) : sortedTrials.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <Clock className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">No active trials</p>
           <p className="text-sm mt-1">All merchants have been converted or there are no trials yet</p>
@@ -247,14 +247,14 @@ export default function TrialsPage() {
               {/* Left: Business info */}
               <div className="md:w-1/4 min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-foreground/60 font-bold text-xs shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-foreground/70 font-bold text-xs shrink-0">
                     {trial.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground truncate">
                       {trial.business_name}
                     </p>
-                    <p className="text-xs text-foreground/50 truncate">
+                    <p className="text-xs text-foreground/70 truncate">
                       {trial.slug}
                       {trial.city ? ` \u00b7 ${trial.city}` : ""}
                     </p>
@@ -280,7 +280,7 @@ export default function TrialsPage() {
                       <p
                         className={`text-xs font-semibold ${
                           trial.is_expired
-                            ? "text-foreground/40"
+                            ? "text-foreground/70"
                             : trial.days_remaining <= 3
                               ? "text-red-600"
                               : trial.days_remaining <= 7
@@ -290,7 +290,7 @@ export default function TrialsPage() {
                       >
                         {trialDayLabel(trial)}
                       </p>
-                      <p className="text-xs text-foreground/40">
+                      <p className="text-xs text-foreground/70">
                         {formatDayTime(trial.trial_ends_at)}
                       </p>
                     </div>

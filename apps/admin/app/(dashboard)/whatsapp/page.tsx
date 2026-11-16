@@ -89,7 +89,7 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
           >
             {change.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : `Yes, ${label.toLowerCase()}`}
           </button>
-          <button type="button" onClick={() => setConfirming(false)} className="text-xs text-foreground/50 hover:text-foreground">
+          <button type="button" onClick={() => setConfirming(false)} className="text-xs text-foreground/70 hover:text-foreground">
             Cancel
           </button>
         </>
@@ -149,7 +149,7 @@ export default function WhatsAppPage() {
             type="button"
             aria-label="Previous month"
             onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            className="rounded-lg p-1.5 text-foreground/60 hover:bg-foreground/5 hover:text-foreground"
+            className="rounded-lg p-1.5 text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -159,7 +159,7 @@ export default function WhatsAppPage() {
             aria-label="Next month"
             onClick={() => setMonth((m) => shiftMonth(m, 1))}
             disabled={month >= current}
-            className="rounded-lg p-1.5 text-foreground/60 hover:bg-foreground/5 hover:text-foreground disabled:opacity-30"
+            className="rounded-lg p-1.5 text-foreground/70 hover:bg-foreground/5 hover:text-foreground disabled:opacity-30"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -168,7 +168,7 @@ export default function WhatsAppPage() {
 
       {isLoading || !data ? (
         <div className="flex items-center justify-center py-32">
-          <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+          <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
         </div>
       ) : (
         <>
@@ -188,7 +188,7 @@ export default function WhatsAppPage() {
           </NumberStrip>
 
           {data.totals.unpaid > 0 && (
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-foreground/70">
               {number(data.totals.unpaid)} delivered {data.totals.unpaid === 1 ? "message was" : "messages were"} not paid: the
               shop&apos;s wallet ran out between the send and the delivery.
             </p>
@@ -196,7 +196,7 @@ export default function WhatsAppPage() {
 
           <div className="pastel-card p-0 overflow-hidden">
             {data.shops.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+              <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
                 <MessageCircleOff className="w-10 h-10 mb-2" />
                 <p className="text-sm">No messages delivered in {monthLabel(month)}.</p>
               </div>
@@ -208,7 +208,7 @@ export default function WhatsAppPage() {
                       {["Shop", "Plan", "Messages", "Shop paid", "Trial, on us", "Last 24 hours", "WhatsApp"].map((h, i) => (
                         <th
                           key={h}
-                          className={`p-3 text-xs font-semibold text-foreground/60 uppercase tracking-wider ${i < 2 ? "text-left" : "text-right"}`}
+                          className={`p-3 text-xs font-semibold text-foreground/70 uppercase tracking-wider ${i < 2 ? "text-left" : "text-right"}`}
                         >
                           {h}
                         </th>
@@ -225,37 +225,37 @@ export default function WhatsAppPage() {
                             <Link href={`/merchants/${s.tenant_id}`} className="font-medium text-foreground hover:underline">
                               {s.name ?? "Shop"}
                             </Link>
-                            {s.display_id !== null && <span className="ml-2 text-xs text-foreground/40 tabular-nums">#{s.display_id}</span>}
+                            {s.display_id !== null && <span className="ml-2 text-xs text-foreground/70 tabular-nums">#{s.display_id}</span>}
                           </td>
                           <td className="p-3 text-xs">
                             <span className="font-semibold capitalize">{s.plan}</span>
-                            <span className="text-foreground/40"> · {s.status}</span>
+                            <span className="text-foreground/70"> · {s.status}</span>
                           </td>
                           <td className="p-3 text-right tabular-nums">
                             <span className="font-medium">{number(s.messages)}</span>
                             {s.messages > 0 && (
-                              <span className="block text-xs text-foreground/40">
+                              <span className="block text-xs text-foreground/70">
                                 {number(s.utility)} utility · {number(s.marketing)} marketing
                               </span>
                             )}
                           </td>
                           <td className="p-3 text-right font-medium tabular-nums">
-                            {s.plan === "internal" ? <span className="text-foreground/40">Our store</span> : iqd(s.shop_paid_iqd)}
+                            {s.plan === "internal" ? <span className="text-foreground/70">Our store</span> : iqd(s.shop_paid_iqd)}
                             {s.unpaid > 0 && <span className="block text-xs text-rose-700">{number(s.unpaid)} not paid</span>}
                           </td>
                           <td className="p-3 text-right tabular-nums">
                             {trial === 0 ? (
-                              <span className="text-foreground/30">0</span>
+                              <span className="text-foreground/70">0</span>
                             ) : (
                               <>
                                 <span className="font-medium">{number(trial)}</span>
-                                <span className="block text-xs text-foreground/40">about {iqd(trialCostIqd(s))}</span>
+                                <span className="block text-xs text-foreground/70">about {iqd(trialCostIqd(s))}</span>
                               </>
                             )}
                           </td>
                           <td className="p-3 text-right tabular-nums">
                             {s.reached_24h === 0 ? (
-                              <span className="text-foreground/30">No sends</span>
+                              <span className="text-foreground/70">No sends</span>
                             ) : (
                               <span
                                 className={
@@ -278,7 +278,7 @@ export default function WhatsAppPage() {
             )}
           </div>
 
-          <p className="text-xs text-foreground/40">
+          <p className="text-xs text-foreground/70">
             Trial cost is an estimate at Interakt&apos;s price: about {INTERAKT_COST_IQD.utility} IQD a utility message and{" "}
             {INTERAKT_COST_IQD.marketing} IQD a marketing one. &quot;Failed&quot; counts messages Meta could not deliver
             and numbers Interakt called invalid; a shop is paused when half or more of 20+ messages fail in 24 hours.

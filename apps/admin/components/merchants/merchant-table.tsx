@@ -59,7 +59,7 @@ export function MerchantTable({ merchants, sort, onSort, now = new Date() }: Mer
   return (
     <div className="pastel-card overflow-hidden">
       <table className="w-full text-left">
-        <thead className="border-b border-[var(--card-border)] text-[13px] text-foreground/60">
+        <thead className="border-b border-[var(--card-border)] text-[13px] text-foreground/70">
           <tr>
             <SortHeader label="Shop" field="name" sort={sort} onSort={onSort} firstDirection="asc" className="pl-5" />
             <th scope="col" className="py-2.5 font-medium">Status</th>
@@ -87,7 +87,7 @@ export function MerchantTable({ merchants, sort, onSort, now = new Date() }: Mer
                   <Link href={href} dir="auto" className="block text-[15px] font-semibold text-foreground hover:underline">
                     {shop.business_name}
                   </Link>
-                  <p className="text-[13px] tabular-nums text-foreground/55">
+                  <p className="text-[13px] tabular-nums text-foreground/70">
                     #{getMerchantCode(shop)}
                     {shop.city && <span dir="auto"> · {shop.city}</span>}
                   </p>
@@ -97,15 +97,15 @@ export function MerchantTable({ merchants, sort, onSort, now = new Date() }: Mer
                     <span aria-hidden className={cn("h-2 w-2 shrink-0 rounded-full", TONE_DOT[status.tone])} />
                     {status.label}
                   </p>
-                  <p className="text-[13px] text-foreground/60">{status.reason}</p>
+                  <p className="text-[13px] text-foreground/70">{status.reason}</p>
                 </td>
                 <td className="py-3 pr-4 text-right text-[15px] tabular-nums text-foreground">{formatCount(shop.wallet_iqd)}</td>
                 <td className="py-3 text-right text-[15px] tabular-nums text-foreground">{formatCount(shop.orders_30d)}</td>
                 <td className="py-3 pl-6 pr-4 text-[15px] text-foreground">
-                  {shop.last_order_at ? formatWhen(shop.last_order_at, now) : <span className="text-foreground/50">None yet</span>}
+                  {shop.last_order_at ? formatWhen(shop.last_order_at, now) : <span className="text-foreground/70">None yet</span>}
                 </td>
                 <td className="py-3 pr-5 text-[15px] tabular-nums text-foreground" dir="ltr">
-                  {shop.contact_phone ?? <span className="text-foreground/50">Not set</span>}
+                  {shop.contact_phone ?? <span className="text-foreground/70">Not set</span>}
                 </td>
               </tr>
             );
