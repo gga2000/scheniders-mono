@@ -6,6 +6,7 @@ import { fetchFees30d } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
+import { readShopCity } from "@/lib/shop-city";
 
 /** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
 interface LiteShop {
@@ -51,7 +52,9 @@ export async function GET(request: NextRequest) {
 
     const plan = searchParams.get("plan");
     const status = searchParams.get("status");
-    const city = searchParams.get("city");
+    // The city picker names a governorate, read the way the list reads it.
+    const city = readShopCity(searchParams.get("city"));
+    if ("error" in city) return NextResponse.json({ error: city.error }, { status: 400 });
     const search = searchParams.get("search");
     const balance = searchParams.get("balance");
     const health = searchParams.get("health");
@@ -73,7 +76,7 @@ export async function GET(request: NextRequest) {
       if (plan) query = query.eq("plan", plan);
       // "attention" is never a filter here: the header always counts it, so its pill can light up.
       if (status && status !== ATTENTION) query = query.eq("status", status);
-      if (city) query = query.eq("city", city);
+      if (city.governorate) query = query.filter("city", "imatch", city.governorate.pattern);
       // The balance and health bands, filtered by the database the way the list filters them.
       for (const [column, operator, value] of computedShopFilters({ balance, health })) {
         query = query.filter(column, operator, value);

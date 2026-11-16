@@ -7,6 +7,7 @@ import { useAdminStore } from "@/store/use-admin-store";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { cn } from "@/lib/utils";
 import { SHOP_GOVERNORATES } from "@/lib/shop-city";
+import type { HealthBand } from "@/lib/merchant-health";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { PLAN_LABELS, PLAN_TIERS, type AdminTenant } from "@/types/admin";
 
@@ -68,9 +69,11 @@ const BALANCE_OPTIONS = [
   { value: "healthy", label: "Healthy (>50K)", dot: "bg-green-500" },
 ];
 
-const HEALTH_OPTIONS = [
+// Each value is a band the API filters by (lib/merchant-filters.ts): a name it
+// does not know filters nothing, so the type checks them.
+const HEALTH_OPTIONS: { value: HealthBand | ""; label: string; dot?: string }[] = [
   { value: "", label: "All Health" },
-  { value: "at-risk", label: "At Risk", dot: "bg-red-500" },
+  { value: "at_risk", label: "At Risk", dot: "bg-red-500" },
   { value: "warning", label: "Warning", dot: "bg-amber-500" },
   { value: "healthy", label: "Healthy", dot: "bg-green-500" },
 ];

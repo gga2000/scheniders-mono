@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { IRAQ_GOVERNORATE_PATHS } from "@scheniders/shared/iraq-map-paths";
-import { SHOP_GOVERNORATES, governorateNamed, shopGovernorate } from "./shop-city";
+import { SHOP_GOVERNORATES, governorateNamed, readShopCity, shopGovernorate } from "./shop-city";
 
 /*
  * Shops typed their city as "بغداد" or "Baghdad". The map knew only lowercase
@@ -42,6 +42,19 @@ describe("governorateNamed", () => {
     expect(governorateNamed("baghdad")?.code).toBe("BGD");
     expect(governorateNamed("dhi qar")?.code).toBe("NAS");
     expect(governorateNamed("atlantis")).toBeUndefined();
+  });
+});
+
+describe("readShopCity", () => {
+  it("asks for every shop when no city is named", () => {
+    expect(readShopCity(null)).toEqual({});
+    expect(readShopCity("")).toEqual({});
+  });
+
+  it("names the governorate, or says it cannot", () => {
+    const city = readShopCity("Baghdad");
+    expect("governorate" in city && city.governorate?.code).toBe("BGD");
+    expect(readShopCity("atlantis")).toEqual({ error: "Unknown city" });
   });
 });
 
