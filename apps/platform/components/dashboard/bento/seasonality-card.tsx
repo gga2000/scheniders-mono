@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useDashboardMonthlySales } from "@/hooks/use-dashboard-monthly-sales";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
@@ -23,6 +23,7 @@ const whole = (n: number) => Math.round(n).toLocaleString("en-US");
  */
 export function SeasonalityCard() {
     const { t, language } = useLanguage();
+    const dir = useTextDir();
     const { revealed, canReveal } = useFinancialVisibility();
     const query = useDashboardMonthlySales();
     const tip = useChartTooltip();
@@ -54,7 +55,8 @@ export function SeasonalityCard() {
         };
     }, [year, monthName, measure, t]);
 
-    const unit = measure === "revenue" ? <span className="ms-1.5 font-sans text-xs font-normal tracking-normal text-[var(--foreground-muted)]">IQD</span> : null;
+    // The unit in the page's language; each amount is laid out in that language's direction, number first.
+    const unit = measure === "revenue" ? <span className="ms-1.5 font-sans text-xs font-normal tracking-normal text-[var(--foreground-muted)]">{t("common.iqd")}</span> : null;
 
     return (
         <BentoCard label={t("dashboard.bento.seasonTitle")} order={3}>
@@ -99,13 +101,13 @@ export function SeasonalityCard() {
                         <div>
                             <div className="text-[13px] tracking-[-0.01em] text-[var(--foreground-muted)]">{t("dashboard.bento.monthlyAvg")}</div>
                             <div className="mt-1.5 font-mono text-[26px] font-medium leading-none tracking-[-0.04em] tabular-nums text-foreground">
-                                <CountUp value={year.monthlyAverage} />{unit}
+                                <span dir={dir}><CountUp value={year.monthlyAverage} />{unit}</span>
                             </div>
                         </div>
                         <div>
                             <div className="text-[13px] tracking-[-0.01em] text-[var(--foreground-muted)]">{t("dashboard.bento.yearTotal")}</div>
                             <div className="mt-1.5 font-mono text-[26px] font-medium leading-none tracking-[-0.04em] tabular-nums text-foreground">
-                                <CountUp value={year.total} />{unit}
+                                <span dir={dir}><CountUp value={year.total} />{unit}</span>
                             </div>
                             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
                                 <Delta pct={year.deltaPct} />

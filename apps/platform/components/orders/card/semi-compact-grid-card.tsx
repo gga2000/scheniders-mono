@@ -145,8 +145,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                                 "text-sm font-bold tabular-nums flex-shrink-0",
                                 isReturn ? "text-red-600" : "text-foreground"
                             )}>
-                                {isReturn && "-"}
-                                {formatIQD(order.is_return ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
+                                {formatIQD(isReturn ? -computeRefundPayout(order) : Math.abs(Number(order.price)))}
                             </span>
                         )}
                     </div>

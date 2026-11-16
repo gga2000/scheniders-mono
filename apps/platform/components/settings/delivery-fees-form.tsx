@@ -141,7 +141,7 @@ export function DeliveryFeesForm() {
                                 }
                                 className="w-24 h-8 rounded-lg border border-(--card-border) bg-background px-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-(--pastel-mint)"
                             />
-                            <span className="text-xs text-muted-foreground font-medium">IQD</span>
+                            <span className="text-xs text-muted-foreground font-medium">{t("common.iqd")}</span>
                         </div>
                     </div>
                 ))}
@@ -160,7 +160,7 @@ export function DeliveryFeesForm() {
                             onChange={(e) => setDefaultFee(Number(e.target.value))}
                             className="w-full h-9 rounded-xl border border-(--card-border) bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-(--pastel-mint)"
                         />
-                        <span className="text-xs text-muted-foreground shrink-0">IQD</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{t("common.iqd")}</span>
                     </div>
                 </div>
                 <div className="space-y-1.5">
@@ -175,7 +175,7 @@ export function DeliveryFeesForm() {
                             placeholder={t("settings.fees.freeOff")}
                             className="w-full h-9 rounded-xl border border-(--card-border) bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-(--pastel-mint)"
                         />
-                        <span className="text-xs text-muted-foreground shrink-0">IQD</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{t("common.iqd")}</span>
                     </div>
                 </div>
             </div>

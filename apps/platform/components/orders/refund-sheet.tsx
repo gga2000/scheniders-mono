@@ -258,7 +258,7 @@ export function RefundSheet({
                             {preview.deductions > 0 && (
                                 <div className="flex justify-between text-muted">
                                     <dt>{t("refund.pickupFeeKept")}</dt>
-                                    <dd>−{formatIQD(preview.deductions)}</dd>
+                                    <dd>{formatIQD(-preview.deductions)}</dd>
                                 </div>
                             )}
                             <div className="flex items-baseline justify-between pt-1 font-semibold text-foreground">

@@ -2,6 +2,7 @@ import { Order } from "@/lib/supabase";
 import { extractGovernorate } from "@/lib/address-validator";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import type { Locale } from "@/lib/i18n";
+import { formatBaghdadShortDate } from "@/lib/customer-format";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
 /**
@@ -114,39 +115,15 @@ function oneTanween(text: string): string {
 }
 
 /**
- * A full order timestamp: day, month, year and time, in Baghdad.
- *
- * I18N-5: the order detail modal rendered this with `en-US` and 2-digit month
- * and day, i.e. MM/DD/YYYY — so an order placed on 3 September read as 09/03,
- * which in Iraq is 9 March. It also pinned no time zone, so the calendar day
- * could disagree with the Baghdad day the order is bucketed into everywhere
- * else.
+ * Day with its month named, then the time, Baghdad: «14 تشرين الثاني · 07:01 ص»,
+ * the year only when it is not this year. The order window writes its dates this
+ * way, as the rest of the app does (round 15 critic: «14/11/2026» in the window).
  */
-const baghdadDayMonthYear = new Intl.DateTimeFormat("en-GB", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: BAGHDAD_TIME_ZONE,
-});
-
-/** Day, month and year — day first, Baghdad: "14/11/2026". */
-export const formatOrderDate = (dateStr: string | Date | undefined | null) => {
+export const formatOrderNamedDateTime = (dateStr: string | Date | undefined | null, language: Locale = "en", now: Date = new Date()) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return baghdadDayMonthYear.format(date);
-};
-
-/** Day, month, year and time — day first, Baghdad: "14/11/2026, 07:01 ص". */
-export const formatOrderDateTime = (dateStr: string | Date | undefined | null, language: Locale = "en") => {
-    const day = formatOrderDate(dateStr);
-    return day ? `${day}, ${formatTime(dateStr, language)}` : "";
-};
-
-/** Day, month and time, no year — day first, Baghdad: "14/11, 07:01 ص". */
-export const formatOrderDayMonthTime = (dateStr: string | Date | undefined | null, language: Locale = "en") => {
-    const day = formatShortDate(dateStr);
-    return day ? `${day}, ${formatTime(dateStr, language)}` : "";
+    return `${formatBaghdadShortDate(date.toISOString(), language, now)} · ${formatTime(date, language)}`;
 };
 
 /**

@@ -16,7 +16,6 @@ const REASON_CHIP: Record<PrimeNeedReason, string> = {
     stuck: "bg-[#FEF3E2] text-[#8A4B00] dark:bg-amber-400/15 dark:text-amber-200",
     needs_you: "bg-[#F5F1FE] text-[#4B2FA8] dark:bg-violet-400/15 dark:text-violet-200",
     cancelled_by_prime: "bg-[#F1EFEA] text-[#4A4A4A] dark:bg-white/10 dark:text-white/70",
-    returning: "bg-[#FBEAE8] text-[#8F1D13] dark:bg-rose-500/15 dark:text-rose-200",
 };
 
 const button =

@@ -70,15 +70,27 @@ function sum(days: readonly Figures[]): Figures {
 }
 
 /**
+ * The first day the storefront log saw anything (a visit, an order or a sale),
+ * or null when it saw nothing. The RPC pads its 60 days with empty ones, so
+ * «all» really covers the days from here: round 15's critic read «آخر 60
+ * يوماً» on a log that began 30 days ago.
+ */
+export function storeLogStart(raw: StoreOverviewRaw): string | null {
+    return raw.days.find((d) => d.visitors > 0 || d.orders > 0 || d.sales > 0)?.day || null;
+}
+
+/**
  * The six overview figures for the dashboard's period.
  *
  * Today is compared with yesterday cut off at the same time of day, so a morning
  * is never judged against a whole day. 7 and 30 days are the last N Baghdad days,
  * today included (the rule every dashboard period uses), against the N days
- * before them. All is every day the log returns (at most 60), with no comparison.
+ * before them. All is every day from the log's first activity (at most 60), with
+ * no comparison.
  */
 export function storeOverviewMetrics(raw: StoreOverviewRaw, range: DateRangeKey = "today"): OverviewMetric[] {
-    const days = raw.days;
+    const start = range === "all" ? storeLogStart(raw) : null;
+    const days = start ? raw.days.filter((d) => d.day >= start) : raw.days;
     const n = range === "all" ? days.length : PERIOD_DAYS[range];
     const current = range === "today" ? (days[days.length - 1] ?? ZERO) : sum(days.slice(-n));
     const previous = range === "today"

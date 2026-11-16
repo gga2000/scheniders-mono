@@ -19,7 +19,7 @@ import type { OrderStatus } from "@/lib/supabase";
 import type { Order, OrderSource } from "@/types/order";
 import { SourceBadge } from "./card/source-badge";
 import { isWhatsAppSlot, swapPhones, type WhatsAppSlot } from "@/lib/whatsapp-contact";
-import { formatOrderDateTime, formatOrderDayMonthTime, formatScheduledDate, isScheduledToday, scheduleDayFromToday } from "@/lib/order-format-utils";
+import { formatOrderNamedDateTime, formatScheduledDate, isScheduledToday, scheduleDayFromToday } from "@/lib/order-format-utils";
 
 /**
  * "The customer told us to reach them here." Green + the WhatsApp glyph so it
@@ -566,7 +566,7 @@ export function OrderCustomerCard({
                                             ? "text-amber-900 font-semibold"
                                             : "text-foreground"
                                     )}>
-                                        {formatOrderDateTime(order.created_at, language)}
+                                        {formatOrderNamedDateTime(order.created_at, language)}
                                     </span>
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
@@ -575,7 +575,7 @@ export function OrderCustomerCard({
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">{t("orders.ui.wasLower")}</span>
-                                            {formatOrderDayMonthTime(order.original_created_at, language)}
+                                            {formatOrderNamedDateTime(order.original_created_at, language)}
                                         </span>
                                     )}
                                 </div>

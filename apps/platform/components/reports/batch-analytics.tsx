@@ -231,7 +231,7 @@ export function BatchAnalytics({
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
                                         <span className="font-semibold text-foreground truncate">
-                                            {runTitle(batch, t)}
+                                            {runTitle(batch, t, language)}
                                         </span>
                                         <span className={cn(
                                             "px-2 py-0.5 rounded text-[10px] font-bold uppercase",

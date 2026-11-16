@@ -14,6 +14,7 @@ import { primeLastChecked } from "@/lib/prime/track";
 import { usePrimeStatements } from "@/hooks/use-prime-statements";
 import { primeOldestAgeDays, readPrimeBoardList, type PrimeBoardList } from "@/lib/prime/board";
 import { primeProblemsFrom } from "@/lib/prime/problems";
+import { primeQueues } from "@/lib/prime/queues";
 import { cn } from "@/lib/utils";
 import { PrimeDayBatches } from "./prime-day-batches";
 import { PrimeMoneyStrip } from "./prime-money-strip";
@@ -79,7 +80,8 @@ export function PrimePage() {
     const [refresh, setRefresh] = useState<"idle" | "busy" | "failed">("idle");
     const statements = usePrimeStatements(admin);
     const unapproved = statements.data?.connected ? statements.data.statements.filter((x) => x.approval === null).length : 0;
-    const problemCount = useMemo(() => (data ? primeProblemsFrom(data.views, data.orders, data.readAt).filter((p) => !p.handled).length : 0), [data]);
+    // «يحتاج قرارك» is the Orders page's «معالجة» queue: the same parcels, the same count on both pages.
+    const problemCount = useMemo(() => (data ? primeQueues(primeProblemsFrom(data.views, data.orders, data.readAt)).fix.waiting : 0), [data]);
 
     // Days the longest-waiting parcel of each stage has gone without a move at Prime.
     const ages = useMemo(() => {
@@ -186,7 +188,7 @@ export function PrimePage() {
                     ) : (
                         <>
                             <PrimeMoneyStrip onRoad={data.board.cash.on_road} admin={admin} />
-                            <PrimePipeline board={data.board} branchName={connection.branchName} selected={list} onSelect={setList} ages={ages} />
+                            <PrimePipeline board={data.board} needs={problemCount} branchName={connection.branchName} selected={list} onSelect={setList} ages={ages} />
                             <div className="flex items-start gap-[18px]">
                                 <div className="flex min-w-0 flex-[1.4] flex-col gap-3">
                                     <div role="group" aria-label={t("prime.batches.view")} className="flex w-fit rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] p-0.5">

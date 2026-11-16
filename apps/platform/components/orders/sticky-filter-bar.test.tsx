@@ -1,11 +1,22 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach, onTestFinished } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { StickyFilterBar } from "./sticky-filter-bar";
 
-afterEach(cleanup);
+// jsdom has no ResizeObserver; the chip row watches its own width with one.
+class FakeResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+beforeEach(() => vi.stubGlobal("ResizeObserver", FakeResizeObserver));
+afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+});
 
 const renderBar = (props: Partial<Parameters<typeof StickyFilterBar>[0]> = {}) => {
     const setFilterDueToday = vi.fn();
@@ -193,5 +204,31 @@ describe("Prime queue chips slot", () => {
         expect(document.querySelector('[data-chip="all"]')?.className).not.toContain("bg-primary");
         fireEvent.click(document.querySelector('[data-chip="new"]') as HTMLElement);
         expect(useOrderStore.getState().primeQueue).toBeNull();
+    });
+});
+
+describe("chip row edge cue", () => {
+    it("fades and offers a scroll button only on a side that hides chips", () => {
+        // A row twice as wide as its box, scrolled to the start: chips hide on the right only.
+        vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(2400);
+        vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
+        const scrollBy = vi.fn();
+        // jsdom has no scrollBy; this test adds it and takes it away again.
+        const before = HTMLElement.prototype.scrollBy;
+        HTMLElement.prototype.scrollBy = scrollBy;
+        onTestFinished(() => { HTMLElement.prototype.scrollBy = before; });
+        renderBar();
+        expect(document.querySelector("[data-chip-row-scroll='left']")).toBeNull();
+        const more = document.querySelector("[data-chip-row-scroll='right']") as HTMLButtonElement;
+        expect(more).toBeTruthy();
+        expect(document.querySelector("[data-chip-row]")?.className).toContain("mask-image");
+        fireEvent.click(more);
+        expect(scrollBy).toHaveBeenCalledWith({ left: 840, behavior: "smooth" });
+    });
+
+    it("shows no button when every chip fits", () => {
+        renderBar();
+        expect(document.querySelector("[data-chip-row-scroll]")).toBeNull();
+        expect(document.querySelector("[data-chip-row]")?.className).not.toContain("mask-image");
     });
 });

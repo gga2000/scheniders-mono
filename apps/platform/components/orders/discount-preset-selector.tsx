@@ -122,7 +122,7 @@ export function DiscountPresetSelector({
                         }
                     </span>
                     <span className="text-sm font-bold text-green-700 font-mono">
-                        -{formatIQD(tieredDiscount)}
+                        {formatIQD(-tieredDiscount)}
                     </span>
                 </div>
             )}

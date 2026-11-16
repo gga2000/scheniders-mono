@@ -51,10 +51,15 @@ export function KPICards({ metrics, returnsCount }: KPICardsProps) {
         {
             title: t("reports.kpi.delivery"),
             unit: "pp",
-            value: `${metrics.deliveryRate.toFixed(1)}%`,
+            value: metrics.deliveryRate === null ? "—" : `${metrics.deliveryRate.toFixed(1)}%`,
             change: metrics.deliveryRateChange,
             icon: CheckCircle2,
             hint: t("analytics.deliveryRate.def"),
+            // The rate's base on the card, so it is not read as the pipeline's
+            // «سُلِّم من طلبات البيع» (round 15 critic: two rates, one explained only in a hover).
+            base: metrics.decidedCount > 0
+                ? t("reports.kpi.deliveryBase", { delivered: metrics.deliveredCount, decided: metrics.decidedCount })
+                : t("reports.kpi.deliveryNone"),
         },
         {
             title: t("reports.kpi.contact"),
@@ -130,6 +135,9 @@ export function KPICards({ metrics, returnsCount }: KPICardsProps) {
                         <p className="text-sm font-medium mt-1 text-muted">{kpi.title}</p>
                         {"note" in kpi && kpi.note && (
                             <p className="text-xs mt-1 text-muted tabular-nums" data-kpi-note><bdi>{kpi.note}</bdi></p>
+                        )}
+                        {"base" in kpi && kpi.base && (
+                            <p className="text-xs mt-1 text-muted tabular-nums" data-kpi-base><bdi>{kpi.base}</bdi></p>
                         )}
                     </motion.div>
                 );

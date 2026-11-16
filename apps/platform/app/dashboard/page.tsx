@@ -8,7 +8,7 @@ import { CreateOrderModal } from "@/components/orders/create-order-modal";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { Plus, Download } from "lucide-react";
-import { baghdadHour, ordersDrillQuery, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { baghdadHour, ordersDrillQuery } from "@/lib/analytics/dashboard-calculations";
 import { DashboardTabs, useDashboardTab } from "@/components/dashboard/dashboard-tabs";
 import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
 import { useGeoFacts } from "@/hooks/use-dashboard-order-facts";
@@ -20,6 +20,7 @@ import { useViewport } from "@/hooks/use-viewport";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
 import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { StoreOverviewRow } from "@/components/dashboard/bento/store-overview-row";
+import { useDashboardRange } from "@/hooks/use-dashboard-range";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
@@ -77,7 +78,7 @@ export default function Home() {
   const { announcements, loading: announcementsLoading, error: announcementsError, createAnnouncement, togglePin, deleteAnnouncement } = useAnnouncements();
   const track = useTrackEvent();
 
-  const [dateRange, setDateRange] = useState<DateRangeKey>('7d');
+  const [dateRange, setDateRange] = useDashboardRange();
   const [tab, setTab] = useDashboardTab();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -320,7 +321,7 @@ export default function Home() {
                 Both cards carry their own window and read one shared 60-day facts query. */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               <div className="xl:col-span-5 min-h-[400px]">
-                <WidgetBoundary label="bento-revenue"><RevenueCard /></WidgetBoundary>
+                <WidgetBoundary label="bento-revenue"><RevenueCard range={dateRange} /></WidgetBoundary>
               </div>
               <div className="xl:col-span-7 min-h-[400px]">
                 <WidgetBoundary label="bento-order-waves"><OrderWavesCard /></WidgetBoundary>

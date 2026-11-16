@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Layers, ChevronDown, ShieldCheck, Copy, CalendarClock, Package, Check, X, RotateCcw, Repeat, ShoppingCart, Gift } from "lucide-react";
+import { Filter, Layers, ChevronDown, ChevronLeft, ChevronRight, ShieldCheck, Copy, CalendarClock, Package, Check, X, RotateCcw, Repeat, ShoppingCart, Gift } from "lucide-react";
 import { cn, formatCount } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
@@ -12,6 +12,7 @@ import {
 } from "@scheniders/ui/dropdown-menu";
 import { useLanguage } from "@/hooks/use-language";
 import { useOrderStore } from "@/store/use-order-store";
+import { edgeFadeClass, useEdgeOverflow } from "@/hooks/use-edge-overflow";
 
 interface FilterState {
     status?: OrderStatus | "all" | "refunds" | "refunded" | "refund_pending" | "replacements";
@@ -74,7 +75,7 @@ interface StickyFilterBarProps {
     riskCountHidden?: boolean;
 }
 
-import { Fragment, memo, useState, type ReactNode } from "react";
+import { Fragment, memo, useRef, useState, type ReactNode } from "react";
 
 /**
  * The statuses the desktop row keeps in view: the queues a merchant works
@@ -125,6 +126,17 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     const overflowActive = !!filters.product && overflowProducts.some((p) => p.name === filters.product);
     const toggleProduct = (name: string) =>
         setFilters({ ...filters, product: filters.product === name ? undefined : name });
+
+    // The chip row scrolls sideways; where it hides chips it fades and offers a
+    // button, so «تجميع», the returns filter and the queue chips past the edge
+    // are visibly there (round 15 critic: 1,000 px of chips off-screen, no cue).
+    const rowRef = useRef<HTMLDivElement>(null);
+    const rowEdges = useEdgeOverflow(rowRef);
+    const scrollRow = (direction: 1 | -1) => {
+        const row = rowRef.current;
+        if (row) row.scrollBy({ left: direction * row.clientWidth * 0.7, behavior: "smooth" });
+    };
+    const edgeButton = "absolute top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground shadow-sm transition-colors hover:bg-[var(--background)]";
 
     // Refund / replacement sub-filter only makes sense in the Confirmed & All
     // tabs (other tabs already isolate their own order types).
@@ -195,10 +207,12 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 className
             )}
         >
-            <div data-guide="order-status-tabs" className={cn(
+            <div className="relative">
+            <div ref={rowRef} data-guide="order-status-tabs" data-chip-row className={cn(
                 "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x py-6 pl-8 pr-6",
                 // Mobile adjustments for touch targets
-                isMobile ? "min-h-[50px]" : ""
+                isMobile ? "min-h-[50px]" : "",
+                edgeFadeClass(rowEdges)
             )}>
                 {/* Status Pills */}
                 {chipOptions.map((option) => {
@@ -468,6 +482,17 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         <path d="m19.07 4.93-1.41 1.41" />
                     </svg>
                 </button>
+            </div>
+            {!isMobile && rowEdges.left && (
+                <button type="button" data-chip-row-scroll="left" onClick={() => scrollRow(-1)} aria-label={t("orders.chipRow.scrollBack")} title={t("orders.chipRow.scrollBack")} className={cn(edgeButton, "left-1")}>
+                    <ChevronLeft className="h-4 w-4" />
+                </button>
+            )}
+            {!isMobile && rowEdges.right && (
+                <button type="button" data-chip-row-scroll="right" onClick={() => scrollRow(1)} aria-label={t("orders.chipRow.scrollMore")} title={t("orders.chipRow.scrollMore")} className={cn(edgeButton, "right-1")}>
+                    <ChevronRight className="h-4 w-4" />
+                </button>
+            )}
             </div>
 
             {/* Refund / Replacement Sub-Filter — only in Confirmed & All tabs */}
