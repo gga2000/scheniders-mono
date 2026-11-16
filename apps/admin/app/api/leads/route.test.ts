@@ -52,3 +52,37 @@ describe("GET /api/leads search", () => {
     expect(stub.callsTo("leads.or")).toHaveLength(0);
   });
 });
+
+/*
+ * The sort menu's value went to the database as it came, and nothing broke
+ * ties: 15 of 28 leads share a score, so with 20 a page the second page could
+ * show a lead again and skip another. The API now orders only by the menu's
+ * sorts, then by id.
+ */
+describe("GET /api/leads sort", () => {
+  it("orders by the menu's sort, then by id so pages never overlap", async () => {
+    const res = await call("sort=lead_score:desc");
+
+    expect(res.status).toBe(200);
+    expect(stub.callsTo("leads.order")).toEqual([
+      ["lead_score", { ascending: false, nullsFirst: false }],
+      ["id", { ascending: true, nullsFirst: false }],
+    ]);
+  });
+
+  it("shows the newest first when no sort is given", async () => {
+    await call();
+
+    expect(stub.callsTo("leads.order")[0]).toEqual(["created_at", { ascending: false, nullsFirst: false }]);
+  });
+
+  it.each(["password:asc", "lead_score:asc", "lead_score:desc,id:asc", "industry(name):desc"])(
+    "refuses %j, before any read",
+    async (sort) => {
+      const res = await call(`sort=${encodeURIComponent(sort)}`);
+
+      expect(res.status).toBe(400);
+      expect(stub.tablesRead()).toEqual([]);
+    },
+  );
+});
