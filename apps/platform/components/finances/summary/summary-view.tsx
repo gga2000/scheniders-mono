@@ -88,7 +88,7 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             <ProfitStatement summary={summary} statement={statement} previous={beforeFigures?.statement ?? null} onOpenTab={onOpenTab} />
 
-            <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]")}>
+            <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start")}>
                 <MoneyRoute
                     summary={summary}
                     delivery={statement.lines.find((l) => l.id === "delivery") ?? { id: "delivery", amount: 0, share: 0, parts: [] }}

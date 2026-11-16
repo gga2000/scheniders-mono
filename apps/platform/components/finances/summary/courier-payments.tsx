@@ -28,6 +28,21 @@ interface Part {
     amounts?: boolean;
 }
 
+/** The amount most of the given amounts share (the larger deduction on a tie). */
+function usualAmount(amounts: readonly number[]): number {
+    const counts = new Map<number, number>();
+    for (const amount of amounts) counts.set(amount, (counts.get(amount) ?? 0) + 1);
+    let best = 0;
+    let bestCount = 0;
+    for (const [amount, count] of counts) {
+        if (count > bestCount || (count === bestCount && amount < best)) {
+            best = amount;
+            bestCount = count;
+        }
+    }
+    return best;
+}
+
 /** The order codes behind one line, each opening its order. */
 function OrderLinks({ orders, withAmounts = false }: { orders: StatementOrder[]; withAmounts?: boolean }) {
     const { t } = useLanguage();
@@ -79,6 +94,22 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
     const other = gap - statement.returns - statement.prepaid_gap - statement.price_gap - statement.undelivered;
     const ordersOf = (kind: StatementOrder["kind"]) => orders.filter((order) => order.kind === kind);
     const counted = (key: string, n: number) => t(key, { n: formatWhole(n), count: n });
+    // A prepaid order loses the whole delivery fee; one the statement credited with some money loses less, so say why.
+    const prepaidNote = (prepaid: StatementOrder[]) => {
+        const fee = usualAmount(prepaid.map((order) => order.amount));
+        const odd = prepaid.length > 1 && fee < 0 ? prepaid.filter((order) => order.amount > fee && order.amount < 0) : [];
+        return [
+            t("fin.money.cash.part.prepaidNote"),
+            ...odd.map((order) =>
+                t("fin.money.cash.part.prepaidOdd", {
+                    code: order.code ?? order.id.slice(0, 8),
+                    collected: money(order.amount - fee),
+                    net: money(-order.amount),
+                    fee: money(-fee),
+                }),
+            ),
+        ].join(" ");
+    };
     const parts: Part[] =
         payments.payments > 0 && split.reached_now > 0 && gap !== 0
             ? [
@@ -110,7 +141,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                       key: "prepaid",
                       // A statement usually lists a prepaid order at nothing and keeps its fee.
                       label: counted(statement.prepaid_gap < 0 ? "fin.money.cash.part.prepaidFee" : "fin.money.cash.part.prepaid", statement.prepaid_orders),
-                      note: statement.prepaid_gap < 0 ? t("fin.money.cash.part.prepaidNote") : undefined,
+                      note: statement.prepaid_gap < 0 ? prepaidNote(ordersOf("prepaid")) : undefined,
                       amount: statement.prepaid_gap,
                       orders: ordersOf("prepaid"),
                       // One odd row (a statement listing an order at 1 dinar) explains an odd total.
