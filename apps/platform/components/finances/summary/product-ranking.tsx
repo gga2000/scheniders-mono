@@ -19,7 +19,7 @@ interface ProductRankingProps {
 const FOLD = 8;
 /** The database sends at most this many products. */
 const SERVER_LIMIT = 50;
-const COLUMNS = "grid grid-cols-[52px_minmax(0,1.15fr)_minmax(160px,1fr)_176px_60px] items-center gap-x-3.5";
+const COLUMNS = "grid grid-cols-[52px_minmax(0,1.15fr)_minmax(160px,1fr)_176px_76px] items-center gap-x-3.5";
 
 /**
  * The products of the period, the one that earned most first: picture, full
@@ -43,12 +43,12 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                 <p className="py-2 text-left text-[14px] text-muted" dir={dir}>{t("fin.products.empty")}</p>
             ) : (
                 <>
-                    <div className={cn(COLUMNS, "border-b border-[var(--card-border)] pb-2")} aria-hidden="true">
+                    <div className={cn(COLUMNS, "items-end border-b border-[var(--card-border)] pb-2")} aria-hidden="true">
                         <span />
                         <span className={cn(head, "text-left")}>{t("fin.products.col.product")}</span>
                         <span className={cn(head, "text-left")}>{t("fin.products.col.part")}</span>
                         <span className={cn(head, "text-right")}>{t("fin.products.col.profit")}</span>
-                        <span className={cn(head, "text-right")}>{t("fin.products.col.share")}</span>
+                        <span className="text-right text-[12px] font-medium leading-tight text-muted">{t("fin.products.col.share")}</span>
                     </div>
                     <ol>
                         {shown.map((row, i) => {

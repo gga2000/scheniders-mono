@@ -116,12 +116,15 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/money_split AS \(\s*SELECT COALESCE\(sum\(price - fee\) FILTER \(WHERE paid\), 0\) AS reached,[\s\S]*?COALESCE\(sum\(fee\), 0\) AS fee,\s+COALESCE\(sum\(price - fee\) FILTER \(WHERE NOT paid\), 0\) AS unpaid,[\s\S]*?FROM sold_fee\s+\)/);
     });
 
-    it("says what part of the paid orders Prime paid, and what courier files dated before the period paid", () => {
-        expect(core).toMatch(/AND ps\.payment_id IS NOT NULL\) AS by_prime/);
+    it("splits the paid orders by the date of the courier file that paid them, so the parts add up to what reached the shop", () => {
         expect(core).toMatch(/WHERE i\.order_id = s\.id AND di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)\s+AND di\.payment_date < \(SELECT ts_from FROM w\)\) AS file_before/);
-        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND by_prime\), 0\) AS reached_prime/);
-        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT by_prime AND file_before\), 0\) AS reached_before/);
-        expect(core).toMatch(/'reached_prime', reached_prime, 'reached_before', reached_before/);
+        expect(core).toMatch(/AND di\.payment_date >= \(SELECT ts_from FROM w\)\s+AND di\.payment_date < \(SELECT ts_to FROM w\)\) AS file_now/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND file_before\), 0\) AS reached_before/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT file_before AND file_now\), 0\) AS reached_now/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT file_before AND NOT file_now\), 0\) AS reached_other/);
+        // Prime's payments are the same courier files, so there is no separate Prime part
+        expect(core).not.toMatch(/reached_prime/);
+        expect(core).toMatch(/'reached_now', reached_now, 'reached_other', reached_other/);
     });
 
     it("scopes every table it reads to the shop", () => {

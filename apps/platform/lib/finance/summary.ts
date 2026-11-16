@@ -104,10 +104,12 @@ export const FinanceSummarySchema = z.object({
             unpaid_orders: z.number(),
             /** Of the unpaid orders, those Prime delivered and has not paid out yet. */
             unpaid_prime: z.number(),
-            /** Of `reached`, what Prime paid. Zero from a server older than the field. */
-            reached_prime: z.number().catch(0),
             /** Of `reached`, what courier files dated before the period paid: orders marked delivered after their payment. */
             reached_before: z.number().catch(0),
+            /** Of `reached`, what the courier payments dated in the period paid. Zero from a server older than the field. */
+            reached_now: z.number().catch(0),
+            /** Of `reached`, the rest (a payment dated after the period). before + now + other = reached. */
+            reached_other: z.number().catch(0),
         }),
     }),
     failed: z.object({
