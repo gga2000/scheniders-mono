@@ -507,6 +507,17 @@ export const SUPPORT_TASK_LABELS: Record<SupportTaskKind, { title: string; hint:
   call_back: { title: "Call back", hint: "The merchant asked for a call from the Help chat. Call the number below." },
 };
 
+/** A call-back the merchant asked for from the setup wizard: «تريد نساعدك بالإعداد؟» (Fermi B11). */
+export const SETUP_HELP_LABEL = {
+  title: "Setup help",
+  hint: "A new shop asked for free help setting up. Call, then set up the store with them.",
+};
+
+/** What the Today row says a task is: a setup-help call reads as its own kind. */
+export function taskLabel(task: Pick<SupportTask, "kind" | "topic">): { title: string; hint: string } {
+  return task.topic === "setup" ? SETUP_HELP_LABEL : SUPPORT_TASK_LABELS[task.kind];
+}
+
 export const CALL_OUTCOMES = ["done", "no_answer", "later"] as const;
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
 
@@ -533,6 +544,8 @@ const callSchema = z.object({
 export const SupportTaskSchema = z.object({
   id: z.string().uuid(),
   kind: z.enum(SUPPORT_TASK_KINDS),
+  /** Only on call-backs: "setup" when asked from the setup wizard. */
+  topic: z.enum(["setup"]).nullable(),
   due_at: z.string(),
   attempts: z.number().int().min(0),
   /** Only on call-backs: the number the merchant left, 07XXXXXXXXX. */

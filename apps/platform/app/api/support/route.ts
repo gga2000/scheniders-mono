@@ -80,14 +80,14 @@ async function ownerName(db: ServiceDb, tenantId: string): Promise<string | null
 async function openCallBack(db: ServiceDb, tenantId: string): Promise<SupportCallBack | null> {
     const { data, error } = await db
         .from("support_tasks")
-        .select("phone, due_at")
+        .select("phone, due_at, topic")
         .eq("tenant_id", tenantId)
         .eq("kind", "call_back")
         .is("done_at", null)
         .maybeSingle();
     if (error) throw new Error(`Support call-back read failed: ${error.message}`);
-    const row = data as { phone: string | null; due_at: string } | null;
-    return row?.phone ? { phone: row.phone, due_at: row.due_at } : null;
+    const row = data as { phone: string | null; due_at: string; topic: string | null } | null;
+    return row?.phone ? { phone: row.phone, due_at: row.due_at, topic: row.topic === "setup" ? "setup" : null } : null;
 }
 
 /** The shop's contact mobile in 07XXXXXXXXX form, when it has a valid one. */
@@ -194,7 +194,8 @@ async function memberName(db: ServiceDb, caller: Caller): Promise<string> {
  *   {action:"rate", caseId, rating} answer "did this solve it?" on a solved case
  *   {action:"noReason", caseId, reason}  why the answer did not solve it, after a No
  *   {action:"read"}                 mark staff replies as seen
- *   {action:"callBack", phone}      ask staff to call this number (a task in their Today list)
+ *   {action:"callBack", phone, topic?}  ask staff to call this number (a task in their Today list);
+ *                                   topic "setup" is the setup wizard's free setup help
  * The shop and the member come from the session; a body cannot name either.
  */
 async function handlePOST(request: NextRequest) {
@@ -243,6 +244,7 @@ async function handlePOST(request: NextRequest) {
                     p_user_id: caller.userId,
                     p_user_name: await memberName(db, caller),
                     p_phone: input.phone,
+                    p_topic: input.topic ?? null,
                 })
               : input.action === "noReason"
                 ? await db.rpc("support_merchant_no_reason", {

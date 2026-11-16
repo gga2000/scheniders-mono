@@ -76,6 +76,8 @@ export const supportPostSchema = z.discriminatedUnion("action", [
                 }
                 return phone;
             }),
+        /** "setup": free help setting up the store, asked from the setup wizard (B11). */
+        topic: z.literal("setup").optional(),
     }),
 ]);
 
@@ -144,6 +146,8 @@ export interface SupportCallBack {
     phone: string;
     /** When staff are due to call: now, or 9 AM Baghdad when asked overnight. */
     due_at: string;
+    /** "setup" when the merchant asked for help setting up their store, else null. */
+    topic: "setup" | null;
 }
 
 /**

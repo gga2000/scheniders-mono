@@ -105,11 +105,11 @@ describe("GET /api/support", () => {
         state.queue.push(
             { data: [], error: null },
             { data: null, error: null },
-            { data: { phone: "07701234567", due_at: "2026-11-16T12:00:00Z" }, error: null },
+            { data: { phone: "07701234567", due_at: "2026-11-16T12:00:00Z", topic: "setup" }, error: null },
             { data: { contact_phone: "+964 780 111 2222" }, error: null },
         );
         const body = await (await GET(request("GET"))).json();
-        expect(body.data.callBack).toEqual({ phone: "07701234567", due_at: "2026-11-16T12:00:00Z" });
+        expect(body.data.callBack).toEqual({ phone: "07701234567", due_at: "2026-11-16T12:00:00Z", topic: "setup" });
         expect(body.data.contactPhone).toBe("07801112222");
         const tasks = state.calls.findIndex((c) => c.method === "from" && c.args[0] === "support_tasks");
         expect(state.calls.slice(tasks).find((c) => c.method === "is")?.args).toEqual(["done_at", null]);
@@ -412,8 +412,28 @@ describe("POST /api/support", () => {
         expect(res.status).toBe(200);
         expect(rpcCall()?.args).toEqual([
             "support_request_call_back",
-            { p_tenant_id: TENANT, p_user_id: USER, p_user_name: "Huda", p_phone: "07701234567" },
+            { p_tenant_id: TENANT, p_user_id: USER, p_user_name: "Huda", p_phone: "07701234567", p_topic: null },
         ]);
+    });
+
+    it("asks for free setup help as a call-back marked setup", async () => {
+        state.queue.push(
+            { data: { display_name: "Huda" }, error: null },
+            { data: { task_id: "t1", phone: "07701234567", due_at: "2026-11-16T12:00:00Z", topic: "setup" }, error: null },
+            { data: [], error: null },
+        );
+        const res = await POST(request("POST", { action: "callBack", phone: "0770 123 4567", topic: "setup" }));
+        expect(res.status).toBe(200);
+        expect(rpcCall()?.args).toEqual([
+            "support_request_call_back",
+            { p_tenant_id: TENANT, p_user_id: USER, p_user_name: "Huda", p_phone: "07701234567", p_topic: "setup" },
+        ]);
+    });
+
+    it("refuses any other call-back topic before touching the database", async () => {
+        const res = await POST(request("POST", { action: "callBack", phone: "07701234567", topic: "billing" }));
+        expect(res.status).toBe(400);
+        expect(state.calls).toHaveLength(0);
     });
 
     it("refuses a number that is not an Iraqi mobile with its own code, before touching the database", async () => {

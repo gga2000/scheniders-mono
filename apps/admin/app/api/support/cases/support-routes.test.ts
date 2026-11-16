@@ -729,6 +729,7 @@ describe("support first-week calls", () => {
   const TASK = {
     id: TASK_ID,
     kind: "welcome_call",
+    topic: null,
     due_at: "2026-11-16T09:00:00+00:00",
     attempts: 0,
     phone: null,
@@ -766,6 +767,12 @@ describe("support first-week calls", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ tasks: [TASK], me: SUPPORT_ID });
     expect(rpcCall()?.args).toEqual(["support_tasks_due"]);
+  });
+
+  it("passes on a setup-help call with its topic", async () => {
+    const setup = { ...TASK, kind: "call_back", topic: "setup", phone: "07701234567", requested_by: "Huda" };
+    dbResult = { data: [setup], error: null };
+    expect(await (await list("support")).json()).toEqual({ tasks: [setup], me: SUPPORT_ID });
   });
 
   it("says it failed when a task has a kind it does not know", async () => {

@@ -8,6 +8,8 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k, language: "en" }) }));
+// The setup-help offer has its own tests; here it would need the support thread.
+vi.mock("./setup-help-offer", () => ({ SetupHelpOffer: () => null }));
 
 import { OnboardingWizard } from "./onboarding-wizard";
 import { FALLBACK_INDUSTRIES } from "@/lib/wizard-industry-types";

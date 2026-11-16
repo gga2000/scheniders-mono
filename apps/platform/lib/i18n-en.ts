@@ -7570,6 +7570,10 @@ export const en: Record<string, string> = {
     "wizard.nav.create": "Create my store",
     "wizard.nav.creating": "Creating…",
     "wizard.footer": "You can change everything later in the editor.",
+    "wizard.help.title": "Want help setting up?",
+    "wizard.help.body": "Free. Someone from our team calls you and sets up the store with you.",
+    "wizard.help.yes": "Yes, call me",
+    "wizard.help.asked": "Got it. We will call you on {phone}",
     "wizard.error.create": "Couldn't create your store. Please try again.",
     "wizard.error.network": "Network error. Please check your connection and try again.",
     // ── Signup (UX2-14) ──
