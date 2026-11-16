@@ -139,7 +139,7 @@ export function PrimePage() {
                             <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("prime.page.title")}</h1>
                             <p className="mt-0.5 text-sm text-muted">
                                 {connection.branchName ?? t("orders.prime.stop.branch")} · {t("prime.page.connected")}
-                                {minutesAgo !== null && <> · {t("orders.prime.row.checked", { min: minutesAgo })}</>}
+                                {minutesAgo !== null && <> · {t("orders.prime.row.checked", { count: minutesAgo })}</>}
                                 <> · </>
                                 <button
                                     type="button"

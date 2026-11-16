@@ -15,8 +15,8 @@ const row = (id: string, status: Order["status"], created_at: string) =>
 const WINDOW_ROWS = [row("in-window", "in_transit", "2026-11-05T05:00:00Z"), row("new", "new", "2026-11-05T05:00:00Z")];
 const OLD = [row("old", "in_transit", "2026-10-01T05:00:00Z")];
 
-function view(inTransit: Parameters<typeof useOrderFilters>[0]["inTransit"]) {
-    const filters = { status: "in_transit", dateFrom: "2026-11-05", dateTo: "2026-11-05" } as OrderFilters;
+function view(inTransit: Parameters<typeof useOrderFilters>[0]["inTransit"], status: OrderFilters["status"] = "in_transit") {
+    const filters = { status, dateFrom: "2026-11-05", dateTo: "2026-11-05" } as OrderFilters;
     return renderHook(() =>
         useOrderFilters({ orders: WINDOW_ROWS, searchResults: null, filters, setFilters: vi.fn(), clearFilters: vi.fn(), inTransit }),
     ).result.current;
@@ -52,5 +52,15 @@ describe("in-transit tab across dates", () => {
     it("is not covered (counts hidden) until every in-transit order is read", () => {
         expect(view({ extras: [], loaded: false, scope: "any" }).countViewFacts.ready).toBe(false);
         expect(view({ extras: OLD, loaded: true, scope: "any" }).countViewFacts.ready).toBe(true);
+    });
+
+    it("on another tab, keeps the other counts but marks the in-transit count not in yet", () => {
+        // The window holds 1 in-transit order; the read across dates has not
+        // answered, so the chip must not say 1 (or 0) for a desk with more on the road.
+        const pending = view({ extras: [], loaded: false, scope: "any" }, "new").countViewFacts;
+        expect(pending.ready).toBe(true);
+        expect(pending.transitReady).toBe(false);
+        expect(view({ extras: OLD, loaded: true, scope: "any" }, "new").countViewFacts.transitReady).toBe(true);
+        expect(view(null, "new").countViewFacts.transitReady).toBe(true);
     });
 });

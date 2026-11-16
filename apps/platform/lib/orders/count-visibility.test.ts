@@ -3,7 +3,7 @@ import { countVisibility, listCountVisible, type CountContext } from "./count-vi
 import { canOfferSelectAll, canShipWithoutSelection } from "@/lib/order-bulk-scope";
 
 const base: CountContext = {
-    facts: { ready: true, statusIsAll: true, windowIsAll: true },
+    facts: { ready: true, statusIsAll: true, windowIsAll: true, transitReady: true },
     archived: false,
     columnFilter: false,
     riskLevel: undefined,
@@ -16,41 +16,45 @@ const v = (over: Over = {}) =>
 
 describe("countVisibility", () => {
     it("shows everything over the plain hook list", () => {
-        expect(v()).toEqual({ chips: true, dueTodayBadge: true, riskBadge: true, flaggedCard: true });
+        expect(v()).toEqual({ chips: true, transitChip: true, dueTodayBadge: true, riskBadge: true, flaggedCard: true });
     });
 
     it.each([
         ["not ready (search, uncovered window)", { facts: { ready: false } }],
         ["archived view", { archived: true }],
     ] as const)("hides every count when %s", (_label, over) => {
-        expect(v(over)).toEqual({ chips: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
+        expect(v(over)).toEqual({ chips: false, transitChip: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
     });
 
     it("keeps the chips but hides Flagged and risk while a Prime queue is open", () => {
-        expect(v({ primeQueue: true })).toEqual({ chips: true, dueTodayBadge: true, riskBadge: false, flaggedCard: false });
+        expect(v({ primeQueue: true })).toEqual({ chips: true, transitChip: true, dueTodayBadge: true, riskBadge: false, flaggedCard: false });
     });
 
     it.each([
         ["a column filter", { columnFilter: true }],
         ["duplicates only", { duplicatesOnly: true }],
     ] as const)("hides every count under %s, which narrows the list after the hook", (_label, over) => {
-        expect(v(over)).toEqual({ chips: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
+        expect(v(over)).toEqual({ chips: false, transitChip: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
     });
 
     it("due-today on: only its own badge stays", () => {
-        expect(v({ dueToday: true })).toEqual({ chips: false, dueTodayBadge: true, riskBadge: false, flaggedCard: false });
+        expect(v({ dueToday: true })).toEqual({ chips: false, transitChip: false, dueTodayBadge: true, riskBadge: false, flaggedCard: false });
     });
 
     it("risk on: the risk badge and the Flagged card stay", () => {
-        expect(v({ riskLevel: "flagged" })).toEqual({ chips: false, dueTodayBadge: false, riskBadge: true, flaggedCard: true });
+        expect(v({ riskLevel: "flagged" })).toEqual({ chips: false, transitChip: false, dueTodayBadge: false, riskBadge: true, flaggedCard: true });
         // ...even with a status tab and dates, since the list already has the risk filter.
         expect(v({ riskLevel: "high", facts: { statusIsAll: false, windowIsAll: false } }).riskBadge).toBe(true);
+    });
+
+    it("hides only the in-transit chip's number until its read across dates answers", () => {
+        expect(v({ facts: { transitReady: false } })).toEqual({ chips: true, transitChip: false, dueTodayBadge: true, riskBadge: true, flaggedCard: true });
     });
 
     it("risk off: the risk badge only on the All tab (turning it on clears the status, keeps the days)", () => {
         expect(v({ facts: { statusIsAll: false } }).riskBadge).toBe(false);
         expect(v({ facts: { windowIsAll: false } }).riskBadge).toBe(true);
-        expect(v({ facts: { statusIsAll: false, windowIsAll: false } })).toEqual({ chips: true, dueTodayBadge: true, riskBadge: false, flaggedCard: true });
+        expect(v({ facts: { statusIsAll: false, windowIsAll: false } })).toEqual({ chips: true, transitChip: true, dueTodayBadge: true, riskBadge: false, flaggedCard: true });
     });
 });
 
@@ -58,7 +62,7 @@ describe("while the All Orders preview is on screen", () => {
     // The preview shows while the list does not cover its window: facts.ready
     // is false, listCovered is false, and ordersAreComplete is false.
     it("hides every chip and badge, and the list's own length", () => {
-        expect(v({ facts: { ready: false } })).toEqual({ chips: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
+        expect(v({ facts: { ready: false } })).toEqual({ chips: false, transitChip: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
         expect(listCountVisible({ listCovered: false, searching: false })).toBe(false);
     });
 

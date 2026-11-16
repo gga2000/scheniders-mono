@@ -321,7 +321,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                 placeholder="07XXXXXXXXX"
                             />
                             <p className="text-[11px] text-muted-foreground mt-1">
-                                {t("settings.biz.whatsappHint")}
+                                <bdi>{t("settings.biz.whatsappHint")}</bdi>
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -411,7 +411,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                         {isUploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                                         {logoUrl ? t("settings.biz.change") : t("settings.biz.upload")}
                                     </button>
-                                    <p className="text-[10px] text-muted-foreground mt-1">{t("settings.biz.logoRules")}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1"><bdi>{t("settings.biz.logoRules")}</bdi></p>
                                 </div>
                             </div>
                         </div>

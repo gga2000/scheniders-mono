@@ -216,7 +216,7 @@ export function PrimeProblemsTab({
                     <CheckCircle2 aria-hidden="true" className="h-7 w-7 text-[#1F7A4D] dark:text-emerald-300" />
                     <b className="text-base text-foreground">{t("prime.page.calmTitle")}</b>
                     <p className="text-sm text-muted">
-                        {calm?.checkedMinutesAgo != null && t("prime.page.calmChecked", { min: calm.checkedMinutesAgo })}
+                        {calm?.checkedMinutesAgo != null && t("prime.page.calmChecked", { count: calm.checkedMinutesAgo })}
                         {calm?.oldest && <> · {t("prime.page.calmOldest", { order: calm.oldest.orderNumber, days: calm.oldest.days })}</>}
                     </p>
                 </div>

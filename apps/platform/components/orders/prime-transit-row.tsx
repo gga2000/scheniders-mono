@@ -169,7 +169,7 @@ function PrimeTransitRowFor() {
             </span>
             {minutesAgo !== null && (
                 <span className="text-xs text-[#6B6B6B] dark:text-white/50" title={t("orders.prime.row.checkedTip")}>
-                    · {t("orders.prime.row.checked", { min: minutesAgo })}
+                    · {t("orders.prime.row.checked", { count: minutesAgo })}
                 </span>
             )}
             <span className="flex-1" />

@@ -16,7 +16,8 @@ import { GiftToggle } from "./gift-toggle";
 import { GiftChip } from "./card/gift-chip";
 import { formatDeliverySlot, parseDeliverySlot } from "@/lib/orders/delivery-slot";
 import type { OrderStatus } from "@/lib/supabase";
-import type { Order } from "@/types/order";
+import type { Order, OrderSource } from "@/types/order";
+import { SourceBadge } from "./card/source-badge";
 import { isWhatsAppSlot, swapPhones, type WhatsAppSlot } from "@/lib/whatsapp-contact";
 import { formatOrderDateTime, formatOrderDayMonthTime, formatScheduledDate, isScheduledToday, scheduleDayFromToday } from "@/lib/order-format-utils";
 
@@ -92,6 +93,9 @@ interface OrderCustomerCardProps {
     onContactRecorded?: (orderId: string) => void;
 }
 
+/** Sources a merchant picks by hand when editing; the order's own source is always listed too. */
+const PICKABLE_SOURCES: readonly OrderSource[] = ["whatsapp", "lightfunnels", "meta", "tiktok", "delivery_import", "shop", "other"];
+
 export function OrderCustomerCard({
     isEditing,
     order,
@@ -125,6 +129,8 @@ export function OrderCustomerCard({
         }
         return order?.[key];
     };
+
+    const editedSource: OrderSource = displayValue("source") || "other";
 
     // Inputs show 4-3-4 grouping; formData keeps the un-spaced value as before.
     const phoneInput = useGroupedPhoneInput((displayValue("phone") || "") as string, (value) => updateFormData("phone", value));
@@ -624,71 +630,26 @@ export function OrderCustomerCard({
                         {isEditing ? (
                             <div className="relative">
                                 <select
-                                    value={(displayValue("source") || "other") as string}
+                                    value={editedSource}
                                     onChange={(e) => updateFormData("source", e.target.value)}
                                     className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                 >
-                                    <option value="whatsapp">WhatsApp</option>
-                                    <option value="lightfunnels">LightFunnels</option>
-                                    <option value="meta">Instagram (Meta)</option>
-                                    <option value="tiktok">TikTok</option>
-                                    <option value="delivery_import">{t("orders.ui.sourceDeliveryImport")}</option>
-                                    <option value="shop">{t("orderDetail.source.shop")}</option>
-                                    <option value="other">{t("orders.source.other")}</option>
+                                    {(PICKABLE_SOURCES.includes(editedSource) ? PICKABLE_SOURCES : [editedSource, ...PICKABLE_SOURCES]).map((s) => (
+                                        <option key={s} value={s}>{t(`reports.source.name.${s}`, s)}</option>
+                                    ))}
                                 </select>
                                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
-                                {(() => {
-                                    const src = order.source || 'other';
-                                    switch (src) {
-                                        case 'whatsapp':
-                                            return (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className="text-sm font-medium">WhatsApp</span>
-                                                </div>
-                                            );
-                                        case 'lightfunnels':
-                                            return (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-purple-500" />
-                                                    <span className="text-sm font-medium">LightFunnels</span>
-                                                </div>
-                                            );
-                                        case 'meta':
-                                            return (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" />
-                                                    <span className="text-sm font-medium">Instagram</span>
-                                                </div>
-                                            );
-                                        case 'tiktok':
-                                            return (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-black" />
-                                                    <span className="text-sm font-medium">TikTok</span>
-                                                </div>
-                                            );
-                                        case 'shop':
-                                            return (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                                    <span className="text-sm font-medium">{t("orderDetail.source.shop")}</span>
-                                                </div>
-                                            );
-                                        default:
-                                            return (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-gray-400" />
-                                                    <span className="text-sm font-medium">{t("orders.source.other")}</span>
-                                                </div>
-                                            );
-                                    }
-                                })()}
+                            // The same chip as the order's card, so the two never
+                            // disagree; sources the card shows no chip for get
+                            // their shared name (reports.source.name.*).
+                            <div data-testid="order-source" className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                                <SourceBadge source={order.source || "other"} fallback={
+                                    <span className="text-sm font-medium">{t(`reports.source.name.${order.source || "other"}`, order.source || "other")}</span>
+                                } />
                             </div>
                         )}
                     </div>

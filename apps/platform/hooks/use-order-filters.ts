@@ -87,6 +87,12 @@ export interface CountViewFacts {
     covered: boolean;
     statusIsAll: boolean;
     windowIsAll: boolean;
+    /**
+     * The «قيد التوصيل» count is in. It counts every in-transit order across
+     * dates, read apart from the window, so until that read answers it would
+     * count the window's few and show 0 for a desk with 46 on the road.
+     */
+    transitReady: boolean;
 }
 
 export function useOrderFilters({ orders, searchResults, resultsAreSearch = true, filters, setFilters, clearFilters, loadedWindowKey, preview = null, inTransit = null }: UseOrderFiltersOptions) {
@@ -273,7 +279,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
     const attentionCounts = useMemo(() => ({
         urgent: urgentCount,
         returnPending: countView.filter((o) => o.status === "return_pending").length,
-    }), [urgentCount, statusCounts, countView]);
+    }), [urgentCount, countView]);
 
     const deferredLoadedKey = deferredSnapshot.loadedWindowKey;
     const countViewFacts = useMemo<CountViewFacts>(() => {
@@ -290,6 +296,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
             covered,
             statusIsAll: !dStatus || dStatus === "all",
             windowIsAll: window === null,
+            transitReady: !deferredInTransit || deferredInTransit.loaded,
         };
     }, [deferredSearchResults, deferredResultsAreSearch, deferredLoadedKey, deferredInTransit, dDateFrom, dDateTo, dStatus]);
 

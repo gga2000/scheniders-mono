@@ -18,6 +18,11 @@ describe("Latin digits", () => {
         expect(bad).toEqual([]);
     });
 
+    it("Arabic copy writes percent as %, like every number on screen, not ٪", () => {
+        const bad = Object.entries(translations.ar).filter(([, v]) => v.includes("٪")).map(([k]) => k);
+        expect(bad).toEqual([]);
+    });
+
     it("no Intl or toLocale call uses an Arabic locale without -u-nu-latn, or no locale at all", () => {
         const root = join(__dirname, "..");
         const offenders: string[] = [];

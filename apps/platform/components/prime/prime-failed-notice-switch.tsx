@@ -30,7 +30,7 @@ export function PrimeFailedNoticeSwitch() {
             <MessageCircleWarning className="h-4 w-4 shrink-0 text-muted" />
             <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium text-foreground">{t("prime.failedNotice.title")}</span>
-                <span className="block text-xs text-muted">{t("prime.failedNotice.body")}</span>
+                <span className="block text-xs text-muted"><bdi>{t("prime.failedNotice.body")}</bdi></span>
             </span>
             {/* The word beside the switch: a pale track alone was too easy to miss on the card. */}
             <span

@@ -63,6 +63,11 @@ interface StickyFilterBarProps {
      * archive, a refinement, or a window still loading. lib/orders/count-visibility.ts.
      */
     countsHidden?: boolean;
+    /**
+     * The «قيد التوصيل» number is still loading (its read across dates has not
+     * answered): a placeholder holds its place instead of a false 0.
+     */
+    transitCountPending?: boolean;
     /** The due-today badge is hidden; the toggle stays reachable. */
     dueTodayCountHidden?: boolean;
     /** The risk badge is hidden. */
@@ -95,6 +100,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     className,
     isMobile = false,
     countsHidden = false,
+    transitCountPending = false,
     dueTodayCountHidden = false,
     riskCountHidden = false,
 }: StickyFilterBarProps) {
@@ -155,11 +161,19 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 {/* Status Pills */}
                 {filterOptions.map((option) => {
                     const selected = primeQueue === null && (filters.status === option.id || (option.id === "all" && !filters.status));
+                    const countPending = !countsHidden && transitCountPending && option.id === "in_transit";
+                    const countClass = cn(
+                        "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center",
+                        selected
+                            ? "bg-background/20 text-current"
+                            : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
+                    );
                     return (
                     <Fragment key={option.id}>
                     <button
                         data-chip={option.id}
-                        data-chip-count={countsHidden ? undefined : option.count}
+                        data-chip-count={countsHidden || countPending ? undefined : option.count}
+                        aria-busy={countPending || undefined}
                         onClick={() => {
                             setPrimeQueue(null);
                             setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] });
@@ -185,14 +199,11 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         )}
                     >
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
-                        {!countsHidden && <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center",
-                            selected
-                                ? "bg-background/20 text-current"
-                                : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
-                        )}>
-                            {option.count}
-                        </span>}
+                        {countPending ? (
+                            <span aria-hidden className={cn(countClass, "animate-pulse")}>{"\u00a0"}</span>
+                        ) : !countsHidden && (
+                            <span className={countClass}>{option.count}</span>
+                        )}
                     </button>
                     {option.id === "pending_checkout" && afterAbandonedChips}
                     </Fragment>

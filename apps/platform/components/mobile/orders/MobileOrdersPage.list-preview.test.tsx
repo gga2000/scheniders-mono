@@ -57,7 +57,7 @@ function context(over: Record<string, unknown>): Record<string, unknown> {
         setFilters: vi.fn(),
         statusCounts: {},
         adChannelSummary: { total: 0, channels: [] },
-        countViewFacts: { ready: false, covered: false, statusIsAll: true, windowIsAll: true },
+        countViewFacts: { ready: false, covered: false, statusIsAll: true, windowIsAll: true, transitReady: true },
         listCovered: false,
         listPreview: null,
         loading: true,

@@ -23,7 +23,7 @@ vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: "tenant-1" }),
 }));
 vi.mock("@/components/providers/language-provider", () => ({
-    useLanguage: () => ({ t: (key: string) => key, language: "en" }),
+    useLanguage: () => ({ t: (key: string, vars?: Record<string, string | number>) => (vars?.count !== undefined ? `${key}:${vars.count}` : key), language: "en" }),
 }));
 vi.mock("@/hooks/use-status-label", () => ({ useStatusLabel: () => (status: string) => status }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -83,7 +83,8 @@ describe("GlobalSearch without an order book", () => {
         // everything fits in the 8 rows.)
         const customers = screen.getAllByText(/^Ahmed (Ali|Kareem)$/);
         expect(customers.map((c) => c.textContent).sort()).toEqual(["Ahmed Ali", "Ahmed Kareem"]);
-        expect(screen.getByText("2 orders")).toBeTruthy();
+        // Through the dictionary, so Arabic gets its plural («طلبان»), not "2 orders".
+        expect(screen.getByText("search.customerOrders:2")).toBeTruthy();
 
         // Products: the catalogue by name, tenant-scoped.
         await waitFor(() => expect(screen.getByText("Ahmed's Oud")).toBeTruthy());

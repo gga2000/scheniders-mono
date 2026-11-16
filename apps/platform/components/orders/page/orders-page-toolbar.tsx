@@ -576,6 +576,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                             <OrderPipeline
                                                 statusCounts={statusCounts}
                                                 countsHidden={!countVis.chips}
+                                                transitCountPending={countVis.chips && !countVis.transitChip}
                                                 activeStatus={typeof filters.status === "string" ? filters.status : undefined}
                                                 onSelectStatus={(status) =>
                                                     setFilters({ ...filters, status: status as Order["status"] | undefined })
@@ -618,6 +619,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                 totalRiskCount={totalRiskCount}
                                 dueTodayCount={dueTodayCount}
                                 countsHidden={!countVis.chips}
+                                transitCountPending={countVis.chips && !countVis.transitChip}
                                 dueTodayCountHidden={!countVis.dueTodayBadge}
                                 riskCountHidden={!countVis.riskBadge}
                                 showSubFilters={showSubFilters}

@@ -52,7 +52,9 @@ export const StockStatusBadges = React.memo(function StockStatusBadges({
   const deadSuffix = neverSold
     ? t("products.status.neverSold")
     : t("products.status.daysShort", { days: daysSinceLastSale });
-  const supplySuffix = Number.isFinite(daysOfSupply) ? t("products.status.daysShort", { days: daysOfSupply }) : "—";
+  // With no sales to divide by, days of supply has no number: the chip says
+  // only what it is, not "فائض · —".
+  const supplySuffix = Number.isFinite(daysOfSupply) ? t("products.status.daysShort", { days: daysOfSupply }) : null;
 
   const badges: BadgeConfig[] = [
     {
@@ -74,14 +76,14 @@ export const StockStatusBadges = React.memo(function StockStatusBadges({
       show: flags.isOverstocked,
       bg: "bg-blue-500/10 text-blue-700 dark:text-sky-300 border border-blue-500/20",
       icon: <Package className={iconSize} />,
-      label: `${t("products.status.overstock")} · ${supplySuffix}`,
+      label: supplySuffix ? `${t("products.status.overstock")} · ${supplySuffix}` : t("products.status.overstock"),
     },
     {
       key: "understock",
       show: flags.isUnderstocked,
       bg: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20",
       icon: <AlertTriangle className={iconSize} />,
-      label: `${t("products.status.understock")} · ${supplySuffix} ${t("products.status.leftSuffix")}`,
+      label: supplySuffix ? `${t("products.status.understock")} · ${supplySuffix} ${t("products.status.leftSuffix")}` : t("products.status.understock"),
     },
     {
       key: "negativeMargin",

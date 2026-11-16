@@ -252,3 +252,30 @@ describe("OrderCustomerCard Prime area", () => {
         expect(screen.queryByText(/منطقة برايم/)).toBeNull();
     });
 });
+
+describe("OrderCustomerCard source", () => {
+    const source = () => screen.getByTestId("order-source").textContent ?? "";
+
+    it("names the source the way the order's card does", () => {
+        renderCard({ source: "storefront" });
+        expect(source()).toContain("المتجر");
+        expect(source()).not.toContain("أخرى");
+        cleanup();
+        renderCard({ source: "whatsapp" });
+        expect(source()).toContain("واتساب");
+        expect(source()).not.toContain("WhatsApp");
+    });
+
+    it("names a source the card has no chip for", () => {
+        renderCard({ source: "delivery_import" });
+        expect(source()).toContain("استيراد التوصيل");
+    });
+
+    it("keeps the order's own source selected while editing", () => {
+        renderCard({ source: "storefront" }, { isEditing: true });
+        const select = screen.getAllByRole("combobox").find((el) => el instanceof HTMLSelectElement && [...el.options].some((o) => o.value === "whatsapp"));
+        if (!(select instanceof HTMLSelectElement)) throw new Error("no source select");
+        expect(select.value).toBe("storefront");
+        expect(select.selectedOptions[0]?.textContent).toBe("المتجر");
+    });
+});

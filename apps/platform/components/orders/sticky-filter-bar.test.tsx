@@ -79,6 +79,16 @@ describe("counts hidden", () => {
         expect(document.querySelector<HTMLElement>('[data-chip="all"]')?.dataset.chipCount).toBe("12");
     });
 
+    it("holds the in-transit chip's place while its count loads, never showing a 0", () => {
+        renderBar({ statusCounts: { all: 12, delivered: 9, in_transit: 0 }, transitCountPending: true });
+        const transit = document.querySelector<HTMLElement>('[data-chip="in_transit"]');
+        expect(transit?.hasAttribute("data-chip-count")).toBe(false);
+        expect(transit?.getAttribute("aria-busy")).toBe("true");
+        expect(transit?.textContent ?? "").not.toMatch(/\d/);
+        // The other chips keep their numbers.
+        expect(document.querySelector<HTMLElement>('[data-chip="delivered"]')?.dataset.chipCount).toBe("9");
+    });
+
     it("keeps the due-today toggle reachable while its badge is hidden", () => {
         renderBar({ dueTodayCount: 0, dueTodayCountHidden: true });
         const chip = screen.getByRole("button", { name: "مجدولة اليوم" });
