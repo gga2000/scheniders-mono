@@ -102,6 +102,29 @@ describe("GET /api/merchants", () => {
     expect(merchants[1].last_active_at).toBe("2026-11-16T05:30:00+00:00");
   });
 
+  it("sends the health score and its parts as the database worked them out", async () => {
+    // The browser used to work the score out itself, in five places. A paused
+    // shop with an empty wallet would be 20 by that sum: the row's 75 must come through.
+    stub.state.tables.tenants = [
+      shop(1, {
+        status: "suspended",
+        wallet: { balance_iqd: 0 },
+        staff_health_score: 75,
+        staff_health_parts: { status: 15, wallet: 5, orders: 5 },
+      }),
+    ];
+
+    const { merchants } = await (await call()).json();
+
+    expect(stub.callsTo("tenants.select")[0]?.[0]).toBe(
+      "*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts",
+    );
+    expect(merchants[0]).toMatchObject({
+      staff_health_score: 75,
+      staff_health_parts: { status: 15, wallet: 5, orders: 5 },
+    });
+  });
+
   it("reports a locked shop as locked, though its status still reads trial", async () => {
     stub.state.tables.tenants = [shop(1, { status: "trial" }), shop(2)];
     answerStats([listStatsRow("shop-1", { lock_reason: "trial_ended", lock_since: "2026-11-15T18:36:00+00:00" })]);

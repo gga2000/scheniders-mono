@@ -182,6 +182,8 @@ function buildAdminTenantShape(data: MerchantDetail): AdminTenant {
     // adapter computes this from a different source.
     daily_revenue: 0,
     order_sparkline: data.usage.map((u) => u.orders_count ?? 0),
+    staff_health_score: data.tenant.staff_health_score,
+    staff_health_parts: data.tenant.staff_health_parts,
     wallet: data.wallet ?? undefined,
     usage: {
       orders_count: totalOrders,
@@ -189,22 +191,6 @@ function buildAdminTenantShape(data: MerchantDetail): AdminTenant {
       team_members_count: teamCount,
     },
   } satisfies AdminTenant;
-}
-
-function calculateHealthScore(t: AdminTenant): number {
-  let score = 50;
-  if (t.status === "active") score += 15;
-  else if (t.status === "trial") score += 5;
-  else if (t.status === "suspended") score -= 20;
-  const balance = t.wallet?.balance_iqd ?? 0;
-  if (balance > 50000) score += 15;
-  else if (balance > 10000) score += 5;
-  else score -= 10;
-  const orders = t.usage?.orders_count ?? 0;
-  if (orders > 50) score += 15;
-  else if (orders > 10) score += 10;
-  else if (orders > 0) score += 5;
-  return Math.max(0, Math.min(100, score));
 }
 
 function isChurnRisk(t: AdminTenant): boolean {
@@ -277,7 +263,7 @@ function DialogBody({
   const primaryColor = tenant.branding?.primary_color || "#1E1E1E";
 
   const adapterTenant = useMemo(() => buildAdminTenantShape(data), [data]);
-  const healthScore = useMemo(() => calculateHealthScore(adapterTenant), [adapterTenant]);
+  const healthScore = tenant.staff_health_score;
   const churnRisk = useMemo(() => isChurnRisk(adapterTenant), [adapterTenant]);
 
   const orderSpark = useMemo(() => buildOrderSparkline(usage), [usage]);

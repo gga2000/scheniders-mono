@@ -316,6 +316,8 @@ export default function MerchantDetailPage() {
           order_count: orderCount,
           team_size: team.length,
           created_at: tenant.created_at,
+          health_score: tenant.staff_health_score,
+          health_parts: tenant.staff_health_parts,
         }}
       />
     </div>

@@ -18,47 +18,16 @@ interface ScoreComponent {
   maxBar: number;
 }
 
+/** The three bars: what the database says each part adds to, or takes from, 50. */
 function getHealthBreakdown(merchant: AdminTenant): ScoreComponent[] {
-  const components: ScoreComponent[] = [];
+  const { status, wallet, orders } = merchant.staff_health_parts;
+  const tone = (value: number) => (value > 0 ? "bg-green-500" : value < 0 ? "bg-red-500" : "bg-gray-300");
 
-  // Status
-  let statusScore = 0;
-  if (merchant.status === "active") statusScore = 15;
-  else if (merchant.status === "trial") statusScore = 5;
-  else if (merchant.status === "suspended") statusScore = -20;
-  components.push({
-    label: "Status",
-    value: statusScore,
-    color: statusScore > 0 ? "bg-green-500" : statusScore < 0 ? "bg-red-500" : "bg-gray-300",
-    maxBar: 20,
-  });
-
-  // Wallet
-  const balance = merchant.wallet?.balance_iqd ?? 0;
-  let walletScore = -10;
-  if (balance > 50000) walletScore = 15;
-  else if (balance > 10000) walletScore = 5;
-  components.push({
-    label: "Wallet",
-    value: walletScore,
-    color: walletScore > 0 ? "bg-green-500" : walletScore < 0 ? "bg-red-500" : "bg-gray-300",
-    maxBar: 15,
-  });
-
-  // Orders
-  const orders = merchant.usage?.orders_count ?? 0;
-  let orderScore = 0;
-  if (orders > 50) orderScore = 15;
-  else if (orders > 10) orderScore = 10;
-  else if (orders > 0) orderScore = 5;
-  components.push({
-    label: "Orders",
-    value: orderScore,
-    color: orderScore > 0 ? "bg-blue-500" : "bg-gray-300",
-    maxBar: 15,
-  });
-
-  return components;
+  return [
+    { label: "Status", value: status, color: tone(status), maxBar: 20 },
+    { label: "Wallet", value: wallet, color: tone(wallet), maxBar: 15 },
+    { label: "Orders", value: orders, color: orders > 0 ? "bg-blue-500" : "bg-gray-300", maxBar: 15 },
+  ];
 }
 
 function getHealthColor(score: number): string {

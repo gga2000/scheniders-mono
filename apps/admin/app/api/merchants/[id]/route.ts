@@ -41,7 +41,8 @@ export async function GET(
       planLimitsResult,
       billingLock,
     ] = await Promise.all([
-      supabase.from("tenants").select("*").eq("id", id).single(),
+      // The health score and its parts, as the list shows them.
+      supabase.from("tenants").select("*, staff_health_score, staff_health_parts").eq("id", id).single(),
       supabase.from("wallet").select("*").eq("tenant_id", id).single(),
       supabase.from("subscriptions").select("*").eq("tenant_id", id).single(),
       supabase

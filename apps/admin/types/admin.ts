@@ -76,6 +76,13 @@ export interface AdminUser {
   avatar_url: string | null;
 }
 
+/** What each part adds to, or takes from, 50 in a shop's health score. */
+export interface HealthParts {
+  status: number;
+  wallet: number;
+  orders: number;
+}
+
 export interface AdminTenant {
   id: string;
   display_id?: number | null;
@@ -109,6 +116,10 @@ export interface AdminTenant {
   daily_revenue: number;
   orders_30d?: number;
   order_sparkline: number[];
+  /** 0 to 100, worked out by the database: the number the health filter uses. */
+  staff_health_score: number;
+  /** What that score is made of. */
+  staff_health_parts: HealthParts;
   /** Set when the billing lock holds the shop; its status still reads "trial" or "active". */
   billing_lock?: ListBillingLock | null;
   pinned_note?: {

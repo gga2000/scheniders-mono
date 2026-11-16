@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
     // ── Main query ─────────────────────────────────────────────────────
     let query = supabase
       .from("tenants")
-      .select("*, wallet(*), subscriptions(*)", { count: "exact" });
+      // The health score and its parts are the database's: the browser shows them and works nothing out.
+      .select("*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts", { count: "exact" });
 
     if (plan) query = query.eq("plan", plan);
     // "attention" is not a value of the status column: it is one of the computed filters below.
