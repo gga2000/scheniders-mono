@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import type { ChatConversation, ChatMember } from "@/types/chat";
 import { useCallback } from "react";
 
@@ -22,9 +23,10 @@ export interface ConversationWithMeta extends ChatConversation {
 
 export function useConversations() {
     const { user } = useAuth();
+    const held = useSideReadsHeld();
     return useQuery({
         queryKey: chatKeys.conversations(),
-        enabled: !!user?.id,
+        enabled: !!user?.id && !held,
         staleTime: 15_000,
         queryFn: async (): Promise<ConversationWithMeta[]> => {
             const { data: convs, error } = await supabase

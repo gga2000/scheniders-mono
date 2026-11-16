@@ -20,6 +20,7 @@ import {
 } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { diag } from "@/lib/diag";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -168,6 +169,7 @@ export function useNotificationFeed(
     // torn down and rebuilt whenever the profile loads.
     const actorNameRef = useRef<string | null>(null);
     actorNameRef.current = profile?.display_name ?? null;
+    const held = useSideReadsHeld();
 
     const {
         data,
@@ -177,7 +179,7 @@ export function useNotificationFeed(
         isFetchingNextPage,
     } = useInfiniteQuery({
         queryKey: feedKey,
-        enabled: !!userId,
+        enabled: !!userId && !held,
         staleTime: 30_000,
         initialPageParam: null as string | null,
         queryFn: async ({ pageParam }): Promise<FeedNotification[]> => {
@@ -208,7 +210,7 @@ export function useNotificationFeed(
     // the badge at the page size once paging exists.
     const { data: unreadCount = 0 } = useQuery({
         queryKey: unreadKey,
-        enabled: !!userId,
+        enabled: !!userId && !held,
         staleTime: 30_000,
         queryFn: async (): Promise<number> => {
             const { data: count, error } = await supabase.rpc("notification_unread_count");

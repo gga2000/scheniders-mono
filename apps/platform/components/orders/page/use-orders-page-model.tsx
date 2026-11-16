@@ -33,6 +33,7 @@ import { useSidebar } from "@/components/layout/dashboard-layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
+import { dropFirstLoadHold, raiseFirstLoadHold } from "@/lib/first-load-hold";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useRecordContact } from "@/hooks/use-record-contact";
@@ -926,6 +927,12 @@ export function useOrdersPageModel() {
     // fell through to content with zero orders and rendered the empty state.
     // A preview is content: the page renders it instead of the skeleton.
     const isInitialLoading = !isMounted || ((loading || ordersPending) && !previewing);
+    // Side reads (notifications, chat, guide, settings) wait for the first list
+    // so its round trip is not stuck behind them (lib/first-load-hold.ts).
+    useEffect(() => raiseFirstLoadHold(), []);
+    useEffect(() => {
+        if (!isInitialLoading) dropFirstLoadHold();
+    }, [isInitialLoading]);
     // Load tracing: the first render of real content (rows or a preview) in this visit.
     const contentTraced = useRef(false);
     useEffect(() => {

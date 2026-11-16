@@ -21,10 +21,10 @@ export default function OrdersPage() {
     return (
         <AnimatePresence mode="wait">
             {isInitialLoading ? (
+                // No exit fade: the cards start fading in the moment they arrive,
+                // instead of waiting 0.25 s on an outline fading to a blank page.
                 <motion.div
                     key="skeleton"
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0, transition: { duration: 0.25, ease: EASE_CROSSFADE } }}
                     className="min-h-screen bg-[var(--background)]"
                 >
                     <OrdersPageSkeleton />

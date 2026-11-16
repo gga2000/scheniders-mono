@@ -11,6 +11,7 @@ import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { diag } from "@/lib/diag";
 import { toast } from "@/hooks/use-toast";
 import { soundOnByDefault } from "@/lib/notification-chime";
@@ -59,7 +60,8 @@ export function useNotificationSettings() {
     const { user, tenantId } = useAuth();
     const { t } = useLanguage();
     const qc = useQueryClient();
-    const enabled = !!user?.id && !!tenantId;
+    const held = useSideReadsHeld();
+    const enabled = !!user?.id && !!tenantId && !held;
 
     const prefsKey = settingsKeys.prefs(user?.id, tenantId);
     const settingsKey = settingsKeys.settings(user?.id, tenantId);
