@@ -75,3 +75,20 @@ export function useSupportMarkRead() {
             ),
     });
 }
+
+/** Store a picture of the screen; the answer is its path, sent with the next message. */
+export function useSupportShot() {
+    return useMutation<string, Error, Blob>({
+        mutationFn: async (picture) => {
+            const reply = await readApiJson<ApiReply<{ path: string }>>(
+                await authedFetch("/api/support/shot", {
+                    method: "POST",
+                    headers: { "Content-Type": "image/jpeg" },
+                    body: picture,
+                }),
+            );
+            if (!reply.success) throw new SupportRequestError(reply.error ?? "failed");
+            return reply.data.path;
+        },
+    });
+}

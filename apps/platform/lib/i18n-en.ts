@@ -7296,6 +7296,13 @@ export const en: Record<string, string> = {
     "support.error.rateLimited": "Too many messages too fast. Wait a minute, then try again.",
     "support.error.loadFailed": "We could not open the chat. Close it and open it again.",
     "support.contactButton": "Message support",
+    "support.shot.add": "Picture of this screen",
+    "support.shot.taking": "Taking the picture...",
+    "support.shot.attached": "Picture of the screen",
+    "support.shot.remove": "Remove the picture",
+    "support.shot.body": "Picture of my screen",
+    "support.shot.open": "Open the picture",
+    "support.shot.failed": "The picture did not work. Describe the screen in words instead.",
     "notifications.support.reply": "Support replied: {preview}",
     "notifications.support.solved": "Support marked your chat as solved. Did it solve your problem?",
     // ── Phase 2A: conversation management ──

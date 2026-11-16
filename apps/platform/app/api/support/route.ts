@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
-import { supportPostSchema, supportRefusal, type SupportCase, type SupportMessage, type SupportThread } from "@/lib/support/schema";
+import {
+    SUPPORT_SHOT_BUCKET,
+    supportPostSchema,
+    supportRefusal,
+    type SupportCase,
+    type SupportMessage,
+    type SupportThread,
+} from "@/lib/support/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +18,27 @@ type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
 /** How far back the chat shows; older lines stay on record for staff. */
 const THREAD_LIMIT = 200;
+/** How long a link to a picture of the screen works. The chat refetches well before. */
+const SHOT_LINK_SECONDS = 60 * 60;
+
+type MessageRow = Omit<SupportMessage, "screenshot_url"> & { context: { screenshot?: unknown } | null };
+
+/** Links to the pictures merchants sent, signed in one call. A picture that is gone shows as none. */
+async function signShots(db: ServiceDb, rows: MessageRow[]): Promise<SupportMessage[]> {
+    const paths = rows.flatMap((r) => (typeof r.context?.screenshot === "string" ? [r.context.screenshot] : []));
+    const links = new Map<string, string>();
+    if (paths.length > 0) {
+        const { data, error } = await db.storage.from(SUPPORT_SHOT_BUCKET).createSignedUrls(paths, SHOT_LINK_SECONDS);
+        if (error) throw new Error(`Support picture links failed: ${error.message}`);
+        for (const link of data ?? []) {
+            if (link.path && link.signedUrl && !link.error) links.set(link.path, link.signedUrl);
+        }
+    }
+    return rows.map(({ context, ...row }) => ({
+        ...row,
+        screenshot_url: typeof context?.screenshot === "string" ? (links.get(context.screenshot) ?? null) : null,
+    }));
+}
 
 /**
  * The signed-in member's own support thread in their active shop: their cases
@@ -31,14 +59,14 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
 
     const { data: messageRows, error: messageError } = await db
         .from("support_messages")
-        .select("id, case_id, sender_kind, sender_name, body, created_at")
+        .select("id, case_id, sender_kind, sender_name, body, created_at, context")
         .eq("tenant_id", caller.tenantId)
         .in("case_id", cases.map((c) => c.id))
         .order("created_at", { ascending: false })
         .limit(THREAD_LIMIT);
     if (messageError) throw new Error(`Support messages read failed: ${messageError.message}`);
 
-    const messages = ((messageRows ?? []) as SupportMessage[]).reverse();
+    const messages = await signShots(db, ((messageRows ?? []) as MessageRow[]).reverse());
     const readAt = new Map(cases.map((c) => [c.id, c.merchant_last_read_at]));
     const unread = messages.filter((m) => {
         const seen = readAt.get(m.case_id);
@@ -80,6 +108,11 @@ async function handlePOST(request: NextRequest) {
     const parsed = supportPostSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     const input = parsed.data;
+
+    // A picture belongs to the shop that sent it: its path starts with the shop's id.
+    if (input.action === "send" && input.context.screenshot && !input.context.screenshot.startsWith(`${caller.tenantId}/`)) {
+        return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+    }
 
     const db = createSupabaseServiceClient();
 

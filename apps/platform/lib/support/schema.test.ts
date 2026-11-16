@@ -68,6 +68,12 @@ describe("support tables stay server-only", () => {
         expect(sql).not.toMatch(new RegExp(`alter table public\\.${table} disable row level security`, "i"));
     });
 
+    it("keeps pictures of merchants' screens in a private bucket no storage policy opens", () => {
+        expect(sql).toMatch(/insert into storage\.buckets[^;]*'support-shots'[^;]*false/i);
+        expect(sql).not.toMatch(/'support-shots'[^;]*\btrue\b/i);
+        expect(sql).not.toMatch(/create policy[^;]*on storage\.objects[^;]*support-shots/i);
+    });
+
     it("lets only the service role run the state-change functions", () => {
         for (const fn of [
             "support_merchant_send",

@@ -91,6 +91,8 @@ export interface SupportMessageContext {
   language?: string;
   screen?: string;
   userAgent?: string;
+  /** A picture of the merchant's screen: `<tenant_id>/<uuid>.jpg` in the private support-shots bucket. */
+  screenshot?: string;
 }
 
 export interface SupportMessageRow {
@@ -101,6 +103,8 @@ export interface SupportMessageRow {
   body: string;
   context: SupportMessageContext;
   created_at: string;
+  /** A short-lived link to the picture of the screen, when the merchant sent one. */
+  screenshot_url: string | null;
 }
 
 export interface SupportShopCard {
@@ -196,6 +200,15 @@ export const StaffPushRemoveSchema = z.object({
 });
 
 export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
+
+export const SUPPORT_SHOT_BUCKET = "support-shots";
+
+/** The pictures this conversation's merchant sent: only paths inside their own shop's folder. */
+export function shotPaths(messages: Pick<SupportMessageRow, "context">[], tenantId: string): string[] {
+  return messages.flatMap((m) =>
+    typeof m.context.screenshot === "string" && m.context.screenshot.startsWith(`${tenantId}/`) ? [m.context.screenshot] : [],
+  );
+}
 
 /** A ready answer the team keeps in `support_saved_replies`. */
 export interface SupportSavedReply {
