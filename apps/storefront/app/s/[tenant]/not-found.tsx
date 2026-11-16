@@ -21,7 +21,7 @@ const ROOT_DOMAIN = storefrontRootDomain();
 const NOT_FOUND_PRODUCT_POOL = 8;
 
 const COPY = {
-  eyebrow: { ar: "خطأ ٤٠٤", en: "Error 404" },
+  eyebrow: { ar: "خطأ 404", en: "Error 404" },
   title: { ar: "الصفحة غير موجودة", en: "Page not found" },
   body: {
     ar: "ربما انتقلت الصفحة أو لم تعد متاحة. تقدر ترجع للرئيسية أو تتصفح كل المنتجات.",

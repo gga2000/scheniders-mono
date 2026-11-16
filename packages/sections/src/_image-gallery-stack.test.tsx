@@ -80,13 +80,13 @@ describe("image_gallery stack", () => {
   it("heads with the chapter heading, the source pill and the scope line", () => {
     expect(ar).toContain("text-bk-chapter");
     expect(ar).toMatch(/data-proof-source="true"[^>]*>.*forum.*تعليقات على إعلاناتنا بتيك توك/);
-    expect(ar).toContain("5 تعليقات، على عطورنا بشكل عام");
-    expect(en).toContain("5 comments, about our perfumes in general");
+    expect(ar).toContain("5 تعليقات، على منتجاتنا بشكل عام");
+    expect(en).toContain("5 comments, about our products in general");
   });
 
   it("the scope line only for scope store", () => {
-    expect(render({ ...STACK, scope: "product" })).not.toContain("على عطورنا بشكل عام");
-    expect(render({ ...STACK, scope: undefined })).not.toContain("على عطورنا بشكل عام");
+    expect(render({ ...STACK, scope: "product" })).not.toContain("على منتجاتنا بشكل عام");
+    expect(render({ ...STACK, scope: undefined })).not.toContain("على منتجاتنا بشكل عام");
   });
 
   it("leads with the first initial_count comments, in order, numbered", () => {

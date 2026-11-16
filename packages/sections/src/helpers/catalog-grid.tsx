@@ -41,22 +41,22 @@ const T = {
   under: { ar: "أقل من", en: "Under" },
   over: { ar: "وأكثر", en: "and up" },
   sort: { ar: "ترتيب", en: "Sort" },
-  search: { ar: "دور على عطر", en: "Find a perfume" },
+  search: { ar: "دور على منتج", en: "Find a product" },
   search_clear: { ar: "مسح البحث", en: "Clear search" },
   no_match: {
-    ar: "ما لكينا عطر بهذا الاسم. جرب كلمة أقصر.",
+    ar: "ما لكينا منتج بهذا الاسم. جرب كلمة أقصر.",
     en: "Nothing by that name. Try a shorter word.",
   },
   price: { ar: "السعر", en: "Price" },
-  empty: { ar: "ما لكينا عطور بهذا الفلتر.", en: "No perfumes match this filter." },
+  empty: { ar: "ما لكينا منتجات بهذا الفلتر.", en: "No products match this filter." },
   /** Progress under the reveal control: "12 من 43". */
   shown_of: { ar: "معروض {shown} من {total}", en: "Showing {shown} of {total}" },
   more_tile_kicker: { ar: "بعدهم أكثر", en: "More to see" },
-  more_tile_note: { ar: "عطر ثاني بانتظارك", en: "more perfumes waiting" },
+  more_tile_note: { ar: "منتج ثاني بانتظارك", en: "more products waiting" },
   filter: { ar: "فلتر", en: "Filter" },
-  filter_title: { ar: "فلتر العطور", en: "Filter perfumes" },
+  filter_title: { ar: "فلتر المنتجات", en: "Filter products" },
   close: { ar: "سكّر", en: "Close" },
-  /** The sheet's primary action carries the live yield: «اعرض 12 عطر». */
+  /** The sheet's primary action carries the live yield: «اعرض 12 منتج». */
   show_results: { ar: "اعرض {label}", en: "Show {label}" },
 } as const;
 
@@ -64,14 +64,14 @@ function t(key: keyof typeof T, locale: LocaleCode): string {
   return T[key][locale === "en" ? "en" : "ar"];
 }
 
-/** "٤٣ عطر" — the live result count, in the merchant's plural forms. */
+/** "٤٣ منتج" — the live result count, in the merchant's plural forms. */
 function resultLabel(n: number, locale: LocaleCode): string {
   return formatCount(n, locale, {
-    one: locale === "en" ? "1 perfume" : "عطر واحد",
-    two: "عطران",
-    few: "{count} عطور",
-    many: "{count} عطراً",
-    other: locale === "en" ? "{count} perfumes" : "{count} عطر",
+    one: locale === "en" ? "1 product" : "منتج واحد",
+    two: "منتجان",
+    few: "{count} منتجات",
+    many: "{count} منتجاً",
+    other: locale === "en" ? "{count} products" : "{count} منتج",
   });
 }
 

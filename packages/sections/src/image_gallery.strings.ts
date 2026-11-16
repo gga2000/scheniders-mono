@@ -11,24 +11,24 @@ import { formatCount } from "./helpers/format";
 
 export const GALLERY_STRINGS = {
   proofCountOne: {
-    en: "{count} comment, about our perfumes in general",
-    ar: "تعليق واحد، على عطورنا بشكل عام",
-    ku: "{count} لێدوان، دەربارەی بۆنەکانمان بە گشتی",
+    en: "{count} comment, about our products in general",
+    ar: "تعليق واحد، على منتجاتنا بشكل عام",
+    ku: "{count} لێدوان، دەربارەی بەرهەمەکانمان بە گشتی",
   },
   proofCountTwo: {
-    en: "{count} comments, about our perfumes in general",
-    ar: "تعليقين، على عطورنا بشكل عام",
-    ku: "{count} لێدوان، دەربارەی بۆنەکانمان بە گشتی",
+    en: "{count} comments, about our products in general",
+    ar: "تعليقين، على منتجاتنا بشكل عام",
+    ku: "{count} لێدوان، دەربارەی بەرهەمەکانمان بە گشتی",
   },
   proofCountFew: {
-    en: "{count} comments, about our perfumes in general",
-    ar: "{count} تعليقات، على عطورنا بشكل عام",
-    ku: "{count} لێدوان، دەربارەی بۆنەکانمان بە گشتی",
+    en: "{count} comments, about our products in general",
+    ar: "{count} تعليقات، على منتجاتنا بشكل عام",
+    ku: "{count} لێدوان، دەربارەی بەرهەمەکانمان بە گشتی",
   },
   proofCountMany: {
-    en: "{count} comments, about our perfumes in general",
-    ar: "{count} تعليق، على عطورنا بشكل عام",
-    ku: "{count} لێدوان، دەربارەی بۆنەکانمان بە گشتی",
+    en: "{count} comments, about our products in general",
+    ar: "{count} تعليق، على منتجاتنا بشكل عام",
+    ku: "{count} لێدوان، دەربارەی بەرهەمەکانمان بە گشتی",
   },
   proofDot: { en: "Comment {n}", ar: "التعليق {n}", ku: "لێدوانی {n}" },
   business: { en: "Business account", ar: "حساب شركة", ku: "هەژماری کۆمپانیا" },
@@ -51,7 +51,7 @@ export function gs(
   return out;
 }
 
-/** «9 تعليقات، على عطورنا بشكل عام» — the carousel's scope line,
+/** «9 تعليقات، على منتجاتنا بشكل عام» — the carousel's scope line,
  *  plural-correct. */
 export function proofCountLabel(count: number, locale: LocaleCode): string {
   return formatCount(count, locale, {
