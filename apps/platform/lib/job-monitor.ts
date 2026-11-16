@@ -54,6 +54,7 @@ export const CRON_MONITORS = {
     waseetLocations: daily("waseet-locations", "0 3 * * 1", 5),
     qiAutoRefill: frequent("qi-auto-refill", "*/10 * * * *", 2),
     whatsappWatch: frequent("whatsapp-watch", "*/15 * * * *", 1),
+    supportFilesCleanup: daily("support-files-cleanup", "40 1 * * *", 1),
 } as const satisfies Record<string, CronMonitor>;
 
 /** Paths in vercel.json, for the drift test. QStash-only monitors map to null. */
@@ -70,6 +71,7 @@ export const VERCEL_CRON_PATHS: Record<keyof typeof CRON_MONITORS, string | null
     waseetLocations: "/api/cron/waseet-locations",
     qiAutoRefill: "/api/cron/qi-auto-refill",
     whatsappWatch: "/api/cron/whatsapp-watch",
+    supportFilesCleanup: "/api/cron/support-files-cleanup",
 };
 
 /** A route handler: the request first, then Next's route context for dynamic segments. */

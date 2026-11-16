@@ -110,3 +110,8 @@ A new merchant message pings support staff on their phone or computer.
 - **Each row:** shows the shop, who we would write to (the first active admin, otherwise the first active member), when we last wrote, and each problem with how long ago it started.
 - **Write first:** "Write first" fills in an Arabic first line for the most serious problem, and staff can edit it before sending. `support_staff_start()` opens a conversation with the owner, or writes in their open one, and the merchant gets the usual reply ping. The writer owns the conversation, and the inbox then opens on it.
 - **Counting:** `support_cases.started_by` says who started a conversation. The scoreboard's "Conversations", reply times and "answered within 5 min" count only conversations merchants started. Ours are counted as "we wrote first".
+
+## Wave 3: 30-day file cleanup
+
+- Pictures of the screen and voice notes are kept for 30 days. Every day at 4:40 AM Baghdad time, `/api/cron/support-files-cleanup` asks `support_old_files()` (migration `20261116105026_support_old_files.sql`) for up to 500 files older than that. It removes them through the Storage API, one bucket at a time. A full batch carries on in the next run.
+- The messages themselves stay. The staff console says "no longer stored" in place of the file, and the merchant chat just shows the text.
