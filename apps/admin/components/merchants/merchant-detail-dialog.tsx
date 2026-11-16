@@ -161,27 +161,12 @@ function buildOrderSparkline(usage: MerchantDetail["usage"]): number[] {
     .slice(-12);
 }
 
-function buildChargeSparkline(usage: MerchantDetail["usage"]): number[] {
-  return [...usage]
-    .sort((a, b) => (a.year - b.year) || (a.month - b.month))
-    .map((u) => u.orders_charged ?? 0)
-    .slice(-12);
-}
-
 function buildBalanceSparkline(transactions: MerchantDetail["transactions"]): number[] {
   if (!transactions.length) return [];
   return [...transactions]
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .map((t) => t.balance_after_iqd)
     .slice(-12);
-}
-
-function pctDelta(arr: number[]): number | null {
-  if (arr.length < 2) return null;
-  const last = arr[arr.length - 1] ?? 0;
-  const prev = arr[arr.length - 2] ?? 0;
-  if (prev === 0) return last === 0 ? 0 : 100;
-  return ((last - prev) / Math.abs(prev)) * 100;
 }
 
 // ── Dialog Body ─────────────────────────────────────────────────────────
@@ -218,13 +203,9 @@ function DialogBody({
     ordersNewestMonth: newestMonthOrders(usage),
   });
 
+  // No up or down arrows: the newest month is still running, so it always read as a fall.
   const orderSpark = useMemo(() => buildOrderSparkline(usage), [usage]);
-  const chargeSpark = useMemo(() => buildChargeSparkline(usage), [usage]);
   const balanceSpark = useMemo(() => buildBalanceSparkline(transactions), [transactions]);
-
-  const orderDelta = useMemo(() => pctDelta(orderSpark), [orderSpark]);
-  const chargeDelta = useMemo(() => pctDelta(chargeSpark), [chargeSpark]);
-  const balanceDelta = useMemo(() => pctDelta(balanceSpark), [balanceSpark]);
 
   // The plan price the shop pays each month; nothing while the subscription is not active.
   const paysForPlan = subscription?.status === "active";
@@ -346,9 +327,8 @@ function DialogBody({
           unit="IQD"
           tone="green"
           spark={balanceSpark}
-          delta={balanceDelta !== null ? { value: balanceDelta } : null}
           onClick={() => setActiveTab("Billing")}
-          title="View billing & wallet history"
+          title="The wallet now. The line: the balance after each of its last 12 changes."
         />
         <DialogStatCard
           icon={TrendingUp}
@@ -369,20 +349,17 @@ function DialogBody({
           value={fmt(walletCharges)}
           unit="IQD"
           tone="amber"
-          spark={chargeSpark}
-          delta={chargeDelta !== null ? { value: chargeDelta } : null}
           onClick={() => setActiveTab("Billing")}
           title="Every charge to the wallet since the shop opened, test charges included. Our fees are on the Revenue page."
         />
         <DialogStatCard
           icon={ShoppingBag}
-          label="Orders"
+          label="Orders, all time"
           value={fmt(orderCount)}
           tone="blue"
           spark={orderSpark}
-          delta={orderDelta !== null ? { value: orderDelta } : null}
           onClick={() => setActiveTab("Usage")}
-          title="View usage & order history"
+          title="Every real order since the shop opened. The line: orders each month, this month so far last."
         />
         <DialogStatCard
           icon={Users}
