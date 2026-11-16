@@ -8,7 +8,8 @@ import { env } from "@/lib/env";
  *
  * Only the calls the link uses are here: create, update and delete shipments,
  * find one by its receipt, read their status and the step names, ask
- * for a returned parcel to be resent, and keep our webhook setting. Server-only:
+ * for a returned parcel to be resent, keep our webhook setting, and find a
+ * store's own merchant account and shops when it links itself (Fermi A3). Server-only:
  * the credentials come from server env.
  */
 
@@ -183,6 +184,26 @@ const manifestCaseSchema = z.object({
     state: z.string().nullish(),
 });
 export type PrimeManifestCase = z.infer<typeof manifestCaseSchema>;
+
+/**
+ * One merchant linked to our integrated system (external/merchants). Prime
+ * lists active merchants only. Only what the self-serve link reads is kept.
+ */
+const merchantSchema = z.object({
+    loginId: z.string().min(1),
+    name: z.string().nullish(),
+    phone1: z.string().nullish(),
+    active: z.boolean().nullish(),
+});
+export type PrimeMerchantAccount = z.infer<typeof merchantSchema>;
+
+/** One shop of a merchant (external/merchant-shops); its id is the senderId parcels ship from. */
+const merchantShopSchema = z.object({
+    id: z.number().int().positive(),
+    name: z.string().nullish(),
+    active: z.boolean().nullish(),
+});
+export type PrimeMerchantShop = z.infer<typeof merchantShopSchema>;
 
 const ticketSubjectSchema = z.object({
     code: z.string().min(1),
@@ -524,6 +545,16 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
         /** The parcels on one payment manifest (its id is the payment movement's id). */
         async paymentCases(merchantLoginId: string, paymentId: number): Promise<PrimeManifestCase[]> {
             return call("GET", `/external/merchant-cases-in-payment-receipt/${encodeURIComponent(merchantLoginId)}/${paymentId}`, undefined, z.array(manifestCaseSchema));
+        },
+
+        /** The merchants Prime has linked to our integrated system (active ones only). */
+        async merchants(): Promise<PrimeMerchantAccount[]> {
+            return call("GET", "/external/merchants", undefined, z.array(merchantSchema));
+        },
+
+        /** One merchant's shops (deleted ones are left out by Prime). */
+        async merchantShops(merchantLoginId: string): Promise<PrimeMerchantShop[]> {
+            return call("GET", `/external/merchant-shops/${encodeURIComponent(merchantLoginId)}`, undefined, z.array(merchantShopSchema));
         },
 
         /** The subjects a ticket can be opened under. */

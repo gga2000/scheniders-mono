@@ -380,3 +380,18 @@ describe("statements and tickets", () => {
         expect(JSON.parse(String(fetchImpl.mock.calls[2][1]?.body))).toEqual({ msg: "شكراً" });
     });
 });
+
+describe("merchants and shops (Fermi A3)", () => {
+    it("lists the merchants linked to our system and one merchant's shops", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, [{ name: "Partner", phone1: "07701234567", branch: 1, loginId: "merchant_login", active: true }]))
+            .mockResolvedValueOnce(json(200, [{ id: 5510, name: "Main Shop", phone1: "07701234567", active: true }]));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect(await client.merchants()).toEqual([{ name: "Partner", phone1: "07701234567", loginId: "merchant_login", active: true }]);
+        expect(await client.merchantShops("merchant login")).toEqual([{ id: 5510, name: "Main Shop", active: true }]);
+        expect(fetchImpl.mock.calls[1]?.[0]).toBe("https://prime.test/myp/webapi/external/merchants");
+        expect(fetchImpl.mock.calls[2]?.[0]).toBe("https://prime.test/myp/webapi/external/merchant-shops/merchant%20login");
+    });
+});

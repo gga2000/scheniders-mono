@@ -9,6 +9,7 @@ import { announcePrimeDeliveries, syncPrimeTenant, type PrimeSyncOutcome } from 
 import { ensurePrimeWebhook } from "@/lib/prime/webhook";
 import { sendPrimeDaily, watchPrimePayments, type PrimePaymentsOutcome } from "@/lib/prime/money-watch";
 import { sendPrimeFailedNotices, type PrimeFailedNoticeOutcome } from "@/lib/prime/failed-notice";
+import { recheckPrimeLinkRequests, type PrimeLinkRecheckOutcome } from "@/lib/prime/self-link";
 import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,8 @@ type WebhookResult = "unchanged" | "saved" | "not_production" | "not_due" | "fai
  * since the last run, through the read or Prime's webhook, as one line. On
  * Production it also keeps Prime's webhook pointed at us (lib/prime/webhook),
  * once a store's link is on. One tenant failing does not stop the others;
- * its error is kept on its prime_connections row.
+ * its error is kept on its prime_connections row. First, stores waiting for
+ * Prime to link their account are looked at again (lib/prime/self-link).
  */
 async function runScheduled(request: NextRequest) {
     const denied = requireCronAuth(request);
@@ -55,12 +57,13 @@ async function runScheduled(request: NextRequest) {
     if (!client) return NextResponse.json({ success: true, message: "Prime is not configured", tenants: 0 });
 
     const db = createSupabaseServiceClient();
+    const links = await recheckLinks(db, client);
     const { data: connections, error } = await db
         .from("prime_connections")
         .select("tenant_id, merchant_login_id, shop_id, branch_name, last_synced_at, last_payment_id, daily_sent_on")
         .eq("is_active", true);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    if (connections.length === 0) return NextResponse.json({ success: true, tenants: 0 });
+    if (connections.length === 0) return NextResponse.json({ success: true, tenants: 0, links });
     const webhook = await keepWebhook(client);
 
     // Step names only label the stored step; a failed read must not stop the delivery sync.
@@ -122,7 +125,23 @@ async function runScheduled(request: NextRequest) {
             });
         }
     }
-    return NextResponse.json({ success: true, tenants: connections.length, webhook, results });
+    return NextResponse.json({ success: true, tenants: connections.length, webhook, links, results });
+}
+
+/**
+ * Stores waiting for Prime to link their account (Fermi A3) are looked at
+ * again here, so a store links itself as soon as Prime has done its part.
+ * A failure is reported and never stops the shipments' run.
+ */
+async function recheckLinks(db: ReturnType<typeof createSupabaseServiceClient>, client: PrimeClient): Promise<PrimeLinkRecheckOutcome | "failed"> {
+    try {
+        return await recheckPrimeLinkRequests(db, client, Date.now(), (err, requestId) => {
+            Sentry.captureException(err, { extra: { job: "prime-sync", step: "link-requests", requestId } });
+        });
+    } catch (err) {
+        Sentry.captureException(err, { extra: { job: "prime-sync", step: "link-requests" } });
+        return "failed";
+    }
 }
 
 /**
