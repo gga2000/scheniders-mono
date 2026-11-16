@@ -85,7 +85,7 @@ export function GuideAfterBasics({
 
     // 1. First order, in progress or offered on Orders.
     const fo = phases.first_order;
-    const foView = firstOrderView(fo, null, pathname.startsWith("/orders"), now);
+    const foView = firstOrderView(fo, null, null, pathname.startsWith("/orders"), now);
     if (!onTill && (tourActive(fo) || foView.kind === "offer")) {
         return (
             <GuideFirstOrder
