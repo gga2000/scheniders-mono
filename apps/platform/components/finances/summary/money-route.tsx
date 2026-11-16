@@ -7,6 +7,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
+import { COURIER_PAYMENTS_ID } from "./courier-payments";
 import { CARD_LINK, SummaryCard } from "./summary-card";
 import { UNPAID_LIST_CAP, UnpaidOrders } from "./unpaid-orders";
 
@@ -109,10 +110,19 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
         ? [
-              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now },
-              { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before },
-              { key: "prepaid", label: t("fin.money.from.prepaid"), note: null, amount: split.reached_prepaid },
-              { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other },
+              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now, href: `#${COURIER_PAYMENTS_ID}` },
+              { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before, href: null },
+              {
+                  key: "prepaid",
+                  label:
+                      split.reached_prepaid_orders > 0
+                          ? t("fin.money.from.prepaid", { n: formatWhole(split.reached_prepaid_orders), count: split.reached_prepaid_orders })
+                          : t("fin.money.from.prepaidPlain"),
+                  note: null,
+                  amount: split.reached_prepaid,
+                  href: null,
+              },
+              { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other, href: null },
           ].filter((source) => source.amount > 0)
         : [];
 
@@ -165,6 +175,12 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                             <dt className="min-w-0 text-left text-muted" dir={dir}>
                                                 {source.label}
                                                 {source.note && <span className="block text-[12px]">{source.note}</span>}
+                                                {/* The statement part is what the courier payments card takes apart: link the two. */}
+                                                {source.href && (
+                                                    <Link href={source.href} className="mt-0.5 block w-fit text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current" data-testid="money-from-now-link">
+                                                        {t("fin.money.from.nowLink")}
+                                                    </Link>
+                                                )}
                                             </dt>
                                             <dd className="shrink-0">
                                                 <Money value={source.amount} className="font-semibold text-foreground" />
