@@ -111,6 +111,12 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             : chart.called.length === 1
               ? t(`fin.path.bigOne.${step}`, { a: bigDay(chart.called[0]) })
               : null;
+    // The big days can add up to more than the period's profit; say what the other days did together.
+    const rest = net - chart.called.reduce((sum, day) => sum + day.profit, 0);
+    const restLine =
+        bigDays === null || points.length <= chart.called.length || rest === 0
+            ? null
+            : t(`fin.path.rest.${step}.${rest < 0 ? "loss" : "gain"}`, { amount: money(Math.abs(rest)) });
     const sign = (value: number) => (value < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400");
 
     return (
@@ -269,7 +275,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                     </div>
                 </div>
                 {bigDays && (
-                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{bigDays}</p>
+                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{bigDays}{restLine && ` ${restLine}`}</p>
                 )}
             </div>
         </SummaryCard>
