@@ -13,6 +13,7 @@ const state: { role: AdminRole } = { role: "super_admin" };
 const ADMIN_ID = "aaaaaaaa-1111-4222-8333-444444444444";
 const T1 = "11111111-1111-4111-8111-111111111111";
 const T2 = "22222222-2222-4222-8222-222222222222";
+const REQUEST = "cccccccc-1111-4222-8333-444444444444";
 
 vi.mock("@/lib/api-auth", async () => {
   const { hasPermission } = await import("@/lib/admin-permissions");
@@ -42,8 +43,16 @@ const req = (body: unknown) =>
     body: JSON.stringify(body),
   });
 
-const topUp = (amount_iqd: unknown, tenant_ids = [T1, T2]) =>
-  req({ action: "top_up", tenant_ids, params: { amount_iqd, description: "Promo credit" } });
+const topUp = (amount_iqd: unknown, tenant_ids = [T1, T2], request_id: unknown = REQUEST) =>
+  req({ action: "top_up", tenant_ids, params: { amount_iqd, description: "Promo credit", request_id } });
+
+const extendTrial = (days: unknown, tenant_ids: unknown[] = [T1, T2]) =>
+  req({ action: "extend_trial", tenant_ids, params: { days } });
+
+const extended = (tenantId: string) => ({
+  data: { success: true, tenant_id: tenantId, trial_ends_at: "2026-12-01T00:00:00+00:00", subscriptions_moved: 1 },
+  error: null,
+});
 
 beforeEach(() => {
   state.role = "super_admin";
@@ -68,6 +77,9 @@ describe("POST /api/bulk top_up", () => {
         _description: "Promo credit",
         _created_by: ADMIN_ID,
         _payment_method: "manual",
+        // One reference per request and shop: a retry of the same request
+        // finds it in the ledger and credits nothing.
+        _reference_id: `admin_topup:${REQUEST}:${tid}`,
       });
     }
     expect(rpc).not.toHaveBeenCalledWith("increment_wallet_balance", expect.anything());
@@ -85,7 +97,7 @@ describe("POST /api/bulk top_up", () => {
     expect(res.status).toBe(500);
     expect(body.success).toBe(false);
     expect(body.failed).toEqual([{ tenant_id: T2, error: "No wallet found" }]);
-    expect(body.succeeded).toEqual([{ tenant_id: T1, new_balance: 15000 }]);
+    expect(body.succeeded).toEqual([{ tenant_id: T1, new_balance: 15000, duplicate: false }]);
     // Only the credited tenant is audited as topped up.
     expect(logAdminActivityBatch).toHaveBeenCalledTimes(1);
     expect(logAdminActivityBatch).toHaveBeenCalledWith(
@@ -106,10 +118,100 @@ describe("POST /api/bulk top_up", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  // null, not undefined: an undefined argument would fall back to the helper's default id.
+  it.each([null, "", "not-a-uuid"])("refuses a top-up without a valid request id (%s)", async (requestId) => {
+    const res = await POST(topUp(10_000, [T1, T2], requestId));
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("a retry after a partial failure audits only the wallet credited now", async () => {
+    // T1 was credited by the first attempt of this request; T2 goes through now.
+    rpc
+      .mockResolvedValueOnce({ data: { success: true, new_balance: 15000, duplicate: true }, error: null })
+      .mockResolvedValueOnce({ data: { success: true, new_balance: 10000 }, error: null });
+    const res = await POST(topUp(10_000));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.succeeded).toEqual([
+      { tenant_id: T1, new_balance: 15000, duplicate: true },
+      { tenant_id: T2, new_balance: 10000, duplicate: false },
+    ]);
+    expect(logAdminActivityBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantIds: [T2], action: "bulk_top_up" }),
+    );
+  });
+
   it("refuses support_staff", async () => {
     state.role = "support_staff";
     const res = await POST(topUp(10_000));
     expect(res.status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("refuses a tenant id that is not a UUID", async () => {
+    const res = await POST(req({ action: "top_up", tenant_ids: ["1 or 1=1"], params: { amount_iqd: 10_000, request_id: REQUEST } }));
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * Bulk extend-trial used to write tenants.trial_ends_at itself: it skipped the
+ * bill date, extended shops that were not on trial, swallowed every failure
+ * and still answered { affected: <all> }. It must go through
+ * admin_extend_trial per shop and report what really happened.
+ */
+describe("POST /api/bulk extend_trial", () => {
+  it("extends every shop through admin_extend_trial with the acting admin, never a table write", async () => {
+    rpc.mockResolvedValueOnce(extended(T1)).mockResolvedValueOnce(extended(T2));
+    const res = await POST(extendTrial(14));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, affected: 2 });
+    for (const tid of [T1, T2]) {
+      expect(rpc).toHaveBeenCalledWith("admin_extend_trial", {
+        _tenant_id: tid,
+        _days: 14,
+        _admin_user_id: ADMIN_ID,
+        _actor_email: "ops@example.com",
+        _source: "bulk",
+      });
+    }
+    expect(from).not.toHaveBeenCalled();
+    // The RPC writes each shop's audit row; the route adds no second one.
+    expect(logAdminActivityBatch).not.toHaveBeenCalled();
+  });
+
+  it("reports the shops that were refused instead of counting them as extended", async () => {
+    rpc
+      .mockResolvedValueOnce(extended(T1))
+      .mockResolvedValueOnce({ data: { success: false, error: "not_trial" }, error: null });
+    const res = await POST(extendTrial(7));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.success).toBe(false);
+    expect(body.succeeded).toEqual([{ tenant_id: T1, trial_ends_at: "2026-12-01T00:00:00+00:00" }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, error: "Tenant is not on a trial plan" }]);
+  });
+
+  it("reports a database error for one shop as a failure and still tries the rest", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "deadlock detected" } })
+      .mockResolvedValueOnce(extended(T2));
+    const res = await POST(extendTrial(7));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.failed).toEqual([{ tenant_id: T1, error: "Failed to extend trial" }]);
+    expect(body.succeeded).toEqual([{ tenant_id: T2, trial_ends_at: "2026-12-01T00:00:00+00:00" }]);
+  });
+
+  it.each([0, 91, 7.5, "7", undefined])("rejects days %s", async (days) => {
+    const res = await POST(extendTrial(days));
+    expect(res.status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

@@ -29,7 +29,7 @@ export async function POST(
       );
     }
 
-    const result = await extendTrial(createAdminClient(), id, parsed.data.days);
+    const result = await extendTrial(createAdminClient(), id, parsed.data.days, auth.user);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

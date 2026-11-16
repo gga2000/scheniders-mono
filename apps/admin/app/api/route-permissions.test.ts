@@ -120,7 +120,13 @@ const SUPER_ADMIN_ONLY: Case[] = [
     name: "POST /api/billing/topup (top_up_wallet)",
     call: async (t) => {
       const { POST } = await import("./billing/topup/route");
-      return POST(req("/api/billing/topup", "POST", t, { tenant_id: TENANT, amount: 5000 }));
+      return POST(
+        req("/api/billing/topup", "POST", t, {
+          tenant_id: TENANT,
+          amount: 5000,
+          request_id: "55555555-5555-4555-8555-555555555555",
+        }),
+      );
     },
   },
   {
@@ -378,10 +384,13 @@ describe("actor attribution", () => {
 
 /**
  * `extend_trial` is a support_staff permission. It must only move the trial
- * clock of a tenant that is on trial — never write `status`, or a support agent
+ * clock of a tenant that is on trial, never write `status`, or a support agent
  * could lift a pause (`limited`) or suspension that needs `reactivate_tenant`.
+ * The check and the write live in the `admin_extend_trial` SQL function (its
+ * behaviour is proven in packages/supabase/tests/admin_extend_trial.sql); the
+ * routes must go through it and nothing else.
  */
-describe("trial extension cannot change tenant status", () => {
+describe("trial extension goes through admin_extend_trial only", () => {
   const ROUTES: Case[] = [
     {
       name: "POST /api/merchants/[id]/extend-trial",
@@ -399,40 +408,62 @@ describe("trial extension cannot change tenant status", () => {
     },
   ];
 
-  const BLOCKED = ["limited", "suspended", "active", "cancelled"].flatMap((status) =>
-    ROUTES.map((r) => ({ ...r, status })),
-  );
+  /** Table access from the route itself: the old read-then-update path. */
+  const directTableCalls = () =>
+    dbCalls.filter((c) => ["from", "update", "insert", "upsert", "delete"].includes(c.method));
 
-  it.each(BLOCKED)(
-    "$name — support_staff gets 400 for a $status tenant and nothing is written",
-    async ({ call, status }) => {
-      dbResult = {
-        data: { id: TENANT, trial_ends_at: "2026-10-01T00:00:00.000Z", status },
-        error: null,
-      };
+  it.each(ROUTES)(
+    "$name: support_staff gets 400 when the database refuses a shop that is not on trial",
+    async ({ call }) => {
+      dbResult = { data: { success: false, error: "not_trial" }, error: null };
       const res = await call("support");
       expect(res.status).toBe(400);
-      expect(dbCalls.some((c) => c.method === "update")).toBe(false);
+      expect(directTableCalls()).toEqual([]);
     },
   );
 
-  it.each(ROUTES)("$name — a trialing tenant gets a later trial end and no status write", async ({ call }) => {
-    const trialEnd = "2099-01-01T00:00:00.000Z";
-    dbResult = { data: { id: TENANT, trial_ends_at: trialEnd, status: "trial" }, error: null };
+  it.each(ROUTES)("$name: an unknown shop is a 404", async ({ call }) => {
+    dbResult = { data: { success: false, error: "not_found" }, error: null };
     const res = await call("support");
+    expect(res.status).toBe(404);
+  });
 
-    expect(res.status).toBe(200);
-    const update = dbCalls.find((c) => c.method === "update");
-    expect(update?.args[0]).toEqual({ trial_ends_at: "2099-01-31T00:00:00.000Z" });
-    // The write itself is conditional on the tenant still being on trial.
-    expect(dbCalls.filter((c) => c.method === "eq").map((c) => c.args)).toContainEqual([
-      "status",
-      "trial",
-    ]);
+  it.each(ROUTES)(
+    "$name: a trialing shop is extended by one RPC that names the acting admin",
+    async ({ call }) => {
+      dbResult = {
+        data: { success: true, tenant_id: TENANT, trial_ends_at: "2099-01-31T00:00:00+00:00", subscriptions_moved: 1 },
+        error: null,
+      };
+      const res = await call("support");
+
+      expect(res.status).toBe(200);
+      expect(dbCalls.filter((c) => c.method === "rpc").map((c) => c.args)).toEqual([
+        [
+          "admin_extend_trial",
+          {
+            _tenant_id: TENANT,
+            _days: 30,
+            _admin_user_id: SUPPORT_ID,
+            _actor_email: "agent@example.com",
+            _source: "single",
+          },
+        ],
+      ]);
+      // No tenants.trial_ends_at write from JS: that left the bill date behind.
+      expect(directTableCalls()).toEqual([]);
+    },
+  );
+
+  it.each(ROUTES)("$name: a database error or an unreadable answer is a 500, not a success", async ({ call }) => {
+    dbResult = { data: null, error: { code: "40P01", message: "deadlock detected" } };
+    expect((await call("support")).status).toBe(500);
+
+    dbResult = { data: { success: true }, error: null };
+    expect((await call("support")).status).toBe(500);
   });
 
   it("caps a single extension at 90 days on both routes", async () => {
-    dbResult = { data: { id: TENANT, trial_ends_at: null, status: "trial" }, error: null };
     const { POST: perMerchant } = await import("./merchants/[id]/extend-trial/route");
     const { POST: trials } = await import("./trials/extend/route");
 
@@ -444,17 +475,6 @@ describe("trial extension cannot change tenant status", () => {
     expect(a.status).toBe(400);
     expect(b.status).toBe(400);
     expect(createAdminClient).not.toHaveBeenCalled();
-  });
-
-  it("extends from now when the tenant has no trial end yet", async () => {
-    dbResult = { data: { id: TENANT, trial_ends_at: null, status: "trial" }, error: null };
-    const { POST } = await import("./trials/extend/route");
-    const res = await POST(req("/api/trials/extend", "POST", "support", { tenant_id: TENANT, days: 3 }));
-
-    expect(res.status).toBe(200);
-    const update = dbCalls.find((c) => c.method === "update");
-    const written = (update?.args[0] as { trial_ends_at: string }).trial_ends_at;
-    expect(Number.isNaN(Date.parse(written))).toBe(false);
   });
 });
 

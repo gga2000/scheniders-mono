@@ -13,6 +13,7 @@ import type { AdminRole } from "@/types/admin";
 const state: { role: AdminRole | null } = { role: "super_admin" };
 const ADMIN_ID = "aaaaaaaa-1111-4222-8333-444444444444";
 const TENANT = "bbbbbbbb-1111-4222-8333-444444444444";
+const REQUEST = "cccccccc-1111-4222-8333-444444444444";
 
 vi.mock("@/lib/api-auth", async () => {
   const { hasPermission } = await import("@/lib/admin-permissions");
@@ -36,11 +37,12 @@ vi.mock("@/lib/activity-logger", () => ({ logAdminActivity }));
 
 const { POST } = await import("./route");
 
-const req = (body: unknown) =>
+/** Every request carries the browser-made request id unless a test removes it. */
+const req = (body: Record<string, unknown>) =>
   new NextRequest("http://admin.test/api/billing/topup", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ request_id: REQUEST, ...body }),
   });
 
 beforeEach(() => {
@@ -65,13 +67,14 @@ describe("POST /api/billing/topup", () => {
     const res = await POST(req({ tenant_id: TENANT, amount: 5000, description: "Zain cash receipt 12" }));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true, newBalance: 30000 });
+    expect(await res.json()).toEqual({ success: true, newBalance: 30000, duplicate: false });
     expect(rpc).toHaveBeenCalledWith("admin_topup_wallet", {
       _tenant_id: TENANT,
       _amount: 5000,
       _description: "Zain cash receipt 12",
       _created_by: ADMIN_ID,
       _payment_method: "manual",
+      _reference_id: `admin_topup:${REQUEST}:${TENANT}`,
     });
     // No direct table access: the balance is never read or written from JS.
     expect(from).not.toHaveBeenCalled();
@@ -99,6 +102,34 @@ describe("POST /api/billing/topup", () => {
     rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     const res2 = await POST(req({ tenant_id: TENANT, amount: 5000 }));
     expect(res2.status).toBe(500);
+    expect(logAdminActivity).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "", "not-a-uuid", 42])(
+    "refuses a top-up without a valid request id (%s): a retry could not be told apart",
+    async (request_id) => {
+      const res = await POST(req({ tenant_id: TENANT, amount: 5000, request_id }));
+      expect(res.status).toBe(400);
+      expect(rpc).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sends the same ledger reference when the same request is retried", async () => {
+    rpc.mockResolvedValue({ data: { success: true, new_balance: 30000 }, error: null });
+    await POST(req({ tenant_id: TENANT, amount: 5000 }));
+    await POST(req({ tenant_id: TENANT, amount: 5000 }));
+    const references = rpc.mock.calls.map(([, args]) => (args as { _reference_id: string })._reference_id);
+    expect(references).toEqual([
+      `admin_topup:${REQUEST}:${TENANT}`,
+      `admin_topup:${REQUEST}:${TENANT}`,
+    ]);
+  });
+
+  it("reports a repeat the database already credited as duplicate and audits nothing new", async () => {
+    rpc.mockResolvedValue({ data: { success: true, new_balance: 30000, duplicate: true }, error: null });
+    const res = await POST(req({ tenant_id: TENANT, amount: 5000 }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, newBalance: 30000, duplicate: true });
     expect(logAdminActivity).not.toHaveBeenCalled();
   });
 

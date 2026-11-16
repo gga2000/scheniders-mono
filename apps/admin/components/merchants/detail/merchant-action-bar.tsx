@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { cn } from "@/lib/utils";
+import { createRequestIds } from "@/lib/request-ids";
 import { PauseButton } from "./pause-button";
 import { ConvertTrialButton } from "./convert-trial-button";
 import { PLAN_LABELS, type TenantStatus, type PlanTier } from "@/types/admin";
@@ -66,8 +67,18 @@ export function MerchantActionBar({
     queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
   };
 
+  const [requestIds] = useState(createRequestIds);
+
   const topupMutation = useMutation({
-    mutationFn: async ({ amount, description }: { amount: number; description: string }) => {
+    mutationFn: async ({
+      amount,
+      description,
+      requestId,
+    }: {
+      amount: number;
+      description: string;
+      requestId: string;
+    }) => {
       const res = await fetch(`/api/billing/topup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +86,7 @@ export function MerchantActionBar({
           tenant_id: merchantId,
           amount,
           description: description || "Admin top-up",
+          request_id: requestId,
         }),
       });
       if (!res.ok) {
@@ -85,6 +97,7 @@ export function MerchantActionBar({
     },
     onSuccess: () => {
       invalidate();
+      requestIds.done();
       setTopupOpen(false);
       setTopupAmount(null);
       setCustomAmount("");
@@ -134,7 +147,12 @@ export function MerchantActionBar({
   const handleTopUp = () => {
     const amount = topupAmount ?? parseInt(customAmount.replace(/[^\d]/g, ""), 10);
     if (!Number.isFinite(amount) || amount <= 0) return;
-    topupMutation.mutate({ amount, description: topupReason });
+    topupMutation.mutate({
+      amount,
+      description: topupReason,
+      // Same amount and reason asked again (a retry) reuses the id.
+      requestId: requestIds.idFor(`${merchantId}:${amount}:${topupReason}`),
+    });
   };
 
   const isSuspended = status === "suspended";
