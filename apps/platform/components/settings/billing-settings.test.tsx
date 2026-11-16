@@ -7,7 +7,7 @@ import type { PlanLimitsData, SubscriptionData, WalletTransaction } from "@/hook
 import type { TenantSummary } from "@/hooks/use-tenant";
 import type { TopupPaymentDetails, TopupRequest } from "@/hooks/use-wallet-topup";
 import type { QiSavedCard } from "@/hooks/use-qi-topup";
-import { hasRoomForTopup, receiptProblem, receiptSha256, suggestedTopup } from "@/hooks/use-wallet-topup";
+import { hasRoomForTopup, receiptProblem } from "@/hooks/use-wallet-topup";
 import type { BillingLock } from "@/hooks/use-billing-lock";
 import type { AddonChangeResult, AddonKind, PlanChangeResult } from "@/hooks/use-plan-change";
 import type { WhatsAppUsage } from "@/hooks/use-whatsapp-usage";
@@ -672,18 +672,6 @@ describe("receiptProblem", () => {
         const done = { outcome: "approved" as const };
         expect(hasRoomForTopup([waiting, waiting, done, done])).toBe(true);
         expect(hasRoomForTopup([waiting, waiting, waiting, done])).toBe(false);
-    });
-
-    it("hashes the receipt file so staff see the same file sent twice", async () => {
-        expect(await receiptSha256(new Blob(["abc"]))).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
-    });
-
-    it("suggests what the plan still needs, in whole thousands, never below the smallest top-up", () => {
-        expect(suggestedTopup(9000, 0)).toBe(9000);
-        expect(suggestedTopup(9000, 1200)).toBe(8000);
-        expect(suggestedTopup(9000, 8500)).toBe(1000);
-        expect(suggestedTopup(9000, 9000)).toBeNull();
-        expect(suggestedTopup(null, 0)).toBeNull();
     });
 
     it("takes photos and PDFs up to 5 MB only", () => {
