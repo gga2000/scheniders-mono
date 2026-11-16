@@ -170,7 +170,8 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-1 text-xs text-muted">
+                                    {/* In the page's direction, so Arabic reads «مقابل» before its amount */}
+                                    <div dir={dir} className="flex items-center gap-1 text-xs text-muted">
                                         <span>{t("reports.period.vs")}</span>
                                         <bdi className="font-medium tabular-nums whitespace-nowrap">{metric.format(metric.previous)}</bdi>
                                     </div>
