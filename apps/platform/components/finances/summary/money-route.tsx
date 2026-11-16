@@ -48,9 +48,10 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
             <div className="min-w-0">
                 <div className="text-left text-[15px] font-semibold text-foreground" dir={textDir}>{label}</div>
                 <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={textDir}>{note}</p>
-                {children}
             </div>
             <Money value={amount} className="text-[18px] font-bold tracking-[-0.01em] text-foreground" />
+            {/* Spans the amount column too, so every amount on the card ends at the same edge. */}
+            {children && <div className="col-span-2 col-start-2 min-w-0">{children}</div>}
         </li>
     );
 }
