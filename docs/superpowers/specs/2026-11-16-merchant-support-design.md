@@ -176,3 +176,10 @@ A second person picking up a conversation should not have to read the whole chat
 - `support_cases.staff_seen_at` and `staff_seen_name` keep the mark. The console sends a quiet `seen` action; `support_staff_mark_seen` only moves the mark when the merchant wrote something staff have not seen yet, so polling and re-opening change nothing. A console left in a hidden tab does not mark anything.
 - The merchant API decides when to show it (`apps/platform/lib/support/seen.ts`): only for the latest conversation, only when the merchant's message is the last word, and only when staff opened it after that message.
 - Migration `20261116191454_support_seen.sql`. Behaviour suite `support-seen`.
+
+## Wave 6, part 3: ask why when the answer was "No"
+
+- After a merchant says the answer did not solve it (the case reopens as before), the Help chat asks «شنو اللي صار؟» with three taps: «بعدها ما تشتغل» (still not working), «الجواب مو واضح» (answer unclear), «تأخرتوا» (too slow). Skipping it is fine; the case is already back with staff.
+- Staff see the reason in the conversation header ("Said not solved: The answer was unclear"). The scoreboard lists "Why merchants said it was not solved" under the reasons.
+- `support_cases.no_reason` keeps the latest reason and stays after staff solve again, so the scoreboard keeps it for the window. One answer per No; a later No can be answered again. `support_merchant_no_reason` checks the shop and member from the session.
+- Migration `20261116192049_support_no_reason.sql` (also adds `no_reasons` to `support_scoreboard`). Behaviour suite `support-no-reason`, and the `support-scoreboard` suite checks the new list and that the demo store never counts.

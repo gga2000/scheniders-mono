@@ -6,6 +6,7 @@ import { useSupportScoreboard } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
 import {
   SCOREBOARD_DAYS,
+  SUPPORT_NO_REASON_LABELS,
   SUPPORT_REASON_LABELS,
   formatDuration,
   percentOf,
@@ -87,6 +88,22 @@ function Board({ board }: { board: SupportScoreboard }) {
                 </li>
               ))}
             </ul>
+          )}
+          {board.no_reasons.length > 0 && (
+            <div className="mt-4 border-t border-[var(--card-border)] pt-3">
+              <h3 className="text-xs font-semibold text-foreground">Why merchants said it was not solved</h3>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {board.no_reasons.map((r) => (
+                  <span
+                    key={r.reason}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-medium text-[var(--ink-red)]"
+                  >
+                    {SUPPORT_NO_REASON_LABELS[r.reason]}
+                    <span className="font-semibold tabular-nums">{r.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
         </section>
 

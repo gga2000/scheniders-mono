@@ -495,6 +495,7 @@ describe("support scoreboard", () => {
     rated_no: 0,
     reopened: 0,
     reasons: [{ reason: "orders", count: 1 }],
+    no_reasons: [{ reason: "unclear", count: 1 }],
     by_staff: [{ name: "Noor", solved: 1, rated_yes: 1, rated_no: 0 }],
     waiting_now: 1,
     oldest_wait_s: 120,

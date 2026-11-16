@@ -22,6 +22,7 @@ import { useSavedReplies } from "@/hooks/use-saved-replies";
 import { SavedRepliesDialog } from "@/components/support/saved-replies-dialog";
 import {
   NOTE_MAX_LENGTH,
+  SUPPORT_NO_REASON_LABELS,
   SUPPORT_REASONS,
   SUPPORT_REASON_LABELS,
   SUPPORT_STATUS_LABELS,
@@ -371,6 +372,9 @@ export function SupportConversation({ supportCase, messages, notes }: SupportCon
             {" · "}
             {supportCase.owner_name ? `Owner: ${supportCase.owner_name}` : "No owner yet"}
             {supportCase.reopened_count > 0 ? ` · Reopened ${supportCase.reopened_count}x` : ""}
+            {supportCase.rating === "no" && supportCase.no_reason ? (
+              <span className="text-[var(--ink-red)]"> · Said not solved: {SUPPORT_NO_REASON_LABELS[supportCase.no_reason]}</span>
+            ) : null}
           </p>
         </div>
         {!isSolved && (

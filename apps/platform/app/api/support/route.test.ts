@@ -89,7 +89,7 @@ describe("GET /api/support", () => {
         const res = await GET(request("GET"));
         expect(await res.json()).toEqual({
             success: true,
-            data: { case: null, messages: [], unread: 0, seen: null, owner: null, callBack: null, contactPhone: null, notice: null },
+            data: { case: null, messages: [], unread: 0, seen: null, askWhy: false, owner: null, callBack: null, contactPhone: null, notice: null },
         });
         expect(eqCalls()).toEqual([
             ["tenant_id", TENANT],
@@ -181,6 +181,7 @@ describe("GET /api/support", () => {
         );
         const body = await (await GET(request("GET"))).json();
         expect(body.data.seen).toEqual({ name: "Noor", at: "2026-11-16T10:08:00Z" });
+        expect(body.data.askWhy).toBe(false);
         expect(state.calls.find((c) => c.method === "select")?.args[0]).toContain("staff_seen_name");
     });
 });
@@ -345,6 +346,42 @@ describe("POST /api/support", () => {
             "support_merchant_rate",
             { p_tenant_id: TENANT, p_user_id: USER, p_case_id: CASE, p_rating: "no" },
         ]);
+    });
+
+    it("records why the answer did not help, as the session's shop and member", async () => {
+        state.queue.push(
+            { data: { case_id: CASE, no_reason: "unclear" }, error: null },
+            {
+                data: [{ ...caseRow, status: "waiting_us", rating: "no", rated_at: "2026-11-16T10:10:00Z", no_reason_at: "2026-11-16T10:11:00Z" }],
+                error: null,
+            },
+            { data: [], error: null },
+        );
+        const res = await POST(
+            request("POST", { action: "noReason", caseId: CASE, reason: "unclear", tenantId: "99999999-9999-4999-8999-999999999999" }),
+        );
+        expect(res.status).toBe(200);
+        expect(rpcCall()?.args).toEqual([
+            "support_merchant_no_reason",
+            { p_tenant_id: TENANT, p_user_id: USER, p_case_id: CASE, p_reason: "unclear" },
+        ]);
+        expect((await res.json()).data.askWhy).toBe(false);
+    });
+
+    it("refuses a reason that is not on the list before touching the database", async () => {
+        const res = await POST(request("POST", { action: "noReason", caseId: CASE, reason: "angry" }));
+        expect(res.status).toBe(400);
+        expect(state.calls).toHaveLength(0);
+    });
+
+    it.each([
+        ["support_not_said_no", 409],
+        ["support_already_answered", 409],
+    ])("answers the reason refusal %s with %i", async (code, status) => {
+        state.queue.push({ data: null, error: { code: "P0001", message: code } });
+        const res = await POST(request("POST", { action: "noReason", caseId: CASE, reason: "too_slow" }));
+        expect(res.status).toBe(status);
+        expect(await res.json()).toEqual({ success: false, error: code });
     });
 
     it.each([

@@ -34,6 +34,16 @@ export const SUPPORT_REASON_LABELS: Record<SupportReason, string> = {
   other: "Other",
 };
 
+/** Why a merchant said the answer did not solve it (support_cases.no_reason). */
+export const SUPPORT_NO_REASONS = ["still_broken", "unclear", "too_slow"] as const;
+export type SupportNoReason = (typeof SUPPORT_NO_REASONS)[number];
+
+export const SUPPORT_NO_REASON_LABELS: Record<SupportNoReason, string> = {
+  still_broken: "Still not working",
+  unclear: "The answer was unclear",
+  too_slow: "We took too long",
+};
+
 export type SupportStatus = "waiting_us" | "waiting_merchant" | "solved";
 
 export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
@@ -63,7 +73,7 @@ export type CaseAction = z.infer<typeof CaseActionSchema>;
 
 /** The `support_cases` columns (plus the shop) every list and detail read selects. */
 export const SUPPORT_CASE_COLUMNS =
-  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, created_at, tenants(business_name, display_id, plan, status)";
+  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, no_reason, created_at, tenants(business_name, display_id, plan, status)";
 
 export interface SupportCaseShop {
   business_name: string;
@@ -84,6 +94,8 @@ export interface SupportCaseRow {
   waiting_since: string | null;
   solved_at: string | null;
   rating: "yes" | "no" | null;
+  /** The latest reason the merchant gave for a No; it stays after a new solve. */
+  no_reason: SupportNoReason | null;
   reopened_count: number;
   last_message_at: string;
   last_message_preview: string;
@@ -361,6 +373,7 @@ export const SupportScoreboardSchema = z.object({
   rated_no: count,
   reopened: count,
   reasons: z.array(z.object({ reason: z.enum(SUPPORT_REASONS), count })),
+  no_reasons: z.array(z.object({ reason: z.enum(SUPPORT_NO_REASONS), count })),
   by_staff: z.array(z.object({ name: z.string(), solved: count, rated_yes: count, rated_no: count })),
   waiting_now: count,
   oldest_wait_s: seconds,

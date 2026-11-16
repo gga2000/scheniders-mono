@@ -36,6 +36,7 @@ function row(over: Partial<SupportCaseRow>): SupportCaseRow {
     waiting_since: "2026-11-16T10:00:00Z",
     solved_at: null,
     rating: null,
+    no_reason: null,
     reopened_count: 0,
     last_message_at: "2026-11-16T10:00:00Z",
     last_message_preview: "",
