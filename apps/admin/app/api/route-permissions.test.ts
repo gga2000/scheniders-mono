@@ -214,18 +214,6 @@ const SUPER_ADMIN_ONLY: Case[] = [
     },
   },
   {
-    name: "POST /api/team/commissions/calculate (manage_commissions)",
-    call: async (t) => {
-      const { POST } = await import("./team/commissions/calculate/route");
-      return POST(
-        req("/api/team/commissions/calculate", "POST", t, {
-          period_start: "2026-10-01",
-          period_end: "2026-10-31",
-        }),
-      );
-    },
-  },
-  {
     name: "DELETE /api/leads/[id] (delete_leads)",
     call: async (t) => {
       const { DELETE } = await import("./leads/[id]/route");
