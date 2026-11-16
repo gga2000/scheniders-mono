@@ -2,7 +2,7 @@
 
 import { LifeBuoy } from "lucide-react";
 import { motion } from "framer-motion";
-import { useSupportStore } from "@/store/use-support-store";
+import { hasNewNotice, useSupportNoticeSeen, useSupportStore } from "@/store/use-support-store";
 import { useSupportThread } from "@/hooks/use-support";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -12,8 +12,15 @@ export function SupportTrigger() {
     const isOpen = useSupportStore((s) => s.isOpen);
     const { data } = useSupportThread(isOpen);
     const { t } = useLanguage();
+    const seenNoticeId = useSupportNoticeSeen((s) => s.seenNoticeId);
     const unread = isOpen ? 0 : data?.unread ?? 0;
-    const label = unread > 0 ? t("support.trigger.unread", { n: unread }) : t("support.trigger.title");
+    const newNotice = !isOpen && unread === 0 && hasNewNotice(data?.notice?.id, seenNoticeId);
+    const label =
+        unread > 0
+            ? t("support.trigger.unread", { n: unread })
+            : newNotice
+              ? t("support.trigger.notice")
+              : t("support.trigger.title");
 
     return (
         <button
@@ -32,6 +39,14 @@ export function SupportTrigger() {
                 >
                     {unread > 99 ? "99+" : unread}
                 </motion.span>
+            )}
+            {newNotice && (
+                <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    aria-hidden
+                    className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[var(--card-bg)] bg-amber-500"
+                />
             )}
         </button>
     );
