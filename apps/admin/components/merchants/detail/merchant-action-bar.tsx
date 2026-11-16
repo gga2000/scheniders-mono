@@ -320,8 +320,8 @@ export function MerchantActionBar({
                 })()}
               </div>
               <p className="text-[11px] text-foreground/60 leading-snug">
-                The merchant&rsquo;s subscription tier will change immediately. Billing
-                may be prorated by your payment provider.
+                The plan changes now, for the shop and its subscription. Nothing is
+                charged and nothing is refunded.
               </p>
               <div className="flex items-center gap-1.5">
                 <button

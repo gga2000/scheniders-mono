@@ -12,6 +12,7 @@ import {
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TenantStatus } from "@/types/admin";
 
@@ -127,6 +128,10 @@ export function MerchantsKanbanView({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+    },
+    // The server says why a move was refused (a trial, the demo store).
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 

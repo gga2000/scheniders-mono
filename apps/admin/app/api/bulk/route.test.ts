@@ -237,6 +237,100 @@ describe("POST /api/bulk extend_trial", () => {
 });
 
 /*
+ * Bulk suspend, reactivate and change plan wrote the picked shops straight to
+ * the tables: "active" over a shop on trial (never locked, never asked to pay)
+ * and over a paused shop, the demo store suspended, a plan on the shop that
+ * its subscription did not get, then one log insert that could fail alone.
+ * Each shop goes through admin_update_shop, which checks, writes and logs
+ * together, and the answer says which shops were refused and why.
+ */
+describe("POST /api/bulk suspend, reactivate, change_plan", () => {
+  const shop = (tenantId: string, over: Record<string, unknown> = {}) => ({
+    data: { success: true, tenant_id: tenantId, status: "active", plan: "starter", auto_renew: true, pending_plan: null, changed: [], ...over },
+    error: null,
+  });
+
+  it.each([
+    ["suspend", undefined, { _status: "suspended", _plan: null }],
+    ["reactivate", undefined, { _status: "active", _plan: null }],
+    ["change_plan", { plan: "internal" }, { _status: null, _plan: "internal" }],
+  ])("%s asks the database once per shop, with the acting admin, never a table write", async (action, params, asked) => {
+    rpc.mockResolvedValueOnce(shop(T1)).mockResolvedValueOnce(shop(T2));
+    const res = await POST(req({ action, tenant_ids: [T1, T2], params }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, affected: 2 });
+    expect(rpc).toHaveBeenCalledTimes(2);
+    for (const tid of [T1, T2]) {
+      expect(rpc).toHaveBeenCalledWith("admin_update_shop", {
+        _tenant_id: tid,
+        ...asked,
+        _auto_renew: null,
+        _admin_user_id: ADMIN_ID,
+        _actor_email: "ops@example.com",
+        _source: "bulk",
+      });
+    }
+    expect(from).not.toHaveBeenCalled();
+    // The database call writes each shop's log row; the route adds no second one.
+    expect(logAdminActivityBatch).not.toHaveBeenCalled();
+  });
+
+  it("reactivate reports what each shop came back as, and the shops that were refused", async () => {
+    rpc
+      .mockResolvedValueOnce(shop(T1, { status: "trial", changed: ["status_change"] }))
+      .mockResolvedValueOnce({ data: { success: false, error: "paused" }, error: null });
+    const res = await POST(req({ action: "reactivate", tenant_ids: [T1, T2] }));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.success).toBe(false);
+    expect(body.error).toBe("Not changed for 1 of 2 merchant(s); 1 were changed");
+    expect(body.succeeded).toEqual([{ tenant_id: T1, status: "trial", plan: "starter" }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, error: "This shop is paused. Resume it first." }]);
+  });
+
+  it("suspend does not count the demo store as suspended", async () => {
+    rpc.mockResolvedValueOnce({ data: { success: false, error: "demo_store" }, error: null });
+    const res = await POST(req({ action: "suspend", tenant_ids: [T1] }));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      success: false,
+      succeeded: [],
+      failed: [{ tenant_id: T1, error: "This is the demo store. Its status does not change." }],
+    });
+  });
+
+  it("reports a database error for one shop as a failure and still tries the rest", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "deadlock detected" } })
+      .mockResolvedValueOnce(shop(T2, { status: "suspended", changed: ["status_change"] }));
+    const res = await POST(req({ action: "suspend", tenant_ids: [T1, T2] }));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.failed).toEqual([{ tenant_id: T1, error: "Failed to change this shop" }]);
+    expect(body.succeeded).toEqual([{ tenant_id: T2, status: "suspended", plan: "starter" }]);
+  });
+
+  it.each([undefined, {}, { plan: "gold" }, { plan: 7 }])("change_plan refuses params %j before the database", async (params) => {
+    const res = await POST(req({ action: "change_plan", tenant_ids: [T1], params }));
+
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("support staff cannot run a bulk action", async () => {
+    state.role = "support_staff";
+    const res = await POST(req({ action: "suspend", tenant_ids: [T1] }));
+
+    expect(res.status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+/*
  * Bulk "Send Notification" told staff it had sent a message to every picked
  * shop. It sent nothing: the route only wrote a log line. The action is gone,
  * so the route must refuse it and leave no "sent" line in the staff log.

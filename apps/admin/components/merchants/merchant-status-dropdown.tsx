@@ -4,6 +4,7 @@ import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
 import { useState, useRef, useEffect, memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { TenantStatus } from "@/types/admin";
 
@@ -19,6 +20,12 @@ const STATUS_OPTIONS: Array<{
   { value: "suspended", label: "Suspended", dot: "bg-red-500", destructive: true },
   { value: "cancelled", label: "Cancelled", dot: "bg-gray-400", destructive: true },
 ];
+
+/**
+ * What staff can pick here. "Limited" is a pause: the Pause button on the shop
+ * page sets what is blocked and for how long, so it is shown, never picked.
+ */
+const STATUS_CHOICES = STATUS_OPTIONS.filter((option) => option.value !== "limited");
 
 const statusBadgeStyle: Record<TenantStatus, string> = {
   active: "bg-green-100 text-green-800 dark:bg-green-400/15 dark:text-green-400",
@@ -62,13 +69,21 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Failed to update status");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to update status");
+      }
       return res.json();
     },
     onMutate: async (newStatus) => {
       // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
       patchMerchantInCache(queryClient, merchantId, { status: newStatus });
+    },
+    // The server says why it refused (a paused shop, a trial, the demo store).
+    // onSettled then reads the list again, which puts the real status back.
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
@@ -144,7 +159,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
               </div>
             </div>
           ) : (
-            STATUS_OPTIONS.map((opt) => (
+            STATUS_CHOICES.map((opt) => (
               <button
                 key={opt.value}
                 onClick={(e) => {
