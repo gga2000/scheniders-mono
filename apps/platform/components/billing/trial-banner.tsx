@@ -2,12 +2,15 @@
 
 import { useTenant } from "@/hooks/use-tenant";
 import { useRouter, usePathname } from "next/navigation";
-import { Clock, AlertTriangle, XCircle } from "lucide-react";
+import { Clock, Lock, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { useTrialOrderCap, useTrialOrderCount } from "@/hooks/use-billing";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
+import { useBillingLock } from "@/hooks/use-billing-lock";
+import { isOpenWhileLocked } from "@/lib/billing/lock-routes";
+import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
 
 /** Orders left in the trial at which the banner starts warning. */
 const ORDERS_LEFT_WARNING = 10;
@@ -24,6 +27,7 @@ export function TrialBanner() {
 
     const { data: tenant } = useTenant();
     const inTrial = tenant?.status === "trial" && !isBillingExempt(tenant?.plan);
+    const { data: lock } = useBillingLock(!!tenant && !isBillingExempt(tenant.plan));
     const { data: ordersUsed } = useTrialOrderCount(inTrial);
     const { data: orderCap } = useTrialOrderCap(tenant?.plan ?? null, inTrial);
 
@@ -78,21 +82,24 @@ export function TrialBanner() {
         );
     }
 
-    // Trial expired — banner with strong CTA
-    if (isTrialExpired) {
+    // Locked (handoff A1): the trial ended or the month is unpaid. On the
+    // pages that stay open this line says so; every other page shows the lock
+    // screen (BillingLockGate) with the same words.
+    if (lock?.locked) {
+        if (!isOpenWhileLocked(pathname, null)) return null;
+        const { title, body } = billingLockMessage(t, lock);
         return (
-            <div className="bg-red-600 text-white px-4 py-2.5 flex items-center justify-center gap-3 text-sm">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span className="font-medium">{t("billing.trialExpired")}</span>
-                <button
-                    onClick={() => router.push("/settings")}
-                    className="px-3 py-1 rounded-lg bg-white text-red-700 text-xs font-semibold hover:bg-red-50 transition-colors"
-                >
-                    {t("billing.choosePlan")}
-                </button>
+            <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm" data-testid="billing-lock-banner">
+                <Lock className="w-4 h-4 shrink-0" />
+                <span className="font-medium">{title}. {body}</span>
+                <BillingLockPay lock={lock} compact />
             </div>
         );
     }
+
+    // The trial date has passed but the lock is not read yet: say nothing
+    // rather than flash a message the lock line replaces a moment later.
+    if (isTrialExpired) return null;
 
     // Trial warning — last 3 days, or last orders of the trial cap
     if (isTrialWarning || isOrdersWarning) {
