@@ -2,9 +2,8 @@
 
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { primeAgeTone, type PrimeAgeTone, type PrimeBoard, type PrimeBoardList } from "@/lib/prime/board";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 
-const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 /** One palette: white cards, one Prime blue, and a small dot that says where the stage stands. */
 const STAGE_DOT = {
@@ -107,13 +106,13 @@ export function PrimePipeline({
     return (
         <section aria-label={t("prime.page.pipelineTitle")} className="flex flex-col gap-3 rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
             <div className="grid grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)_28px_minmax(0,1.2fr)_28px_minmax(0,1fr)] items-stretch">
-                {stage("handed_today", "gray", t("prime.page.handedToday"), `IQD ${amount.format(cash.handed_today)}`)}
+                {stage("handed_today", "gray", t("prime.page.handedToday"), formatIQD(cash.handed_today))}
                 {line()}
                 {stage("at_branch", "blue", t("prime.page.atBranch", { branch: branchName ?? t("orders.prime.stop.branch") }), t("prime.page.waitingOut"))}
                 {line()}
                 {stage("on_road", "ink", t("prime.page.onRoad"), "")}
                 {line(true)}
-                {stage("delivered_today", "green", t("prime.page.deliveredToday"), `IQD ${amount.format(cash.delivered_today)}`)}
+                {stage("delivered_today", "green", t("prime.page.deliveredToday"), formatIQD(cash.delivered_today))}
             </div>
             {sides.length > 0 && <div className="flex flex-wrap gap-2">{sides}</div>}
         </section>

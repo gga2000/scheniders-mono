@@ -159,7 +159,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
 
     const coverStats = [
         { label: "TOTAL ORDERS", value: String(stats.total) },
-        { label: "REVENUE", value: formatIQD(stats.totalRevenue) },
+        { label: "REVENUE", value: formatIQD(stats.totalRevenue, "en") },
         { label: "DELIVERY RATE", value: `${stats.deliveryRate.toFixed(1)}%` },
     ];
 
@@ -233,10 +233,10 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
     // KPI Cards Row
     const kpiCards = [
         { label: "Total Orders", value: String(stats.total), bg: COLORS.kpiBlue, color: [30, 64, 175] as [number, number, number] },
-        { label: "Revenue", value: formatIQD(stats.totalRevenue), bg: COLORS.kpiGreen, color: [22, 101, 52] as [number, number, number] },
+        { label: "Revenue", value: formatIQD(stats.totalRevenue, "en"), bg: COLORS.kpiGreen, color: [22, 101, 52] as [number, number, number] },
         { label: "Delivery Rate", value: `${stats.deliveryRate.toFixed(1)}%`, bg: COLORS.kpiGreen, color: [22, 101, 52] as [number, number, number] },
         { label: "Rejection Rate", value: `${stats.rejectionRate.toFixed(1)}%`, bg: COLORS.kpiRed, color: [153, 27, 27] as [number, number, number] },
-        { label: "Avg Order Value", value: formatIQD(stats.avgOrderValue), bg: COLORS.kpiPurple, color: [88, 28, 135] as [number, number, number] },
+        { label: "Avg Order Value", value: formatIQD(stats.avgOrderValue, "en"), bg: COLORS.kpiPurple, color: [88, 28, 135] as [number, number, number] },
     ];
 
     const kpiCardWidth = (contentWidth - 8) / 5; // 4 gaps of 2mm
@@ -337,7 +337,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
             .map(([status, data]) => [
                 paymentLabels[status] || status,
                 String(data.count),
-                formatIQD(data.revenue),
+                formatIQD(data.revenue, "en"),
             ]);
 
         autoTable(doc, {
@@ -380,7 +380,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
             order.phone || "—",
             order.city || "—",
             mergeOrderItems(order.items).map((i) => `${i.name} x${i.quantity}`).join(", ") || "—",
-            formatIQD(Number(order.price) || 0),
+            formatIQD(Number(order.price) || 0, "en"),
             getStatusLabel(order.status),
             formatOrderNamedDayMonth(order.created_at),
         ]);
@@ -456,7 +456,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
                 String(city.delivered),
                 String(city.rejected),
                 shipped > 0 ? `${city.deliveryRate.toFixed(1)}%` : "—",
-                formatIQD(city.revenue),
+                formatIQD(city.revenue, "en"),
             ];
         });
 
@@ -505,7 +505,7 @@ export async function generatePDFReport(options: PDFReportOptions): Promise<void
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.text);
         doc.text(`Total Cities: ${stats.byCity.length}`, margin, finalY);
-        doc.text(`Total Revenue: ${formatIQD(stats.totalRevenue)}`, pageWidth - margin, finalY, { align: "right" });
+        doc.text(`Total Revenue: ${formatIQD(stats.totalRevenue, "en")}`, pageWidth - margin, finalY, { align: "right" });
 
         drawPageFooter(pageNum);
     }

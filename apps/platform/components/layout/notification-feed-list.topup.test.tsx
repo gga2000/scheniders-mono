@@ -72,17 +72,17 @@ afterEach(() => {
 describe("Top-up lines in the feed", () => {
     it("says what was added to the wallet", () => {
         show([notice("wallet.topup_approved", { amount: 9000, asked: 10000, receipt_no: 3 })]);
-        expect(screen.getByText(/^أُضيف IQD\s9,000 إلى محفظتك$/)).toBeTruthy();
+        expect(screen.getByText(/^أُضيف 9,000 د.ع إلى محفظتك$/)).toBeTruthy();
     });
 
     it("gives our team's reason for a refusal and asks for the receipt again", () => {
         show([notice("wallet.topup_rejected", { amount: 10000, reason: "الوصل مقطوع" })]);
-        expect(screen.getByText(/^رُفض شحن IQD\s10,000: الوصل مقطوع\. أرسل الوصل مرة ثانية$/)).toBeTruthy();
+        expect(screen.getByText(/^رُفض شحن 10,000 د.ع: الوصل مقطوع\. أرسل الوصل مرة ثانية$/)).toBeTruthy();
     });
 
     it("keeps the old line for a refusal sent before reasons existed", () => {
         show([notice("wallet.topup_rejected", { amount: 10000 })]);
-        expect(screen.getByText(/^رُفض شحن IQD\s10,000\. تأكد من الوصل وأرسله مرة أخرى$/)).toBeTruthy();
+        expect(screen.getByText(/^رُفض شحن 10,000 د.ع\. تأكد من الوصل وأرسله مرة أخرى$/)).toBeTruthy();
     });
 });
 
@@ -110,12 +110,12 @@ describe("Wallet and renewal lines in the feed", () => {
 
     it("a renewal the wallet cannot cover says the date, the price and what to top up", () => {
         show([notice("billing.renewal_soon", { due_at: "2026-11-19T12:00:00Z", plan: "starter", price: 9000, balance: 3000, short: 6000 })]);
-        expect(screen.getByText(/^باقتك تتجدد 19 .+ 2026 وسعرها IQD\s9,000\. اشحن IQD\s6,000 حتى يبقى متجرك شغّال$/)).toBeTruthy();
+        expect(screen.getByText(/^باقتك تتجدد 19 .+ 2026 وسعرها 9,000 د.ع\. اشحن 6,000 د.ع حتى يبقى متجرك شغّال$/)).toBeTruthy();
     });
 
     it("a renewal the wallet covers says what will be taken from it", () => {
         show([notice("billing.renewal_soon", { due_at: "2026-11-19T12:00:00Z", plan: "starter", price: 9000, balance: 20000, short: 0 })]);
-        expect(screen.getByText(/^باقتك تتجدد 19 .+ 2026، وينخصم IQD\s9,000 من محفظتك$/)).toBeTruthy();
+        expect(screen.getByText(/^باقتك تتجدد 19 .+ 2026، وينخصم 9,000 د.ع من محفظتك$/)).toBeTruthy();
     });
 
     it("hides the amounts while money is hidden", () => {

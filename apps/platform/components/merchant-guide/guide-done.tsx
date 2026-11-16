@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import { Check, Copy, ExternalLink, ImageIcon, Store } from "lucide-react";
-import { formatIQD } from "@scheniders/shared";
+import { formatIQD } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
 import { lineText, type GuideLocale } from "@/lib/merchant-guide/script";

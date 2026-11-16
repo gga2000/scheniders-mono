@@ -112,7 +112,7 @@ export default function ShippingExportPage({ params }: { params: Promise<{ batch
                         {t("shippingExport.summary", {
                             count: data.orders.length,
                             company: COURIER_LABELS[company],
-                            cod: formatIQD(codTotal),
+                            cod: formatIQD(codTotal, "en"),
                         })}
                     </p>
                 </div>
@@ -130,7 +130,7 @@ export default function ShippingExportPage({ params }: { params: Promise<{ batch
                         <span className="truncate">
                             #{o.order_id} · {o.customer_name}
                         </span>
-                        <span className="shrink-0 tabular-nums">{formatIQD(computeCodAmount(o))}</span>
+                        <span className="shrink-0 tabular-nums">{formatIQD(computeCodAmount(o), "en")}</span>
                     </li>
                 ))}
             </ol>

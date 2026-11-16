@@ -176,7 +176,7 @@ export function buildFinanceHubPrintHtml(ctx: FinanceExportContext, generatedAt:
     const rtl = ctx.language === "ar";
     const range = x("range").replace("{from}", ymd(period.start)).replace("{to}", ymd(period.end));
     const money = (n: number) =>
-        rtl ? `<bdi>${n < 0 ? "-" : ""}${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.abs(n))} ${x("iqd")}</bdi>` : formatIQD(n);
+        rtl ? `<bdi>${n < 0 ? "-" : ""}${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.abs(n))} ${x("iqd")}</bdi>` : formatIQD(n, "en");
     const tone = (n: number) => (n >= 0 ? "positive" : "negative");
     const html = `<!doctype html>
 <html lang="${ctx.language}"${rtl ? ' dir="rtl"' : ""}><head><meta charset="utf-8"><title>${x("title")} — ${range}</title>

@@ -12,7 +12,8 @@ import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
 import { EASE_CHROME, EASE_PANEL } from "@/components/layout/page-transition";
 import { OrderPipeline } from "@/components/orders/order-pipeline";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Download, Package, CheckSquare, MapPin, CalendarDays, BarChart3, Trash2, LayoutGrid, Table, Bell, BellOff, List, GitBranch, SlidersHorizontal, LayoutList, Rows3, Archive, RotateCcw, Minimize2, Truck, PackageX, Boxes } from "lucide-react";
+import { Plus, Download, Package, CheckSquare, MapPin, CalendarDays, BarChart3, Trash2, LayoutGrid, Table, Bell, BellOff, List, GitBranch, SlidersHorizontal, LayoutList, Rows3, Archive, RotateCcw, Minimize2, Truck, PackageX, Boxes, ChevronDown, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@scheniders/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AdsTodayChips } from "@/components/ads/ads-today-chips";
 import { AdsChipsToggle } from "@/components/ads/ads-chips-toggle";
@@ -31,6 +32,39 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
     const setShowDangerPanel = useOrderStore((s) => s.setShowDangerPanel);
     const dangerBand = useOrderStore((s) => s.dangerBand);
     const setDangerBand = useOrderStore((s) => s.setDangerBand);
+    const shipViaPrime = () => {
+        setShipConfirmCompany('prime');
+        setShipConfirmKey(k => k + 1);
+        setShipConfirmOpen(true);
+    };
+    // «المرتجعات» and «طلب جديد»: in the page header on desktop (round 15, board
+    // S2), in the actions card on the phone.
+    const returnsButton = (
+        <button
+            type="button"
+            onClick={() => setIsReturnsOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
+            title={t("orders.tip.returnsCockpit")}
+        >
+            <PackageX className="w-4 h-4" />
+            <span className="whitespace-nowrap hidden lg:inline">{t("orders.ui.returns")}</span>
+        </button>
+    );
+    const newOrderButton = (
+        <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            data-orders-new
+            className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
+        >
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <div className="relative flex items-center gap-2 font-bold text-sm">
+                <Plus className="w-4 h-4" />
+                <span className="whitespace-nowrap hidden lg:inline">{t("orders.newOrder")}</span>
+                <span className="whitespace-nowrap lg:hidden">{t("orders.newOrderShort")}</span>
+            </div>
+        </button>
+    );
     return (
         <>
             {/* Section 1: Toolbar — stagger child */}
@@ -143,7 +177,39 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
 
                                     </div>
 
-                                    {showAdsChips ? <AdsTodayChips /> : null}
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        {showAdsChips ? <AdsTodayChips /> : null}
+                                        {!isMobile && (
+                                            <>
+                                                {/* «المزيد»: the tools a merchant opens a few times a day. */}
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            data-orders-more
+                                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--card-border)] bg-white/40 dark:bg-white/5 text-sm font-semibold text-foreground hover:bg-amber-200/60 dark:hover:bg-white/10 transition-colors shrink-0"
+                                                        >
+                                                            <MoreHorizontal className="w-4 h-4" />
+                                                            <span className="whitespace-nowrap">{t("orders.toolbar.more")}</span>
+                                                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                                                        </button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-52">
+                                                        <DropdownMenuItem onClick={() => setIsExportModalOpen(true)} className="gap-2">
+                                                            <Download className="w-4 h-4" />
+                                                            {t("orders.ui.export")}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={shipViaPrime} className="gap-2">
+                                                            <Truck className="w-4 h-4" />
+                                                            {t("orders.ui.shipViaPrime")}
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                <div className="shrink-0">{returnsButton}</div>
+                                                <div className="shrink-0">{newOrderButton}</div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Row 2: Control Groups - Premium Glass Cards.
@@ -151,9 +217,8 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                     evenly between ALL cards. Never position:sticky a card in
                                     here — it paints over the cards scrolling beneath it; the
                                     edge fades below signal overflow instead. */}
-                                    {/* The Actions group sits outside the scroll strip, so «طلب جديد»
-                                        stays in view when the other groups overflow at 1440 px or with
-                                        the sidebar open; only the strip scrolls under the edge fade. */}
+                                    {/* On the phone the Actions group sits outside the scroll strip, so
+                                        «طلب جديد» stays in view; desktop has it in the header row. */}
                                     <div className="flex items-start gap-3 w-full">
                                     <div
                                         ref={toolbarScrollRef}
@@ -488,8 +553,8 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                         </div>
                                     </div>
 
-                                    {/* Export Group */}
-                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
+                                    {/* Export Group (phone; desktop has them under «المزيد») */}
+                                    {isMobile && <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                         <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
                                         <div className="flex items-center gap-1.5">
 
@@ -501,50 +566,25 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                 <Download className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    setShipConfirmCompany('prime');
-                                                    setShipConfirmKey(k => k + 1);
-                                                    setShipConfirmOpen(true);
-                                                }}
+                                                onClick={shipViaPrime}
                                                 className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
                                                 title={t("orders.ui.shipViaPrime")}
                                             >
                                                 <Truck className="w-4 h-4" />
                                             </button>
                                         </div>
-                                    </div>
+                                    </div>}
 
                                 </div>
-                                    <div className="pt-2 pb-6 flex-shrink-0">
+                                    {isMobile && <div className="pt-2 pb-6 flex-shrink-0">
                                         <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                             <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                             <div className="flex items-center gap-1.5">
-                                                <button
-                                                    onClick={() => setIsReturnsOpen(true)}
-                                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
-                                                    title={t("orders.tip.returnsCockpit")}
-                                                >
-                                                    <PackageX className="w-4 h-4" />
-                                                    <span className="whitespace-nowrap hidden lg:inline">{t("orders.ui.returns")}</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setIsCreateModalOpen(true)}
-                                                    className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
-                                                >
-                                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                                    <div className="relative flex items-center gap-2 font-bold text-sm">
-                                                        <Plus className="w-4 h-4" />
-                                                        {!sidebarExpanded && (
-                                                            <>
-                                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.newOrder")}</span>
-                                                                <span className="whitespace-nowrap lg:hidden">{t("orders.newOrderShort")}</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </button>
+                                                {returnsButton}
+                                                {newOrderButton}
                                             </div>
                                         </div>
-                                    </div>
+                                    </div>}
                                     </div>
                             </motion.div>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatShare, formatSigned, parseWholeNumber } from "./utils";
+import { formatCount, formatIQD, formatShare, formatSigned, parseWholeNumber, setMoneyLanguage } from "./utils";
 
 describe("parseWholeNumber", () => {
     it("reads Latin, Arabic-Indic and Persian digits", () => {
@@ -43,5 +43,21 @@ describe("formatShare", () => {
         expect(formatShare(1, 2)).toBe("50%");
         expect(formatShare(0, 0)).toBe("0%");
         expect(formatShare(2, 3)).toBe("66.7%");
+    });
+});
+
+describe("formatIQD", () => {
+    it("writes money in the page's language: «د.ع» after the number in Arabic, IQD before it in English", () => {
+        setMoneyLanguage("ar");
+        expect(formatIQD(1250000)).toBe("1,250,000 د.ع");
+        expect(formatIQD(-5000)).toBe("\u22125,000 د.ع");
+        setMoneyLanguage("en");
+        expect(formatIQD(1250000)).toMatch(/^IQD\s1,250,000$/);
+        setMoneyLanguage("ar");
+    });
+
+    it("keeps English for print and export paths that ask for it", () => {
+        setMoneyLanguage("ar");
+        expect(formatIQD(27000, "en")).toMatch(/^IQD\s27,000$/);
     });
 });
