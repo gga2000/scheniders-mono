@@ -10,7 +10,8 @@ import { isMerchantCodeQuery, normalizeMerchantCodeQuery } from "@scheniders/sha
  */
 export function merchantSearchFilter(search: string): string {
   const text = contains(search.trim());
-  const parts = [`business_name.ilike.${text}`, `slug.ilike.${text}`, `contact_email.ilike.${text}`];
+  // The phone too: staff often have only the number a merchant called from.
+  const parts = [`business_name.ilike.${text}`, `slug.ilike.${text}`, `contact_email.ilike.${text}`, `contact_phone.ilike.${text}`];
   // merchant_code is a database function over the shop (the six digits staff
   // read). The API cannot match the number column as text: a cast does not parse.
   if (isMerchantCodeQuery(search)) parts.push(`merchant_code.ilike.${contains(normalizeMerchantCodeQuery(search))}`);
