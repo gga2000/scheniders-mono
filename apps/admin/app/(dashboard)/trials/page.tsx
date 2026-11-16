@@ -55,22 +55,40 @@ function formatIQD(amount: number): string {
   return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
 }
 
-function getBarColor(days: number): string {
-  if (days <= 0) return "bg-gray-400";
+/** Where a trial stands, in Baghdad calendar days (see the trials route). */
+function trialDayLabel({ is_expired, days_remaining: days }: Pick<Trial, "is_expired" | "days_remaining">): string {
+  if (is_expired) {
+    return days === 0 ? "Trial ended today" : `Trial ended ${-days} day${days === -1 ? "" : "s"} ago`;
+  }
+  if (days === 0) return "Ends today";
+  if (days === 1) return "Ends tomorrow";
+  return `${days} days left`;
+}
+
+const trialEndFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Baghdad",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+function getBarColor(days: number, ended: boolean): string {
+  if (ended) return "bg-gray-400";
   if (days <= 3) return "bg-red-500";
   if (days <= 7) return "bg-amber-500";
   return "bg-green-500";
 }
 
-function getBarBg(days: number): string {
-  if (days <= 0) return "bg-gray-200";
+function getBarBg(days: number, ended: boolean): string {
+  if (ended) return "bg-gray-200";
   if (days <= 3) return "bg-red-100";
   if (days <= 7) return "bg-amber-100";
   return "bg-green-100";
 }
 
 function getBarPercent(days: number): number {
-  if (days <= 0) return 100;
   // Assume 30-day max for visual scale
   return Math.min(100, Math.max(5, (days / 30) * 100));
 }
@@ -333,9 +351,9 @@ export default function TrialsPage() {
               <div className="md:flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className={`h-2.5 rounded-full ${getBarBg(trial.days_remaining)} overflow-hidden`}>
+                    <div className={`h-2.5 rounded-full ${getBarBg(trial.days_remaining, trial.is_expired)} overflow-hidden`}>
                       <div
-                        className={`h-full rounded-full ${getBarColor(trial.days_remaining)} transition-all duration-500`}
+                        className={`h-full rounded-full ${getBarColor(trial.days_remaining, trial.is_expired)} transition-all duration-500`}
                         style={{
                           width: trial.is_expired
                             ? "100%"
@@ -355,12 +373,10 @@ export default function TrialsPage() {
                                 : "text-green-600"
                         }`}
                       >
-                        {trial.is_expired
-                          ? `Expired ${Math.abs(trial.days_remaining)} day${Math.abs(trial.days_remaining) !== 1 ? "s" : ""} ago`
-                          : `${trial.days_remaining} day${trial.days_remaining !== 1 ? "s" : ""} remaining`}
+                        {trialDayLabel(trial)}
                       </p>
                       <p className="text-[10px] text-foreground/40">
-                        {new Date(trial.trial_ends_at).toLocaleDateString()}
+                        {trialEndFormat.format(new Date(trial.trial_ends_at))}
                       </p>
                     </div>
                   </div>

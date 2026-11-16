@@ -13,6 +13,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
+import { trialClock } from "@/lib/baghdad-day";
 import { cn } from "@/lib/utils";
 import type { AdminTenant } from "@/types/admin";
 
@@ -85,8 +86,7 @@ function getMerchantFieldValue(merchant: AdminTenant, field: RuleField): number 
     }
     case "trial_remaining_days": {
       if (merchant.status !== "trial" || !merchant.trial_ends_at) return null;
-      const diff = new Date(merchant.trial_ends_at).getTime() - Date.now();
-      return Math.ceil(diff / (1000 * 60 * 60 * 24));
+      return trialClock(merchant.trial_ends_at).days;
     }
     default:
       return null;

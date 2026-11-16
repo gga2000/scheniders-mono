@@ -64,6 +64,14 @@ describe("isChurnRisk", () => {
     expect(isChurnRisk({ ...trial, ordersNewestMonth: 1 }, NOW)).toBe(false);
     expect(isChurnRisk({ ...trial, trialEndsAt: null }, NOW)).toBe(false);
   });
+
+  it("counts the last 3 days on the Baghdad calendar, as the Trials page does", () => {
+    // NOW is 09:00 on 16 Nov. 23:00 on the 19th is three days away by the calendar
+    // (3 days and 14 hours by the clock); 00:30 on the 20th is four.
+    const trial = { status: "trial", walletIqd: 20_000, ordersNewestMonth: 0 };
+    expect(isChurnRisk({ ...trial, trialEndsAt: "2026-11-19T20:00:00Z" }, NOW)).toBe(true);
+    expect(isChurnRisk({ ...trial, trialEndsAt: "2026-11-19T21:30:00Z" }, NOW)).toBe(false);
+  });
 });
 
 describe("the list and the shop dialog", () => {

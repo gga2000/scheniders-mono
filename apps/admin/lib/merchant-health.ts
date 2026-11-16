@@ -9,6 +9,7 @@
  * only says which band a score is in and when the flame shows.
  */
 import type { AdminTenant } from "@/types/admin";
+import { trialClock } from "@/lib/baghdad-day";
 import { ATTENTION_WALLET_IQD, HEALTH_AT_RISK_BELOW, HEALTH_HEALTHY_FROM } from "@/lib/merchant-filters";
 
 export type HealthBand = "healthy" | "warning" | "at_risk";
@@ -42,10 +43,9 @@ export function healthDotClass(score: number): string {
   return DOT[healthBand(score)];
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** Fewer orders than this in the newest usage month reads as "hardly selling". */
 const FEW_ORDERS = 5;
-/** A trial with this many days left, or fewer, and no order yet is about to be lost. */
+/** A trial ending within this many Baghdad days (or already ended) with no order yet is about to be lost. */
 const TRIAL_LAST_DAYS = 3;
 
 export interface ChurnFacts {
@@ -64,8 +64,7 @@ export function isChurnRisk(shop: ChurnFacts, now: number = Date.now()): boolean
   if (shop.status === "suspended") return true;
   if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.ordersNewestMonth < FEW_ORDERS) return true;
   if (shop.status === "trial" && shop.trialEndsAt) {
-    const daysLeft = Math.ceil((new Date(shop.trialEndsAt).getTime() - now) / DAY_MS);
-    return daysLeft <= TRIAL_LAST_DAYS && shop.ordersNewestMonth === 0;
+    return trialClock(shop.trialEndsAt, now).days <= TRIAL_LAST_DAYS && shop.ordersNewestMonth === 0;
   }
   return false;
 }

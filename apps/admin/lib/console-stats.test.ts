@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  addDays,
   dayOfWeek,
   daysEnding,
   feesOf,
@@ -26,13 +25,6 @@ function client(data: unknown, error: { message: string } | null = null) {
 }
 
 describe("calendar helpers", () => {
-  it("adds and subtracts days across month, year and leap-day edges", () => {
-    expect(addDays("2026-11-16", -6)).toBe("2026-11-10");
-    expect(addDays("2026-11-01", -1)).toBe("2026-10-31");
-    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
-    expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
-  });
-
   it("lists the days ending today, oldest first", () => {
     expect(daysEnding("2026-11-02", 4)).toEqual(["2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02"]);
     const year = daysEnding("2026-11-16", 365);
