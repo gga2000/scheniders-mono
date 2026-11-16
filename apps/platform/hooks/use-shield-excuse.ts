@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { normalizeShieldPhone } from "@/lib/shield/lookup";
@@ -31,7 +31,7 @@ export function useShieldOwnBadOrders(phone: string | null | undefined, enabled:
         queryFn: async () => {
             const { data, error } = await supabase.rpc("shield_own_bad_orders", { p_phone: norm ?? "" });
             if (error) {
-                Sentry.captureException(error, { tags: { area: "orders", op: "shield.own-bad-orders" } });
+                reportError(error, { tags: { area: "orders", op: "shield.own-bad-orders" } });
                 throw error;
             }
             return z.array(rowSchema).parse(data ?? []);
@@ -43,7 +43,7 @@ export function useShieldOwnBadOrders(phone: string | null | undefined, enabled:
 export async function setShieldExcused(orderId: string, excused: boolean): Promise<void> {
     const { error } = await supabase.rpc("shield_set_excused", { p_order_id: orderId, p_excused: excused });
     if (error) {
-        Sentry.captureException(error, { tags: { area: "orders", op: "shield.set-excused" } });
+        reportError(error, { tags: { area: "orders", op: "shield.set-excused" } });
         throw error;
     }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -22,7 +22,7 @@ export default function Error({
     // CATCHES the error, so nothing else reports it, and the merchant sees this
     // screen while Sentry shows nothing. Sentry's automatic instrumentation
     // cannot see errors an app-router boundary has already swallowed.
-    Sentry.captureException(error, { tags: { boundary: "app-error" } });
+    reportError(error, { tags: { boundary: "app-error" } });
   }, [error]);
 
   return (

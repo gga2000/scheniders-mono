@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useId } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/hooks/use-language";
 
 export interface Announcement {
     id: string;
@@ -48,6 +49,7 @@ export function useAnnouncements() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { role, profile, tenantId } = useAuth();
+    const { t } = useLanguage();
     const isAdmin = role === 'admin';
     // Per-instance channel name so a remount/double-mount doesn't hand back an
     // already-subscribed channel (which makes `.on()` throw "after subscribe()").
@@ -67,7 +69,7 @@ export function useAnnouncements() {
         // A failed read must not render as "no announcements" — an empty list is
         // a fact, a failure is not.
         if (fetchError) {
-            Sentry.captureException(fetchError, { tags: { area: "dashboard", op: "announcements.read" } });
+            reportError(fetchError, { tags: { area: "dashboard", op: "announcements.read" } });
             setError(fetchError.message);
         } else {
             setError(null);
@@ -99,18 +101,18 @@ export function useAnnouncements() {
         if (!isAdmin) return false;
         const row = buildAnnouncementInsert(content, tenantId, profile?.display_name);
         if (!row) {
-            if (content.trim()) toast.error("No active store selected");
+            if (content.trim()) toast.error(t("dashboard.announcements.noStore"));
             return false;
         }
         const { error: insertError } = await supabase.from('announcements').insert(row);
         if (insertError) {
-            Sentry.captureException(insertError, { tags: { area: "dashboard", op: "announcements.create" } });
-            toast.error(`Could not post announcement: ${insertError.message}`);
+            reportError(insertError, { tags: { area: "dashboard", op: "announcements.create" } });
+            toast.error(t("dashboard.announcements.postFailed"));
             return false;
         }
         await fetchAnnouncements();
         return true;
-    }, [isAdmin, profile?.display_name, tenantId, fetchAnnouncements]);
+    }, [isAdmin, profile?.display_name, tenantId, fetchAnnouncements, t]);
 
     const togglePin = useCallback(async (id: string, currentlyPinned: boolean) => {
         if (!isAdmin) return;
@@ -119,12 +121,12 @@ export function useAnnouncements() {
             .update({ is_pinned: !currentlyPinned })
             .eq('id', id);
         if (pinError) {
-            Sentry.captureException(pinError, { tags: { area: "dashboard", op: "announcements.pin" } });
-            toast.error(`Could not update announcement: ${pinError.message}`);
+            reportError(pinError, { tags: { area: "dashboard", op: "announcements.pin" } });
+            toast.error(t("dashboard.announcements.pinFailed"));
             return;
         }
         await fetchAnnouncements();
-    }, [isAdmin, fetchAnnouncements]);
+    }, [isAdmin, fetchAnnouncements, t]);
 
     const deleteAnnouncement = useCallback(async (id: string) => {
         if (!isAdmin) return;
@@ -134,12 +136,12 @@ export function useAnnouncements() {
             .update({ is_active: false })
             .eq('id', id);
         if (deleteError) {
-            Sentry.captureException(deleteError, { tags: { area: "dashboard", op: "announcements.delete" } });
-            toast.error(`Could not delete announcement: ${deleteError.message}`);
+            reportError(deleteError, { tags: { area: "dashboard", op: "announcements.delete" } });
+            toast.error(t("dashboard.announcements.deleteFailed"));
             return;
         }
         await fetchAnnouncements();
-    }, [isAdmin, fetchAnnouncements]);
+    }, [isAdmin, fetchAnnouncements, t]);
 
     return { announcements, loading, error, isAdmin, createAnnouncement, togglePin, deleteAnnouncement };
 }

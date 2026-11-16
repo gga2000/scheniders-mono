@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, LayoutGrid, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
@@ -303,7 +303,7 @@ export function TillPage() {
                                 if (!opened) toast({ title: t("till.drawer.notConnected"), variant: "warning" });
                             })
                             .catch((err: unknown) => {
-                                Sentry.captureException(err, { tags: { area: "till", op: "drawer" } });
+                                reportError(err, { tags: { area: "till", op: "drawer" } });
                                 toast({ title: t("till.drawer.failed"), variant: "error" });
                             });
                     }
@@ -753,7 +753,7 @@ function DrawerSetting({ prefs, onPrefs }: { prefs: TillPrefs; onPrefs: (p: Till
         } catch (err: unknown) {
             // The cashier closing the port picker is not a failure.
             if (!(err instanceof DOMException && err.name === "NotFoundError")) {
-                Sentry.captureException(err, { tags: { area: "till", op: "drawer" } });
+                reportError(err, { tags: { area: "till", op: "drawer" } });
                 toast({ title: t("till.drawer.failed"), variant: "error" });
             }
         } finally {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import * as Sentry from "@sentry/nextjs";
+import { lastReportedEventId } from "@/lib/report-error";
 import { AlertTriangle, CheckCircle2, FileText, LifeBuoy, Loader2, Package, RotateCcw, Send, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSupportStore } from "@/store/use-support-store";
@@ -124,7 +124,7 @@ export function SupportSheet() {
             orderNumber: openOrder?.id,
             errorCode: errorPrefill?.errorCode,
             errorMessage: errorPrefill?.errorMessage,
-            sentryEventId: errorPrefill ? Sentry.lastEventId() : null,
+            sentryEventId: errorPrefill ? lastReportedEventId() ?? null : null,
             screen: { width: window.innerWidth, height: window.innerHeight },
             userAgent: navigator.userAgent,
         });

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/report-error";
 import type { Locale } from "@/lib/i18n";
 // Arabic is the default and the language every page renders first, so it ships
 // with the app. English (another ~400 kB) loads only for someone who picks it.
@@ -99,7 +99,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         loadEnglish()
             .then((dict) => { if (live) setEn(dict); })
             // The page stays in Arabic; the failed chunk load is reported.
-            .catch((err: unknown) => Sentry.captureException(err));
+            .catch((err: unknown) => reportError(err));
         return () => { live = false; };
     }, [language, en]);
 
