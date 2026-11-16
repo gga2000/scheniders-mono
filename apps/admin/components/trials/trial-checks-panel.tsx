@@ -42,6 +42,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
   const queryClient = useQueryClient();
   const onTrial = check.store?.status === "trial";
   // One id per ask: a retry after a lost answer or a double click gives the days once.
+  // The decision the row showed goes too: if someone decided it since, the server refuses.
   const [requestIds] = useState(createRequestIds);
 
   const mutation = useMutation({
@@ -51,6 +52,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
         ...ask,
         reason: reason.trim(),
         request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}:${reason.trim()}`),
+        seen_decided_at: check.decided_at,
       };
       const res = await fetch(`/api/trial-checks/${check.tenant_id}`, {
         method: "POST",
@@ -69,6 +71,8 @@ function DecideActions({ check }: { check: TrialCheck }) {
       queryClient.invalidateQueries({ queryKey: ["admin", "trials"] });
       setReason("");
     },
+    // A refusal may mean the row changed (decided meanwhile): show what is there now.
+    onError: () => queryClient.invalidateQueries({ queryKey: TRIAL_CHECKS_KEY }),
   });
 
   const busy = mutation.isPending || !reasonOk;

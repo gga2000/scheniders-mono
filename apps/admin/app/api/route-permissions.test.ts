@@ -311,6 +311,7 @@ const ANY_ADMIN: Case[] = [
           days: 7,
           reason: "same owner, new brand",
           request_id: REQ,
+          seen_decided_at: null,
         }),
         idParams,
       );
@@ -717,7 +718,7 @@ describe("one change per staff request", () => {
     {
       name: "trial-checks",
       role: "support",
-      body: { decision: "allow_trial", days: 7, reason: "same owner, new brand" },
+      body: { decision: "allow_trial", days: 7, reason: "same owner, new brand", seen_decided_at: null },
       ok: { success: true, tenant_id: TENANT, decision: "allow_trial" },
       call: async (t: string, body: unknown) => {
         const { POST } = await import("./trial-checks/[id]/route");

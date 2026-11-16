@@ -1,5 +1,6 @@
 -- Throwaway Postgres 16 database for the *_once wrappers (audit N3,
--- 20261116143323_staff_action_request_ids.sql, 20261116222030_trial_check_decide_once.sql).
+-- 20261116143323_staff_action_request_ids.sql, 20261116222030_trial_check_decide_once.sql,
+-- 20261116230316_trial_check_decide_seen.sql).
 -- The five staff functions they wrap are stubs with the live signatures: each counts its calls and answers
 -- success, or the refusal set in test.refuse. The real functions have their
 -- own suites (billing-lock, demo-store).
@@ -19,6 +20,9 @@ CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
 $$;
 
 CREATE TABLE public.tenants (id uuid PRIMARY KEY);
+
+-- The trial check row a decision locks and compares (decided_at only).
+CREATE TABLE public.trial_checks (tenant_id uuid PRIMARY KEY, decided_at timestamptz);
 
 CREATE TABLE public.stub_calls (fn text NOT NULL, tenant_id uuid NOT NULL, amount integer NOT NULL);
 
@@ -52,4 +56,12 @@ RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('force_unlock', _tena
 
 CREATE FUNCTION public.admin_trial_check_decide(_tenant_id uuid, _decision text, _reason text,
     _days integer DEFAULT NULL, _admin_user_id uuid DEFAULT NULL, _actor_email text DEFAULT NULL)
-RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('trial_check_decide', _tenant_id, coalesce(_days, 0)) $$;
+RETURNS jsonb LANGUAGE plpgsql AS $$
+BEGIN
+    -- As the real one does on success: the row is decided now.
+    IF nullif(current_setting('test.refuse', true), '') IS NULL THEN
+        UPDATE public.trial_checks SET decided_at = clock_timestamp() WHERE tenant_id = _tenant_id;
+    END IF;
+    RETURN public.stub_answer('trial_check_decide', _tenant_id, coalesce(_days, 0));
+END;
+$$;
