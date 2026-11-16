@@ -77,6 +77,11 @@ describe("updateShop", () => {
     ["still_trial", 409, "This shop is on trial. Use Convert to paid to make it a paying shop."],
     ["not_trialing", 409, "This shop's subscription is not a trial, so it cannot go back to Trial."],
     ["no_subscription", 409, "This shop has no subscription yet."],
+    [
+      "subscription_ended",
+      409,
+      "This shop's subscription has ended, so it would never be billed for a paid plan. The plan stays as it is.",
+    ],
   ])("a refusal %s tells staff what to do", async (code, status, error) => {
     const { supabase } = client({ data: { success: false, error: code }, error: null });
 
