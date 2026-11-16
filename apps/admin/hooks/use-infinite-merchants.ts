@@ -3,6 +3,7 @@
 import { useInfiniteQuery, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import type { AdminTenant } from "@/types/admin";
 import { useAdminStore } from "@/store/use-admin-store";
+import { DEFAULT_MERCHANT_SORT } from "@/lib/merchant-sort";
 import { useMemo } from "react";
 
 interface MerchantsPage {
@@ -53,9 +54,10 @@ export function useInfiniteMerchants(limit = 50) {
     starredMerchants,
   } = useAdminStore();
 
+  // The store keeps only columns the database can order every shop by.
   const sortParam = sortConfig.length > 0
     ? sortConfig.map((s) => `${s.column}:${s.direction}`).join(",")
-    : "created_at:desc";
+    : DEFAULT_MERCHANT_SORT;
 
   const query = useInfiniteQuery<MerchantsPage>({
     queryKey: [

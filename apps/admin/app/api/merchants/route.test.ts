@@ -182,6 +182,30 @@ describe("GET /api/merchants", () => {
     expect(stub.callsTo("admin_notes.order")).toEqual([["updated_at", { ascending: false }]]);
   });
 
+  describe("sort", () => {
+    it("orders on the database's column for the header pressed, empty values last", async () => {
+      expect((await call("sort=balance:desc,business:asc")).status).toBe(200);
+      expect(stub.callsTo("tenants.order")).toEqual([
+        ["wallet(balance_iqd)", { ascending: false, nullsFirst: false }],
+        ["business_name", { ascending: true, nullsFirst: false }],
+        // The tie-break, so a page boundary cannot skip or repeat a shop.
+        ["id", { ascending: true }],
+      ]);
+    });
+
+    it("lists the newest shops first when no sort is asked for", async () => {
+      await call();
+      expect(stub.callsTo("tenants.order")[0]).toEqual(["created_at", { ascending: false, nullsFirst: false }]);
+    });
+
+    it("answers 400 with plain words for a column it cannot sort by, without reading", async () => {
+      const response = await call("sort=revenue:desc");
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: 'The list cannot be sorted by "revenue"' });
+      expect(stub.tablesRead()).toEqual([]);
+    });
+  });
+
   describe("ids", () => {
     const A = "11111111-1111-4111-8111-111111111111";
     const B = "22222222-2222-4222-8222-222222222222";
@@ -237,7 +261,7 @@ describe("GET /api/merchants", () => {
     await call("sort=created_at:desc");
 
     expect(stub.callsTo("tenants.order")).toEqual([
-      ["created_at", { ascending: false }],
+      ["created_at", { ascending: false, nullsFirst: false }],
       ["id", { ascending: true }],
     ]);
   });

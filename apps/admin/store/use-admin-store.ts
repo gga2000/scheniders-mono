@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import type {
   TableDensity,
   ViewMode,
@@ -268,6 +269,8 @@ export const useAdminStore = create<AdminStore>()(
       sortConfig: [],
       toggleSort: (column, append = false) =>
         set((state) => {
+          // A column the database cannot order every shop by is never sent.
+          if (!isSortableMerchantColumn(column)) return state;
           const existing = state.sortConfig.find((s) => s.column === column);
           if (existing) {
             if (existing.direction === "asc") {

@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import { PLAN_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
+import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import {
   ArrowUp,
   ArrowDown,
@@ -137,16 +138,18 @@ export function MerchantSheetView({
 
           {SHEET_COLUMNS.map((col) => {
             const dir = getSortDir(col.id);
+            // Orders, team, fees and last active are counted per page: they do not sort.
+            const sortable = isSortableMerchantColumn(col.id);
             return (
               <div
                 key={col.id}
-                onClick={(e) => col.id !== "row" && onToggleSort(col.id, e.shiftKey)}
+                onClick={sortable ? (e) => onToggleSort(col.id, e.shiftKey) : undefined}
                 className={cn(
                   "shrink-0 px-2 py-2.5 text-[9px] font-black text-foreground/45 uppercase tracking-[0.1em] select-none flex items-center gap-1 border-r border-[var(--card-border)]/50 transition-colors",
                   col.width,
                   col.align === "text-right" && "justify-end",
                   col.align === "text-center" && "justify-center",
-                  col.id !== "row" && "cursor-pointer hover:text-foreground/80",
+                  sortable && "cursor-pointer hover:text-foreground/80",
                   col.sticky && "sticky left-[72px] z-20 bg-[var(--card-bg)]/95 backdrop-blur-md",
                 )}
               >
