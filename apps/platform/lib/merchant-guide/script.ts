@@ -124,8 +124,8 @@ export const GUIDE_LINES = {
         en: "Well done! That part is finished.",
     },
     "courier.request": {
-        ar: "من هنا تدز رقمك المسجل ببرايم، وفريقنا يربطه ويبلغك.",
-        en: "Send the phone number of your Prime account from here, and our team links it and tells you.",
+        ar: "من هنا تكتب رقمك المسجل ببرايم ونربطه بنفس اللحظة. إذا برايم بعد ما ربط حسابك ويانا، نبلغك أول ما يصير.",
+        en: "Type the phone number of your Prime account here and we link it right away. If Prime hasn't linked your account to us yet, we tell you as soon as it does.",
     },
     "courier.sent": {
         ar: "دزينا طلبك. فريقنا يربطه ويبلغك، وإنت كمل.",
