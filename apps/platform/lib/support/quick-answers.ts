@@ -117,6 +117,46 @@ export const QUICK_ANSWERS: readonly QuickAnswer[] = [
         href: "/finances?tab=expenses",
         words: ["مصروف", "مصاريف", "ربح", "صافي", "ماليه", "حسابات", "expense", "expenses", "profit", "finance", "cost"],
     },
+    {
+        id: "order_alerts",
+        question: { ar: "كيف توصلني رسالة واتساب عند كل طلب جديد؟", en: "How do I get a WhatsApp message for every new order?" },
+        answer: {
+            ar: "من الإعدادات، تنبيهات الموظفين: أضف رقم الموبايل وشغّل التنبيه عند الطلبات الجديدة.",
+            en: "In Settings, Staff alerts: add the mobile number and turn on the alert for new orders.",
+        },
+        href: "/settings?section=staff-alerts",
+        words: ["تنبيه", "تنبيهات", "اشعار", "اشعارات", "واتساب", "طلب جديد", "alert", "alerts", "notify", "notification", "whatsapp", "new order"],
+    },
+    {
+        id: "order_reasons",
+        question: { ar: "كيف أغيّر أسباب الإلغاء والرفض؟", en: "How do I change the cancel and reject reasons?" },
+        answer: {
+            ar: "من الإعدادات، أسباب الطلبات: أضف السبب أو عدّله أو احذفه.",
+            en: "In Settings, Order reasons: add, edit or remove a reason.",
+        },
+        href: "/settings?section=order-reasons",
+        words: ["سبب", "اسباب", "الغاء", "رفض", "مرفوض", "reason", "reasons", "reject", "rejection"],
+    },
+    {
+        id: "customers",
+        question: { ar: "وين أشوف زبائني وطلباتهم؟", en: "Where do I see my customers and their orders?" },
+        answer: {
+            ar: "من صفحة العملاء: كل زبون برقمه، واضغط عليه حتى تشوف كل طلباته.",
+            en: "On the Customers page: every customer by phone number; press one to see all their orders.",
+        },
+        href: "/customers",
+        words: ["زبون", "زبائن", "زباين", "عميل", "عملاء", "رقم الزبون", "customer", "customers", "client", "buyer"],
+    },
+    {
+        id: "reports",
+        question: { ar: "وين أشوف مبيعاتي؟", en: "Where do I see my sales?" },
+        answer: {
+            ar: "من صفحة التقارير: المبيعات والطلبات حسب الفترة والمدينة ومصدر الطلب، والرواجع.",
+            en: "On the Reports page: sales and orders by period, city and order source, and returns.",
+        },
+        href: "/reports",
+        words: ["مبيعات", "مبيع", "تقرير", "تقارير", "احصائيات", "sales", "report", "reports", "stats", "analytics"],
+    },
 ];
 
 /**

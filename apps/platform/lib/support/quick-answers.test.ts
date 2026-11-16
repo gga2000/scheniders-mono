@@ -19,6 +19,10 @@ describe("matchQuickAnswers", () => {
         expect(ids("كيف اطبع الملصقات")[0]).toBe("print_labels");
         expect(ids("زبون مزعج اريد احظره")[0]).toBe("blacklist");
         expect(ids("how do I add a staff member")[0]).toBe("team");
+        expect(ids("اريد توصلني رسالة واتساب من يجي طلب")[0]).toBe("order_alerts");
+        expect(ids("اريد اغير اسباب الرفض")[0]).toBe("order_reasons");
+        expect(ids("وين اشوف الزبائن")[0]).toBe("customers");
+        expect(ids("وين اشوف المبيعات")[0]).toBe("reports");
     });
 
     it("shows nothing for a letter or for words it has no answer to", () => {
