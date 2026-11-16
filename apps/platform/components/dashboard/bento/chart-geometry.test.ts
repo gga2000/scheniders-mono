@@ -14,6 +14,14 @@ describe("smoothPath", () => {
         expect(d.match(/C/g)).toHaveLength(3);
         for (const [x, y] of pts.slice(1)) expect(d).toContain(` ${x},${y}`);
     });
+
+    it("never swings past a point (no dip below a zero baseline)", () => {
+        // SVG y grows downwards: y=100 is the zero line, a quiet day next to busy ones.
+        const pts = [[0, 20], [10, 100], [20, 0], [30, 100], [40, 60]] as const;
+        const ys = smoothPath(pts).slice(1).split(/[CM ]/).filter(Boolean).map((xy) => Number(xy.split(",")[1]));
+        expect(Math.max(...ys)).toBeLessThanOrEqual(100);
+        expect(Math.min(...ys)).toBeGreaterThanOrEqual(0);
+    });
 });
 
 describe("niceStep", () => {

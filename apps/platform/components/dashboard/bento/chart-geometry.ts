@@ -8,8 +8,9 @@ export type Pt = readonly [number, number];
 
 /**
  * A smooth path through every point (Catmull-Rom expressed as cubic Béziers).
- * `k` is the tension; 0.18 keeps peaks honest (the curve passes through each
- * data point and never overshoots far between them).
+ * `k` is the tension. Each segment's control points are held between its two
+ * end heights, so the curve never swings past a point: a day with 0 orders
+ * next to a busy one used to dip the line below the zero baseline.
  */
 export function smoothPath(points: readonly Pt[], k = 0.18): string {
     const n = points.length;
@@ -19,8 +20,10 @@ export function smoothPath(points: readonly Pt[], k = 0.18): string {
     let d = `M${points[0][0]},${points[0][1]}`;
     for (let i = 0; i < n - 1; i++) {
         const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
-        d += `C${p1[0] + (p2[0] - p0[0]) * k},${p1[1] + (p2[1] - p0[1]) * k} `
-            + `${p2[0] - (p3[0] - p1[0]) * k},${p2[1] - (p3[1] - p1[1]) * k} ${p2[0]},${p2[1]}`;
+        const lo = Math.min(p1[1], p2[1]), hi = Math.max(p1[1], p2[1]);
+        const y = (v: number) => Math.min(hi, Math.max(lo, v));
+        d += `C${p1[0] + (p2[0] - p0[0]) * k},${y(p1[1] + (p2[1] - p0[1]) * k)} `
+            + `${p2[0] - (p3[0] - p1[0]) * k},${y(p2[1] - (p3[1] - p1[1]) * k)} ${p2[0]},${p2[1]}`;
     }
     return d;
 }
