@@ -35,7 +35,7 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 vi.mock("@/lib/prime/client", () => ({ getPrimeClient: () => ({ prime: true }) }));
 vi.mock("@/lib/prime/connection", () => ({
-    loadPrimeConnection: async () => (state.connected ? { merchantLoginId: "m", shopId: 1, branchName: null } : null),
+    loadPrimeLink: async () => (state.connected ? { client: { prime: true }, connection: { merchantLoginId: "m", shopId: 1, branchName: null } } : null),
 }));
 vi.mock("@/lib/prime/self-link", () => ({
     checkPrimeLinkRequest: (...args: unknown[]) => state.check(...args),

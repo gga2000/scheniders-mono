@@ -204,6 +204,15 @@ describe("SummaryView", () => {
         expect(byTestId("money-road")?.textContent).toContain("160,000");
     });
 
+    it("shows Prime's stop while Prime holds the shop's money, even with no link, and hides it with neither", () => {
+        const s = summary();
+        renderView(query(summary({ cash: { ...s.cash, prime_linked: false } })));
+        expect(byTestId("money-prime")?.textContent).toContain("70,000");
+        cleanup();
+        renderView(query(summary({ cash: { ...s.cash, prime_linked: false, prime_held: { parcels: 0, collected: 0, fee: 0 } } })));
+        expect(byTestId("money-prime")).toBeNull();
+    });
+
     it("ends the road on the courier payments that reached the shop in the period", () => {
         renderView(query(summary()));
         expect(byTestId("money-reached")?.textContent).toContain("300,000");

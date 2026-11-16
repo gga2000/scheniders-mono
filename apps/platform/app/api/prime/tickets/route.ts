@@ -4,8 +4,8 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import { PERMISSIONS } from "@/lib/permissions";
-import { getPrimeClient, isPrimeUnreachable, PrimeApiError, type PrimeClient } from "@/lib/prime/client";
-import { loadPrimeConnection } from "@/lib/prime/connection";
+import { isPrimeUnreachable, PrimeApiError, type PrimeClient } from "@/lib/prime/client";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { placeTickets, PRIME_TICKETS_PAGE, tenantCases, ticketMessages } from "@/lib/prime/tickets";
 import { withFailureReport } from "@/lib/job-monitor";
 
@@ -45,10 +45,10 @@ async function handleGET(request: NextRequest) {
     const parsed = querySchema.safeParse({ id: request.nextUrl.searchParams.get("id") ?? undefined });
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid ticket id" }, { status: 400 });
 
-    const client = getPrimeClient();
     const db = createSupabaseServiceClient();
-    const connection = client ? await loadPrimeConnection(db, caller.tenantId) : null;
-    if (!client || !connection) return NextResponse.json({ success: true, connected: false });
+    const link = await loadPrimeLink(db, caller.tenantId);
+    if (!link) return NextResponse.json({ success: true, connected: false });
+    const { client, connection } = link;
 
     try {
         if (parsed.data.id !== undefined) {
@@ -89,10 +89,10 @@ async function handlePOST(request: NextRequest) {
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
 
-    const client = getPrimeClient();
     const db = createSupabaseServiceClient();
-    const connection = client ? await loadPrimeConnection(db, caller.tenantId) : null;
-    if (!client || !connection) return NextResponse.json({ success: false, reason: "not_connected" }, { status: 409 });
+    const link = await loadPrimeLink(db, caller.tenantId);
+    if (!link) return NextResponse.json({ success: false, reason: "not_connected" }, { status: 409 });
+    const { client } = link;
 
     try {
         if (parsed.data.action === "open") {
