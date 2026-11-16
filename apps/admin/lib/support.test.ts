@@ -6,6 +6,7 @@ import {
   formatWait,
   latestOrderNumber,
   percentOf,
+  shotPaths,
   sortInbox,
   supportRefusal,
   type SupportCaseRow,
@@ -113,6 +114,7 @@ describe("latestOrderNumber", () => {
     body: "x",
     context: orderNumber ? { orderNumber } : {},
     created_at: "2026-11-16T10:00:00Z",
+    screenshot_url: null,
   });
 
   it("takes the newest order a merchant had open", () => {
@@ -145,5 +147,21 @@ describe("percentOf", () => {
     expect(percentOf(2, 3)).toBe(67);
     expect(percentOf(0, 5)).toBe(0);
     expect(percentOf(0, 0)).toBeNull();
+  });
+});
+
+describe("shotPaths", () => {
+  const T = "33333333-3333-4333-8333-333333333333";
+  it("keeps only pictures inside this shop's own folder", () => {
+    expect(
+      shotPaths(
+        [
+          { context: { screenshot: `${T}/a.jpg` } },
+          { context: {} },
+          { context: { screenshot: "44444444-4444-4444-8444-444444444444/b.jpg" } },
+        ],
+        T,
+      ),
+    ).toEqual([`${T}/a.jpg`]);
   });
 });

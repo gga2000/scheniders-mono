@@ -27,6 +27,11 @@ function fakeQuery(): unknown {
             if (prop === "then") {
                 return (resolve: (value: DbResult) => void) => resolve(state.queue.shift() ?? { data: null, error: null });
             }
+            // `db.storage` is a property, not a call.
+            if (prop === "storage") {
+                state.calls.push({ method: "storage", args: [] });
+                return fakeQuery();
+            }
             return (...args: unknown[]) => {
                 state.calls.push({ method: String(prop), args });
                 return fakeQuery();
@@ -106,6 +111,77 @@ describe("GET /api/support", () => {
         // The messages read is scoped to the shop as well as to the caller's cases.
         expect(eqCalls()).toContainEqual(["tenant_id", TENANT]);
         expect(state.calls.find((c) => c.method === "in")?.args).toEqual(["case_id", [CASE]]);
+    });
+});
+
+describe("GET /api/support pictures of the screen", () => {
+    const SHOT = `${TENANT}/44444444-4444-4444-8444-444444444444.jpg`;
+    const GONE = `${TENANT}/55555555-5555-4555-8555-555555555555.jpg`;
+
+    it("links each picture through one signing call and drops the stored path", async () => {
+        state.queue.push(
+            { data: [caseRow], error: null },
+            {
+                data: [
+                    { ...message("m2", "merchant", "2026-11-16T10:04:00Z"), context: { screenshot: GONE } },
+                    { ...message("m1", "merchant", "2026-11-16T10:00:00Z"), context: { screenshot: SHOT, path: "/orders" } },
+                    { ...message("m0", "merchant", "2026-11-16T09:00:00Z"), context: {} },
+                ],
+                error: null,
+            },
+            {
+                data: [
+                    { path: SHOT, signedUrl: "https://x/signed-shot", error: null },
+                    { path: GONE, signedUrl: "", error: "Object not found" },
+                ],
+                error: null,
+            },
+        );
+        const body = await (await GET(request("GET"))).json();
+        expect(body.data.messages).toEqual([
+            { ...message("m0", "merchant", "2026-11-16T09:00:00Z"), screenshot_url: null },
+            { ...message("m1", "merchant", "2026-11-16T10:00:00Z"), screenshot_url: "https://x/signed-shot" },
+            { ...message("m2", "merchant", "2026-11-16T10:04:00Z"), screenshot_url: null },
+        ]);
+        const signing = state.calls.filter((c) => c.method === "createSignedUrls");
+        expect(signing).toHaveLength(1);
+        expect(signing[0].args[0]).toEqual([SHOT, GONE]);
+        expect(state.calls.find((c) => c.method === "from" && c.args[0] === "support-shots")).toBeDefined();
+    });
+
+    it("signs nothing when no message carries a picture", async () => {
+        state.queue.push({ data: [caseRow], error: null }, { data: [message("m1", "merchant", "2026-11-16T10:00:00Z")], error: null });
+        const body = await (await GET(request("GET"))).json();
+        expect(body.data.messages[0].screenshot_url).toBeNull();
+        expect(state.calls.some((c) => c.method === "storage")).toBe(false);
+    });
+});
+
+describe("POST /api/support with a picture", () => {
+    it("refuses a picture from another shop's folder before touching the database", async () => {
+        const res = await POST(
+            request("POST", {
+                action: "send",
+                body: "شوف",
+                context: { screenshot: "99999999-9999-4999-8999-999999999999/44444444-4444-4444-8444-444444444444.jpg" },
+            }),
+        );
+        expect(res.status).toBe(400);
+        expect(state.calls).toHaveLength(0);
+    });
+
+    it("refuses a path that is not a stored picture", async () => {
+        const res = await POST(request("POST", { action: "send", body: "شوف", context: { screenshot: `${TENANT}/../x.jpg` } }));
+        expect(res.status).toBe(400);
+        expect(state.calls).toHaveLength(0);
+    });
+
+    it("sends the shop's own picture with the message", async () => {
+        const shot = `${TENANT}/44444444-4444-4444-8444-444444444444.jpg`;
+        state.queue.push({ data: { display_name: "Ali" }, error: null }, { data: null, error: null }, { data: [], error: null });
+        const res = await POST(request("POST", { action: "send", body: "شوف", context: { screenshot: shot } }));
+        expect(res.status).toBe(200);
+        expect((rpcCall()?.args[1] as { p_context: unknown }).p_context).toEqual({ screenshot: shot });
     });
 });
 

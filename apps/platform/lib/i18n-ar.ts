@@ -7800,6 +7800,13 @@ export const ar: Record<string, string> = {
     "support.error.rateLimited": "أرسلت رسائل كثيرة بسرعة. انتظر دقيقة ثم حاول.",
     "support.error.loadFailed": "تعذّر فتح المحادثة. أغلقها وافتحها من جديد.",
     "support.contactButton": "راسل الدعم",
+    "support.shot.add": "صورة لهذه الشاشة",
+    "support.shot.taking": "جارٍ التقاط الصورة...",
+    "support.shot.attached": "صورة الشاشة",
+    "support.shot.remove": "احذف الصورة",
+    "support.shot.body": "صورة من شاشتي",
+    "support.shot.open": "افتح الصورة",
+    "support.shot.failed": "لم تنجح الصورة. صف الشاشة بالكلمات.",
     "notifications.support.reply": "رد من الدعم: {preview}",
     "notifications.support.solved": "الدعم علّم محادثتك كمحلولة. هل انحلت مشكلتك؟",
     // ── Phase 2A: conversation management ──

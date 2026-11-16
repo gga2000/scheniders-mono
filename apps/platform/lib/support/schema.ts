@@ -7,6 +7,13 @@ import { z } from "zod";
  * session, never from these bodies.
  */
 
+/** Private bucket for pictures of the merchant's screen (service role only). */
+export const SUPPORT_SHOT_BUCKET = "support-shots";
+/** A stored picture: `<tenant_id>/<uuid>.jpg`. */
+export const SUPPORT_SHOT_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/;
+/** Same as the bucket's own limit. */
+export const SUPPORT_SHOT_MAX_BYTES = 1_572_864;
+
 /** What the merchant was looking at when they wrote. Staff see it under the message. */
 export const supportContextSchema = z.object({
     /** Page path in the app, without the query string. */
@@ -23,6 +30,8 @@ export const supportContextSchema = z.object({
     /** Window size, "1440x900". */
     screen: z.string().regex(/^\d{2,5}x\d{2,5}$/).optional(),
     userAgent: z.string().max(300).optional(),
+    /** A picture of the screen the merchant attached (stored path). */
+    screenshot: z.string().regex(SUPPORT_SHOT_PATH).optional(),
 });
 
 export type SupportContext = z.infer<typeof supportContextSchema>;
@@ -57,6 +66,8 @@ export interface SupportMessage {
     /** For `system` lines a code: `solved` or `reopened`. */
     body: string;
     created_at: string;
+    /** A short-lived link to the picture of the screen sent with it, if any. */
+    screenshot_url: string | null;
 }
 
 export interface SupportThread {

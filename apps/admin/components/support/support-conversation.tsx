@@ -95,6 +95,25 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
           fromStaff ? "bg-foreground text-background" : "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
         )}
       >
+        {message.screenshot_url && (
+          <a
+            href={message.screenshot_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mb-2 block"
+            title="Open the picture full size"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, not a static asset */}
+            <img
+              src={message.screenshot_url}
+              alt="Picture of the merchant's screen"
+              className="max-h-64 w-full rounded-lg border border-[var(--card-border)] object-cover object-top"
+            />
+          </a>
+        )}
+        {message.context.screenshot && !message.screenshot_url && (
+          <p className="mb-1 text-[11px] text-foreground/50">The picture of the screen is no longer stored.</p>
+        )}
         <p dir="auto" className="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {message.body}
         </p>

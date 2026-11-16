@@ -80,3 +80,10 @@ A new merchant message pings support staff on their phone or computer.
 
 - **Scoreboard** tab on `/support` (7 or 30 days): waiting now, conversations, typical first reply and the slowest 1 in 10, share answered within 5 minutes, typical time to solve, merchant yes/no, reasons, team table. One SQL function, `support_scoreboard`; demo store left out; clock time until support hours are decided.
 - **Check this shop** button on the shop card beside a conversation. `support_shop_check` gathers store state (paused, payment lock, trial), real orders, products on the store and stock, wallet, WhatsApp (paused, 7-day sends), Al-Waseet calls, the Prime link, and errors merchants sent with their messages. The console marks each line fine, worth a look, broken or not in use, and links to where staff fix it (merchant page, WhatsApp page, the shop's Sentry issues). No fix buttons yet: each fix changes a shop, so it stays on the pages that already log it.
+
+## Wave 2: picture of the screen
+
+- In the Help chat, "Picture of this screen" captures the page behind the chat (the chat and its backdrop are left out) as a JPEG, at most 1600 px wide. `modern-screenshot` draws it, because html2canvas cannot read the app's oklch colours.
+- `POST /api/support/shot` stores it in the private bucket `support-shots` as `<tenant_id>/<uuid>.jpg` (JPEG only, 1.5 MB, 10 per shop per 10 minutes). The next message carries the path in `context.screenshot`; the send route refuses a path outside the caller's shop folder.
+- Merchant and staff see it through signed links (1 hour in the chat, 15 minutes in the console). No storage policy opens the bucket: screens can show customer names and phones.
+- Not yet: deleting old pictures, and pictures that were taken but never sent.

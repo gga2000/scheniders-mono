@@ -4,13 +4,27 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { lastReportedEventId } from "@/lib/report-error";
-import { AlertTriangle, CheckCircle2, FileText, LifeBuoy, Loader2, Package, RotateCcw, Send, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import {
+    AlertTriangle,
+    Camera,
+    CheckCircle2,
+    FileText,
+    LifeBuoy,
+    Loader2,
+    Package,
+    RotateCcw,
+    Send,
+    ThumbsDown,
+    ThumbsUp,
+    X,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSupportStore } from "@/store/use-support-store";
 import { useOrderStore } from "@/store/use-order-store";
-import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportThread } from "@/hooks/use-support";
+import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportShot, useSupportThread } from "@/hooks/use-support";
 import { useLanguage } from "@/components/providers/language-provider";
 import { buildSupportContext } from "@/lib/support/context";
+import { captureScreen } from "@/lib/support/screenshot";
 import type { SupportMessage } from "@/lib/support/schema";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +65,12 @@ function MessageLine({ message }: { message: SupportMessage }) {
                         : "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
                 )}
             >
+                {message.screenshot_url && (
+                    <a href={message.screenshot_url} target="_blank" rel="noreferrer" className="mb-2 block" aria-label={t("support.shot.open")}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, not a static asset */}
+                        <img src={message.screenshot_url} alt={t("support.shot.attached")} className="max-h-40 w-full rounded-lg object-cover object-top" />
+                    </a>
+                )}
                 <p dir="auto" className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                     {message.body}
                 </p>
@@ -79,6 +99,9 @@ export function SupportSheet() {
     const action = useSupportAction();
     const { mutate: markRead } = useSupportMarkRead();
     const [draft, setDraft] = useState("");
+    const [shot, setShot] = useState<{ path: string; preview: string } | null>(null);
+    const [capturing, setCapturing] = useState(false);
+    const upload = useSupportShot();
     const endRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -110,14 +133,35 @@ export function SupportSheet() {
         return () => window.removeEventListener("keydown", onKey);
     }, [isOpen, close]);
 
+    // The preview lives in memory until the message is sent or the picture removed.
+    useEffect(() => {
+        if (!shot) return;
+        return () => URL.revokeObjectURL(shot.preview);
+    }, [shot]);
+
+    const takePicture = async () => {
+        if (capturing || upload.isPending) return;
+        setCapturing(true);
+        try {
+            const picture = await captureScreen();
+            const path = await upload.mutateAsync(picture);
+            setShot({ path, preview: URL.createObjectURL(picture) });
+        } catch (error) {
+            const code = error instanceof SupportRequestError ? error.code : "failed";
+            toast.error(t(code === "support_rate_limited" ? "support.error.rateLimited" : "support.shot.failed"));
+        } finally {
+            setCapturing(false);
+        }
+    };
+
     const explain = (error: Error) => {
         const code = error instanceof SupportRequestError ? error.code : "failed";
         toast.error(t(code === "support_rate_limited" ? "support.error.rateLimited" : "support.error.sendFailed"));
     };
 
     const send = () => {
-        const body = draft.trim();
-        if (!body || action.isPending) return;
+        const body = draft.trim() || (shot ? t("support.shot.body") : "");
+        if (!body || action.isPending || capturing) return;
         const context = buildSupportContext({
             pathname,
             language,
@@ -129,10 +173,11 @@ export function SupportSheet() {
             userAgent: navigator.userAgent,
         });
         action.mutate(
-            { action: "send", body, context },
+            { action: "send", body, context: shot ? { ...context, screenshot: shot.path } : context },
             {
                 onSuccess: () => {
                     setDraft("");
+                    setShot(null);
                     clearErrorPrefill();
                 },
                 onError: explain,
@@ -150,6 +195,7 @@ export function SupportSheet() {
             {isOpen && (
                 <>
                     <motion.div
+                        data-support-ui=""
                         className="fixed inset-0 z-[110] bg-black/30"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -158,6 +204,7 @@ export function SupportSheet() {
                         onClick={close}
                     />
                     <motion.aside
+                        data-support-ui=""
                         role="dialog"
                         aria-modal="true"
                         aria-label={t("support.title")}
@@ -251,6 +298,31 @@ export function SupportSheet() {
                                         <span dir="auto" className="truncate">{errorPrefill.errorMessage}</span>
                                     </span>
                                 )}
+                                {shot ? (
+                                    <span className={cn(CHIP, "gap-2 py-0.5 pl-0.5")}>
+                                        {/* eslint-disable-next-line @next/next/no-img-element -- a local preview (blob: URL) */}
+                                        <img src={shot.preview} alt="" className="h-7 w-11 rounded-full object-cover object-top" />
+                                        <span dir="auto">{t("support.shot.attached")}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShot(null)}
+                                            aria-label={t("support.shot.remove")}
+                                            className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-foreground/10"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={takePicture}
+                                        disabled={capturing}
+                                        className={cn(CHIP, "border-dashed text-foreground transition-colors hover:bg-foreground/5 disabled:opacity-60")}
+                                    >
+                                        {capturing ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> : <Camera className="h-3 w-3 shrink-0" />}
+                                        <span dir="auto">{t(capturing ? "support.shot.taking" : "support.shot.add")}</span>
+                                    </button>
+                                )}
                             </div>
                             <div className="flex items-end gap-2">
                                 <textarea
@@ -267,7 +339,7 @@ export function SupportSheet() {
                                 <button
                                     type="button"
                                     onClick={send}
-                                    disabled={draft.trim().length === 0 || action.isPending}
+                                    disabled={(draft.trim().length === 0 && !shot) || action.isPending || capturing}
                                     className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40 dark:bg-primary dark:text-(--primary-fg)"
                                 >
                                     {action.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
