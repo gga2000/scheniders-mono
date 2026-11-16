@@ -16,7 +16,7 @@ import {
     type ProfitStatement as Statement,
 } from "@/lib/finance/summary";
 import { ChangeChip, isShownChange } from "./change-chip";
-import { COST_COLORS } from "./colors";
+import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { LensSwitch } from "./lens-switch";
 import { COURIER_PAYMENTS_ID } from "./courier-payments";
@@ -69,6 +69,8 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const steps = useMemo(() => new Map(waterfall(statement).map((step) => [step.id, step])), [statement]);
 
     const loss = statement.netProfit < 0;
+    /** What the cost bars leave of the track: the profit, drawn on its own row so the staircase ends in it. */
+    const leftShare = Math.max(1 - [...steps.values()].reduce((sum, step) => sum + step.width, 0), 0);
     const perThousand = statement.margin === null ? null : Math.round(Math.abs(statement.margin) * 1000);
     const shown = statement.lines.filter((line) => line.amount !== 0);
     const empty = statement.lines.filter((line) => line.amount === 0);
@@ -241,6 +243,28 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                         {t("fin.alert.refundsOpen.open")}
                         <ArrowUpRight className="size-3.5" aria-hidden="true" />
                     </a>
+                </div>
+            )}
+
+            {!loss && statement.sales > 0 && leftShare > 0 && (
+                <div className={cn(ROW, "border-t border-[var(--card-border)] py-[11px]")} data-testid="statement-left">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                        <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: PROFIT_COLOR }} aria-hidden="true" />
+                        <span className="truncate text-[15px] font-medium text-foreground" dir={dir}>{t("fin.line.left")}</span>
+                    </span>
+                    <span className="relative h-[30px]" aria-hidden="true">
+                        <motion.span
+                            className="absolute inset-y-0 left-0 min-w-[6px] rounded-[9px]"
+                            style={{ background: PROFIT_COLOR }}
+                            initial={reduceMotion ? false : { width: "0%" }}
+                            animate={{ width: `${leftShare * 100}%` }}
+                            transition={{ duration: 0.7, ease: EASE_OUT }}
+                        />
+                    </span>
+                    <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
+                        {statement.margin !== null && t("fin.line.ofSales", { pct: pct(statement.margin) })}
+                    </span>
+                    <span />
                 </div>
             )}
 
