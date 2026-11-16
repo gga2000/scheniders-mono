@@ -10,6 +10,7 @@ import { guideTranslations } from "@/lib/i18n-guide";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
 import { planTranslations } from "@/lib/i18n-plans";
 import { whatsappTranslations } from "@/lib/i18n-whatsapp";
+import { shipExportTranslations } from "@/lib/i18n-ship-export";
 
 export const ar: Record<string, string> = {
     ...orderStatusTranslations("ar"),
@@ -21,6 +22,7 @@ export const ar: Record<string, string> = {
     ...financeSummaryTranslations("ar"),
     ...planTranslations("ar"),
     ...whatsappTranslations("ar"),
+    ...shipExportTranslations("ar"),
     // ── Navigation ──
     "nav.dashboard": "لوحة التحكم",
     "nav.orders": "الطلبات",
@@ -1371,7 +1373,6 @@ export const ar: Record<string, string> = {
     "orders.dateLabel.last30": "آخر 30 يوماً",
     "orders.dateLabel.pastYear": "السنة الماضية",
     "orders.ui.export": "تصدير",
-    "orders.ui.shipViaPrime": "شحن عبر برايم",
     "orders.ui.returns": "المرتجعات",
     "orders.ui.nSelected": "{count} طلب محدد",
     "orders.ui.selectAllN": "تحديد كل الطلبات ({count})",

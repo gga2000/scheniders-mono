@@ -66,6 +66,8 @@ export interface OrderItem {
     sku?: string;
     product_id?: string;
     variant_id?: string;
+    /** The size/colour picked, e.g. "M / أسود"; kept apart from `name`. */
+    variant_name?: string;
     image_url?: string;
     tag_color?: string;
     is_open_box?: boolean;
@@ -213,6 +215,8 @@ export interface Order {
     abandoned_cart_order_id?: string | null;
     // Delivery company tracking
     delivery_company?: 'prime' | 'waseet' | null;
+    /** The courier the merchant handed it to through an export file (Fermi B4), by name. */
+    courier_name?: string | null;
     // Al-Waseet specific fields
     waseet_qr_id?: string;
     waseet_qr_link?: string;
