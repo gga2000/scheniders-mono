@@ -87,6 +87,22 @@ export function PrintingSettings() {
                                     <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${printSettings.fragile_warning === true ? 'translate-x-6' : 'translate-x-0.5'}`} />
                                 </button>
                             </div>
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <label id="print-perfume-warning" className="text-sm font-medium text-foreground">{t("settings.print.perfumeWarning")}</label>
+                                    <p className="text-xs text-muted">{t("settings.print.perfumeWarningHint")}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={printSettings.perfume_warning === true}
+                                    aria-labelledby="print-perfume-warning"
+                                    onClick={() => setPrintSettings({ ...printSettings, perfume_warning: printSettings.perfume_warning !== true })}
+                                    className={`w-12 h-6 shrink-0 rounded-full transition-all ${printSettings.perfume_warning === true ? 'bg-[var(--button-success)]' : 'bg-gray-300'}`}
+                                >
+                                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${printSettings.perfume_warning === true ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
