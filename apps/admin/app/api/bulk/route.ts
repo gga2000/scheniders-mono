@@ -16,7 +16,6 @@ const BulkActionSchema = z.object({
     "change_plan",
     "suspend",
     "reactivate",
-    "send_notification",
     "extend_trial",
     "top_up",
   ]),
@@ -245,50 +244,18 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, affected: succeeded.length, succeeded });
       }
-
-      // -----------------------------------------------------------------
-      // 6. Send Notification
-      // -----------------------------------------------------------------
-      case "send_notification": {
-        const message = params?.message;
-        if (typeof message !== "string" || message.trim().length === 0) {
-          return NextResponse.json(
-            { error: "params.message is required and must be a non-empty string" },
-            { status: 400 }
-          );
-        }
-
-        // No actual notification system yet — just log the action
-        console.log(
-          `[bulk_send_notification] Sending to ${tenant_ids.length} tenants: "${message}"`
-        );
-
-        // Insert activity logs for each tenant. Attributed to the admin who
-        // ran the action, not to "system" — they are the actor on record.
-        await logAdminActivityBatch({
-          adminUserId: auth.user.id,
-          actorEmail: auth.user.email ?? null,
-          tenantIds: tenant_ids,
-          action: "bulk_send_notification",
-          details: { tenant_ids, params: { message } },
-        });
-        break;
-      }
     }
 
     // -----------------------------------------------------------------
     // Log all bulk actions to admin_activity_logs
-    // (skip send_notification — it already logs its own entries above)
     // -----------------------------------------------------------------
-    if (action !== "send_notification") {
-      await logAdminActivityBatch({
-        adminUserId: auth.user.id,
-        actorEmail: auth.user.email ?? null,
-        tenantIds: tenant_ids,
-        action: `bulk_${action}`,
-        details: { tenant_ids, params },
-      });
-    }
+    await logAdminActivityBatch({
+      adminUserId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      tenantIds: tenant_ids,
+      action: `bulk_${action}`,
+      details: { tenant_ids, params },
+    });
 
     return NextResponse.json({
       success: true,

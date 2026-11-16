@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Bell, Clock, Download, CreditCard, Wallet, Activity } from "lucide-react";
+import { X, Clock, Download, CreditCard, Wallet, Activity } from "lucide-react";
 
 interface MerchantBulkBarProps {
   selectedCount: number;
@@ -11,7 +11,6 @@ interface MerchantBulkBarProps {
 
 const BULK_ACTIONS = [
   { key: "top-up", label: "Top Up", icon: Wallet },
-  { key: "send-notification", label: "Send Notification", icon: Bell },
   { key: "extend-trial", label: "Extend Trial", icon: Clock },
   { key: "export", label: "Export", icon: Download },
   { key: "change-plan", label: "Change Plan", icon: CreditCard },

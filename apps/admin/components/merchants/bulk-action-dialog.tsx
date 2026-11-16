@@ -3,73 +3,10 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
-import { X, Loader2, AlertTriangle, CheckCircle, Bell, MessageSquare, Mail, Sparkles } from "lucide-react";
+import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-
-const NOTIFICATION_TEMPLATES: Array<{
-  key: string;
-  label: string;
-  body: string;
-}> = [
-  {
-    key: "trial_reminder",
-    label: "Trial Reminder",
-    body:
-      "Hi! Your trial is ending soon. Upgrade now to keep your store live and avoid any disruption.",
-  },
-  {
-    key: "failed_payment",
-    label: "Failed Payment",
-    body:
-      "Your last payment didn't go through. Please update your billing details to avoid account suspension.",
-  },
-  {
-    key: "welcome_back",
-    label: "Welcome Back",
-    body:
-      "Glad to have you back! Let us know if there's anything we can do to help you get the most out of your store.",
-  },
-  {
-    key: "new_feature",
-    label: "New Feature",
-    body:
-      "We just shipped a new feature we think you'll love — check it out in your dashboard.",
-  },
-  {
-    key: "checkin",
-    label: "Check-in",
-    body:
-      "Hi! Just a quick check-in to see how things are going. Let us know if there's anything we can help with.",
-  },
-];
-
-type Channel = "in_app" | "whatsapp" | "email";
-
-const CHANNELS: Array<{
-  value: Channel;
-  label: string;
-  icon: typeof Bell;
-  available: boolean;
-  hint?: string;
-}> = [
-  { value: "in_app", label: "In-app", icon: Bell, available: true },
-  {
-    value: "whatsapp",
-    label: "WhatsApp",
-    icon: MessageSquare,
-    available: false,
-    hint: "Coming soon",
-  },
-  {
-    value: "email",
-    label: "Email",
-    icon: Mail,
-    available: false,
-    hint: "Coming soon",
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,7 +46,6 @@ const ACTION_TITLES: Record<string, string> = {
   suspend: "Suspend Merchants",
   reactivate: "Reactivate Merchants",
   "extend-trial": "Extend Trial",
-  "send-notification": "Send Notification",
   "top-up": "Top Up Wallets",
 };
 
@@ -120,7 +56,6 @@ function toApiAction(action: string): string {
     suspend: "suspend",
     reactivate: "reactivate",
     "extend-trial": "extend_trial",
-    "send-notification": "send_notification",
     "top-up": "top_up",
   };
   return map[action] ?? action;
@@ -143,9 +78,6 @@ export function BulkActionDialog({
   const [selectedPlan, setSelectedPlan] = useState<PlanTier>("starter");
   const [extensionDays, setExtensionDays] = useState<number>(7);
   const [extensionReason, setExtensionReason] = useState("");
-  const [notificationMessage, setNotificationMessage] = useState("");
-  const [notificationTemplate, setNotificationTemplate] = useState<string | null>(null);
-  const [notificationChannel, setNotificationChannel] = useState<Channel>("in_app");
   const [topUpAmount, setTopUpAmount] = useState<number>(10_000);
   const [topUpCustom, setTopUpCustom] = useState("");
   const [topUpDescription, setTopUpDescription] = useState("");
@@ -159,9 +91,6 @@ export function BulkActionDialog({
     setSelectedPlan("starter");
     setExtensionDays(7);
     setExtensionReason("");
-    setNotificationMessage("");
-    setNotificationTemplate(null);
-    setNotificationChannel("in_app");
     setTopUpAmount(10_000);
     setTopUpCustom("");
     setTopUpDescription("");
@@ -231,17 +160,6 @@ export function BulkActionDialog({
           return;
         }
         params = { days: extensionDays, reason: extensionReason.trim() };
-        break;
-      case "send-notification":
-        if (!notificationMessage.trim()) {
-          setError("Message is required");
-          return;
-        }
-        params = {
-          message: notificationMessage.trim(),
-          channel: notificationChannel,
-          ...(notificationTemplate && { template: notificationTemplate }),
-        };
         break;
       case "top-up": {
         const amount = topUpCustom ? Number(topUpCustom) : topUpAmount;
@@ -449,116 +367,6 @@ export function BulkActionDialog({
             </div>
           )}
 
-          {/* ---- Send Notification ---- */}
-          {action === "send-notification" && (
-            <div className="space-y-4">
-              {/* Channel selector */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.08em] text-foreground/50">
-                  Channel
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {CHANNELS.map((ch) => {
-                    const ChIcon = ch.icon;
-                    const isSelected = notificationChannel === ch.value;
-                    return (
-                      <button
-                        key={ch.value}
-                        type="button"
-                        onClick={() => ch.available && setNotificationChannel(ch.value)}
-                        disabled={!ch.available}
-                        className={`relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                          isSelected
-                            ? "border-violet-500 bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/30 ring-1 ring-white/20"
-                            : ch.available
-                              ? "border-[var(--card-border)] bg-foreground/[0.02] text-foreground/70 hover:bg-foreground/[0.06] hover:text-foreground"
-                              : "border-[var(--card-border)] bg-foreground/[0.02] text-foreground/30 cursor-not-allowed"
-                        }`}
-                      >
-                        <ChIcon className="w-4 h-4" />
-                        <span>{ch.label}</span>
-                        {!ch.available && ch.hint && (
-                          <span className="text-[8px] font-medium opacity-70">
-                            {ch.hint}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Template picker */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.08em] text-foreground/50 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  Templates
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {NOTIFICATION_TEMPLATES.map((t) => {
-                    const isActive = notificationTemplate === t.key;
-                    return (
-                      <button
-                        key={t.key}
-                        type="button"
-                        onClick={() => {
-                          setNotificationTemplate(t.key);
-                          setNotificationMessage(t.body);
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
-                          isActive
-                            ? "bg-foreground text-background"
-                            : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08] hover:text-foreground"
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNotificationTemplate(null);
-                      setNotificationMessage("");
-                    }}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-foreground/[0.04] text-foreground/55 hover:bg-foreground/[0.08] hover:text-foreground transition-all"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* Message body */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.08em] text-foreground/50">
-                  Message
-                </label>
-                <textarea
-                  value={notificationMessage}
-                  onChange={(e) => {
-                    setNotificationMessage(e.target.value);
-                    if (notificationTemplate) setNotificationTemplate(null);
-                  }}
-                  placeholder="Pick a template above or write your own..."
-                  rows={4}
-                  maxLength={500}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none transition-all"
-                />
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] text-foreground/45 font-medium">
-                    Will be sent to{" "}
-                    <span className="font-black text-foreground">
-                      {selectedCount}
-                    </span>{" "}
-                    {selectedCount === 1 ? "merchant" : "merchants"}
-                  </p>
-                  <p className="text-[10px] text-foreground/40 tabular-nums">
-                    {notificationMessage.length}/500
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Partly done: say what happened, per reason */}

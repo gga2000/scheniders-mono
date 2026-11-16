@@ -235,3 +235,22 @@ describe("POST /api/bulk extend_trial", () => {
     expect(rpc).toHaveBeenCalledWith("admin_extend_trial", expect.objectContaining({ _reason: "courier strike" }));
   });
 });
+
+/*
+ * Bulk "Send Notification" told staff it had sent a message to every picked
+ * shop. It sent nothing: the route only wrote a log line. The action is gone,
+ * so the route must refuse it and leave no "sent" line in the staff log.
+ */
+describe("POST /api/bulk send_notification", () => {
+  it("is refused and writes nothing to the staff log", async () => {
+    const res = await POST(
+      req({ action: "send_notification", tenant_ids: [T1, T2], params: { message: "Your trial ends soon" } }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "Invalid input" });
+    expect(logAdminActivityBatch).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+  });
+});
