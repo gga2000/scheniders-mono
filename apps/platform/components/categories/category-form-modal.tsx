@@ -8,6 +8,8 @@ import { slugify } from "@scheniders/shared";
 import { toast } from "@/hooks/use-toast";
 import { categoryWriteErrorKey } from "@/lib/product-write-error";
 import { useLanguage } from "@/hooks/use-language";
+import { useBusinessTypes } from "@/hooks/use-tenant";
+import { examplePlaceholder } from "@/lib/business-types";
 
 interface CategoryFormModalProps {
     isOpen: boolean;
@@ -50,7 +52,9 @@ export function CategoryFormModal({
     categories,
     mode,
 }: CategoryFormModalProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    // A clothing shop sees «قمصان» as the example, never «عطور» (B10).
+    const businessTypes = useBusinessTypes();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<CategoryFormData>({
         name: "",
@@ -154,7 +158,7 @@ export function CategoryFormModal({
                                 type="text"
                                 value={formData.name}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                                placeholder={t("categories.form.namePlaceholder")}
+                                placeholder={examplePlaceholder(businessTypes, "category_i18n", language, t("categories.form.namePlaceholder"))}
                                 required
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
@@ -170,7 +174,7 @@ export function CategoryFormModal({
                                     type="text"
                                     value={formData.slug}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, slug: slugify(e.target.value) }))}
-                                    placeholder={t("categories.form.slugPlaceholder")}
+                                    placeholder={examplePlaceholder(businessTypes, "category_slug_i18n", language, t("categories.form.slugPlaceholder"))}
                                     required
                                     className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                 />

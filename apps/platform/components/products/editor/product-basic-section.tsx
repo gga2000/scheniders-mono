@@ -3,6 +3,8 @@
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { RichTextEditor } from "./rich-text-editor";
 import { useLanguage } from "@/hooks/use-language";
+import { useBusinessTypes } from "@/hooks/use-tenant";
+import { examplePlaceholder } from "@/lib/business-types";
 
 interface ProductBasicSectionProps {
     formData: ProductEditorFormData;
@@ -10,7 +12,9 @@ interface ProductBasicSectionProps {
 }
 
 export function ProductBasicSection({ formData, updateField }: ProductBasicSectionProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    // A clothing shop sees a shirt as the example, never a perfume (B10).
+    const businessTypes = useBusinessTypes();
     return (
         <div data-guide="product-name" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
@@ -28,7 +32,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                         dir="auto"
                         value={formData.name}
                         onChange={(e) => updateField("name", e.target.value)}
-                        placeholder={t("products.ed.namePh")}
+                        placeholder={examplePlaceholder(businessTypes, "product_i18n", language, t("products.ed.namePh"))}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>

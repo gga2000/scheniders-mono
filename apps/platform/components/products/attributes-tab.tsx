@@ -2,15 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Tags, Plus, Pencil, Trash2, Filter, GitCompare, AlertTriangle } from "lucide-react";
-import type { ProductAttributeDef } from "@scheniders/shared";
+import { Tags, Plus, Pencil, Trash2, Filter, GitCompare, AlertTriangle, Check, LayoutList } from "lucide-react";
+import { resolveI18n, type ProductAttributeDef } from "@scheniders/shared";
 import {
     useAttributeDefsQuery,
     useAttributeUsageQuery,
     useAddAttributeDefMutation,
     useUpdateAttributeDefMutation,
     useDeleteAttributeDefMutation,
+    useAddAttributeTemplateMutation,
 } from "@/hooks/use-product-attributes-query";
+import { useBusinessTypes } from "@/hooks/use-tenant";
+import { ATTRIBUTE_TEMPLATES, attributeTemplatesFor, type AttributeTemplate } from "@/lib/business-types";
 import {
     AttributeFormModal,
     toWrite,
@@ -43,12 +46,44 @@ export function AttributesTab() {
     const addMutation = useAddAttributeDefMutation();
     const updateMutation = useUpdateAttributeDefMutation();
     const deleteMutation = useDeleteAttributeDefMutation();
+    const templateMutation = useAddAttributeTemplateMutation();
+    const businessTypes = useBusinessTypes();
 
     const [isModalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<ProductAttributeDef | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<ProductAttributeDef | null>(null);
 
     const existingKeys = useMemo(() => defs.map((d) => d.key), [defs]);
+
+    // Ready sets (B10): the store's own trade first, then the rest.
+    const templates = useMemo(() => {
+        const mine = attributeTemplatesFor(businessTypes);
+        const mineIds = new Set(mine.map((tpl) => tpl.id));
+        return [
+            ...mine.map((tpl) => ({ tpl, mine: true })),
+            ...ATTRIBUTE_TEMPLATES.filter((tpl) => !mineIds.has(tpl.id)).map((tpl) => ({ tpl, mine: false })),
+        ];
+    }, [businessTypes]);
+
+    const handleTemplate = async (tpl: AttributeTemplate) => {
+        const have = new Set(existingKeys);
+        const missing = tpl.attributes.filter((a) => !have.has(a.key));
+        if (missing.length === 0) {
+            toast({ title: t("attributes.templates.none") });
+            return;
+        }
+        try {
+            const after = defs.reduce((max, d) => Math.max(max, d.display_order), 0);
+            const added = await templateMutation.mutateAsync({ attributes: missing, after });
+            toast({ title: t("attributes.templates.added", { count: added }) });
+        } catch (e) {
+            toast({
+                title: t("attributes.templates.failed"),
+                description: e instanceof Error ? e.message : String(e),
+                variant: "error",
+            });
+        }
+    };
 
     const handleSubmit = async (form: AttributeFormData) => {
         const write = toWrite(form);
@@ -96,6 +131,46 @@ export function AttributesTab() {
                     {t("attributes.add")}
                 </button>
             </div>
+
+            {!isLoading && (
+                <div data-testid="attribute-templates" className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-4">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <p className="text-sm font-semibold flex items-center gap-2">
+                            <LayoutList className="w-4 h-4" />
+                            {t("attributes.templates.title")}
+                        </p>
+                        <p className="text-xs text-muted">{t("attributes.templates.hint")}</p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {templates.map(({ tpl, mine }) => {
+                            const complete = tpl.attributes.every((a) => existingKeys.includes(a.key));
+                            return (
+                                <button
+                                    key={tpl.id}
+                                    type="button"
+                                    onClick={() => handleTemplate(tpl)}
+                                    disabled={complete || templateMutation.isPending}
+                                    title={tpl.attributes.map((a) => resolveI18n(a.name_i18n, language)).join(" · ")}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                                        complete
+                                            ? "border-[var(--card-border)] text-muted cursor-default"
+                                            : "border-[var(--card-border)] bg-[var(--card-bg)] hover:border-foreground",
+                                    )}
+                                >
+                                    {complete ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                                    <span>{resolveI18n(tpl.name_i18n, language)}</span>
+                                    {mine && !complete && (
+                                        <span className="rounded-full bg-[var(--pastel-yellow)] px-1.5 text-[11px] font-medium text-foreground">
+                                            {t("attributes.templates.yours")}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {isLoading ? (
                 <div className="space-y-2" aria-busy="true">

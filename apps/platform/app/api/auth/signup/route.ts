@@ -7,6 +7,7 @@ import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { buildStarterStoreConfigV2, SIGNUP_TEMPLATE_ID } from '@/lib/starter-store';
 import { DEFAULT_PACK_ID } from '@/lib/store-templates/content-packs';
+import { attributeTemplatesFor, BUSINESS_TYPE_IDS, mergeAttributeSets, packIdFor } from '@/lib/business-types';
 import { withFailureReport } from "@/lib/job-monitor";
 
 /**
@@ -32,6 +33,16 @@ const signupSchema = z.object({
     business_name: z.string().trim().min(1).max(120),
     contact_phone: optionalText,
     city: optionalText,
+    /**
+     * «شنو تبيع؟» (Fermi B10), in the order ticked. The form asks for at least
+     * one; a page loaded before the question existed sends none, and that
+     * store starts neutral like every store made before it.
+     */
+    business_types: z
+        .array(z.enum(BUSINESS_TYPE_IDS))
+        .max(BUSINESS_TYPE_IDS.length)
+        .optional()
+        .transform((types) => [...new Set(types ?? [])]),
     captcha_token: z.string().optional(),
 });
 
@@ -73,7 +84,7 @@ async function handlePOST(request: NextRequest) {
                 { status: 400 },
             );
         }
-        const { email, password, business_name, contact_phone, city, captcha_token } = parsed.data;
+        const { email, password, business_name, contact_phone, city, business_types, captcha_token } = parsed.data;
 
         // This route creates the account with the service role, so Supabase's
         // own CAPTCHA never sees it: check the Turnstile token here first.
@@ -129,7 +140,7 @@ async function handlePOST(request: NextRequest) {
         // still runs and seeds the merchant's real choice over it.
         const starterConfig = buildStarterStoreConfigV2({
             templateId: SIGNUP_TEMPLATE_ID,
-            packId: DEFAULT_PACK_ID,
+            packId: packIdFor(business_types) ?? DEFAULT_PACK_ID,
             businessName: business_name,
             whatsappNumber: contact_phone ?? undefined,
             source: 'signup',
@@ -148,6 +159,7 @@ async function handlePOST(request: NextRequest) {
                 contact_email: email,
                 contact_phone,
                 city,
+                business_types,
                 store_config: {
                     template: 'general',
                     hero: {
@@ -302,6 +314,31 @@ async function handlePOST(request: NextRequest) {
                 .from('tenants')
                 .update({ status: 'incomplete' })
                 .eq('id', tenant.id);
+        }
+
+        // ── 8. Starter attributes for what the store sells (B10) ──
+        // A clothing shop opens its attributes screen to a size chart, a
+        // furniture shop to its dimensions. Keys the onboarding wizard seeds
+        // later are skipped there, never doubled. The store works without
+        // them and the merchant can add the same set on the attributes
+        // screen, so a failure is reported, not a reason to hold the store.
+        const starterAttributes = mergeAttributeSets(
+            ...attributeTemplatesFor(business_types).map((template) => template.attributes),
+        );
+        if (starterAttributes.length > 0) {
+            const { error: attributesError } = await adminClient
+                .from('product_attribute_defs')
+                .upsert(
+                    starterAttributes.map((attribute) => ({ ...attribute, tenant_id: tenant.id })),
+                    { onConflict: 'tenant_id,key', ignoreDuplicates: true },
+                );
+            if (attributesError) {
+                reportOrderError(new Error(`Starter attributes not saved: ${attributesError.message}`), {
+                    operation: 'signup-starter-attributes',
+                    tenantId: tenant.id,
+                });
+                setupErrors.push(`product_attribute_defs: ${attributesError.message}`);
+            }
         }
 
         return NextResponse.json({

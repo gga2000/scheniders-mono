@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createUser = vi.fn();
 const tableInserts: { table: string; row: Record<string, unknown> }[] = [];
+const tableUpserts: { table: string; rows: unknown }[] = [];
 const consumeRateLimit = vi.fn();
 const verifyTurnstile = vi.fn();
 /** Results for the tenants insert, in call order; empty means success. */
@@ -14,7 +15,10 @@ function table(name: string) {
         tableInserts.push({ table: name, row });
         return chain;
     };
-    chain.upsert = () => Promise.resolve({ error: null });
+    chain.upsert = (rows: unknown) => {
+        tableUpserts.push({ table: name, rows });
+        return Promise.resolve({ error: null });
+    };
     chain.select = () => chain;
     chain.eq = () => chain;
     chain.single = () =>
@@ -61,6 +65,7 @@ describe("POST /api/auth/signup", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         tableInserts.length = 0;
+        tableUpserts.length = 0;
         tenantResults.length = 0;
         slugs.mockResolvedValueOnce("shop").mockResolvedValueOnce("shop-1").mockResolvedValue("shop-2");
         consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: null, retryAfterSeconds: 0 });
@@ -144,6 +149,34 @@ describe("POST /api/auth/signup", () => {
         const sub = tableInserts.find((i) => i.table === "subscriptions");
         expect(sub?.row.current_period_end).toBe(endedAt);
         expect((await res.json()).trial_ends_at).toBe(endedAt);
+    });
+
+    it("saves what the store sells and starts it on the first trade's words and attribute sets (B10)", async () => {
+        const res = await POST(request({ ...base, business_types: ["perfume", "clothing", "perfume"] }));
+        expect(res.status).toBe(201);
+        const tenant = tableInserts.find((i) => i.table === "tenants")?.row as {
+            business_types: string[];
+            store_config_v2: { template: { pack_id: string } };
+        };
+        expect(tenant.business_types).toEqual(["perfume", "clothing"]);
+        expect(tenant.store_config_v2.template.pack_id).toBe("perfume");
+        const attributes = tableUpserts.find((u) => u.table === "product_attribute_defs")?.rows as { key: string; tenant_id: string }[];
+        expect(attributes.map((a) => a.key)).toEqual(["size_chart", "material", "fit"]);
+        expect(attributes.every((a) => a.tenant_id === "tenant-1")).toBe(true);
+    });
+
+    it("refuses a trade that is not on the list", async () => {
+        const res = await POST(request({ ...base, business_types: ["weapons"] }));
+        expect(res.status).toBe(400);
+        expect(createUser).not.toHaveBeenCalled();
+    });
+
+    it("a sign-up page from before the question still works and starts neutral", async () => {
+        const res = await POST(request(base));
+        expect(res.status).toBe(201);
+        const tenant = tableInserts.find((i) => i.table === "tenants")?.row as { business_types: string[] };
+        expect(tenant.business_types).toEqual([]);
+        expect(tableUpserts.some((u) => u.table === "product_attribute_defs")).toBe(false);
     });
 
     it("publishes a designed default store so the new subdomain is never blank", async () => {

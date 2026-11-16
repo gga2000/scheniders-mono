@@ -16,6 +16,7 @@ interface TenantMemberRow {
         id: string;
         business_name: string;
         contact_phone: string | null;
+        business_types: string[];
         store_config_v2: StoreConfigV2 | null;
         store_config_v2_draft: StoreConfigV2 | null;
     } | null;
@@ -33,7 +34,7 @@ export default async function StoreOnboardingPage() {
     const { data: member } = await supabase
         .from("tenant_members")
         .select(
-            "tenant_id, tenants(id, business_name, contact_phone, store_config_v2, store_config_v2_draft)",
+            "tenant_id, tenants(id, business_name, contact_phone, business_types, store_config_v2, store_config_v2_draft)",
         )
         .eq("user_id", user.id)
         .single<TenantMemberRow>();
@@ -64,6 +65,7 @@ export default async function StoreOnboardingPage() {
             defaultBusinessName={t.business_name}
             defaultWhatsapp={t.contact_phone ?? undefined}
             industries={industries}
+            businessTypes={t.business_types}
         />
     );
 }
