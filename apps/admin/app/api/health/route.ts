@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
+import { usageMonthNow } from "@/lib/usage-month";
 
 interface TenantRow {
   id: string;
@@ -22,7 +23,6 @@ interface WalletRow {
 interface UsageRow {
   tenant_id: string;
   orders_count: number;
-  team_members_count: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -35,8 +35,7 @@ export async function GET(request: NextRequest) {
     const twentyFourHoursAgo = new Date(
       now.getTime() - 24 * 60 * 60 * 1000
     ).toISOString();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    const usageMonth = usageMonthNow(now);
 
     // Every list is read to its last row and a failed read throws: a short or
     // empty list here would say "no shops at risk" when the truth is unknown.
@@ -64,9 +63,9 @@ export async function GET(request: NextRequest) {
       everyRow<UsageRow>((from, to) =>
         supabase
           .from("usage_tracking")
-          .select("tenant_id, orders_count, team_members_count")
-          .eq("year", currentYear)
-          .eq("month", currentMonth)
+          .select("tenant_id, orders_count")
+          .eq("year", usageMonth.year)
+          .eq("month", usageMonth.month)
           .order("tenant_id")
           .range(from, to)
       ),

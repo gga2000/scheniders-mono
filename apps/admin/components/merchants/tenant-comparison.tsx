@@ -24,7 +24,8 @@ interface TenantComparisonProps {
   currentTenantId: string;
 }
 
-const TENANT_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444"];
+/** The opened shop first, then the shops added to it. */
+const TENANT_COLORS = ["#8b5cf6", "#22c55e", "#f59e0b", "#ef4444"];
 
 const iqd = (amount: number) => `${new Intl.NumberFormat("en-IQ").format(amount)} IQD`;
 
@@ -186,7 +187,7 @@ export function TenantComparison({ isOpen, onClose, currentTenantId }: TenantCom
             <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)]">
-                <h2 className="text-sm font-semibold text-foreground">Compare Tenants</h2>
+                <h2 className="text-sm font-semibold text-foreground">Compare shops</h2>
                 <button onClick={close} className="p-1 rounded-lg text-foreground/40 hover:text-foreground transition-colors">
                   <X className="w-4 h-4" />
                 </button>
@@ -200,7 +201,7 @@ export function TenantComparison({ isOpen, onClose, currentTenantId }: TenantCom
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search to add a tenant to compare..."
+                      placeholder="Search for a shop to add"
                       className="w-full h-9 px-3 rounded-lg border border-[var(--card-border)] bg-transparent text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:border-foreground/30"
                     />
                     {search.isError && searchFor.length > 0 && (

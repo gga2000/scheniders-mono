@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { getMerchantCode } from "@scheniders/shared";
 import { useMerchantDetail } from "@/hooks/use-merchant-detail";
 import {
   ArrowLeft,
@@ -23,6 +24,7 @@ import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
 import { NotesTab } from "@/components/merchants/detail/notes-tab";
 import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
+import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
 import { loadFailureKind } from "@/lib/load-failure";
 
@@ -159,7 +161,15 @@ export default function MerchantDetailPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">{tenant.business_name}</h1>
-              <p className="text-sm text-foreground/50">{tenant.slug}</p>
+              <div className="flex items-center gap-2 text-sm text-foreground/50">
+                <span>{tenant.slug}</span>
+                <span className="w-0.5 h-0.5 rounded-full bg-foreground/20 shrink-0" />
+                <CopyableText
+                  value={`#${getMerchantCode(tenant)}`}
+                  display={`#${getMerchantCode(tenant)}`}
+                  className="font-bold tabular-nums text-foreground/70"
+                />
+              </div>
             </div>
           </div>
 
