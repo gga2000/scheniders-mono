@@ -11,6 +11,7 @@ import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode } from "@/lib/order-format-utils";
 import { useLanguage } from "@/hooks/use-language";
 import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
+import { manualConfirmMessage } from "@/lib/orders/whatsapp-unsent";
 
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import { isWhatsAppSlot } from "@/lib/whatsapp-contact";
@@ -292,13 +293,18 @@ export function useOrderCardModel(props: OrderCardProps) {
         if (!phone) return;
         openWhatsAppChat(phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`, t, () => onContactRecorded?.(order.id));
     };
+    // The automatic confirmation did not go out (B2): the merchant sends it
+    // from their own WhatsApp, already typed.
+    const confirmByHand = () => {
+        openWhatsAppChat(order.phone, manualConfirmMessage(order), t, () => onContactRecorded?.(order.id));
+    };
 
     const items = getItemsDisplay(order.items || []);
     const firstImageUrl = items[0]?.image_url;
     const thumbnailUrl = firstImageUrl && !failedImageUrls.has(firstImageUrl) ? firstImageUrl : null;
     const statusAvatarUrl = order.last_status_changed_by_avatar && !failedImageUrls.has(order.last_status_changed_by_avatar) ? order.last_status_changed_by_avatar : null;
 
-    return { actionDock, actionsOpen, actionsRef, actualInternalNotes, actualNotes, ageUrgency, archivedOrderCount, blacklistDialogMode, blacklistDialogOpen, blacklistEntry, cardBodyOpensDetails, compact, customerOrderCount, duplicateAlert, editClickTimerRef, editable, failedImageUrls, firstImageUrl, followUp, fullAddress, getLayoutId, governorateCode, gridMode, hasDuplicates, hasRefund, hoursSinceCreated, inlineEdit, isBlacklisted, isContacted, isDelivered, isHighPriority, isLoading, isNew, isPinned, isReturn, isSelected, isShopOrder, isUrgent, isVerifiedCustomer, isVirtualized, items, language, linkedOriginalOrder, linkedRefundOrder, loadingId, localSearchQuery, markImageFailed, menuPosition, menuRef, messageTemplates, needsDiscount, needsReminder, onAddToBlacklist, onCancelWithReason, onCloneOrder, onContactRecorded, onOpenTemplatePanel, onRejectWithReason, onRemoveFromBlacklist, onScreenshot, onShowDuplicates, onSplit, onStatusUpdate, onTogglePin, onToggleReviewed, onToggleSelection, onViewDetails, openWhatsApp, order, orderAge, orderReasonInfo, orderStatusLabel, originalOrderInfo, previousOrder, primaryIsWhatsApp, returnOrderInfo, riskAssessment, riskLevel, scheduledBadgeClass, scheduledLabel, scheduledState, secondaryIsWhatsApp, setActionsOpen, setBlacklistDialogMode, setBlacklistDialogOpen, setFailedImageUrls, setMenuPosition, statusAvatarUrl, t, thumbnailUrl };
+    return { actionDock, actionsOpen, actionsRef, actualInternalNotes, actualNotes, ageUrgency, archivedOrderCount, blacklistDialogMode, blacklistDialogOpen, blacklistEntry, cardBodyOpensDetails, compact, confirmByHand, customerOrderCount, duplicateAlert, editClickTimerRef, editable, failedImageUrls, firstImageUrl, followUp, fullAddress, getLayoutId, governorateCode, gridMode, hasDuplicates, hasRefund, hoursSinceCreated, inlineEdit, isBlacklisted, isContacted, isDelivered, isHighPriority, isLoading, isNew, isPinned, isReturn, isSelected, isShopOrder, isUrgent, isVerifiedCustomer, isVirtualized, items, language, linkedOriginalOrder, linkedRefundOrder, loadingId, localSearchQuery, markImageFailed, menuPosition, menuRef, messageTemplates, needsDiscount, needsReminder, onAddToBlacklist, onCancelWithReason, onCloneOrder, onContactRecorded, onOpenTemplatePanel, onRejectWithReason, onRemoveFromBlacklist, onScreenshot, onShowDuplicates, onSplit, onStatusUpdate, onTogglePin, onToggleReviewed, onToggleSelection, onViewDetails, openWhatsApp, order, orderAge, orderReasonInfo, orderStatusLabel, originalOrderInfo, previousOrder, primaryIsWhatsApp, returnOrderInfo, riskAssessment, riskLevel, scheduledBadgeClass, scheduledLabel, scheduledState, secondaryIsWhatsApp, setActionsOpen, setBlacklistDialogMode, setBlacklistDialogOpen, setFailedImageUrls, setMenuPosition, statusAvatarUrl, t, thumbnailUrl };
 }
 
 export type OrderCardModel = ReturnType<typeof useOrderCardModel>;

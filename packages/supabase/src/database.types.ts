@@ -4633,6 +4633,7 @@ export type Database = {
           sort_order: number
           trial_days: number
           trial_order_cap: number
+          trial_whatsapp_cap: number
           updated_at: string
           whatsapp_marketing_price_iqd: number
           whatsapp_message_price_iqd: number
@@ -4658,6 +4659,7 @@ export type Database = {
           sort_order?: number
           trial_days?: number
           trial_order_cap?: number
+          trial_whatsapp_cap?: number
           updated_at?: string
           whatsapp_marketing_price_iqd?: number
           whatsapp_message_price_iqd?: number
@@ -4683,6 +4685,7 @@ export type Database = {
           sort_order?: number
           trial_days?: number
           trial_order_cap?: number
+          trial_whatsapp_cap?: number
           updated_at?: string
           whatsapp_marketing_price_iqd?: number
           whatsapp_message_price_iqd?: number
@@ -8595,6 +8598,47 @@ export type Database = {
           },
         ]
       }
+      whatsapp_message_charges: {
+        Row: {
+          category: string
+          charged_iqd: number
+          created_at: string
+          interakt_message_id: string
+          order_id: string | null
+          paid_by: string
+          template_name: string | null
+          tenant_id: string
+        }
+        Insert: {
+          category: string
+          charged_iqd?: number
+          created_at?: string
+          interakt_message_id: string
+          order_id?: string | null
+          paid_by: string
+          template_name?: string | null
+          tenant_id: string
+        }
+        Update: {
+          category?: string
+          charged_iqd?: number
+          created_at?: string
+          interakt_message_id?: string
+          order_id?: string | null
+          paid_by?: string
+          template_name?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_message_charges_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_outreach_templates: {
         Row: {
           created_at: string
@@ -10028,6 +10072,11 @@ export type Database = {
         Returns: number
       }
       whatsapp_send_allowed: { Args: { _tenant_id: string }; Returns: boolean }
+      whatsapp_send_check: {
+        Args: { _marketing: boolean; _tenant_id: string }
+        Returns: string
+      }
+      whatsapp_usage: { Args: { p_tenant_id: string }; Returns: Json }
     }
     Enums: {
       commission_status: "pending" | "approved" | "paid"

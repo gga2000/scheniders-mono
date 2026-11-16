@@ -24,6 +24,7 @@ vi.mock("@/lib/supabase-server", () => ({
 vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     takeDailySendSlot: async () => true,
+    whatsappSendRefusal: async () => null,
 }));
 
 const QSTASH_KEYS = { currentSigningKey: "sig_test_current", nextSigningKey: "sig_test_next" };

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ORDER_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 import {
     INTERAKT_DELIVERY_STATUSES,
     recordWhatsAppDeliveryReceipt,
@@ -159,7 +160,8 @@ async function updateOrderStatus(
             order_uuid: orderId,
             tenant_id: tenantId,
             phone: phone || "unknown",
-            template_name: "cod_order_confirm",
+            // The reply answers an order message; logged under today's name.
+            template_name: ORDER_TEMPLATES.confirmation,
             direction: "inbound",
             status: "received",
             payload: payload as unknown as Record<string, unknown>,
@@ -234,7 +236,8 @@ async function handlePost(request: NextRequest) {
             const { error: debugLogError } = await supabaseAdmin().from("whatsapp_logs").insert({
                 order_id: "debug",
                 phone: "unknown",
-                template_name: "cod_order_confirm",
+                // Not a message of ours: no template.
+                template_name: "none",
                 direction: "webhook_debug",
                 status: webhookType || "unknown_type",
                 payload: { type: webhookType || null },

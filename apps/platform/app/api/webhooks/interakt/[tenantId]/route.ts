@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ORDER_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -200,7 +201,8 @@ async function handlePost(
                 order_uuid: order.id,
                 tenant_id: tenantId,
                 phone: phone || "unknown",
-                template_name: "cod_order_confirm",
+                // The reply answers an order message; logged under today's name.
+                template_name: ORDER_TEMPLATES.confirmation,
                 direction: "inbound",
                 status: "received",
                 payload: payload as unknown as Record<string, unknown>,

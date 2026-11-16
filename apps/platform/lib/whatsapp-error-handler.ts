@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 import type { SendTemplateResult } from "./interakt";
-import { SHOP_DAILY_CAP_REACHED, SHOP_WALLET_EMPTY } from "./whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, SHOP_TRIAL_CAP_REACHED, SHOP_WALLET_EMPTY } from "./whatsapp-wallet";
 
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -36,6 +36,10 @@ export function categorizeWhatsAppFailure(
         // The shop's own wallet in our app, not the platform's Interakt wallet.
         reason = "whatsapp_shop_wallet_empty";
         notePrefix = "لم تُرسل رسالة واتساب: رصيد محفظة المتجر لا يكفي، اشحن المحفظة من الفوترة";
+    } else if (errorMsg === SHOP_TRIAL_CAP_REACHED) {
+        // The free trial's messages are used up; paying turns them back on.
+        reason = "whatsapp_trial_cap";
+        notePrefix = "لم تُرسل رسالة واتساب: خلصت رسائل التجربة المجانية، اختر باقة واشحن المحفظة حتى ترجع الرسائل";
     } else if (errorMsg === SHOP_DAILY_CAP_REACHED) {
         reason = "whatsapp_rate_limited";
         notePrefix = "لم تُرسل رسالة واتساب: وصل المتجر إلى حد الرسائل اليومي";

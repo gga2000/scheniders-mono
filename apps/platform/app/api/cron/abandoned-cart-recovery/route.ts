@@ -4,6 +4,7 @@ import { verifyQstashCallback } from "@/lib/qstash-verify";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import {
+    CART_RECOVERY_TEMPLATE,
     sendCartRecoveryMessage,
     type RecoverableCart,
 } from "@/lib/abandoned-cart-sender";
@@ -145,6 +146,21 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
             if (!claimed || claimed.length === 0) continue;
 
             const result = await sendCartRecoveryMessage(cart);
+            // Logged like every message we send: the delivery receipt finds
+            // this row and charges the shop (a trial counts it). A cart is not
+            // an order, so the row names none.
+            const { error: logError } = await db.from("whatsapp_logs").insert({
+                order_id: "",
+                tenant_id: c.tenant_id,
+                phone: c.phone,
+                template_name: CART_RECOVERY_TEMPLATE,
+                direction: "outbound",
+                status: result.success ? "sent" : "failed",
+                interakt_message_id: result.messageId ?? null,
+                recipient_type: "customer",
+                payload: { source: "cart-recovery", cart_id: c.id, error: result.error, statusCode: result.statusCode },
+            });
+            if (logError) console.error(`[abandoned-cart-recovery] cart ${c.id} send not logged: ${logError.message}`);
             if (result.success) {
                 sent += 1;
                 continue;

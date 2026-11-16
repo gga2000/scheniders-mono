@@ -9,6 +9,7 @@ import { tillTranslations } from "@/lib/i18n-till";
 import { guideTranslations } from "@/lib/i18n-guide";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
 import { planTranslations } from "@/lib/i18n-plans";
+import { whatsappTranslations } from "@/lib/i18n-whatsapp";
 
 export const ar: Record<string, string> = {
     ...orderStatusTranslations("ar"),
@@ -19,6 +20,7 @@ export const ar: Record<string, string> = {
     ...guideTranslations("ar"),
     ...financeSummaryTranslations("ar"),
     ...planTranslations("ar"),
+    ...whatsappTranslations("ar"),
     // ── Navigation ──
     "nav.dashboard": "لوحة التحكم",
     "nav.orders": "الطلبات",
@@ -6076,7 +6078,7 @@ export const ar: Record<string, string> = {
     "billing.period.nextNote": "يُخصم {amount} من محفظتك يوم {date}",
     "billing.wallet.title": "المحفظة",
     "billing.wallet.balance": "الرصيد",
-    "billing.wallet.pays": "المحفظة تدفع الاشتراك الشهري، و{amount} عن كل طلب مُسلَّم، وعن كل رسالة واتساب تصل للزبون: {wa} للتأكيد أو تحديث التوصيل، و{waOffer} للتذكير أو العرض.",
+    "billing.wallet.pays": "المحفظة تدفع الاشتراك الشهري، و{amount} عن كل طلب مُسلَّم، وعن كل رسالة واتساب تصل للزبون: {wa} للتأكيد أو التذكير أو تحديث التوصيل، و{waOffer} لعرض الخصم.",
     "billing.wallet.low": "الرصيد منخفض",
     "billing.wallet.lowBody": "اشحن محفظتك حتى لا يتوقف متجرك عند التجديد القادم.",
     "billing.wallet.topUp": "شحن المحفظة",

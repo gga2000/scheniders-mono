@@ -14,10 +14,10 @@ import { env, providerBaseUrls } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
-import { SHOP_DAILY_CAP_REACHED, SHOP_WALLET_EMPTY, shopCanPayForWhatsApp, takeDailySendSlot } from "@/lib/whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, takeDailySendSlot, whatsappSendRefusal } from "@/lib/whatsapp-wallet";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { ORDER_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
+import { ORDER_TEMPLATES, WHATSAPP_TEMPLATES, type WhatsAppTemplate } from "@scheniders/shared/whatsapp-templates";
 import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
 
 // =============================================
@@ -100,16 +100,6 @@ export interface SendTemplateResult {
 // =============================================
 
 const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
-/**
- * Language each order template was saved under in Interakt. All texts are
- * Arabic, but order_reminder_v3 was registered as English ("en") and Meta
- * approved it that way; Interakt only finds a template by name + language.
- */
-const TEMPLATE_LANGUAGES = {
-    confirmation: "ar",
-    reminder: "en",
-    discount: "ar",
-} as const;
 const IRAQ_COUNTRY_CODE = "964";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
@@ -347,7 +337,7 @@ function buildConfirmationBody(order: Order, store: StoreContact, overridePhone?
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.confirmation,
-            languageCode: TEMPLATE_LANGUAGES.confirmation,
+            languageCode: WHATSAPP_TEMPLATES.confirmation.language,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name
@@ -390,7 +380,7 @@ function buildReminderBody(order: Order, store: StoreContact, overridePhone?: st
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.reminder,
-            languageCode: TEMPLATE_LANGUAGES.reminder,
+            languageCode: WHATSAPP_TEMPLATES.reminder.language,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name
@@ -435,7 +425,7 @@ function buildDiscountBody(order: Order, store: StoreContact, discountPercent: n
         type: "Template",
         template: {
             name: TEMPLATE_NAMES.discount,
-            languageCode: TEMPLATE_LANGUAGES.discount,
+            languageCode: WHATSAPP_TEMPLATES.discount.language,
             bodyValues: [
                 h.customerName,               // {{1}} — Customer name
                 store.name,                   // {{2}} — Store name
@@ -512,8 +502,9 @@ export async function sendTemplateMessage(
     if (!tenantId || !sharedSenderAllows(tenantId)) {
         return { success: false, error: SENDER_NOT_ALLOWED };
     }
-    if (!(await shopCanPayForWhatsApp(tenantId))) {
-        return { success: false, error: SHOP_WALLET_EMPTY };
+    const refusal = await whatsappSendRefusal(tenantId, WHATSAPP_TEMPLATES[templateType].category);
+    if (refusal) {
+        return { success: false, error: refusal };
     }
     const store = await loadStoreContact(tenantId);
     if (!store) {
@@ -653,13 +644,12 @@ async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: s
     };
 }
 
-/** A template the store created in Interakt, sent with its own values. */
+/** A template from WHATSAPP_TEMPLATES other than the order ones, sent with its own values. */
 export interface NamedTemplateInput {
     /** The store sending; must be allowed on the shared number. */
     tenantId: string;
     phone: string;
-    name: string;
-    languageCode: string;
+    template: WhatsAppTemplate;
     bodyValues: string[];
     /** One value per header variable; for a media header, the file's public URL. */
     headerValues?: string[];
@@ -672,7 +662,8 @@ export interface NamedTemplateInput {
 /** Send a template that is not one of TEMPLATE_NAMES (lib/prime/failed-notice). */
 export async function sendNamedTemplate(input: NamedTemplateInput): Promise<SendTemplateResult> {
     if (!sharedSenderAllows(input.tenantId)) return { success: false, error: SENDER_NOT_ALLOWED };
-    if (!(await shopCanPayForWhatsApp(input.tenantId))) return { success: false, error: SHOP_WALLET_EMPTY };
+    const refusal = await whatsappSendRefusal(input.tenantId, input.template.category);
+    if (refusal) return { success: false, error: refusal };
     if (!(await takeDailySendSlot(input.tenantId))) return { success: false, error: SHOP_DAILY_CAP_REACHED };
     const apiKey = env.INTERAKT_API_KEY;
     if (!apiKey) return { success: false, error: "Interakt API key not configured" };
@@ -683,8 +674,8 @@ export async function sendNamedTemplate(input: NamedTemplateInput): Promise<Send
         callbackData: input.callbackData,
         type: "Template",
         template: {
-            name: input.name,
-            languageCode: input.languageCode,
+            name: input.template.name,
+            languageCode: input.template.language,
             bodyValues: input.bodyValues.map(sanitizeTemplateVar),
             ...(input.headerValues ? { headerValues: input.headerValues } : {}),
         },
@@ -695,11 +686,9 @@ export async function sendNamedTemplate(input: NamedTemplateInput): Promise<Send
 // =============================================
 // STAFF ALERT TEMPLATE
 //
-// Staff-only template name. Kept in its own constant (not in TemplateType)
-// so the existing customer-facing send path cannot reach it.
+// Staff-only template (WHATSAPP_TEMPLATES.staffAlert). Kept out of
+// TemplateType so the customer-facing send path cannot reach it.
 // =============================================
-
-export const STAFF_ALERT_TEMPLATE_NAME = "new_order_alert_staff";
 
 function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplateBody {
     const { countryCode, phoneNumber } = formatPhoneForInterakt(staffPhone);
@@ -722,8 +711,8 @@ function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplate
         callbackData: `staff_alert:${order.id}`,
         type: "Template",
         template: {
-            name: STAFF_ALERT_TEMPLATE_NAME,
-            languageCode: "ar",
+            name: WHATSAPP_TEMPLATES.staffAlert.name,
+            languageCode: WHATSAPP_TEMPLATES.staffAlert.language,
             bodyValues: [
                 customerName || "عميل",         // {{1}} customer name
                 itemsList,                       // {{2}} products
@@ -740,6 +729,10 @@ function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplate
 /**
  * Send the new-order staff alert template to a single staff phone.
  *
+ * A staff alert goes out from the same shared number as a customer message,
+ * so it passes the same gates: the shop pays it (or its trial counts it) and
+ * it takes one of the shop's daily sends.
+ *
  * SAFETY: Callers must have already verified staffPhone against the
  * staff allowlist (see lib/staff-alerts.isRegisteredStaffNumber).
  * This function additionally refuses to send if the phone looks malformed.
@@ -748,7 +741,8 @@ export async function sendStaffAlertMessage(
     order: Order,
     staffPhone: string,
 ): Promise<SendTemplateResult> {
-    if (!sharedSenderAllows(order.tenant_id)) {
+    const tenantId = order.tenant_id;
+    if (!tenantId || !sharedSenderAllows(tenantId)) {
         return { success: false, error: SENDER_NOT_ALLOWED };
     }
     const apiKey = env.INTERAKT_API_KEY;
@@ -760,50 +754,15 @@ export async function sendStaffAlertMessage(
     if (!phoneNumber || phoneNumber.length < 8) {
         return { success: false, error: "Invalid staff phone after normalization" };
     }
+    const refusal = await whatsappSendRefusal(tenantId, WHATSAPP_TEMPLATES.staffAlert.category);
+    if (refusal) return { success: false, error: refusal };
+    if (!(await takeDailySendSlot(tenantId))) return { success: false, error: SHOP_DAILY_CAP_REACHED };
 
     const body = buildStaffAlertBody(order, staffPhone);
     body.template.bodyValues = body.template.bodyValues.map(sanitizeTemplateVar);
 
     console.log(
-        `[Interakt:STAFF] Sending "${STAFF_ALERT_TEMPLATE_NAME}" to +${countryCode}${phoneNumber} for order ${order.order_id}`,
+        `[Interakt:STAFF] Sending "${WHATSAPP_TEMPLATES.staffAlert.name}" to +${countryCode}${phoneNumber} for order ${order.order_id}`,
     );
-
-    let lastError: string | undefined;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const response = await fetch(INTERAKT_API_URL, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Basic ${apiKey}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(body),
-                signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-            });
-
-            const result = await response.json().catch(() => ({}));
-            if (response.ok && result?.result === true) {
-                return {
-                    success: true,
-                    messageId: typeof result?.id === "string" ? result.id : undefined,
-                    statusCode: response.status,
-                };
-            }
-
-            lastError = interaktErrorMessage(result) || `HTTP ${response.status}`;
-            if (response.status === 429 && attempt < MAX_RETRIES) {
-                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
-                continue;
-            }
-            return { success: false, error: lastError, statusCode: response.status };
-        } catch (err) {
-            lastError = err instanceof Error ? err.message : String(err);
-            if (!requestNeverSent(err)) return { success: false, error: lastError };
-            if (attempt < MAX_RETRIES) {
-                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
-            }
-        }
-    }
-
-    return { success: false, error: lastError || "Max retries exceeded" };
+    return postTemplate(apiKey, body, order.order_id);
 }

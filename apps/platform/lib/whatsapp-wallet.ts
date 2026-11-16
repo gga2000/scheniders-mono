@@ -1,18 +1,40 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import type { WhatsAppCategory } from "@scheniders/shared/whatsapp-templates";
 
 /**
  * Every WhatsApp message a shop sends through the platform's Interakt number is
- * paid from the shop's wallet (Ali, 9 Nov). The charge itself is taken in the
- * database when the send is logged; this is the check before the send, so a
- * shop past its overdraft is told "not sent" instead of messaging for free.
+ * paid from the shop's wallet, on every plan (Ali, 16 Nov); Fermi pays only the
+ * free trial, up to plan_limits.trial_whatsapp_cap messages. The charge itself
+ * is taken in the database when Interakt says the message was delivered; this
+ * is the check before the send, so a shop that cannot pay, or a trial past its
+ * free messages, is told "not sent" instead of messaging on our account. The
+ * order still comes in either way.
  */
 export const SHOP_WALLET_EMPTY = "Shop wallet cannot pay for WhatsApp";
+export const SHOP_TRIAL_CAP_REACHED = "Store used all free trial WhatsApp messages";
+export const SHOP_UNKNOWN = "No such store";
 
-export async function shopCanPayForWhatsApp(tenantId: string): Promise<boolean> {
-    const { data, error } = await createSupabaseServiceClient().rpc("whatsapp_send_allowed", { _tenant_id: tenantId });
+const SEND_CHECK_REFUSALS: Record<string, string> = {
+    wallet_empty: SHOP_WALLET_EMPTY,
+    trial_cap: SHOP_TRIAL_CAP_REACHED,
+    unknown_shop: SHOP_UNKNOWN,
+};
+
+/**
+ * Why this shop may not send one more message of this kind now, or null when
+ * it may (whatsapp_send_check).
+ */
+export async function whatsappSendRefusal(tenantId: string, category: WhatsAppCategory): Promise<string | null> {
+    const { data, error } = await createSupabaseServiceClient().rpc("whatsapp_send_check", {
+        _tenant_id: tenantId,
+        _marketing: category === "marketing",
+    });
     if (error) throw error;
-    return data === true;
+    if (data === "ok") return null;
+    const refusal = typeof data === "string" ? SEND_CHECK_REFUSALS[data] : undefined;
+    if (!refusal) throw new Error(`whatsapp_send_check answered ${JSON.stringify(data)}`);
+    return refusal;
 }
 
 /**

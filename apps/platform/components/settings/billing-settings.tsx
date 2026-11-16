@@ -21,6 +21,7 @@ import { QiReturnCheck } from "./billing/qi-return-check";
 import { TopupRequests } from "./billing/topup-requests";
 import { WalletHistory } from "./billing/wallet-history";
 import { MonthlyInvoices } from "./billing/monthly-invoices";
+import { WhatsAppUsageCard } from "./billing/whatsapp-usage-card";
 
 export function BillingSettings() {
     const { t } = useLanguage();
@@ -155,6 +156,8 @@ export function BillingSettings() {
                     </div>
                 </div>
             </div>
+
+            {!exempt && <WhatsAppUsageCard balance={balance} messagePrice={plan?.whatsapp_message_price_iqd ?? null} />}
 
             {!exempt && subscription && (
                 <>
