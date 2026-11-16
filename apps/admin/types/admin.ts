@@ -1,3 +1,5 @@
+import type { ListBillingLock } from "@/lib/billing-lock-label";
+
 export type AdminRole = "super_admin" | "support_staff";
 
 /** The one paid plan, plus "internal" for our own shops (never billed). */
@@ -107,6 +109,8 @@ export interface AdminTenant {
   daily_revenue: number;
   orders_30d?: number;
   order_sparkline: number[];
+  /** Set when the billing lock holds the shop; its status still reads "trial" or "active". */
+  billing_lock?: ListBillingLock | null;
   pinned_note?: {
     content: string;
     updated_at: string;

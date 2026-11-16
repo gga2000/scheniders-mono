@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { fetchFees30d } from "@/lib/console-stats";
+import { everyRow } from "@/lib/every-row";
+import { merchantSearchFilter } from "@/lib/merchant-search";
 
 interface StatusCounts {
   trial: number;
@@ -27,8 +30,6 @@ interface Aggregates {
   buckets: BucketCounts;
 }
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
   if (auth instanceof NextResponse) return auth;
@@ -46,25 +47,23 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Fetch the full filtered tenant set (lightweight columns only).
-    let query = supabase
-      .from("tenants")
-      .select("id, status, plan, trial_ends_at, wallet(balance_iqd)");
+    // The full filtered tenant set (lightweight columns only), a page at a
+    // time: one request stops at 1,000 rows and does not say so.
+    const tenants = await everyRow((from, to) => {
+      let query = supabase
+        .from("tenants")
+        .select("id, status, plan, trial_ends_at, wallet(balance_iqd)");
 
-    // Server-side filterable status only — "attention" is synthetic.
-    if (plan) query = query.eq("plan", plan);
-    if (status && status !== "attention") query = query.eq("status", status);
-    if (city) query = query.eq("city", city);
-    if (search) {
-      query = query.or(
-        `business_name.ilike.%${search}%,slug.ilike.%${search}%,contact_email.ilike.%${search}%`
-      );
-    }
-    if (dateFrom) query = query.gte("created_at", dateFrom);
-    if (dateTo) query = query.lte("created_at", dateTo);
+      // Server-side filterable status only — "attention" is synthetic.
+      if (plan) query = query.eq("plan", plan);
+      if (status && status !== "attention") query = query.eq("status", status);
+      if (city) query = query.eq("city", city);
+      if (search) query = query.or(merchantSearchFilter(search));
+      if (dateFrom) query = query.gte("created_at", dateFrom);
+      if (dateTo) query = query.lte("created_at", dateTo);
 
-    const { data: tenants, error } = await query;
-    if (error) throw error;
+      return query.order("id", { ascending: true }).range(from, to);
+    });
 
     const empty: Aggregates = {
       total: 0,
@@ -82,7 +81,7 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    if (!tenants || tenants.length === 0) {
+    if (tenants.length === 0) {
       return NextResponse.json(empty);
     }
 
@@ -122,22 +121,9 @@ export async function GET(request: NextRequest) {
       planPrice[row.plan] = row.base_price_iqd;
     }
 
-    // 30-day rolling usage charges across the filtered set.
-    const thirtyDaysAgo = new Date(Date.now() - THIRTY_DAYS_MS).toISOString();
-    let usageCharges30d = 0;
-    if (tenantIds.length > 0) {
-      const { data: charges } = await supabase
-        .from("wallet_transactions")
-        .select("amount_iqd")
-        .in("tenant_id", tenantIds)
-        .eq("type", "charge")
-        .gte("created_at", thirtyDaysAgo);
-      if (charges) {
-        for (const row of charges) {
-          usageCharges30d += Math.abs(row.amount_iqd);
-        }
-      }
-    }
+    // Our fees (monthly fee, delivered orders, messages) from the filtered set
+    // over the last 30 Baghdad days, added up in the database.
+    const usageCharges30d = tenantIds.length > 0 ? await fetchFees30d(supabase, tenantIds) : 0;
 
     // Walk the filtered tenants to compute everything in one pass.
     const status_: StatusCounts = { trial: 0, active: 0, suspended: 0, cancelled: 0 };

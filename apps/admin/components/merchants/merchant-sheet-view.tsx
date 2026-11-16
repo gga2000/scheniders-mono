@@ -12,6 +12,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { CopyableText } from "@/components/shared/copyable-text";
+import { LockedChip } from "./locked-chip";
 
 function formatIQD(amount: number): string {
   return new Intl.NumberFormat("en-IQ").format(amount);
@@ -275,15 +276,19 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="w-28 shrink-0 px-2 flex items-center justify-center border-r border-[var(--card-border)]/30">
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit",
-                      STATUS_PILL[m.status],
-                    )}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
-                    {m.status}
-                  </span>
+                  {m.billing_lock ? (
+                    <LockedChip lock={m.billing_lock} />
+                  ) : (
+                    <span
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit",
+                        STATUS_PILL[m.status],
+                      )}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
+                      {m.status}
+                    </span>
+                  )}
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center gap-1 border-r border-[var(--card-border)]/30">

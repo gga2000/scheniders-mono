@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AdminTenant } from "@/types/admin";
 import { MerchantContextMenu } from "@/components/shared/context-menu";
 import { MerchantStatusDropdown } from "./merchant-status-dropdown";
+import { LockedChip } from "./locked-chip";
 import { MerchantPlanDropdown } from "./merchant-plan-dropdown";
 import { HealthScoreTooltip } from "./health-score-tooltip";
 import { QuickNotePopover } from "./quick-note-popover";
@@ -315,10 +316,13 @@ export function MerchantCard({
               </div>
             )}
           </div>
-          <MerchantStatusDropdown
-            merchantId={merchant.id}
-            status={merchant.status}
-          />
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <MerchantStatusDropdown
+              merchantId={merchant.id}
+              status={merchant.status}
+            />
+            {merchant.billing_lock && <LockedChip lock={merchant.billing_lock} />}
+          </div>
         </div>
 
         {/* Hero stats: Balance + Revenue (paired big numbers) */}

@@ -5,11 +5,17 @@ import {
   daysEnding,
   feesOf,
   fetchDashboardStats,
+  fetchFees30d,
   fetchIncomeStats,
+  fetchMerchantListStats,
+  fetchTeamCounts,
   fetchUsageStats,
   monthLabel,
+  monthOf,
+  monthsEnding,
 } from "./console-stats";
 import { dashboardStats, incomeStats, SHOP_A, usageStats } from "./console-stats.test-data";
+import { listStatsRow } from "./supabase-stub.test-data";
 
 type Client = Parameters<typeof fetchDashboardStats>[0];
 
@@ -43,6 +49,17 @@ describe("calendar helpers", () => {
   it("labels a month", () => {
     expect(monthLabel("2026-11")).toBe("Nov 26");
     expect(monthLabel("2026-01")).toBe("Jan 26");
+  });
+
+  it("files an instant under its Baghdad month", () => {
+    expect(monthOf("2026-10-31T20:59:59Z")).toBe("2026-10"); // 23:59 in Baghdad
+    expect(monthOf("2026-10-31T21:00:00Z")).toBe("2026-11"); // 00:00 on the 1st in Baghdad
+    expect(monthOf(new Date("2026-12-31T21:30:00Z"))).toBe("2027-01");
+  });
+
+  it("lists the months ending this month, oldest first, across a year", () => {
+    expect(monthsEnding("2026-11", 3)).toEqual(["2026-09", "2026-10", "2026-11"]);
+    expect(monthsEnding("2026-03", 6)).toEqual(["2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03"]);
   });
 });
 
@@ -86,5 +103,55 @@ describe("stats readers", () => {
 
     await expect(fetchUsageStats(client(null).supabase, null)).rejects.toThrow(/cannot read/);
     await expect(fetchIncomeStats(client({ ...incomeStats(), monthly: [] }).supabase)).rejects.toThrow(/at monthly/);
+  });
+});
+
+describe("Merchants list and Team readers", () => {
+  it("ask for each shop once and key the answer by shop", async () => {
+    const { rpc, supabase } = client([listStatsRow("a", { orders_30d: 1203 }), listStatsRow("b")]);
+
+    const byShop = await fetchMerchantListStats(supabase, ["a", "b", "a"]);
+
+    expect(rpc).toHaveBeenCalledWith("admin_merchant_list_stats", { _tenant_ids: ["a", "b"] });
+    expect(byShop.get("a")?.orders_30d).toBe(1203);
+    expect(byShop.size).toBe(2);
+  });
+
+  it("ask the database nothing for an empty page", async () => {
+    const { rpc, supabase } = client([]);
+
+    expect((await fetchMerchantListStats(supabase, [])).size).toBe(0);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("throw when a shop that was asked for did not come back", async () => {
+    const { supabase } = client([listStatsRow("a")]);
+
+    await expect(fetchMerchantListStats(supabase, ["a", "b", "c"])).rejects.toThrow(/left out 2 of 3 shops/);
+  });
+
+  it("throw on a sparkline that is not 30 days, or a lock reason this app does not know", async () => {
+    const short = client([listStatsRow("a", { order_sparkline: [1, 2, 3] })]);
+    await expect(fetchMerchantListStats(short.supabase, ["a"])).rejects.toThrow(/at 0\.order_sparkline/);
+
+    const odd = client([listStatsRow("a", { lock_reason: "paused" })]);
+    await expect(fetchMerchantListStats(odd.supabase, ["a"])).rejects.toThrow(/at 0\.lock_reason/);
+  });
+
+  it("read the fees of a set of shops as one number", async () => {
+    const { rpc, supabase } = client(23870);
+
+    expect(await fetchFees30d(supabase, ["a", "b"])).toBe(23870);
+    expect(rpc).toHaveBeenCalledWith("admin_fees_30d", { _tenant_ids: ["a", "b"] });
+    await expect(fetchFees30d(client(null).supabase, ["a"])).rejects.toThrow(/cannot read/);
+  });
+
+  it("key the team counts by member of staff", async () => {
+    const row = { user_id: "sara", leads_added: 3, leads_converted: 1, stores_built: 2, total_actions: 1500, commission_earned: 0, commission_pending: 0 };
+    const { rpc, supabase } = client([row]);
+
+    expect((await fetchTeamCounts(supabase)).get("sara")).toEqual(row);
+    expect(rpc).toHaveBeenCalledWith("admin_team_counts", {});
+    await expect(fetchTeamCounts(client([{ ...row, total_actions: "many" }]).supabase)).rejects.toThrow(/at 0\.total_actions/);
   });
 });

@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
 
 /*
- * The staff console's totals are counted in the database (migration
- * 20261116013246), never from fetched rows: the API returns at most 1,000 rows,
+ * The staff console's totals are counted in the database (migrations
+ * 20261116013246 and 20261116033335), never from fetched rows: the API returns at most 1,000 rows,
  * so a row count in JavaScript stops being true at order 1,001. Each function
  * returns one JSON value, and the rules for "real order", "earned money",
  * "fees" and "day" are written once, in that migration.
@@ -81,7 +81,43 @@ export const incomeStatsSchema = z.object({
   }),
 });
 
+const instant = z.string().min(1);
+
+/** One shop on the Merchants list (migration 20261116033335). "Last 30 days" is today and the 29 Baghdad days before it. */
+export const merchantListStatsSchema = z.array(
+  z.object({
+    tenant_id: z.string(),
+    orders_30d: num,
+    /** One value per day, oldest first, ending today (Baghdad). */
+    order_sparkline: z.array(num).length(30),
+    last_order_at: instant.nullable(),
+    fees_30d: num,
+    fees_today: num,
+    last_wallet_at: instant.nullable(),
+    usage_orders_count: num.nullable(),
+    usage_orders_charged: num.nullable(),
+    usage_team_members_count: num.nullable(),
+    lock_reason: z.enum(["trial_ended", "unpaid"]).nullable(),
+    lock_since: instant.nullable(),
+  }),
+);
+
+/** One member of staff on the Team page. */
+export const teamCountsSchema = z.array(
+  z.object({
+    user_id: z.string(),
+    leads_added: num,
+    leads_converted: num,
+    stores_built: num,
+    total_actions: num,
+    commission_earned: num,
+    commission_pending: num,
+  }),
+);
+
 export type DashboardStats = z.infer<typeof dashboardStatsSchema>;
+export type MerchantListStats = z.infer<typeof merchantListStatsSchema>[number];
+export type TeamCounts = z.infer<typeof teamCountsSchema>[number];
 export type UsageStats = z.infer<typeof usageStatsSchema>;
 export type IncomeStats = z.infer<typeof incomeStatsSchema>;
 
@@ -93,7 +129,7 @@ export type IncomeStats = z.infer<typeof incomeStatsSchema>;
 async function readStats<T>(
   supabase: AdminClient,
   fn: string,
-  args: Record<string, string>,
+  args: Record<string, string | string[]>,
   schema: z.ZodType<T>,
 ): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args);
@@ -117,6 +153,37 @@ export function fetchUsageStats(supabase: AdminClient, tenantId: string | null):
 
 export function fetchIncomeStats(supabase: AdminClient): Promise<IncomeStats> {
   return readStats(supabase, "admin_income_stats", {}, incomeStatsSchema);
+}
+
+/**
+ * The Merchants list numbers for the shops on one page, keyed by shop.
+ *
+ * A function that returns rows is cut at 1,000 rows by the API like any table,
+ * so this is for a page of shops, never for all of them. A shop that was asked
+ * for and did not come back throws, so a cut answer cannot pass as zeros.
+ */
+export async function fetchMerchantListStats(
+  supabase: AdminClient,
+  tenantIds: string[],
+): Promise<Map<string, MerchantListStats>> {
+  const ids = [...new Set(tenantIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await readStats(supabase, "admin_merchant_list_stats", { _tenant_ids: ids }, merchantListStatsSchema);
+  const byShop = new Map(rows.map((row) => [row.tenant_id, row]));
+  const missing = ids.filter((id) => !byShop.has(id)).length;
+  if (missing > 0) throw new Error(`admin_merchant_list_stats left out ${missing} of ${ids.length} shops`);
+  return byShop;
+}
+
+/** Our fees from a set of shops over the last 30 Baghdad days, as one number, so it holds for any number of shops. */
+export function fetchFees30d(supabase: AdminClient, tenantIds: string[]): Promise<number> {
+  return readStats(supabase, "admin_fees_30d", { _tenant_ids: tenantIds }, num);
+}
+
+/** Leads, actions and commissions per member of staff, keyed by user. */
+export async function fetchTeamCounts(supabase: AdminClient): Promise<Map<string, TeamCounts>> {
+  const rows = await readStats(supabase, "admin_team_counts", {}, teamCountsSchema);
+  return new Map(rows.map((row) => [row.user_id, row]));
 }
 
 /** What we sell: the monthly fee, the delivered-order fee and paid messages. "Other" charges are corrections, not income. */
@@ -145,6 +212,22 @@ export function dayOfWeek(day: string): number {
 /** The `count` days ending on `today`, oldest first. */
 export function daysEnding(today: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => addDays(today, i - (count - 1)));
+}
+
+const baghdadMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit" });
+
+/** The Baghdad month an instant falls in, as '2026-11'. 00:30 on the 1st in Baghdad is still the month before in UTC. */
+export function monthOf(instant: string | Date): string {
+  return baghdadMonth.format(new Date(instant));
+}
+
+/** The `count` months ending on `month`, oldest first. */
+export function monthsEnding(month: string, count: number): string[] {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(Date.UTC(year, monthNumber - 1 - (count - 1 - i), 1));
+    return d.toISOString().slice(0, 7);
+  });
 }
 
 /** '2026-11' reads "Nov 26". */
