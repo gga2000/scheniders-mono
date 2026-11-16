@@ -202,7 +202,7 @@ export function OrdersFilterBar({
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
-                                primeQueueChips={<PrimeQueueChips />}
+                                afterAbandonedChips={<PrimeQueueChips />}
                                 productRowEnd={<ScheduledLaterChip filters={filters} setFilters={setFilters} />}
                                 showProductRowEnd
                                 queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /><LockTimeChip filters={filters} setFilters={setFilters} /><WhatsAppUnsentChip filters={filters} setFilters={setFilters} /></>}
