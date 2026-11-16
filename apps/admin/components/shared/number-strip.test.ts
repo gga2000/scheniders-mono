@@ -10,7 +10,7 @@ import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
  */
 
 const strip = (cells: ReturnType<typeof createElement>[]) =>
-  renderToStaticMarkup(createElement(NumberStrip, { columns: 3, label: "Wallet numbers" }, ...cells));
+  renderToStaticMarkup(createElement(NumberStrip, { columns: 3, label: "Wallet numbers", children: cells }));
 
 describe("NumberStrip", () => {
   it("puts every cell in one card, with the group named for screen readers", () => {
