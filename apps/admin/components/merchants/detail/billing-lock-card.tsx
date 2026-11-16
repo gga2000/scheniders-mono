@@ -15,7 +15,11 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 interface BillingLockCardProps {
   merchantId: string;
   lock: BillingLockSnapshot;
-  /** Free unlock is for super admins; support staff see the other tools only. */
+  /**
+   * Free unlock is for super admins. Support staff may give more orders at
+   * the end of a trial only; a store locked for an unpaid month is a super
+   * admin's (the database refuses it too).
+   */
   canForceUnlock: boolean;
 }
 
@@ -92,6 +96,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
   const ordersLeft = lock.orders_left ?? 0;
   const paused = ordersLeft <= 0;
   const disabled = mutation.isPending || !reasonOk;
+  const canGiveOrders = lock.reason !== "unpaid" || canForceUnlock;
 
   return (
     <div
@@ -143,94 +148,102 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
         Orders, shipping, labels, export and paying stay open for the merchant. Everything else shows the lock screen.
       </p>
 
-      <StaffReasonInput
-        value={reason}
-        onChange={setReason}
-        placeholder="Why? (needed for both tools, saved in the log)"
-        className="relative mb-3"
-      />
+      {canGiveOrders ? (
+        <>
+          <StaffReasonInput
+            value={reason}
+            onChange={setReason}
+            placeholder="Why? (needed for both tools, saved in the log)"
+            className="relative mb-3"
+          />
 
-      <div className="relative space-y-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
-            Give more store orders
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {ORDER_PRESETS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                disabled={disabled}
-                onClick={() => run({ kind: "orders", orders: n })}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-foreground text-[11px] font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-3 h-3" />
-                {n}
-              </button>
-            ))}
-            <div className="inline-flex items-center gap-1 bg-white/80 dark:bg-white/10 rounded-full ring-1 ring-foreground/10 pl-3 pr-1 py-0.5">
-              <input
-                type="number"
-                min={1}
-                max={MAX_LOCK_ORDERS_GRANT}
-                value={customOrders}
-                onChange={(e) => setCustomOrders(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && customOrdersOk && run({ kind: "orders", orders: customOrdersN })}
-                placeholder="Other"
-                aria-label="Number of store orders"
-                className="w-14 bg-transparent outline-none text-[11px] font-bold tabular-nums"
-              />
-              <button
-                type="button"
-                aria-label="Give these store orders"
-                onClick={() => run({ kind: "orders", orders: customOrdersN })}
-                disabled={disabled || !customOrdersOk}
-                className="p-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
-              >
-                <Zap className="w-3 h-3" />
-              </button>
+          <div className="relative space-y-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
+                Give more store orders
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {ORDER_PRESETS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => run({ kind: "orders", orders: n })}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-foreground text-[11px] font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {n}
+                  </button>
+                ))}
+                <div className="inline-flex items-center gap-1 bg-white/80 dark:bg-white/10 rounded-full ring-1 ring-foreground/10 pl-3 pr-1 py-0.5">
+                  <input
+                    type="number"
+                    min={1}
+                    max={MAX_LOCK_ORDERS_GRANT}
+                    value={customOrders}
+                    onChange={(e) => setCustomOrders(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && customOrdersOk && run({ kind: "orders", orders: customOrdersN })}
+                    placeholder="Other"
+                    aria-label="Number of store orders"
+                    className="w-14 bg-transparent outline-none text-[11px] font-bold tabular-nums"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Give these store orders"
+                    onClick={() => run({ kind: "orders", orders: customOrdersN })}
+                    disabled={disabled || !customOrdersOk}
+                    className="p-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
+                  >
+                    <Zap className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {canForceUnlock && (
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
-              Unlock free (no charge)
-            </p>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {UNLOCK_PRESETS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setUnlockDays(d)}
-                  aria-pressed={unlockDays === d}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-[11px] font-bold ring-1 transition-all",
-                    unlockDays === d
-                      ? "bg-foreground text-background ring-foreground"
-                      : "bg-white/80 dark:bg-white/10 text-foreground ring-foreground/10 hover:ring-foreground/30",
-                  )}
-                >
-                  {d} days
-                </button>
-              ))}
-              <button
-                type="button"
-                disabled={disabled || unlockDays < 1 || unlockDays > MAX_FREE_UNLOCK_DAYS}
-                onClick={() => run({ kind: "unlock", days: unlockDays })}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Unlock className="w-3 h-3" />
-                Unlock for {unlockDays} days
-              </button>
-            </div>
-            <p className="text-[10px] text-foreground/50 mt-1.5">
-              Opens a paid period with no wallet charge. When it ends, renewal charges the wallet as usual.
-            </p>
+            {canForceUnlock && (
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
+                  Unlock free (no charge)
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {UNLOCK_PRESETS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setUnlockDays(d)}
+                      aria-pressed={unlockDays === d}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-[11px] font-bold ring-1 transition-all",
+                        unlockDays === d
+                          ? "bg-foreground text-background ring-foreground"
+                          : "bg-white/80 dark:bg-white/10 text-foreground ring-foreground/10 hover:ring-foreground/30",
+                      )}
+                    >
+                      {d} days
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={disabled || unlockDays < 1 || unlockDays > MAX_FREE_UNLOCK_DAYS}
+                    onClick={() => run({ kind: "unlock", days: unlockDays })}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Unlock className="w-3 h-3" />
+                    Unlock for {unlockDays} days
+                  </button>
+                </div>
+                <p className="text-[10px] text-foreground/50 mt-1.5">
+                  Opens a paid period with no wallet charge. When it ends, renewal charges the wallet as usual.
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      ) : (
+        <p className="relative text-[11px] font-semibold text-rose-700 dark:text-rose-300" data-testid="billing-lock-super-admin-only">
+          A store locked for an unpaid month gets more orders or a free unlock from a super admin.
+        </p>
+      )}
 
       {mutation.isError && (
         <div className="relative mt-3 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-400/10 border border-rose-200 dark:border-rose-400/30 text-xs text-rose-700 dark:text-rose-300 font-medium">

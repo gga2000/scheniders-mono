@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { hasPermission } from "@/lib/admin-permissions";
 import { addLockOrders, MAX_LOCK_ORDERS_GRANT } from "@/lib/billing-lock-tools";
 import { staffReasonSchema } from "@/lib/staff-reason";
 
@@ -13,7 +14,9 @@ const bodySchema = z.object({
 /**
  * Give a locked store more storefront orders before it pauses (Fermi A1).
  * `extend_trial`, like extending a trial: support staff may grant free room
- * on the trial side; a free paid period is force-unlock (super admin).
+ * on the trial side. A store locked for an unpaid month needs
+ * `manage_subscription` (super admins, who may also unlock it for free); the
+ * database checks the lock's reason in the same step that adds the orders.
  */
 export async function POST(
   request: NextRequest,
@@ -39,6 +42,7 @@ export async function POST(
       parsed.data.orders,
       parsed.data.reason,
       auth.user,
+      hasPermission(auth.role, "manage_subscription"),
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });

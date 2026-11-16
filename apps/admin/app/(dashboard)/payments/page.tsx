@@ -82,7 +82,11 @@ function Receipt({ row }: { row: TopupQueueItem }) {
   );
 }
 
-function Decision({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean }) {
+/**
+ * `canAddMore`: the login may top up wallets (super admins). Without it,
+ * staff may credit up to the shop's own figure; the database refuses more.
+ */
+function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDecide: boolean; canAddMore: boolean }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState<number>(row.amount_iqd);
   const [refusing, setRefusing] = useState(false);
@@ -112,6 +116,7 @@ function Decision({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean 
   const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
   const reasonOk = reason.trim().length >= REJECT_REASON_MIN && reason.trim().length <= REJECT_REASON_MAX;
   const differs = amountOk && amount !== row.amount_iqd;
+  const overAsked = amountOk && amount > row.amount_iqd && !canAddMore;
 
   if (confirming) {
     const approve = confirming === "approve";
@@ -178,7 +183,11 @@ function Decision({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean 
         onChange={(e) => setAmount(e.target.valueAsNumber)}
         className="w-full rounded-xl bg-white/80 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 dark:bg-white/10"
       />
-      {differs && <p className="text-[10px] text-amber-700">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>}
+      {overAsked ? (
+        <p className="text-[10px] text-red-600">The shop said {iqd(row.amount_iqd)}. More than that needs a super admin.</p>
+      ) : (
+        differs && <p className="text-[10px] text-amber-700">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>
+      )}
       {!amountOk && <p className="text-[10px] text-red-600">Between 1,000 and 10,000,000 IQD.</p>}
       <div className="flex justify-end gap-1.5">
         <button
@@ -191,7 +200,7 @@ function Decision({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean 
         </button>
         <button
           type="button"
-          disabled={!amountOk}
+          disabled={!amountOk || overAsked}
           onClick={() => setConfirming("approve")}
           className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-semibold text-background hover:opacity-90 disabled:opacity-40"
           data-testid="payment-approve"
@@ -204,7 +213,7 @@ function Decision({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean 
   );
 }
 
-function PaymentRow({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean }) {
+function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDecide: boolean; canAddMore: boolean }) {
   const owed = amountStillOwed(row);
   const warnings = topupWarnings(row);
   return (
@@ -236,7 +245,7 @@ function PaymentRow({ row, canDecide }: { row: TopupQueueItem; canDecide: boolea
           </p>
         ))}
       </div>
-      <Decision row={row} canDecide={canDecide} />
+      <Decision row={row} canDecide={canDecide} canAddMore={canAddMore} />
     </div>
   );
 }
@@ -251,6 +260,7 @@ function PaymentRow({ row, canDecide }: { row: TopupQueueItem; canDecide: boolea
 export default function PaymentsPage() {
   const { role } = useAdminAuth();
   const canDecide = role ? hasPermission(role, "check_payments") : false;
+  const canAddMore = role ? hasPermission(role, "top_up_wallet") : false;
   const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: TOPUP_QUEUE_KEY,
     queryFn: async () => {
@@ -284,7 +294,7 @@ export default function PaymentsPage() {
       ) : data && data.length > 0 ? (
         <div className="space-y-3" data-testid="payments-list">
           {data.map((row) => (
-            <PaymentRow key={row.id} row={row} canDecide={canDecide} />
+            <PaymentRow key={row.id} row={row} canDecide={canDecide} canAddMore={canAddMore} />
           ))}
         </div>
       ) : (

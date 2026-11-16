@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
+import { hasPermission } from "@/lib/admin-permissions";
 import { topupDecisionSchema } from "@/lib/topup-queue";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,6 +20,7 @@ const resultSchema = z.object({
 const REFUSALS: Record<string, { status: number; error: string }> = {
   not_found: { status: 404, error: "Request not found" },
   bad_amount: { status: 400, error: "The amount must be between 1,000 and 10,000,000 IQD" },
+  over_asked: { status: 403, error: "More than the shop sent needs a super admin" },
   reason_required: { status: 400, error: "Say why the receipt is refused (3 to 300 characters)" },
 };
 
@@ -29,7 +31,9 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
  *                                own figure when left out) to the wallet. A
  *                                credit that covers the plan unlocks a locked
  *                                shop at once, and the payment gets a receipt
- *                                number.
+ *                                number. More than the shop's own figure is a
+ *                                plain top-up, so only a login that may top
+ *                                up wallets (super admins) can add it.
  *   { approve: false, reason }  refuses it; the shop is told the reason and
  *                                can send again.
  * The database does all of it in one transaction, with the request as the
@@ -69,6 +73,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       _admin_id: auth.user.id,
       _amount: decision.approve ? decision.amount : undefined,
       _reason: decision.approve ? undefined : decision.reason,
+      _may_add_more: hasPermission(auth.role, "top_up_wallet"),
     });
     if (error) throw error;
     const result = resultSchema.parse(data);

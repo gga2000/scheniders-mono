@@ -619,10 +619,23 @@ describe("billing lock staff tools", () => {
           _reason: "courier delay",
           _admin_user_id: SUPPORT_ID,
           _actor_email: "agent@example.com",
+          _may_grant_unpaid: false,
         },
       ],
     ]);
     expect(tableCalls()).toEqual([]);
+  });
+
+  it("lets only a super admin give orders to a store locked for an unpaid month", async () => {
+    dbResult = { data: { success: false, error: "unpaid_lock" }, error: null };
+    const refused = await lockOrders("support", { orders: 1000, reason: "keeps selling" });
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).error).toMatch(/super admin/);
+    expect(rpcCalls().at(-1)?.[1]).toMatchObject({ _may_grant_unpaid: false });
+
+    dbResult = { data: { success: true, tenant_id: TENANT, orders_left: 1010 }, error: null };
+    expect((await lockOrders("super", { orders: 1000, reason: "paid in cash, bank slow" })).status).toBe(200);
+    expect(rpcCalls().at(-1)?.[1]).toMatchObject({ _may_grant_unpaid: true });
   });
 
   it("unlocks a store for free through one RPC that names the admin and the reason", async () => {

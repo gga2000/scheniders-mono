@@ -34,11 +34,12 @@ export type BillingLockSnapshot = {
   price_iqd: number;
 };
 
-type Refusal = { ok: false; status: 404 | 409; error: string };
+type Refusal = { ok: false; status: 403 | 404 | 409; error: string };
 
 const REFUSALS: Record<string, Omit<Refusal, "ok">> = {
   not_found: { status: 404, error: "Merchant not found" },
   not_locked: { status: 409, error: "This store is not locked" },
+  unpaid_lock: { status: 403, error: "A store locked for an unpaid month gets more orders from a super admin" },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -88,6 +89,8 @@ export async function addLockOrders(
   orders: number,
   reason: string,
   actor: StaffActor,
+  /** Room at the end of a trial is support's to give; an unpaid month needs a super admin. */
+  mayGrantUnpaid: boolean,
 ): Promise<{ ok: true; ordersLeft: number } | Refusal> {
   const { data, error } = await supabase.rpc("admin_add_lock_orders", {
     _tenant_id: tenantId,
@@ -95,6 +98,7 @@ export async function addLockOrders(
     _reason: reason,
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
+    _may_grant_unpaid: mayGrantUnpaid,
   });
   if (error) throw error;
   if (!isRecord(data)) throw new Error("Unexpected admin_add_lock_orders response");
