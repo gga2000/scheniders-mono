@@ -22,7 +22,7 @@ const listShopSchema = z.object({
   // A shop with no wallet row has nothing in it.
   wallet: z.object({ balance_iqd: z.number() }).nullish(),
   orders_30d: z.number(),
-  monthly_revenue: z.number(),
+  fees_30d: z.number(),
   team_members: z.number(),
   order_sparkline: z.array(z.number()),
   staff_health_score: z.number(),
@@ -62,7 +62,7 @@ export function parseComparisonShops(answer: unknown): ComparisonShop[] {
     created_at: shop.created_at,
     wallet_balance: shop.wallet?.balance_iqd ?? 0,
     orders_30d: shop.orders_30d,
-    fees_30d: shop.monthly_revenue,
+    fees_30d: shop.fees_30d,
     team_members: shop.team_members,
     order_sparkline: shop.order_sparkline,
     health_score: shop.staff_health_score,

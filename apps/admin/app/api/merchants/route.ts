@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
         // The later of the last wallet line and the last real order.
         last_active_at: laterOf(row.last_wallet_at, row.last_order_at),
         // Our fees (monthly fee, delivered orders, messages), not every wallet charge.
-        monthly_revenue: row.fees_30d,
-        daily_revenue: row.fees_today,
+        fees_30d: row.fees_30d,
+        fees_today: row.fees_today,
         orders_30d: row.orders_30d,
         // Active members today. The usage row's team number below is written once, at sign-up.
         team_members: row.team_members,

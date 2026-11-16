@@ -39,7 +39,7 @@ interface TriggeredAlert {
 
 const FIELD_OPTIONS: { value: RuleField; label: string; unit: string }[] = [
   { value: "balance", label: "Wallet balance", unit: "IQD" },
-  { value: "orders", label: "Order count", unit: "orders" },
+  { value: "orders", label: "Orders in the last 30 days", unit: "orders" },
   { value: "last_active_days", label: "Days since last active", unit: "days" },
   { value: "trial_remaining_days", label: "Trial days remaining", unit: "days" },
 ];
@@ -78,7 +78,7 @@ function getMerchantFieldValue(merchant: AdminTenant, field: RuleField): number 
     case "balance":
       return merchant.wallet?.balance_iqd ?? 0;
     case "orders":
-      return merchant.usage?.orders_count ?? 0;
+      return merchant.orders_30d ?? 0;
     case "last_active_days": {
       if (!merchant.last_active_at) return null;
       const diff = Date.now() - new Date(merchant.last_active_at).getTime();

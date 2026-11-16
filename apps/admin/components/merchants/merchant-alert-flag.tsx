@@ -4,10 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { AlertCircle, Clock, Ban, XCircle } from "lucide-react";
 import { trialClock } from "@/lib/baghdad-day";
 import { cn } from "@/lib/utils";
-import type { AdminTenant } from "@/types/admin";
+/** A list row or the shop record: the flag reads its status and trial end. */
+interface AlertShop {
+  status: string;
+  trial_ends_at: string | null;
+}
 
 interface MerchantAlertFlagProps {
-  merchant: AdminTenant;
+  merchant: AlertShop;
 }
 
 interface AlertInfo {
@@ -25,9 +29,9 @@ function daysSince(dateStr: string | null | undefined): number | null {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function computeAlert(merchant: AdminTenant): AlertInfo | null {
-  const status = (merchant as { status?: string }).status;
-  const trialEnd = (merchant as { trial_ends_at?: string | null }).trial_ends_at ?? null;
+function computeAlert(merchant: AlertShop): AlertInfo | null {
+  const status = merchant.status;
+  const trialEnd = merchant.trial_ends_at;
   const subEnd =
     (merchant as { subscription_ends_at?: string | null }).subscription_ends_at ?? null;
   const cancelledAt =

@@ -39,7 +39,7 @@ const PAGES: CommandItem[] = [
   { id: "health", label: "Health", sublabel: "Platform health", icon: <Activity className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "activity", label: "Activity Log", sublabel: "Admin actions", icon: <FileText className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "settings", label: "Settings", sublabel: "Platform settings", icon: <Settings className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "revenue", label: "Revenue Analytics", sublabel: "MRR, cohorts, LTV", icon: <TrendingUp className="w-4 h-4" />, action: () => {}, category: "page" },
+  { id: "revenue", label: "Revenue Analytics", sublabel: "Fees shops paid us, by month", icon: <TrendingUp className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "usage", label: "Usage Heatmap", sublabel: "Activity patterns", icon: <BarChart3 className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "whatsapp", label: "WhatsApp", sublabel: "Message costs & paused shops", icon: <MessageCircle className="w-4 h-4" />, action: () => {}, category: "page" },
 ];
