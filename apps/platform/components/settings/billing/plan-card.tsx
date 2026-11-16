@@ -32,7 +32,8 @@ export function PlanCard({
     const base = plan?.base_price_iqd ?? 0;
     const perOrder = plan?.order_price_iqd ?? 0;
     const trialDays = plan?.trial_days ?? 7;
-    const trialCap = plan?.trial_order_cap ?? 50;
+    // 0 = no order cap: the trial ends on its date only (handoff A1).
+    const trialCap = plan?.trial_order_cap ?? 0;
 
     const daysLeft = trialEndsAt ? daysUntil(trialEndsAt) : null;
 
@@ -69,14 +70,18 @@ export function PlanCard({
                             value={daysLeft === null ? "-" : t("billing.trial.daysLeft", { count: daysLeft })}
                             percent={daysLeft === null ? 0 : ((trialDays - daysLeft) / trialDays) * 100}
                         />
-                        <TrialMeter
-                            icon={<ShoppingBag className="w-3.5 h-3.5" />}
-                            label={t("billing.trial.orders")}
-                            value={t("billing.trial.ordersUsed", { used: Math.min(trialOrders ?? 0, trialCap), cap: trialCap })}
-                            percent={((trialOrders ?? 0) / trialCap) * 100}
-                        />
+                        {trialCap > 0 && (
+                            <TrialMeter
+                                icon={<ShoppingBag className="w-3.5 h-3.5" />}
+                                label={t("billing.trial.orders")}
+                                value={t("billing.trial.ordersUsed", { used: Math.min(trialOrders ?? 0, trialCap), cap: trialCap })}
+                                percent={((trialOrders ?? 0) / trialCap) * 100}
+                            />
+                        )}
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                            {t("billing.trial.note", { days: trialDays, cap: trialCap, amount: formatIQD(base) })}
+                            {trialCap > 0
+                                ? t("billing.trial.note", { days: trialDays, cap: trialCap, amount: formatIQD(base) })
+                                : t("billing.trial.noteNoCap", { days: trialDays, amount: formatIQD(base) })}
                         </p>
                     </div>
                 ) : subscription ? (

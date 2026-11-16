@@ -251,7 +251,6 @@ export type OrderLimitCode =
     | "tenant_not_found"
     | "suspended"
     | "cancelled"
-    | "trial_expired"
     | "monthly_limit_exceeded"
     | "monthly_limit_reached"
     | "monthly_limit_near";
@@ -280,12 +279,9 @@ export async function canCreateOrder(tenantId: string): Promise<OrderLimitCheck>
         return { allowed: false, code: 'cancelled', reason: 'Subscription has been cancelled.' };
     }
 
-    // Check trial expiry
-    if (tenant.status === 'trial' && tenant.trial_ends_at) {
-        if (new Date(tenant.trial_ends_at) < new Date()) {
-            return { allowed: false, code: 'trial_expired', reason: 'Your trial has expired. Please subscribe to continue.' };
-        }
-    }
+    // An ended, unpaid trial is LOCKED, not closed (handoff A1): orders the
+    // shop types in by hand still go through. Only the storefront has a limit
+    // in the lock (create_storefront_order / take_lock_order_slot).
 
     const limits = await getPlanLimits(tenant.plan);
     if (!limits) return { allowed: true }; // No limits found, allow

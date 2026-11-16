@@ -63,7 +63,7 @@ describe("subscription-renew cron", () => {
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toMatchObject({ success: true, renewed: 1, suspended: 0 });
+        expect(body).toMatchObject({ success: true, renewed: 1, locked: 0 });
         expect(queriesOn("renew_subscription_atomic")).toHaveLength(1);
         expect(queriesOn("renew_subscription_atomic")[0].rpcArgs).toEqual({
             _subscription_id: SUB,
@@ -80,12 +80,21 @@ describe("subscription-renew cron", () => {
         expect(writes).toEqual([]);
     });
 
+    it("reports a month the wallet cannot cover as locked, a normal outcome rather than an error", async () => {
+        renewResult = { success: true, outcome: "locked", plan: "starter", error: "Insufficient balance" };
+        const res = await GET(cronRequest());
+        const body = await res.json();
+        expect(res.status).toBe(200);
+        expect(body).toMatchObject({ success: true, renewed: 0, locked: 1, errors: 0 });
+        expect(body.results[0]).toMatchObject({ outcome: "locked", details: "Insufficient balance" });
+    });
+
     it("counts a retry that finds the period already renewed as a no-op, not a renewal", async () => {
         renewResult = { success: true, outcome: "already_processed", plan: "starter" };
         const res = await GET(cronRequest());
         const body = await res.json();
         expect(res.status).toBe(200);
-        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0 });
+        expect(body).toMatchObject({ success: true, renewed: 0, locked: 0 });
         expect(body.results[0].outcome).toBe("already_processed");
     });
 
@@ -109,7 +118,7 @@ describe("subscription-renew cron", () => {
         expect(due.ops).toContainEqual({ op: "not", args: ["plan", "in", "(internal)"] });
     });
 
-    it("never renews, charges or suspends an internal tenant whose subscription row names a paid plan", async () => {
+    it("never renews, charges or locks an internal tenant whose subscription row names a paid plan", async () => {
         respond((q) => {
             if (q.target === "subscriptions") {
                 return { data: [{ id: SUB, tenant_id: TENANT, plan: "starter", current_period_end: PERIOD_END }], error: null };
@@ -120,7 +129,7 @@ describe("subscription-renew cron", () => {
         const res = await GET(cronRequest());
         const body = await res.json();
         expect(res.status).toBe(200);
-        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0 });
+        expect(body).toMatchObject({ success: true, renewed: 0, locked: 0 });
         expect(queriesOn("renew_subscription_atomic")).toEqual([]);
         expect(queriesOn("charge_wallet_atomic")).toEqual([]);
         const writes = recorded.filter(
@@ -134,7 +143,7 @@ describe("subscription-renew cron", () => {
         const res = await GET(cronRequest());
         const body = await res.json();
         expect(res.status).toBe(200);
-        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0, errors: 0 });
+        expect(body).toMatchObject({ success: true, renewed: 0, locked: 0, errors: 0 });
         expect(body.results[0].outcome).toBe("exempt");
     });
 
@@ -143,7 +152,7 @@ describe("subscription-renew cron", () => {
         const res = await GET(cronRequest());
         const body = await res.json();
         expect(res.status).toBe(200);
-        expect(body).toMatchObject({ success: true, renewed: 0, suspended: 0, errors: 0 });
+        expect(body).toMatchObject({ success: true, renewed: 0, locked: 0, errors: 0 });
         expect(body.results[0]).toMatchObject({ outcome: "on_hold", details: "Shop is limited: not charged" });
     });
 });

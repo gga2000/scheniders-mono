@@ -26,7 +26,7 @@ import { capiRequestContext } from "@/lib/capi-context";
 import { withCapiKeys } from "@/lib/capi-config";
 import { after } from "next/server";
 import { isDraftViewRequest } from "@/lib/draft-view";
-import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
+import { BILLING_PAUSED_HINT, billingPausedMessage, tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
 import { catalogueUnitPrice } from "@/lib/catalogue-line";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
@@ -65,6 +65,8 @@ interface SubmitCheckoutResult {
   total?: number;
   /** Discount engine: the applied coupon, so the client can confirm/recap it. */
   discount?: { code: string; amount: number };
+  /** The store paused new orders for billing: retrying will not help. */
+  paused?: boolean;
   /** EC24: populated on a validation failure so the client can self-heal. */
   issues?: CheckoutIssue[];
   /** Proof that the receiving browser placed this order, for the thank-you
@@ -204,7 +206,7 @@ export async function submitCheckout(
   // the column / 'limited' enum value were added.
   const { data: tenantRaw, error: tenantErr } = await supabase
     .from("tenants")
-    .select("id, status, is_prospect, restrictions, store_config_v2")
+    .select("id, status, is_prospect, restrictions, store_config, store_config_v2")
     .eq("id", payload.tenantId)
     .maybeSingle();
 
@@ -219,6 +221,7 @@ export async function submitCheckout(
 
   const tenant = tenantRaw as unknown as TenantOrderGateRow & {
     id: string;
+    store_config: { contact?: { whatsapp_number?: string | null } } | null;
     store_config_v2: StoreConfigV2 | null;
   };
 
@@ -741,6 +744,14 @@ export async function submitCheckout(
     });
     if (refundErr) console.error("[checkout] points refund failed:", refundErr);
   };
+
+  if (error?.hint === BILLING_PAUSED_HINT) {
+    // An unpaid store past its lock allowance (handoff A1). The shopper's
+    // phone is already kept by the abandoned-cart capture; the store's
+    // WhatsApp lets the sale go through by hand.
+    await refundRedemption();
+    return { success: false, paused: true, error: billingPausedMessage(tenant.store_config?.contact?.whatsapp_number) };
+  }
 
   if (error) {
     console.error("[checkout] create_storefront_order failed:", error);

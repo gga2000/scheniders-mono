@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * Every scheduled route authorizes through requireCronAuth: Vercel sends
  * `Authorization: Bearer $CRON_SECRET` to cron paths, so the Bearer header is the
  * only credential. Two hand-written variants had survived:
- *  - `Bearer ${process.env.CRON_SECRET}` (trial-suspend, subscription-renew), which
+ *  - `Bearer ${process.env.CRON_SECRET}` (the old trial-suspend job, subscription-renew), which
  *    becomes the literal "Bearer undefined" when the secret is unset;
  *  - an `x-vercel-cron: 1` fallback (waseet-sync, waseet-locations)
  *    that any caller can set, and in waseet-sync an unset secret skipped the check.
@@ -34,7 +34,7 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 const ROUTES = [
-    "trial-suspend",
+    "billing-lock",
     "subscription-renew",
     "waseet-sync",
     "waseet-locations",
