@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 const bodySchema = z.object({
   notes: z.string().trim().max(2000).optional(),
@@ -80,6 +81,10 @@ export async function POST(
 
   switch (result.data.outcome) {
     case "converted":
+      await logAdminAction(auth, "convert_lead", {
+        tenantId: result.data.tenant_id,
+        details: { lead_id: parsedParams.data.id },
+      });
       return NextResponse.json({ success: true, tenant_id: result.data.tenant_id });
     case "already_converted":
       return NextResponse.json(

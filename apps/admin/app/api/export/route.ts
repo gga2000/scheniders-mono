@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { everyRow } from "@/lib/every-row";
 
@@ -159,6 +160,8 @@ export async function GET(request: NextRequest) {
         data = await fetchTrials(supabase);
         break;
     }
+
+    await logAdminAction(auth, "export_data", { details: { type, format, rows: data.length } });
 
     const date = baghdadDay.format(new Date());
     const filename = `${type}_export_${date}`;

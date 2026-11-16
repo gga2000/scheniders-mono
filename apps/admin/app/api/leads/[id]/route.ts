@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 export async function GET(
   _request: NextRequest,
@@ -165,12 +166,21 @@ export async function DELETE(
     const { id } = await params;
     const supabase = createAdminClient();
 
-    const { error } = await supabase
+    const { data: removed, error } = await supabase
       .from("leads")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select("merchant_name")
+      .maybeSingle();
 
     if (error) throw error;
+
+    // A deleted lead takes its history with it: this row is what remains.
+    if (removed) {
+      await logAdminAction(admin, "delete_lead", {
+        details: { lead_id: id, merchant_name: removed.merchant_name },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

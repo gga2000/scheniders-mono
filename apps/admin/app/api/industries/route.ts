@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    await logAdminAction(admin, "update_settings", {
+      details: { setting: "industries", change: "added", industry_id: data.id, name: data.name },
+    });
 
     return NextResponse.json({ industry: data }, { status: 201 });
   } catch (error) {

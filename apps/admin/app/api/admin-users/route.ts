@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const ADMIN_ROLES = new Set(["super_admin", "support_staff"]);
@@ -217,6 +218,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: upsertErr.message }, { status: 400 });
     }
 
+    await logAdminAction(auth, "grant_admin_access", {
+      details: {
+        target_user_id: userId,
+        target_email: email,
+        admin_role: adminRole,
+        created_account: !existingAccount,
+        password_reset: existingAccount && Boolean(password),
+      },
+    });
+
     return NextResponse.json({ success: true, userId });
   } catch (error) {
     console.error("Add admin user error:", error);
@@ -254,7 +265,7 @@ export async function DELETE(request: NextRequest) {
 
   const { data: target } = await supabase
     .from("admin_users")
-    .select("admin_role")
+    .select("admin_role, email")
     .eq("user_id", userId)
     .maybeSingle();
   if (!target) {
@@ -279,6 +290,10 @@ export async function DELETE(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  await logAdminAction(auth, "remove_admin_access", {
+    details: { target_user_id: userId, target_email: target.email ?? null, admin_role: target.admin_role },
+  });
 
   return NextResponse.json({ success: true });
 }

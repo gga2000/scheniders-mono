@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { adminFetch } from "@/lib/admin-fetch";
+import { readLeadImportResult, type LeadImportOutcome } from "@/lib/lead-import";
 import {
   X,
   Upload,
@@ -268,7 +269,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
   // Step 4: Import
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ success: number; errors: number } | null>(null);
+  const [importResult, setImportResult] = useState<LeadImportOutcome | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -375,19 +376,9 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
     setIsImporting(true);
     setImportProgress(0);
 
-    const mappedLeads = validationResults.map((vr) => {
-      const lead: Record<string, unknown> = { ...vr.row };
-      // Convert numeric fields
-      const numericFields = ["follower_count", "avg_view_count", "avg_like_count", "avg_comments_count"];
-      numericFields.forEach((f) => {
-        if (lead[f]) lead[f] = parseInt(lead[f] as string, 10) || 0;
-      });
-      // Convert tags from comma-separated to array
-      if (lead.tags && typeof lead.tags === "string") {
-        lead.tags = (lead.tags as string).split(",").map((t) => t.trim()).filter(Boolean);
-      }
-      return lead;
-    });
+    // The rows go up as the text in the file. The server turns counts and tags
+    // into what the database holds, and says which rows it could not read.
+    const mappedLeads = validationResults.map((vr) => vr.row);
 
     // Simulate progress while the request is in flight
     const progressInterval = setInterval(() => {
@@ -407,25 +398,13 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
       clearInterval(progressInterval);
       setImportProgress(100);
 
-      if (res.ok) {
-        const data = await res.json();
-        setImportResult({
-          success: data.imported ?? mappedLeads.length,
-          errors: data.errors ?? 0,
-        });
-      } else {
-        setImportResult({
-          success: 0,
-          errors: mappedLeads.length,
-        });
-      }
+      const body: unknown = await res.json().catch(() => null);
+      setImportResult(readLeadImportResult(res.ok, body, mappedLeads.length));
     } catch {
       clearInterval(progressInterval);
       setImportProgress(100);
-      setImportResult({
-        success: 0,
-        errors: mappedLeads.length,
-      });
+      // The request never got an answer (no connection): nothing is known to be saved.
+      setImportResult(readLeadImportResult(false, null, mappedLeads.length));
     } finally {
       setIsImporting(false);
     }
@@ -440,6 +419,11 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
   );
   const warningCount = useMemo(
     () => validationResults.filter((r) => !r.valid).length,
+    [validationResults]
+  );
+  // A row with no merchant name is left out by the server, so it is not "ready".
+  const namedCount = useMemo(
+    () => validationResults.filter((r) => r.row.merchant_name?.trim()).length,
     [validationResults]
   );
 
@@ -724,7 +708,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                         )}
                         <div className="ml-auto">
                           <p className="text-sm font-semibold text-[var(--foreground)]">
-                            {validationResults.length} leads ready to import
+                            {namedCount} of {validationResults.length} rows will be imported
                           </p>
                         </div>
                       </div>
@@ -739,7 +723,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             </span>
                           </div>
                           <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
-                            Leads with warnings will still be imported, but some fields may be empty.
+                            A row with no merchant name is left out. A row with no platform is saved as Other.
                           </p>
                         </div>
                       )}
@@ -817,47 +801,73 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                         </>
                       ) : (
                         <>
-                          {/* Result */}
+                          {/* Result: the counts the server sent, and why rows failed */}
                           <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: [0, 1.15, 1] }}
                             transition={{ duration: 0.4, times: [0, 0.6, 1] }}
                             className={cn(
                               "w-16 h-16 rounded-2xl flex items-center justify-center",
-                              importResult.errors === 0
-                                ? "bg-emerald-500/10"
-                                : importResult.success === 0
-                                  ? "bg-red-500/10"
+                              importResult.created === 0
+                                ? "bg-red-500/10"
+                                : importResult.failed + importResult.skipped === 0
+                                  ? "bg-emerald-500/10"
                                   : "bg-amber-500/10"
                             )}
                           >
-                            {importResult.errors === 0 ? (
-                              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                            ) : importResult.success === 0 ? (
+                            {importResult.created === 0 ? (
                               <XCircle className="w-8 h-8 text-red-500" />
+                            ) : importResult.failed + importResult.skipped === 0 ? (
+                              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                             ) : (
                               <AlertTriangle className="w-8 h-8 text-amber-500" />
                             )}
                           </motion.div>
                           <div className="text-center">
                             <h3 className="text-base font-bold text-[var(--foreground)] mb-1">
-                              Import Complete
+                              {importResult.created === 0 ? "No lead was imported" : "Import finished"}
                             </h3>
-                            <div className="flex items-center gap-4 justify-center mt-2">
-                              {importResult.success > 0 && (
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 justify-center mt-2">
+                              {importResult.created > 0 && (
                                 <span className="flex items-center gap-1.5 text-sm text-emerald-500 font-semibold">
                                   <CheckCircle2 className="w-4 h-4" />
-                                  {importResult.success} imported
+                                  {importResult.created} imported
                                 </span>
                               )}
-                              {importResult.errors > 0 && (
+                              {importResult.skipped > 0 && (
+                                <span className="flex items-center gap-1.5 text-sm text-amber-500 font-semibold">
+                                  <AlertTriangle className="w-4 h-4" />
+                                  {importResult.skipped} left out, no merchant name
+                                </span>
+                              )}
+                              {importResult.failed > 0 && (
                                 <span className="flex items-center gap-1.5 text-sm text-red-500 font-semibold">
                                   <XCircle className="w-4 h-4" />
-                                  {importResult.errors} failed
+                                  {importResult.failed} failed
                                 </span>
                               )}
                             </div>
                           </div>
+                          {importResult.problem && (
+                            <p className="w-full max-w-md text-xs text-center text-red-600 dark:text-red-400">
+                              {importResult.problem}
+                            </p>
+                          )}
+                          {importResult.failures.length > 0 && (
+                            <ul className="w-full max-w-md max-h-[160px] overflow-y-auto space-y-1 text-left">
+                              {importResult.failures.map((failure) => (
+                                <li
+                                  key={failure.row}
+                                  className="px-3 py-2 rounded-lg border border-[var(--card-border)] text-xs text-[var(--foreground)]"
+                                >
+                                  <span className="font-semibold">
+                                    Row {failure.row}, {failure.name}:
+                                  </span>{" "}
+                                  <span className="text-[var(--muted)]">{failure.reason}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </>
                       )}
                     </motion.div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 // The dialog also sends business_name and slug; the store takes the lead's
 // name and a generated slug, so those are not read.
@@ -144,6 +145,11 @@ export async function POST(
       created_by: admin.user.id,
     });
     if (activityError) throw activityError;
+
+    await logAdminAction(admin, "build_store_for_lead", {
+      tenantId: tenant.id,
+      details: { lead_id: id, slug: tenant.slug },
+    });
 
     return NextResponse.json({
       tenant,

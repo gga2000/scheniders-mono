@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   try {
     const supabase = createAdminClient();
+    // Read the shop for the staff log before anything changes.
+    const { data: asked, error: askedError } = await supabase
+      .from("prime_link_requests")
+      .select("tenant_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (askedError) throw askedError;
+
     const { data, error } = await supabase.rpc("link_prime_request", {
       _request_id: id,
       _shop_id: body.data?.shopId ?? null,
@@ -42,7 +51,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
     if (error) throw error;
     const answer = answerSchema.parse(data);
-    if (answer.success) return NextResponse.json({ ok: true });
+    if (answer.success) {
+      await logAdminAction(auth, "link_prime", {
+        tenantId: asked?.tenant_id ?? null,
+        details: { request_id: id, picked_shop_id: body.data?.shopId ?? null },
+      });
+      return NextResponse.json({ ok: true });
+    }
     const refusal = REFUSALS[answer.error ?? ""] ?? { status: 409, error: "Could not link" };
     return NextResponse.json({ error: refusal.error }, { status: refusal.status });
   } catch (error) {

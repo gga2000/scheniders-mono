@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 import { z } from "zod";
 
 const bodySchema = z.object({
@@ -64,6 +65,11 @@ export async function POST(
       .from("tenants")
       .update({ status: "active" })
       .eq("id", id);
+
+    await logAdminAction(auth, "extend_subscription", {
+      tenantId: id,
+      details: { days: parsed.data.days, current_period_end: newEnd.toISOString() },
+    });
 
     return NextResponse.json(data);
   } catch (error) {

@@ -56,6 +56,9 @@ function query(table: string) {
 
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ from: query }) }));
 
+const logAdminAction = vi.fn(async () => undefined);
+vi.mock("@/lib/activity-logger", () => ({ logAdminAction }));
+
 const { GET } = await import("./route");
 const call = (params: string) => GET(new NextRequest(`http://admin.test/api/export?${params}`));
 
@@ -93,6 +96,7 @@ beforeEach(() => {
   ranges = [];
   limits = [];
   orders = [];
+  logAdminAction.mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -119,6 +123,25 @@ describe("GET /api/export", () => {
 
     expect(rows).toHaveLength(1200);
     expect(rows.at(-1).id).toBe("shop-1199");
+  });
+
+  it("writes who took which file, and how many rows, to the staff log", async () => {
+    tables.tenants = Array.from({ length: 1200 }, (_, n) => shop(n));
+    await call("type=merchants");
+
+    expect(logAdminAction).toHaveBeenCalledTimes(1);
+    expect(logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ id: "a" }) }),
+      "export_data",
+      { details: { type: "merchants", format: "csv", rows: 1200 } },
+    );
+  });
+
+  it("logs no export when no file was sent", async () => {
+    failAt = 0;
+    expect((await call("type=merchants")).status).toBe(500);
+    expect((await call("type=nothing")).status).toBe(400);
+    expect(logAdminAction).not.toHaveBeenCalled();
   });
 
   it("reads pages in a fixed order, so no row is skipped or repeated between pages", async () => {

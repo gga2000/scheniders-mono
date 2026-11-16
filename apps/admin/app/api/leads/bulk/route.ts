@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
 
@@ -106,6 +107,10 @@ export async function POST(request: NextRequest) {
         break;
       }
     }
+
+    await logAdminAction(admin, "bulk_leads", {
+      details: { action: body.action, count: lead_ids.length, lead_ids },
+    });
 
     return NextResponse.json({ success: true, affected: lead_ids.length });
   } catch (error) {
