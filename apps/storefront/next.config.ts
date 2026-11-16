@@ -22,7 +22,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      { source: "/:path*", headers: SECURITY_HEADERS },
+      // The landing page's films, fonts and icons sit in a versioned folder
+      // (public/landing/v4): a change ships under a new folder, so a copy
+      // never goes stale and the ~13 MB of film frames are fetched once.
+      {
+        source: "/landing/v4/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
   },
   transpilePackages: ["@scheniders/sections", "@scheniders/shared", "@scheniders/supabase"],
   images: {
