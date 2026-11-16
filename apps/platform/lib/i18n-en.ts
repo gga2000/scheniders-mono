@@ -917,6 +917,8 @@ export const en: Record<string, string> = {
     "layout.merchantCode.copy": "Store number. Click to copy",
     "layout.merchantCode.copied": "Copied",
     "layout.merchantCode.label": "Store number #{code}",
+    "layout.demoStore.chip": "Example numbers",
+    "layout.demoStore.hint": "Demo store: every name, phone and amount here is made up. Nothing is sent and nothing is charged.",
     "orders.card.shopOrder": "Shop order",
     "orders.card.changeStatus": "Change order status",
     "orders.card.paid": "Paid",

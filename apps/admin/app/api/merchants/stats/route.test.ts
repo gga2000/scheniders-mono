@@ -21,6 +21,7 @@ const call = (params = "") => GET(new NextRequest(`http://admin.test/api/merchan
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
+  is_demo: false,
   status: "active",
   plan: "starter",
   trial_ends_at: null,
@@ -37,6 +38,17 @@ beforeEach(() => {
 });
 
 describe("GET /api/merchants/stats", () => {
+  it("leaves the demo store out of every count (Fermi B13)", async () => {
+    stub.state.tables.tenants = [shop(1), shop(2, { is_demo: true, wallet: { balance_iqd: 500000 } })];
+
+    const stats = await (await call()).json();
+
+    expect(stats.total).toBe(1);
+    expect(stats.total_wallet_iqd).toBe(20000);
+    expect(stats.subscription_mrr_iqd).toBe(9000);
+    expect(stub.callsTo("tenants.eq")).toContainEqual(["is_demo", false]);
+  });
+
   it("counts every shop when there are more than one page of them", async () => {
     stub.state.tables.tenants = Array.from({ length: 1200 }, (_, n) => shop(n));
 
@@ -136,7 +148,7 @@ describe("GET /api/merchants/stats", () => {
   it("never reads \"attention\" as a status", async () => {
     const stats = await (await call("status=attention")).json();
 
-    expect(stub.callsTo("tenants.eq")).toEqual([]);
+    expect(stub.callsTo("tenants.eq").filter(([column]) => column === "status")).toEqual([]);
     expect(stub.callsTo("tenants.filter")).toEqual([]);
     expect(stats.total).toBe(2);
   });

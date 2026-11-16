@@ -64,7 +64,9 @@ export async function GET(request: NextRequest) {
     const tenants = await everyRow<LiteShop>((from, to) => {
       let query = supabase
         .from("tenants")
-        .select("id, status, plan, trial_ends_at, wallet(balance_iqd), staff_needs_attention");
+        .select("id, status, plan, trial_ends_at, wallet(balance_iqd), staff_needs_attention")
+        // The demo store (Fermi B13) is no customer: it is in no count.
+        .eq("is_demo", false);
 
       if (plan) query = query.eq("plan", plan);
       // "attention" is never a filter here: the header always counts it, so its pill can light up.

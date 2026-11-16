@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
         supabase
           .from("tenants")
           .select("id, business_name, plan, status, city, created_at")
+          // The demo store (Fermi B13) is never a shop at risk.
+          .eq("is_demo", false)
           .order("id")
           .range(from, to)
       ),

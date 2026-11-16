@@ -64,6 +64,7 @@ const call = (params: string) => GET(new NextRequest(`http://admin.test/api/expo
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
+  is_demo: false,
   business_name: `Shop ${n}`,
   slug: `shop-${n}`,
   plan: "starter",

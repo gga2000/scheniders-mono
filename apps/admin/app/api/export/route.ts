@@ -41,6 +41,8 @@ async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>) {
       .select(
         "id, business_name, slug, plan, status, city, contact_email, contact_phone, created_at, wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd)"
       )
+      // The demo store (Fermi B13) is no customer.
+      .eq("is_demo", false)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to)

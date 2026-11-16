@@ -84,3 +84,6 @@ CREATE FUNCTION public.has_tenant_permission(p_tenant_id uuid, p_permission text
     SELECT p_permission = 'system.financials.view'
        AND p_tenant_id = nullif(current_setting('test.money_of', true), '')::uuid
 $$;
+
+-- tenants.is_demo (Fermi B13): the demo store is never charged, never sends.
+ALTER TABLE public.tenants ADD COLUMN is_demo boolean NOT NULL DEFAULT false;

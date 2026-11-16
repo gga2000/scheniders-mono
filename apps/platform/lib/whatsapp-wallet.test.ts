@@ -17,6 +17,7 @@ vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_TRIAL_CAP_REACHED: "Store used all free trial WhatsApp messages",
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     SHOP_WHATSAPP_PAUSED: "Store's automatic WhatsApp is paused",
+    SHOP_DEMO_NOT_SENT: "Demo store, not sent",
     whatsappSendRefusal: (tenantId: string, category: "utility" | "marketing") => refusal(tenantId, category),
     takeDailySendSlot: (tenantId: string) => daySlot(tenantId),
 }));
@@ -144,5 +145,32 @@ describe("each store's daily WhatsApp limit", () => {
     it("the order says the store hit its daily limit", () => {
         const flags = categorizeWhatsAppFailure({ success: false, error: "Store reached today's WhatsApp limit" }, "7209", "0770");
         expect(flags.attention_reasons).toEqual(["whatsapp_rate_limited"]);
+    });
+});
+
+describe("the demo store (Fermi B13)", () => {
+    const DEMO = "Demo store, not sent";
+    const demoOrder = { ...order, tenant_id: "22222222-2222-4222-8222-222222222222" } as Order;
+
+    it("is told demo, not sent, before the shared number's list, and nothing goes out", async () => {
+        refusal.mockResolvedValue(DEMO);
+        expect(await sendTemplateMessage(demoOrder, "confirmation")).toEqual({ success: false, error: DEMO });
+        expect(await sendNamedTemplate({ tenantId: demoOrder.tenant_id!, phone: "07701234567", template: WHATSAPP_TEMPLATES.deliveryUpdate, bodyValues: ["a"], label: "7209" }))
+            .toEqual({ success: false, error: DEMO });
+        expect(await sendStaffAlertMessage(demoOrder, "07801234567")).toEqual({ success: false, error: DEMO });
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(daySlot).not.toHaveBeenCalled();
+    });
+
+    it("a store off the shared number's list is still refused for that", async () => {
+        refusal.mockResolvedValue(null);
+        const res = await sendTemplateMessage(demoOrder, "confirmation");
+        expect(res).toEqual({ success: false, error: "This store is not set up to send WhatsApp from the shared number" });
+    });
+
+    it("its order is not flagged for a message that never went", async () => {
+        const { flagOrderForWhatsAppFailure } = await import("./whatsapp-error-handler");
+        await flagOrderForWhatsAppFailure("uuid-1", { success: false, error: DEMO }, "7209", "0770");
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 });

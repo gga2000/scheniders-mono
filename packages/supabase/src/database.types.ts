@@ -8095,6 +8095,7 @@ export type Database = {
           created_at: string
           display_id: number
           id: string
+          is_demo: boolean
           is_prospect: boolean
           metadata: Json
           plan: Database["public"]["Enums"]["plan_tier"]
@@ -8122,6 +8123,7 @@ export type Database = {
           created_at?: string
           display_id?: number
           id?: string
+          is_demo?: boolean
           is_prospect?: boolean
           metadata?: Json
           plan?: Database["public"]["Enums"]["plan_tier"]
@@ -8149,6 +8151,7 @@ export type Database = {
           created_at?: string
           display_id?: number
           id?: string
+          is_demo?: boolean
           is_prospect?: boolean
           metadata?: Json
           plan?: Database["public"]["Enums"]["plan_tier"]

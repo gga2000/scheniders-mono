@@ -10,6 +10,7 @@ import { SchneidersCheckoutForm } from "@/components/schneiders/checkout-form";
 import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { NOINDEX_FOLLOW, storeDisplayName } from "@/lib/seo";
+import { DemoStoreNote } from "@/components/storefront/DemoStoreNote";
 
 export async function generateMetadata({
   params,
@@ -42,7 +43,12 @@ export default async function CheckoutPage({
   const v2Page = pickV2Page(v2, "checkout");
   if (v2 && v2Page) {
     const runtime = buildRuntimeContext({ pageId: "checkout", locale: v2.default_locale ?? "ar", now: new Date() });
-    return <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />;
+    return (
+      <>
+        {tenant.is_demo && <DemoStoreNote />}
+        <V2Page v2={v2} page={v2Page} runtime={runtime} renderCtx={{ tenant, products: [], categories }} />
+      </>
+    );
   }
 
   const template = tenant.store_config?.template ?? "schneiders";
@@ -58,6 +64,7 @@ export default async function CheckoutPage({
         hideBottomBar
         hideFooter
       >
+        {tenant.is_demo && <DemoStoreNote />}
         <SchneidersCheckoutForm
           tenantId={tenant.id}
           whatsappNumber={wa}
@@ -71,6 +78,7 @@ export default async function CheckoutPage({
     <div className="min-h-screen flex flex-col bg-zinc-50">
       <StoreHeader tenant={tenant} categories={categories} />
       <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+        {tenant.is_demo && <DemoStoreNote />}
         <h1 className="text-3xl font-bold text-zinc-900 mb-8">إتمام الطلب</h1>
         <CheckoutForm tenantId={tenant.id} />
       </main>

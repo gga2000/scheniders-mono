@@ -1,7 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 import type { SendTemplateResult } from "./interakt";
-import { SHOP_DAILY_CAP_REACHED, SHOP_TRIAL_CAP_REACHED, SHOP_WALLET_EMPTY, SHOP_WHATSAPP_PAUSED } from "./whatsapp-wallet";
+import {
+    SHOP_DAILY_CAP_REACHED,
+    SHOP_DEMO_NOT_SENT,
+    SHOP_TRIAL_CAP_REACHED,
+    SHOP_WALLET_EMPTY,
+    SHOP_WHATSAPP_PAUSED,
+} from "./whatsapp-wallet";
 
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -93,6 +99,8 @@ export async function flagOrderForWhatsAppFailure(
     orderId: string,
     phone: string
 ): Promise<void> {
+    // The demo store never sends; that is not a failure to flag (Fermi B13).
+    if (result.error === SHOP_DEMO_NOT_SENT) return;
     const flags = categorizeWhatsAppFailure(result, orderId, phone);
     // The order's tenant, stamped on the timeline row below: order_status_history
     // is tenant-scoped by RLS, so a row without it is invisible (NEW-P1-17).

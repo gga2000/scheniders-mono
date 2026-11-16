@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
           ),
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status"),
+          .select("id, business_name, plan, status")
+          // The demo store (Fermi B13) holds no real money.
+          .eq("is_demo", false),
         supabase
           .from("wallet_transactions")
           .select("*, tenants(business_name)")
@@ -41,8 +43,8 @@ export async function GET(request: NextRequest) {
       tenants.map((t) => [t.id, t])
     );
 
-    // Join wallets with tenant info
-    const enrichedWallets = wallets.map((w) => {
+    // Join wallets with tenant info; a wallet of no listed shop is the demo store's.
+    const enrichedWallets = wallets.filter((w) => tenantMap.has(w.tenant_id)).map((w) => {
       const tenant = tenantMap.get(w.tenant_id);
       return {
         tenant_id: w.tenant_id,

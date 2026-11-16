@@ -24,6 +24,7 @@ vi.mock("@/lib/supabase-server", () => ({
 vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     takeDailySendSlot: async () => true,
+    SHOP_DEMO_NOT_SENT: "Demo store, not sent",
     whatsappSendRefusal: async () => null,
 }));
 

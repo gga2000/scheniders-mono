@@ -14,10 +14,10 @@ import { env, providerBaseUrls } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
-import { SHOP_DAILY_CAP_REACHED, takeDailySendSlot, whatsappSendRefusal } from "@/lib/whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, SHOP_DEMO_NOT_SENT, takeDailySendSlot, whatsappSendRefusal } from "@/lib/whatsapp-wallet";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { ORDER_TEMPLATES, WHATSAPP_TEMPLATES, type WhatsAppTemplate } from "@scheniders/shared/whatsapp-templates";
+import { ORDER_TEMPLATES, WHATSAPP_TEMPLATES, type WhatsAppCategory, type WhatsAppTemplate } from "@scheniders/shared/whatsapp-templates";
 import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
 
 // =============================================
@@ -57,6 +57,23 @@ export function sharedSenderAllows(tenantId: string | null | undefined): boolean
 }
 
 const SENDER_NOT_ALLOWED = "This store is not set up to send WhatsApp from the shared number";
+
+/**
+ * Why this store may not send a message of this kind now, or null when it may.
+ * The demo store is answered first, whatever the shared number's list says, so
+ * its orders get "demo, not sent" and no failure flag (Fermi B13); then the
+ * list; then the shop's own wallet, trial and pause (whatsapp_send_check).
+ */
+async function sendRefusal(tenantId: string | null | undefined, category: WhatsAppCategory): Promise<string | null> {
+    if (!tenantId) return SENDER_NOT_ALLOWED;
+    const refusal = await whatsappSendRefusal(tenantId, category);
+    if (refusal === SHOP_DEMO_NOT_SENT) {
+        console.log(`[Interakt] ${tenantId}: demo, not sent`);
+        return refusal;
+    }
+    if (!sharedSenderAllows(tenantId)) return SENDER_NOT_ALLOWED;
+    return refusal;
+}
 
 export function interaktErrorMessage(body: unknown): string | undefined {
     if (typeof body === "string") return body.trim() || undefined;
@@ -499,12 +516,9 @@ export async function sendTemplateMessage(
     customPrice?: number,
 ): Promise<SendTemplateResult> {
     const tenantId = order.tenant_id;
-    if (!tenantId || !sharedSenderAllows(tenantId)) {
-        return { success: false, error: SENDER_NOT_ALLOWED };
-    }
-    const refusal = await whatsappSendRefusal(tenantId, WHATSAPP_TEMPLATES[templateType].category);
-    if (refusal) {
-        return { success: false, error: refusal };
+    const refusal = await sendRefusal(tenantId, WHATSAPP_TEMPLATES[templateType].category);
+    if (refusal || !tenantId) {
+        return { success: false, error: refusal ?? SENDER_NOT_ALLOWED };
     }
     const store = await loadStoreContact(tenantId);
     if (!store) {
@@ -661,8 +675,7 @@ export interface NamedTemplateInput {
 
 /** Send a template that is not one of TEMPLATE_NAMES (lib/prime/failed-notice). */
 export async function sendNamedTemplate(input: NamedTemplateInput): Promise<SendTemplateResult> {
-    if (!sharedSenderAllows(input.tenantId)) return { success: false, error: SENDER_NOT_ALLOWED };
-    const refusal = await whatsappSendRefusal(input.tenantId, input.template.category);
+    const refusal = await sendRefusal(input.tenantId, input.template.category);
     if (refusal) return { success: false, error: refusal };
     if (!(await takeDailySendSlot(input.tenantId))) return { success: false, error: SHOP_DAILY_CAP_REACHED };
     const apiKey = env.INTERAKT_API_KEY;
@@ -742,8 +755,9 @@ export async function sendStaffAlertMessage(
     staffPhone: string,
 ): Promise<SendTemplateResult> {
     const tenantId = order.tenant_id;
-    if (!tenantId || !sharedSenderAllows(tenantId)) {
-        return { success: false, error: SENDER_NOT_ALLOWED };
+    const refusal = await sendRefusal(tenantId, WHATSAPP_TEMPLATES.staffAlert.category);
+    if (refusal || !tenantId) {
+        return { success: false, error: refusal ?? SENDER_NOT_ALLOWED };
     }
     const apiKey = env.INTERAKT_API_KEY;
     if (!apiKey) {
@@ -754,8 +768,6 @@ export async function sendStaffAlertMessage(
     if (!phoneNumber || phoneNumber.length < 8) {
         return { success: false, error: "Invalid staff phone after normalization" };
     }
-    const refusal = await whatsappSendRefusal(tenantId, WHATSAPP_TEMPLATES.staffAlert.category);
-    if (refusal) return { success: false, error: refusal };
     if (!(await takeDailySendSlot(tenantId))) return { success: false, error: SHOP_DAILY_CAP_REACHED };
 
     const body = buildStaffAlertBody(order, staffPhone);

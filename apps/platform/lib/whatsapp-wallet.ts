@@ -20,12 +20,18 @@ export const SHOP_UNKNOWN = "No such store";
  * reach the customer.
  */
 export const SHOP_WHATSAPP_PAUSED = "Store's automatic WhatsApp is paused";
+/**
+ * The demo store (Fermi B13): its customers are invented, so nothing is ever
+ * sent, and its orders are not flagged for a message that never went.
+ */
+export const SHOP_DEMO_NOT_SENT = "Demo store, not sent";
 
 const SEND_CHECK_REFUSALS: Record<string, string> = {
     wallet_empty: SHOP_WALLET_EMPTY,
     trial_cap: SHOP_TRIAL_CAP_REACHED,
     unknown_shop: SHOP_UNKNOWN,
     paused: SHOP_WHATSAPP_PAUSED,
+    demo: SHOP_DEMO_NOT_SENT,
 };
 
 /**
