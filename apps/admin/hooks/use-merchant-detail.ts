@@ -80,11 +80,12 @@ export interface MerchantDetail {
     user_id: string;
     role: string;
     status: string;
-    joined_at: string;
+    invited_at: string | null;
+    /** Empty for a member who was added and has not signed in to the shop yet. */
+    joined_at: string | null;
     user_profiles: {
       email: string;
-      full_name: string | null;
-      phone: string | null;
+      display_name: string | null;
       avatar_url: string | null;
     } | null;
   }>;

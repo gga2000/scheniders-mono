@@ -10,6 +10,10 @@ import type { AdminRole } from "@/types/admin";
  * It also carries the shop's health score and its parts as the database
  * worked them out. The shop dialog used to add up the orders of every usage
  * month itself, the list took the newest month, so one shop showed two scores.
+ *
+ * Every part of the record is a read that can be refused. The team read was:
+ * tenant_members has two keys to user_profiles, the embed did not say which,
+ * and the route sent the refusal on as "no members" for every shop.
  */
 
 const state: { role: AdminRole } = { role: "super_admin" };
@@ -35,8 +39,10 @@ const TABLES: Record<string, Answer> = {
     error: null,
   },
   plan_limits: { data: [{ plan: "starter", max_orders_per_month: 500 }], error: null },
-  orders: { data: null, error: null, count: 4 },
+  admin_order_facts: { data: null, error: null, count: 4 },
 };
+const PARTS = ["wallet", "subscriptions", "wallet_transactions", "usage_tracking", "tenant_members", "admin_notes", "admin_order_facts", "plan_limits"] as const;
+const ORIGINAL = { ...TABLES };
 
 /** What each table was asked for: [table, columns]. */
 const selects: Array<[string, unknown]> = [];
@@ -80,6 +86,8 @@ beforeEach(() => {
   state.role = "super_admin";
   selects.length = 0;
   rpc.mockReset();
+  for (const name of Object.keys(TABLES)) delete TABLES[name];
+  Object.assign(TABLES, ORIGINAL);
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -127,6 +135,48 @@ describe("GET /api/merchants/[id] billing lock", () => {
     expect((await call()).status).toBe(500);
 
     rpc.mockResolvedValue({ data: { locked: "yes" }, error: null });
+    expect((await call()).status).toBe(500);
+  });
+});
+
+describe("GET /api/merchants/[id] parts of the record", () => {
+  beforeEach(() => {
+    rpc.mockResolvedValue({ data: LOCKED, error: null });
+  });
+
+  it("reads each member's own profile by its key, and only what the Team tab shows", async () => {
+    TABLES.tenant_members = {
+      data: [{ id: "m1", user_id: "u1", role: "admin", status: "active", invited_at: null, joined_at: null, user_profiles: { email: "o@shop.iq", display_name: "Owner", avatar_url: null } }],
+      error: null,
+    };
+    const body = await (await call()).json();
+
+    expect(selects).toContainEqual([
+      "tenant_members",
+      "id, user_id, role, status, invited_at, joined_at, user_profiles!tenant_members_user_id_fkey(email, display_name, avatar_url)",
+    ]);
+    expect(body.team).toHaveLength(1);
+  });
+
+  it("counts real orders, not every row of the orders table", async () => {
+    const body = await (await call()).json();
+
+    expect(selects.map(([name]) => name)).toContain("admin_order_facts");
+    expect(selects.map(([name]) => name)).not.toContain("orders");
+    expect(body.orderCount).toBe(4);
+  });
+
+  it("a shop with no wallet and no subscription yet is still a record", async () => {
+    const res = await call();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ wallet: null, subscription: null, team: [], notes: [], transactions: [], usage: [] });
+  });
+
+  it.each(PARTS)("a refused read of %s fails the record instead of sending it as empty", async (name) => {
+    TABLES[name] = { data: null, error: { code: "PGRST201", message: "more than one relationship was found" } };
+
     expect((await call()).status).toBe(500);
   });
 });
