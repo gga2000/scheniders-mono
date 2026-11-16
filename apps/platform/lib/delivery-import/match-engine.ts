@@ -100,7 +100,7 @@ function classifyMatch(
     // Price change
     if (pdfRow.isPriceChanged) {
         const priceInfo = pdfRow.originalPrice && pdfRow.newPrice
-            ? ` (${pdfRow.originalPrice.toLocaleString()} → ${pdfRow.newPrice.toLocaleString()} IQD)`
+            ? ` (${pdfRow.originalPrice.toLocaleString("en-US")} → ${pdfRow.newPrice.toLocaleString("en-US")} IQD)`
             : "";
         return {
             category: "price_changed",
@@ -133,7 +133,7 @@ function classifyMatch(
     if (pdfRow.shipmentAmount > 0 && orderAmount > 0 && pdfRow.shipmentAmount !== orderAmount) {
         return {
             category: "amount_mismatch",
-            details: `Amount mismatch: PDF ${pdfRow.shipmentAmount.toLocaleString()} vs system ${orderAmount.toLocaleString()} IQD`,
+            details: `Amount mismatch: PDF ${pdfRow.shipmentAmount.toLocaleString("en-US")} vs system ${orderAmount.toLocaleString("en-US")} IQD`,
         };
     }
 
@@ -248,7 +248,7 @@ export function matchParsedRows(
                     pdfRow,
                     order: refundOrder,
                     category: "negative_refund",
-                    matchDetails: `Refund matched to return order ${refundOrder.order_id} (${statusLabel}). Amount: ${pdfRow.netToMerchant.toLocaleString()} IQD`,
+                    matchDetails: `Refund matched to return order ${refundOrder.order_id} (${statusLabel}). Amount: ${pdfRow.netToMerchant.toLocaleString("en-US")} IQD`,
                     matchedBy: refundMatchedBy,
                 });
             } else {
@@ -257,7 +257,7 @@ export function matchParsedRows(
                     pdfRow,
                     order: null,
                     category: "negative_refund",
-                    matchDetails: `Negative amount: ${pdfRow.netToMerchant.toLocaleString()} IQD net — no matching return order found`,
+                    matchDetails: `Negative amount: ${pdfRow.netToMerchant.toLocaleString("en-US")} IQD net — no matching return order found`,
                     matchedBy: "none",
                 });
             }

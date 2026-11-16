@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Megaphone, RefreshCw } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
+import { formatTime } from "@/lib/order-format-utils";
 import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow } from "@/hooks/use-meta-ads";
 import { MetaAdsConnectCard } from "@/components/ads/meta-ads-connect-card";
 import { AdsCampaignTable } from "@/components/ads/ads-campaign-table";
@@ -32,7 +34,7 @@ function Kpi({ label, value, hint, change, lowerIsBetter }: { label: string; val
 }
 
 export default function AdsPage() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [preset, setPreset] = useState<AdRangePreset>("30");
     const [compare, setCompare] = useState(false);
     const connection = useMetaAdsConnection();
@@ -61,7 +63,7 @@ export default function AdsPage() {
                         <h1 className="text-xl font-bold text-foreground">{t("ads.title")}</h1>
                         <p className="text-xs text-muted">
                             {connection.data?.last_synced_at
-                                ? `${t("ads.lastSync")}: ${new Date(connection.data.last_synced_at).toLocaleString()}`
+                                ? `${t("ads.lastSync")}: ${formatBaghdadDate(connection.data.last_synced_at, language)} ${formatTime(connection.data.last_synced_at, language)}`
                                 : t("ads.neverSynced")}
                         </p>
                     </div>
@@ -118,7 +120,7 @@ export default function AdsPage() {
                 <>
                     <section data-guide="ads-numbers" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         <Kpi label={t("ads.spend")} value={formatIQD(data.spendIqd)} hint={`$${data.spendUsd.toFixed(2)}`} change={delta(data.spendIqd, before?.spendIqd ?? null)} />
-                        <Kpi label={t("ads.results")} value={data.results.toLocaleString()} hint={t("ads.resultsHint")} change={delta(data.results, before?.results ?? null)} />
+                        <Kpi label={t("ads.results")} value={data.results.toLocaleString("en-US")} hint={t("ads.resultsHint")} change={delta(data.results, before?.results ?? null)} />
                         <Kpi
                             label={t("ads.costPerResult")}
                             value={costPerResult === null ? "—" : formatIQD(costPerResult)}
@@ -128,7 +130,7 @@ export default function AdsPage() {
                         <Kpi
                             label={t("ads.costPerDelivered")}
                             value={costPerDelivered === null ? "—" : formatIQD(costPerDelivered)}
-                            hint={`${data.deliveredOrders.toLocaleString()} ${t("ads.deliveredOrders")}`}
+                            hint={`${data.deliveredOrders.toLocaleString("en-US")} ${t("ads.deliveredOrders")}`}
                             change={delta(costPerDelivered, beforeCostPerDelivered)}
                             lowerIsBetter
                         />
@@ -139,9 +141,9 @@ export default function AdsPage() {
 
                     <p className="rounded-xl bg-[var(--card-bg)] px-4 py-3 text-sm text-foreground">
                         {t("ads.honestNote")
-                            .replace("{meta}", data.results.toLocaleString())
-                            .replace("{orders}", data.orders.toLocaleString())
-                            .replace("{delivered}", data.deliveredOrders.toLocaleString())}
+                            .replace("{meta}", data.results.toLocaleString("en-US"))
+                            .replace("{orders}", data.orders.toLocaleString("en-US"))
+                            .replace("{delivered}", data.deliveredOrders.toLocaleString("en-US"))}
                     </p>
 
                     {data.daily.length > 1 ? (

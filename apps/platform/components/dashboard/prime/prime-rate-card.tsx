@@ -15,7 +15,7 @@ export function PrimeRateCard({ summary }: { summary: PrimeHomeSummary }) {
     const dir = useTextDir();
     const { rate, previousRate, days } = summary;
     const delta = rate !== null && previousRate !== null ? rate - previousRate : null;
-    const dayName = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", { weekday: "short", timeZone: "UTC" });
+    const dayName = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", { weekday: "short", timeZone: "UTC" });
 
     return (
         <section data-prime-rate className="flex h-full flex-col gap-3 rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-5">

@@ -217,7 +217,7 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
                     <div className="mt-6 text-center">
                         <p className="text-xs text-muted flex items-center justify-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {new Date(order.created_at).toLocaleDateString("ar-IQ", {
+                            {new Date(order.created_at).toLocaleDateString("ar-IQ-u-nu-latn", {
                                 year: "numeric",
                                 month: "long",
                                 day: "numeric",

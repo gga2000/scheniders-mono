@@ -118,7 +118,7 @@ export function StatCard({
                         animate={{ opacity: 1 }}
                         transition={{ delay: delay + 0.2 }}
                     >
-                        {typeof value === 'number' ? value.toLocaleString() : value}
+                        {typeof value === 'number' ? value.toLocaleString("en-US") : value}
                     </motion.p>
                     <p className="text-sm text-[#6B6B6B] dark:text-gray-400 mt-1">{label}</p>
                 </div>

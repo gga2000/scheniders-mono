@@ -14,7 +14,7 @@ import type { JourneyStep } from "@/lib/orders/order-activity";
  * off-path status (cancelled, rejected) ends the bar in rose.
  */
 export function HistoryJourney({ steps, isReturn, now }: { steps: JourneyStep[]; isReturn: boolean; now: number }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const statusLabel = useStatusLabel();
     const today = baghdadDayKey(now);
 
@@ -25,8 +25,8 @@ export function HistoryJourney({ steps, isReturn, now }: { steps: JourneyStep[];
                 const lineDone = i > 0 && reached;
                 const when = step.at
                     ? baghdadDayKey(Date.parse(step.at)) === today
-                        ? formatTime(step.at)
-                        : `${formatShortDate(step.at)} · ${formatTime(step.at)}`
+                        ? formatTime(step.at, language)
+                        : `${formatShortDate(step.at)} · ${formatTime(step.at, language)}`
                     : null;
                 return (
                     <li key={`${step.status}-${i}`} className="relative flex min-w-0 flex-1 flex-col items-center text-center">

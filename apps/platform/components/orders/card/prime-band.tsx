@@ -44,7 +44,7 @@ export function PrimeBand({ m }: { m: OrderCardModel }) {
 
 function PrimeBandFor({ m }: { m: OrderCardModel }) {
     const { order, onContactRecorded } = m;
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const band = usePrimeBand(order);
     // In an open «معالجة» / «راجع» list the queue band under this one carries
@@ -124,7 +124,7 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
                     {chip.resendRequested && view.resentAt && (
                         <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#CFE6D8] bg-[#E3F2E9] px-3 text-xs font-bold text-[#165C39] dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
                             <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span dir={dir}>{t("orders.prime.resent", { time: formatTime(view.resentAt) })}</span>
+                            <span dir={dir}>{t("orders.prime.resent", { time: formatTime(view.resentAt, language) })}</span>
                         </span>
                     )}
                     {action === "resend" && !inQueue && (

@@ -133,7 +133,7 @@ const SOURCE_KEYS = new Set(["storefront", "manual", "meta", "tiktok", "whatsapp
 
 /** Title, chips and details for one event. */
 function EventBody({ e, order, isReturn }: { e: ActivityEvent; order: OrderActivity["order"]; isReturn: boolean }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const company = (c: string) => t(`orders.history.company.${c}`, c);
     const title = (s: string) => <bdi className="text-sm font-semibold text-[var(--foreground)]">{s}</bdi>;
     const sub = (s: ReactNode) => <p dir="auto" className="mt-1 text-left text-[13px] text-[var(--foreground-muted)] break-words">{s}</p>;
@@ -241,8 +241,8 @@ function EventBody({ e, order, isReturn }: { e: ActivityEvent; order: OrderActiv
                     ? "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200"
                     : "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-200";
             const timing = [
-                e.deliveredAt && e.state !== "failed" ? t("orders.history.wa.deliveredAt", { time: formatTime(e.deliveredAt) }) : null,
-                e.readAt ? t("orders.history.wa.readAt", { time: formatTime(e.readAt) }) : null,
+                e.deliveredAt && e.state !== "failed" ? t("orders.history.wa.deliveredAt", { time: formatTime(e.deliveredAt, language) }) : null,
+                e.readAt ? t("orders.history.wa.readAt", { time: formatTime(e.readAt, language) }) : null,
             ].filter(Boolean).join(" · ");
             return (
                 <>
@@ -288,6 +288,7 @@ function StayedChip({ ms, status, isReturn }: { ms: number; status: string; isRe
 export function HistoryEvent({ e, order, isReturn, isLast }: { e: ActivityEvent; order: OrderActivity["order"]; isReturn: boolean; isLast: boolean }) {
     const tone = e.kind === "flag" && e.flags.every((f) => f.f === "gift") ? { ...TONES.flag, icon: Gift } : TONES[e.kind];
     const Icon = tone.icon;
+    const { language } = useLanguage();
     const exact = new Date(e.at);
     return (
         <li className="relative grid grid-cols-[32px_minmax(0,1fr)] gap-3 pb-3">
@@ -299,8 +300,8 @@ export function HistoryEvent({ e, order, isReturn, isLast }: { e: ActivityEvent;
                 <EventBody e={e} order={order} isReturn={isReturn} />
                 <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-[var(--foreground-muted)]">
                     <HistoryActor actor={e.actor} kind={e.actorKind} />
-                    <time dateTime={e.at} title={`${formatBaghdadDate(exact)} ${formatTime(exact)}`} className="shrink-0 tabular-nums">
-                        {formatTime(exact)}
+                    <time dateTime={e.at} title={`${formatBaghdadDate(exact)} ${formatTime(exact, language)}`} className="shrink-0 tabular-nums">
+                        {formatTime(exact, language)}
                     </time>
                 </div>
             </div>

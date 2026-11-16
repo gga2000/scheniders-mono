@@ -54,7 +54,7 @@ export function WeekOverWeek({ metrics }: WeekOverWeekProps) {
                 {metrics.map((m) => {
                     const translatedLabel = LABEL_KEYS[m.label] ? t(LABEL_KEYS[m.label]) : m.label;
                     const fmtPlain = (n: number | null) =>
-                        n === null ? '—' : m.unit === '%' ? `${n}%` : n.toLocaleString();
+                        n === null ? '—' : m.unit === '%' ? `${n}%` : n.toLocaleString("en-US");
 
                     return (
                         <div key={m.label} className="flex items-center justify-between gap-3">

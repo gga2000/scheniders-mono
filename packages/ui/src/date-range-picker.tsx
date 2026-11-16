@@ -19,6 +19,8 @@ interface DateRangePickerProps {
     className?: string;
     inline?: boolean; // When true, shows calendar directly without trigger button
     epochDate?: string; // Financial epoch date — adds "Since Day Zero" preset
+    /** The reader's language. Arabic also starts the week on Saturday, as in Iraq. */
+    language?: "en" | "ar";
 }
 
 type PresetType = "dayZero" | "today" | "yesterday" | "thisWeek" | "thisMonth" | "thisYear" | "last7" | "last30" | "pastYear" | "custom";
@@ -34,115 +36,109 @@ function formatLocalDate(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-const basePresets: { id: PresetType; label: string; getRange: () => { from: string; to: string } }[] = [
-    {
-        id: "today",
-        label: "Today",
-        getRange: () => {
-            const today = formatLocalDate(new Date());
-            return { from: today, to: today };
-        },
-    },
-    {
-        id: "yesterday",
-        label: "Yesterday",
-        getRange: () => {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const date = formatLocalDate(yesterday);
-            return { from: date, to: date };
-        },
-    },
-    {
-        id: "thisWeek",
-        label: "This Week",
-        getRange: () => {
-            const now = new Date();
-            const startOfWeek = new Date(now);
-            startOfWeek.setDate(now.getDate() - now.getDay());
-            return {
-                from: formatLocalDate(startOfWeek),
-                to: formatLocalDate(now),
-            };
-        },
-    },
-    {
-        id: "thisMonth",
-        label: "This Month",
-        getRange: () => {
-            const now = new Date();
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return {
-                from: formatLocalDate(startOfMonth),
-                to: formatLocalDate(now),
-            };
-        },
-    },
-    {
-        id: "last7",
-        label: "Last 7 Days",
-        getRange: () => {
-            const now = new Date();
-            const weekAgo = new Date();
-            weekAgo.setDate(now.getDate() - 6);
-            return {
-                from: formatLocalDate(weekAgo),
-                to: formatLocalDate(now),
-            };
-        },
-    },
-    {
-        id: "last30",
-        label: "Last 30 Days",
-        getRange: () => {
-            const now = new Date();
-            const monthAgo = new Date();
-            monthAgo.setDate(now.getDate() - 29);
-            return {
-                from: formatLocalDate(monthAgo),
-                to: formatLocalDate(now),
-            };
-        },
-    },
-    {
-        id: "thisYear" as PresetType,
-        label: "This Year",
-        getRange: () => {
-            const now = new Date();
-            const yearStart = new Date(now.getFullYear(), 0, 1);
-            return {
-                from: formatLocalDate(yearStart),
-                to: formatLocalDate(now),
-            };
-        },
-    },
-    {
-        id: "pastYear" as PresetType,
-        label: "Past Year",
-        getRange: () => {
-            const now = new Date();
-            const yearAgo = new Date();
-            yearAgo.setFullYear(now.getFullYear() - 1);
-            return {
-                from: formatLocalDate(yearAgo),
-                to: formatLocalDate(now),
-            };
-        },
-    },
-];
+type Copy = {
+    presets: Record<Exclude<PresetType, "custom">, string>;
+    quickPick: string;
+    allOrders: string;
+    apply: string;
+    dateRange: string;
+    /** One letter per weekday, starting on the language's first day of the week. */
+    weekdays: string[];
+    /** Day the week starts on, as Date.getDay() numbers it (0 = Sunday). */
+    weekStart: number;
+    /** Intl locale; Arabic keeps Latin digits like the rest of the app. */
+    intl: string;
+};
 
-/** Build presets list, optionally prepending "Since Day Zero" if epochDate is set */
-function buildPresets(epochDate?: string) {
-    if (!epochDate) return basePresets;
-    const dayZeroPreset: typeof basePresets[0] = {
-        id: "dayZero",
-        label: "Since Day Zero 🚀",
-        getRange: () => ({
-            from: epochDate,
-            to: formatLocalDate(new Date()),
-        }),
+const COPY: Record<"en" | "ar", Copy> = {
+    en: {
+        presets: {
+            dayZero: "Since day zero",
+            today: "Today",
+            yesterday: "Yesterday",
+            thisWeek: "This week",
+            thisMonth: "This month",
+            last7: "Last 7 days",
+            last30: "Last 30 days",
+            thisYear: "This year",
+            pastYear: "Past year",
+        },
+        quickPick: "Quick pick",
+        allOrders: "All orders",
+        apply: "Apply",
+        dateRange: "Date range",
+        weekdays: ["S", "M", "T", "W", "T", "F", "S"],
+        weekStart: 0,
+        intl: "en-US",
+    },
+    ar: {
+        presets: {
+            dayZero: "منذ اليوم الأول",
+            today: "اليوم",
+            yesterday: "أمس",
+            thisWeek: "هذا الأسبوع",
+            thisMonth: "هذا الشهر",
+            last7: "آخر 7 أيام",
+            last30: "آخر 30 يوم",
+            thisYear: "هذه السنة",
+            pastYear: "آخر سنة",
+        },
+        quickPick: "اختيار سريع",
+        allOrders: "كل الطلبات",
+        apply: "تطبيق",
+        dateRange: "التاريخ",
+        // Saturday first, as the week runs in Iraq: السبت، الأحد ... الجمعة.
+        weekdays: ["س", "ح", "ن", "ث", "ر", "خ", "ج"],
+        weekStart: 6,
+        intl: "ar-IQ-u-nu-latn",
+    },
+};
+
+type Preset = { id: PresetType; label: string; getRange: () => { from: string; to: string } };
+
+/** The quick picks in the reader's language, with "Since day zero" first when the shop has an epoch. */
+function buildPresets(copy: Copy, epochDate?: string): Preset[] {
+    const today = () => formatLocalDate(new Date());
+    const daysAgo = (n: number) => {
+        const d = new Date();
+        d.setDate(d.getDate() - n);
+        return formatLocalDate(d);
     };
-    return [dayZeroPreset, ...basePresets];
+    const presets: Preset[] = [
+        { id: "today", label: copy.presets.today, getRange: () => ({ from: today(), to: today() }) },
+        { id: "yesterday", label: copy.presets.yesterday, getRange: () => ({ from: daysAgo(1), to: daysAgo(1) }) },
+        {
+            id: "thisWeek",
+            label: copy.presets.thisWeek,
+            getRange: () => ({ from: daysAgo((new Date().getDay() - copy.weekStart + 7) % 7), to: today() }),
+        },
+        {
+            id: "thisMonth",
+            label: copy.presets.thisMonth,
+            getRange: () => {
+                const now = new Date();
+                return { from: formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)), to: today() };
+            },
+        },
+        { id: "last7", label: copy.presets.last7, getRange: () => ({ from: daysAgo(6), to: today() }) },
+        { id: "last30", label: copy.presets.last30, getRange: () => ({ from: daysAgo(29), to: today() }) },
+        {
+            id: "thisYear",
+            label: copy.presets.thisYear,
+            getRange: () => ({ from: formatLocalDate(new Date(new Date().getFullYear(), 0, 1)), to: today() }),
+        },
+        {
+            id: "pastYear",
+            label: copy.presets.pastYear,
+            getRange: () => {
+                const yearAgo = new Date();
+                yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+                return { from: formatLocalDate(yearAgo), to: today() };
+            },
+        },
+    ];
+    if (!epochDate) return presets;
+    return [{ id: "dayZero", label: copy.presets.dayZero, getRange: () => ({ from: epochDate, to: today() }) }, ...presets];
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -162,10 +158,10 @@ function parseDate(dateStr: string): Date {
     return new Date(dateStr + "T00:00:00");
 }
 
-function formatDisplayDate(dateStr: string | undefined): string {
+function formatDisplayDate(dateStr: string | undefined, intl: string): string {
     if (!dateStr) return "";
     const date = parseDate(dateStr);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return date.toLocaleDateString(intl, { month: "short", day: "numeric" });
 }
 
 export function DateRangePicker({
@@ -175,8 +171,10 @@ export function DateRangePicker({
     className,
     inline = false,
     epochDate,
+    language = "en",
 }: DateRangePickerProps) {
-    const presets = buildPresets(epochDate);
+    const copy = COPY[language];
+    const presets = buildPresets(copy, epochDate);
     const [isOpen, setIsOpen] = useState(inline); // Start open if inline
     const [activePreset, setActivePreset] = useState<PresetType | null>(null);
     const [viewDate, setViewDate] = useState(() => new Date());
@@ -263,7 +261,8 @@ export function DateRangePicker({
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
         const daysInMonth = getDaysInMonth(year, month);
-        const firstDay = getFirstDayOfMonth(year, month);
+        // Blank cells before the 1st, counted from the language's first weekday.
+        const firstDay = (getFirstDayOfMonth(year, month) - copy.weekStart + 7) % 7;
         const days: (number | null)[] = [];
 
         // Add empty cells for days before first day of month
@@ -305,7 +304,7 @@ export function DateRangePicker({
 
         return (
             <div className="grid grid-cols-7 gap-1">
-                {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                {copy.weekdays.map((d, i) => (
                     <div
                         key={i}
                         className="text-center text-xs font-medium text-muted py-2"
@@ -342,17 +341,17 @@ export function DateRangePicker({
     };
 
     const getDisplayValue = () => {
-        if (!dateFrom && !dateTo) return "Date Range";
+        if (!dateFrom && !dateTo) return copy.dateRange;
         // If a preset is active, show its label
         if (activePreset && activePreset !== "custom") {
             const preset = presets.find((p) => p.id === activePreset);
             if (preset) return preset.label;
         }
         // Single date
-        if (dateFrom && (!dateTo || dateFrom === dateTo)) return formatDisplayDate(dateFrom);
+        if (dateFrom && (!dateTo || dateFrom === dateTo)) return formatDisplayDate(dateFrom, copy.intl);
         // Date range
-        if (dateFrom && dateTo) return `${formatDisplayDate(dateFrom)} — ${formatDisplayDate(dateTo)}`;
-        return "Date Range";
+        if (dateFrom && dateTo) return `${formatDisplayDate(dateFrom, copy.intl)} — ${formatDisplayDate(dateTo, copy.intl)}`;
+        return copy.dateRange;
     };
 
     // For inline mode, render just the panel content directly
@@ -364,7 +363,7 @@ export function DateRangePicker({
                     <div className="flex items-center gap-2 mb-3 px-2">
                         <Sparkles className="w-4 h-4 text-lime-500 dark:text-[#EFFF00]" />
                         <span className="text-xs font-semibold text-lime-700 dark:text-[#EFFF00] uppercase tracking-wider">
-                            Quick Pick
+                            {copy.quickPick}
                         </span>
                     </div>
                     <div className="space-y-1">
@@ -407,7 +406,7 @@ export function DateRangePicker({
                             <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[#EFFF00]" />
                         </motion.button>
                         <span className="font-semibold text-foreground">
-                            {viewDate.toLocaleDateString("en-US", {
+                            {viewDate.toLocaleDateString(copy.intl, {
                                 month: "long",
                                 year: "numeric",
                             })}
@@ -435,7 +434,7 @@ export function DateRangePicker({
                             whileTap={{ scale: 0.98 }}
                             className="flex-1 py-2.5 rounded-xl border border-lime-300 dark:border-white/10 text-sm font-medium text-muted hover:bg-lime-50 dark:hover:bg-white/5 dark:text-gray-300 transition-all"
                         >
-                            All Orders
+                            {copy.allOrders}
                         </motion.button>
                         <motion.button
                             type="button"
@@ -444,7 +443,7 @@ export function DateRangePicker({
                             whileTap={{ scale: 0.98 }}
                             className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black text-sm font-semibold shadow-md shadow-lime-500/30 hover:shadow-lg transition-all"
                         >
-                            Apply
+                            {copy.apply}
                         </motion.button>
                     </div>
                 </div>
@@ -508,7 +507,7 @@ export function DateRangePicker({
                             <div className="flex items-center gap-2 mb-3 px-2">
                                 <Sparkles className="w-4 h-4 text-lime-500 dark:text-[#EFFF00]" />
                                 <span className="text-xs font-semibold text-lime-700 dark:text-[#EFFF00] uppercase tracking-wider">
-                                    Quick Pick
+                                    {copy.quickPick}
                                 </span>
                             </div>
                             <div className="space-y-1">
@@ -551,7 +550,7 @@ export function DateRangePicker({
                                     <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[#EFFF00]" />
                                 </motion.button>
                                 <span className="font-semibold text-foreground">
-                                    {viewDate.toLocaleDateString("en-US", {
+                                    {viewDate.toLocaleDateString(copy.intl, {
                                         month: "long",
                                         year: "numeric",
                                     })}
@@ -579,7 +578,7 @@ export function DateRangePicker({
                                     whileTap={{ scale: 0.98 }}
                                     className="flex-1 py-2.5 rounded-xl border border-lime-300 dark:border-white/10 text-sm font-medium text-muted hover:bg-lime-50 dark:hover:bg-white/5 transition-all"
                                 >
-                                    All Orders
+                                    {copy.allOrders}
                                 </motion.button>
                                 <motion.button
                                     type="button"
@@ -588,7 +587,7 @@ export function DateRangePicker({
                                     whileTap={{ scale: 0.98 }}
                                     className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-[#EFFF00] text-black text-sm font-semibold shadow-md shadow-lime-500/30 hover:shadow-lg transition-all"
                                 >
-                                    Apply
+                                    {copy.apply}
                                 </motion.button>
                             </div>
                         </div>

@@ -6,10 +6,16 @@ import { Flame } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAYS_AR = ['أحد', 'اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت'];
-const HOUR_LABELS = Array.from({ length: 24 }, (_, h) =>
-    h === 0 ? '12AM' : h < 12 ? `${h}AM` : h === 12 ? '12PM' : `${h - 12}PM`
-);
+// Whole day names without «ال»: cutting them to three letters gave «خمي».
+const DAYS_AR = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+const hourLabels = (isAr: boolean) =>
+    Array.from({ length: 24 }, (_, h) => {
+        const clock = h % 12 === 0 ? 12 : h % 12;
+        const pm = h >= 12;
+        return isAr ? `${clock} ${pm ? 'م' : 'ص'}` : `${clock}${pm ? 'PM' : 'AM'}`;
+    });
+const HOUR_LABELS_EN = hourLabels(false);
+const HOUR_LABELS_AR = hourLabels(true);
 
 interface PeakHoursHeatmapProps {
     data: HeatmapCell[];
@@ -20,6 +26,7 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
     const { t, language } = useLanguage();
     const isAr = language === 'ar';
     const dayLabels = isAr ? DAYS_AR : DAYS;
+    const HOUR_LABELS = isAr ? HOUR_LABELS_AR : HOUR_LABELS_EN;
 
     const cellMap = new Map<string, HeatmapCell>();
     data.forEach(c => cellMap.set(`${c.dayOfWeek}-${c.hour}`, c));
@@ -59,7 +66,7 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
             <div className="flex-1 overflow-x-auto">
                 <div className="min-w-[560px]">
                     {/* Hour headers — show every 3 hours */}
-                    <div className="flex mb-1 ml-8">
+                    <div className={`flex mb-1 ${isAr ? 'ml-14' : 'ml-8'}`}>
                         {HOUR_LABELS.map((label, h) => (
                             <div key={h} className="flex-1 text-center">
                                 {h % 3 === 0 && (
@@ -72,7 +79,7 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
                     {/* Day rows */}
                     {dayLabels.map((day, dayIdx) => (
                         <div key={day} className="flex items-center mb-0.5 gap-1">
-                            <span className="w-7 text-[10px] text-muted text-right shrink-0">{day}</span>
+                            <span className={`${isAr ? 'w-13' : 'w-7'} text-[10px] text-muted text-right shrink-0`}>{day}</span>
                             <div className="flex flex-1 gap-0.5">
                                 {HOUR_LABELS.map((_, hourIdx) => {
                                     const cell = cellMap.get(`${dayIdx}-${hourIdx}`);

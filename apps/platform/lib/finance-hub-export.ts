@@ -246,7 +246,7 @@ ${overview.by_city.slice(0, 15).map(c => `<tr><td>${escapeHtml(c.label)}</td><td
 }
 
 export function printFinanceHubReport(ctx: FinanceExportContext): void {
-    const html = buildFinanceHubPrintHtml(ctx, new Date().toLocaleString());
+    const html = buildFinanceHubPrintHtml(ctx, new Date().toLocaleString(ctx.language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", { timeZone: "Asia/Baghdad" }));
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(html);

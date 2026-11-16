@@ -26,7 +26,7 @@ import type { OrderCardModel } from "./use-order-card-model";
 
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
 export function FullCardCustomer({ m }: { m: OrderCardModel }) {
-    const { ageUrgency, archivedOrderCount, compact, customerOrderCount, editable, getLayoutId, isBlacklisted, isNew, isPinned, isReturn, isVerifiedCustomer, linkedOriginalOrder, linkedRefundOrder, localSearchQuery, markImageFailed, onCancelWithReason, onRejectWithReason, onShowDuplicates, onStatusUpdate, onToggleReviewed, onViewDetails, order, orderAge, orderStatusLabel, originalOrderInfo, previousOrder, riskAssessment, riskLevel, scheduledBadgeClass, scheduledLabel, scheduledState, statusAvatarUrl, t } = m;
+    const { ageUrgency, archivedOrderCount, compact, customerOrderCount, editable, getLayoutId, isBlacklisted, isNew, isPinned, isReturn, isVerifiedCustomer, language, linkedOriginalOrder, linkedRefundOrder, localSearchQuery, markImageFailed, onCancelWithReason, onRejectWithReason, onShowDuplicates, onStatusUpdate, onToggleReviewed, onViewDetails, order, orderAge, orderStatusLabel, originalOrderInfo, previousOrder, riskAssessment, riskLevel, scheduledBadgeClass, scheduledLabel, scheduledState, statusAvatarUrl, t } = m;
     return (
         <>
             {/* LEFT SECTION: Customer Info */}
@@ -199,7 +199,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                     <div className="flex items-center gap-2 text-xs">
                         <span className="font-semibold text-muted">{formatShortDate(order.created_at)}</span>
                         <span className="text-[var(--card-border)]">|</span>
-                        <span className="font-mono text-muted">{formatTime(order.created_at)}</span>
+                        <span className="font-mono text-muted">{formatTime(order.created_at, language)}</span>
 
                         {/* Date Modified Indicator */}
                         {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
@@ -209,7 +209,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                                     {t("orderDetail.dateCorrected")}
                                 </span>
                                 <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                                    {t("orders.ui.originalDate", { date: `${formatShortDate(order.original_created_at)} ${formatTime(order.original_created_at)}` })}
+                                    {t("orders.ui.originalDate", { date: `${formatShortDate(order.original_created_at)} ${formatTime(order.original_created_at, language)}` })}
                                 </span>
                             </span>
                         )}

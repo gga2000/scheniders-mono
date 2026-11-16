@@ -33,7 +33,7 @@ export function AdsTodayChips() {
         <Link href="/ads" className="flex items-center gap-2" title={t("ads.title")} aria-label={t("ads.title")}>
             <Megaphone className="h-4 w-4 text-muted-foreground" aria-hidden />
             <Chip label={t("ads.todaySpend")} value={formatIQD(spendIqd)} />
-            <Chip label={t("ads.todayMetaOrders")} value={results.toLocaleString()} />
+            <Chip label={t("ads.todayMetaOrders")} value={results.toLocaleString("en-US")} />
             <Chip label={t("ads.todayCpa")} value={cpa === null ? "—" : formatIQD(cpa)} />
         </Link>
     );

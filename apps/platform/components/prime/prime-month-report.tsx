@@ -25,7 +25,7 @@ export function PrimeMonthReport() {
     const { parcels, report, isPending, isError } = usePrimeMonthReport(month, true);
     const monthName = (key: string) => {
         const [year, number] = key.split("-").map(Number);
-        return new Date(Date.UTC(year, number - 1, 15)).toLocaleDateString(language === "ar" ? "ar-IQ" : "en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+        return new Date(Date.UTC(year, number - 1, 15)).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { month: "long", year: "numeric", timeZone: "UTC" });
     };
 
     const exportCsv = () =>

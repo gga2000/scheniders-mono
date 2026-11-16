@@ -82,7 +82,7 @@ export function ExportReportModal({
 }: ExportReportModalProps) {
     const { tenantId } = useAuth();
     const { t, language } = useLanguage();
-    const dateLocale = language === "ar" ? "ar-IQ" : "en-US";
+    const dateLocale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const [format, setFormat] = useState<ExportFormat | null>(null);
     const [scope, setScope] = useState<ExportScope | null>(null);
     const [reportType, setReportType] = useState<ReportType>("order_list");

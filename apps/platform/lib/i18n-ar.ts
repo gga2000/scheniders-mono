@@ -449,7 +449,7 @@ export const ar: Record<string, string> = {
     "map.col.delivered": "تم التوصيل",
     "map.col.rejected": "مرفوض",
     "map.col.confirmed": "مؤكد",
-    "dashboard.urgency.failedDeliveries": "توصيلات فاشلة (٧ أيام)",
+    "dashboard.urgency.failedDeliveries": "توصيلات فاشلة (7 أيام)",
     "dashboard.urgency.reviewRejected": "مراجعة الطلبات المرفوضة",
     "dashboard.urgency.stalledHighValue": "طلبات عالية القيمة متوقفة",
     "dashboard.urgency.processOld": "معالجة الطلبات الجديدة القديمة",
@@ -474,8 +474,8 @@ export const ar: Record<string, string> = {
 
     // فلتر النطاق الزمني
     "dashboard.dateRange.today": "اليوم",
-    "dashboard.dateRange.7d": "٧ أيام",
-    "dashboard.dateRange.30d": "٣٠ يوم",
+    "dashboard.dateRange.7d": "7 أيام",
+    "dashboard.dateRange.30d": "30 يوم",
     "dashboard.dateRange.all": "الكل",
 
     // خط أنابيب الطلبات
@@ -494,8 +494,8 @@ export const ar: Record<string, string> = {
     "dashboard.deliveryRate.title": "نسبة التوصيل",
     "dashboard.deliveryRate.vsLastWeek": "مقارنة بالأسبوع الماضي",
     "dashboard.deliveryRate.stable": "مستقر",
-    "dashboard.deliveryRate.formula": "آخر ٧ أيام · تم التوصيل ÷ (تم التوصيل + مرفوض)",
-    "dashboard.deliveryRate.noData": "لا توجد عمليات توصيل في آخر ٧ أيام",
+    "dashboard.deliveryRate.formula": "آخر 7 أيام · تم التوصيل ÷ (تم التوصيل + مرفوض)",
+    "dashboard.deliveryRate.noData": "لا توجد عمليات توصيل في آخر 7 أيام",
 
     // طلبات في الساعة
 
@@ -514,11 +514,11 @@ export const ar: Record<string, string> = {
     "dashboard.avgTime.pendingResponse": "بانتظار الرد (متوسط العمر)",
     "dashboard.avgTime.inTransitWait": "قيد التوصيل (متوسط الانتظار)",
     "dashboard.avgTime.disclaimer": "* وقت الدورة يستخدم تاريخ التوصيل. المعلق وقيد التوصيل يستخدمان الطابع الزمني الحالي مقابل آخر تحديث.",
-    "dashboard.avgTime.excludedTitle": "طلبات مستبعدة من هذا المتوسط: مدد غير منطقية (تم التوصيل قبل الإنشاء) أو أطول من ٣٠ يوماً.",
+    "dashboard.avgTime.excludedTitle": "طلبات مستبعدة من هذا المتوسط: مدد غير منطقية (تم التوصيل قبل الإنشاء) أو أطول من 30 يوماً.",
 
     // مقارنة أسبوعية
     "dashboard.wow.title": "مقارنة أسبوعية",
-    "dashboard.wow.subtitle": "آخر ٧ أيام مقابل الـ٧ التي سبقتها",
+    "dashboard.wow.subtitle": "آخر 7 أيام مقابل الـ7 التي سبقتها",
     "dashboard.wow.same": "مماثل",
     "dashboard.wow.prev": "السابق:",
     "dashboard.wow.orders": "الطلبات",
@@ -539,7 +539,7 @@ export const ar: Record<string, string> = {
 
     // تفصيل الرفض
     "dashboard.rejection.title": "الرفض حسب المدينة",
-    "dashboard.rejection.subtitle": "مدن بـ ≥٥ طلبات، مرتبة حسب نسبة الرفض",
+    "dashboard.rejection.subtitle": "مدن بـ ≥5 طلبات، مرتبة حسب نسبة الرفض",
     "dashboard.rejection.noData": "لا توجد بيانات كافية بعد",
 
     // قائمة المتصدرين
@@ -1151,7 +1151,7 @@ export const ar: Record<string, string> = {
     "orders.ui.originalDate": "الأصلي: {date}",
     "orders.ui.reviewRequired": "يحتاج مراجعة",
     "orders.ui.copy": "نسخ",
-    "orders.ui.clone": "نسخ الطلب",
+    "orders.ui.clone": "تكرار الطلب",
     "orders.ui.share": "مشاركة",
     "orders.ui.selectedCount": "{count} محدد",
     "orders.ui.reject": "رفض",
@@ -1609,7 +1609,7 @@ export const ar: Record<string, string> = {
     "orders.bulk.reschedule.description": "الطلبات المؤجلة تنزل تحت القائمة الحالية وترجع في يومها.",
     "orders.bulk.reschedule.pick": "اختر اليوم",
     "orders.bulk.reschedule.tomorrow": "غداً",
-    "orders.bulk.reschedule.inThreeDays": "بعد ٣ أيام",
+    "orders.bulk.reschedule.inThreeDays": "بعد 3 أيام",
     "orders.bulk.reschedule.clear": "إلغاء التأجيل",
     "orders.bulk.reschedule.previewMove": "{count} طلب ← {date}",
     "orders.bulk.reschedule.previewClear": "{count} طلب ← يرجع للقائمة الحالية",
@@ -1647,7 +1647,7 @@ export const ar: Record<string, string> = {
     "orderDetail.scheduledFor": "مجدول لـ",
     "orderDetail.notScheduled": "غير مجدول",
     "orderDetail.clearSchedule": "إزالة",
-    "orderDetail.inThreeDays": "بعد ٣ أيام",
+    "orderDetail.inThreeDays": "بعد 3 أيام",
     "orderDetail.scheduledToday": "اليوم",
     "orderDetail.trackingNo": "رقم شركة التوصيل (اختياري)",
     "orderDetail.source": "المصدر",
@@ -7367,12 +7367,12 @@ export const ar: Record<string, string> = {
     "wizard.error.network": "خطأ في الشبكة. تحقق من اتصالك وحاول مرة أخرى.",
     // ── Signup (UX2-14) ──
     "signup.title": "أنشئ حسابك",
-    "signup.subtitle": "ابدأ فترتك التجريبية المجانية ١٤ يوماً",
+    "signup.subtitle": "ابدأ فترتك التجريبية المجانية 14 يوماً",
     "signup.businessName": "اسم النشاط التجاري *",
     "signup.businessNamePlaceholder": "اسم متجرك",
     "signup.email": "البريد الإلكتروني *",
     "signup.password": "كلمة المرور *",
-    "signup.passwordPlaceholder": "٨ أحرف على الأقل",
+    "signup.passwordPlaceholder": "8 أحرف على الأقل",
     "signup.phone": "الهاتف",
     "signup.city": "المدينة",
     "signup.cityPlaceholder": "بغداد",

@@ -17,6 +17,8 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
+import { formatTime } from "@/lib/order-format-utils";
 import { UserRole, isAdminRole, PERMISSION_CATEGORIES } from "@/lib/permissions";
 import { activityLogger, ActivityLogEntry } from "@/lib/activity-logger";
 import { toast } from "@/hooks/use-toast";
@@ -32,7 +34,7 @@ import { ROLE_CONFIG, UserProfile, formatActivityDescription, formatRelativeTime
 
 export function TeamSettings() {
     const { role: currentRole, tenantId } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const isAdmin = isAdminRole(currentRole);
 
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -397,7 +399,7 @@ export function TeamSettings() {
                                                         <p className="text-xs text-muted-foreground">{user.email}</p>
                                                         {user.last_login_at && (
                                                             <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                                                                {t("team.lastActive", { date: new Date(user.last_login_at).toLocaleString() })}
+                                                                {t("team.lastActive", { date: `${formatBaghdadDate(user.last_login_at, language)} ${formatTime(user.last_login_at, language)}` })}
                                                             </p>
                                                         )}
                                                     </div>

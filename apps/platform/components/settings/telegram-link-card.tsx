@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/telegram-link";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 interface Props {
     userProfileId: string;
@@ -209,7 +210,7 @@ function LinkedView({
     onUnlink: () => void;
     unlinking: boolean;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     return (
         <div className="flex items-center justify-between gap-3">
             <div className="text-sm min-w-0">
@@ -219,7 +220,7 @@ function LinkedView({
                 </p>
                 <p className="text-muted-foreground truncate">
                     {status.telegram_username ? `@${status.telegram_username}` : t("settings.tg.id", { id: String(status.telegram_user_id) })}
-                    {status.linked_at && <span className="opacity-70"> · {t("settings.tg.since", { date: new Date(status.linked_at).toLocaleDateString() })}</span>}
+                    {status.linked_at && <span className="opacity-70"> · {t("settings.tg.since", { date: formatBaghdadDate(status.linked_at, language) })}</span>}
                 </p>
             </div>
             <button

@@ -5,6 +5,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { usePrimeShipments } from "@/hooks/use-prime-shipments";
 import { toast } from "@/hooks/use-toast";
 import { formatTime } from "@/lib/order-format-utils";
+import type { Locale } from "@/lib/i18n";
 import { primeChipState, primeSkipReason, type PrimeChipTone, type PrimeShipmentView } from "@/lib/prime/chip-state";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types/order";
@@ -52,7 +53,7 @@ export function PrimeChip({ order }: { order: ChipOrder }) {
 }
 
 function PrimeChipFor({ order }: { order: ChipOrder }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const view = usePrimeShipments().get(order.id);
     // The band under the card shows the same parcel in full.
     const band = usePrimeBand(order);
@@ -77,7 +78,7 @@ function PrimeChipFor({ order }: { order: ChipOrder }) {
                 type="button"
                 data-prime-chip={state.tone}
                 onClick={copy}
-                title={tooltip(view, t)}
+                title={tooltip(view, t, language)}
                 className={cn(
                     "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-2.5 text-[11px] font-bold transition-colors hover:brightness-95",
                     tone.chip,
@@ -102,16 +103,16 @@ function PrimeChipFor({ order }: { order: ChipOrder }) {
             {state.resendRequested && view.resentAt && (
                 <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
                     <Check className="h-3 w-3" aria-hidden="true" />
-                    {t("orders.prime.resent", { time: formatTime(view.resentAt) })}
+                    {t("orders.prime.resent", { time: formatTime(view.resentAt, language) })}
                 </span>
             )}
         </>
     );
 }
 
-function tooltip(view: PrimeShipmentView, t: (key: string, vars?: Record<string, string | number>) => string): string {
+function tooltip(view: PrimeShipmentView, t: (key: string, vars?: Record<string, string | number>) => string, language: Locale): string {
     const lines = [t("orders.prime.caseTitle", { caseId: view.caseId })];
-    lines.push(view.checkedAt ? t("orders.prime.checkedAt", { time: formatTime(view.checkedAt) }) : t("orders.prime.notChecked"));
+    lines.push(view.checkedAt ? t("orders.prime.checkedAt", { time: formatTime(view.checkedAt, language) }) : t("orders.prime.notChecked"));
     if (view.pending) lines.push(t("orders.prime.sendingLong"));
     if (view.pushError) {
         const skip = primeSkipReason(view.pushError);

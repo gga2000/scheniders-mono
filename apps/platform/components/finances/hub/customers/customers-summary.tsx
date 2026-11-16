@@ -29,7 +29,7 @@ export function CustomersSummary({ data }: Props) {
                 <StatTile
                     icon={Users}
                     label={t("finances.cust.active")}
-                    value={data.total_customers.toLocaleString()}
+                    value={data.total_customers.toLocaleString("en-US")}
                     sublabel={t("finances.cust.activeSub", { new: data.new_customers, returning: data.returning_customers })}
                     tone="slate"
                 />

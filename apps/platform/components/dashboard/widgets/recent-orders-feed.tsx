@@ -6,6 +6,8 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { Activity } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
+import { formatTime } from "@/lib/order-format-utils";
 
 function useStatusStyles() {
     const { t } = useLanguage();
@@ -50,7 +52,7 @@ interface RecentOrdersFeedProps {
 }
 
 export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrdersFeedProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const STATUS_STYLES = useStatusStyles();
     const timeAgo = useTimeAgo();
     // Re-render on a timer so the stamp ages visibly rather than freezing.
@@ -71,7 +73,7 @@ export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrde
                     <h3 className="text-sm font-bold text-foreground">{t("dashboard.recent.title")}</h3>
                     <p className="text-xs text-muted">{t("dashboard.recent.lastOrders").replace('{count}', String(orders.length))}</p>
                 </div>
-                <div className="ml-auto flex items-center gap-1.5" title={updatedAt ? new Date(updatedAt).toLocaleString() : undefined}>
+                <div className="ml-auto flex items-center gap-1.5" title={updatedAt ? `${formatBaghdadDate(new Date(updatedAt).toISOString(), language)} ${formatTime(new Date(updatedAt), language)}` : undefined}>
                     <span className="w-2 h-2 rounded-full bg-green-400" />
                     <span className="text-[10px] text-muted">
                         {freshness

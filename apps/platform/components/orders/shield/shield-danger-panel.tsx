@@ -36,7 +36,7 @@ export function ShieldDangerPanel({ counts, listTotal, active, onSelect, onClose
     const dir = useTextDir();
     const reduceMotion = useReducedMotion();
     const banded = DANGER_BANDS.reduce((sum, b) => sum + counts[b], 0);
-    const num = (n: number) => (countsHidden ? "—" : n.toLocaleString());
+    const num = (n: number) => (countsHidden ? "—" : n.toLocaleString("en-US"));
 
     return (
         <section

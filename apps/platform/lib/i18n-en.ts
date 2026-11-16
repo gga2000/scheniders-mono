@@ -1159,7 +1159,7 @@ export const en: Record<string, string> = {
     "orders.ui.originalDate": "Original: {date}",
     "orders.ui.reviewRequired": "Review required",
     "orders.ui.copy": "Copy",
-    "orders.ui.clone": "Clone",
+    "orders.ui.clone": "Duplicate order",
     "orders.ui.share": "Share",
     "orders.ui.selectedCount": "{count} selected",
     "orders.ui.reject": "Reject",

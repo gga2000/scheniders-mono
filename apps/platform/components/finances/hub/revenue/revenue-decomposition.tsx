@@ -224,5 +224,5 @@ function formatSignedIqd(n: number): string {
 function formatSignedNumber(n: number): string {
     if (n === 0) return "0";
     const sign = n > 0 ? "+" : "";
-    return `${sign}${n.toLocaleString()}`;
+    return `${sign}${n.toLocaleString("en-US")}`;
 }

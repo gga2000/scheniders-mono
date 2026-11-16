@@ -8,6 +8,7 @@ import { formatShortDate, formatTime, getStatusBadgeStyle } from "@/lib/order-fo
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { Phone, MapPin, FileText, Package, Clock } from "lucide-react";
 import { useStatusLabel } from "@/hooks/use-status-label";
+import { useLanguage } from "@/hooks/use-language";
 
 interface HoverPreviewProps {
     order: Order;
@@ -16,6 +17,7 @@ interface HoverPreviewProps {
 
 export const RowHoverPreview = memo(function RowHoverPreview({ order, position }: HoverPreviewProps) {
     const orderStatusLabel = useStatusLabel();
+    const { language } = useLanguage();
     const items = mergeOrderItems(order.items);
     const notes = order.notes?.trim();
 
@@ -65,7 +67,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
                 <div className="flex items-center gap-1.5 text-xs text-muted">
                     <Clock className="w-3 h-3" />
                     {/* Same Baghdad day and time as the order card, whatever the browser's zone. */}
-                    <span className="tabular-nums">{formatShortDate(order.created_at)} {formatTime(order.created_at)}</span>
+                    <span className="tabular-nums">{formatShortDate(order.created_at)} {formatTime(order.created_at, language)}</span>
                 </div>
                 <span className={cn("font-mono font-bold text-sm", order.is_return ? "text-red-600" : "text-emerald-600")}>
                     {order.is_return && "-"}{formatIQD(Math.abs(Number(order.price)))}

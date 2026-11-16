@@ -70,7 +70,7 @@ export const OrderPipeline = memo(function OrderPipeline({
                 </h3>
                 <div className="flex items-center gap-3">
                     <span className="text-[13px] text-(--foreground-muted)">
-                        <span className="font-semibold text-foreground tabular-nums">{countsHidden ? "—" : total.toLocaleString()}</span>{" "}
+                        <span className="font-semibold text-foreground tabular-nums">{countsHidden ? "—" : total.toLocaleString("en-US")}</span>{" "}
                         {allActive ? t("orders.pipeline.totalActive", "total active") : t("orders.pipeline.total", "total")}
                     </span>
                     <PipelineCustomizer layout={layout} statusCounts={statusCounts} countsHidden={countsHidden} />
@@ -97,7 +97,7 @@ export const OrderPipeline = memo(function OrderPipeline({
                                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1], delay: reduceMotion ? 0 : Math.min(i * 0.05, 0.3) }}
                                 onClick={() => onSelectStatus(isActive ? undefined : s.id)}
                                 aria-pressed={isActive}
-                                title={countsHidden ? t(s.labelKey, s.fallback) : `${t(s.labelKey, s.fallback)} · ${s.count.toLocaleString()}`}
+                                title={countsHidden ? t(s.labelKey, s.fallback) : `${t(s.labelKey, s.fallback)} · ${s.count.toLocaleString("en-US")}`}
                                 // flexGrow ∝ count, floored so small/empty stages stay legible.
                                 style={{ flexGrow: countsHidden ? 1 : Math.max(s.count, total * 0.07), flexBasis: 0, backgroundColor: s.fill }}
                                 className={cn(
@@ -109,7 +109,7 @@ export const OrderPipeline = memo(function OrderPipeline({
                                     dim && "opacity-50 hover:opacity-100"
                                 )}
                             >
-                                <span className="text-[20px] font-extrabold leading-none tabular-nums">{countsHidden ? "—" : s.count.toLocaleString()}</span>
+                                <span className="text-[20px] font-extrabold leading-none tabular-nums">{countsHidden ? "—" : s.count.toLocaleString("en-US")}</span>
                                 <span className="mt-1 max-w-full truncate text-[11px] font-medium text-slate-700">
                                     {t(s.labelKey, s.fallback)}
                                 </span>
@@ -213,7 +213,7 @@ function PipelineCustomizer({
                         </span>
                     )}
                 </span>
-                <span className="text-xs tabular-nums text-(--foreground-subtle)">{countsHidden ? "—" : (statusCounts[id] || 0).toLocaleString()}</span>
+                <span className="text-xs tabular-nums text-(--foreground-subtle)">{countsHidden ? "—" : (statusCounts[id] || 0).toLocaleString("en-US")}</span>
                 {isIncluded && (
                     <span className="flex items-center">
                         <button

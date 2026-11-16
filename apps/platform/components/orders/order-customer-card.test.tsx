@@ -103,7 +103,7 @@ describe("OrderCustomerCard scheduling", () => {
 
     it("postpones by three Baghdad days", () => {
         const { updateFormData } = renderCard({}, { isEditing: true });
-        fireEvent.click(screen.getByRole("button", { name: "بعد ٣ أيام" }));
+        fireEvent.click(screen.getByRole("button", { name: "بعد 3 أيام" }));
         expect(updateFormData).toHaveBeenCalledWith("scheduled_date", "2026-09-10");
     });
 
