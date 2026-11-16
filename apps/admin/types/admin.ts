@@ -182,7 +182,6 @@ export type AdminAction =
   | "suspend_tenant"
   | "reactivate_tenant"
   | "add_note"
-  | "send_notification"
   | "impersonate"
   | "bulk_action"
   | "export_data"

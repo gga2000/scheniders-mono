@@ -81,7 +81,6 @@ const actionRegistry: Record<string, ActionMeta> = {
   impersonate: { icon: Eye, label: "Impersonate", category: "security", tone: "rose" },
   add_note: { icon: Pencil, label: "Note added", category: "comms", tone: "blue" },
   mention_in_note: { icon: Bell, label: "Mention", category: "comms", tone: "violet" },
-  send_notification: { icon: Bell, label: "Notification", category: "comms", tone: "blue" },
   bulk_action: { icon: Zap, label: "Bulk action", category: "config", tone: "blue" },
   export_data: { icon: Download, label: "Export", category: "security", tone: "blue" },
   update_settings: { icon: Pencil, label: "Settings", category: "config", tone: "violet" },

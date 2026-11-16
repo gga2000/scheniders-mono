@@ -8,7 +8,6 @@ import {
   Star,
   ArrowUpRight,
   Wallet,
-  Bell,
   Pin,
   Phone,
 } from "lucide-react";
@@ -396,15 +395,6 @@ export function MerchantCard({
           >
             <Wallet className="w-3.5 h-3.5" />
             Top Up
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenDetail?.(merchant.id)}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-600 dark:bg-sky-400/10 dark:hover:bg-sky-400/20 dark:text-sky-400 transition-colors"
-            title="Send notification"
-            aria-label="Send notification"
-          >
-            <Bell className="w-3.5 h-3.5" />
           </button>
           <QuickNotePopover merchantId={merchant.id} />
           <button
