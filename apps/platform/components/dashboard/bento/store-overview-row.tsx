@@ -5,7 +5,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { useStoreOverview } from "@/hooks/use-store-overview";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
-import type { OverviewMetric, OverviewMetricKey } from "@/lib/analytics/store-overview";
+import { storeOverviewMetrics, type OverviewMetric, type OverviewMetricKey } from "@/lib/analytics/store-overview";
+import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { FINANCIAL_MASK, formatIQD } from "@/lib/utils";
 import { BentoCard } from "./bento-card";
 import { CountUp } from "./count-up";
@@ -62,15 +63,31 @@ function Sparkline({ series }: { series: number[] }) {
     );
 }
 
-function MetricCard({ metric, order, moneyOn }: { metric: OverviewMetric; order: number; moneyOn: boolean }) {
+/** What each period's delta is measured against. */
+const VERSUS: Record<DateRangeKey, string> = {
+    today: "dashboard.overview.vsYesterday",
+    "7d": "dashboard.overview.vsPrev7",
+    "30d": "dashboard.overview.vsPrev30",
+    all: "dashboard.overview.vsYesterday",
+};
+
+/** The period printed on each card. «All» is every day the log returns, at most 60. */
+const PERIOD: Record<DateRangeKey, string> = {
+    today: "dashboard.pipeline.period.today",
+    "7d": "dashboard.pipeline.period.7d",
+    "30d": "dashboard.pipeline.period.30d",
+    all: "dashboard.overview.last60",
+};
+
+function MetricCard({ metric, order, moneyOn, range }: { metric: OverviewMetric; order: number; moneyOn: boolean; range: DateRangeKey }) {
     const { t } = useLanguage();
     const hidden = MONEY.has(metric.key) && !moneyOn;
     const label = t(`dashboard.overview.${metric.key}`);
     return (
         <BentoCard label={label} order={order} className={`flex flex-col justify-between gap-3 !p-5 ${CARD_HEIGHT}`}>
-            {/* The row is always today, whatever the header's range chip says, so each card names its day. */}
+            {/* Each card names the period it counts: the header's, or for «الكل» the days the log keeps. */}
             <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">
-                {label} <span className="opacity-70">· {t("dashboard.overview.today")}</span>
+                {label} <span className="opacity-70">· <bdi>{t(PERIOD[range])}</bdi></span>
             </h3>
             <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
@@ -80,7 +97,7 @@ function MetricCard({ metric, order, moneyOn }: { metric: OverviewMetric; order:
                     {/* A money delta would leak the hidden figure, so it hides with it (COR-D7). */}
                     <p className="m-0 mt-2 flex items-center gap-1.5 text-[12px] text-[var(--foreground-muted)]">
                         {!hidden && <Delta pct={metric.deltaPct} />}
-                        {!hidden && metric.deltaPct !== null && <span>{t("dashboard.overview.vsYesterday")}</span>}
+                        {!hidden && metric.deltaPct !== null && <span>{t(VERSUS[range])}</span>}
                     </p>
                 </div>
                 {!hidden && <Sparkline series={metric.series} />}
@@ -90,19 +107,21 @@ function MetricCard({ metric, order, moneyOn }: { metric: OverviewMetric; order:
 }
 
 /**
- * Visitors, orders, sales, conversion rate, AOV and EPC for today so far, each against
- * yesterday at the same time of day, with the last 14 Baghdad days as its sparkline.
- * Counts come from the first-party storefront log, so conversion never exceeds 100%.
+ * Visitors, orders, sales, conversion rate, AOV and EPC for the dashboard's period
+ * (lib/analytics/store-overview.ts says against what), with the period's days as
+ * the sparkline. Counts come from the first-party storefront log, so conversion
+ * never exceeds 100%.
  */
-export function StoreOverviewRow() {
+export function StoreOverviewRow({ range }: { range: DateRangeKey }) {
     const { t } = useLanguage();
     const { revealed, canReveal } = useFinancialVisibility();
     const query = useStoreOverview();
+    const metrics = useMemo(() => (query.data ? storeOverviewMetrics(query.data, range) : null), [query.data, range]);
 
     if (query.isError) return <WidgetLoadError onRetry={() => void query.refetch()} className="min-h-[120px]" />;
     // The same grid of six cards at the cards' own height, so nothing below
     // moves when the numbers arrive (one 120 px block became 257 px: CLS 0.05).
-    if (!query.data) {
+    if (!metrics) {
         return (
             <section aria-busy="true" className={GRID}>
                 {Array.from({ length: CARD_COUNT }, (_, i) => (
@@ -114,8 +133,8 @@ export function StoreOverviewRow() {
 
     return (
         <section aria-label={t("dashboard.overview.title")} className={GRID}>
-            {query.data.map((metric, i) => (
-                <MetricCard key={metric.key} metric={metric} order={i} moneyOn={revealed && canReveal} />
+            {metrics.map((metric, i) => (
+                <MetricCard key={metric.key} metric={metric} order={i} moneyOn={revealed && canReveal} range={range} />
             ))}
         </section>
     );

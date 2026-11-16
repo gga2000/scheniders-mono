@@ -4,6 +4,7 @@ import { EnhancedProductItem } from "@/lib/analytics/dashboard-calculations";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { Package, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { PeriodTag } from "@/components/dashboard/period-tag";
 
 const RANK_COLORS = ['bg-amber-400', 'bg-gray-300', 'bg-amber-600', 'bg-gray-200', 'bg-gray-200'];
 const RANK_TEXT = ['text-amber-900', 'text-gray-700', 'text-amber-900', 'text-gray-600', 'text-gray-600'];
@@ -12,9 +13,11 @@ interface ProductLeaderboardProps {
     products: EnhancedProductItem[];
     /** DV-D2: take the merchant to the orders behind the row. */
     onProductClick?: (product: string) => void;
+    /** The header period the units and sales count. */
+    periodLabel?: string;
 }
 
-export function ProductLeaderboard({ products, onProductClick }: ProductLeaderboardProps) {
+export function ProductLeaderboard({ products, onProductClick, periodLabel }: ProductLeaderboardProps) {
     const maxCount = products.length > 0 ? products[0].value : 1;
     const { t } = useLanguage();
 
@@ -25,7 +28,7 @@ export function ProductLeaderboard({ products, onProductClick }: ProductLeaderbo
                     <Package className="w-4 h-4 text-blue-700" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-bold text-foreground">{t("dashboard.products.title")}</h3>
+                    <h3 className="text-sm font-bold text-foreground">{t("dashboard.products.title")}<PeriodTag label={periodLabel} /></h3>
                     <p className="text-xs text-muted">
                         {t("dashboard.products.unitsSoldRevenue")}
                     </p>

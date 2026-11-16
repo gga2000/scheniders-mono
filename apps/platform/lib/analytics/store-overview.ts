@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pctChange } from "@/lib/analytics/dashboard-bento";
+import { PERIOD_DAYS, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 
 // get_store_overview returns jsonb, so the generated types say only `Json`.
 const count = z.number().catch(0);
@@ -16,17 +17,29 @@ export type OverviewMetricKey = "visitors" | "orders" | "sales" | "conversion" |
 
 export const OVERVIEW_METRICS: readonly OverviewMetricKey[] = ["visitors", "orders", "sales", "conversion", "aov", "epc"];
 
+/** The Baghdad days `get_store_overview` returns at most, and the dashboard reads. */
+export const STORE_OVERVIEW_MAX_DAYS = 60;
+
+/** Days of sparkline on the Today view. */
+const TODAY_SPARK_DAYS = 14;
+
 export interface OverviewMetric {
     key: OverviewMetricKey;
-    /** Today so far. */
+    /** The period so far: today, or the last 7 / 30 Baghdad days with today, or every day the log returns. */
     value: number;
-    /** Percent change against yesterday up to the same time of day; null when yesterday had nothing. */
+    /**
+     * Percent change against the comparison: yesterday up to the same time of day
+     * for Today, the equal run of days just before for 7 and 30 days, none for all.
+     * Null when the comparison had nothing.
+     */
     deltaPct: number | null;
     /** One point per Baghdad day, oldest first, today last. */
     series: number[];
 }
 
 type Figures = { visitors: number; orders: number; sales: number };
+
+const ZERO: Figures = { visitors: 0, orders: 0, sales: 0 };
 
 /** Orders per 100 visitors; a day without visitors converts at 0, not NaN. */
 const conversion = (f: Figures) => (f.visitors > 0 ? (f.orders / f.visitors) * 100 : 0);
@@ -45,19 +58,42 @@ const PICK: Record<OverviewMetricKey, (f: Figures) => number> = {
 };
 
 /**
- * The six overview figures. Today is compared with yesterday cut off at the same
- * time of day, so a morning is never judged against a whole day.
+ * Several days as one. Visitors are counted once per day (the log counts a
+ * visitor once on each day it came), so a visitor who came on three days of a
+ * week counts three times in that week, as each day's card counted them.
  */
-export function storeOverviewMetrics(raw: StoreOverviewRaw): OverviewMetric[] {
-    const today = raw.days[raw.days.length - 1] ?? { visitors: 0, orders: 0, sales: 0 };
+function sum(days: readonly Figures[]): Figures {
+    return days.reduce<Figures>(
+        (acc, d) => ({ visitors: acc.visitors + d.visitors, orders: acc.orders + d.orders, sales: acc.sales + d.sales }),
+        ZERO,
+    );
+}
+
+/**
+ * The six overview figures for the dashboard's period.
+ *
+ * Today is compared with yesterday cut off at the same time of day, so a morning
+ * is never judged against a whole day. 7 and 30 days are the last N Baghdad days,
+ * today included (the rule every dashboard period uses), against the N days
+ * before them. All is every day the log returns (at most 60), with no comparison.
+ */
+export function storeOverviewMetrics(raw: StoreOverviewRaw, range: DateRangeKey = "today"): OverviewMetric[] {
+    const days = raw.days;
+    const n = range === "all" ? days.length : PERIOD_DAYS[range];
+    const current = range === "today" ? (days[days.length - 1] ?? ZERO) : sum(days.slice(-n));
+    const previous = range === "today"
+        ? raw.yesterday_same_time
+        // Only a full run of earlier days is a fair comparison.
+        : range !== "all" && days.length >= 2 * n ? sum(days.slice(-2 * n, -n)) : null;
+    const sparkDays = days.slice(-Math.max(range === "today" ? TODAY_SPARK_DAYS : n, 2));
     return OVERVIEW_METRICS.map((key) => {
         const pick = PICK[key];
-        const value = pick(today);
+        const value = pick(current);
         return {
             key,
             value,
-            deltaPct: pctChange(value, pick(raw.yesterday_same_time)),
-            series: raw.days.map(pick),
+            deltaPct: previous ? pctChange(value, pick(previous)) : null,
+            series: sparkDays.map(pick),
         };
     });
 }
