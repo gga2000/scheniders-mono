@@ -36,8 +36,8 @@ interface BucketCounts {
 interface Aggregates {
   total: number;
   total_wallet_iqd: number;
-  subscription_mrr_iqd: number;
-  usage_charges_30d_iqd: number;
+  plan_prices_iqd: number;
+  fees_30d_iqd: number;
   status: StatusCounts;
   buckets: BucketCounts;
 }
@@ -88,8 +88,8 @@ export async function GET(request: NextRequest) {
     const empty: Aggregates = {
       total: 0,
       total_wallet_iqd: 0,
-      subscription_mrr_iqd: 0,
-      usage_charges_30d_iqd: 0,
+      plan_prices_iqd: 0,
+      fees_30d_iqd: 0,
       status: { trial: 0, active: 0, suspended: 0, cancelled: 0 },
       buckets: {
         trials_today: 0,
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     const tenantIds = tenants.map((t) => t.id);
 
-    // Subscription MRR — real recurring revenue from active subscriptions.
+    // Plan prices of the active shops, a month's list price each.
     // Prices come from plan_limits only; a failed read fails the request
     // rather than showing made-up prices.
     const { data: planLimits, error: planLimitsError } = await supabase
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
     // Our fees (monthly fee, delivered orders, messages) from the filtered set
     // over the last 30 Baghdad days, added up in the database.
-    const usageCharges30d = tenantIds.length > 0 ? await fetchFees30d(supabase, tenantIds) : 0;
+    const fees30d = tenantIds.length > 0 ? await fetchFees30d(supabase, tenantIds) : 0;
 
     // Walk the filtered tenants to compute everything in one pass.
     const status_: StatusCounts = { trial: 0, active: 0, suspended: 0, cancelled: 0 };
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
       attention: 0,
     };
     let totalWallet = 0;
-    let subscriptionMRR = 0;
+    let planPrices = 0;
 
     const now = Date.now();
 
@@ -151,9 +151,9 @@ export async function GET(request: NextRequest) {
         totalWallet += balanceVal;
       }
 
-      // MRR = sum of base subscription prices for tenants who are paying.
+      // A month of plan price for each active shop, at the list price.
       if (s === "active") {
-        subscriptionMRR += planPrice[planVal] ?? 0;
+        planPrices += planPrice[planVal] ?? 0;
       }
 
       if (isCountedStatus(s)) status_[s]++;
@@ -177,8 +177,8 @@ export async function GET(request: NextRequest) {
     const result: Aggregates = {
       total: tenants.length,
       total_wallet_iqd: totalWallet,
-      subscription_mrr_iqd: subscriptionMRR,
-      usage_charges_30d_iqd: usageCharges30d,
+      plan_prices_iqd: planPrices,
+      fees_30d_iqd: fees30d,
       status: status_,
       buckets,
     };

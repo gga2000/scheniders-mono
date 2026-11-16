@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { baghdadDayKey, orderInDateWindow, type OrderWindow } from "@/lib/order-window";
 
 /**
  * One order as the reports page reads it from the server.
@@ -11,6 +12,8 @@ import { z } from "zod";
  */
 export const reportOrderSchema = z.object({
     created_at: z.string(),
+    // An order also belongs to the day it is scheduled for, as on Orders.
+    scheduled_date: z.string().nullable(),
     status: z.string(),
     delivered_at: z.string().nullable(),
     contact_count: z.number().nullable(),
@@ -34,7 +37,7 @@ export const reportOrderSchema = z.object({
 export type ReportOrder = z.infer<typeof reportOrderSchema>;
 
 export const REPORT_ORDER_COLUMNS =
-    "created_at,status,delivered_at,contact_count,city,governorate_code,validated_governorate_code," +
+    "created_at,scheduled_date,status,delivered_at,contact_count,city,governorate_code,validated_governorate_code," +
     "rejection_reason,phone,needs_attention,attention_reasons,source,is_return,refund_status,is_replacement,order_id,notes,price";
 
 export interface ReportRange {
@@ -51,30 +54,45 @@ export function previousPeriod(range: ReportRange): ReportRange {
     };
 }
 
-function inRange(order: ReportOrder, range: ReportRange): boolean {
-    const created = new Date(order.created_at).getTime();
-    return created >= range.from.getTime() && created <= range.to.getTime();
+/**
+ * The range as the Orders list reads a date filter (lib/order-window.ts): the
+ * instants for when an order arrived, and the Baghdad days for when it is
+ * scheduled. An order belongs to the range if it arrived in it OR is scheduled
+ * for one of its days, so «آخر 7 أيام» here counts what Orders and the
+ * dashboard count.
+ */
+export function reportWindow(range: ReportRange): NonNullable<OrderWindow> {
+    return {
+        fromInstant: range.from.getTime(),
+        toInstant: range.to.getTime(),
+        fromDay: baghdadDayKey(range.from),
+        toDay: baghdadDayKey(range.to),
+    };
 }
 
 export interface ReportOrderSets {
-    /** Sales orders created in the range (returns excluded). */
+    /** Sales orders of the range: arrived in it or scheduled for one of its days (returns excluded). */
     current: ReportOrder[];
-    /** Sales orders created in the previous period. */
+    /** Sales orders of the previous period, by the same rule. */
     previous: ReportOrder[];
-    /** Return orders created in the range. */
+    /** Return orders of the range. */
     returns: ReportOrder[];
 }
 
 /** Split the fetched rows (previous period + range) into what each widget reads. */
 export function splitReportOrders(rows: ReportOrder[], range: ReportRange): ReportOrderSets {
-    const prior = previousPeriod(range);
+    const now = reportWindow(range);
+    const prior = reportWindow(previousPeriod(range));
     const current: ReportOrder[] = [];
     const previous: ReportOrder[] = [];
     const returns: ReportOrder[] = [];
     for (const row of rows) {
-        if (inRange(row, range)) {
+        // Two independent windows, as on the dashboard: an order that arrived
+        // last week and is scheduled for this week counts in both.
+        if (orderInDateWindow(row, now)) {
             (row.is_return === true ? returns : current).push(row);
-        } else if (row.is_return !== true && inRange(row, prior)) {
+        }
+        if (row.is_return !== true && orderInDateWindow(row, prior)) {
             previous.push(row);
         }
     }

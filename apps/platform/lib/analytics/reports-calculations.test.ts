@@ -13,7 +13,7 @@ import { calculateSourcePerformance } from "./source-metrics";
 
 function order(over: Partial<ReportOrder> = {}): ReportOrder {
     return {
-        created_at: "2026-10-15T10:00:00.000Z", status: "delivered", delivered_at: null,
+        created_at: "2026-10-15T10:00:00.000Z", scheduled_date: null, status: "delivered", delivered_at: null,
         contact_count: 1, city: "Baghdad", governorate_code: "BG", validated_governorate_code: null,
         rejection_reason: null, phone: "07701234567", needs_attention: false, attention_reasons: null,
         source: "manual", is_return: false, notes: null, price: 10000,

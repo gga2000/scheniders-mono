@@ -51,6 +51,9 @@ import { perfTrace } from "@/lib/perf-trace";
 // via queryClient.setQueryData / invalidateQueries.
 // =============================================
 
+/** One empty list, so "not loaded yet" keeps one identity across renders. */
+const NO_ORDERS: Order[] = [];
+
 export function useOrders() {
     // =============================================
     // REACT QUERY INTEGRATION FOR CACHING
@@ -86,7 +89,7 @@ export function useOrders() {
     const { data: cachedOrders, isLoading: queryLoading, isFetching: queryFetching, status: queryStatus, error: queryError } = useOrdersQuery(ordersWindow, filtersSettled);
 
     // Single source of truth: React Query cache
-    const orders = cachedOrders ?? [];
+    const orders = cachedOrders ?? NO_ORDERS;
     const loading = queryLoading;
     // `loading` is React Query's isLoading, which is only true during the FIRST
     // fetch of an ENABLED query. Two common states slip past it, and both render
@@ -290,6 +293,12 @@ export function useOrders() {
          * all N" — is shown: the list is still loading, or is another window's.
          */
         listCovered,
+        /**
+         * The list on screen answers the current filter: its deferred render
+         * has caught up and its rows cover the window. While false, an empty
+         * list is still loading, never "no matching orders".
+         */
+        listIsCurrent: filterHook.listIsCurrent,
         /**
          * The head of a wide list fetch (lib/orders/list-preview.ts), filtered
          * and sorted like `filteredOrders`, while the window is still loading.

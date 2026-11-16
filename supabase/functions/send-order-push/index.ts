@@ -102,6 +102,10 @@ const COPY = {
         primePayment: "Prime payment arrived", primePaymentBody: (n: number) => `${n.toLocaleString("en-US")} IQD`,
         primeDaily: "Your day with Prime",
         primeDailyBody: (d: number, r: number, c: number) => `${d} delivered · ${r} coming back · ${c.toLocaleString("en-US")} IQD collected`,
+        supportReply: "Schenider support replied",
+        supportReplyBody: "Open the chat to read our reply",
+        supportSolved: "We marked your chat as solved",
+        supportSolvedBody: "Did it solve your problem? Tap to answer",
     },
     ar: {
         newOrder: "🛒 طلب جديد", urgentOrder: "🔥 طلب عاجل",
@@ -140,6 +144,10 @@ const COPY = {
         primePayment: "وصلت دفعة من برايم", primePaymentBody: (n: number) => `${n.toLocaleString("en-US")} د.ع`,
         primeDaily: "يومك مع برايم",
         primeDailyBody: (d: number, r: number, c: number) => `سُلّم ${d} · راجع ${r} · حُصّل ${c.toLocaleString("en-US")} د.ع`,
+        supportReply: "رد عليك دعم شنايدر",
+        supportReplyBody: "افتح المحادثة حتى تقرأ الرد",
+        supportSolved: "علّمنا محادثتك كمحلولة",
+        supportSolvedBody: "هل انحلت مشكلتك؟ اضغط حتى تجاوب",
     },
 } as const;
 
@@ -307,6 +315,22 @@ function compose(n: DispatchPayload, locale: Locale = "ar"): Composed {
                 body: t.primeDailyBody(num(p.delivered), num(p.returning), num(p.collected)),
                 url: "/prime",
                 actions: [],
+            };
+        // Support: both open the chat on whatever page the merchant lands on
+        // (the platform opens it for ?support=open).
+        case "support.reply":
+            return {
+                title: t.supportReply,
+                body: str(p.preview).trim() || t.supportReplyBody,
+                url: "/?support=open",
+                actions: [{ action: "open", title: t.reply }],
+            };
+        case "support.solved":
+            return {
+                title: t.supportSolved,
+                body: t.supportSolvedBody,
+                url: "/?support=open",
+                actions: [{ action: "open", title: t.open }],
             };
         case "digest":
             return {

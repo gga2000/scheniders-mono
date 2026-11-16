@@ -274,7 +274,7 @@ export default function MerchantsPage() {
       {/* ── Daily Digest Banner (dismissable per session) ─────────── */}
       <MerchantsDigestBanner />
 
-      {/* ── Rollup Strip (Wallet · MRR · ARR · Usage 30d · Active) ── */}
+      {/* ── Rollup Strip (Wallet · Plan prices · Our fees · Active) ── */}
       <MerchantsRollupStrip />
 
       {/* ── White Filter Card (orders-style) ───────────────────────── */}

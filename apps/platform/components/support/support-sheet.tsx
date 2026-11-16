@@ -11,6 +11,7 @@ import {
     FileText,
     LifeBuoy,
     Loader2,
+    Mic,
     Package,
     RotateCcw,
     Send,
@@ -24,8 +25,11 @@ import { useOrderStore } from "@/store/use-order-store";
 import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportShot, useSupportThread } from "@/hooks/use-support";
 import { useLanguage } from "@/components/providers/language-provider";
 import { SupportHoursLine } from "@/components/support/support-hours-line";
+import { SupportVoiceButton, type RecordedVoice } from "@/components/support/support-voice-button";
 import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
+import { takeSupportOpenLink } from "@/lib/support/open-link";
+import { formatVoiceLength } from "@/lib/support/voice";
 import type { SupportMessage } from "@/lib/support/schema";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +76,9 @@ function MessageLine({ message }: { message: SupportMessage }) {
                         <img src={message.screenshot_url} alt={t("support.shot.attached")} className="max-h-40 w-full rounded-lg object-cover object-top" />
                     </a>
                 )}
+                {message.voice_url && (
+                    <audio controls preload="none" src={message.voice_url} aria-label={t("support.voice.attached")} className="mb-2 h-9 w-56 max-w-full" />
+                )}
                 <p dir="auto" className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                     {message.body}
                 </p>
@@ -92,7 +99,7 @@ function MessageLine({ message }: { message: SupportMessage }) {
  * actually reach.
  */
 export function SupportSheet() {
-    const { isOpen, close, errorPrefill, clearErrorPrefill } = useSupportStore();
+    const { isOpen, open, close, errorPrefill, clearErrorPrefill } = useSupportStore();
     const { t, language } = useLanguage();
     const pathname = usePathname();
     const openOrder = useOrderStore((s) => (s.isModalOpen ? s.selectedOrder : null));
@@ -102,6 +109,7 @@ export function SupportSheet() {
     const [draft, setDraft] = useState("");
     const [shot, setShot] = useState<{ path: string; preview: string } | null>(null);
     const [capturing, setCapturing] = useState(false);
+    const [voice, setVoice] = useState<RecordedVoice | null>(null);
     const upload = useSupportShot();
     const endRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -115,6 +123,14 @@ export function SupportSheet() {
     useEffect(() => {
         if (isOpen) inputRef.current?.focus();
     }, [isOpen]);
+
+    // A support push opens the app at ?support=open: open the chat once.
+    useEffect(() => {
+        const cleaned = takeSupportOpenLink(window.location.href);
+        if (cleaned === null) return;
+        window.history.replaceState(window.history.state, "", cleaned);
+        open();
+    }, [pathname, open]);
 
     useEffect(() => {
         if (isOpen) endRef.current?.scrollIntoView({ block: "end" });
@@ -161,7 +177,7 @@ export function SupportSheet() {
     };
 
     const send = () => {
-        const body = draft.trim() || (shot ? t("support.shot.body") : "");
+        const body = draft.trim() || (voice ? t("support.voice.body") : shot ? t("support.shot.body") : "");
         if (!body || action.isPending || capturing) return;
         const context = buildSupportContext({
             pathname,
@@ -174,11 +190,16 @@ export function SupportSheet() {
             userAgent: navigator.userAgent,
         });
         action.mutate(
-            { action: "send", body, context: shot ? { ...context, screenshot: shot.path } : context },
+            {
+                action: "send",
+                body,
+                context: { ...context, ...(shot ? { screenshot: shot.path } : {}), ...(voice ? { voice: voice.path } : {}) },
+            },
             {
                 onSuccess: () => {
                     setDraft("");
                     setShot(null);
+                    setVoice(null);
                     clearErrorPrefill();
                 },
                 onError: explain,
@@ -325,6 +346,23 @@ export function SupportSheet() {
                                         <span dir="auto">{t(capturing ? "support.shot.taking" : "support.shot.add")}</span>
                                     </button>
                                 )}
+                                {voice ? (
+                                    <span className={cn(CHIP, "gap-2")}>
+                                        <Mic className="h-3 w-3 shrink-0" />
+                                        <span dir="auto">{t("support.voice.attached")}</span>
+                                        <span dir="ltr" className="tabular-nums">{formatVoiceLength(voice.seconds)}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setVoice(null)}
+                                            aria-label={t("support.voice.remove")}
+                                            className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-foreground/10"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                ) : (
+                                    <SupportVoiceButton chipClass={CHIP} disabled={action.isPending} onRecorded={setVoice} />
+                                )}
                             </div>
                             <div className="flex items-end gap-2">
                                 <textarea
@@ -341,7 +379,7 @@ export function SupportSheet() {
                                 <button
                                     type="button"
                                     onClick={send}
-                                    disabled={(draft.trim().length === 0 && !shot) || action.isPending || capturing}
+                                    disabled={(draft.trim().length === 0 && !shot && !voice) || action.isPending || capturing}
                                     className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40 dark:bg-primary dark:text-(--primary-fg)"
                                 >
                                     {action.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

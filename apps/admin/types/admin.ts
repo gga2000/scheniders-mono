@@ -114,8 +114,10 @@ export interface AdminTenant {
   // Computed fields
   tags: string[];
   last_active_at: string | null;
-  monthly_revenue: number;
-  daily_revenue: number;
+  /** Our fees from this shop (monthly fee, delivered orders, paid messages), last 30 Baghdad days. */
+  fees_30d: number;
+  /** The same fees, today on the Baghdad calendar. */
+  fees_today: number;
   orders_30d?: number;
   /** People who can sign in to the shop today. Sent by the Merchants list. */
   team_members?: number;
@@ -198,7 +200,8 @@ export type AdminAction =
   | "pause_whatsapp"
   | "check_payments"
   | "manage_demo_store"
-  | "manage_admins";
+  | "manage_admins"
+  | "review_trials";
 
 // Merchant table column definitions
 export type MerchantColumnId =
@@ -217,9 +220,9 @@ export const MERCHANT_COLUMNS: MerchantColumn[] = [
   { id: "status", label: "Status" },
   { id: "city", label: "City" },
   { id: "balance", label: "Balance" },
-  { id: "orders", label: "Orders" },
+  { id: "orders", label: "Orders, 30 days" },
   { id: "health", label: "Health" },
-  { id: "revenue", label: "Revenue" },
+  { id: "revenue", label: "Our fees, 30 days" },
   { id: "lastActive", label: "Last Active" },
   { id: "tags", label: "Tags" },
   { id: "sparkline", label: "Trend" },

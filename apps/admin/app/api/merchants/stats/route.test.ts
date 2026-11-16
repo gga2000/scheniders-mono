@@ -45,7 +45,7 @@ describe("GET /api/merchants/stats", () => {
 
     expect(stats.total).toBe(1);
     expect(stats.total_wallet_iqd).toBe(20000);
-    expect(stats.subscription_mrr_iqd).toBe(9000);
+    expect(stats.plan_prices_iqd).toBe(9000);
     expect(stub.callsTo("tenants.eq")).toContainEqual(["is_demo", false]);
   });
 
@@ -57,7 +57,7 @@ describe("GET /api/merchants/stats", () => {
     expect(stats.total).toBe(1200);
     expect(stats.status.active).toBe(1200);
     expect(stats.total_wallet_iqd).toBe(1200 * 20000);
-    expect(stats.subscription_mrr_iqd).toBe(1200 * 9000);
+    expect(stats.plan_prices_iqd).toBe(1200 * 9000);
     expect(stub.callsTo("tenants.range")).toEqual([
       [0, 999],
       [1000, 1999],
@@ -72,7 +72,7 @@ describe("GET /api/merchants/stats", () => {
 
     const stats = await (await call()).json();
 
-    expect(stats.usage_charges_30d_iqd).toBe(23870);
+    expect(stats.fees_30d_iqd).toBe(23870);
     expect(stub.state.rpcCalls).toHaveLength(1);
     expect(stub.state.rpcCalls[0].fn).toBe("admin_fees_30d");
     expect(stub.state.rpcCalls[0].args._tenant_ids).toHaveLength(1200);
@@ -212,7 +212,7 @@ describe("GET /api/merchants/stats", () => {
     const stats = await (await call("city=Basra")).json();
 
     expect(stats.total).toBe(0);
-    expect(stats.usage_charges_30d_iqd).toBe(0);
+    expect(stats.fees_30d_iqd).toBe(0);
     expect(stub.state.rpcCalls).toEqual([]);
   });
 

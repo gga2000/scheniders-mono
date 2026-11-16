@@ -300,6 +300,20 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
         };
     }, [deferredSearchResults, deferredResultsAreSearch, deferredLoadedKey, deferredInTransit, dDateFrom, dDateTo, dStatus]);
 
+    // Whether the list on screen is the answer for the current filter: its
+    // deferred render holds the window just loaded, the current filter and the
+    // same kind of rows (window, or search / Prime queue hits, which stand
+    // alone), and those rows cover the window. Until then an empty list is not
+    // "nothing matched": when a window's rows land, the render before the
+    // deferred one still holds the previous window's empty list, and the slow
+    // link showed «لا توجد طلبات مطابقة» for 1.5 s above a 9-order week
+    // (round 13). Keys, not row identities: a realtime row or the in-transit
+    // read must not flash placeholders over a day that is truly empty.
+    const listIsCurrent = deferredLoadedKey === loadedWindowKey
+        && filters === deferredFilters
+        && (searchResults === null) === (deferredSearchResults === null)
+        && (deferredSearchResults !== null || countViewFacts.covered);
+
     // The head of the list fetch, through the list's own filter and sort —
     // only while the rows do not cover the window and nothing is searched.
     // The page drops the rows that could still move (lib/orders/list-preview.ts)
@@ -452,6 +466,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
         attentionCounts,
         inTransitCounts,
         countViewFacts,
+        listIsCurrent,
         listPreview,
         availableCities,
         availableProducts,

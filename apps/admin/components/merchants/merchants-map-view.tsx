@@ -74,7 +74,8 @@ interface GovStats {
   name: string;
   count: number;
   totalBalance: number;
-  totalRevenue: number;
+  /** Our fees from the city's shops, last 30 days. */
+  fees30d: number;
   active: number;
   trial: number;
   suspended: number;
@@ -117,7 +118,7 @@ export function MerchantsMapView({
           name: CODE_TO_NAME[code] ?? code,
           count: 0,
           totalBalance: 0,
-          totalRevenue: 0,
+          fees30d: 0,
           active: 0,
           trial: 0,
           suspended: 0,
@@ -126,7 +127,7 @@ export function MerchantsMapView({
 
       existing.count++;
       existing.totalBalance += m.wallet?.balance_iqd ?? 0;
-      existing.totalRevenue += (m as { monthly_revenue?: number }).monthly_revenue ?? 0;
+      existing.fees30d += m.fees_30d;
       const status = (m as { status?: string }).status;
       if (status === "active") existing.active++;
       else if (status === "trial") existing.trial++;
@@ -359,12 +360,12 @@ export function MerchantsMapView({
                   <div className="flex items-center gap-1.5 text-violet-700 dark:text-violet-300">
                     <TrendingUp className="w-3 h-3" />
                     <span className="text-[9px] uppercase tracking-wider font-black">
-                      MRR
+                      Our fees, 30 days
                     </span>
                   </div>
                   <p className="text-sm font-black text-foreground tabular-nums mt-0.5">
                     {new Intl.NumberFormat("en-IQ").format(
-                      selectedStats.totalRevenue
+                      selectedStats.fees30d
                     )}{" "}
                     <span className="text-[10px] font-bold text-foreground/40">
                       IQD

@@ -23,6 +23,12 @@ export function formatSigned(value: number, suffix = ""): string {
     return `${sign}${CHANGE_FORMAT.format(Math.abs(value))}${suffix}`;
 }
 
+/** A part's share of a whole, as the dashboard and the map both print it:
+ * one decimal, none when whole ("33.3%", "50%"); "0%" for an empty whole. */
+export function formatShare(part: number, whole: number): string {
+    return `${CHANGE_FORMAT.format(whole > 0 ? (part / whole) * 100 : 0)}%`;
+}
+
 /**
  * Mask string shown in place of currency values when the user has hidden
  * financial data via RevealToggle.

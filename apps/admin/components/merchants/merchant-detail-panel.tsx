@@ -324,18 +324,20 @@ function PanelBody({
         />
         <HeroStat
           icon={CreditCard}
-          label="Lifetime"
+          label="Wallet charges"
           value={fmtCompact(wallet?.total_charged_iqd ?? 0)}
           unit="IQD"
           tone="amber"
           onClick={() => setActiveTab("Billing")}
+          title="Every charge to the wallet since the shop opened, test charges included. Our fees are on the Revenue page."
         />
         <HeroStat
           icon={ShoppingBag}
-          label="Orders"
+          label="Orders, all time"
           value={fmtCompact(orderCount)}
           tone="sky"
           onClick={() => setActiveTab("Usage")}
+          title="Every real order since the shop opened"
         />
         <HeroStat
           icon={Users}
@@ -472,6 +474,7 @@ function HeroStat({
   unit,
   tone,
   onClick,
+  title,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -479,12 +482,14 @@ function HeroStat({
   unit?: string;
   tone: keyof typeof TONE_STYLES;
   onClick?: () => void;
+  title?: string;
 }) {
   const styles = TONE_STYLES[tone];
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className="group relative overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-2.5 text-left hover:border-foreground/15 hover:shadow-sm transition-all"
     >
       <div

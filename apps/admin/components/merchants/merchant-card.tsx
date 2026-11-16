@@ -98,12 +98,10 @@ export function MerchantCard({
   const lastActive = merchant.last_active_at ? timeAgo(merchant.last_active_at) : null;
 
   const balance = merchant.wallet?.balance_iqd ?? 0;
-  // 30-day rolling order count — matches monthly_revenue's window so the
-  // two figures on the card describe the same period. usage.orders_count
-  // is calendar-month-to-date which would mix windows.
+  // Real orders and our fees over the same last 30 days.
   const orders = merchant.orders_30d ?? 0;
-  const monthlyRev = merchant.monthly_revenue ?? 0;
-  const dailyRev = (merchant as { daily_revenue?: number }).daily_revenue ?? 0;
+  const fees30d = merchant.fees_30d;
+  const feesToday = merchant.fees_today;
   const dailyOrders = merchant.order_sparkline?.[merchant.order_sparkline.length - 1] ?? 0;
 
   const queryClient = useQueryClient();
@@ -308,12 +306,12 @@ export function MerchantCard({
           <div className="min-w-0 border-l border-foreground/[0.08] pl-3">
             <p className="text-[9px] uppercase tracking-[0.08em] text-foreground/45 font-black flex items-center gap-1">
               <span className="w-1 h-1 rounded-full bg-violet-500 shrink-0" />
-              Revenue
+              Our fees, 30 days
             </p>
             <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
-              {formatCompactIQD(monthlyRev)}
+              {formatCompactIQD(fees30d)}
               <span className="text-[10px] font-bold text-foreground/40 ml-1">
-                /mo
+                IQD
               </span>
             </p>
             <p className="text-[10px] text-foreground/45 font-medium mt-1 tabular-nums truncate">
@@ -330,12 +328,12 @@ export function MerchantCard({
           </div>
         </div>
 
-        {/* Today strip — daily orders + daily revenue */}
+        {/* Today strip: orders and our fees today */}
         <div className="relative mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-cyan-50 dark:from-emerald-400/10 dark:to-cyan-400/10 border border-emerald-200/60 dark:border-emerald-400/20">
           <span className="text-[9px] uppercase tracking-[0.1em] font-black text-emerald-700 dark:text-emerald-300 flex items-center gap-1 shrink-0">
             <span className={cn(
               "w-1.5 h-1.5 rounded-full",
-              (dailyOrders > 0 || dailyRev > 0) ? "bg-emerald-500 animate-pulse" : "bg-foreground/20"
+              (dailyOrders > 0 || feesToday > 0) ? "bg-emerald-500 animate-pulse" : "bg-foreground/20"
             )} />
             Today
           </span>
@@ -347,8 +345,8 @@ export function MerchantCard({
           </span>
           <span className="w-0.5 h-0.5 rounded-full bg-foreground/20" />
           <span className="text-[11px] font-black text-foreground tabular-nums truncate">
-            {formatCompactIQD(dailyRev)}
-            <span className="text-[9px] font-bold text-foreground/45 ml-0.5">IQD</span>
+            {formatCompactIQD(feesToday)}
+            <span className="text-[9px] font-bold text-foreground/45 ml-0.5">IQD fees</span>
           </span>
         </div>
 

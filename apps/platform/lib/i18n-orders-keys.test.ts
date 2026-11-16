@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { translations } from "./i18n";
+import { showReorderNote } from "./order-format-utils";
 
 /**
  * t() returns the key itself when it is missing from both dictionaries, so a
@@ -45,5 +46,13 @@ describe("orders-area translation keys exist", () => {
     it.each(["en", "ar"] as const)("every key resolves in %s", (locale) => {
         const missing = [...used].filter(([key]) => !(key in translations[locale])).map(([k, f]) => `${k} (${f})`);
         expect(missing).toEqual([]);
+    });
+});
+
+describe("an order number inside Arabic text", () => {
+    // Round 13: «إعادة طلب من #…» drew its # after the digits.
+    it("is isolated, so the # stays in front of the digits", () => {
+        const label = (orderId: string) => translations.ar["orders.note.reorderFrom"].replace("{orderId}", orderId);
+        expect(showReorderNote("Reorder from #4261102017", label)).toBe("إعادة طلب من \u2066#4261102017\u2069");
     });
 });

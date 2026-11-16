@@ -6,6 +6,7 @@ import { readDayRange } from "@/lib/baghdad-day";
 import { fetchMerchantListStats } from "@/lib/console-stats";
 import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
+import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
 
 /** The "ids" query value, when it is given: shop ids. */
 const shopIdsSchema = z.array(z.string().uuid()).min(1).max(50).optional();
@@ -26,7 +27,8 @@ export async function GET(request: NextRequest) {
     // Sign-up days, on the Baghdad calendar.
     const days = readDayRange(searchParams);
     if ("error" in days) return NextResponse.json({ error: days.error }, { status: 400 });
-    const sortParam = searchParams.get("sort") ?? "created_at:desc";
+    const sort = readMerchantSort(searchParams.get("sort") || DEFAULT_MERCHANT_SORT);
+    if ("error" in sort) return NextResponse.json({ error: sort.error }, { status: 400 });
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "50")));
     const includeSparkline = searchParams.get("include_sparkline") === "true";
@@ -65,12 +67,9 @@ export async function GET(request: NextRequest) {
     if (days.lt) query = query.lt("created_at", days.lt);
 
     // ── Multi-column sort ──────────────────────────────────────────────
-    const sortParts = sortParam.split(",").filter(Boolean);
-    for (const part of sortParts) {
-      const [col, dir] = part.split(":");
-      if (col) {
-        query = query.order(col, { ascending: dir === "asc" });
-      }
+    // Empty values (a shop with no wallet or no city) go last either way.
+    for (const { column, ascending } of sort) {
+      query = query.order(column, { ascending, nullsFirst: false });
     }
 
     // Shops made in the same instant need a fixed order, or a page boundary can skip or repeat one.
@@ -132,8 +131,8 @@ export async function GET(request: NextRequest) {
         // The later of the last wallet line and the last real order.
         last_active_at: laterOf(row.last_wallet_at, row.last_order_at),
         // Our fees (monthly fee, delivered orders, messages), not every wallet charge.
-        monthly_revenue: row.fees_30d,
-        daily_revenue: row.fees_today,
+        fees_30d: row.fees_30d,
+        fees_today: row.fees_today,
         orders_30d: row.orders_30d,
         // Active members today. The usage row's team number below is written once, at sign-up.
         team_members: row.team_members,

@@ -68,10 +68,10 @@ describe("support tables stay server-only", () => {
         expect(sql).not.toMatch(new RegExp(`alter table public\\.${table} disable row level security`, "i"));
     });
 
-    it("keeps pictures of merchants' screens in a private bucket no storage policy opens", () => {
-        expect(sql).toMatch(/insert into storage\.buckets[^;]*'support-shots'[^;]*false/i);
-        expect(sql).not.toMatch(/'support-shots'[^;]*\btrue\b/i);
-        expect(sql).not.toMatch(/create policy[^;]*on storage\.objects[^;]*support-shots/i);
+    it.each(["support-shots", "support-voice"])("keeps %s in a private bucket no storage policy opens", (bucket) => {
+        expect(sql).toMatch(new RegExp(`insert into storage\\.buckets[^;]*'${bucket}'[^;]*false`, "i"));
+        expect(sql).not.toMatch(new RegExp(`'${bucket}'[^;]*\\btrue\\b`, "i"));
+        expect(sql).not.toMatch(new RegExp(`create policy[^;]*on storage\\.objects[^;]*${bucket}`, "i"));
     });
 
     it("lets only the service role run the state-change functions", () => {
@@ -83,6 +83,8 @@ describe("support tables stay server-only", () => {
             "support_notify_staff",
             "support_scoreboard",
             "support_shop_check",
+            "support_clock_start",
+            "support_alert_late",
         ]) {
             expect(sql).toMatch(new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\) from public, anon, authenticated`, "i"));
             expect(sql).not.toMatch(new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\) to[^;]*\\b(anon|authenticated|public)\\b`, "i"));

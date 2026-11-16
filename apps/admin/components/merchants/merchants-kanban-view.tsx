@@ -412,7 +412,7 @@ function KanbanCard({
 }: KanbanCardProps) {
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const balance = merchant.wallet?.balance_iqd ?? 0;
-  const monthlyRev = (merchant as { monthly_revenue?: number }).monthly_revenue ?? 0;
+
   const planGrad = PLAN_GRADIENTS[merchant.plan] ?? "from-slate-400 to-slate-500";
 
   return (
@@ -457,9 +457,9 @@ function KanbanCard({
           {fmtCompactIQD(balance)}
         </span>
         <span className="w-0.5 h-0.5 rounded-full bg-foreground/20" />
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1" title="Our fees, last 30 days">
           <TrendingUp className="w-2.5 h-2.5 text-foreground/35" />
-          {fmtCompactIQD(monthlyRev)}/mo
+          {fmtCompactIQD(merchant.fees_30d)} fees
         </span>
       </div>
     </div>

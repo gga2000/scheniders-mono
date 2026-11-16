@@ -34,6 +34,10 @@ const REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
   still_trial: { status: 409, error: "This shop is on trial. Use Convert to paid to make it a paying shop." },
   not_trialing: { status: 409, error: "This shop's subscription is not a trial, so it cannot go back to Trial." },
   no_subscription: { status: 409, error: "This shop has no subscription yet." },
+  subscription_ended: {
+    status: 409,
+    error: "This shop's subscription has ended, so it would never be billed for a paid plan. The plan stays as it is.",
+  },
 };
 
 /**
@@ -42,7 +46,8 @@ const REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
  * and writes the staff log rows, so the three cannot disagree. The database
  * refuses what would leave a shop in a state billing cannot read: 'active'
  * over a trial, 'limited' without a pause, any status over a paused shop, a
- * status change of the demo store. A value the shop already has is not
+ * status change of the demo store, a paid plan on a shop whose subscription
+ * renewal does not bill (none, cancelled, incomplete). A value the shop already has is not
  * written and not logged.
  *
  * Shared by PATCH /api/merchants/[id] and the bulk actions.

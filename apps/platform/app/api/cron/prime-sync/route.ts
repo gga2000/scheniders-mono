@@ -11,6 +11,7 @@ import { sendPrimeDaily, watchPrimePayments, type PrimePaymentsOutcome } from "@
 import { sendPrimeFailedNotices, type PrimeFailedNoticeOutcome } from "@/lib/prime/failed-notice";
 import { recheckPrimeLinkRequests, type PrimeLinkRecheckOutcome } from "@/lib/prime/self-link";
 import { CRON_MONITORS, withCronMonitor } from "@/lib/job-monitor";
+import { reportDeferredStores, storeBudget } from "@/lib/cron-budget";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -48,10 +49,13 @@ type WebhookResult = "unchanged" | "saved" | "not_production" | "not_due" | "fai
  * once a store's link is on. One tenant failing does not stop the others;
  * its error is kept on its prime_connections row. First, stores waiting for
  * Prime to link their account are looked at again (lib/prime/self-link).
+ * Stores go least recently stamped first, and no new store starts after half
+ * of maxDuration: the rest are first next run (lib/cron-budget).
  */
 async function runScheduled(request: NextRequest) {
     const denied = requireCronAuth(request);
     if (denied) return denied;
+    const spent = storeBudget(maxDuration);
 
     const client = getPrimeClient();
     if (!client) return NextResponse.json({ success: true, message: "Prime is not configured", tenants: 0 });
@@ -61,7 +65,10 @@ async function runScheduled(request: NextRequest) {
     const { data: connections, error } = await db
         .from("prime_connections")
         .select("tenant_id, merchant_login_id, shop_id, branch_name, last_synced_at, last_payment_id, daily_sent_on")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        // A status read or an error stamps updated_at, so a store that keeps
+        // failing slowly goes to the back instead of taking every run's time.
+        .order("updated_at", { ascending: true, nullsFirst: true });
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (connections.length === 0) return NextResponse.json({ success: true, tenants: 0, links });
     const webhook = await keepWebhook(client);
@@ -74,7 +81,12 @@ async function runScheduled(request: NextRequest) {
         Sentry.captureException(err, { extra: { job: "prime-sync", step: "stepNames" } });
     }
     const results: Record<string, TenantResult> = {};
-    for (const connection of connections) {
+    let deferred = 0;
+    for (const [index, connection] of connections.entries()) {
+        if (spent()) {
+            deferred = connections.length - index;
+            break;
+        }
         const tenantId = connection.tenant_id as string;
         const merchant = { merchantLoginId: connection.merchant_login_id as string, shopId: Number(connection.shop_id) };
         const result: TenantResult = {};
@@ -125,7 +137,8 @@ async function runScheduled(request: NextRequest) {
             });
         }
     }
-    return NextResponse.json({ success: true, tenants: connections.length, webhook, links, results });
+    reportDeferredStores("prime-sync", deferred, connections.length);
+    return NextResponse.json({ success: true, tenants: connections.length, deferred, webhook, links, results });
 }
 
 /**

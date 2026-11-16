@@ -6,7 +6,7 @@ import {
   formatWait,
   latestOrderNumber,
   percentOf,
-  shotPaths,
+  filePaths,
   sortInbox,
   supportRefusal,
   type SupportCaseRow,
@@ -115,6 +115,7 @@ describe("latestOrderNumber", () => {
     context: orderNumber ? { orderNumber } : {},
     created_at: "2026-11-16T10:00:00Z",
     screenshot_url: null,
+    voice_url: null,
   });
 
   it("takes the newest order a merchant had open", () => {
@@ -150,18 +151,20 @@ describe("percentOf", () => {
   });
 });
 
-describe("shotPaths", () => {
+describe("filePaths", () => {
   const T = "33333333-3333-4333-8333-333333333333";
+  const O = "44444444-4444-4444-8444-444444444444";
+  const rows = [
+    { context: { screenshot: `${T}/a.jpg`, voice: `${T}/v.webm` } },
+    { context: {} },
+    { context: { screenshot: `${O}/b.jpg`, voice: `${O}/w.m4a` } },
+  ];
+
   it("keeps only pictures inside this shop's own folder", () => {
-    expect(
-      shotPaths(
-        [
-          { context: { screenshot: `${T}/a.jpg` } },
-          { context: {} },
-          { context: { screenshot: "44444444-4444-4444-8444-444444444444/b.jpg" } },
-        ],
-        T,
-      ),
-    ).toEqual([`${T}/a.jpg`]);
+    expect(filePaths(rows, T, "screenshot")).toEqual([`${T}/a.jpg`]);
+  });
+
+  it("keeps only voice notes inside this shop's own folder", () => {
+    expect(filePaths(rows, T, "voice")).toEqual([`${T}/v.webm`]);
   });
 });

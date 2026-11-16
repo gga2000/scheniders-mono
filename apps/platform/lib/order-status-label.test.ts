@@ -40,6 +40,8 @@ describe("order status labels", () => {
                 const expected = getOrderStatusLabel(status, locale);
                 expect(translations[locale][`orders.status.${status}`], `${locale}/${status}`).toBe(expected);
                 expect(translations[locale][`orders.status.${camelCase(status)}`], `${locale}/${status} camel`).toBe(expected);
+                // Reports' status flow names a status as the Orders chips do.
+                expect(translations[locale][`reports.status.${status}`], `${locale}/${status} reports`).toBe(expected);
             }
         }
     });

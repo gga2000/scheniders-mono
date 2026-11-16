@@ -6,7 +6,8 @@ import {
   CaseActionSchema,
   SUPPORT_CASE_COLUMNS,
   SUPPORT_SHOT_BUCKET,
-  shotPaths,
+  SUPPORT_VOICE_BUCKET,
+  filePaths,
   supportRefusal,
   type SupportCaseRow,
   type SupportMessageRow,
@@ -14,10 +15,22 @@ import {
 } from "@/lib/support";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** How long a link to a merchant's screen picture works; the page refetches every few seconds. */
-const SHOT_LINK_SECONDS = 15 * 60;
+/** How long a link to a merchant's picture or voice note works; the page refetches every few seconds. */
+const FILE_LINK_SECONDS = 15 * 60;
 
 type AdminDb = ReturnType<typeof createAdminClient>;
+
+/** Signed links for every path in one call; a file that is gone has no link. */
+async function signPaths(supabase: AdminDb, bucket: string, paths: string[]): Promise<Map<string, string>> {
+  const links = new Map<string, string>();
+  if (paths.length === 0) return links;
+  const signed = await supabase.storage.from(bucket).createSignedUrls(paths, FILE_LINK_SECONDS);
+  if (signed.error) throw signed.error;
+  for (const link of signed.data ?? []) {
+    if (link.path && link.signedUrl && !link.error) links.set(link.path, link.signedUrl);
+  }
+  return links;
+}
 
 /** The name merchants and teammates see on this admin's replies. */
 async function adminDisplayName(supabase: AdminDb, admin: AdminContext): Promise<string> {
@@ -117,23 +130,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ]);
     if (messages.error) throw messages.error;
 
-    const rows = (messages.data ?? []) as Omit<SupportMessageRow, "screenshot_url">[];
-    const paths = shotPaths(rows, supportCase.tenant_id);
-    const links = new Map<string, string>();
-    if (paths.length > 0) {
-      const signed = await supabase.storage.from(SUPPORT_SHOT_BUCKET).createSignedUrls(paths, SHOT_LINK_SECONDS);
-      if (signed.error) throw signed.error;
-      for (const link of signed.data ?? []) {
-        if (link.path && link.signedUrl && !link.error) links.set(link.path, link.signedUrl);
-      }
-    }
+    const rows = (messages.data ?? []) as Omit<SupportMessageRow, "screenshot_url" | "voice_url">[];
+    const [shotLinks, voiceLinks] = await Promise.all([
+      signPaths(supabase, SUPPORT_SHOT_BUCKET, filePaths(rows, supportCase.tenant_id, "screenshot")),
+      signPaths(supabase, SUPPORT_VOICE_BUCKET, filePaths(rows, supportCase.tenant_id, "voice")),
+    ]);
 
     return NextResponse.json({
       case: supportCase,
       messages: rows.map(
         (row): SupportMessageRow => ({
           ...row,
-          screenshot_url: row.context.screenshot ? (links.get(row.context.screenshot) ?? null) : null,
+          screenshot_url: row.context.screenshot ? (shotLinks.get(row.context.screenshot) ?? null) : null,
+          voice_url: row.context.voice ? (voiceLinks.get(row.context.voice) ?? null) : null,
         }),
       ),
       shop,

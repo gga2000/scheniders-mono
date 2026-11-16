@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatSigned, parseWholeNumber } from "./utils";
+import { formatCount, formatShare, formatSigned, parseWholeNumber } from "./utils";
 
 describe("parseWholeNumber", () => {
     it("reads Latin, Arabic-Indic and Persian digits", () => {
@@ -34,5 +34,14 @@ describe("formatCount and formatSigned", () => {
         expect(formatSigned(-5944924)).toBe("\u22125,944,924");
         expect(formatSigned(2.5)).toBe("+2.5");
         expect(formatSigned(0, "%")).toBe("0%");
+    });
+});
+
+describe("formatShare", () => {
+    it("prints one decimal, none when whole, as the governorate card and map agree", () => {
+        expect(formatShare(1, 3)).toBe("33.3%");
+        expect(formatShare(1, 2)).toBe("50%");
+        expect(formatShare(0, 0)).toBe("0%");
+        expect(formatShare(2, 3)).toBe("66.7%");
     });
 });

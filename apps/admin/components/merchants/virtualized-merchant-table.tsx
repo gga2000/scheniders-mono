@@ -4,6 +4,7 @@ import { useRef, useCallback } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TableDensity, MerchantColumnId, SortConfig } from "@/types/admin";
+import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import { MERCHANT_COLUMNS, PLAN_LABELS } from "@/types/admin";
 import {
   ArrowUp,
@@ -128,17 +129,28 @@ export function VirtualizedMerchantTable({
             if (!colDef) return null;
             const sortInfo = getSortInfo(colId);
             const isNumeric = ["balance", "orders", "health", "revenue"].includes(colId);
+            const headerClass = cn(
+              "flex-1 min-w-0 px-3 py-3 text-[9px] font-black text-foreground/45 uppercase tracking-[0.1em] select-none flex items-center gap-1",
+              isNumeric && "justify-end",
+              colId === "business" && "flex-[2]",
+              colId === "tags" && "flex-[1.5]",
+            );
+
+            // Orders, fees and last active are counted per page: no header to press.
+            if (!isSortableMerchantColumn(colId)) {
+              return (
+                <div key={colId} className={headerClass}>
+                  <span>{colDef.label}</span>
+                </div>
+              );
+            }
 
             return (
-              <div
+              <button
+                type="button"
                 key={colId}
                 onClick={(e) => handleHeaderClick(colId, e)}
-                className={cn(
-                  "flex-1 min-w-0 px-3 py-3 text-[9px] font-black text-foreground/45 uppercase tracking-[0.1em] cursor-pointer select-none hover:text-foreground/80 transition-colors flex items-center gap-1",
-                  isNumeric && "justify-end",
-                  colId === "business" && "flex-[2]",
-                  colId === "tags" && "flex-[1.5]",
-                )}
+                className={cn(headerClass, "group cursor-pointer hover:text-foreground/80 transition-colors")}
               >
                 <span>{colDef.label}</span>
                 {sortInfo ? (
@@ -157,7 +169,7 @@ export function VirtualizedMerchantTable({
                 ) : (
                   <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-30" />
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -342,7 +354,8 @@ function renderCell(
     }
 
     case "orders": {
-      const orders = m.usage?.orders_count ?? 0;
+      // Real orders, last 30 days: the card's number. The usage row counts what was billed.
+      const orders = m.orders_30d ?? 0;
       return (
         <div className="flex flex-col items-end leading-tight">
           <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
@@ -372,15 +385,14 @@ function renderCell(
       );
 
     case "revenue": {
-      const rev = m.monthly_revenue ?? 0;
       return (
         <div className="flex flex-col items-end leading-tight">
           <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
-            Revenue
+            Our fees
           </span>
           <span className="font-black tabular-nums text-foreground/85 text-[13px]">
-            {formatCompactIQD(rev)}
-            <span className="text-[9px] font-bold text-foreground/40 ml-1">/mo</span>
+            {formatCompactIQD(m.fees_30d)}
+            <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
           </span>
         </div>
       );

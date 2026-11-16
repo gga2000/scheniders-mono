@@ -74,8 +74,8 @@ describe("GET /api/merchants", () => {
     expect(merchants[0]).toMatchObject({
       id: "shop-1",
       orders_30d: 1203,
-      monthly_revenue: 9085,
-      daily_revenue: 55,
+      fees_30d: 9085,
+      fees_today: 55,
       last_active_at: "2026-11-16T05:30:00+00:00",
       usage: { orders_count: 1203, orders_charged: 1100, team_members_count: 3 },
       // The team is the shop's active members today, not the usage row's number from sign-up.
@@ -83,7 +83,7 @@ describe("GET /api/merchants", () => {
       billing_lock: null,
       tags: [],
     });
-    expect(merchants[1]).toMatchObject({ orders_30d: 0, monthly_revenue: 0, last_active_at: null, usage: null });
+    expect(merchants[1]).toMatchObject({ orders_30d: 0, fees_30d: 0, last_active_at: null, usage: null });
   });
 
   it("uses the last order as last activity when it is later than the last wallet line, whatever the time zone it is written in", async () => {
@@ -182,6 +182,30 @@ describe("GET /api/merchants", () => {
     expect(stub.callsTo("admin_notes.order")).toEqual([["updated_at", { ascending: false }]]);
   });
 
+  describe("sort", () => {
+    it("orders on the database's column for the header pressed, empty values last", async () => {
+      expect((await call("sort=balance:desc,business:asc")).status).toBe(200);
+      expect(stub.callsTo("tenants.order")).toEqual([
+        ["wallet(balance_iqd)", { ascending: false, nullsFirst: false }],
+        ["business_name", { ascending: true, nullsFirst: false }],
+        // The tie-break, so a page boundary cannot skip or repeat a shop.
+        ["id", { ascending: true }],
+      ]);
+    });
+
+    it("lists the newest shops first when no sort is asked for", async () => {
+      await call();
+      expect(stub.callsTo("tenants.order")[0]).toEqual(["created_at", { ascending: false, nullsFirst: false }]);
+    });
+
+    it("answers 400 with plain words for a column it cannot sort by, without reading", async () => {
+      const response = await call("sort=revenue:desc");
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: 'The list cannot be sorted by "revenue"' });
+      expect(stub.tablesRead()).toEqual([]);
+    });
+  });
+
   describe("ids", () => {
     const A = "11111111-1111-4111-8111-111111111111";
     const B = "22222222-2222-4222-8222-222222222222";
@@ -197,7 +221,7 @@ describe("GET /api/merchants", () => {
       expect(merchants.map((m: { id: string }) => m.id).sort()).toEqual([A, C]);
       expect(merchants.find((m: { id: string }) => m.id === C)).toMatchObject({
         orders_30d: 12,
-        monthly_revenue: 660,
+        fees_30d: 660,
         team_members: 2,
       });
     });
@@ -237,7 +261,7 @@ describe("GET /api/merchants", () => {
     await call("sort=created_at:desc");
 
     expect(stub.callsTo("tenants.order")).toEqual([
-      ["created_at", { ascending: false }],
+      ["created_at", { ascending: false, nullsFirst: false }],
       ["id", { ascending: true }],
     ]);
   });

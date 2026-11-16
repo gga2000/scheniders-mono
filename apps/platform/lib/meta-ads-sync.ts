@@ -68,7 +68,11 @@ async function postAdSpendExpenses(db: ServiceDb, tenantId: string, since: strin
     }
 }
 
-/** Pull the rolling window for one tenant and upsert it. Service-role client only. */
+/**
+ * Pull the rolling window for one tenant and upsert it. Service-role client
+ * only. Every try, good or failed, stamps the row's updated_at: the cron
+ * takes stores least recently tried first.
+ */
 export async function syncMetaAdsForTenant(
     db: ReturnType<typeof createSupabaseServiceClient>,
     conn: MetaAdsConnection,
@@ -138,14 +142,14 @@ export async function syncMetaAdsForTenant(
 
         await db
             .from("meta_ads_connections")
-            .update({ last_synced_at: new Date().toISOString(), last_error: null })
+            .update({ last_synced_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() })
             .eq("tenant_id", conn.tenant_id);
         return { ok: true, rows: days.length };
     } catch (e) {
         const message = e instanceof MetaAdsError || e instanceof Error ? e.message : "Sync failed";
         await db
             .from("meta_ads_connections")
-            .update({ last_error: message.slice(0, 500) })
+            .update({ last_error: message.slice(0, 500), updated_at: new Date().toISOString() })
             .eq("tenant_id", conn.tenant_id);
         return { ok: false, rows: 0, error: message };
     }
