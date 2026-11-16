@@ -13,7 +13,7 @@ interface StockShelfProps {
 
 /**
  * Money sitting in goods: what the pieces on the shelf cost, then how many
- * pieces that figure covers. Stock bought in the period is named here too,
+ * pieces that figure covers, then the three products holding most of it. Stock bought in the period is named here too,
  * because it is cash that left without being a cost of the period (the goods
  * count when they sell).
  */
@@ -21,7 +21,7 @@ export function StockShelf({ summary }: StockShelfProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { pieces, costed_pieces: costed, cost_value: value, missing_cost_products: missing } = summary.stock;
+    const { pieces, costed_pieces: costed, cost_value: value, missing_cost_products: missing, top } = summary.stock;
     const bought = stockPurchases(summary);
     const note = "text-left text-[13px] leading-relaxed";
 
@@ -63,6 +63,24 @@ export function StockShelf({ summary }: StockShelfProps) {
                     </p>
                 )}
             </div>
+            {top.length > 0 && (
+                <div className="mt-4 border-t border-[var(--card-border)] pt-3.5" data-testid="stock-top">
+                    <h3 className="text-left text-[12.5px] font-semibold text-muted" dir={dir}>{t("fin.stock.top")}</h3>
+                    <ol className="mt-2 space-y-2">
+                        {top.map((product) => (
+                            <li key={product.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3">
+                                <div className="min-w-0">
+                                    <div className="truncate text-left text-[13.5px] font-medium text-foreground" dir={dir} title={product.name}>{product.name}</div>
+                                    <div className="text-left text-[12px] text-muted" dir={dir}>
+                                        {t("fin.stock.pieces", { n: formatWhole(product.pieces), count: product.pieces })}
+                                    </div>
+                                </div>
+                                <Money value={product.value} className="text-[14px] font-semibold text-foreground" />
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            )}
         </SummaryCard>
     );
 }

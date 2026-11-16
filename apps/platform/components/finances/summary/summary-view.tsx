@@ -16,6 +16,7 @@ import { ProfitPath } from "./profit-path";
 import { ProfitStatement } from "./profit-statement";
 import { ReturnedParcels } from "./returned-parcels";
 import { StockShelf } from "./stock-shelf";
+import { SummaryPanel } from "./summary-card";
 import { SummaryAlerts } from "./summary-alerts";
 import { SummarySkeleton } from "./summary-skeleton";
 
@@ -35,7 +36,7 @@ interface SummaryViewProps {
  * The Summary tab, in the order a shop owner asks: did I make money (the dark
  * strip), where did my sales go (the statement), where is my cash and is the
  * period building (the money route, then the path beside it), which product
- * earns, then three cards in one style: what returns cost, what the ads and
+ * earns, then one panel of three columns: what returns cost, what the ads and
  * the daily costs ask of each day, and the money sitting in stock.
  * Every figure comes from one database answer (useFinanceSummary).
  */
@@ -92,11 +93,11 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             {!nothingDelivered && <ProductRanking rows={products} />}
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <SummaryPanel testId="summary-bottom">
                 <ReturnedParcels summary={summary} />
                 <DailyCosts summary={summary} statement={statement} onOpenTab={onOpenTab} />
                 <StockShelf summary={summary} />
-            </div>
+            </SummaryPanel>
 
             {importOpen && (
                 <DeliveryImportModal

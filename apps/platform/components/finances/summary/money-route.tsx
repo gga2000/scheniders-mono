@@ -1,171 +1,185 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, FileUp, HandCoins, Truck, Wallet, type LucideIcon } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { ArrowUpRight, FileUp } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { primeOwes, type FinanceSummary } from "@/lib/finance/summary";
+import type { FinanceSummary } from "@/lib/finance/summary";
+import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
-import { SummaryCard } from "./summary-card";
+import { CARD_LINK, SummaryCard } from "./summary-card";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
-    /** Opens the courier payment file import: how a payment gets onto the last stop. */
+    /** Opens the courier payment file import: how an unpaid order becomes paid. */
     onAddPayment: () => void;
 }
 
-interface StopProps {
-    icon: LucideIcon;
+/** Your money, not in your hand yet: the green of "reached you", striped. */
+const UNPAID_FILL = `repeating-linear-gradient(135deg, ${PROFIT_COLOR} 0 3px, ${PROFIT_COLOR}59 3px 6px)`;
+const FILLS = {
+    reached: PROFIT_COLOR,
+    fee: COST_COLORS.delivery,
+    unpaid: UNPAID_FILL,
+} as const;
+
+type Part = keyof typeof FILLS;
+
+interface PartRowProps {
+    part: Part | "road";
     label: string;
     note: string;
     amount: number;
     textDir: "rtl" | "ltr";
-    /** Draw the dashed road down to the next stop. */
-    road: boolean;
-    /** The last stop, where the money is in hand: its icon turns green. */
-    arrived?: boolean;
     children?: ReactNode;
-    testId: string;
 }
 
-function Stop({ icon: Icon, label, note, amount, textDir, road, arrived = false, children, testId }: StopProps) {
+function PartRow({ part, label, note, amount, textDir, children }: PartRowProps) {
+    const swatch: CSSProperties | undefined = part === "road" ? undefined : { background: FILLS[part] };
     return (
-        <li className="relative grid grid-cols-[44px_minmax(0,1fr)_auto] items-start gap-x-3.5 pb-6 last:pb-0" data-testid={testId}>
-            {road && <span className="absolute bottom-1 left-[21px] top-[50px] border-l-2 border-dashed border-[var(--card-border)]" aria-hidden="true" />}
+        <li className="grid grid-cols-[12px_minmax(0,1fr)_auto] items-start gap-x-3 py-3 first:pt-0 last:pb-0" data-testid={`money-${part}`}>
             <span
-                className={cn(
-                    "flex size-11 items-center justify-center rounded-[14px]",
-                    arrived ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" : "bg-[var(--background-soft)] text-foreground",
-                )}
-            >
-                <Icon className="size-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 pt-0.5">
+                className={part === "road" ? "mt-[5px] size-3 rounded-[4px] border-2 border-dashed border-stone-400 dark:border-stone-500" : "mt-[5px] size-3 rounded-[4px]"}
+                style={swatch}
+                aria-hidden="true"
+            />
+            <div className="min-w-0">
                 <div className="text-left text-[15px] font-semibold text-foreground" dir={textDir}>{label}</div>
                 <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={textDir}>{note}</p>
                 {children}
             </div>
-            <Money value={amount} className="pt-0.5 text-[20px] font-bold tracking-[-0.01em] text-foreground" />
+            <Money value={amount} className="text-[18px] font-bold tracking-[-0.01em] text-foreground" />
         </li>
     );
 }
 
 /**
- * The road order money takes to the merchant, as stops: parcels still with the
- * courier, then delivered parcels Prime has collected but not paid out (both as
- * of now, whatever period is picked), and last the courier payments that
- * reached the shop in the period. Payments are dated by the courier, sales by
- * the delivery, so the last line says how many of the period's delivered orders
- * are already paid: without it the card looks as if money were missing.
+ * Where the period's sales are now. The delivered sales are cut in three,
+ * order by order: what already reached the shop (after the delivery fee), the
+ * delivery fee itself, and what the courier or Prime has not paid yet. The
+ * three add up to the sales to the dinar, so nothing looks missing. Parcels
+ * still on the road sit under a line, because they are not sales yet. The
+ * courier payments dated in the period are a quiet caption: a payment file can
+ * pay for orders of an earlier period, so that figure never matches the sales.
  * Stuck parcels are not repeated here: the strip and the banner above carry them.
  */
 export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, returning, prime_linked: primeLinked, prime_held: held, reached } = summary.cash;
-    const { orders, paid_orders: paid } = summary.sales;
-    const nothingOutside = road.count === 0 && returning.count === 0 && held.parcels === 0 && reached.payments === 0;
-    const dayText = useMemo(
-        () => new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { day: "numeric", month: "short", timeZone: "UTC" }),
-        [language],
-    );
-    const lastDay = reached.last_day === null ? "" : dayText.format(new Date(`${reached.last_day}T00:00:00Z`));
-    const reachedNote =
-        reached.payments === 0
-            ? t("fin.money.reached.none")
-            : reached.payments === 1
-              ? t("fin.money.reached.one", { date: lastDay })
-              : t("fin.money.reached.many", { n: formatWhole(reached.payments), date: lastDay, amount: money(reached.last_amount) });
-    const addPayment = (
-        <button
-            type="button"
-            onClick={onAddPayment}
-            className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
-            data-testid="money-add-payment"
-        >
-            <FileUp className="size-3.5" aria-hidden="true" />
-            {t("fin.money.addPayment")}
-        </button>
-    );
+    const { in_transit: road, returning, prime_linked: primeLinked, reached: payments, split } = summary.cash;
+    const { orders, revenue } = summary.sales;
+    const courierOnly = split.unpaid_orders - split.unpaid_prime;
+    const sold = orders > 0;
+    const onRoad = road.count > 0 || returning.count > 0;
+
+    const share = (amount: number) => (revenue > 0 ? Math.round((Math.max(amount, 0) / revenue) * 100) : 0);
+    const unpaidNote =
+        split.unpaid_orders === 0
+            ? t("fin.money.unpaid.none")
+            : split.unpaid_prime > 0 && courierOnly > 0
+              ? t("fin.money.unpaid.both", {
+                    n: formatWhole(split.unpaid_orders),
+                    count: split.unpaid_orders,
+                    prime: formatWhole(split.unpaid_prime),
+                    courier: formatWhole(courierOnly),
+                })
+              : split.unpaid_prime > 0
+                ? t("fin.money.unpaid.prime", { n: formatWhole(split.unpaid_prime), count: split.unpaid_prime })
+                : t("fin.money.unpaid.courier", { n: formatWhole(courierOnly), count: courierOnly });
+    const paymentsNote =
+        payments.payments === 0
+            ? t("fin.money.payments.none")
+            : payments.payments === 1
+              ? t("fin.money.payments.one", { amount: money(payments.amount) })
+              : t("fin.money.payments", { n: formatWhole(payments.payments), amount: money(payments.amount) });
 
     return (
-        <SummaryCard title={t("fin.money.title")} sub={t("fin.money.sub")} textDir={dir} testId="money-route" className="h-full">
-            {nothingOutside ? (
-                <div className="py-2">
-                    <p className="text-left text-[14px] text-muted" dir={dir}>{t("fin.money.none")}</p>
-                    {addPayment}
+        <SummaryCard
+            title={t("fin.money.title")}
+            sub={t("fin.money.sub")}
+            textDir={dir}
+            testId="money-route"
+            className="h-full"
+            action={
+                sold && (
+                    <div className="text-right" data-testid="money-sold">
+                        <Money value={revenue} className="text-[22px] font-bold tracking-[-0.01em] text-foreground" />
+                        <p className="mt-0.5 text-[12.5px] text-muted" dir={dir}>
+                            {t("fin.money.orders", { n: formatWhole(orders), count: orders })}
+                        </p>
+                    </div>
+                )
+            }
+            footer={
+                <div className="w-full">
+                    <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments">{paymentsNote}</p>
+                    <button type="button" onClick={onAddPayment} className={`${CARD_LINK} mt-1.5`} data-testid="money-add-payment">
+                        <FileUp className="size-3.5" aria-hidden="true" />
+                        {t("fin.money.addPayment")}
+                    </button>
                 </div>
-            ) : (
-                <ol>
-                    <Stop
-                        icon={Truck}
+            }
+        >
+            {!sold && !onRoad && <p className="py-2 text-left text-[14px] text-muted" dir={dir}>{t("fin.money.none")}</p>}
+
+            {sold && (
+                <>
+                    <div
+                        className="mb-5 flex h-3 gap-[3px] overflow-hidden rounded-full"
+                        role="img"
+                        aria-label={t("fin.money.split", { reached: share(split.reached), fee: share(split.fee), unpaid: share(split.unpaid) })}
+                        data-testid="money-split"
+                    >
+                        {(["reached", "fee", "unpaid"] as const).map((part) =>
+                            split[part] > 0 ? (
+                                <i key={part} className="block min-w-[3px]" style={{ flex: `${split[part]} 1 0`, background: FILLS[part] }} />
+                            ) : null,
+                        )}
+                    </div>
+                    <ul>
+                        <PartRow
+                            part="reached"
+                            label={t("fin.money.reached")}
+                            note={t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders })}
+                            amount={split.reached}
+                            textDir={dir}
+                        />
+                        <PartRow
+                            part="fee"
+                            label={t("fin.money.fee")}
+                            note={primeLinked ? t("fin.money.fee.note") : t("fin.money.fee.noteCourier")}
+                            amount={split.fee}
+                            textDir={dir}
+                        />
+                        <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
+                            {split.unpaid_prime > 0 && (
+                                <Link href="/prime" className={`${CARD_LINK} mt-1.5`}>
+                                    {t("fin.money.prime.open")}
+                                    <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                                </Link>
+                            )}
+                        </PartRow>
+                    </ul>
+                </>
+            )}
+
+            {onRoad && (
+                <ul className={sold ? "mt-4 border-t border-[var(--card-border)] pt-4" : undefined}>
+                    <PartRow
+                        part="road"
                         label={t("fin.money.road")}
                         note={t("fin.money.road.note", { n: formatWhole(road.count), count: road.count })}
                         amount={road.amount}
                         textDir={dir}
-                        road
-                        testId="money-road"
                     >
                         {returning.count > 0 && (
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
                             </p>
                         )}
-                    </Stop>
-                    {primeLinked && (
-                        <Stop
-                            icon={HandCoins}
-                            label={t("fin.money.prime")}
-                            note={
-                                held.parcels === 0
-                                    ? t("fin.money.prime.none")
-                                    : t("fin.money.prime.note", {
-                                          n: formatWhole(held.parcels),
-                                          count: held.parcels,
-                                          collected: money(held.collected),
-                                          fee: money(held.fee),
-                                      })
-                            }
-                            amount={primeOwes(summary)}
-                            textDir={dir}
-                            road
-                            testId="money-prime"
-                        >
-                            <Link
-                                href="/prime"
-                                className="mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
-                            >
-                                {t("fin.money.prime.open")}
-                                <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                            </Link>
-                        </Stop>
-                    )}
-                    <Stop
-                        icon={Wallet}
-                        label={t("fin.money.reached")}
-                        note={reachedNote}
-                        amount={reached.amount}
-                        textDir={dir}
-                        road={false}
-                        arrived
-                        testId="money-reached"
-                    >
-                        {addPayment}
-                    </Stop>
-                </ol>
-            )}
-            {orders > 0 && paid > 0 && (
-                <p
-                    className="mt-5 border-t border-[var(--card-border)] pt-3.5 text-left text-[13px] leading-relaxed text-muted"
-                    dir={dir}
-                    data-testid="money-paid"
-                >
-                    {paid >= orders
-                        ? t("fin.money.paidAll", { orders: formatWhole(orders) })
-                        : t("fin.money.paid", { orders: formatWhole(orders), paid: formatWhole(paid) })}
-                </p>
+                    </PartRow>
+                </ul>
             )}
         </SummaryCard>
     );

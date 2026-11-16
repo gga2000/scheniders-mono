@@ -21,15 +21,16 @@ const VIEW_H = 200;
 const LINE_HEIGHT = 250;
 /** Room above the highest point and under the lowest, as a share of the range. */
 const PAD = 0.1;
-/** A day is called out on the chart when it alone made at least this share of the path's range. */
+/** A day gets a ring on the line, and its name under the chart, when it alone made at least this share of the path's range. */
 const JUMP = 0.2;
 
 /**
  * Profit added up from the period's first day: a line that climbs on the days
  * money lands and dips on the days only costs do, ending on the net profit.
  * The scale on its side says how much a height is worth. Sales often land on
- * a few days (when the courier's payments are entered), so the page names no
- * "best day": it would be the day a payment file was entered.
+ * a few days (when the courier's payments are entered): the one or two days
+ * that jump keep a small ring on the line, and one quiet line under the chart
+ * names them, so no label ever covers the line.
  */
 export function ProfitPath({ daily }: ProfitPathProps) {
     const { t, language } = useLanguage();
@@ -73,8 +74,8 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             .filter((j) => j.profit >= range * JUMP)
             .sort((a, b) => b.profit - a.profit)
             .slice(0, 2);
-        // Two call-outs too close to read apart: keep the bigger one.
-        const called = jumps.length === 2 && Math.abs(x(jumps[0].i) - x(jumps[1].i)) < 0.2 ? jumps.slice(0, 1) : jumps;
+        // Named in date order under the chart.
+        const called = jumps.sort((a, b) => a.i - b.i);
 
         return { x, y, line, area, zero, called, marks: scaleMarks(low, high) };
     }, [points]);
@@ -96,6 +97,19 @@ export function ProfitPath({ daily }: ProfitPathProps) {
     const net = last?.running ?? 0;
     const every = Math.max(1, Math.ceil(points.length / LABELS));
     const active = hovered === null ? null : points[hovered] ?? null;
+    const bigDay = ({ i, profit }: { i: number; profit: number }) =>
+        t("fin.path.big.item", {
+            date: pointLabel(points[i]),
+            orders: t("fin.path.orders", { n: formatWhole(points[i].orders), count: points[i].orders }),
+            // Kept left-to-right inside an Arabic sentence, so the plus stays in front of its digits.
+            profit: `\u2066+${formatWhole(profit)}\u2069`,
+        });
+    const bigDays =
+        chart.called.length === 2
+            ? t(`fin.path.bigTwo.${step}`, { a: bigDay(chart.called[0]), b: bigDay(chart.called[1]) })
+            : chart.called.length === 1
+              ? t(`fin.path.bigOne.${step}`, { a: bigDay(chart.called[0]) })
+              : null;
     const sign = (value: number) => (value < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400");
 
     return (
@@ -178,25 +192,15 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                             </svg>
 
 
-                            {chart.called.map(({ i, profit }) => {
-                                const at = chart.x(i);
-                                return (
-                                    <span
-                                        key={points[i].from}
-                                        className={cn(
-                                            "pointer-events-none absolute whitespace-nowrap rounded-full bg-stone-900 px-2.5 py-1 text-[11.5px] font-semibold text-stone-50 dark:bg-stone-100 dark:text-stone-900",
-                                            at < 0.25 ? "" : at > 0.75 ? "-translate-x-full" : "-translate-x-1/2",
-                                            hovered !== null && "opacity-0",
-                                        )}
-                                        style={{ left: `${at * 100}%`, top: `calc(${chart.y(points[i].running) * 100}% - 34px)` }}
-                                        data-jump={points[i].from}
-                                        dir="ltr"
-                                    >
-                                        +{formatWhole(profit)}
-                                        <span className="ml-1.5 font-medium opacity-70" dir={dir}>{t("fin.path.orders", { n: formatWhole(points[i].orders), count: points[i].orders })}</span>
-                                    </span>
-                                );
-                            })}
+                            {chart.called.map(({ i }) => (
+                                <span
+                                    key={points[i].from}
+                                    className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-[var(--card-bg)]"
+                                    style={{ left: `${chart.x(i) * 100}%`, top: `${chart.y(points[i].running) * 100}%`, borderColor: PROFIT_COLOR }}
+                                    data-jump={points[i].from}
+                                    aria-hidden="true"
+                                />
+                            ))}
 
                             {last && (
                                 <>
@@ -259,6 +263,9 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                         </div>
                     </div>
                 </div>
+                {bigDays && (
+                    <p className="mt-3 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="profit-path-big">{bigDays}</p>
+                )}
             </div>
         </SummaryCard>
     );
