@@ -670,7 +670,8 @@ describe("billing lock staff tools", () => {
 
 describe("pause attribution", () => {
   it("stores the admin's uuid in tenants.restrictions.paused_by, never the email", async () => {
-    dbResult = { data: { id: TENANT, status: "limited", restrictions: {} }, error: null };
+    // The pause is written by the database function pause_tenant, which answers with the shop's row.
+    dbResult = { data: [{ id: TENANT, status: "limited", restrictions: {} }], error: null };
     const { POST } = await import("./merchants/[id]/pause/route");
     const res = await POST(
       req(`/api/merchants/${TENANT}/pause`, "POST", "super", { duration_days: 7 }),
@@ -678,10 +679,12 @@ describe("pause attribution", () => {
     );
 
     expect(res.status).toBe(200);
-    const update = dbCalls.find((c) => c.method === "update");
-    const restrictions = (update?.args[0] as { restrictions: { paused_by: string } }).restrictions;
-    expect(restrictions.paused_by).toBe(SUPER_ID);
-    expect(JSON.stringify(update?.args[0])).not.toContain("boss@example.com");
+    const pause = dbCalls.find((c) => c.method === "rpc");
+    expect(pause?.args[0]).toBe("pause_tenant");
+    const sent = pause?.args[1] as { _tenant_id: string; _restrictions: { paused_by: string } };
+    expect(sent._tenant_id).toBe(TENANT);
+    expect(sent._restrictions.paused_by).toBe(SUPER_ID);
+    expect(JSON.stringify(sent)).not.toContain("boss@example.com");
   });
 });
 

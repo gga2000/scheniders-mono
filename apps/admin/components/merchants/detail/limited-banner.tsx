@@ -53,10 +53,14 @@ export function LimitedBanner({ merchantId, restrictions }: LimitedBannerProps) 
   const unpause = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/merchants/${merchantId}/unpause`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to resume");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Could not resume this shop");
+      }
       return res.json();
     },
-    onSuccess: () => {
+    // Also after a failure: "This shop is not paused" means someone else resumed it, and the record is stale.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
     },
@@ -109,6 +113,11 @@ export function LimitedBanner({ merchantId, restrictions }: LimitedBannerProps) 
           {pausedUntil && !expired && (
             <p className="text-[10px] text-amber-700/70 dark:text-amber-300/70 font-medium mt-2">
               Auto-resume on {pausedUntil.toLocaleString()}
+            </p>
+          )}
+          {unpause.error && (
+            <p role="alert" className="text-[11px] text-rose-600 font-semibold mt-2">
+              {unpause.error.message}
             </p>
           )}
         </div>
