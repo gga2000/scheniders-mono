@@ -55,22 +55,6 @@ function getTrialDaysRemaining(trialEndsAt: string | null): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-function calculateHealthScore(merchant: AdminTenant): number {
-  let score = 50;
-  if (merchant.status === "active") score += 15;
-  else if (merchant.status === "trial") score += 5;
-  else if (merchant.status === "suspended") score -= 20;
-  const balance = merchant.wallet?.balance_iqd ?? 0;
-  if (balance > 50000) score += 15;
-  else if (balance > 10000) score += 5;
-  else score -= 10;
-  const orders = merchant.usage?.orders_count ?? 0;
-  if (orders > 50) score += 15;
-  else if (orders > 10) score += 10;
-  else if (orders > 0) score += 5;
-  return Math.max(0, Math.min(100, score));
-}
-
 function isChurnRisk(merchant: AdminTenant): boolean {
   const balance = merchant.wallet?.balance_iqd ?? 0;
   const orders = merchant.usage?.orders_count ?? 0;
@@ -128,7 +112,7 @@ export function MerchantCard({
 }: MerchantCardProps) {
   const logoChar = merchant.business_name?.charAt(0)?.toUpperCase() || "?";
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
-  const healthScore = calculateHealthScore(merchant);
+  const healthScore = merchant.staff_health_score;
   const churnRisk = isChurnRisk(merchant);
   const lastActive = merchant.last_active_at ? timeAgo(merchant.last_active_at) : null;
 

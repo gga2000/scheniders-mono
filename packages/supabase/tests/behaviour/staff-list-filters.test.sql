@@ -1,10 +1,11 @@
 -- =============================================================================
--- staff_wallet_balance, staff_needs_attention, staff_health_score: behaviour test
+-- staff_wallet_balance, staff_needs_attention, staff_health_score and
+-- staff_health_parts: behaviour test
 -- =============================================================================
 --
--- WHAT THIS PROVES (after the staff_list_filters migration)
+-- WHAT THIS PROVES (after the staff_list_filters and staff_health_parts migrations)
 --   Access:
---     * anon and authenticated can run none of the three; the service role can.
+--     * anon and authenticated can run none of the four; the service role can.
 --   Wallet balance:
 --     * the balance of the shop's wallet row; 0 for a shop with no wallet row.
 --   Needs attention:
@@ -18,12 +19,15 @@
 --   Health score:
 --     * 50, plus or minus status, balance and the orders of the newest usage
 --       month, also across a year change;
---     * every step of the balance and orders ladders, at its edges.
+--     * every step of the balance and orders ladders, at its edges;
+--     * the three parts the console shows (status, wallet, orders) are the
+--       numbers the score is made of: 50 plus the parts, kept in 0 to 100, is
+--       the score, for every shop.
 --   Used as the API uses them:
 --     * each works as a filter over public.tenants, so the list can count and
 --       page in the database.
 --
--- Runs in CI through run.sh: staff-list-filters.fixture.sql, the migration
+-- Runs in CI through run.sh: staff-list-filters.fixture.sql, the migrations
 -- named in staff-list-filters.migrations, then the newest definition of each
 -- function in staff-list-filters.functions (the real tenant_billing_lock
 -- among them).
@@ -54,7 +58,8 @@ BEGIN
     FOREACH _fn IN ARRAY ARRAY[
         'public.staff_wallet_balance(public.tenants)',
         'public.staff_needs_attention(public.tenants)',
-        'public.staff_health_score(public.tenants)'
+        'public.staff_health_score(public.tenants)',
+        'public.staff_health_parts(public.tenants)'
     ] LOOP
         PERFORM pg_temp.check('access: anon can run ' || _fn, NOT has_function_privilege('anon', _fn, 'EXECUTE'));
         PERFORM pg_temp.check('access: authenticated can run ' || _fn, NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
@@ -139,7 +144,8 @@ BEGIN
         SELECT s.name, s.balance, s.want_attention, s.want_score,
                public.staff_wallet_balance(t) AS balance_got,
                public.staff_needs_attention(t) AS attention_got,
-               public.staff_health_score(t) AS score_got
+               public.staff_health_score(t) AS score_got,
+               public.staff_health_parts(t) AS parts_got
         FROM tt_shops s JOIN public.tenants t ON t.id = s.id
     LOOP
         PERFORM pg_temp.check(format('%s: balance %s, got %s', _r.name, coalesce(_r.balance, 0), _r.balance_got),
@@ -148,6 +154,29 @@ BEGIN
             _r.attention_got = _r.want_attention);
         PERFORM pg_temp.check(format('%s: health %s, got %s', _r.name, _r.want_score, _r.score_got),
             _r.score_got = _r.want_score);
+        -- The parts are what the score is made of, not a second sum that can drift from it.
+        PERFORM pg_temp.check(format('%s: parts %s do not add up to health %s', _r.name, _r.parts_got, _r.score_got),
+            _r.score_got = greatest(0, least(100, 50
+                + (_r.parts_got ->> 'status')::integer
+                + (_r.parts_got ->> 'wallet')::integer
+                + (_r.parts_got ->> 'orders')::integer)));
+    END LOOP;
+
+    -- Each part on its own, at the top, the bottom and the middle of its ladder.
+    FOR _r IN
+        SELECT w.name, w.want, public.staff_health_parts(t) AS got
+        FROM (VALUES
+            ('paying, full wallet, busy',   '{"status": 15, "wallet": 15, "orders": 15}'::jsonb),
+            ('paused, empty, quiet',        '{"status": -20, "wallet": -10, "orders": 0}'::jsonb),
+            ('trial, ends in 4 days',       '{"status": 5, "wallet": 5, "orders": 5}'::jsonb),
+            ('paying, 10,001 IQD, 11 orders', '{"status": 15, "wallet": 5, "orders": 10}'::jsonb),
+            ('paying, no wallet, no usage', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
+            ('limited, full wallet',        '{"status": 0, "wallet": 15, "orders": 0}'::jsonb)
+        ) AS w(name, want)
+        JOIN tt_shops s ON s.name = w.name
+        JOIN public.tenants t ON t.id = s.id
+    LOOP
+        PERFORM pg_temp.check(format('%s: parts %s, got %s', _r.name, _r.want, _r.got), _r.got = _r.want);
     END LOOP;
 
     -- As the API uses them: a filter over the table, counted in the database.

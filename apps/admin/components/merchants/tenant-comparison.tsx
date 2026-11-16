@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, ArrowRight } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { cn } from "@/lib/utils";
+import type { HealthParts } from "@/types/admin";
 import {
   RadarChart,
   PolarGrid,
@@ -27,7 +28,8 @@ interface ComparisonTenant {
   created_at: string;
   order_sparkline?: number[];
   monthly_revenue?: number;
-  health_score?: number;
+  health_score: number;
+  health_parts: HealthParts;
 }
 
 interface TenantComparisonProps {
@@ -50,29 +52,18 @@ const METRICS: Array<{
   { key: "wallet_balance", label: "Wallet Balance", format: (v) => `${new Intl.NumberFormat("en-IQ").format(v as number)} IQD`, higherIsBetter: true },
   { key: "team_size", label: "Team Size", format: (v) => String(v), higherIsBetter: true },
   { key: "monthly_revenue", label: "Monthly Revenue", format: (v) => `${new Intl.NumberFormat("en-IQ").format((v as number) ?? 0)} IQD`, higherIsBetter: true },
-  { key: "health_score", label: "Health Score", format: (v) => String((v as number) ?? 0), higherIsBetter: true },
+  { key: "health_score", label: "Health Score", format: (v) => String(v as number), higherIsBetter: true },
   { key: "city", label: "City", format: (v) => (v as string) || "\u2014" },
   { key: "created_at", label: "Created", format: (v) => new Date(v as string).toLocaleDateString() },
 ];
 
+/**
+ * The radar's three axes: the parts of the health score, as the database
+ * worked them out. A part that takes points away sits at the centre, at 0.
+ */
 function computeHealthDimensions(tenant: ComparisonTenant) {
-  // Status: active=15, trial=5, suspended=0
-  let statusScore = 0;
-  if (tenant.status === "active") statusScore = 15;
-  else if (tenant.status === "trial") statusScore = 5;
-
-  // Wallet: balance>50000=15, >10000=5, else=0
-  let walletScore = 0;
-  if (tenant.wallet_balance > 50000) walletScore = 15;
-  else if (tenant.wallet_balance > 10000) walletScore = 5;
-
-  // Orders: orders>50=15, >10=10, >0=5, else=0
-  let ordersScore = 0;
-  if (tenant.order_count > 50) ordersScore = 15;
-  else if (tenant.order_count > 10) ordersScore = 10;
-  else if (tenant.order_count > 0) ordersScore = 5;
-
-  return { Status: statusScore, Wallet: walletScore, Orders: ordersScore };
+  const { status, wallet, orders } = tenant.health_parts;
+  return { Status: Math.max(0, status), Wallet: Math.max(0, wallet), Orders: Math.max(0, orders) };
 }
 
 function SparklineOverlay({ tenants }: { tenants: ComparisonTenant[] }) {
@@ -156,7 +147,8 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
             created_at: m.created_at as string,
             order_sparkline: m.order_sparkline as number[] | undefined,
             monthly_revenue: m.monthly_revenue as number | undefined,
-            health_score: m.health_score as number | undefined,
+            health_score: m.staff_health_score as number,
+            health_parts: m.staff_health_parts as HealthParts,
           }));
         setSearchResults(results);
       } catch {

@@ -24,22 +24,6 @@ function formatCompactIQD(amount: number): string {
   return String(amount);
 }
 
-function calculateHealthScore(m: AdminTenant): number {
-  let score = 50;
-  if (m.status === "active") score += 15;
-  else if (m.status === "trial") score += 5;
-  else if (m.status === "suspended") score -= 20;
-  const bal = m.wallet?.balance_iqd ?? 0;
-  if (bal > 50000) score += 15;
-  else if (bal > 10000) score += 5;
-  else score -= 10;
-  const orders = m.usage?.orders_count ?? 0;
-  if (orders > 50) score += 15;
-  else if (orders > 10) score += 10;
-  else if (orders > 0) score += 5;
-  return Math.max(0, Math.min(100, score));
-}
-
 function getHealthColor(score: number): string {
   if (score >= 70) return "text-emerald-700 bg-emerald-100 dark:bg-emerald-400/15 dark:text-emerald-300";
   if (score >= 40) return "text-amber-700 bg-amber-100 dark:bg-amber-400/15 dark:text-amber-300";
@@ -185,7 +169,7 @@ export function MerchantSheetView({
             if (!m) return null;
             const isSelected = selectedMerchants.has(m.id);
             const isStarred = starredSet.has(m.id);
-            const healthScore = calculateHealthScore(m);
+            const healthScore = m.staff_health_score;
             const logoBg = m.branding?.primary_color || "#1E1E1E";
 
             return (

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import type { TenantRestrictions } from "@/types/admin";
+import type { HealthParts, TenantRestrictions } from "@/types/admin";
 import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
 
 export interface PlanLimits {
@@ -38,6 +38,9 @@ export interface MerchantDetail {
     is_prospect?: boolean;
     prospect_lead_id?: string | null;
     restrictions?: TenantRestrictions | null;
+    /** 0 to 100, worked out by the database, the same number as in the list. */
+    staff_health_score: number;
+    staff_health_parts: HealthParts;
   };
   wallet: {
     balance_iqd: number;

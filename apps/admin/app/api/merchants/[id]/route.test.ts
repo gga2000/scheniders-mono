@@ -6,6 +6,10 @@ import type { AdminRole } from "@/types/admin";
  * The merchant record carries the store's billing lock (Fermi A1) as the shop
  * itself sees it, read with billing_lock_snapshot, and whether the viewing
  * staff member may unlock a store for free (super admins only).
+ *
+ * It also carries the shop's health score and its parts as the database
+ * worked them out. The shop dialog used to add up the orders of every usage
+ * month itself, the list took the newest month, so one shop showed two scores.
  */
 
 const state: { role: AdminRole } = { role: "super_admin" };
@@ -19,10 +23,23 @@ vi.mock("@/lib/api-auth", () => ({
 type Answer = { data: unknown; error: unknown; count?: number };
 
 const TABLES: Record<string, Answer> = {
-  tenants: { data: { id: TENANT, plan: "starter", status: "trial", trial_ends_at: "2026-11-10T00:00:00Z" }, error: null },
+  tenants: {
+    data: {
+      id: TENANT,
+      plan: "starter",
+      status: "trial",
+      trial_ends_at: "2026-11-10T00:00:00Z",
+      staff_health_score: 65,
+      staff_health_parts: { status: 5, wallet: 5, orders: 5 },
+    },
+    error: null,
+  },
   plan_limits: { data: [{ plan: "starter", max_orders_per_month: 500 }], error: null },
   orders: { data: null, error: null, count: 4 },
 };
+
+/** What each table was asked for: [table, columns]. */
+const selects: Array<[string, unknown]> = [];
 
 /** Every builder method chains; awaiting it answers for the table it started on. */
 function table(name: string): unknown {
@@ -30,7 +47,10 @@ function table(name: string): unknown {
   const chain: unknown = new Proxy(() => undefined, {
     get(_target, prop) {
       if (prop === "then") return (resolve: (value: Answer) => void) => resolve(answer);
-      return () => chain;
+      return (...args: unknown[]) => {
+        if (prop === "select") selects.push([name, args[0]]);
+        return chain;
+      };
     },
   });
   return chain;
@@ -58,6 +78,7 @@ const LOCKED = {
 
 beforeEach(() => {
   state.role = "super_admin";
+  selects.length = 0;
   rpc.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -88,6 +109,17 @@ describe("GET /api/merchants/[id] billing lock", () => {
     rpc.mockResolvedValue({ data: { ...LOCKED, locked: false, reason: null, since: null, orders_left: null }, error: null });
     const body = await (await call()).json();
     expect(body.billingLock).toMatchObject({ locked: false, reason: null, orders_left: null });
+  });
+
+  it("reads the health score and its parts from the database, as the list does", async () => {
+    rpc.mockResolvedValue({ data: LOCKED, error: null });
+    const body = await (await call()).json();
+
+    expect(selects).toContainEqual(["tenants", "*, staff_health_score, staff_health_parts"]);
+    expect(body.tenant).toMatchObject({
+      staff_health_score: 65,
+      staff_health_parts: { status: 5, wallet: 5, orders: 5 },
+    });
   });
 
   it("a lock that cannot be read fails the record instead of showing the store as unlocked", async () => {
