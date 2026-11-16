@@ -234,7 +234,7 @@ export default function PrintingPage() {
                 ) : queue.isError ? (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center dark:border-rose-900 dark:bg-rose-950/40">
                         <p className="font-semibold text-rose-900 dark:text-rose-200">{t("printing.errorTitle")}</p>
-                        <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">{failureHint(queue.error)}</p>
+                        <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">{failureHint(queue.error).hint}</p>
                         <button
                             type="button"
                             onClick={() => void queue.refetch()}

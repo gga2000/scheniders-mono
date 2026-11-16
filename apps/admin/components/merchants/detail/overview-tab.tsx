@@ -2,15 +2,24 @@
 
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { SubscriptionCard } from "./subscription-card";
+import { BillingLockCard } from "./billing-lock-card";
 import { CopyableText } from "@/components/shared/copyable-text";
 
 interface OverviewTabProps {
   merchantId: string;
   tenant: MerchantDetail["tenant"];
   subscription: MerchantDetail["subscription"];
+  billingLock: MerchantDetail["billingLock"];
+  canForceUnlock: boolean;
 }
 
-export function OverviewTab({ merchantId, tenant, subscription }: OverviewTabProps) {
+export function OverviewTab({
+  merchantId,
+  tenant,
+  subscription,
+  billingLock,
+  canForceUnlock,
+}: OverviewTabProps) {
   const infoRows: Array<{
     label: string;
     value: string | null | undefined;
@@ -36,6 +45,10 @@ export function OverviewTab({ merchantId, tenant, subscription }: OverviewTabPro
 
   return (
     <div className="space-y-4">
+      {billingLock?.locked && (
+        <BillingLockCard merchantId={merchantId} lock={billingLock} canForceUnlock={canForceUnlock} />
+      )}
+
       <SubscriptionCard
         merchantId={merchantId}
         tenant={tenant}

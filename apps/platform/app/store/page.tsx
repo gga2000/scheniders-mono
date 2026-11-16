@@ -10,6 +10,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { CommandCenter } from "@/components/store-command-center";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { needsStoreOnboarding } from "@/lib/store-onboarding-state";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 export default function StoreBuilderPage() {
     const { tenantId } = useAuth();
@@ -68,8 +69,9 @@ export default function StoreBuilderPage() {
 
     if (!tenant) {
         return (
-            <div className="text-center py-20 text-muted-foreground">
-                {t("store.notFound")}
+            <div className="flex flex-col items-center gap-4 py-20 text-center text-muted-foreground">
+                <p>{t("store.notFound")}</p>
+                <ContactSupportButton errorCode="store.notFound" errorMessage={t("store.notFound")} />
             </div>
         );
     }

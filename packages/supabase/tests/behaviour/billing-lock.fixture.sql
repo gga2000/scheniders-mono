@@ -1,7 +1,7 @@
 -- Throwaway Postgres 16 database shaped like the live objects the billing lock
 -- touches (handoff A1: tenant_billing_lock, take_lock_order_slot,
 -- create_storefront_order, renew_subscription_core, settle_billing_lock, the
--- credit trigger, charge_delivered_order). Columns copied from the live project
+-- credit trigger, charge_delivered_order, and the staff tools). Columns copied from the live project
 -- (information_schema, 2026-11-16); tables carry only what the functions read.
 -- create_order_atomic, loyalty_phone_key, get_user_tenant_ids and
 -- is_tenant_admin are stubs.
@@ -109,6 +109,17 @@ CREATE TABLE public.orders (
     take_kind text,
     till_session_id uuid,
     billing_phase text CHECK (billing_phase IN ('trial', 'trial_locked', 'unpaid_locked')),
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.admin_activity_logs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id uuid,
+    admin_label text,
+    actor_email text,
+    tenant_id uuid,
+    action text NOT NULL,
+    details jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 

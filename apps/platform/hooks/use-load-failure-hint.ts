@@ -7,12 +7,22 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { useNetworkStatus } from "@/hooks/use-network-status";
-import { loadFailureKind } from "@/lib/load-failure";
+import { loadFailureKind, type LoadFailureKind } from "@/lib/load-failure";
+
+export interface LoadFailureNotice {
+    kind: LoadFailureKind;
+    /** The i18n key of `hint`, which support uses to tell the two cases apart. */
+    hintKey: "common.loadFailedOfflineHint" | "common.loadFailedHint";
+    hint: string;
+}
 
 /** Returns a function that turns a read error into the sentence to show. */
-export function useLoadFailureHint(): (error: unknown) => string {
+export function useLoadFailureHint(): (error: unknown) => LoadFailureNotice {
     const { t } = useLanguage();
     const online = useNetworkStatus();
-    return (error) =>
-        loadFailureKind(error, online) === "network" ? t("common.loadFailedOfflineHint") : t("common.loadFailedHint");
+    return (error) => {
+        const kind = loadFailureKind(error, online);
+        const hintKey = kind === "network" ? "common.loadFailedOfflineHint" : "common.loadFailedHint";
+        return { kind, hintKey, hint: t(hintKey) };
+    };
 }

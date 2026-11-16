@@ -41,7 +41,7 @@ export function OrderPipeline({ pipeline }: OrderPipelineProps) {
           <h3 className="font-bold text-foreground text-sm">Order Pipeline</h3>
           {pipeline && (
             <p className="text-xs text-foreground/50">
-              {new Intl.NumberFormat("en-IQ").format(total)} total orders
+              {new Intl.NumberFormat("en-IQ").format(total)} orders in these stages, last 90 days
             </p>
           )}
         </div>

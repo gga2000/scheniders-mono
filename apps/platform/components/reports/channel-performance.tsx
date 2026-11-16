@@ -89,7 +89,7 @@ export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPer
             <motion.div {...cardMotion} className="pastel-card p-8 text-center">
                 <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-3" />
                 <h3 className="text-base font-bold text-foreground">{t("reports.channels.error")}</h3>
-                <p className="text-xs text-muted mt-1">{failureHint(error)}</p>
+                <p className="text-xs text-muted mt-1">{failureHint(error).hint}</p>
                 <button
                     type="button"
                     onClick={onRetry}

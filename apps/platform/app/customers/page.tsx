@@ -38,6 +38,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { useLoadFailureHint } from "@/hooks/use-load-failure-hint";
 import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
 import { useAppHeaderOffset } from "@/hooks/use-app-header-offset";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
@@ -253,7 +254,8 @@ function CustomersPageContent() {
     // One line of store-wide figures that no saved view already counts. When the
     // list failed to load there is no "shown" count: say nothing rather than "0 of N".
     const listFailed = isError && !data;
-    const failureHint = useLoadFailureHint();
+    const describeFailure = useLoadFailureHint();
+    const failure = describeFailure(error);
     const subtitle = filtered && !listFailed
         ? t("customers.subtitleFiltered", {
             // The total picks the noun's form ("of 2 customers" is a dual in Arabic).
@@ -355,7 +357,7 @@ function CustomersPageContent() {
                         </div>
                         {/* dir="auto": an Arabic sentence ends with its own full stop, not one at its start. */}
                         <p dir="auto" className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
-                        <p dir="auto" className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failureHint(error)}</p>
+                        <p dir="auto" className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failure.hint}</p>
                         <button
                             onClick={() => refetch()}
                             disabled={isRefetching}
@@ -363,6 +365,12 @@ function CustomersPageContent() {
                         >
                             {t("customers.profile.retry")}
                         </button>
+                        {/* A failure on our side, not the merchant's connection: offer support. */}
+                        {failure.kind !== "network" && (
+                            <div className="mt-3">
+                                <ContactSupportButton errorCode={failure.hintKey} errorMessage={failure.hint} />
+                            </div>
+                        )}
                     </div>
                 ) : displayed.length === 0 ? (
                     <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">

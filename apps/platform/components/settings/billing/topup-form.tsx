@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-wallet-topup";
 import { useQiTopup } from "@/hooks/use-qi-topup";
 import { QiPay } from "./qi-pay";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 
@@ -122,9 +123,12 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                         </button>
                     </div>
                 ) : (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-                        {t("billing.topup.noNumber")}
-                    </p>
+                    <div className="space-y-2">
+                        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                            {t("billing.topup.noNumber")}
+                        </p>
+                        <ContactSupportButton errorCode="billing.topup.noNumber" errorMessage={t("billing.topup.noNumber")} />
+                    </div>
                 )}
             </div>
 

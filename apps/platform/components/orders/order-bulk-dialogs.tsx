@@ -193,7 +193,7 @@ export function OrderBulkDialogs({
                                     : "bg-red-600 text-white hover:bg-red-700"
                             )}
                         >
-                            {deleteCountdown > 0 ? t("orderDetail.waitDelete").replace("{n}", String(deleteCountdown)) : isDeleting ? t("common.deleting") : t("orders.deleteConfirm.button").replace("{count}", String(selectedOrders.size))}
+                            {deleteCountdown > 0 ? t("orderDetail.waitDelete").replace("{n}", String(deleteCountdown)) : isDeleting ? t("common.deleting") : t("orders.deleteConfirm.button", { count: selectedOrders.size })}
                         </button>
                     </DialogFooter>
                 </DialogContent>
@@ -271,8 +271,8 @@ function RescheduleDialog({
     const preview = day === undefined
         ? null
         : day === null
-            ? t("orders.bulk.reschedule.previewClear")
-            : t("orders.bulk.reschedule.previewMove").replace("{date}", formatScheduledDate(day));
+            ? t("orders.bulk.reschedule.previewClear", { count: reschedulable.length })
+            : t("orders.bulk.reschedule.previewMove", { count: reschedulable.length, date: formatScheduledDate(day) });
 
     const quick = (label: string, value: string | null, tone: "blue" | "plain") => (
         <button
@@ -321,9 +321,7 @@ function RescheduleDialog({
                             <p className="text-amber-700">{t("orders.bulk.reschedule.nothing")}</p>
                         ) : (
                             <p className="font-medium">
-                                {preview
-                                    ? preview.replace("{count}", String(reschedulable.length))
-                                    : `${reschedulable.length} ${t("orders.selected")}`}
+                                {preview ?? `${reschedulable.length} ${t("orders.selected")}`}
                             </p>
                         )}
                         {skipped.length > 0 && !resolved.pending && (

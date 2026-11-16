@@ -24,6 +24,9 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *   link_prime          — mark a shop's Prime link request done («تم الربط»),
  *                         which tells the shop. Open to support_staff: linking
  *                         couriers is day-to-day onboarding work.
+ *   handle_support      — read merchant support conversations, reply, take
+ *                         ownership and mark them solved. Open to both roles:
+ *                         answering merchants is the support team's job.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -45,6 +48,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "convert_lead",
     "delete_leads",
     "link_prime",
+    "handle_support",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -55,6 +59,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "manage_tags",
     "convert_lead",
     "link_prime",
+    "handle_support",
   ]),
 };
 

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { TenantRestrictions } from "@/types/admin";
+import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
 
 export interface PlanLimits {
   plan: string;
@@ -91,6 +92,10 @@ export interface MerchantDetail {
   }>;
   orderCount: number;
   planLimits: PlanLimits | null;
+  /** The billing lock (Fermi A1); null for an unknown store. */
+  billingLock: BillingLockSnapshot | null;
+  /** Whether the viewing staff member may unlock a store for free. */
+  canForceUnlock: boolean;
 }
 
 export interface RecentOrder {

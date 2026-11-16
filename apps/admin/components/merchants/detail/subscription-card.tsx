@@ -6,6 +6,8 @@ import { Calendar, Clock, Plus, Sparkles, Zap, Repeat, RefreshCw } from "lucide-
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
+import { isStaffReason } from "@/lib/billing-lock-tools";
+import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 
 interface SubscriptionCardProps {
@@ -66,6 +68,9 @@ export function SubscriptionCard({
   const queryClient = useQueryClient();
   const [customDays, setCustomDays] = useState("");
   const [customMode, setCustomMode] = useState<"trial" | "sub" | null>(null);
+  // Extending a trial is logged with the staff member's reason.
+  const [trialReason, setTrialReason] = useState("");
+  const trialReasonOk = isStaffReason(trialReason);
 
   const isTrial = tenant.status === "trial";
   const trialEnd = tenant.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
@@ -114,7 +119,7 @@ export function SubscriptionCard({
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days }),
+        body: JSON.stringify(kind === "trial" ? { days, reason: trialReason.trim() } : { days }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -122,11 +127,12 @@ export function SubscriptionCard({
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, { kind }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       setCustomMode(null);
       setCustomDays("");
+      if (kind === "trial") setTrialReason("");
     },
   });
 
@@ -152,6 +158,7 @@ export function SubscriptionCard({
 
   const handleExtend = (kind: "trial" | "sub", days: number) => {
     if (extendMutation.isPending) return;
+    if (kind === "trial" && !trialReasonOk) return;
     extendMutation.mutate({ kind, days });
   };
 
@@ -264,12 +271,18 @@ export function SubscriptionCard({
             <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
               Extend trial
             </p>
+            <StaffReasonInput
+              value={trialReason}
+              onChange={setTrialReason}
+              placeholder="Why? (saved in the log)"
+              className="mb-2"
+            />
             <div className="flex flex-wrap items-center gap-1.5">
               {TRIAL_PRESETS.map((d) => (
                 <button
                   key={d}
                   type="button"
-                  disabled={extendMutation.isPending}
+                  disabled={extendMutation.isPending || !trialReasonOk}
                   onClick={() => handleExtend("trial", d)}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-foreground text-[11px] font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -293,7 +306,7 @@ export function SubscriptionCard({
                   <button
                     type="button"
                     onClick={handleCustom}
-                    disabled={!customDays || extendMutation.isPending}
+                    disabled={!customDays || !trialReasonOk || extendMutation.isPending}
                     className="p-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
                   >
                     <Zap className="w-3 h-3" />

@@ -39,6 +39,7 @@ import {
     reasonUsageCount,
 } from "@/lib/order-reasons";
 import { useOrderReasonMutations } from "@/hooks/use-order-reasons";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 type Accent = "rose" | "orange";
 
@@ -118,6 +119,11 @@ export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: R
                 <p className="mt-1 text-amber-700/90 dark:text-amber-200/80 leading-relaxed">
                     {t("orders.reasons.notLoaded")}
                 </p>
+                <ContactSupportButton
+                    className="mt-3"
+                    errorCode="orders.reasons.notLoaded"
+                    errorMessage={t("orders.reasons.notLoaded")}
+                />
             </div>
         );
     }

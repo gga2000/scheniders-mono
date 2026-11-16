@@ -38,9 +38,11 @@ import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
 import { LivePresenceStack } from "@/components/chat/live-presence-stack";
 import { ChatTrigger } from "@/components/chat/chat-trigger";
+import { SupportTrigger } from "@/components/support/support-trigger";
 import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { MerchantCodeBadge } from "./merchant-code-badge";
+import { TrialChip } from "@/components/billing/trial-chip";
 import { useHeadroom } from "@/hooks/use-headroom";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@scheniders/ui/dropdown-menu";
 import { HEADER_ACTION_CLASS } from "./header-action-button";
@@ -424,6 +426,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 {/* Left: merchant code badge */}
                 <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
                     <MerchantCodeBadge />
+                    <TrialChip />
                 </div>
 
                 {/* Global Search Centered - Hidden on mobile */}
@@ -443,10 +446,11 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         {/* Divider: work tools | identity & comms */}
                         <div className="w-px h-6 bg-[var(--card-border)]/60 mx-1" />
 
-                        {/* Presence · Chat · Notifications */}
+                        {/* Presence · Chat · Notifications · Help */}
                         <LivePresenceStack />
                         <ChatTrigger />
                         <NotificationsDropdown onOpenChange={setNotifOpen} ownsTitleBadge />
+                        <SupportTrigger />
 
                         {/* Overflow: Theme + Language */}
                         <DropdownMenu>
@@ -503,6 +507,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                     <div className="flex md:hidden items-center gap-2">
                         <ChatTrigger />
                         <NotificationsDropdown onOpenChange={setNotifOpen} />
+                        <SupportTrigger />
                     </div>
                 </div>
             </div>

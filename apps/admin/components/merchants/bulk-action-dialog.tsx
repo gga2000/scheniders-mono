@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle, Bell, MessageSquare, Mail, Sparkles } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
+import { isStaffReason } from "@/lib/billing-lock-tools";
+import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 
 const NOTIFICATION_TEMPLATES: Array<{
   key: string;
@@ -140,6 +142,7 @@ export function BulkActionDialog({
   // Local form state
   const [selectedPlan, setSelectedPlan] = useState<PlanTier>("starter");
   const [extensionDays, setExtensionDays] = useState<number>(7);
+  const [extensionReason, setExtensionReason] = useState("");
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationTemplate, setNotificationTemplate] = useState<string | null>(null);
   const [notificationChannel, setNotificationChannel] = useState<Channel>("in_app");
@@ -155,6 +158,7 @@ export function BulkActionDialog({
   useEffect(() => {
     setSelectedPlan("starter");
     setExtensionDays(7);
+    setExtensionReason("");
     setNotificationMessage("");
     setNotificationTemplate(null);
     setNotificationChannel("in_app");
@@ -222,7 +226,11 @@ export function BulkActionDialog({
         params = { plan: selectedPlan };
         break;
       case "extend-trial":
-        params = { days: extensionDays };
+        if (!isStaffReason(extensionReason)) {
+          setError("Write a reason (at least 3 characters)");
+          return;
+        }
+        params = { days: extensionDays, reason: extensionReason.trim() };
         break;
       case "send-notification":
         if (!notificationMessage.trim()) {
@@ -430,6 +438,14 @@ export function BulkActionDialog({
                   </button>
                 ))}
               </div>
+              <label className="block text-sm font-semibold text-foreground/70">
+                Reason
+              </label>
+              <StaffReasonInput
+                value={extensionReason}
+                onChange={setExtensionReason}
+                placeholder="Why? (saved in each store's log)"
+              />
             </div>
           )}
 
