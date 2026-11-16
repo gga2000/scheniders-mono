@@ -9,6 +9,8 @@ interface WheelInput {
     deltaMode: number;
     shiftKey: boolean;
     ctrlKey: boolean;
+    /** False when the browser has already scrolled the page with this wheel. */
+    cancelable: boolean;
 }
 
 interface RowBox {
@@ -23,9 +25,11 @@ const LINE_PX = 16;
  * Where a plain vertical mouse wheel should move a sideways-scrolling row, or
  * null to leave the wheel to the page: when the row has nothing hidden, when
  * the wheel is already sideways (trackpad, shift+wheel), when ctrl means zoom,
- * and once the row has reached its end in that direction.
+ * once the row has reached its end in that direction, and when the browser
+ * has already spent the wheel on the page (it then arrives not cancelable).
  */
 export function wheelToSideways(e: WheelInput, row: RowBox): number | null {
+    if (!e.cancelable) return null;
     if (e.ctrlKey || e.shiftKey || e.deltaY === 0 || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return null;
     const max = row.scrollWidth - row.clientWidth;
     if (max <= 0) return null;

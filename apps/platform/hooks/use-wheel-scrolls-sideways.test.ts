@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { wheelToSideways } from "./use-wheel-scrolls-sideways";
 
-const wheel = (deltaY: number, over: Partial<{ deltaX: number; deltaMode: number; shiftKey: boolean; ctrlKey: boolean }> = {}) => ({
-    deltaX: 0, deltaMode: 0, shiftKey: false, ctrlKey: false, deltaY, ...over,
+const wheel = (deltaY: number, over: Partial<{ deltaX: number; deltaMode: number; shiftKey: boolean; ctrlKey: boolean; cancelable: boolean }> = {}) => ({
+    deltaX: 0, deltaMode: 0, shiftKey: false, ctrlKey: false, cancelable: true, deltaY, ...over,
 });
 // The Orders chip row at 1440: 3,473 px of chips in 1,240 px.
 const row = (scrollLeft: number) => ({ scrollLeft, clientWidth: 1240, scrollWidth: 3473 });
@@ -27,6 +27,12 @@ describe("wheelToSideways", () => {
         expect(wheelToSideways(wheel(10, { deltaX: 40 }), row(0))).toBeNull();
         expect(wheelToSideways(wheel(100, { shiftKey: true }), row(0))).toBeNull();
         expect(wheelToSideways(wheel(100, { ctrlKey: true }), row(0))).toBeNull();
+    });
+
+    it("leaves the row still when the browser already scrolled the page with that wheel", () => {
+        // Seen live: wheel up below the row scrolls the page back, the row lands under the
+        // pointer, and the same (no longer cancelable) wheel must not move the row as well.
+        expect(wheelToSideways(wheel(-300, { cancelable: false }), row(2187))).toBeNull();
     });
 
     it("does nothing when every chip already fits", () => {
