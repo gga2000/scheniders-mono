@@ -21,20 +21,22 @@ vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ role }),
 }));
 
+let search = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "t1" }),
   useRouter: () => ({ push: () => {}, replace: () => {} }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => search,
   usePathname: () => "/merchants/t1",
 }));
 
 const { default: ShopPage } = await import("./page");
 
-const render = () =>
-  renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(ShopPage)));
+const render = (client = new QueryClient()) =>
+  renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(ShopPage)));
 
 beforeEach(() => {
   role = "super_admin";
+  search = new URLSearchParams();
   query = { data: undefined, isLoading: false, isError: false, error: null, isFetching: false, refetch: () => {} };
 });
 
@@ -68,7 +70,6 @@ const shop = {
     plan: "starter", status: "active", current_period_start: "2026-11-01T00:00:00Z",
     current_period_end: "2026-12-01T00:00:00Z", pending_plan: null, plan_change_at: null, auto_renew: true,
   },
-  transactions: [],
   usage: [
     { year: 2026, month: 10, orders_count: 437, orders_charged: 400, team_members_count: 7 },
     { year: 2026, month: 11, orders_count: 328, orders_charged: 300, team_members_count: 7 },
@@ -117,5 +118,51 @@ describe("the shop page, loaded", () => {
     const html = render();
     expect(html).toContain('data-testid="shop-status"');
     expect(html).toContain("Paying");
+  });
+});
+
+describe("the shop page's one timeline (board m5)", () => {
+  beforeEach(() => {
+    query = { ...query, data: shop };
+  });
+
+  it("has one Timeline tab where Billing, Notes and Audit were", () => {
+    const html = render();
+    expect(html).toContain(">Timeline<");
+    for (const gone of ["Billing", "Notes", "Audit"]) expect(html).not.toContain(`>${gone}<`);
+  });
+
+  it("opens an old Billing link on the Timeline, with the note box", () => {
+    search = new URLSearchParams("tab=Billing");
+    const html = render();
+    expect(html).toContain("Add a note");
+    expect(html).toContain("Loading the timeline");
+  });
+
+  it("lists money with the wallet after and a day's order fees in one line", () => {
+    search = new URLSearchParams("tab=Timeline");
+    const client = new QueryClient();
+    client.setQueryData(["admin", "merchant", "t1", "timeline"], {
+      pageParams: [null],
+      pages: [
+        {
+          nextBefore: null,
+          entries: [
+            { id: "log-1", kind: "change", at: "2026-11-16T12:00:00Z", title: "Gave 7 free trial days", detail: "Asked on the phone", who: "Ali", amount: null, walletAfter: null },
+            { id: "wallet-a", kind: "money", at: "2026-11-16T11:00:00Z", title: "Order fee", detail: null, who: "Automatic", amount: -55, walletAfter: 945, orderFee: true },
+            { id: "wallet-b", kind: "money", at: "2026-11-16T10:00:00Z", title: "Order fee", detail: null, who: "Automatic", amount: -55, walletAfter: 1000, orderFee: true },
+          ],
+        },
+      ],
+    });
+    const html = render(client);
+    expect(html).toContain("Gave 7 free trial days");
+    expect(html).toContain("Ali");
+    expect(html).toContain("Order fees");
+    expect(html).toContain("2 orders");
+    expect(html).toContain("\u2212110 IQD");
+    expect(html).toContain("wallet 945");
+    expect(html).not.toContain(">Order fee<");
+    expect(html).not.toContain("Show older");
   });
 });

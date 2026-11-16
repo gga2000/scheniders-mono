@@ -38,6 +38,17 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
   const trialEnd = tenant.status === "trial" ? tenant.trial_ends_at : null;
   if (!trialEnd && !subscription) return null;
 
+  // Our own shop is never billed: its month and renewal switch mean nothing.
+  if (tenant.plan === "internal") {
+    return (
+      <section className="pastel-card p-5" aria-label="Trial and month">
+        <dl>
+          <Fact label="Monthly fee">None: our own shop is never billed.</Fact>
+        </dl>
+      </section>
+    );
+  }
+
   const soon = (end: string) => new Date(end).getTime() - now.getTime() < DAY_MS;
 
   return (

@@ -396,10 +396,10 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
-    name: "GET /api/merchants/[id]/audit-log",
+    name: "GET /api/merchants/[id]/timeline",
     call: async (t) => {
-      const { GET } = await import("./merchants/[id]/audit-log/route");
-      return GET(req(`/api/merchants/${TENANT}/audit-log`, "GET", t), idParams);
+      const { GET } = await import("./merchants/[id]/timeline/route");
+      return GET(req(`/api/merchants/${TENANT}/timeline`, "GET", t), idParams);
     },
   },
   {

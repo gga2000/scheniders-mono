@@ -15,6 +15,8 @@ interface OverviewTabProps {
 }
 
 const LOCALE_LABEL = { currency: "Currency", language: "Language", timezone: "Time zone" } as const;
+/** The shop's language code in words; an unknown code stays as it is. */
+const LANGUAGE_NAME: Record<string, string> = { ar: "Arabic", en: "English", ku: "Kurdish" };
 
 export function OverviewTab({
   merchantId,
@@ -34,7 +36,10 @@ export function OverviewTab({
     { label: "Address", value: tenant.address, copyable: true },
     { label: "City", value: tenant.city, copyable: true },
     { label: "Opened", value: tenant.created_at ? formatDay(tenant.created_at) : null },
-    ...locale.map((row) => ({ label: LOCALE_LABEL[row.key], value: row.value })),
+    ...locale.map((row) => ({
+      label: LOCALE_LABEL[row.key],
+      value: row.key === "language" ? (LANGUAGE_NAME[row.value] ?? row.value) : row.value,
+    })),
   ];
 
   return (

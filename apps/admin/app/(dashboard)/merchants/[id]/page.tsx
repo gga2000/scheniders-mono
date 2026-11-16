@@ -11,15 +11,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { ImpersonateButton } from "@/components/merchants/impersonate-button";
-import { TenantTimeline } from "@/components/merchants/tenant-timeline";
 import { OnboardingChecklist } from "@/components/merchants/onboarding-checklist";
 import { TenantComparison } from "@/components/merchants/tenant-comparison";
 import { OverviewTab } from "@/components/merchants/detail/overview-tab";
-import { BillingTab } from "@/components/merchants/detail/billing-tab";
 import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
-import { NotesTab } from "@/components/merchants/detail/notes-tab";
-import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
+import { TimelineTab } from "@/components/merchants/detail/timeline-tab";
 import { ShopActions } from "@/components/merchants/detail/shop-actions";
 import { LimitedBanner } from "@/components/merchants/detail/limited-banner";
 import { PinnedNoteStrip } from "@/components/merchants/detail/pinned-note-strip";
@@ -41,11 +38,15 @@ function planLabel(plan: string): string {
   return `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`;
 }
 
-const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
+const tabs = ["Overview", "Timeline", "Usage", "Team", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
 
-function isTab(value: string | null): value is Tab {
-  return !!value && (tabs as readonly string[]).includes(value);
+/** Billing, Notes and Audit became the one Timeline (board m5); old links still land there. */
+const FOLDED_INTO_TIMELINE = new Set(["Billing", "Notes", "Audit"]);
+
+function tabFrom(value: string | null): Tab {
+  if (value && (tabs as readonly string[]).includes(value)) return value as Tab;
+  return value && FOLDED_INTO_TIMELINE.has(value) ? "Timeline" : "Overview";
 }
 
 
@@ -54,9 +55,9 @@ export default function MerchantDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
-  const initialTab = isTab(searchParams.get("tab")) ? (searchParams.get("tab") as Tab) : "Overview";
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
-  const [noteText, setNoteText] = useState("");
+  const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
+  // "Add a note" opens the Timeline with the note box ready to type in.
+  const [focusNote, setFocusNote] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
 
   // The browser tab names the shop, so ten open shops can be told apart.
@@ -111,7 +112,7 @@ export default function MerchantDetailPage() {
     );
   }
 
-  const { tenant, wallet, subscription, transactions, usage, team, notes, orderCount } = data;
+  const { tenant, wallet, subscription, usage, team, notes, orderCount } = data;
   const primaryColor = tenant.branding?.primary_color || "#1E1E1E";
 
   return (
@@ -213,14 +214,17 @@ export default function MerchantDetailPage() {
               ?.scrollIntoView({ behavior: "smooth", block: "center" }),
           );
         }}
-        onAddNote={() => setActiveTab("Notes")}
+        onAddNote={() => {
+          setFocusNote(true);
+          setActiveTab("Timeline");
+        }}
       />
 
       {tenant.status === "limited" && (
         <LimitedBanner merchantId={tenant.id} restrictions={(tenant.restrictions ?? null) as TenantRestrictions | null} />
       )}
 
-      <PinnedNoteStrip notes={notes} onOpenNotes={() => setActiveTab("Notes")} />
+      <PinnedNoteStrip notes={notes} onOpenNotes={() => setActiveTab("Timeline")} />
 
       {/* The shop's numbers, all on one plain surface. */}
       <dl className="pastel-card grid grid-cols-2 divide-x divide-[var(--card-border)] md:grid-cols-4">
@@ -246,7 +250,10 @@ export default function MerchantDetailPage() {
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setFocusNote(false);
+              setActiveTab(tab);
+            }}
             className={`px-4 py-2.5 text-sm font-semibold transition-colors ${
               activeTab === tab
                 ? "text-foreground border-b-2 border-foreground"
@@ -269,23 +276,9 @@ export default function MerchantDetailPage() {
         />
       )}
       {activeTab === "Overview" && <RecentOrdersSection merchantId={tenant.id} limit={5} />}
-      {activeTab === "Billing" && (
-        <BillingTab wallet={wallet} transactions={transactions} />
-      )}
+      {activeTab === "Timeline" && <TimelineTab merchantId={tenant.id} focusNote={focusNote} />}
       {activeTab === "Usage" && <UsageTab usage={usage} />}
       {activeTab === "Team" && <TeamTab team={team} />}
-      {activeTab === "Notes" && (
-        <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
-      )}
-      {activeTab === "Timeline" && (
-        <TenantTimeline
-          transactions={transactions}
-          notes={notes}
-          orderCount={orderCount}
-          tenant={tenant}
-        />
-      )}
-      {activeTab === "Audit" && <AuditLogTab merchantId={tenant.id} />}
       {activeTab === "Onboarding" && (
         <OnboardingChecklist
           tenant={tenant}
