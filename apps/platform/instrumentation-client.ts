@@ -1,20 +1,38 @@
-import { loadSentry } from "@/lib/report-error";
+import { loadSentry, reportError } from "@/lib/report-error";
 
-// The browser SDK is imported after this module runs instead of statically:
-// a static import puts ~76 KB (gzip) on every route's first load, and
-// merchants are on mid-range Android over mobile data. Errors thrown before
-// the SDK finishes loading are not reported; server and edge errors are
+// The browser SDK loads once the page is up and idle, so its download and
+// start-up stay out of the way of the page's own scripts and first data
+// calls (lib/report-error.ts). Until then, uncaught errors are forwarded by
+// hand: that sends them and starts the SDK early. Server and edge errors are
 // unaffected (instrumentation.ts). Session Replay is left out for the same
 // reason.
-void Promise.all([loadSentry(), import("@scheniders/shared/sentry-scrub")]).then(
-    ([Sentry, { baseSentryOptions }]) => {
-        Sentry.init({
-            ...baseSentryOptions({
-                app: "platform",
-                dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-                vercelEnv: process.env.NEXT_PUBLIC_VERCEL_ENV,
-                tracesSampleRate: 0.1,
-            }),
-        });
-    },
-);
+
+const onError = (event: ErrorEvent) => {
+    // Without an Error object this is a cross-origin "Script error." with
+    // nothing to debug; the SDK drops those too.
+    if (event.error) reportError(event.error);
+};
+const onRejection = (event: PromiseRejectionEvent) => reportError(event.reason);
+
+window.addEventListener("error", onError);
+window.addEventListener("unhandledrejection", onRejection);
+
+function start() {
+    loadSentry().then(
+        () => {
+            // The SDK now catches these itself.
+            window.removeEventListener("error", onError);
+            window.removeEventListener("unhandledrejection", onRejection);
+        },
+        // Offline at start: the forwarders stay, and the next error retries.
+        () => undefined,
+    );
+}
+
+function whenIdle() {
+    if ("requestIdleCallback" in window) window.requestIdleCallback(start, { timeout: 4000 });
+    else setTimeout(start, 1000);
+}
+
+if (document.readyState === "complete") whenIdle();
+else window.addEventListener("load", whenIdle, { once: true });

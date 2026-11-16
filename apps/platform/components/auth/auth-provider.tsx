@@ -10,7 +10,7 @@ import { perfTrace } from "@/lib/perf-trace";
 import { clearPersistedBooks } from "@/lib/orders/persisted-book";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
-import { loadSentry } from "@/lib/report-error";
+import { setReportIdentity } from "@/lib/report-error";
 import { applyPermissionOverrides, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
 import { revokeDevicePush } from "@/lib/chat/revoke-device-push";
 
@@ -443,12 +443,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // static import would put the SDK on every route's first load.
     const sentryUserId = user?.id ?? null;
     useEffect(() => {
-        const identity = sentryIdentityFor(sentryUserId, tenantId, role);
-        void loadSentry().then((Sentry) => {
-            Sentry.setUser(identity.user);
-            Sentry.setTag("tenant_id", identity.tags.tenant_id);
-            Sentry.setTag("user_role", identity.tags.user_role);
-        });
+        setReportIdentity(sentryIdentityFor(sentryUserId, tenantId, role));
     }, [sentryUserId, tenantId, role]);
 
     // Whether the current user already has a Google identity linked.
