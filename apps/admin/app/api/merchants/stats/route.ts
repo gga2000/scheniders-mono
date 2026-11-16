@@ -3,7 +3,18 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { fetchFees30d } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
+import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
+
+/** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
+interface LiteShop {
+  id: string;
+  status: string;
+  plan: string | null;
+  trial_ends_at: string | null;
+  wallet: { balance_iqd?: number } | { balance_iqd?: number }[] | null;
+  staff_needs_attention: boolean;
+}
 
 interface StatusCounts {
   trial: number;
@@ -42,6 +53,7 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get("city");
     const search = searchParams.get("search");
     const balance = searchParams.get("balance");
+    const health = searchParams.get("health");
     const dateFrom = searchParams.get("date_from");
     const dateTo = searchParams.get("date_to");
 
@@ -49,15 +61,19 @@ export async function GET(request: NextRequest) {
 
     // The full filtered tenant set (lightweight columns only), a page at a
     // time: one request stops at 1,000 rows and does not say so.
-    const tenants = await everyRow((from, to) => {
+    const tenants = await everyRow<LiteShop>((from, to) => {
       let query = supabase
         .from("tenants")
-        .select("id, status, plan, trial_ends_at, wallet(balance_iqd)");
+        .select("id, status, plan, trial_ends_at, wallet(balance_iqd), staff_needs_attention");
 
-      // Server-side filterable status only — "attention" is synthetic.
       if (plan) query = query.eq("plan", plan);
-      if (status && status !== "attention") query = query.eq("status", status);
+      // "attention" is never a filter here: the header always counts it, so its pill can light up.
+      if (status && status !== ATTENTION) query = query.eq("status", status);
       if (city) query = query.eq("city", city);
+      // The balance and health bands, filtered by the database the way the list filters them.
+      for (const [column, operator, value] of computedShopFilters({ balance, health })) {
+        query = query.filter(column, operator, value);
+      }
       if (search) query = query.or(merchantSearchFilter(search));
       if (dateFrom) query = query.gte("created_at", dateFrom);
       if (dateTo) query = query.lte("created_at", dateTo);
@@ -85,28 +101,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(empty);
     }
 
-    // Apply the "balance" pseudo-filter (computed, not a real column).
-    const balancedTenants = balance
-      ? tenants.filter((t) => {
-          const bal =
-            (t as { wallet?: { balance_iqd?: number } | { balance_iqd?: number }[] }).wallet;
-          const balVal = Array.isArray(bal)
-            ? bal[0]?.balance_iqd ?? 0
-            : bal?.balance_iqd ?? 0;
-          switch (balance) {
-            case "critical":
-              return balVal < 10000;
-            case "low":
-              return balVal >= 10000 && balVal <= 50000;
-            case "healthy":
-              return balVal > 50000;
-            default:
-              return true;
-          }
-        })
-      : tenants;
-
-    const tenantIds = balancedTenants.map((t) => t.id);
+    const tenantIds = tenants.map((t) => t.id);
 
     // Subscription MRR — real recurring revenue from active subscriptions.
     // Prices come from plan_limits only; a failed read fails the request
@@ -140,16 +135,11 @@ export async function GET(request: NextRequest) {
 
     const now = Date.now();
 
-    for (const t of balancedTenants) {
-      const s = (t as { status?: keyof StatusCounts }).status;
-      const planVal = (t as { plan?: string }).plan ?? "starter";
-      const trialEnd = (t as { trial_ends_at?: string | null }).trial_ends_at;
-      const walletRel = (t as {
-        wallet?: { balance_iqd?: number } | { balance_iqd?: number }[];
-      }).wallet;
-      const balanceVal = Array.isArray(walletRel)
-        ? walletRel[0]?.balance_iqd ?? 0
-        : walletRel?.balance_iqd ?? 0;
+    for (const t of tenants) {
+      const s = t.status;
+      const planVal = t.plan ?? "starter";
+      const trialEnd = t.trial_ends_at;
+      const balanceVal = Array.isArray(t.wallet) ? t.wallet[0]?.balance_iqd ?? 0 : t.wallet?.balance_iqd ?? 0;
 
       // Cancelled/suspended merchants' wallets aren't part of the live float;
       // including them inflates "Total Wallet". Exclude them from the rollup.
@@ -162,45 +152,27 @@ export async function GET(request: NextRequest) {
         subscriptionMRR += planPrice[planVal] ?? 0;
       }
 
-      if (s && s in status_) status_[s]++;
+      if (isCountedStatus(s)) status_[s]++;
 
-      // Attention buckets — must mirror needs-attention.ts.
-      let isAttention = false;
-      if (s === "suspended") {
-        buckets.suspended++;
-        isAttention = true;
-      }
-      if (s === "cancelled") {
-        buckets.cancelled++;
-        isAttention = true;
-      }
+      // The reasons the banner names. Whether a shop needs attention at all is
+      // the database's answer (staff_needs_attention), the same one the list
+      // filters on: it also counts a locked shop, which has no bucket here.
+      if (s === "suspended") buckets.suspended++;
+      if (s === "cancelled") buckets.cancelled++;
       if (s === "trial" && trialEnd) {
         const daysLeft = Math.ceil(
           (new Date(trialEnd).getTime() - now) / (1000 * 60 * 60 * 24)
         );
-        if (daysLeft <= 0) {
-          buckets.trials_expired++;
-          isAttention = true;
-        } else if (daysLeft <= 1) {
-          buckets.trials_today++;
-          isAttention = true;
-        } else if (daysLeft <= 3) {
-          isAttention = true;
-        }
+        if (daysLeft <= 0) buckets.trials_expired++;
+        else if (daysLeft <= 1) buckets.trials_today++;
       }
-      // Critical balance = below 5K with no order activity. We approximate
-      // "no orders" with balance proxy; the per-card flag uses usage but
-      // for the rollup the balance threshold is the salient signal.
-      if (balanceVal < 5000 && s !== "cancelled") {
-        buckets.critical_balance++;
-        isAttention = true;
-      }
+      if (balanceVal < 5000 && s !== "cancelled") buckets.critical_balance++;
 
-      if (isAttention) buckets.attention++;
+      if (t.staff_needs_attention) buckets.attention++;
     }
 
     const result: Aggregates = {
-      total: balancedTenants.length,
+      total: tenants.length,
       total_wallet_iqd: totalWallet,
       subscription_mrr_iqd: subscriptionMRR,
       usage_charges_30d_iqd: usageCharges30d,
@@ -216,4 +188,8 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function isCountedStatus(status: string): status is keyof StatusCounts {
+  return status === "trial" || status === "active" || status === "suspended" || status === "cancelled";
 }

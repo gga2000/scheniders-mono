@@ -35,6 +35,7 @@ export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
     statusFilter,
     cityFilter,
     balanceFilter,
+    healthFilter,
     searchQuery,
     dateRange,
   } = useAdminStore();
@@ -51,6 +52,7 @@ export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
         statusFilter: effectiveStatusFilter,
         cityFilter,
         balanceFilter,
+        healthFilter,
         searchQuery,
         dateRange,
       },
@@ -65,6 +67,7 @@ export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
       }
       if (cityFilter) params.set("city", cityFilter);
       if (balanceFilter) params.set("balance", balanceFilter);
+      if (healthFilter) params.set("health", healthFilter);
       if (searchQuery) params.set("search", searchQuery);
       if (dateRange.from) params.set("date_from", dateRange.from);
       if (dateRange.to) params.set("date_to", dateRange.to);

@@ -42,6 +42,11 @@ export function supabaseStub() {
         rows = rows.filter((row) => row[column] === value);
         return note("eq", column, value);
       },
+      // A computed column (a database function over the row) is a plain field of the stub's rows.
+      filter: (column: string, operator: string, value: unknown) => {
+        rows = rows.filter((row) => matches(row[column], operator, value));
+        return note("filter", column, operator, value);
+      },
       in: (column: string, values: unknown[]) => {
         rows = rows.filter((row) => values.includes(row[column]));
         return note("in", column, values);
@@ -74,6 +79,16 @@ export function supabaseStub() {
   const callsTo = (on: string) => state.calls.filter((call) => call.on === on).map((call) => call.args);
 
   return { state, client: { from, rpc }, tablesRead, callsTo };
+}
+
+function matches(field: unknown, operator: string, value: unknown): boolean {
+  if (operator === "eq") return field === value;
+  if (typeof field !== "number" || typeof value !== "number") return false;
+  if (operator === "lt") return field < value;
+  if (operator === "lte") return field <= value;
+  if (operator === "gt") return field > value;
+  if (operator === "gte") return field >= value;
+  throw new Error(`the stub has no "${operator}" filter`);
 }
 
 /**
