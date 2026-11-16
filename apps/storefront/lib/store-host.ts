@@ -7,6 +7,7 @@
 // must work out the store itself, and never from its request body.
 //
 //   shop.<root>        → "shop"
+//   shop.<old root>    → "shop" (stores' old address; pages move to <root>)
 //   shop.example.com   → "__domain__shop.example.com" (a store's own domain)
 //   www.<root>         → "__domain__www.<root>" (the store that verified it)
 //   <root>:              path-based access (/s/{slug}/…). The page that sent
@@ -29,23 +30,58 @@ export function storefrontRootDomain(): string {
 }
 
 /**
+ * Roots stores used to live under, from NEXT_PUBLIC_LEGACY_ROOT_DOMAINS
+ * (comma-separated; `scheniders.com` before the move to usefermi.com).
+ * A store page there moves to the same path on `<slug>.<root>` (the proxy);
+ * its API calls are still served, so a page opened before the move keeps
+ * working until it reloads. Never includes the current root.
+ */
+export function storefrontLegacyRootDomains(root: string = storefrontRootDomain()): string[] {
+  const current = root.split(":")[0].trim().toLowerCase();
+  return (process.env.NEXT_PUBLIC_LEGACY_ROOT_DOMAINS ?? "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter((d) => d.length > 0 && d.split(":")[0] !== current);
+}
+
+/**
+ * The slug of `<slug>.<legacy root>`, or null for any other host. The bare
+ * legacy root and `www.<legacy root>` are not store subdomains: they stay
+ * whatever store verified them as its own domain (the perfume store keeps
+ * www.scheniders.com).
+ */
+export function legacyStoreSlug(host: string, legacyRoots: readonly string[]): string | null {
+  const hostNoPort = host.split(":")[0].trim().toLowerCase();
+  for (const root of legacyRoots) {
+    const rootNoPort = root.split(":")[0];
+    if (hostNoPort !== `www.${rootNoPort}` && hostNoPort.endsWith(`.${rootNoPort}`)) {
+      return hostNoPort.slice(0, -1 - rootNoPort.length);
+    }
+  }
+  return null;
+}
+
+/**
  * Extracts the tenant slug from the host header.
  *
- * Examples:
- *   acme.scheniders.com   → "acme"
- *   acme.localhost:3001   → "acme"
- *   scheniders.com        → null (root domain: path mode, /s/<slug>)
+ * Examples (root usefermi.com, old root scheniders.com):
+ *   acme.usefermi.com     → "acme"
+ *   acme.scheniders.com   → "acme" (old address; the proxy moves its pages)
+ *   acme.localhost:3001   → "acme" (root localhost:3001)
+ *   usefermi.com          → null (root domain: path mode, /s/<slug>)
  *   www.scheniders.com    → "www.scheniders.com", isCustom
  *   custom-domain.com     → "custom-domain.com", isCustom
  *
  * `www.<root>` is not a platform page: it is the address of whichever store
- * verified it in tenant_domains (Scheniders' own perfume store today), and of
- * no store at all otherwise, so it resolves exactly like a custom domain.
+ * verified it in tenant_domains (Scheniders' own perfume store has
+ * www.scheniders.com), and of no store at all otherwise, so it resolves
+ * exactly like a custom domain.
  * "www" is a reserved slug, so no merchant can claim it as a subdomain.
  */
 export function extractSlug(
   host: string,
   rootDomain: string,
+  legacyRoots: readonly string[] = storefrontLegacyRootDomains(rootDomain),
 ): { slug: string | null; isCustom: boolean } {
   // Strip port for matching; hostnames are case-insensitive.
   const hostNoPort = host.split(":")[0].trim().toLowerCase();
@@ -59,6 +95,9 @@ export function extractSlug(
     const slug = hostNoPort.slice(0, -1 - rootNoPort.length);
     return { slug, isCustom: false };
   }
+
+  const legacy = legacyStoreSlug(hostNoPort, legacyRoots);
+  if (legacy) return { slug: legacy, isCustom: false };
 
   // Treat as a custom domain
   return { slug: hostNoPort, isCustom: true };

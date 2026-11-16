@@ -10,6 +10,7 @@ import {
   Copy,
   Globe,
 } from "lucide-react";
+import { storeAddress } from "@scheniders/shared/store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
 
 interface ContextMenuItem {
@@ -60,7 +61,7 @@ export function MerchantContextMenu({
     {
       label: "Open Storefront",
       icon: <Globe className="w-3.5 h-3.5" />,
-      action: () => window.open(`https://${merchantSlug}.scheniders.com`, "_blank"),
+      action: () => window.open(`https://${storeAddress(merchantSlug)}`, "_blank"),
     },
   ];
 

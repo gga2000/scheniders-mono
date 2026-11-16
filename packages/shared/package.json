@@ -20,7 +20,8 @@
     "./analytics-url": "./src/analytics-url.ts",
     "./safe-redirect-path": "./src/safe-redirect-path.ts",
     "./sentry-scrub": "./src/sentry-scrub.ts",
-    "./whatsapp-templates": "./src/whatsapp-templates.ts"
+    "./whatsapp-templates": "./src/whatsapp-templates.ts",
+    "./store-address": "./src/store-address.ts"
   },
   "scripts": {
     "test": "vitest run"

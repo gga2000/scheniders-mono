@@ -18,6 +18,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
     "dev", "staging", "test", "cdn", "assets", "static", "img", "images",
     "help", "support", "blog", "docs", "status", "dashboard", "login",
     "signup", "auth", "billing", "pay", "checkout", "schenider", "scheniders",
+    "partners", "fermi", "usefermi",
 ]);
 
 export type SlugRejection = "format" | "reserved";

@@ -18,7 +18,9 @@ import {
     ImageIcon,
     Trash2,
 } from "lucide-react";
+import { storeAddress } from "@scheniders/shared/store-address";
 import { supabase } from "@/lib/supabase";
+import { env } from "@/lib/env";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -485,7 +487,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                         {businessName || t("settings.biz.yourBusiness")}
                                     </p>
                                     <p className="text-xs" style={{ color: secondaryColor }}>
-                                        {tenant.slug}.scheniders.com
+                                        {storeAddress(tenant.slug, env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN)}
                                     </p>
                                 </div>
                             </div>

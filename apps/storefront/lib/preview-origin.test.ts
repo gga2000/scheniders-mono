@@ -12,7 +12,8 @@ afterEach(() => {
 });
 
 describe("isAllowedParentOrigin", () => {
-  it("trusts the production merchant admin", () => {
+  it("trusts the production merchant admin, at its new and old address", () => {
+    expect(isAllowedParentOrigin("https://app.usefermi.com")).toBe(true);
     expect(isAllowedParentOrigin("https://schenidersapp.xyz")).toBe(true);
   });
 
@@ -25,9 +26,9 @@ describe("isAllowedParentOrigin", () => {
 describe("platformTargetOrigin", () => {
   it("targets the trusted embedder named by the referrer", () => {
     vi.spyOn(document, "referrer", "get").mockReturnValue(
-      "https://schenidersapp.xyz/store/edit",
+      "https://app.usefermi.com/store/edit",
     );
-    expect(platformTargetOrigin()).toBe("https://schenidersapp.xyz");
+    expect(platformTargetOrigin()).toBe("https://app.usefermi.com");
   });
 
   it("refuses to post when the embedder is not trusted", () => {

@@ -20,7 +20,8 @@ const TRUST_LOCALHOST = process.env.NODE_ENV !== "production";
 
 /** Hardcoded trusted editor origins (prod, plus local dev outside production). */
 export const SAFE_PARENT_ORIGINS: ReadonlySet<string> = new Set<string>([
-  "https://schenidersapp.xyz", // production platform (merchant admin)
+  "https://app.usefermi.com", // production platform (merchant admin)
+  "https://schenidersapp.xyz", // its old address, until every editor tab has moved
   ...(TRUST_LOCALHOST ? ["http://localhost:3000"] : []), // platform dev
 ]);
 
