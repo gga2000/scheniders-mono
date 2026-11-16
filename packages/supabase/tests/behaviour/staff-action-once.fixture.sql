@@ -1,6 +1,6 @@
 -- Throwaway Postgres 16 database for the *_once wrappers (audit N3,
--- 20261116143323_staff_action_request_ids.sql). The four staff functions they
--- wrap are stubs with the live signatures: each counts its calls and answers
+-- 20261116143323_staff_action_request_ids.sql, 20261116222030_trial_check_decide_once.sql).
+-- The five staff functions they wrap are stubs with the live signatures: each counts its calls and answers
 -- success, or the refusal set in test.refuse. The real functions have their
 -- own suites (billing-lock, demo-store).
 -- NEVER run this against Supabase: it creates roles and an auth stub.
@@ -49,3 +49,7 @@ RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('add_lock_orders', _t
 CREATE FUNCTION public.admin_force_unlock(_tenant_id uuid, _days integer, _reason text,
     _admin_user_id uuid DEFAULT NULL, _actor_email text DEFAULT NULL)
 RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('force_unlock', _tenant_id, _days) $$;
+
+CREATE FUNCTION public.admin_trial_check_decide(_tenant_id uuid, _decision text, _reason text,
+    _days integer DEFAULT NULL, _admin_user_id uuid DEFAULT NULL, _actor_email text DEFAULT NULL)
+RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('trial_check_decide', _tenant_id, coalesce(_days, 0)) $$;
