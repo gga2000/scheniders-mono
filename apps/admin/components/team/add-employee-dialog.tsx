@@ -17,7 +17,7 @@ const ROLE_OPTIONS: { value: AdminRole; label: string; hint: string; icon: typeo
   {
     value: "support_staff",
     label: "Support staff",
-    hint: "Trials, notes, notifications, impersonate, export",
+    hint: "Trials, notes, support chats, view as merchant, export",
     icon: LifeBuoy,
   },
   {

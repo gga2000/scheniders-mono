@@ -141,7 +141,8 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
     case "update_tags":
       return "Tags changed";
     case "impersonate":
-      return "Opened the shop as its owner";
+      // The old Impersonate button only opened the public store page.
+      return "Opened the store page";
     case "support_view":
       return "Looked at the shop as the merchant";
     case "support_case_solved":
@@ -196,7 +197,7 @@ function signed(row: WalletRow): number {
  * Who a log row names: the staff member's name, else the email the database
  * kept, else "Automatic" for the system's own steps.
  */
-function logWho(row: LogRow, names: ReadonlyMap<string, string>): string {
+export function logActor(row: Pick<LogRow, "admin_user_id" | "admin_label" | "actor_email">, names: ReadonlyMap<string, string>): string {
   const named = row.admin_user_id ? names.get(row.admin_user_id) : undefined;
   if (named) return named;
   if (row.actor_email) return row.actor_email;
@@ -234,7 +235,7 @@ export function toTimelineEntries(input: {
         (entry) => entry.amount !== null && entry.amount > 0 && entry.walletAfter === after && entry.amount === amount,
       );
       if (twin) {
-        if (twin.who === AUTOMATIC) twin.who = logWho(row, names);
+        if (twin.who === AUTOMATIC) twin.who = logActor(row, names);
         continue;
       }
     }
@@ -250,7 +251,7 @@ export function toTimelineEntries(input: {
       at: row.created_at,
       title,
       detail: changeDetail(row.action, row.details),
-      who: logWho(row, names),
+      who: logActor(row, names),
       amount,
       walletAfter: num(row.details?.new_balance_iqd),
     });

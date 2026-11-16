@@ -182,6 +182,29 @@ describe("GET /api/merchants/[id] parts of the record", () => {
     expect(body).toMatchObject({ wallet: null, subscription: null, team: [], notes: [], usage: [] });
   });
 
+  it("says who put a shop on hold and when, from the newest step that did it (board m9)", async () => {
+    TABLES.tenants = { data: { ...(ORIGINAL.tenants.data as object), status: "suspended" }, error: null };
+    TABLES.admin_activity_logs = {
+      data: [
+        { admin_user_id: null, admin_label: "system", actor_email: null, action: "status_change", details: { status: "trial" }, created_at: "2026-11-16T09:00:00Z" },
+        { admin_user_id: "u-ali", admin_label: null, actor_email: "ali@x.co", action: "status_change", details: { status: "suspended" }, created_at: "2026-11-15T09:00:00Z" },
+      ],
+      error: null,
+    };
+    TABLES.user_profiles = { data: { id: "u-ali", display_name: "Ali", email: "ali@x.co" }, error: null };
+
+    const body = await (await call()).json();
+
+    expect(body.stoppedBy).toEqual({ who: "Ali", at: "2026-11-15T09:00:00Z" });
+  });
+
+  it("does not read the staff log for a running shop", async () => {
+    const body = await (await call()).json();
+
+    expect(body.stoppedBy).toBeNull();
+    expect(selects.map(([name]) => name)).not.toContain("admin_activity_logs");
+  });
+
   it.each(PARTS)("a refused read of %s fails the record instead of sending it as empty", async (name) => {
     TABLES[name] = { data: null, error: { code: "PGRST201", message: "more than one relationship was found" } };
 

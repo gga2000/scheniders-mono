@@ -65,7 +65,6 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "suspend_tenant",
     "reactivate_tenant",
     "add_note",
-    "impersonate",
     "bulk_action",
     "export_data",
     "update_settings",
@@ -85,7 +84,6 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   support_staff: new Set([
     "extend_trial",
     "add_note",
-    "impersonate",
     "export_data",
     "manage_tags",
     "convert_lead",
