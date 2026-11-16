@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { forbidden, requireAdminPermission, type AdminContext } from "@/lib/api-auth";
+import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
@@ -162,7 +162,13 @@ export async function GET(request: NextRequest) {
     return forbidden("adjust_balance");
   }
 
-  return exportFile(auth, type, format);
+  try {
+    const data = await readExport(type);
+    await logAdminAction(auth, "export_data", { details: { type, format, rows: data.length } });
+    return exportResponse(type, format, data);
+  } catch (error) {
+    return exportFailed(error);
+  }
 }
 
 /**
@@ -184,56 +190,53 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
-  return exportFile(auth, parsed.data.type, parsed.data.format, [...new Set(parsed.data.ids)]);
+  const { type, format } = parsed.data;
+  const ids = [...new Set(parsed.data.ids)];
+  try {
+    const data = await readExport(type, ids);
+    await logAdminAction(auth, "export_data", {
+      details: { type, format, rows: data.length, selected: ids.length },
+    });
+    return exportResponse(type, format, data);
+  } catch (error) {
+    return exportFailed(error);
+  }
 }
 
-async function exportFile(auth: AdminContext, type: ExportType, format: ExportFormat, ids?: string[]) {
-  try {
-    const supabase = createAdminClient();
+/** The rows of one export: only the given shops when ids are passed. */
+async function readExport(type: ExportType, ids?: string[]): Promise<Record<string, unknown>[]> {
+  const supabase = createAdminClient();
+  switch (type) {
+    case "merchants":
+      return fetchMerchants(supabase, ids);
+    case "transactions":
+      return fetchTransactions(supabase);
+    case "trials":
+      return fetchTrials(supabase);
+  }
+}
 
-    let data: Record<string, unknown>[];
+function exportResponse(type: ExportType, format: ExportFormat, data: Record<string, unknown>[]) {
+  const filename = `${type}_export_${dayOf(Date.now())}`;
 
-    switch (type) {
-      case "merchants":
-        data = await fetchMerchants(supabase, ids);
-        break;
-      case "transactions":
-        data = await fetchTransactions(supabase);
-        break;
-      case "trials":
-        data = await fetchTrials(supabase);
-        break;
-    }
-
-    await logAdminAction(auth, "export_data", {
-      details: { type, format, rows: data.length, ...(ids ? { selected: ids.length } : {}) },
-    });
-
-    const date = dayOf(Date.now());
-    const filename = `${type}_export_${date}`;
-
-    if (format === "json") {
-      return NextResponse.json(data, {
-        headers: {
-          "Content-Disposition": `attachment; filename="${filename}.json"`,
-        },
-      });
-    }
-
-    const csvString = toCSV(data);
-
-    // The byte-order mark tells Excel the file is UTF-8, so Arabic names open as typed.
-    return new NextResponse(`\uFEFF${csvString}`, {
+  if (format === "json") {
+    return NextResponse.json(data, {
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}.csv"`,
+        "Content-Disposition": `attachment; filename="${filename}.json"`,
       },
     });
-  } catch (error) {
-    console.error("Export API error:", error);
-    return NextResponse.json(
-      { error: "Failed to export data" },
-      { status: 500 }
-    );
   }
+
+  // The byte-order mark tells Excel the file is UTF-8, so Arabic names open as typed.
+  return new NextResponse(`\uFEFF${toCSV(data)}`, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}.csv"`,
+    },
+  });
+}
+
+function exportFailed(error: unknown) {
+  console.error("Export API error:", error);
+  return NextResponse.json({ error: "Failed to export data" }, { status: 500 });
 }
