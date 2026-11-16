@@ -68,6 +68,12 @@ describe("takeDailySendSlot", () => {
         expect(await takeDailySendSlot(T)).toBe(false);
     });
 
+    it.each(["suspended", "cancelled", "limited"])("refuses a %s store without counting", async (status) => {
+        state.status = status;
+        expect(await takeDailySendSlot(T)).toBe(false);
+        expect(state.calls).toEqual([]);
+    });
+
     it("refuses an unknown store", async () => {
         state.status = null;
         expect(await takeDailySendSlot(T)).toBe(false);

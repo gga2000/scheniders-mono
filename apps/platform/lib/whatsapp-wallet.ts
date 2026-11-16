@@ -26,6 +26,8 @@ export const WHATSAPP_DAILY_CAP = 300;
 export const WHATSAPP_DAILY_CAP_TRIAL = 30;
 const DAY_SECONDS = 24 * 60 * 60;
 
+const SENDING_STATUSES: ReadonlySet<string> = new Set(["active", "trial"]);
+
 export const SHOP_DAILY_CAP_REACHED = "Store reached today's WhatsApp limit";
 
 export function whatsappDailyCap(tenantStatus: string | null | undefined): number {
@@ -33,8 +35,9 @@ export function whatsappDailyCap(tenantStatus: string | null | undefined): numbe
 }
 
 /**
- * Take one of today's sends for the store. False means do not send: either
- * the store used up today's number, or the counter could not be read (a paid
+ * Take one of today's sends for the store. False means do not send: the
+ * store is not active or on trial, it used up today's number, or the counter
+ * could not be read (a paid
  * message waits rather than going out uncounted).
  */
 export async function takeDailySendSlot(tenantId: string): Promise<boolean> {
@@ -44,7 +47,9 @@ export async function takeDailySendSlot(tenantId: string): Promise<boolean> {
         .eq("id", tenantId)
         .maybeSingle();
     if (error) throw error;
-    if (!data) return false;
+    // Only a store in good standing sends: one we suspended, limited or that
+    // cancelled must not reach customers from the shared number.
+    if (!data || !SENDING_STATUSES.has(data.status)) return false;
     const limit = await consumeRateLimit(`wa-day:${tenantId}`, whatsappDailyCap(data.status), DAY_SECONDS);
     if (limit.error) {
         console.error(`[WhatsApp] daily counter unavailable for ${tenantId}: ${limit.error}`);
