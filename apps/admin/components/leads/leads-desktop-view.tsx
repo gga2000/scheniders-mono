@@ -232,7 +232,7 @@ export function LeadsDesktopView() {
         {isError ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-400" />
+              <AlertTriangle className="w-8 h-8 text-[var(--ink-red)]" />
             </div>
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Failed to load leads</h3>
             <p className="text-sm text-[var(--muted)] mb-6 max-w-sm">
@@ -418,7 +418,7 @@ export function LeadsDesktopView() {
                 );
               }}
               disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-red-400"
+              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--ink-red)]"
             >
               Delete
             </button>

@@ -128,14 +128,14 @@ export default function SettingsPage() {
       {/* Danger zone */}
       <div className="pastel-card p-6 border-red-200">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
+          <div className="w-8 h-8 rounded-lg bg-red-500/5 flex items-center justify-center">
+            <AlertTriangle className="w-4 h-4 text-[var(--ink-red)]" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-red-700">
+            <h2 className="text-sm font-semibold text-[var(--ink-red)]">
               Danger Zone
             </h2>
-            <p className="text-xs text-red-500/70">
+            <p className="text-xs text-[var(--ink-red)]">
               Irreversible and destructive actions
             </p>
           </div>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
 
         <div className="space-y-3">
           {/* Purge Activity Logs */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-50/30">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-500/5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">
                 Purge Activity Logs
@@ -163,7 +163,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Reset All Settings */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-50/30">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-500/5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">
                 Reset All Settings

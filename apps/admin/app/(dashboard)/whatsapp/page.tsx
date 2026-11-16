@@ -66,11 +66,11 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
   });
 
   const status = shop.paused ? (
-    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-[var(--ink-red)]">
       Paused · {shop.pause_reason === "failures" ? "failures" : "by staff"}
     </span>
   ) : (
-    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Sending</span>
+    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-[var(--ink-green)]">Sending</span>
   );
   if (!canPause) return status;
 
@@ -78,7 +78,7 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
   return (
     <div className="flex items-center justify-end gap-2">
       {status}
-      {change.isError && <span className="text-xs text-rose-700">Failed, try again</span>}
+      {change.isError && <span className="text-xs text-[var(--ink-red)]">Failed, try again</span>}
       {confirming ? (
         <>
           <button
@@ -241,7 +241,7 @@ export default function WhatsAppPage() {
                           </td>
                           <td className="p-3 text-right font-medium tabular-nums">
                             {s.plan === "internal" ? <span className="text-foreground/70">Our store</span> : iqd(s.shop_paid_iqd)}
-                            {s.unpaid > 0 && <span className="block text-xs text-rose-700">{number(s.unpaid)} not paid</span>}
+                            {s.unpaid > 0 && <span className="block text-xs text-[var(--ink-red)]">{number(s.unpaid)} not paid</span>}
                           </td>
                           <td className="p-3 text-right tabular-nums">
                             {trial === 0 ? (
@@ -259,7 +259,7 @@ export default function WhatsAppPage() {
                             ) : (
                               <span
                                 className={
-                                  tone === "red" ? "font-semibold text-rose-700" : tone === "amber" ? "font-semibold text-amber-700" : "text-foreground/70"
+                                  tone === "red" ? "font-semibold text-[var(--ink-red)]" : tone === "amber" ? "font-semibold text-[var(--ink-amber)]" : "text-foreground/70"
                                 }
                               >
                                 {number(s.bad_24h)} of {number(s.reached_24h)} failed

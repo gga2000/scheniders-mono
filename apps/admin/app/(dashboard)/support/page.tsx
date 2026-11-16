@@ -91,12 +91,12 @@ function SupportInbox() {
               >
                 {v.label}
                 {v.id === "needs" && needsUs > 0 && (
-                  <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold tabular-nums text-amber-900">
+                  <span className="ml-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--ink-amber)]">
                     {needsUs}
                   </span>
                 )}
                 {v.id === "today" && myCalls > 0 && (
-                  <span className="ml-1.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-xs font-bold tabular-nums text-sky-900">
+                  <span className="ml-1.5 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--ink-blue)]">
                     {myCalls}
                   </span>
                 )}
@@ -120,7 +120,7 @@ function SupportInbox() {
           }}
         />
       ) : list.isError ? (
-        <div className={cn(PANE, "p-6 text-sm text-red-700")}>
+        <div className={cn(PANE, "p-6 text-sm text-[var(--ink-red)]")}>
           Could not load support conversations. {list.error.message}
         </div>
       ) : (
@@ -144,7 +144,7 @@ function SupportInbox() {
                 </p>
               </div>
             ) : detail.isError ? (
-              <div className="p-6 text-sm text-red-700">{detail.error.message}</div>
+              <div className="p-6 text-sm text-[var(--ink-red)]">{detail.error.message}</div>
             ) : detail.data ? (
               <SupportConversation
                 key={detail.data.case.id}

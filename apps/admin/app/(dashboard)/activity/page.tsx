@@ -61,18 +61,18 @@ const ACTION_OPTIONS = [
 function getActionBadge(action: string): { bg: string; text: string } {
   const lower = action.toLowerCase();
   if (lower.includes("login") || lower.includes("auth") || lower.includes("sign") || lower.includes("impersonate")) {
-    return { bg: "bg-blue-100 text-blue-800", text: action };
+    return { bg: "bg-blue-500/15 text-[var(--ink-blue)]", text: action };
   }
   if (lower.includes("create") || lower.includes("add") || lower.includes("new") || lower.includes("top_up")) {
-    return { bg: "bg-green-100 text-green-800", text: action };
+    return { bg: "bg-green-500/15 text-[var(--ink-green)]", text: action };
   }
   if (lower.includes("update") || lower.includes("edit") || lower.includes("change") || lower.includes("extend")) {
-    return { bg: "bg-amber-100 text-amber-800", text: action };
+    return { bg: "bg-amber-500/15 text-[var(--ink-amber)]", text: action };
   }
   if (lower.includes("delete") || lower.includes("remove") || lower.includes("suspend") || lower.includes("cancel")) {
-    return { bg: "bg-rose-100 text-rose-800", text: action };
+    return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text: action };
   }
-  return { bg: "bg-gray-100 text-gray-600", text: action };
+  return { bg: "bg-gray-500/15 text-[var(--muted)]", text: action };
 }
 
 function summarizeDetails(details: Record<string, unknown> | null): string {

@@ -103,7 +103,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                 <Loader2 className="h-5 w-5 animate-spin text-foreground/70" />
               </div>
             ) : replies.isError ? (
-              <p className="py-6 text-center text-sm text-red-700">{replies.error.message}</p>
+              <p className="py-6 text-center text-sm text-[var(--ink-red)]">{replies.error.message}</p>
             ) : (
               <ul className="space-y-2">
                 {(replies.data ?? []).map((reply) => (

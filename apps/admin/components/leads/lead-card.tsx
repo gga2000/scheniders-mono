@@ -141,7 +141,7 @@ export function LeadCard({
 
             {/* Draft badge — takes precedence visually over tier */}
             {lead.is_draft && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-[var(--ink-amber)]">
                 <Pencil className="w-3 h-3" />
                 Draft
               </span>
@@ -151,11 +151,11 @@ export function LeadCard({
             <div
               className={cn(
                 "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold",
-                tier === "legendary" && "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400",
-                tier === "diamond" && "bg-blue-500/10 text-blue-500 dark:text-blue-400",
-                tier === "gold" && "bg-amber-500/10 text-amber-600 dark:text-amber-500",
+                tier === "legendary" && "bg-fuchsia-500/10 text-[var(--ink-fuchsia)]",
+                tier === "diamond" && "bg-blue-500/10 text-[var(--ink-blue)]",
+                tier === "gold" && "bg-amber-500/10 text-[var(--ink-amber)]",
                 tier === "silver" && "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400",
-                tier === "bronze" && "bg-orange-900/10 text-orange-700 dark:text-orange-400"
+                tier === "bronze" && "bg-orange-900/10 text-[var(--ink-orange)]"
               )}
             >
               <TierIcon className="w-3 h-3" />
@@ -173,12 +173,12 @@ export function LeadCard({
 
             {/* Staleness indicator */}
             {stalenessClass === "stale" && (
-              <div className="px-1.5 py-0.5 rounded text-xs font-bold bg-red-500/15 text-red-500">
+              <div className="px-1.5 py-0.5 rounded text-xs font-bold bg-red-500/15 text-[var(--ink-red)]">
                 STALE
               </div>
             )}
             {stalenessClass === "cold" && (
-              <div className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-500/15 text-amber-500">
+              <div className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-500/15 text-[var(--ink-amber)]">
                 COLD
               </div>
             )}
@@ -227,9 +227,9 @@ export function LeadCard({
         {/* Prediction */}
         {lead.estimated_daily_orders > 0 && (
           <div className="flex items-center gap-1.5 mb-3 text-xs">
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+            <TrendingUp className="w-3.5 h-3.5 text-[var(--ink-green)]" />
             <span className="text-[var(--muted)]">~</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">{lead.estimated_daily_orders}</span>
+            <span className="font-bold text-[var(--ink-green)]">{lead.estimated_daily_orders}</span>
             <span className="text-[var(--muted)]">orders/day</span>
           </div>
         )}

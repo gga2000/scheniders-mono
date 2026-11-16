@@ -81,7 +81,7 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
         <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (saved in the log)" className="mb-3" />
       )}
       {days !== null && !daysOk && (
-        <p className="mb-2 text-[13px] text-rose-700 dark:text-rose-300">From 1 to {MAX_DAYS[kind]} days.</p>
+        <p className="mb-2 text-[13px] text-[var(--ink-red)]">From 1 to {MAX_DAYS[kind]} days.</p>
       )}
       {daysOk && (
         <WillHappen>

@@ -58,7 +58,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
-          <TrendingUp className="w-4 h-4 text-green-700" />
+          <TrendingUp className="w-4 h-4 text-[var(--ink-green)]" />
         </div>
         <h3 className="font-bold text-foreground text-sm">
           Merchant Lifetime Value

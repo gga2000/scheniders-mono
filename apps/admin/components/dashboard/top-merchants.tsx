@@ -70,10 +70,7 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
                 </span>
 
                 {/* Avatar */}
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  style={{ backgroundColor: merchant.primaryColor || "#6B7280" }}
-                >
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold flex-shrink-0">
                   {merchant.businessName.charAt(0).toUpperCase()}
                 </div>
 

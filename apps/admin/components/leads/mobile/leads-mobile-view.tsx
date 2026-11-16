@@ -169,7 +169,7 @@ export function LeadsMobileView() {
       {/* List area */}
       {isError ? (
         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-          <AlertTriangle className="h-8 w-8 text-red-400" />
+          <AlertTriangle className="h-8 w-8 text-[var(--ink-red)]" />
           <p className="text-sm font-semibold text-[var(--foreground)]">
             Failed to load leads
           </p>

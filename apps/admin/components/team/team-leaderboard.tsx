@@ -21,7 +21,12 @@ const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 const podiumOrder = [1, 0, 2] as const;
 const podiumHeights = ["h-28", "h-36", "h-24"] as const;
-const podiumColors = ["bg-zinc-400", "bg-amber-500", "bg-orange-400"] as const;
+// Podium steps: a soft tint with its own ink, readable in both themes.
+const podiumColors = [
+  "bg-slate-500/15 text-[var(--ink-slate)]",
+  "bg-amber-500/15 text-[var(--ink-amber)]",
+  "bg-orange-500/15 text-[var(--ink-orange)]",
+] as const;
 const podiumLabels = ["2nd", "1st", "3rd"] as const;
 const podiumRingColors = [
   "ring-gray-300",
@@ -42,7 +47,8 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
   }, [employees, sortKey, sortDir]);
 
   const top3 = sorted.slice(0, 3);
-  const hasTop3 = top3.length >= 3;
+  // A podium only means something when the top three have a number to rank by.
+  const hasTop3 = top3.length >= 3 && top3.every((emp) => emp[sortKey] > 0);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -68,7 +74,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
       {hasTop3 && (
         <div className="pastel-card p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Trophy className="w-5 h-5 text-amber-500" />
+            <Trophy className="w-5 h-5 text-[var(--ink-amber)]" />
             <h3 className="font-bold text-foreground">Top Performers</h3>
           </div>
 
@@ -113,7 +119,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                   <p className="text-xs text-foreground/70 mt-0.5">
                     {emp.leads_converted} conversions
                   </p>
-                  <p className="text-xs font-semibold text-green-600 mt-0.5">
+                  <p className="text-xs font-semibold text-[var(--ink-green)] mt-0.5">
                     {fmt(emp.commission_earned)} IQD
                   </p>
 
@@ -125,7 +131,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                       podiumColors[visualIdx]
                     )}
                   >
-                    <span className="text-sm font-bold text-white/90">
+                    <span className="text-sm font-bold">
                       {podiumLabels[visualIdx]}
                     </span>
                   </div>
@@ -217,11 +223,11 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                           className={cn(
                             "text-xs font-bold",
                             i === 0
-                              ? "text-amber-500"
+                              ? "text-[var(--ink-amber)]"
                               : i === 1
-                                ? "text-gray-400"
+                                ? "text-[var(--muted)]"
                                 : i === 2
-                                  ? "text-orange-400"
+                                  ? "text-[var(--ink-orange)]"
                                   : "text-foreground/70"
                           )}
                         >

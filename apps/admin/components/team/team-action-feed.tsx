@@ -60,9 +60,9 @@ function getActionCategory(action: string): "lead" | "merchant" | "system" {
 }
 
 const categoryColors: Record<string, { dot: string; bg: string }> = {
-  lead: { dot: "bg-blue-400", bg: "bg-blue-50" },
-  merchant: { dot: "bg-purple-400", bg: "bg-purple-50" },
-  system: { dot: "bg-gray-400", bg: "bg-gray-50" },
+  lead: { dot: "bg-blue-400", bg: "bg-blue-500/5" },
+  merchant: { dot: "bg-purple-400", bg: "bg-purple-500/5" },
+  system: { dot: "bg-gray-400", bg: "bg-gray-500/5" },
 };
 
 export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
@@ -147,10 +147,10 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
                       "inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium",
                       item.colors.bg,
                       item.category === "lead"
-                        ? "text-blue-700"
+                        ? "text-[var(--ink-blue)]"
                         : item.category === "merchant"
-                          ? "text-purple-700"
-                          : "text-gray-600"
+                          ? "text-[var(--ink-violet)]"
+                          : "text-[var(--muted)]"
                     )}
                   >
                     {item.entity_type}

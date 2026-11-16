@@ -35,7 +35,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
       {/* Stats header */}
       <div className="pastel-card p-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-500" />
+          <Trophy className="w-5 h-5 text-[var(--ink-amber)]" />
           <h3 className="font-bold text-foreground">Achievement Wall</h3>
         </div>
         <p className="text-sm text-foreground/70">

@@ -61,7 +61,7 @@ export function LimitedBanner({ merchantId, restrictions }: LimitedBannerProps) 
             : "No end date: it stays until someone lifts it."}
         </p>
         {lift.error && (
-          <p role="alert" className="mt-1 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+          <p role="alert" className="mt-1 text-[13px] font-medium text-[var(--ink-red)]">
             {lift.error.message}
           </p>
         )}

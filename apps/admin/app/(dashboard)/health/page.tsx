@@ -66,9 +66,9 @@ function getRiskBarColor(score: number): string {
 }
 
 function getRiskBarBg(score: number): string {
-  if (score <= 3) return "bg-green-100";
-  if (score <= 6) return "bg-amber-100";
-  return "bg-red-100";
+  if (score <= 3) return "bg-green-500/15";
+  if (score <= 6) return "bg-amber-500/15";
+  return "bg-red-500/15";
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +130,8 @@ export default function HealthPage() {
         <div
           className={`rounded-2xl px-4 py-3 flex items-center gap-3 text-sm font-semibold ${
             hasIssues
-              ? "bg-amber-50 border border-amber-200 text-amber-800"
-              : "bg-green-50 border border-green-200 text-green-800"
+              ? "bg-amber-500/5 border border-amber-200 text-[var(--ink-amber)]"
+              : "bg-green-500/5 border border-green-200 text-[var(--ink-green)]"
           }`}
         >
           {hasIssues ? (
@@ -245,7 +245,7 @@ export default function HealthPage() {
                   {ri.reasons.map((reason) => (
                     <span
                       key={reason}
-                      className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"
+                      className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-[var(--ink-red)]"
                     >
                       {reason}
                     </span>
@@ -335,7 +335,7 @@ export default function HealthPage() {
                       <td className="p-3 text-right text-foreground/70 tabular-nums">
                         {formatIQD(w.threshold_iqd)}
                       </td>
-                      <td className="p-3 text-right font-semibold text-red-600 tabular-nums">
+                      <td className="p-3 text-right font-semibold text-[var(--ink-red)] tabular-nums">
                         -{formatIQD(deficit)}
                       </td>
                       <td className="p-3 text-center">

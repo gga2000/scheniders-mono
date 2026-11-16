@@ -57,7 +57,7 @@ export function NumberCell({
       <p
         className={cn(
           "mt-1 text-[22px] font-semibold tabular-nums",
-          alert ? "text-rose-700 dark:text-rose-300" : "text-foreground",
+          alert ? "text-[var(--ink-red)]" : "text-foreground",
         )}
       >
         {value}

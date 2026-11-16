@@ -82,7 +82,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-mint)]/40 flex items-center justify-center">
-            <Activity className="w-4 h-4 text-teal-700" />
+            <Activity className="w-4 h-4 text-[var(--ink-teal)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">Recent Activity</h3>
         </div>

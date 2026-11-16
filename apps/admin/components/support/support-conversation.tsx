@@ -51,7 +51,7 @@ function ContextChips({ message }: { message: SupportMessageRow }) {
       )}
       {(errorCode || errorMessage) && (
         <span
-          className={cn(chip, "bg-red-100 text-red-800")}
+          className={cn(chip, "bg-red-500/15 text-[var(--ink-red)]")}
           title={sentryEventId ? `Sentry event ${sentryEventId}` : "Error they saw"}
         >
           <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -222,7 +222,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
             <button
               type="button"
               onClick={() => setSolving((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-green-600/40 px-3 py-1.5 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100"
+              className="inline-flex items-center gap-1.5 rounded-full border border-green-600/40 px-3 py-1.5 text-xs font-semibold text-[var(--ink-green)] transition-colors hover:bg-green-100"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               Mark solved

@@ -85,7 +85,7 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
           </p>
           <ul className="space-y-2">
             {shop.pinnedNotes.map((note) => (
-              <li key={note.id} dir="auto" className="rounded-lg bg-amber-50 p-2.5 text-[13px] text-foreground">
+              <li key={note.id} dir="auto" className="rounded-lg bg-amber-500/5 p-2.5 text-[13px] text-foreground">
                 {note.content}
               </li>
             ))}

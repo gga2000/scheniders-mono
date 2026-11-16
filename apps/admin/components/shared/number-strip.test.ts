@@ -32,8 +32,8 @@ describe("NumberStrip", () => {
   it("turns only an alert number red", () => {
     const calm = renderToStaticMarkup(createElement(NumberCell, { label: "Shops paused, now", value: "0" }));
     const alert = renderToStaticMarkup(createElement(NumberCell, { label: "Shops paused, now", value: "2", alert: true }));
-    expect(calm).not.toContain("text-rose-700");
-    expect(alert).toContain("text-rose-700");
+    expect(calm).not.toContain("--ink-red");
+    expect(alert).toContain("text-[var(--ink-red)]");
   });
 });
 
@@ -48,9 +48,8 @@ describe("DeltaChip", () => {
     expect(renderToStaticMarkup(createElement(DeltaChip, { deltaPct: null }))).toBe("");
   });
 
-  it("keeps light ink in dark mode", () => {
-    const html = renderToStaticMarkup(createElement(DeltaChip, { deltaPct: -5 }));
-    expect(html).toContain("text-rose-800");
-    expect(html).toContain("dark:text-rose-300");
+  it("uses the theme ink, so it reads in light and dark", () => {
+    expect(renderToStaticMarkup(createElement(DeltaChip, { deltaPct: -5 }))).toContain("text-[var(--ink-red)]");
+    expect(renderToStaticMarkup(createElement(DeltaChip, { deltaPct: 5 }))).toContain("text-[var(--ink-green)]");
   });
 });

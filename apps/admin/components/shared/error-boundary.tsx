@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       return (
         <div className="pastel-card p-6 flex flex-col items-center justify-center text-center min-h-[120px]">
-          <AlertTriangle className="w-6 h-6 text-amber-500 mb-2" />
+          <AlertTriangle className="w-6 h-6 text-[var(--ink-amber)] mb-2" />
           <p className="text-sm font-semibold text-foreground/70">
             {this.props.name ? `${this.props.name} failed to load` : "Something went wrong"}
           </p>

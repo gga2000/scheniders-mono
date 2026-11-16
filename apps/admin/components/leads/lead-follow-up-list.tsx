@@ -367,7 +367,7 @@ function FollowUpCard({
       <div className="pt-0.5 flex-shrink-0">
         {done ? (
           <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center">
-            <Check className="w-3 h-3 text-emerald-500" />
+            <Check className="w-3 h-3 text-[var(--ink-green)]" />
           </div>
         ) : overdue ? (
           <div className="relative w-5 h-5 flex items-center justify-center">
@@ -405,8 +405,8 @@ function FollowUpCard({
           <span
             className={cn(
               "text-xs font-medium",
-              overdue && "text-red-500",
-              today && "text-amber-600 dark:text-amber-400"
+              overdue && "text-[var(--ink-red)]",
+              today && "text-[var(--ink-amber)]"
             )}
             style={!overdue && !today ? { color: "var(--muted)" } : undefined}
           >
@@ -438,7 +438,7 @@ function FollowUpCard({
         >
           <CheckCircle2
             className={cn(
-              "w-4.5 h-4.5 text-emerald-500 transition-transform",
+              "w-4.5 h-4.5 text-[var(--ink-green)] transition-transform",
               isCompleting && "animate-spin"
             )}
           />

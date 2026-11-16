@@ -13,8 +13,8 @@ export function DeltaChip({ deltaPct }: { deltaPct: number | null }) {
       className={cn(
         "inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
         up
-          ? "bg-emerald-600/10 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300"
-          : "bg-rose-600/10 text-rose-800 dark:bg-rose-400/15 dark:text-rose-300",
+          ? "bg-emerald-600/10 text-[var(--ink-green)] dark:bg-emerald-400/15"
+          : "bg-rose-600/10 text-[var(--ink-red)] dark:bg-rose-400/15",
       )}
     >
       {up ? "+" : ""}

@@ -31,9 +31,9 @@ type Tab = (typeof tabs)[number];
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 const commissionStatusStyles: Record<CommissionStatus, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  approved: "bg-blue-100 text-blue-800",
-  paid: "bg-green-100 text-green-800",
+  pending: "bg-amber-500/15 text-[var(--ink-amber)]",
+  approved: "bg-blue-500/15 text-[var(--ink-blue)]",
+  paid: "bg-green-500/15 text-[var(--ink-green)]",
 };
 
 export default function TeamMemberDetailPage() {
@@ -73,9 +73,9 @@ export default function TeamMemberDetailPage() {
   const initial = (employee.display_name ?? employee.email).charAt(0).toUpperCase();
 
   const roleStyles: Record<string, string> = {
-    admin: "bg-purple-100 text-purple-800",
-    manager: "bg-blue-100 text-blue-800",
-    agent: "bg-green-100 text-green-800",
+    admin: "bg-purple-500/15 text-[var(--ink-violet)]",
+    manager: "bg-blue-500/15 text-[var(--ink-blue)]",
+    agent: "bg-green-500/15 text-[var(--ink-green)]",
   };
 
   const totalPages = actionsData ? Math.ceil(actionsData.total / 50) : 1;
@@ -115,7 +115,7 @@ export default function TeamMemberDetailPage() {
           <span
             className={cn(
               "px-2.5 py-1 rounded-full text-xs font-semibold capitalize shrink-0",
-              roleStyles[employee.role] ?? "bg-gray-100 text-gray-600"
+              roleStyles[employee.role] ?? "bg-gray-500/15 text-[var(--muted)]"
             )}
           >
             {employee.role}

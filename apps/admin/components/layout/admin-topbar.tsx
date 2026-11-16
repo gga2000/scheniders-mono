@@ -24,8 +24,8 @@ interface MerchantResult {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  starter: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  internal: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  starter: "bg-blue-500/15 text-[var(--ink-blue)] dark:bg-blue-900",
+  internal: "bg-gray-500/15 text-[var(--muted)] dark:bg-gray-700 dark:text-gray-300",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -225,7 +225,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
 
                     {/* Plan badge */}
                     <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-500/15 text-[var(--muted)] dark:bg-gray-700 dark:text-gray-300"}`}
                     >
                       {merchant.plan}
                     </span>

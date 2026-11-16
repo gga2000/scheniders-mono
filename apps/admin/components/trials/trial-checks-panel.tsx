@@ -101,7 +101,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
         </button>
         {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/70" />}
       </div>
-      {mutation.isError && <p className="text-xs text-red-600 font-medium">{mutation.error.message}</p>}
+      {mutation.isError && <p className="text-xs text-[var(--ink-red)] font-medium">{mutation.error.message}</p>}
     </div>
   );
 }
@@ -115,7 +115,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-              check.verdict === "no_trial" ? "bg-rose-600/15 text-rose-800" : "bg-amber-600/15 text-amber-800"
+              check.verdict === "no_trial" ? "bg-rose-600/15 text-[var(--ink-red)]" : "bg-amber-600/15 text-[var(--ink-amber)]"
             }`}
           >
             {check.verdict === "no_trial" ? "No trial" : "Review"}

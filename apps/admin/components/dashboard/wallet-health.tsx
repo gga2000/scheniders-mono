@@ -42,13 +42,13 @@ export function WalletHealth({ health }: WalletHealthProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-purple)]/40 flex items-center justify-center">
-            <Wallet className="w-4 h-4 text-purple-700" />
+            <Wallet className="w-4 h-4 text-[var(--ink-violet)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">Wallet Health</h3>
         </div>
 
         {health && health.critical > 5 && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/15 text-[var(--ink-red)] text-xs font-bold">
             <AlertTriangle className="w-3 h-3" />
             {health.critical} critical
           </span>
@@ -71,7 +71,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 title={`Healthy: ${health.healthy} (${healthyPct.toFixed(0)}%)`}
               >
                 {healthyPct >= 15 && (
-                  <span className="text-xs font-bold text-green-900">
+                  <span className="text-xs font-bold text-[var(--ink-green)]">
                     {health.healthy}
                   </span>
                 )}
@@ -87,7 +87,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 title={`Warning: ${health.warning} (${warningPct.toFixed(0)}%)`}
               >
                 {warningPct >= 15 && (
-                  <span className="text-xs font-bold text-amber-900">
+                  <span className="text-xs font-bold text-[var(--ink-amber)]">
                     {health.warning}
                   </span>
                 )}
@@ -103,7 +103,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 title={`Critical: ${health.critical} (${criticalPct.toFixed(0)}%)`}
               >
                 {criticalPct >= 15 && (
-                  <span className="text-xs font-bold text-red-900">
+                  <span className="text-xs font-bold text-[var(--ink-red)]">
                     {health.critical}
                   </span>
                 )}

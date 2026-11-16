@@ -377,7 +377,7 @@ export function LeadsTable({
                     "group border-b border-[var(--card-border)] last:border-0 transition-colors",
                     isEditing ? "cursor-default" : "cursor-pointer",
                     lead.is_draft
-                      ? "bg-amber-50/60 hover:bg-amber-50 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/[0.1]"
+                      ? "bg-amber-500/5 hover:bg-amber-50 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/[0.1]"
                       : "hover:bg-black/[0.02] dark:hover:bg-white/[0.03]",
                   )}
                 >

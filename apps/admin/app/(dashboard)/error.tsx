@@ -18,8 +18,8 @@ export default function DashboardError({
   return (
     <div role="alert" className="p-4 md:p-6 flex items-center justify-center min-h-[60vh]">
       <div className="text-center space-y-4 max-w-md">
-        <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mx-auto">
-          <AlertTriangle className="w-8 h-8 text-red-500" />
+        <div className="w-16 h-16 rounded-2xl bg-red-500/5 border border-red-200 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-8 h-8 text-[var(--ink-red)]" />
         </div>
         <div>
           <h2 className="text-xl font-bold text-foreground">This page stopped working</h2>

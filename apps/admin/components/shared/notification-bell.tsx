@@ -20,11 +20,11 @@ interface Notification {
 }
 
 const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, label: "Wallet Top-Up", color: "text-green-600" },
-  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Plan Changed", color: "text-blue-600" },
-  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, label: "Trial Extended", color: "text-amber-600" },
-  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Tenant Suspended", color: "text-red-600" },
-  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, label: "Tenant Reactivated", color: "text-green-600" },
+  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, label: "Wallet Top-Up", color: "text-[var(--ink-green)]" },
+  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Plan Changed", color: "text-[var(--ink-blue)]" },
+  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, label: "Trial Extended", color: "text-[var(--ink-amber)]" },
+  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Tenant Suspended", color: "text-[var(--ink-red)]" },
+  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, label: "Tenant Reactivated", color: "text-[var(--ink-green)]" },
   add_note: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Note Added", color: "text-foreground/70" },
 };
 
@@ -100,7 +100,7 @@ export function NotificationBell() {
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold tabular-nums text-white"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold tabular-nums text-white"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
           </motion.span>

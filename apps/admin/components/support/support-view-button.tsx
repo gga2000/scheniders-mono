@@ -46,7 +46,7 @@ export function SupportViewButton({ tenantId }: { tenantId: string }) {
         type="button"
         disabled={start.isPending}
         onClick={open}
-        className="inline-flex items-center gap-1.5 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-[var(--ink-red)] transition-colors hover:bg-red-50 disabled:opacity-50"
       >
         {start.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
         View as merchant
@@ -56,7 +56,7 @@ export function SupportViewButton({ tenantId }: { tenantId: string }) {
 
   const until = new Date(link.expiresAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   return (
-    <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+    <div className="space-y-2 rounded-xl border border-red-200 bg-red-500/5 p-3 text-xs text-[var(--ink-red)]">
       <p>
         Look only, until {until}. Nothing can be changed, and the merchant sees this visit. Use a private window if you
         are signed in to a shop in this browser.

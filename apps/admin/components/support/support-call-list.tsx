@@ -2,8 +2,8 @@ import { CALL_OUTCOME_LABELS, formatAgo, type SupportCall } from "@/lib/support"
 import { cn } from "@/lib/utils";
 
 const OUTCOME_TONE: Record<SupportCall["outcome"], string> = {
-  done: "bg-emerald-100 text-emerald-900",
-  no_answer: "bg-amber-100 text-amber-900",
+  done: "bg-emerald-500/15 text-[var(--ink-green)]",
+  no_answer: "bg-amber-500/15 text-[var(--ink-amber)]",
   later: "bg-foreground/5 text-foreground-muted",
 };
 

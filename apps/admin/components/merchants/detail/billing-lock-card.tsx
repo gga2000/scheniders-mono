@@ -104,7 +104,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
     <section className="pastel-card border-l-4 border-l-rose-600 p-5" data-testid="billing-lock-card" aria-label="Store locked">
       <div className="mb-4 flex items-start justify-between gap-6">
         <div>
-          <p className="flex items-center gap-1.5 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--ink-red)]">
             <Lock className="h-4 w-4" aria-hidden />
             Store locked
           </p>
@@ -124,7 +124,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
           <p
             className={cn(
               "mt-1 text-[22px] font-semibold tabular-nums",
-              paused ? "text-rose-700 dark:text-rose-300" : "text-foreground",
+              paused ? "text-[var(--ink-red)]" : "text-foreground",
             )}
           >
             {ordersLeft}
@@ -220,13 +220,13 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
           </div>
         </>
       ) : (
-        <p className="text-[13px] font-medium text-rose-700 dark:text-rose-300" data-testid="billing-lock-super-admin-only">
+        <p className="text-[13px] font-medium text-[var(--ink-red)]" data-testid="billing-lock-super-admin-only">
           A store locked for an unpaid month gets more orders or a free unlock from a super admin.
         </p>
       )}
 
       {mutation.isError && (
-        <p role="alert" className="mt-3 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+        <p role="alert" className="mt-3 text-[13px] font-medium text-[var(--ink-red)]">
           {mutation.error.message}
         </p>
       )}

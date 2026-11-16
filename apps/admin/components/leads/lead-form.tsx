@@ -89,27 +89,27 @@ const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
 const ACCENTS = {
   indigo: {
     border: "border-indigo-200/70 dark:border-indigo-500/20",
-    header: "bg-indigo-50/70 dark:bg-indigo-500/[0.07]",
-    chip: "bg-indigo-500/12 text-indigo-500",
-    title: "text-indigo-600 dark:text-indigo-300",
+    header: "bg-indigo-500/5",
+    chip: "bg-indigo-500/12 text-[var(--ink-blue)]",
+    title: "text-[var(--ink-blue)]",
   },
   emerald: {
     border: "border-emerald-200/70 dark:border-emerald-500/20",
-    header: "bg-emerald-50/70 dark:bg-emerald-500/[0.07]",
-    chip: "bg-emerald-500/12 text-emerald-600",
-    title: "text-emerald-700 dark:text-emerald-300",
+    header: "bg-emerald-500/5",
+    chip: "bg-emerald-500/12 text-[var(--ink-green)]",
+    title: "text-[var(--ink-green)]",
   },
   violet: {
     border: "border-violet-200/70 dark:border-violet-500/20",
-    header: "bg-violet-50/70 dark:bg-violet-500/[0.07]",
-    chip: "bg-violet-500/12 text-violet-500",
-    title: "text-violet-600 dark:text-violet-300",
+    header: "bg-violet-500/5",
+    chip: "bg-violet-500/12 text-[var(--ink-violet)]",
+    title: "text-[var(--ink-violet)]",
   },
   amber: {
     border: "border-amber-200/70 dark:border-amber-500/20",
-    header: "bg-amber-50/70 dark:bg-amber-500/[0.07]",
-    chip: "bg-amber-500/14 text-amber-600",
-    title: "text-amber-700 dark:text-amber-300",
+    header: "bg-amber-500/5",
+    chip: "bg-amber-500/14 text-[var(--ink-amber)]",
+    title: "text-[var(--ink-amber)]",
   },
 } as const;
 
@@ -124,10 +124,10 @@ const BRANCH_INPUT =
 /** Per-type leading icon + tint, the visual cue for the field kind. */
 const KIND_META: Record<string, { icon: LucideIcon; color: string }> = {
   text: { icon: Type, color: "text-slate-400" },
-  number: { icon: Hash, color: "text-blue-500" },
-  tel: { icon: Phone, color: "text-emerald-500" },
-  url: { icon: Link2, color: "text-sky-500" },
-  email: { icon: Mail, color: "text-amber-500" },
+  number: { icon: Hash, color: "text-[var(--ink-blue)]" },
+  tel: { icon: Phone, color: "text-[var(--ink-green)]" },
+  url: { icon: Link2, color: "text-[var(--ink-blue)]" },
+  email: { icon: Mail, color: "text-[var(--ink-amber)]" },
 };
 
 function FieldLabel({
@@ -140,7 +140,7 @@ function FieldLabel({
   return (
     <label className="mb-1.5 block text-xs font-semibold text-[var(--muted)]">
       {children}
-      {required && <span className="text-rose-500"> *</span>}
+      {required && <span className="text-[var(--ink-red)]"> *</span>}
     </label>
   );
 }
@@ -254,7 +254,7 @@ function SelectField({
       {label !== undefined && <FieldLabel required={required}>{label}</FieldLabel>}
       <div className="relative">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
-          {leading ?? <List className="h-4 w-4 text-violet-500" />}
+          {leading ?? <List className="h-4 w-4 text-[var(--ink-violet)]" />}
         </span>
         <select
           value={value}
@@ -559,7 +559,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                     label={<>Merchant Name</>}
                     required
                     icon={Store}
-                    iconColor="text-indigo-500"
+                    iconColor="text-[var(--ink-blue)]"
                     inputRef={nameRef}
                     value={form.merchant_name}
                     onChange={(e) => update("merchant_name", e.target.value)}
@@ -593,7 +593,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   <button
                     type="button"
                     onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-indigo-500 transition-colors hover:text-indigo-600 hover:underline"
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] transition-colors hover:underline"
                   >
                     <Settings2 className="h-3 w-3" /> Manage
                   </button>
@@ -616,7 +616,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   <div className="mt-2">
                     <InputField
                       icon={Tag}
-                      iconColor="text-indigo-400"
+                      iconColor="text-[var(--ink-blue)]"
                       value={form.industry_detail}
                       onChange={(e) => update("industry_detail", e.target.value)}
                       placeholder="Specify the niche — e.g. herbs & natural products"
@@ -641,7 +641,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 <InputField
                   label="Handle"
                   icon={AtSign}
-                  iconColor="text-pink-500"
+                  iconColor="text-[var(--ink-fuchsia)]"
                   dir="ltr"
                   value={form.handle}
                   onChange={(e) => update("handle", e.target.value)}
@@ -730,12 +730,12 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                       </button>
                     </div>
                     {analyzeError && (
-                      <p className="flex items-center gap-1 text-xs font-medium text-red-500">
+                      <p className="flex items-center gap-1 text-xs font-medium text-[var(--ink-red)]">
                         <AlertCircle className="h-3 w-3" /> {analyzeError}
                       </p>
                     )}
                     {analyzeSuccess && (
-                      <p className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <p className="flex items-center gap-1 text-xs font-medium text-[var(--ink-green)]">
                         <Check className="h-3 w-3" /> Profile loaded — fields above were auto-filled.
                       </p>
                     )}
@@ -782,7 +782,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 <InputField
                   label="Management Name"
                   icon={UserPlus}
-                  iconColor="text-emerald-500"
+                  iconColor="text-[var(--ink-green)]"
                   value={form.management_name}
                   onChange={(e) => update("management_name", e.target.value)}
                   placeholder="Owner / Manager"
@@ -801,7 +801,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                     </div>
                   ) : (
                     <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-green)]">
                         <Phone className="h-4 w-4" />
                       </span>
                       <input
@@ -872,7 +872,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                           <button
                             type="button"
                             onClick={() => removePhone(idx)}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--ink-red)] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -884,7 +884,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                     <button
                       type="button"
                       onClick={addPhone}
-                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 transition-colors hover:underline"
+                      className="flex items-center gap-1.5 text-xs font-medium text-[var(--ink-green)] transition-colors hover:underline"
                     >
                       <Plus className="h-3 w-3" /> Add another number
                     </button>
@@ -954,7 +954,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
               accent="violet"
               badge={
                 hasPrediction ? (
-                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="flex items-center gap-1 text-xs font-bold text-[var(--ink-green)]">
                     <TrendingUp className="h-3 w-3" />~{estimatedDailyOrders}/day
                   </span>
                 ) : undefined
@@ -972,7 +972,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   <div key={key}>
                     <FieldLabel>{label}</FieldLabel>
                     <div className="relative">
-                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-500">
+                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ink-blue)]">
                         <Hash className="h-3.5 w-3.5" />
                       </span>
                       <input
@@ -998,10 +998,10 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
               )}
 
               {hasPrediction && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-500/5 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/10">
                   <div className="mb-2.5 flex items-center gap-2">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                    <TrendingUp className="h-3.5 w-3.5 text-[var(--ink-green)]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--ink-green)]">
                       Order Prediction
                     </span>
                   </div>
@@ -1012,16 +1012,16 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                       [formatIQD(estimatedMonthlyRevenue), "a month"],
                     ].map(([value, label]) => (
                       <div key={label}>
-                        <div className="text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-300">
+                        <div className="text-xl font-black tabular-nums text-[var(--ink-green)]">
                           {value}
                         </div>
-                        <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                        <div className="text-xs text-[var(--ink-green)]">
                           {label}
                         </div>
                       </div>
                     ))}
                   </div>
-                  <p className="mt-2.5 text-xs text-emerald-700/70 dark:text-emerald-300/70">
+                  <p className="mt-2.5 text-xs text-[var(--ink-green)]">
                     {isOrdersOverride
                       ? `Manual override · views forecast ~${viewsBasedDailyOrders.toLocaleString()}/day`
                       : "Based on avg views ÷ 10,000 (1% interested × 1% buy)"}
@@ -1065,7 +1065,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                       label="Governorate"
                       value={form.governorate_code}
                       onChange={(e) => update("governorate_code", e.target.value)}
-                      leading={<MapPin className="h-4 w-4 text-amber-500" />}
+                      leading={<MapPin className="h-4 w-4 text-[var(--ink-amber)]" />}
                     >
                       <option value="">Select governorate</option>
                       {IRAQ_GOVERNORATES.map((g) => (
@@ -1077,7 +1077,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                     <InputField
                       label="City / Area"
                       icon={MapPin}
-                      iconColor="text-amber-500"
+                      iconColor="text-[var(--ink-amber)]"
                       value={form.city}
                       onChange={(e) => update("city", e.target.value)}
                       placeholder="e.g. Amarah"
@@ -1100,7 +1100,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                       <button
                         type="button"
                         onClick={addBranch}
-                        className="flex items-center gap-1 text-xs font-medium text-amber-600 transition-colors hover:underline"
+                        className="flex items-center gap-1 text-xs font-medium text-[var(--ink-amber)] transition-colors hover:underline"
                       >
                         <Plus className="h-3 w-3" /> Add branch
                       </button>
@@ -1129,7 +1129,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                               <button
                                 type="button"
                                 onClick={() => removeBranch(bi)}
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--ink-red)] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                                 title="Remove branch"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1194,7 +1194,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                                       <button
                                         type="button"
                                         onClick={() => removeBranchPhone(bi, pi)}
-                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--ink-red)] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </button>
@@ -1206,7 +1206,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                                 <button
                                   type="button"
                                   onClick={() => addBranchPhone(bi)}
-                                  className="flex items-center gap-1 text-xs font-medium text-amber-600 transition-colors hover:underline"
+                                  className="flex items-center gap-1 text-xs font-medium text-[var(--ink-amber)] transition-colors hover:underline"
                                 >
                                   <Plus className="h-3 w-3" /> Add number
                                 </button>
@@ -1235,9 +1235,9 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
 
             {/* Live prediction chip */}
             {hasPrediction ? (
-              <div className="hidden items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-1.5 dark:border-emerald-500/20 dark:bg-emerald-500/10 sm:flex">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+              <div className="hidden items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-500/5 px-3 py-1.5 dark:border-emerald-500/20 dark:bg-emerald-500/10 sm:flex">
+                <TrendingUp className="h-3.5 w-3.5 text-[var(--ink-green)]" />
+                <span className="text-xs font-semibold tabular-nums text-[var(--ink-green)]">
                   ~{estimatedDailyOrders}/day · {formatIQD(estimatedMonthlyRevenue)}/mo
                 </span>
               </div>

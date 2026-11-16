@@ -634,8 +634,8 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
             className="fixed left-1/2 top-1/2 z-[211] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-2xl lead-modal-in"
           >
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-500/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+              <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-[var(--ink-red)]" />
               </div>
               <div>
                 <Dialog.Title className="text-sm font-bold text-[var(--foreground)] mb-1">
@@ -644,7 +644,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                 {deleteConfirm && deleteConfirm.linkedLeads > 0 ? (
                   <p className="text-xs text-[var(--muted)]">
                     This industry is linked to{" "}
-                    <span className="font-semibold text-red-500">
+                    <span className="font-semibold text-[var(--ink-red)]">
                       {deleteConfirm.linkedLeads}
                     </span>{" "}
                     lead{deleteConfirm.linkedLeads !== 1 ? "s" : ""}. Removing it

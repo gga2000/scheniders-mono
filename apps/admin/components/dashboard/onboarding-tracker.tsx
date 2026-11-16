@@ -49,7 +49,7 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-yellow)]/40 flex items-center justify-center">
-            <ListChecks className="w-4 h-4 text-amber-700" />
+            <ListChecks className="w-4 h-4 text-[var(--ink-amber)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
             Onboarding Progress
@@ -60,7 +60,7 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
             onClick={() => setIncompleteOnly(!incompleteOnly)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors border ${
               incompleteOnly
-                ? "bg-[var(--pastel-yellow)] border-amber-300 text-amber-900"
+                ? "bg-[var(--pastel-yellow)] border-amber-300 text-[var(--ink-amber)]"
                 : "bg-[var(--background)] border-[var(--card-border)] text-foreground/70 hover:text-foreground"
             }`}
           >
@@ -138,8 +138,8 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
                         key={step.key}
                         className={`w-7 h-7 rounded-full flex items-center justify-center ${
                           done
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-50 text-red-400"
+                            ? "bg-green-500/15 text-[var(--ink-green)]"
+                            : "bg-red-500/5 text-[var(--ink-red)]"
                         }`}
                         title={step.label}
                       >

@@ -30,7 +30,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-mint)]/40 flex items-center justify-center">
-            <Filter className="w-4 h-4 text-teal-700" />
+            <Filter className="w-4 h-4 text-[var(--ink-teal)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
             Fulfillment Funnel

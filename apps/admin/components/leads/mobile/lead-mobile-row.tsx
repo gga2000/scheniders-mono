@@ -35,7 +35,7 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
       className={cn(
         "flex w-full cursor-pointer items-center gap-3 rounded-2xl p-3 text-left transition-transform active:scale-[0.99]",
         lead.is_draft
-          ? "border-2 border-dashed border-amber-400/60 bg-amber-50/60 dark:bg-amber-500/[0.06]"
+          ? "border-2 border-dashed border-amber-400/60 bg-amber-500/5"
           : "border border-[var(--card-border)] bg-[var(--card-bg)]",
       )}
     >
@@ -49,7 +49,7 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
         <div className="flex items-center gap-1.5">
           <span className="truncate font-semibold text-[var(--foreground)]">{lead.merchant_name}</span>
           {lead.is_draft && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--ink-amber)]">
               <Pencil className="h-2.5 w-2.5" /> Draft
             </span>
           )}

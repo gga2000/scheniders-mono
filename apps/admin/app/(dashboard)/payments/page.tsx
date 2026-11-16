@@ -56,7 +56,7 @@ function Receipt({ row }: { row: TopupQueueItem }) {
         href={row.receipt_url}
         target="_blank"
         rel="noreferrer"
-        className="flex h-36 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-blue-700 hover:bg-blue-50"
+        className="flex h-36 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-[var(--ink-blue)] hover:bg-blue-50"
       >
         <FileText className="w-6 h-6" />
         Open PDF
@@ -140,7 +140,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
             {approve ? "Yes, add it" : "Yes, refuse"}
           </button>
         </div>
-        {decide.isError && <p className="text-xs text-red-600">{decide.error.message}</p>}
+        {decide.isError && <p className="text-xs text-[var(--ink-red)]">{decide.error.message}</p>}
       </div>
     );
   }
@@ -184,16 +184,16 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
         className="w-full rounded-xl bg-white/80 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 dark:bg-white/10"
       />
       {overAsked ? (
-        <p className="text-xs text-red-600">The shop said {iqd(row.amount_iqd)}. More than that needs a super admin.</p>
+        <p className="text-xs text-[var(--ink-red)]">The shop said {iqd(row.amount_iqd)}. More than that needs a super admin.</p>
       ) : (
-        differs && <p className="text-xs text-amber-700">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>
+        differs && <p className="text-xs text-[var(--ink-amber)]">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>
       )}
-      {!amountOk && <p className="text-xs text-red-600">Between 1,000 and 10,000,000 IQD.</p>}
+      {!amountOk && <p className="text-xs text-[var(--ink-red)]">Between 1,000 and 10,000,000 IQD.</p>}
       <div className="flex justify-end gap-1.5">
         <button
           type="button"
           onClick={() => setRefusing(true)}
-          className="inline-flex items-center gap-1 rounded-lg border border-[var(--card-border)] px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-[var(--card-border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--ink-red)] hover:bg-red-50"
         >
           <X className="w-3 h-3" />
           Refuse
@@ -232,14 +232,14 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
         </p>
         <p className="text-xs text-foreground/70">{billingLine(row)}</p>
         {row.billing?.locked && (
-          <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+          <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-[var(--ink-amber)]">
             <Lock className="w-3 h-3" />
             {row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended"}
             {owed > 0 ? ` · needs ${iqd(owed)} to open` : " · this payment opens it"}
           </p>
         )}
         {warnings.map((w) => (
-          <p key={w} className="flex items-center gap-1 text-xs font-medium text-rose-700">
+          <p key={w} className="flex items-center gap-1 text-xs font-medium text-[var(--ink-red)]">
             <AlertTriangle className="w-3 h-3 shrink-0" />
             {w}
           </p>
@@ -299,7 +299,7 @@ export default function PaymentsPage() {
         </div>
       ) : (
         <div className="pastel-card flex flex-col items-center gap-2 py-14 text-center" data-testid="payments-empty">
-          <Check className="w-6 h-6 text-green-600" />
+          <Check className="w-6 h-6 text-[var(--ink-green)]" />
           <p className="text-sm font-semibold text-foreground">No receipts waiting</p>
           <p className="text-xs text-foreground/70">New receipts show up here and in the bell.</p>
         </div>

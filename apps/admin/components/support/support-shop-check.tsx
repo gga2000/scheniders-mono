@@ -9,9 +9,9 @@ import { shopCheckLines, type CheckState } from "@/lib/support-shop-check";
 import { formatTime } from "@/lib/format";
 
 const STATE_ICON: Record<CheckState, { icon: typeof CheckCircle2; className: string; label: string }> = {
-  ok: { icon: CheckCircle2, className: "text-green-700", label: "Fine" },
-  look: { icon: AlertTriangle, className: "text-amber-600", label: "Worth a look" },
-  broken: { icon: XCircle, className: "text-red-700", label: "Broken" },
+  ok: { icon: CheckCircle2, className: "text-[var(--ink-green)]", label: "Fine" },
+  look: { icon: AlertTriangle, className: "text-[var(--ink-amber)]", label: "Worth a look" },
+  broken: { icon: XCircle, className: "text-[var(--ink-red)]", label: "Broken" },
   none: { icon: MinusCircle, className: "text-foreground/70", label: "Not in use" },
 };
 
@@ -35,7 +35,7 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
 
   if (check.isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+      <div className="rounded-xl border border-red-200 bg-red-500/5 p-3 text-xs text-[var(--ink-red)]">
         Could not check this shop. {check.error.message}
         <button type="button" onClick={() => check.refetch()} className="ml-1 font-semibold underline">
           Try again
@@ -92,8 +92,8 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
           );
           const row = cn(
             "flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs",
-            line.state === "broken" && "bg-red-50",
-            line.state === "look" && "bg-amber-50",
+            line.state === "broken" && "bg-red-500/5",
+            line.state === "look" && "bg-amber-500/5",
           );
           if (!line.href) {
             return (
