@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { fetchMerchantListStats } from "@/lib/console-stats";
+import { everyRow } from "@/lib/every-row";
+import { merchantSearchFilter } from "@/lib/merchant-search";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -32,35 +35,30 @@ export async function GET(request: NextRequest) {
     // the matching ids in Node, then constrain the main query.
     let attentionIds: string[] | null = null;
     if (status === "attention") {
-      const { data: lite } = await supabase
-        .from("tenants")
-        .select("id, status, trial_ends_at, wallet(balance_iqd)");
-      if (lite) {
-        const now = Date.now();
-        attentionIds = [];
-        for (const t of lite) {
-          const s = (t as { status?: string }).status;
-          const trialEnd = (t as { trial_ends_at?: string | null }).trial_ends_at;
-          const walletRel = (t as {
-            wallet?: { balance_iqd?: number } | { balance_iqd?: number }[];
-          }).wallet;
-          const bal = Array.isArray(walletRel)
-            ? walletRel[0]?.balance_iqd ?? 0
-            : walletRel?.balance_iqd ?? 0;
+      // Every shop, a page at a time: one request stops at 1,000 rows.
+      const lite = await everyRow((from, to) =>
+        supabase
+          .from("tenants")
+          .select("id, status, trial_ends_at, wallet(balance_iqd)")
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      const now = Date.now();
+      attentionIds = [];
+      for (const t of lite) {
+        const s = t.status as string;
+        const trialEnd = t.trial_ends_at as string | null;
+        const walletRel = t.wallet as { balance_iqd?: number } | { balance_iqd?: number }[] | null;
+        const bal = Array.isArray(walletRel) ? walletRel[0]?.balance_iqd ?? 0 : walletRel?.balance_iqd ?? 0;
 
-          let attn = false;
-          if (s === "suspended" || s === "cancelled") attn = true;
-          if (s === "trial" && trialEnd) {
-            const daysLeft = Math.ceil(
-              (new Date(trialEnd).getTime() - now) / (1000 * 60 * 60 * 24)
-            );
-            if (daysLeft <= 3) attn = true;
-          }
-          if (bal < 5000 && s !== "cancelled") attn = true;
-          if (attn) attentionIds.push(t.id);
+        let attn = false;
+        if (s === "suspended" || s === "cancelled") attn = true;
+        if (s === "trial" && trialEnd) {
+          const daysLeft = Math.ceil((new Date(trialEnd).getTime() - now) / (1000 * 60 * 60 * 24));
+          if (daysLeft <= 3) attn = true;
         }
-      } else {
-        attentionIds = [];
+        if (bal < 5000 && s !== "cancelled") attn = true;
+        if (attn) attentionIds.push(t.id);
       }
     }
 
@@ -81,22 +79,7 @@ export async function GET(request: NextRequest) {
       query = query.in("id", attentionIds);
     }
 
-    if (search) {
-      // If the query looks like a merchant code (digits, optional leading #),
-      // include display_id::text in the OR so server-side search works.
-      const codeQuery = search.trim().replace(/^#/, "");
-      const isCode = /^\d{1,6}$/.test(codeQuery);
-      const escaped = search.replace(/[%,]/g, "");
-      const parts = [
-        `business_name.ilike.%${escaped}%`,
-        `slug.ilike.%${escaped}%`,
-        `contact_email.ilike.%${escaped}%`,
-      ];
-      if (isCode) {
-        parts.push(`display_id::text.ilike.${codeQuery}%`);
-      }
-      query = query.or(parts.join(","));
-    }
+    if (search) query = query.or(merchantSearchFilter(search));
 
     if (dateFrom) query = query.gte("created_at", dateFrom);
     if (dateTo) query = query.lte("created_at", dateTo);
@@ -109,6 +92,9 @@ export async function GET(request: NextRequest) {
         query = query.order(col, { ascending: dir === "asc" });
       }
     }
+
+    // Shops made in the same instant need a fixed order, or a page boundary can skip or repeat one.
+    query = query.order("id", { ascending: true });
 
     query = query.range(offset, offset + limit - 1);
 
@@ -125,167 +111,61 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ── Compute additional fields per merchant ─────────────────────────
+    // ── Numbers per merchant ───────────────────────────────────────────
+    // Counted in the database (admin_merchant_list_stats): real orders and our
+    // fees over the last 30 Baghdad days, the last order and wallet line, the
+    // newest usage row and the billing lock. A failed read fails the request;
+    // it never draws a busy shop as a quiet one.
     const tenantIds = tenants.map((t) => t.id);
 
-    // Fetch last activity (latest wallet transaction) per tenant
-    const { data: lastActivity } = await supabase
-      .from("wallet_transactions")
-      .select("tenant_id, created_at")
-      .in("tenant_id", tenantIds)
-      .order("created_at", { ascending: false });
+    const [stats, pinned] = await Promise.all([
+      fetchMerchantListStats(supabase, tenantIds),
+      // Most recent pinned note per tenant wins.
+      supabase
+        .from("admin_notes")
+        .select("tenant_id, content, updated_at, admin_label")
+        .in("tenant_id", tenantIds)
+        .eq("is_pinned", true)
+        .order("updated_at", { ascending: false }),
+    ]);
+    if (pinned.error) throw pinned.error;
 
-    // Compute last_active_at per tenant (first occurrence = latest due to order)
-    const lastActiveMap = new Map<string, string>();
-    if (lastActivity) {
-      for (const row of lastActivity) {
-        if (!lastActiveMap.has(row.tenant_id)) {
-          lastActiveMap.set(row.tenant_id, row.created_at);
-        }
-      }
-    }
-
-    // Fetch monthly + daily revenue (charges in last 30 days) per tenant
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const startOfTodayMs = startOfToday.getTime();
-    const { data: revenueData } = await supabase
-      .from("wallet_transactions")
-      .select("tenant_id, amount_iqd, created_at")
-      .in("tenant_id", tenantIds)
-      .eq("type", "charge")
-      .gte("created_at", thirtyDaysAgo);
-
-    const revenueMap = new Map<string, number>();
-    const dailyRevenueMap = new Map<string, number>();
-    if (revenueData) {
-      for (const row of revenueData) {
-        const amount = Math.abs(row.amount_iqd);
-        revenueMap.set(
-          row.tenant_id,
-          (revenueMap.get(row.tenant_id) ?? 0) + amount
-        );
-        if (new Date(row.created_at).getTime() >= startOfTodayMs) {
-          dailyRevenueMap.set(
-            row.tenant_id,
-            (dailyRevenueMap.get(row.tenant_id) ?? 0) + amount
-          );
-        }
-      }
-    }
-
-    // Fetch 30-day rolling orders per tenant. Used for:
-    //   - per-card "orders" count (same window as monthly_revenue)
-    //   - sparkline (when requested)
-    //   - last-active fallback when no wallet transactions exist
-    const orders30dMap = new Map<string, number>();
-    const orderLastSeenMap = new Map<string, string>();
-    const sparklineMap = new Map<string, number[]>();
-
-    const { data: orderRows } = await supabase
-      .from("orders")
-      .select("tenant_id, created_at")
-      .in("tenant_id", tenantIds)
-      .gte("created_at", thirtyDaysAgo)
-      .order("created_at", { ascending: false });
-
-    if (orderRows) {
-      const now = new Date();
-      if (includeSparkline) {
-        for (const tid of tenantIds) {
-          sparklineMap.set(tid, new Array(30).fill(0));
-        }
-      }
-      for (const order of orderRows) {
-        orders30dMap.set(
-          order.tenant_id,
-          (orders30dMap.get(order.tenant_id) ?? 0) + 1
-        );
-        if (!orderLastSeenMap.has(order.tenant_id)) {
-          orderLastSeenMap.set(order.tenant_id, order.created_at);
-        }
-        if (includeSparkline) {
-          const dayDiff = Math.floor(
-            (now.getTime() - new Date(order.created_at).getTime()) /
-              (24 * 60 * 60 * 1000)
-          );
-          const idx = 29 - Math.min(dayDiff, 29);
-          const arr = sparklineMap.get(order.tenant_id);
-          if (arr) arr[idx]++;
-        }
-      }
-    }
-
-    // Fetch usage data (orders_count) per tenant from usage_tracking
-    const { data: usageData } = await supabase
-      .from("usage_tracking")
-      .select("tenant_id, orders_count, orders_charged, team_members_count")
-      .in("tenant_id", tenantIds)
-      .order("year", { ascending: false })
-      .order("month", { ascending: false });
-
-    // Get the latest usage per tenant
-    const usageMap = new Map<string, { orders_count: number; orders_charged: number; team_members_count: number }>();
-    if (usageData) {
-      for (const row of usageData) {
-        if (!usageMap.has(row.tenant_id)) {
-          usageMap.set(row.tenant_id, {
-            orders_count: row.orders_count,
-            orders_charged: row.orders_charged,
-            team_members_count: row.team_members_count,
-          });
-        }
-      }
-    }
-
-    // Fetch pinned notes per tenant (most recent pinned note wins)
-    const { data: pinnedNotes } = await supabase
-      .from("admin_notes")
-      .select("tenant_id, content, updated_at, admin_label")
-      .in("tenant_id", tenantIds)
-      .eq("is_pinned", true)
-      .order("updated_at", { ascending: false });
-
-    const pinnedNoteMap = new Map<
-      string,
-      { content: string; updated_at: string; admin_label: string | null }
-    >();
-    if (pinnedNotes) {
-      for (const note of pinnedNotes) {
-        if (!pinnedNoteMap.has(note.tenant_id)) {
-          pinnedNoteMap.set(note.tenant_id, {
-            content: note.content,
-            updated_at: note.updated_at,
-            admin_label: note.admin_label ?? null,
-          });
-        }
+    const pinnedNoteMap = new Map<string, { content: string; updated_at: string; admin_label: string | null }>();
+    for (const note of pinned.data ?? []) {
+      if (!pinnedNoteMap.has(note.tenant_id)) {
+        pinnedNoteMap.set(note.tenant_id, {
+          content: note.content,
+          updated_at: note.updated_at,
+          admin_label: note.admin_label ?? null,
+        });
       }
     }
 
     // ── Assemble enriched merchants ────────────────────────────────────
     let merchants = tenants.map((tenant) => {
-      // last_active_at = most recent of (latest wallet tx, latest order).
-      // Without this fallback, merchants with orders but no charges yet
-      // show no activity timestamp on the card.
-      const walletLast = lastActiveMap.get(tenant.id);
-      const orderLast = orderLastSeenMap.get(tenant.id);
-      const lastActive =
-        walletLast && orderLast
-          ? walletLast > orderLast
-            ? walletLast
-            : orderLast
-          : walletLast ?? orderLast ?? null;
+      const row = stats.get(tenant.id);
+      if (!row) throw new Error(`No list numbers for shop ${tenant.id}`);
 
       return {
         ...tenant,
         tags: tenant.tags ?? [],
-        last_active_at: lastActive,
-        monthly_revenue: revenueMap.get(tenant.id) ?? 0,
-        daily_revenue: dailyRevenueMap.get(tenant.id) ?? 0,
-        orders_30d: orders30dMap.get(tenant.id) ?? 0,
-        order_sparkline: sparklineMap.get(tenant.id) ?? [],
-        usage: usageMap.get(tenant.id) ?? null,
+        // The later of the last wallet line and the last real order.
+        last_active_at: laterOf(row.last_wallet_at, row.last_order_at),
+        // Our fees (monthly fee, delivered orders, messages), not every wallet charge.
+        monthly_revenue: row.fees_30d,
+        daily_revenue: row.fees_today,
+        orders_30d: row.orders_30d,
+        order_sparkline: includeSparkline ? row.order_sparkline : [],
+        usage:
+          row.usage_orders_count === null
+            ? null
+            : {
+                orders_count: row.usage_orders_count,
+                orders_charged: row.usage_orders_charged ?? 0,
+                team_members_count: row.usage_team_members_count ?? 0,
+              },
+        // A locked shop still has status "trial" or "active"; this is what tells them apart.
+        billing_lock: row.lock_reason ? { reason: row.lock_reason, since: row.lock_since } : null,
         pinned_note: pinnedNoteMap.get(tenant.id) ?? null,
       };
     });
@@ -328,6 +208,12 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/** The later of two instants; either may be missing. */
+function laterOf(a: string | null, b: string | null): string | null {
+  if (!a || !b) return a ?? b;
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
 }
 
 // ── Health score calculation (mirrors client-side logic) ────────────────

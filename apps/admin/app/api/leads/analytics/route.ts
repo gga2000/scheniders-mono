@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { monthOf, monthsEnding } from "@/lib/console-stats";
+import { everyRow } from "@/lib/every-row";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,16 +11,18 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Fetch all leads for analytics — drafts are unfinished and excluded so they
-    // never inflate pipeline counts or revenue forecasts.
-    const { data: leads, error } = await supabase
-      .from("leads")
-      .select("id, status, platform, tier, industry_id, lead_score, estimated_monthly_revenue, assigned_to, created_by, created_at, converted_at, industry:industries(name)")
-      .eq("is_draft", false);
-
-    if (error) throw error;
-
-    const allLeads = leads ?? [];
+    // Every lead, a page at a time: one request stops at 1,000 rows and does
+    // not say so. Drafts are unfinished and excluded so they never inflate
+    // pipeline counts or revenue forecasts.
+    const allLeads = await everyRow((from, to) =>
+      supabase
+        .from("leads")
+        .select("id, status, platform, tier, industry_id, lead_score, estimated_monthly_revenue, assigned_to, created_by, created_at, converted_at, industry:industries(name)")
+        .eq("is_draft", false)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
     const total = allLeads.length;
 
     // By status
@@ -82,9 +86,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch employee names
     const empIds = Array.from(employeeStats.keys());
-    const { data: profiles } = empIds.length > 0
+    const { data: profiles, error: profilesError } = empIds.length > 0
       ? await supabase.from("user_profiles").select("id, display_name").in("id", empIds)
-      : { data: [] };
+      : { data: [], error: null };
+    if (profilesError) throw profilesError;
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
 
@@ -98,16 +103,24 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.leads_converted - a.leads_converted)
       .slice(0, 10);
 
-    // Monthly trends (last 6 months)
-    const monthly_trends: { month: string; added: number; converted: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const added = allLeads.filter((l) => l.created_at.startsWith(monthStr)).length;
-      const conv = allLeads.filter((l) => l.converted_at?.startsWith(monthStr)).length;
-      monthly_trends.push({ month: monthStr, added, converted: conv });
+    // Monthly trends: this month and the five before it, on the Baghdad
+    // calendar. A lead added at 00:30 on the 1st in Baghdad belongs to the new
+    // month, though the UTC clock still shows the old one.
+    const added = new Map<string, number>();
+    const convertedIn = new Map<string, number>();
+    for (const l of allLeads) {
+      const addedMonth = monthOf(l.created_at);
+      added.set(addedMonth, (added.get(addedMonth) ?? 0) + 1);
+      if (l.converted_at) {
+        const convertedMonth = monthOf(l.converted_at);
+        convertedIn.set(convertedMonth, (convertedIn.get(convertedMonth) ?? 0) + 1);
+      }
     }
+    const monthly_trends = monthsEnding(monthOf(new Date()), 6).map((month) => ({
+      month,
+      added: added.get(month) ?? 0,
+      converted: convertedIn.get(month) ?? 0,
+    }));
 
     return NextResponse.json({
       total_leads: total,

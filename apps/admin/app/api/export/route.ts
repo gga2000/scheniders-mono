@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
+import { everyRow } from "@/lib/every-row";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
 const VALID_FORMATS = ["csv", "json"] as const;
@@ -9,7 +10,6 @@ const VALID_FORMATS = ["csv", "json"] as const;
 type ExportType = (typeof VALID_TYPES)[number];
 type ExportFormat = (typeof VALID_FORMATS)[number];
 
-const PAGE_SIZE = 1000;
 const baghdadDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" });
 
 /** A cell that starts with one of these runs as a formula when the sheet is opened. */
@@ -31,23 +31,6 @@ function toCSV(data: Record<string, unknown>[]): string {
   const rows = data.map((row) => headers.map((key) => toCell(row[key])).join(","));
 
   return [headers.join(","), ...rows].join("\n");
-}
-
-/**
- * The API answers with a capped number of rows and does not say when it cut
- * the list, so one request cannot be trusted to hold everything. This asks for
- * the next rows until none come back, whatever the cap is.
- */
-async function everyRow<Row>(
-  page: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: unknown }>
-): Promise<Row[]> {
-  const rows: Row[] = [];
-  for (;;) {
-    const { data, error } = await page(rows.length, rows.length + PAGE_SIZE - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) return rows;
-    rows.push(...data);
-  }
 }
 
 async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>) {

@@ -16,6 +16,7 @@ import {
   Flame,
 } from "lucide-react";
 import { CopyableText } from "@/components/shared/copyable-text";
+import { LockedChip } from "./locked-chip";
 
 const DENSITY_CONFIG: Record<TableDensity, { rowHeight: number; cellPy: string; fontSize: string }> = {
   compact: { rowHeight: 52, cellPy: "py-1.5", fontSize: "text-[11px]" },
@@ -332,6 +333,7 @@ function renderCell(
       );
 
     case "status":
+      if (m.billing_lock) return <LockedChip lock={m.billing_lock} />;
       return (
         <span
           className={cn(
