@@ -9,11 +9,10 @@ import {
   Trash2,
   X,
   AlertTriangle,
-  ChevronDown,
-  CheckCircle,
 } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { trialClock } from "@/lib/baghdad-day";
+import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AdminTenant } from "@/types/admin";
 
@@ -120,10 +119,13 @@ const PRESET_RULES: Omit<AlertRule, "id">[] = [
 // ── Component ─────────────────────────────────────────────────────────
 
 interface SmartAlertRulesProps {
+  /** The shops of the list loaded so far: the rules are checked in the browser, against these. */
   merchants: AdminTenant[];
+  /** How many shops the list has in all, so the panel can say when it checked only some. */
+  total: number;
 }
 
-export function SmartAlertRules({ merchants }: SmartAlertRulesProps) {
+export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [rules, setRules] = useState<AlertRule[]>(loadRules);
 
@@ -235,6 +237,12 @@ export function SmartAlertRules({ merchants }: SmartAlertRulesProps) {
 
               {/* Body */}
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {merchants.length < total && (
+                  <p className="text-[13px] text-foreground/60">
+                    Checked against the {formatCount(merchants.length)} shops loaded so far, of {formatCount(total)}.
+                    Scroll the list to check more.
+                  </p>
+                )}
                 {rules.length === 0 ? (
                   <div className="text-center py-8">
                     <AlertTriangle className="w-8 h-8 text-foreground/20 mx-auto mb-3" />

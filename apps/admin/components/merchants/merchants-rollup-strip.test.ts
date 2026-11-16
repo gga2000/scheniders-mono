@@ -14,8 +14,10 @@ const stats: MerchantsStats = {
   total_wallet_iqd: 43_800,
   plan_prices_iqd: 25_000,
   fees_30d_iqd: 11_055,
-  status: { trial: 1, active: 1, suspended: 0, cancelled: 0 },
+  status: { trial: 1, active: 1, limited: 0, suspended: 0, cancelled: 0 },
   buckets: { trials_today: 0, trials_expired: 0, suspended: 0, cancelled: 0, low_wallet: 1, attention: 1 },
+  governorates: { BGD: 2 },
+  unknown_city: 0,
 };
 vi.mock("@/hooks/use-merchants-stats", () => ({ useMerchantsStats: () => ({ data: stats }) }));
 

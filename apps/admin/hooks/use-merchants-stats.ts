@@ -13,6 +13,7 @@ export interface MerchantsStats {
   status: {
     trial: number;
     active: number;
+    limited: number;
     suspended: number;
     cancelled: number;
   };
@@ -24,12 +25,21 @@ export interface MerchantsStats {
     low_wallet: number;
     attention: number;
   };
+  /** Shops per governorate, keyed by the map's code. Only governorates with shops. */
+  governorates: Record<string, number>;
+  /** Shops whose typed city names no governorate. */
+  unknown_city: number;
 }
 
 interface UseMerchantsStatsOptions {
+  /** The header pills and the digest count every status, so a pill can light up. */
   ignoreStatusFilter?: boolean;
 }
 
+/**
+ * The numbers for the shops the list shows: same filters, "needs attention"
+ * included, counted over every shop rather than the pages loaded so far.
+ */
 export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
   const { ignoreStatusFilter = false } = options;
   const {
@@ -62,11 +72,7 @@ export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (planFilter) params.set("plan", planFilter);
-      // "attention" is synthetic — don't forward; stats endpoint always
-      // returns the full attention count so the pill can be highlighted.
-      if (effectiveStatusFilter && effectiveStatusFilter !== "attention") {
-        params.set("status", effectiveStatusFilter);
-      }
+      if (effectiveStatusFilter) params.set("status", effectiveStatusFilter);
       if (cityFilter) params.set("city", cityFilter);
       if (balanceFilter) params.set("balance", balanceFilter);
       if (healthFilter) params.set("health", healthFilter);

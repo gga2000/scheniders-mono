@@ -74,6 +74,7 @@ export default function MerchantsPage() {
     refetch,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
     fetchNextPage,
   } = useInfiniteMerchants(50);
 
@@ -118,11 +119,15 @@ export default function MerchantsPage() {
   const hasActiveSearch = !!searchQuery.trim();
 
   // ── Infinite scroll sentinel ─────────────────────────────────────────
+  // The map counts on the server and shows no rows, so it loads no more pages:
+  // its short view kept the sentinel in sight and pulled every page in turn.
+  // A page that failed waits for Retry instead of being asked for again at once.
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadsMoreOnScroll = viewMode !== "map" && !isFetchNextPageError;
 
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el || !loadsMoreOnScroll) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -133,7 +138,7 @@ export default function MerchantsPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [loadsMoreOnScroll, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // ── Select all ───────────────────────────────────────────────────────
   const allSelected =
@@ -287,7 +292,7 @@ export default function MerchantsPage() {
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </button>
-              <SmartAlertRules merchants={merchants} />
+              <SmartAlertRules merchants={merchants} total={total} />
               <div className="w-px h-5 bg-foreground/10 mx-1" />
               <ExportButton type="merchants" />
             </>
@@ -385,10 +390,7 @@ export default function MerchantsPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: EASE_CROSSFADE as unknown as number[] }}
           >
-            <MerchantsMapView
-              merchants={merchants}
-              onMerchantClick={handleOpenDetail}
-            />
+            <MerchantsMapView />
           </motion.div>
         ) : viewMode === "kanban" ? (
           <motion.div
@@ -453,6 +455,9 @@ export default function MerchantsPage() {
 
       {/* ── Infinite scroll sentinel ────────────────────────────────── */}
       <div ref={sentinelRef} className="h-4" />
+      {isFetchNextPageError && viewMode !== "map" && (
+        <LoadError compact what="more merchants" onRetry={() => fetchNextPage()} retrying={isFetchingNextPage} />
+      )}
       {isFetchingNextPage && (
         <div className="flex items-center justify-center py-4">
           <Loader2 className="w-5 h-5 animate-spin text-foreground/30" />

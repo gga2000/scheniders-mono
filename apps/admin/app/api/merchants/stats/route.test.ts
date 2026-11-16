@@ -183,12 +183,53 @@ describe("GET /api/merchants/stats", () => {
     expect(stub.state.calls).toEqual([]);
   });
 
-  it("never reads \"attention\" as a status", async () => {
+  it("counts only the shops on the attention list when the list shows them, as the list does", async () => {
+    stub.state.tables.tenants = [
+      shop(1, { staff_needs_attention: true }),
+      shop(2, { staff_needs_attention: false }),
+      shop(3, { status: "suspended", staff_needs_attention: true }),
+    ];
+
     const stats = await (await call("status=attention")).json();
 
+    // "attention" is no value of the status column.
     expect(stub.callsTo("tenants.eq").filter(([column]) => column === "status")).toEqual([]);
-    expect(stub.callsTo("tenants.filter")).toEqual([]);
+    expect(stub.callsTo("tenants.filter")).toContainEqual(["staff_needs_attention", "eq", true]);
     expect(stats.total).toBe(2);
+    expect(stats.status).toEqual({ trial: 0, active: 1, limited: 0, suspended: 1, cancelled: 0 });
+  });
+
+  it("counts every status, paused included, so the Pipeline columns add up to the total", async () => {
+    stub.state.tables.tenants = [
+      shop(1),
+      shop(2, { status: "limited" }),
+      shop(3, { status: "trial" }),
+      shop(4, { status: "cancelled" }),
+      shop(5, { status: "suspended" }),
+    ];
+
+    const stats = await (await call()).json();
+
+    expect(stats.status).toEqual({ trial: 1, active: 1, limited: 1, suspended: 1, cancelled: 1 });
+    const columns = Object.values(stats.status as Record<string, number>).reduce((sum, n) => sum + n, 0);
+    expect(columns).toBe(stats.total);
+  });
+
+  it("counts shops per governorate over every page, however the city was typed", async () => {
+    stub.state.tables.tenants = [
+      ...Array.from({ length: 1100 }, (_, n) => shop(n, { city: "بغداد" })),
+      shop(2000, { city: " Baghdad " }),
+      shop(2001, { city: "Basrah" }),
+      shop(2002, { city: null }),
+      shop(2003, { city: "Springfield" }),
+    ];
+
+    const stats = await (await call()).json();
+
+    expect(stats.governorates).toEqual({ BGD: 1101, BAS: 1 });
+    expect(stats.unknown_city).toBe(2);
+    expect(stats.total).toBe(1104);
+    expect(stub.callsTo("tenants.select")[0]?.[0]).toContain("city");
   });
 
   it("answers with an error when the fees cannot be read, not with 0 IQD", async () => {

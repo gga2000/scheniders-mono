@@ -16,7 +16,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TenantStatus } from "@/types/admin";
-import { formatIQD } from "@/lib/format";
+import { formatCount, formatIQD } from "@/lib/format";
+import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 
 type StageKey = TenantStatus;
 
@@ -112,6 +113,9 @@ export function MerchantsKanbanView({
   onOpenDetail,
 }: MerchantsKanbanViewProps) {
   const queryClient = useQueryClient();
+  // Column totals are counted by the server over every matching shop; the
+  // cards are the pages of the list loaded so far.
+  const { data: stats } = useMerchantsStats();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverCol, setHoverCol] = useState<StageKey | null>(null);
   const [pendingMove, setPendingMove] = useState<{
@@ -198,6 +202,8 @@ export function MerchantsKanbanView({
         {STAGES.map((stage) => {
           const Icon = stage.icon;
           const items = buckets.get(stage.key) ?? [];
+          const total = stats ? stats.status[stage.key] : null;
+          const notLoaded = total === null ? 0 : Math.max(total - items.length, 0);
           const isHover = hoverCol === stage.key;
 
           return (
@@ -243,13 +249,13 @@ export function MerchantsKanbanView({
                   </div>
                 </div>
                 <span className="text-xs font-black text-foreground/70 tabular-nums px-2 py-0.5 rounded-full bg-foreground/[0.06]">
-                  {items.length}
+                  {total === null ? "—" : formatCount(total)}
                 </span>
               </div>
 
               {/* Cards */}
               <div className="space-y-2 flex-1 overflow-y-auto scrollbar-hide pr-0.5">
-                {items.length === 0 ? (
+                {items.length === 0 && notLoaded === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <span
                       className={cn(
@@ -279,6 +285,11 @@ export function MerchantsKanbanView({
                       onClick={() => onOpenDetail?.(m.id)}
                     />
                   ))
+                )}
+                {notLoaded > 0 && (
+                  <p className="text-[13px] text-foreground/60 text-center py-2">
+                    {formatCount(notLoaded)} more not loaded yet. Scroll down to load them.
+                  </p>
                 )}
               </div>
             </div>
