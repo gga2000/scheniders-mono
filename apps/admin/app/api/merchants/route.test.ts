@@ -216,6 +216,23 @@ describe("GET /api/merchants", () => {
     });
   });
 
+  it("lists sign-ups on whole Baghdad days, so \"today\" holds today's shops", async () => {
+    // The filter used to stop at midnight UTC on the last day: "today" was always empty.
+    await call("date_from=2026-11-16&date_to=2026-11-16");
+
+    expect(stub.callsTo("tenants.gte")).toEqual([["created_at", "2026-11-16T00:00:00+03:00"]]);
+    expect(stub.callsTo("tenants.lt")).toEqual([["created_at", "2026-11-17T00:00:00+03:00"]]);
+    expect(stub.callsTo("tenants.lte")).toEqual([]);
+  });
+
+  it("refuses a sign-up day that is not a day, and reads nothing", async () => {
+    const res = await call("date_from=2026-02-30");
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "date_from must be a day such as 2026-11-16" });
+    expect(stub.state.calls).toEqual([]);
+  });
+
   it("keeps shops made in the same instant in a fixed order between pages", async () => {
     await call("sort=created_at:desc");
 

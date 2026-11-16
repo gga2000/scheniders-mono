@@ -38,6 +38,12 @@ vi.mock("@/lib/api-auth", () => ({
 
 const { GET } = await import("./route");
 const { POST } = await import("./[id]/route");
+const { requireAdminPermission } = await import("@/lib/api-auth");
+
+/** The next request comes from a support staff login (checks receipts, no plain top-up). */
+function asSupportStaff() {
+  vi.mocked(requireAdminPermission).mockResolvedValueOnce({ user: { id: ADMIN_ID }, role: "support_staff" });
+}
 
 function post(body: unknown, id = REQ_ID) {
   return POST(
@@ -65,6 +71,7 @@ describe("POST /api/wallet-topup-requests/[id]", () => {
       _admin_id: ADMIN_ID,
       _amount: undefined,
       _reason: undefined,
+      _may_add_more: true,
     });
   });
 
@@ -72,6 +79,23 @@ describe("POST /api/wallet-topup-requests/[id]", () => {
     rpc.mockResolvedValue({ data: { success: true, outcome: "approved", credited: 20000, receipt_no: 8 }, error: null });
     await post({ approve: true, amount: 20000 });
     expect(rpc).toHaveBeenCalledWith("decide_wallet_topup_request", expect.objectContaining({ _amount: 20000, _reason: undefined }));
+  });
+
+  it("lets support staff credit only up to what the shop said it sent", async () => {
+    asSupportStaff();
+    rpc.mockResolvedValue({ data: { success: true, outcome: "approved", credited: 20000, receipt_no: 9 }, error: null });
+    expect((await post({ approve: true, amount: 20000 })).status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("decide_wallet_topup_request", expect.objectContaining({ _amount: 20000, _may_add_more: false }));
+  });
+
+  it("answers 403 and logs nothing when support staff try to add more than the shop sent", async () => {
+    asSupportStaff();
+    rpc.mockResolvedValue({ data: { success: false, error: "over_asked" }, error: null });
+    const res = await post({ approve: true, amount: 10_000_000 });
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("More than the shop sent needs a super admin");
+    expect(rpc).toHaveBeenCalledWith("decide_wallet_topup_request", expect.objectContaining({ _amount: 10_000_000, _may_add_more: false }));
+    expect(logAdminAction).not.toHaveBeenCalled();
   });
 
   it("refuses with the reason the shop will read, trimmed", async () => {
@@ -84,6 +108,7 @@ describe("POST /api/wallet-topup-requests/[id]", () => {
       _admin_id: ADMIN_ID,
       _amount: undefined,
       _reason: "The receipt is cut off",
+      _may_add_more: true,
     });
   });
 

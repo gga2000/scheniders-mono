@@ -143,6 +143,7 @@ describe("POST /api/demo-store create", () => {
 describe("POST /api/demo-store reset", () => {
   it("refills the store for its owner and logs the counts", async () => {
     tables.tenants = { data: demoRow, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
     tables.tenant_members = { data: { user_id: OWNER }, error: null };
     rpc.mockResolvedValue({ data: COUNTS, error: null });
 
@@ -153,8 +154,9 @@ describe("POST /api/demo-store reset", () => {
       _owner_id: OWNER,
       _storefront: expect.objectContaining({ pages: expect.any(Array) }),
     });
+    expect(filters.user_profiles).toContainEqual(["email", "demo@usefermi.com"]);
     expect(filters.tenant_members).toEqual(
-      expect.arrayContaining([["tenant_id", STORE], ["role", "admin"], ["status", "active"]]),
+      expect.arrayContaining([["tenant_id", STORE], ["user_id", OWNER], ["role", "admin"], ["status", "active"]]),
     );
     expect(logAdminAction).toHaveBeenCalledWith(expect.anything(), "reset_demo_store", { tenantId: STORE, details: COUNTS });
   });
@@ -165,8 +167,19 @@ describe("POST /api/demo-store reset", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("refuses when the demo account is no longer the store's admin", async () => {
+    tables.tenants = { data: demoRow, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
+    tables.tenant_members = { data: null, error: null };
+    const res = await post({ action: "reset" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/demo@usefermi\.com/);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("is a 500 and logs nothing when the seed fails", async () => {
     tables.tenants = { data: demoRow, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
     tables.tenant_members = { data: { user_id: OWNER }, error: null };
     rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     expect((await post({ action: "reset" })).status).toBe(500);
@@ -178,7 +191,7 @@ describe("POST /api/demo-store open", () => {
   it("answers a one-time sign-in link to the merchant app's orders page", async () => {
     tables.tenants = { data: demoRow, error: null };
     tables.tenant_members = { data: { user_id: OWNER }, error: null };
-    tables.user_profiles = { data: { email: "demo@usefermi.com" }, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
     generateLink.mockResolvedValue({ data: { user: { id: OWNER }, properties: { hashed_token: "tok123" } }, error: null });
 
     const { url } = await (await post({ action: "open" })).json();
@@ -187,9 +200,27 @@ describe("POST /api/demo-store open", () => {
     expect(logAdminAction).toHaveBeenCalledWith(expect.anything(), "open_demo_store", { tenantId: STORE });
   });
 
+  it("never signs staff in as someone another admin added in its place", async () => {
+    tables.tenants = { data: demoRow, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
+    tables.tenant_members = { data: null, error: null };
+    expect((await post({ action: "open" })).status).toBe(409);
+    expect(generateLink).not.toHaveBeenCalled();
+  });
+
+  it("refuses a link whose sign-in is not the owner row's", async () => {
+    tables.tenants = { data: demoRow, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
+    tables.tenant_members = { data: { user_id: OWNER }, error: null };
+    generateLink.mockResolvedValue({ data: { user: { id: ADMIN_ID }, properties: { hashed_token: "tok123" } }, error: null });
+    expect((await post({ action: "open" })).status).toBe(409);
+    expect(logAdminAction).not.toHaveBeenCalled();
+  });
+
   it("says what is missing when PLATFORM_URL is not set", async () => {
     env.PLATFORM_URL = undefined;
     tables.tenants = { data: demoRow, error: null };
+    tables.user_profiles = { data: { id: OWNER }, error: null };
     tables.tenant_members = { data: { user_id: OWNER }, error: null };
     const res = await post({ action: "open" });
     expect(res.status).toBe(500);

@@ -18,6 +18,13 @@ ALTER TABLE public.subscriptions
     ADD COLUMN auto_renew boolean NOT NULL DEFAULT true,
     ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now();
 
+-- admin_extend_subscription checks its caller; tests run as the service role.
+CREATE SCHEMA auth;
+GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
+    SELECT coalesce(nullif(current_setting('test.role', true), ''), 'service_role')
+$$;
+
 CREATE TABLE public.admin_activity_logs (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_user_id uuid,

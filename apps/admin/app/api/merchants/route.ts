@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { readDayRange } from "@/lib/baghdad-day";
 import { fetchMerchantListStats } from "@/lib/console-stats";
 import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
@@ -22,8 +23,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const balance = searchParams.get("balance");
     const health = searchParams.get("health");
-    const dateFrom = searchParams.get("date_from");
-    const dateTo = searchParams.get("date_to");
+    // Sign-up days, on the Baghdad calendar.
+    const days = readDayRange(searchParams);
+    if ("error" in days) return NextResponse.json({ error: days.error }, { status: 400 });
     const sortParam = searchParams.get("sort") ?? "created_at:desc";
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "50")));
@@ -59,8 +61,8 @@ export async function GET(request: NextRequest) {
 
     if (search) query = query.or(merchantSearchFilter(search));
 
-    if (dateFrom) query = query.gte("created_at", dateFrom);
-    if (dateTo) query = query.lte("created_at", dateTo);
+    if (days.gte) query = query.gte("created_at", days.gte);
+    if (days.lt) query = query.lt("created_at", days.lt);
 
     // ── Multi-column sort ──────────────────────────────────────────────
     const sortParts = sortParam.split(",").filter(Boolean);

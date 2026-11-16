@@ -23,7 +23,8 @@ import type {
   KpiData,
   PlatformOrderStat,
 } from "@/types/dashboard";
-import { addDays, daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
+import { addDays } from "./baghdad-day";
+import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
 import { ONBOARDING_STEPS, type OnboardingStepKey } from "./onboarding-steps";
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────

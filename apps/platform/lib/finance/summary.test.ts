@@ -11,7 +11,6 @@ import {
     isComparablePeriod,
     lensChange,
     perOrder,
-    primeOwes,
     productRows,
     profitBars,
     profitPath,
@@ -50,6 +49,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
+            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 1, prime_returned_fee: 5_000 },
         daily: [
@@ -61,7 +61,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             { key: "p1", name: "Envoy", image_url: "https://x.supabase.co/storage/v1/object/public/p/envoy.webp", units: 8, revenue: 300_000, cost: 110_000, missing_units: 0 },
             { key: "p2", name: "Wayfarer", image_url: null, units: 4, revenue: 100_000, cost: 40_000, missing_units: 1 },
         ],
-        stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 2 },
+        stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 2, top: [] },
         ...over,
     };
 }
@@ -339,10 +339,6 @@ describe("money still outside", () => {
                 failed: { refused_orders: 0, refused_value: 0, prime_returned_parcels: 0, prime_returned_fee: 0 },
             })),
         ).toBeNull();
-    });
-
-    it("takes Prime's own fee off what it collected", () => {
-        expect(primeOwes(summary())).toBe(70_000);
     });
 });
 

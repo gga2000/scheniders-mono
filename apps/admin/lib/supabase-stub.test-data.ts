@@ -37,6 +37,7 @@ export function supabaseStub() {
       },
       gte: (...args: unknown[]) => note("gte", ...args),
       lte: (...args: unknown[]) => note("lte", ...args),
+      lt: (...args: unknown[]) => note("lt", ...args),
       order: (...args: unknown[]) => note("order", ...args),
       eq: (column: string, value: unknown) => {
         rows = rows.filter((row) => row[column] === value);

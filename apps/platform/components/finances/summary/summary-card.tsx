@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface SummaryCardProps {
@@ -21,11 +21,30 @@ export const CARD_FIGURE = "text-[30px] font-bold leading-none tracking-[-0.02em
 export const CARD_LINK =
     "inline-flex items-center gap-1 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current";
 
+/** True inside a SummaryPanel: the panel draws the frame, so its cards draw none of their own. */
+const InPanel = createContext(false);
+
+/**
+ * Several cards as the columns of one white panel, with thin lines between
+ * them (like the columns of the dark strip), instead of a row of boxes.
+ */
+export function SummaryPanel({ children, testId }: { children: ReactNode; testId?: string }) {
+    return (
+        <div
+            className="grid grid-cols-1 divide-y divide-[var(--card-border)] rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] lg:grid-cols-3 lg:divide-x lg:divide-y-0"
+            data-testid={testId}
+        >
+            <InPanel.Provider value>{children}</InPanel.Provider>
+        </div>
+    );
+}
+
 /** A white card of the summary page: a plain title, one quiet line under it, then the content. */
 export function SummaryCard({ title, sub, textDir, action, children, footer, className, testId }: SummaryCardProps) {
+    const inPanel = useContext(InPanel);
     return (
         <section
-            className={cn("flex flex-col rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 lg:p-6", className)}
+            className={cn("flex flex-col p-5 lg:p-6", !inPanel && "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]", className)}
             data-testid={testId}
         >
             <header className="mb-4 flex items-start justify-between gap-4">

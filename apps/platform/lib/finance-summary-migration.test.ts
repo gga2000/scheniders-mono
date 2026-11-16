@@ -72,7 +72,7 @@ describe("get_finance_summary gate", () => {
     });
 
     it("counts the shelf from the shop's own physical products that are not archived", () => {
-        expect(core).toMatch(/stock AS \([\s\S]*?pr\.tenant_id = _tenant_id\s+AND COALESCE\(pr\.is_archived, false\) = false\s+AND pr\.product_type = 'physical'/);
+        expect(core).toMatch(/shelf AS \([\s\S]*?pr\.tenant_id = _tenant_id\s+AND COALESCE\(pr\.is_archived, false\) = false\s+AND pr\.product_type = 'physical'/);
         expect(core).toMatch(/LEFT JOIN public\.product_variants v ON v\.product_id = pr\.id AND v\.tenant_id = _tenant_id/);
     });
 
@@ -101,6 +101,18 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/paid_ids AS \([\s\S]*?FROM public\.delivery_import_items i\s+JOIN public\.delivery_imports di ON di\.id = i\.import_id\s+WHERE di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)/);
         expect(core).toMatch(/SELECT ps\.order_id\s+FROM public\.prime_shipments ps\s+WHERE ps\.tenant_id = _tenant_id AND ps\.payment_id IS NOT NULL/);
         expect(core).toMatch(/'paid_orders', \(SELECT count\(\*\) FROM sold s WHERE s\.id IN \(SELECT id FROM paid_ids\)\)/);
+    });
+
+    it("names the three products holding the most stock money, only those with a cost and pieces on the shelf", () => {
+        expect(core).toMatch(/stock_top AS \([\s\S]*?FROM shelf s\s+WHERE s\.unit_cost IS NOT NULL AND s\.pieces > 0\s+GROUP BY s\.product_id\s+ORDER BY value DESC, s\.product_id\s+LIMIT 3\s+\)/);
+        expect(core).toMatch(/'top', COALESCE\(\(SELECT jsonb_agg\([\s\S]*?FROM stock_top t\), '\[\]'::jsonb\)/);
+    });
+
+    it("splits the period's delivered sales into what reached the shop, the delivery fee and what is not paid yet", () => {
+        // one fee per order: Prime's on a Prime parcel that was not sent back, else the courier's from the payment file
+        expect(core).toMatch(/sold_fee AS \([\s\S]*?AND ps\.shipment_status IS DISTINCT FROM 'FAILED_DELIVER_RETURNED_TO_SENDER'\), 0\)\s+\+ CASE WHEN NOT EXISTS \(SELECT 1 FROM public\.prime_shipments ps\s+WHERE ps\.order_id = s\.id AND ps\.tenant_id = _tenant_id\)\s+THEN GREATEST\(COALESCE\(fr\.fee, 0\), 0\) ELSE 0 END AS fee/);
+        // the three parts are cut from the same delivered orders, so they add up to the sales
+        expect(core).toMatch(/money_split AS \(\s*SELECT COALESCE\(sum\(price - fee\) FILTER \(WHERE paid\), 0\) AS reached,[\s\S]*?COALESCE\(sum\(fee\), 0\) AS fee,\s+COALESCE\(sum\(price - fee\) FILTER \(WHERE NOT paid\), 0\) AS unpaid,[\s\S]*?FROM sold_fee\s+\)/);
     });
 
     it("scopes every table it reads to the shop", () => {
