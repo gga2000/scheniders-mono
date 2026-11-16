@@ -449,4 +449,8 @@ export const getDisplayOrderId = (orderId: string) => {
  * it came in from the storefront, an ad lead, an import or the bot and has not
  * been worked. It is a placeholder, not a user, and must not be drawn as one.
  */
-export const isSystemActor = (name: string | null | undefined) => name?.trim().toLowerCase() === "system";
+// Database jobs write "Automation" for the same no-person-yet case (a
+// storefront order's first status, auto no-response), so it is the same
+// placeholder.
+const SYSTEM_ACTORS = new Set(["system", "automation"]);
+export const isSystemActor = (name: string | null | undefined) => SYSTEM_ACTORS.has(name?.trim().toLowerCase() ?? "");

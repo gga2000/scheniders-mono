@@ -1316,6 +1316,7 @@ export const en: Record<string, string> = {
     "products.tagInput.pickColor": "Pick a color for \"{name}\"",
     "products.tagInput.creating": "Creating...",
     "products.tagInput.createTag": "Create tag",
+    "orders.card.lastUpdatedBy": "Last updated by: {name}",
     "orders.create.blocked": "Can't create the order",
     "orders.create.typeDelivery": "Delivery",
     "orders.create.typeShop": "Shop",
