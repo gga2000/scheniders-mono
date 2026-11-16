@@ -70,10 +70,11 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <p id="product-description-label" className="block text-sm font-medium text-foreground mb-2">
                     {t("products.ed.description")}
-                </label>
+                </p>
                 <RichTextEditor
+                    labelledBy="product-description-label"
                     value={formData.description}
                     onChange={(html) => updateField("description", html)}
                     placeholder={t("products.ed.descriptionPh")}

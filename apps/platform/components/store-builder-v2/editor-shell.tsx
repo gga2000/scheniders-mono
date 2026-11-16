@@ -1468,7 +1468,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         return (
             tFormat(STRINGS.publish.blocked_tooltip, builder.active_locale, {
                 n: healthBlocking.length,
-                list: messages.join("؛ "),
+                // Arabic and Kurdish take the Arabic semicolon; English its own.
+                list: messages.join(builder.active_locale === "en" ? "; " : "؛ "),
             }) + more
         );
     }, [healthBlocking, builder.active_locale]);

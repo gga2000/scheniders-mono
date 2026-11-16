@@ -187,7 +187,7 @@ describe("HealthChecklistScreen", () => {
         });
     });
 
-    it("'Blocks publish' banner appears when blocking failures exist", () => {
+    it("'Fix these first' banner appears when blocking failures exist, and says publishing still works (B11)", () => {
         const cfg = freshEmpty();
         render(
             <HealthChecklistScreen
@@ -199,7 +199,8 @@ describe("HealthChecklistScreen", () => {
         );
         const banner = screen.getByTestId("health-blocks-publish");
         expect(banner).toBeTruthy();
-        expect(banner.textContent ?? "").toMatch(/Blocks publish/);
+        expect(banner.textContent ?? "").toMatch(/Fix these first/);
+        expect(banner.textContent ?? "").toMatch(/You can still publish/);
     });
 
     it("WhatsApp launch step captures the number inline (S3-01)", () => {
@@ -371,7 +372,7 @@ describe("HealthChecklistScreen", () => {
         expect(screen.getByTestId("health-simple-advanced-hatch")).toBeTruthy();
     });
 
-    it("'Blocks publish' banner is absent when no blocking failures exist", () => {
+    it("'Fix these first' banner is absent when no blocking failures exist", () => {
         const cfg = healthyConfig();
         render(
             <HealthChecklistScreen

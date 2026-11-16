@@ -454,20 +454,17 @@ export const STRINGS = {
         confirm_subtitle_many: { en: "{n} items we recommend fixing before going live. You can publish anyway and come back to these later.", ar: "عناصر يُستحسن إصلاحها قبل النشر: {n}. يمكنك النشر على أي حال والعودة لاحقاً.", ku: "{n} بڕگە کە پێشنیار دەکرێت پێش بڵاوکردنەوە چاکبکرێن. دەتوانی هەر بڵاوی بکەیتەوە و دواتر بگەڕێیتەوە." },
         confirm_problems_one: { en: "1 problem shoppers will notice. Fix it before publishing.", ar: "مشكلة واحدة سيلاحظها الزبائن، أصلحها قبل النشر.", ku: "1 کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکی بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
         confirm_problems_many: { en: "{n} problems shoppers will notice. Fix them before publishing.", ar: "مشاكل سيلاحظها الزبائن: {n}، أصلحها قبل النشر.", ku: "{n} کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکیان بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
-        confirm_all_clear: { en: "Nothing blocks publishing.", ar: "لا شيء يمنع النشر.", ku: "هیچ شتێک ڕێگری لە بڵاوکردنەوە ناکات." },
+        confirm_all_clear: { en: "Nothing left to fix.", ar: "لا شيء يحتاج إصلاحاً.", ku: "هیچ شتێک نەماوە بۆ چاککردن." },
         publish_anyway: { en: "Publish anyway", ar: "نشر على أي حال", ku: "هەر بڵاویبکەرەوە" },
         // Positive CTA when nothing needs fixing — first publish should feel
         // like a win, not like overriding a safety warning.
         publish_cta: { en: "Publish my store", ar: "انشر متجري", ku: "فرۆشگاکەم بڵاوبکەرەوە" },
         // tFormat: {n} {list} — tooltip on the disabled/annotated publish button
-        blocked_tooltip: { en: "{n} checks need attention before you publish: {list}", ar: "فحوصات تحتاج انتباهك قبل النشر ({n}): {list}", ku: "{n} پشکنین پێویستیان بە سەرنجە پێش بڵاوکردنەوە: {list}" },
+        blocked_tooltip: { en: "{n} checks to fix first (you can still publish): {list}", ar: "فحوصات تحتاج إصلاحاً أولاً ({n})، ويمكنك النشر رغم ذلك: {list}", ku: "{n} پشکنین یەکەم پێویستیان بە چاککردنە (هێشتا دەتوانی بڵاوی بکەیتەوە): {list}" },
         // tFormat: {n}
         blocked_tooltip_more: { en: ", +{n} more", ar: "، و{n} أخرى", ku: "، و {n}ی تر" },
         checks_heading: { en: "Recommended before you publish", ar: "توصيات قبل النشر", ku: "پێشنیارەکان پێش بڵاوکردنەوە" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
-        // Publish is never actually blocked by health (the merchant stays in
-        // control), so the chip must read as advice — not prohibition.
-        blocks_chip: { en: "Blocks", ar: "يمنع النشر", ku: "ڕێگری لە بڵاوکردنەوە دەکات" },
         warn_chip: { en: "Recommended", ar: "ننصح بإصلاحه", ku: "پێشنیار دەکرێت" },
         fail_chip: { en: "Problem", ar: "مشكلة", ku: "کێشە" },
         diff_heading: { en: "Changes since last publish", ar: "التغييرات منذ آخر نشر", ku: "گۆڕانکارییەکان لە دوایین بڵاوکردنەوەوە" },
@@ -1055,9 +1052,11 @@ export const STRINGS = {
         cat_content: { en: "Content", ar: "المحتوى", ku: "ناوەڕۆک" },
         cat_performance: { en: "Performance", ar: "الأداء", ku: "کارایی" },
         // tFormat: {n}
-        blocks_publish: { en: "Blocks publish ({n})", ar: "يحظر النشر ({n})", ku: "ڕێگری لە بڵاوکردنەوە دەکات ({n})" },
-        blocks_publish_hint: { en: "— fix these before you can publish.", ar: "— أصلحها قبل أن تتمكّن من النشر.", ku: "— پێش بڵاوکردنەوە چاکیانبکە." },
-        blocks_publish_chip: { en: "Blocks publish", ar: "يحظر النشر", ku: "ڕێگری لە بڵاوکردنەوە دەکات" },
+        // Health never stops Publish (the merchant stays in control), so the
+        // "blocks_publish" checks read as the ones to fix first (Fermi B11).
+        blocks_publish: { en: "Fix these first ({n})", ar: "أصلحها أولاً ({n})", ku: "یەکەم ئەمانە چاکبکە ({n})" },
+        blocks_publish_hint: { en: "— shoppers and ad platforms notice these. You can still publish.", ar: "— يلاحظها الزبائن ومنصات الإعلان. يمكنك النشر رغم ذلك.", ku: "— کڕیاران و پلاتفۆرمەکانی ڕیکلام هەستیان پێدەکەن. هێشتا دەتوانی بڵاوی بکەیتەوە." },
+        blocks_publish_chip: { en: "Fix first", ar: "أصلحه أولاً", ku: "یەکەم چاکی بکە" },
         close: { en: "Close health screen", ar: "إغلاق شاشة الصحة", ku: "داخستنی پەردەی تەندروستی" },
         filter_all: { en: "all", ar: "الكل", ku: "هەموو" },
         filter_failing: { en: "Problems + advice", ar: "مشاكل ونصائح", ku: "کێشە و ئامۆژگاری" },
@@ -1273,8 +1272,8 @@ export const STRINGS = {
         health_get_started: { en: "Get started", ar: "ابدأ الآن", ku: "دەست پێبکە" },
         health_all_passing_detail: { en: "All checks passing.", ar: "جميع الفحوصات ناجحة.", ku: "هەموو پشکنینەکان سەرکەوتوون." },
         // tFormat: {n}
-        health_items_to_address_one: { en: "{n} item blocks publishing.", ar: "عنصر واحد يمنع النشر.", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکات." },
-        health_items_to_address_other: { en: "{n} items block publishing.", ar: "عناصر تمنع النشر: {n}", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکەن." },
+        health_items_to_address_one: { en: "{n} item to fix first. You can still publish.", ar: "عنصر واحد يحتاج إصلاحاً أولاً. يمكنك النشر رغم ذلك.", ku: "{n} بابەت یەکەم پێویستی بە چاککردنە. هێشتا دەتوانی بڵاوی بکەیتەوە." },
+        health_items_to_address_other: { en: "{n} items to fix first. You can still publish.", ar: "عناصر تحتاج إصلاحاً أولاً: {n}. يمكنك النشر رغم ذلك.", ku: "{n} بابەت یەکەم پێویستیان بە چاککردنە. هێشتا دەتوانی بڵاوی بکەیتەوە." },
         // tFormat: {n} — open checks that do not stop publishing.
         health_problems_one: { en: "1 problem shoppers will notice. Fix it first.", ar: "مشكلة واحدة سيلاحظها الزبائن، أصلحها أولاً.", ku: "1 کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکی بکە." },
         health_problems_other: { en: "{n} problems shoppers will notice. Fix them first.", ar: "مشاكل سيلاحظها الزبائن: {n}، أصلحها أولاً.", ku: "{n} کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکیان بکە." },

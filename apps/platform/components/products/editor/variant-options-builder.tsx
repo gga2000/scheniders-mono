@@ -336,6 +336,7 @@ function SortableOptionGroup({
     t,
 }: SortableOptionGroupProps) {
     const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+    const fieldId = useId();
 
     const {
         attributes,
@@ -460,6 +461,7 @@ function SortableOptionGroup({
                         {/* Name input */}
                         <input
                             type="text"
+                            aria-label={t("products.variants.optionName")}
                             value={option.name}
                             onChange={(e) => onUpdateName(e.target.value)}
                             placeholder={
@@ -472,7 +474,7 @@ function SortableOptionGroup({
 
                     {/* Values area */}
                     <div>
-                        <label className="block text-xs text-muted mb-1.5">
+                        <label htmlFor={`${fieldId}-value`} className="block text-xs text-muted mb-1.5">
                             {t("products.variants.optionValues")}
                         </label>
 
@@ -508,6 +510,7 @@ function SortableOptionGroup({
                                     {!disabled && (
                                         <div className="flex items-center gap-1">
                                             <input
+                                                id={`${fieldId}-value`}
                                                 type="text"
                                                 value={valueInput}
                                                 onChange={(e) => onValueInputChange(e.target.value)}

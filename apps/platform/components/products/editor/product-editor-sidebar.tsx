@@ -42,9 +42,10 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
             {/* Status */}
             <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 space-y-4">
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                    {t("products.ed.statusLabel")}
+                    <label htmlFor="product-status">{t("products.ed.statusLabel")}</label>
                 </h3>
                 <select
+                    id="product-status"
                     value={formData.status}
                     onChange={(e) => updateField("status", e.target.value as 'draft' | 'active' | 'archived')}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
@@ -134,10 +135,11 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
                     </h3>
 
                     <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
+                        <label htmlFor="product-category" className="block text-sm font-medium text-foreground mb-2">
                             {t("products.ed.category")}
                         </label>
                         <CategoryCombobox
+                            id="product-category"
                             value={formData.category_id ?? null}
                             onChange={(id) => updateField("category_id", id)}
                             allowUncategorized
@@ -146,13 +148,14 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
+                        <label htmlFor="product-display-order" className="block text-sm font-medium text-foreground mb-2">
                             {t("products.ed.displayOrder")}
                             {/* A real space: a margin sits on the wrong side once Arabic text is reordered. */}
                             {" "}
                             <span className="text-xs text-muted">{t("products.ed.displayOrderHint")}</span>
                         </label>
                         <input
+                            id="product-display-order"
                             type="number"
                             value={formData.display_order}
                             onChange={(e) => updateField("display_order", parseInt(e.target.value) || 0)}
@@ -163,12 +166,12 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
 
                     {/* Tag Color */}
                     <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
+                        <p id="product-tag-color" className="block text-sm font-medium text-foreground mb-2">
                             <Tag className="w-3.5 h-3.5 inline me-1" />
                             {t("products.ed.tagColor")}
-                        </label>
+                        </p>
                         {/* Eight swatches on one row: the sidebar is too narrow for 8 x 32px plus gaps. */}
-                        <div className="grid grid-cols-8 gap-1.5">
+                        <div role="group" aria-labelledby="product-tag-color" className="grid grid-cols-8 gap-1.5">
                             {TAG_COLORS.map((preset) => (
                                 <button
                                     key={preset.color}
@@ -181,6 +184,8 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
                                     }`}
                                     style={{ backgroundColor: preset.color }}
                                     title={preset.name}
+                                    aria-label={preset.name}
+                                    aria-pressed={formData.tag_color === preset.color}
                                 />
                             ))}
                         </div>

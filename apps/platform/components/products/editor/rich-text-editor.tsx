@@ -31,9 +31,11 @@ interface RichTextEditorProps {
     onChange: (html: string) => void;
     placeholder?: string;
     className?: string;
+    /** Id of the visible label that names the text area. */
+    labelledBy?: string;
 }
 
-export function RichTextEditor({ value, onChange, placeholder = "Write your product description...", className }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder = "Write your product description...", className, labelledBy }: RichTextEditorProps) {
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
@@ -63,6 +65,9 @@ export function RichTextEditor({ value, onChange, placeholder = "Write your prod
         editorProps: {
             attributes: {
                 class: "prose prose-sm max-w-none min-h-[200px] px-4 py-3 focus:outline-none text-foreground",
+                role: "textbox",
+                "aria-multiline": "true",
+                ...(labelledBy ? { "aria-labelledby": labelledBy } : {}),
             },
         },
     });
