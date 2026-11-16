@@ -40,6 +40,7 @@ import { LinkedPeopleSection } from "@/components/customers/detail/linked-people
 import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
 import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
 import type { CommunityRating, TrustTier } from "@/types/customer";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 const CreateOrderModal = dynamic(() => import("@/components/orders/create-order-modal").then((m) => m.CreateOrderModal), { ssr: false });
 
@@ -197,6 +198,10 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 >
                     {t("customers.profile.retry")}
                 </button>
+                <ContactSupportButton
+                    errorCode="customers.profile.loadFailed"
+                    errorMessage={t("customers.profile.loadFailed")}
+                />
             </div>
         );
     }

@@ -8,7 +8,7 @@
 import {
     Bell, Bot, Check, Clock, Plus, Package, RefreshCw, Sparkles, ArrowRight,
     AtSign, X, Loader2, Layers, BellMinus, PackageX, Truck, Wallet, Star, Users,
-    TimerReset, ChevronDown,
+    TimerReset, ChevronDown, LifeBuoy,
 } from "lucide-react";
 import { useState } from "react";
 import { format, formatDistanceToNowStrict } from "date-fns";
@@ -198,6 +198,10 @@ export function NotificationFeedList({
             }
             case "prime.link_done":
                 return t("notifications.prime.linkDone");
+            case "support.reply":
+                return t("notifications.support.reply", { preview: payloadText(n, "preview") ?? "" });
+            case "support.solved":
+                return t("notifications.support.solved");
             case "prime.daily":
                 return t("notifications.prime.daily", {
                     delivered: payloadNumber(n, "delivered"),
@@ -211,6 +215,7 @@ export function NotificationFeedList({
 
     const getActorName = (n: FeedNotification) => {
         if (isPrime(n)) return t("prime.page.title");
+        if (n.category === "support") return t("support.title");
         const name = n.actor_name;
         return name === "Automation" || isSystemActor(name) ? t("notifications.actorAutomation", "Automation") : name ?? "";
     };
@@ -235,6 +240,8 @@ export function NotificationFeedList({
                 return <Star className="w-4 h-4 text-amber-500" />;
             case "team":
                 return <Users className="w-4 h-4 text-sky-500" />;
+            case "support":
+                return <LifeBuoy className="w-4 h-4 text-emerald-500" />;
         }
         switch (n.type) {
             case "order.sla_breached":
@@ -447,10 +454,10 @@ export function NotificationFeedList({
 
                                         <div className="flex-1 min-w-0 pr-20 sm:pr-0">
                                             {/* A Prime line mixes words, names and money: it reads in its own direction, still left-aligned. */}
-                                            <p dir={isPrime(n) ? "auto" : undefined} className={cn(
+                                            <p dir={isPrime(n) || n.category === "support" ? "auto" : undefined} className={cn(
                                                 "text-sm text-foreground font-medium",
-                                                n.category === "chat" && "line-clamp-2",
-                                                isPrime(n) && "text-left",
+                                                (n.category === "chat" || n.category === "support") && "line-clamp-2",
+                                                (isPrime(n) || n.category === "support") && "text-left",
                                             )}>
                                                 {describe(n)}
                                             </p>

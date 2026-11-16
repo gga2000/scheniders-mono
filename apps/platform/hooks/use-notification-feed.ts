@@ -35,6 +35,8 @@ export type NotificationCategory =
     | "finance"
     | "customer"
     | "team"
+    /** Our support team answered or closed the merchant's support chat. */
+    | "support"
     | "system";
 
 /** "prime": what the Prime link wrote (type prime.*), shown as a chip to stores with the link. */

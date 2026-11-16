@@ -6,6 +6,7 @@ import { Upload, X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
 import { uploadProductImage } from "@/lib/upload-product-image";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 
 interface ProductImageUploadProps {
     value: string;
@@ -18,6 +19,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
     const [dragActive, setDragActive] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [needsSupport, setNeedsSupport] = useState(false);
     const [mode, setMode] = useState<"upload" | "url">("upload");
     const [urlInput, setUrlInput] = useState(value || "");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -33,6 +35,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
     }, []);
 
     const uploadFile = async (file: File) => {
+        setNeedsSupport(false);
         if (!file.type.startsWith("image/")) {
             setError(t("products.image.notImage"));
             return;
@@ -50,13 +53,16 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
             onChange(await uploadProductImage(file, productId));
         } catch (err) {
             console.error("Upload error:", err);
+            const bucketMissing = err instanceof Error && err.message.includes("not found");
             setError(
-                err instanceof Error && err.message.includes("not found")
+                bucketMissing
                     ? t("products.image.bucketMissing")
                     : err instanceof Error
                       ? err.message
                       : t("products.image.uploadFailed"),
             );
+            // Missing image storage is ours to fix: offer the support button.
+            setNeedsSupport(bucketMissing);
         } finally {
             setUploading(false);
         }
@@ -237,6 +243,9 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                     <X className="w-4 h-4" />
                     {error}
                 </p>
+            )}
+            {error && needsSupport && (
+                <ContactSupportButton errorCode="products.image.bucketMissing" errorMessage={error} />
             )}
         </div>
     );

@@ -6,6 +6,7 @@ import "./globals.css";
 import "@/lib/env";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
+import { SupportSheet } from "@/components/support/support-sheet";
 import { MerchantGuide } from "@/components/merchant-guide/merchant-guide";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
@@ -106,6 +107,7 @@ export default function RootLayout({
                         <DashboardLayout>
                           {children}
                           <ChatRuntime />
+                          <SupportSheet />
                           <Suspense fallback={null}>
                             <MerchantGuide />
                           </Suspense>
