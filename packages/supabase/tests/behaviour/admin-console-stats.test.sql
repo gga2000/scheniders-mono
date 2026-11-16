@@ -177,7 +177,13 @@ BEGIN
         -- 00:30 Baghdad on 1 July (21:30 UTC on 30 June) is July.
         (_b, 'charge', -55, 0, 'tt delivered order', 'delivered:' || gen_random_uuid(), '2026-06-30 21:30:00+00'),
         -- A top-up at 00:10 Baghdad today, a Monday.
-        (_a, 'topup', 50000, 50000, 'tt top-up', 'tt-topup-' || _a, '2026-11-15 21:10:00+00');
+        (_a, 'topup', 50000, 50000, 'tt top-up', 'tt-topup-' || _a, '2026-11-15 21:10:00+00'),
+        -- An upgrade part-payment and an add-on fee are monthly-plan money.
+        (_a, 'charge', -8000, 0, 'tt upgrade', 'plan_change:tt-' || _a || ':20261103T120000.000000', '2026-11-03 12:00:00+03'),
+        (_a, 'charge', -3000, 0, 'tt add-on', 'addon:pos_branch:tt-' || _a || ':20261104T120000.000000', '2026-11-04 12:00:00+03'),
+        -- A delivered order's fee, given back when the order came back.
+        (_a, 'charge', -55, 0, 'tt delivered order', 'delivered:tt-back-' || _a, '2026-11-05 12:00:00+03'),
+        (_a, 'refund', 55, 0, 'tt delivered order undone', 'delivered:tt-back-' || _a || '#1', '2026-11-06 12:00:00+03');
 
     _d1 := public.admin_dashboard_stats(_now);
     _u1 := public.admin_usage_stats(NULL, _now);
@@ -286,8 +292,8 @@ BEGIN
     -- Fees ----------------------------------------------------------------------
     PERFORM pg_temp.check('fees: twelve months, oldest first',
         jsonb_array_length(_i1->'monthly') = 12 AND _i1->'monthly'->11->>'month' = '2026-11' AND _i1->'monthly'->0->>'month' = '2025-12');
-    PERFORM pg_temp.check('fees: November by kind; the reversal and the bare charge are other',
-        pg_temp.num(_i1->'monthly'->11, 'subscription') - pg_temp.num(_i0->'monthly'->11, 'subscription') = 9000
+    PERFORM pg_temp.check('fees: November by kind; upgrade and add-on are plan money, the refunded fee is taken off, the reversal and the bare charge are other',
+        pg_temp.num(_i1->'monthly'->11, 'subscription') - pg_temp.num(_i0->'monthly'->11, 'subscription') = 20000
         AND pg_temp.num(_i1->'monthly'->11, 'orders') - pg_temp.num(_i0->'monthly'->11, 'orders') = 55
         AND pg_temp.num(_i1->'monthly'->11, 'whatsapp') - pg_temp.num(_i0->'monthly'->11, 'whatsapp') = 30
         AND pg_temp.num(_i1->'monthly'->11, 'other') - pg_temp.num(_i0->'monthly'->11, 'other') = 26100);
@@ -300,14 +306,14 @@ BEGIN
         AND pg_temp.num(pg_temp.pick(_i1->'monthly', 'month', '2026-06'), 'orders')
         - pg_temp.num(pg_temp.pick(_i0->'monthly', 'month', '2026-06'), 'orders') = 0);
     PERFORM pg_temp.check('fees: per shop, all time, fees only',
-        (pg_temp.pick(_i1->'byTenant', 'tenantId', _a::text)->>'amount')::numeric = 9085
+        (pg_temp.pick(_i1->'byTenant', 'tenantId', _a::text)->>'amount')::numeric = 20085
         AND (pg_temp.pick(_i1->'byTenant', 'tenantId', _b::text)->>'amount')::numeric = 9055);
     PERFORM pg_temp.check('fees: by plan, 90 days',
         coalesce((pg_temp.pick(_i1->'byPlan90', 'plan', 'starter')->>'amount')::numeric, 0)
-        - coalesce((pg_temp.pick(_i0->'byPlan90', 'plan', 'starter')->>'amount')::numeric, 0) = 9085);
+        - coalesce((pg_temp.pick(_i0->'byPlan90', 'plan', 'starter')->>'amount')::numeric, 0) = 20085);
     PERFORM pg_temp.check('fees: by plan and month',
         (SELECT coalesce(sum((e->>'amount')::numeric), 0) FROM jsonb_array_elements(_i1->'byPlan') AS e WHERE e @> '{"month": "2026-11", "plan": "starter"}'::jsonb)
-        - (SELECT coalesce(sum((e->>'amount')::numeric), 0) FROM jsonb_array_elements(_i0->'byPlan') AS e WHERE e @> '{"month": "2026-11", "plan": "starter"}'::jsonb) = 9085);
+        - (SELECT coalesce(sum((e->>'amount')::numeric), 0) FROM jsonb_array_elements(_i0->'byPlan') AS e WHERE e @> '{"month": "2026-11", "plan": "starter"}'::jsonb) = 20085);
     PERFORM pg_temp.check('fees: 7-day line',
         ((_i1->'feesDaily7'->>5)::numeric - (_i0->'feesDaily7'->>5)::numeric) = 55
         AND ((_i1->'feesDaily7'->>6)::numeric - (_i0->'feesDaily7'->>6)::numeric) = 30);
@@ -316,7 +322,7 @@ BEGIN
         pg_temp.num(pg_temp.pick(_i1->'cohorts', 'cohort', '2026-11'), 'tenants')
         - pg_temp.num(pg_temp.pick(_i0->'cohorts', 'cohort', '2026-11'), 'tenants') = 2
         AND (pg_temp.pick(_i1->'cohorts', 'cohort', '2026-11')->'months'->>0)::numeric
-        - coalesce((pg_temp.pick(_i0->'cohorts', 'cohort', '2026-11')->'months'->>0)::numeric, 0) = 9085);
+        - coalesce((pg_temp.pick(_i0->'cohorts', 'cohort', '2026-11')->'months'->>0)::numeric, 0) = 20085);
     IF pg_temp.pick(_i1->'cohorts', 'cohort', '2026-06') IS NOT NULL AND pg_temp.pick(_i0->'cohorts', 'cohort', '2026-06') IS NULL THEN
         PERFORM pg_temp.check('cohorts: June shop pays in month 0 and month 1',
             pg_temp.pick(_i1->'cohorts', 'cohort', '2026-06')->'months' = '[9000, 55, 0, 0, 0, 0]'::jsonb);

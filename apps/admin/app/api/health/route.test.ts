@@ -40,7 +40,9 @@ beforeEach(() => {
     { tenant_id: "b", balance_iqd: 1_000, threshold_iqd: 5_000 },
     { tenant_id: "c", balance_iqd: 0, threshold_iqd: 5_000 },
   ];
-  stub.state.tables.orders = [{ id: "o1" }, { id: "o2" }];
+  stub.state.tables.admin_order_facts = [{ id: "o1" }, { id: "o2" }];
+  // Raw rows, the demo store's invented orders among them: never counted here.
+  stub.state.tables.orders = [{ id: "o1" }, { id: "o2" }, { id: "demo-1" }, { id: "demo-2" }, { id: "demo-3" }];
   stub.state.tables.usage_tracking = [
     { tenant_id: "a", year: 2026, month: 11, orders_count: 12, team_members_count: 2 },
     { tenant_id: "c", year: 2026, month: 10, orders_count: 9, team_members_count: 1 },
@@ -65,6 +67,8 @@ describe("GET /api/health", () => {
       suspendedTenants: 1,
       ordersLast24h: 2,
     });
+    expect(stub.tablesRead()).not.toContain("orders");
+    expect(stub.callsTo("admin_order_facts.gte")).toEqual([["created_at", "2026-11-15T09:00:00.000Z"]]);
     // b: low balance 3 + no orders this month 2 + suspended 2. c: low balance 3 + no orders 2.
     expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score])).toEqual([
       ["b", 7],
@@ -76,7 +80,7 @@ describe("GET /api/health", () => {
     ]);
   });
 
-  it.each(["tenants", "wallet", "orders", "usage_tracking"])(
+  it.each(["tenants", "wallet", "admin_order_facts", "usage_tracking"])(
     "answers 500, not zeros, when the %s read fails",
     async (table) => {
       stub.state.failing.add(table);
