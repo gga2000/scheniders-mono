@@ -1,6 +1,7 @@
 -- Throwaway Postgres 16 database shaped like the live objects WhatsApp billing
 -- touches (20261111124928_whatsapp_price_by_type.sql and
--- 20261116052907_fermi_whatsapp_trial_cap.sql, applied whole by
+-- 20261116052907_fermi_whatsapp_trial_cap.sql and
+-- 20261116055117_fermi_whatsapp_guard.sql, applied whole by
 -- whatsapp.migrations): tenants, plan_limits with the 16 Nov prices, the
 -- wallet and its ledger, and whatsapp_logs. Columns copied from the live
 -- project (information_schema, 2026-11-16); tables carry only what the
@@ -30,7 +31,9 @@ CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'suspended', 'cance
 CREATE TABLE public.tenants (
     id uuid PRIMARY KEY,
     plan public.plan_tier NOT NULL,
-    status public.tenant_status NOT NULL
+    status public.tenant_status NOT NULL,
+    display_id bigint,
+    business_name text NOT NULL DEFAULT 'Shop'
 );
 
 CREATE TABLE public.plan_limits (

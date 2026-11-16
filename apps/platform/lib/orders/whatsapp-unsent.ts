@@ -7,6 +7,7 @@
 
 /** Every reason the send path writes, the one to show first leading. */
 export const WHATSAPP_UNSENT_REASONS = [
+    "whatsapp_paused",
     "whatsapp_trial_cap",
     "whatsapp_shop_wallet_empty",
     "whatsapp_wallet_empty",

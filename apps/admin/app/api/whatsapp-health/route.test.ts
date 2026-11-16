@@ -4,6 +4,9 @@ import { NextRequest } from "next/server";
 /** Newest refused-for-balance send and newest good send, in that order. */
 let refusedAt: string | null;
 let sentAt: string | null;
+/** Shops paused to protect the shared number. */
+let pausedCount: number;
+const pausedFilters: Array<[string, unknown]> = [];
 
 function query(statusFilter: { value: string | null }) {
   const q = {
@@ -24,8 +27,21 @@ function query(statusFilter: { value: string | null }) {
   return q;
 }
 
+function pausedQuery() {
+  const q = {
+    select: () => q,
+    is: (col: string, val: unknown) => {
+      pausedFilters.push([col, val]);
+      return Promise.resolve({ count: pausedCount, error: null });
+    },
+  };
+  return q;
+}
+
 vi.mock("@/lib/admin-supabase", () => ({
-  createAdminClient: () => ({ from: () => query({ value: null }) }),
+  createAdminClient: () => ({
+    from: (table: string) => (table === "whatsapp_sender_pauses" ? pausedQuery() : query({ value: null })),
+  }),
 }));
 vi.mock("@/lib/api-auth", () => ({
   requireAdminFromRequest: vi.fn(async () => ({ user: { id: "a" }, role: "super_admin" })),
@@ -40,23 +56,31 @@ async function health() {
 beforeEach(() => {
   refusedAt = null;
   sentAt = null;
+  pausedCount = 0;
+  pausedFilters.length = 0;
 });
 
 describe("GET /api/whatsapp-health", () => {
   it("empty when Interakt refused for balance after the last good send", async () => {
     sentAt = "2026-11-10T00:00:00.000Z";
     refusedAt = "2026-11-10T01:00:00.000Z";
-    expect(await health()).toEqual({ interaktEmpty: true, since: refusedAt });
+    expect(await health()).toEqual({ interaktEmpty: true, since: refusedAt, pausedShops: 0 });
   });
 
   it("fine again once a message goes out after the refusal", async () => {
     refusedAt = "2026-11-10T01:00:00.000Z";
     sentAt = "2026-11-10T02:00:00.000Z";
-    expect(await health()).toEqual({ interaktEmpty: false, since: null });
+    expect(await health()).toEqual({ interaktEmpty: false, since: null, pausedShops: 0 });
   });
 
   it("fine when nothing was refused", async () => {
     sentAt = "2026-11-10T02:00:00.000Z";
-    expect(await health()).toEqual({ interaktEmpty: false, since: null });
+    expect(await health()).toEqual({ interaktEmpty: false, since: null, pausedShops: 0 });
+  });
+
+  it("counts the shops paused now, not the ones staff resumed", async () => {
+    pausedCount = 2;
+    expect(await health()).toMatchObject({ pausedShops: 2 });
+    expect(pausedFilters).toEqual([["resumed_at", null]]);
   });
 });

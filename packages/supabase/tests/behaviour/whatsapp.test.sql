@@ -3,7 +3,9 @@
 --
 -- Shops: T on its free trial; P paying, 1,000 IQD in the wallet; E paying,
 -- 50 IQD (a utility message, not a marketing one); Z paying, empty wallet;
--- N paying, at the wallet's floor; I Ali's own store.
+-- N paying, at the wallet's floor; I Ali's own store. Section 7 (protecting
+-- the shared number) adds G, whose messages mostly fail, H, whose mostly
+-- arrive, and S, too few to judge.
 
 \set ON_ERROR_STOP 1
 
@@ -80,8 +82,7 @@ SELECT pg_temp.check(pg_temp.check_send('40000000-0000-4000-8000-00000000000d', 
 SELECT pg_temp.check(pg_temp.check_send('50000000-0000-4000-8000-00000000000e', false) = 'wallet_empty', 'below zero: no message');
 SELECT pg_temp.check(pg_temp.check_send('60000000-0000-4000-8000-00000000000f', true) = 'ok', 'Ali''s store always sends');
 SELECT pg_temp.check(pg_temp.check_send('70000000-0000-4000-8000-000000000000', false) = 'unknown_shop', 'no such shop');
-SELECT pg_temp.check(public.whatsapp_send_allowed('20000000-0000-4000-8000-00000000000b'), 'old check: P may send');
-SELECT pg_temp.check(NOT public.whatsapp_send_allowed('30000000-0000-4000-8000-00000000000c'), 'old check: same rules, dearer kind');
+SELECT pg_temp.check(to_regprocedure('public.whatsapp_send_allowed(uuid)') IS NULL, 'the old yes/no check is gone');
 
 -- 3. The trial: free to the shop, 200 messages, then nothing.
 SELECT pg_temp.check(pg_temp.check_send('10000000-0000-4000-8000-00000000000a', true) = 'ok', 'trial sends with an empty wallet');
@@ -163,3 +164,140 @@ SELECT pg_temp.check((SELECT u->>'trial' = 'true' AND (u->>'trial_sent')::int = 
 SELECT set_config('test.uid', '', false);
 SELECT pg_temp.check(pg_temp.raised($$SELECT public.whatsapp_usage('10000000-0000-4000-8000-00000000000a')$$) = '42501', 'signed out: closed');
 SELECT pg_temp.check(NOT has_table_privilege('authenticated', 'public.whatsapp_message_charges', 'SELECT'), 'the ledger is not readable by shops');
+
+-- 7. Protecting the shared number (20261116055117).
+SELECT pg_temp.as_service();
+INSERT INTO public.tenants (id, plan, status, display_id, business_name) VALUES
+  ('80000000-0000-4000-8000-000000000001', 'starter', 'active', 100801, 'G'),
+  ('80000000-0000-4000-8000-000000000002', 'starter', 'active', 100802, 'H'),
+  ('80000000-0000-4000-8000-000000000003', 'starter', 'active', 100803, 'S');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('80000000-0000-4000-8000-000000000001', 1000),
+  ('80000000-0000-4000-8000-000000000002', 1000),
+  ('80000000-0000-4000-8000-000000000003', 1000);
+-- G: 16 accepted in the last hour, 6 of them not delivered by Meta, and 4
+-- refused by Interakt for a bad number. 20 reached Interakt, exactly half
+-- failed on the shop's numbers. Two refused by our own wallet check do not
+-- count.
+SELECT pg_temp.sent('80000000-0000-4000-8000-000000000001', 'g' || g, 'cod_order_confirm_v3') FROM generate_series(1, 16) g;
+SELECT pg_temp.receipt('80000000-0000-4000-8000-000000000001', 'g' || g, 'failed', 'UTILITY') FROM generate_series(1, 6) g;
+INSERT INTO public.whatsapp_logs (order_id, phone, template_name, direction, status, tenant_id, payload)
+SELECT '4261100001', '0770', 'cod_order_confirm_v3', 'outbound', 'failed', '80000000-0000-4000-8000-000000000001',
+       jsonb_build_object('statusCode', 400, 'error', 'Please correct the following error - Phone Number & Country Code provided is invalid')
+  FROM generate_series(1, 4);
+INSERT INTO public.whatsapp_logs (order_id, phone, template_name, direction, status, tenant_id, payload)
+SELECT '4261100001', '0770', 'cod_order_confirm_v3', 'outbound', 'failed', '80000000-0000-4000-8000-000000000001',
+       jsonb_build_object('error', 'Shop wallet cannot pay for WhatsApp')
+  FROM generate_series(1, 2);
+-- H: 25 accepted, 9 not delivered (over a third, under half). S: 19
+-- accepted, all not delivered.
+SELECT pg_temp.sent('80000000-0000-4000-8000-000000000002', 'h' || g, 'cod_order_confirm_v3') FROM generate_series(1, 25) g;
+SELECT pg_temp.receipt('80000000-0000-4000-8000-000000000002', 'h' || g, 'failed', 'UTILITY') FROM generate_series(1, 9) g;
+SELECT pg_temp.sent('80000000-0000-4000-8000-000000000003', 's' || g, 'cod_order_confirm_v3') FROM generate_series(1, 19) g;
+SELECT pg_temp.receipt('80000000-0000-4000-8000-000000000003', 's' || g, 'failed', 'UTILITY') FROM generate_series(1, 19) g;
+-- Ali's store: 30 accepted, all not delivered.
+SELECT pg_temp.sent('60000000-0000-4000-8000-00000000000f', 'a' || g, 'cod_order_confirm_v3') FROM generate_series(1, 30) g;
+SELECT pg_temp.receipt('60000000-0000-4000-8000-00000000000f', 'a' || g, 'failed', 'UTILITY') FROM generate_series(1, 30) g;
+
+SELECT pg_temp.check((SELECT reached = 20 AND bad = 10 AND failed = 10 FROM public.whatsapp_shop_health(interval '1 hour')
+                       WHERE tenant_id = '80000000-0000-4000-8000-000000000001'),
+                     'G: 20 reached Interakt, 10 failed on its numbers; our own refusals are not counted');
+
+CREATE TEMP TABLE watch1 AS SELECT public.whatsapp_watch() AS w;
+SELECT pg_temp.check((SELECT jsonb_array_length(w->'paused') = 1 AND w->'paused'->0->>'tenant_id' = '80000000-0000-4000-8000-000000000001'
+                             AND (w->'paused'->0->>'display_id')::int = 100801
+                        FROM watch1),
+                     'only G (half failed) is paused: H is under half, S is under 20, Ali''s store is never paused automatically');
+SELECT pg_temp.check(pg_temp.check_send('80000000-0000-4000-8000-000000000001', false) = 'paused', 'a paused shop does not send');
+SELECT pg_temp.check(pg_temp.check_send('80000000-0000-4000-8000-000000000002', false) = 'ok', 'H still sends');
+SELECT pg_temp.check((SELECT (w->'hour'->>'reached')::int = 300 AND (w->'hour'->>'failed')::int = 69 AND NOT (w->>'spike')::boolean
+                        FROM watch1),
+                     'the last hour: 69 of 300 failed, under 3 in 10, no spike');
+SELECT pg_temp.check((SELECT w->'interakt_empty_since' = 'null'::jsonb FROM watch1), 'Interakt has balance');
+SELECT pg_temp.check((SELECT jsonb_array_length(public.whatsapp_watch()->'paused') = 0), 'the next run pauses nobody again');
+
+-- Staff resume G: what failed before does not pause it again.
+SELECT pg_temp.check((SELECT (r->>'paused')::boolean = false
+                        FROM public.admin_whatsapp_pause('80000000-0000-4000-8000-000000000001', false,
+                                                         '90000000-0000-4000-8000-0000000000aa') r), 'staff resume G');
+SELECT pg_temp.check(pg_temp.check_send('80000000-0000-4000-8000-000000000001', false) = 'ok', 'G sends again');
+SELECT pg_temp.check((SELECT jsonb_array_length(public.whatsapp_watch()->'paused') = 0), 'failures before the resume are forgotten');
+SELECT pg_temp.check((SELECT resumed_by = '90000000-0000-4000-8000-0000000000aa' FROM public.whatsapp_sender_pauses
+                       WHERE tenant_id = '80000000-0000-4000-8000-000000000001'), 'who resumed it is kept');
+
+-- Staff pause P by hand; the shop sees it on its billing page.
+SELECT pg_temp.check((SELECT (r->>'paused')::boolean AND r->>'reason' = 'staff'
+                        FROM public.admin_whatsapp_pause('20000000-0000-4000-8000-00000000000b', true,
+                                                         '90000000-0000-4000-8000-0000000000aa') r), 'staff pause P');
+SELECT pg_temp.check(pg_temp.check_send('20000000-0000-4000-8000-00000000000b', false) = 'paused', 'P does not send');
+SELECT pg_temp.as_member('20000000-0000-4000-8000-00000000000b', false);
+SELECT pg_temp.check((SELECT (u->>'paused')::boolean FROM public.whatsapp_usage('20000000-0000-4000-8000-00000000000b') u),
+                     'P''s billing page says its messages are paused');
+SELECT pg_temp.as_service();
+SELECT public.admin_whatsapp_pause('20000000-0000-4000-8000-00000000000b', false, '90000000-0000-4000-8000-0000000000aa');
+SELECT pg_temp.check(pg_temp.raised($$SELECT public.admin_whatsapp_pause('20000000-0000-4000-8000-00000000000b', true, NULL)$$) = '22023',
+                     'a pause names the staff member');
+SELECT pg_temp.check(pg_temp.raised($$SELECT public.admin_whatsapp_pause('70000000-0000-4000-8000-000000000000', true,
+                                                                       '90000000-0000-4000-8000-0000000000aa')$$) = 'P0002',
+                     'no such shop');
+
+-- Interakt's own balance: a refusal for balance after the last accepted message.
+INSERT INTO public.whatsapp_logs (order_id, phone, template_name, direction, status, tenant_id, payload, created_at)
+VALUES ('4261100001', '0770', 'cod_order_confirm_v3', 'outbound', 'failed', '80000000-0000-4000-8000-000000000002',
+        jsonb_build_object('statusCode', 400, 'error', 'Your wallet doesn''t have sufficient balance. Please recharge your wallet to continue sending messages.'),
+        now() + interval '1 minute');
+SELECT pg_temp.check((SELECT (public.whatsapp_watch()->>'interakt_empty_since')::timestamptz > now()), 'Interakt empty: since the refusal');
+SELECT pg_temp.check((SELECT reached = 26 AND failed = 9 FROM public.whatsapp_shop_health(interval '1 hour')
+                       WHERE tenant_id = '80000000-0000-4000-8000-000000000002'),
+                     'Fermi''s empty balance is not the shop''s failure');
+INSERT INTO public.whatsapp_logs (order_id, phone, template_name, direction, status, interakt_message_id, tenant_id, created_at)
+VALUES ('4261100001', '0770', 'cod_order_confirm_v3', 'outbound', 'sent', 'h-after', '80000000-0000-4000-8000-000000000002',
+        now() + interval '2 minutes');
+SELECT pg_temp.check((SELECT public.whatsapp_watch()->'interakt_empty_since' = 'null'::jsonb), 'a later accepted message: not empty');
+
+-- A failure spike across shops: 200 refused by Interakt in the last hour.
+INSERT INTO public.whatsapp_logs (order_id, phone, template_name, direction, status, tenant_id, payload)
+SELECT '4261100001', '0770', 'cod_order_confirm_v3', 'outbound', 'failed', '80000000-0000-4000-8000-000000000002',
+       jsonb_build_object('statusCode', 400, 'error', 'Please correct the following error - No approved template found')
+  FROM generate_series(1, 200);
+CREATE TEMP TABLE watch2 AS SELECT public.whatsapp_watch() AS w;
+SELECT pg_temp.check((SELECT (w->>'spike')::boolean AND jsonb_array_length(w->'paused') = 0 FROM watch2),
+                     'a spike, and nobody paused: a refused template is not the shop''s numbers');
+
+-- The staff cost report for this month.
+CREATE TEMP TABLE report AS
+SELECT e AS shop FROM jsonb_array_elements(public.admin_whatsapp_report(current_date)->'shops') e;
+SELECT pg_temp.check((SELECT (shop->>'messages')::int = 2 AND (shop->>'shop_paid_iqd')::int = 110
+                             AND (shop->>'utility')::int = 1 AND (shop->>'marketing')::int = 1
+                        FROM report WHERE shop->>'tenant_id' = '20000000-0000-4000-8000-00000000000b'), 'P: 2 messages, paid 110');
+SELECT pg_temp.check((SELECT (shop->>'trial_utility')::int = 1 AND (shop->>'shop_paid_iqd')::int = 0
+                        FROM report WHERE shop->>'tenant_id' = '10000000-0000-4000-8000-00000000000a'), 'T: one message on Fermi');
+SELECT pg_temp.check((SELECT (shop->>'unpaid')::int = 1 FROM report WHERE shop->>'tenant_id' = '50000000-0000-4000-8000-00000000000e'),
+                     'N: one message nobody paid');
+SELECT pg_temp.check((SELECT (shop->>'internal')::int = 1 FROM report WHERE shop->>'tenant_id' = '60000000-0000-4000-8000-00000000000f'),
+                     'Ali''s store: its own');
+SELECT pg_temp.check((SELECT (shop->>'reached_24h')::int = 19 AND (shop->>'bad_24h')::int = 19 AND NOT (shop->>'paused')::boolean
+                        FROM report WHERE shop->>'tenant_id' = '80000000-0000-4000-8000-000000000003'),
+                     'S: its failures show though it is not paused');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM report WHERE shop->>'tenant_id' = '80000000-0000-4000-8000-000000000001'
+                                                 AND (shop->>'paused')::boolean),
+                     'G was resumed: not shown paused');
+SELECT pg_temp.check((SELECT count(*) = 0 FROM report WHERE shop->>'tenant_id' = '40000000-0000-4000-8000-00000000000d'),
+                     'a shop with no messages is left out');
+SELECT pg_temp.check((SELECT bool_and((e->>'messages')::int = 0)
+                        FROM jsonb_array_elements(public.admin_whatsapp_report((current_date - interval '1 month')::date)->'shops') e),
+                     'last month: no delivered messages');
+
+-- Staff tools are closed to shops.
+SELECT pg_temp.as_member('20000000-0000-4000-8000-00000000000b', true);
+SELECT pg_temp.check(pg_temp.raised($$SELECT public.whatsapp_watch()$$) = '42501', 'a member may not run the watch');
+SELECT pg_temp.check(pg_temp.raised($$SELECT public.admin_whatsapp_report(current_date)$$) = '42501', 'nor read the report');
+SELECT pg_temp.check(pg_temp.raised($$SELECT public.admin_whatsapp_pause('20000000-0000-4000-8000-00000000000b', false,
+                                                                       '90000000-0000-4000-8000-000000000001')$$) = '42501',
+                     'nor resume itself');
+SELECT pg_temp.check(NOT has_function_privilege('authenticated', 'public.whatsapp_shop_health(interval)', 'EXECUTE')
+                     AND NOT has_function_privilege('authenticated', 'public.whatsapp_watch()', 'EXECUTE')
+                     AND NOT has_function_privilege('authenticated', 'public.admin_whatsapp_report(date)', 'EXECUTE')
+                     AND NOT has_function_privilege('authenticated', 'public.admin_whatsapp_pause(uuid, boolean, uuid)', 'EXECUTE')
+                     AND NOT has_table_privilege('authenticated', 'public.whatsapp_sender_pauses', 'SELECT'),
+                     'no grants to shops');

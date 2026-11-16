@@ -16,6 +16,7 @@ vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
     SHOP_TRIAL_CAP_REACHED: "Store used all free trial WhatsApp messages",
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
+    SHOP_WHATSAPP_PAUSED: "Store's automatic WhatsApp is paused",
     whatsappSendRefusal: (tenantId: string, category: "utility" | "marketing") => refusal(tenantId, category),
     takeDailySendSlot: (tenantId: string) => daySlot(tenantId),
 }));
@@ -103,6 +104,19 @@ describe("WhatsApp paid from the shop's wallet", () => {
         expect(shop.attention_reasons).toEqual(["whatsapp_shop_wallet_empty"]);
         const ours = categorizeWhatsAppFailure({ success: false, error: "Your wallet doesn't have sufficient balance." }, "7209", "0770");
         expect(ours.attention_reasons).toEqual(["whatsapp_wallet_empty"]);
+    });
+});
+
+describe("a store paused to protect the shared number", () => {
+    it("is not sent, Interakt is never called, and the order says to confirm by hand", async () => {
+        refusal.mockResolvedValue("Store's automatic WhatsApp is paused");
+        const res = await sendTemplateMessage(order, "confirmation");
+        expect(res).toEqual({ success: false, error: "Store's automatic WhatsApp is paused" });
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(daySlot).not.toHaveBeenCalled();
+        const flags = categorizeWhatsAppFailure(res, "7209", "0770");
+        expect(flags.attention_reasons).toEqual(["whatsapp_paused"]);
+        expect(flags.delivery_note).toContain("أكّد الطلب يدوياً");
     });
 });
 

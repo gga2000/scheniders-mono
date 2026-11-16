@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 import type { SendTemplateResult } from "./interakt";
-import { SHOP_DAILY_CAP_REACHED, SHOP_TRIAL_CAP_REACHED, SHOP_WALLET_EMPTY } from "./whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, SHOP_TRIAL_CAP_REACHED, SHOP_WALLET_EMPTY, SHOP_WHATSAPP_PAUSED } from "./whatsapp-wallet";
 
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -40,6 +40,10 @@ export function categorizeWhatsAppFailure(
         // The free trial's messages are used up; paying turns them back on.
         reason = "whatsapp_trial_cap";
         notePrefix = "لم تُرسل رسالة واتساب: خلصت رسائل التجربة المجانية، اختر باقة واشحن المحفظة حتى ترجع الرسائل";
+    } else if (errorMsg === SHOP_WHATSAPP_PAUSED) {
+        // Paused to protect the shared number; the merchant confirms by hand.
+        reason = "whatsapp_paused";
+        notePrefix = "لم تُرسل رسالة واتساب: الرسائل التلقائية موقوفة مؤقتاً لهذا المتجر لأن أغلب رسائله الأخيرة ما وصلت، أكّد الطلب يدوياً من واتسابك";
     } else if (errorMsg === SHOP_DAILY_CAP_REACHED) {
         reason = "whatsapp_rate_limited";
         notePrefix = "لم تُرسل رسالة واتساب: وصل المتجر إلى حد الرسائل اليومي";

@@ -29,6 +29,10 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *   handle_support      — read merchant support conversations, reply, take
  *                         ownership and mark them solved. Open to both roles:
  *                         answering merchants is the support team's job.
+ *   pause_whatsapp      — pause or resume one shop's automatic WhatsApp
+ *                         messages. Super admins only: every shop sends from
+ *                         one number, and resuming a shop whose messages
+ *                         mostly fail risks that number for all of them.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -51,6 +55,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "delete_leads",
     "link_prime",
     "handle_support",
+    "pause_whatsapp",
   ]),
   support_staff: new Set([
     "extend_trial",

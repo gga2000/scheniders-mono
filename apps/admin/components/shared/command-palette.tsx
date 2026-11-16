@@ -14,6 +14,7 @@ import {
   Settings,
   TrendingUp,
   BarChart3,
+  MessageCircle,
   ArrowRight,
 } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
@@ -38,6 +39,7 @@ const PAGES: CommandItem[] = [
   { id: "settings", label: "Settings", sublabel: "Platform settings", icon: <Settings className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "revenue", label: "Revenue Analytics", sublabel: "MRR, cohorts, LTV", icon: <TrendingUp className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "usage", label: "Usage Heatmap", sublabel: "Activity patterns", icon: <BarChart3 className="w-4 h-4" />, action: () => {}, category: "page" },
+  { id: "whatsapp", label: "WhatsApp", sublabel: "Message costs & paused shops", icon: <MessageCircle className="w-4 h-4" />, action: () => {}, category: "page" },
 ];
 
 const PAGE_ROUTES: Record<string, string> = {
@@ -50,6 +52,7 @@ const PAGE_ROUTES: Record<string, string> = {
   settings: "/settings",
   revenue: "/revenue",
   usage: "/usage",
+  whatsapp: "/whatsapp",
 };
 
 interface CommandPaletteProps {

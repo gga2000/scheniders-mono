@@ -50,6 +50,10 @@
         {
             "path": "/api/cron/waseet-locations",
             "schedule": "0 3 * * 1"
+        },
+        {
+            "path": "/api/cron/whatsapp-watch",
+            "schedule": "*/15 * * * *"
         }
     ]
 }

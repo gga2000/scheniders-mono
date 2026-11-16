@@ -14,11 +14,18 @@ import type { WhatsAppCategory } from "@scheniders/shared/whatsapp-templates";
 export const SHOP_WALLET_EMPTY = "Shop wallet cannot pay for WhatsApp";
 export const SHOP_TRIAL_CAP_REACHED = "Store used all free trial WhatsApp messages";
 export const SHOP_UNKNOWN = "No such store";
+/**
+ * Staff, or the failure check (whatsapp_watch), paused this shop's automatic
+ * messages to protect the shared number: most of its recent messages did not
+ * reach the customer.
+ */
+export const SHOP_WHATSAPP_PAUSED = "Store's automatic WhatsApp is paused";
 
 const SEND_CHECK_REFUSALS: Record<string, string> = {
     wallet_empty: SHOP_WALLET_EMPTY,
     trial_cap: SHOP_TRIAL_CAP_REACHED,
     unknown_shop: SHOP_UNKNOWN,
+    paused: SHOP_WHATSAPP_PAUSED,
 };
 
 /**
