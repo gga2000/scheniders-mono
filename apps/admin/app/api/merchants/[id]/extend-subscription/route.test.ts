@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const TENANT = "22222222-2222-4222-8222-222222222222";
+const REQ = "44444444-4444-4444-8444-444444444444";
 
 const rpc = vi.fn();
 const from = vi.fn();
@@ -13,9 +14,9 @@ vi.mock("@/lib/api-auth", () => ({
 
 const { POST } = await import("./route");
 
-function extend(body: unknown) {
+function extend(body: Record<string, unknown>) {
   return POST(
-    new NextRequest(`http://localhost/api/merchants/${TENANT}/extend-subscription`, { method: "POST", body: JSON.stringify(body) }),
+    new NextRequest(`http://localhost/api/merchants/${TENANT}/extend-subscription`, { method: "POST", body: JSON.stringify({ request_id: REQ, ...body }) }),
     { params: Promise.resolve({ id: TENANT }) },
   );
 }
@@ -34,8 +35,14 @@ describe("POST /api/merchants/[id]/extend-subscription", () => {
     });
     const res = await extend({ days: 30 });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ tenant_id: TENANT, current_period_end: "2026-12-16T09:00:00+00:00", status: "active" });
-    expect(rpc).toHaveBeenCalledWith("admin_extend_subscription", {
+    expect(await res.json()).toEqual({
+      tenant_id: TENANT,
+      current_period_end: "2026-12-16T09:00:00+00:00",
+      status: "active",
+      repeat: false,
+    });
+    expect(rpc).toHaveBeenCalledWith("admin_extend_subscription_once", {
+      _request_id: REQ,
       _tenant_id: TENANT,
       _days: 30,
       _admin_user_id: ADMIN_ID,
@@ -51,6 +58,7 @@ describe("POST /api/merchants/[id]/extend-subscription", () => {
     ["not_active", 409, /Reactivate/],
     ["no_subscription", 404, /No subscription/],
     ["not_found", 404, /not found/],
+    ["request_reused", 409, /already used/],
   ])("answers the database's %s refusal as %i with what to do", async (code, status, message) => {
     rpc.mockResolvedValue({ data: { success: false, error: code }, error: null });
     const res = await extend({ days: 30 });
@@ -60,6 +68,13 @@ describe("POST /api/merchants/[id]/extend-subscription", () => {
 
   it("refuses more than a year before touching the database", async () => {
     expect((await extend({ days: 366 })).status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("asks a page with no request id to reload, before touching the database", async () => {
+    const res = await extend({ days: 30, request_id: undefined });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Reload/);
     expect(rpc).not.toHaveBeenCalled();
   });
 

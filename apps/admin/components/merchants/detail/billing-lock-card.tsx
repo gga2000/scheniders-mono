@@ -11,6 +11,7 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { createRequestIds } from "@/lib/request-ids";
 import { formatDay, formatIQD } from "@/lib/format";
 
 interface BillingLockCardProps {
@@ -46,6 +47,8 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
   const [reason, setReason] = useState("");
   const [customOrders, setCustomOrders] = useState("");
   const [unlockDays, setUnlockDays] = useState(30);
+  // One id per ask: a retry after a lost answer adds the orders or unlocks once.
+  const [requestIds] = useState(createRequestIds);
   const reasonOk = isStaffReason(reason);
 
   const mutation = useMutation({
@@ -54,10 +57,12 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
         action.kind === "orders"
           ? `/api/merchants/${merchantId}/lock-orders`
           : `/api/merchants/${merchantId}/force-unlock`;
+      const amount = action.kind === "orders" ? action.orders : action.days;
+      const request_id = requestIds.idFor(`${merchantId}:${action.kind}:${amount}:${reason.trim()}`);
       const body =
         action.kind === "orders"
-          ? { orders: action.orders, reason: reason.trim() }
-          : { days: action.days, reason: reason.trim() };
+          ? { orders: action.orders, reason: reason.trim(), request_id }
+          : { days: action.days, reason: reason.trim(), request_id };
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,6 +79,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
       return res.json();
     },
     onSuccess: () => {
+      requestIds.done();
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       setReason("");

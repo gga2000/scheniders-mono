@@ -9,6 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { isStaffReason } from "@/lib/billing-lock-tools";
+import { createRequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
@@ -89,13 +90,16 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
   const [reason, setReason] = useState("");
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
+  // One id per ask: a retry after a lost answer extends the trial once.
+  const [requestIds] = useState(createRequestIds);
 
   const mutation = useMutation({
     mutationFn: async (days: number) => {
+      const request_id = requestIds.idFor(`${tenantId}:${days}:${reason.trim()}`);
       const res = await fetch("/api/trials/extend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim() }),
+        body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim(), request_id }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -104,6 +108,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
       return res.json();
     },
     onSuccess: () => {
+      requestIds.done();
       queryClient.invalidateQueries({ queryKey: ["admin", "trials"] });
       setIsOpen(false);
       setReason("");
