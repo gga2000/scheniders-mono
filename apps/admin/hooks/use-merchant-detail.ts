@@ -59,15 +59,6 @@ export interface MerchantDetail {
     plan_change_at: string | null;
     auto_renew?: boolean;
   } | null;
-  transactions: Array<{
-    id: string;
-    type: string;
-    amount_iqd: number;
-    balance_after_iqd: number;
-    description: string | null;
-    reference_id: string | null;
-    created_at: string;
-  }>;
   usage: Array<{
     year: number;
     month: number;

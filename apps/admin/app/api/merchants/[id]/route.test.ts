@@ -45,7 +45,7 @@ const TABLES: Record<string, Answer> = {
   plan_limits: { data: [{ plan: "starter", max_orders_per_month: 500 }], error: null },
   admin_order_facts: { data: null, error: null, count: 4 },
 };
-const PARTS = ["wallet", "subscriptions", "wallet_transactions", "usage_tracking", "tenant_members", "admin_notes", "admin_order_facts", "plan_limits"] as const;
+const PARTS = ["wallet", "subscriptions", "usage_tracking", "tenant_members", "admin_notes", "admin_order_facts", "plan_limits"] as const;
 const ORIGINAL = { ...TABLES };
 
 /** What each table was asked for: [table, columns]. */
@@ -179,7 +179,7 @@ describe("GET /api/merchants/[id] parts of the record", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toMatchObject({ wallet: null, subscription: null, team: [], notes: [], transactions: [], usage: [] });
+    expect(body).toMatchObject({ wallet: null, subscription: null, team: [], notes: [], usage: [] });
   });
 
   it.each(PARTS)("a refused read of %s fails the record instead of sending it as empty", async (name) => {
