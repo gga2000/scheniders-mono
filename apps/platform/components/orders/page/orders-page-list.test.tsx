@@ -30,6 +30,7 @@ function model(over: Partial<OrdersPageModel>): OrdersPageModel {
         showArchived: false,
         isRefreshing: false,
         ordersPending: false,
+        listIsCurrent: true,
         previewing: false,
         orderSearch: search({}),
     };
@@ -54,6 +55,30 @@ describe("orders list under a search", () => {
 
     it("still says nothing matched after a search that answered with no orders", () => {
         render(<OrdersPageList m={model({})} />);
+        expect(screen.getByText("no matching orders")).toBeTruthy();
+    });
+});
+
+describe("orders list while the window's rows are landing", () => {
+    afterEach(cleanup);
+
+    const week = { searchQuery: "", dateFrom: "2026-11-10", dateTo: "2026-11-16" };
+
+    // Round 13, slow link: the 7-day rows had landed, the list's deferred
+    // render still held the empty previous window, and nothing was fetching.
+    it("shows placeholders, not «no matching orders», until the list is current", () => {
+        render(<OrdersPageList m={model({ filters: week, orderSearch: search({ active: false }), listIsCurrent: false })} />);
+        expect(screen.queryByText("no matching orders")).toBeNull();
+        expect(screen.queryByText("order cards")).toBeNull();
+    });
+
+    it("shows placeholders in the table too, where an empty window drew «no results»", () => {
+        render(<OrdersPageList m={model({ filters: week, orderSearch: search({ active: false }), listIsCurrent: false, viewMode: "table" })} />);
+        expect(screen.queryByText("order table")).toBeNull();
+    });
+
+    it("says nothing matched once the current window answered empty", () => {
+        render(<OrdersPageList m={model({ filters: week, orderSearch: search({ active: false }) })} />);
         expect(screen.getByText("no matching orders")).toBeTruthy();
     });
 });

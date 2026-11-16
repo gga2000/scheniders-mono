@@ -113,6 +113,7 @@ export function useOrdersPageModel() {
         countViewFacts,
         ordersAreComplete,
         listCovered,
+        listIsCurrent,
         listPreview,
         filtersSettled,
         // Message templates
@@ -1068,6 +1069,7 @@ export function useOrdersPageModel() {
         countViewFacts,
         ordersAreComplete,
         listCovered,
+        listIsCurrent,
         listPreview,
         filtersSettled,
         messageTemplates,

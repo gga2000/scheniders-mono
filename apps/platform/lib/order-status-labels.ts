@@ -148,6 +148,9 @@ export function orderStatusTranslations(locale: Locale): Record<string, string> 
         const label = ORDER_STATUS_LABELS[locale][status];
         entries[`orders.status.${status}`] = label;
         entries[`orders.status.${camelCase(status)}`] = label;
+        // Reports names each status as the Orders chips do: it once said «لا رد»
+        // where Orders says «لم يرد», and «تم التواصل» for «تم الاتصال».
+        entries[`reports.status.${status}`] = label;
     }
     return entries;
 }
