@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { profitPath, scaleMarks, type FinanceSummaryDay, type PathPoint } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
-import { Money, formatWhole } from "./money";
+import { Money, formatWhole, useMoneyText } from "./money";
 import { SummaryCard } from "./summary-card";
 
 interface ProfitPathProps {
@@ -34,6 +34,7 @@ const JUMP = 0.2;
  */
 export function ProfitPath({ daily }: ProfitPathProps) {
     const { t, language } = useLanguage();
+    const money = useMoneyText();
     const dir = useTextDir();
     const reduceMotion = useReducedMotion();
     const clipId = useId();
@@ -101,8 +102,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
         t("fin.path.big.item", {
             date: pointLabel(points[i]),
             orders: t("fin.path.orders", { n: formatWhole(points[i].orders), count: points[i].orders }),
-            // Kept left-to-right inside an Arabic sentence, so the plus stays in front of its digits.
-            profit: `\u2066+${formatWhole(profit)}\u2069`,
+            profit: money(profit),
         });
     const bigDays =
         chart.called.length === 2
