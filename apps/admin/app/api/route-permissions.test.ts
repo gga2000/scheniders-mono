@@ -817,7 +817,6 @@ describe("every role rule is proven from the source", () => {
         "merchants/[id]/route.ts PATCH",
         "admin-users/route.ts POST",
         "admin-users/route.ts DELETE",
-        "seed-automation/route.ts POST",
         "billing/route.ts GET",
         "admin/leads-table-layout/route.ts PUT",
         "billing/topup/route.ts POST",

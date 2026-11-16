@@ -1,186 +1,89 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useDashboardV2 } from "@/hooks/use-dashboard-v2";
-import { SPRING_CARD, STAGGER_CHILDREN, DELAY_CHILDREN } from "@/lib/animation-constants";
-import { KpiGridV2 } from "@/components/dashboard/kpi-grid-v2";
-import { PlatformOrderStats } from "@/components/dashboard/platform-order-stats";
-import { TopMerchants } from "@/components/dashboard/top-merchants";
-import { OrderPipeline } from "@/components/dashboard/order-pipeline";
-import { GrowthMetrics } from "@/components/dashboard/growth-metrics";
-import { IraqHeatmap } from "@/components/dashboard/iraq-heatmap";
-import { RevenueBreakdown } from "@/components/dashboard/revenue-breakdown";
-import { FulfillmentFunnel } from "@/components/dashboard/fulfillment-funnel";
-import { PeakHours } from "@/components/dashboard/peak-hours";
-import { WalletHealth } from "@/components/dashboard/wallet-health";
-import { ActivityHeatmap } from "@/components/dashboard/activity-heatmap";
-import { PlanMovementWidget } from "@/components/dashboard/plan-movement";
-import { OnboardingTracker } from "@/components/dashboard/onboarding-tracker";
-import { TimeToFirstOrder } from "@/components/dashboard/time-to-first-order";
-import { MerchantLTV } from "@/components/dashboard/merchant-ltv";
-import { TopUpPatterns } from "@/components/dashboard/topup-patterns";
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { Loader2 } from "lucide-react";
-import { SeedAutomationToggle } from "@/components/dashboard/seed-automation-toggle";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, Search } from "lucide-react";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useToday } from "@/hooks/use-today";
+import { useMerchantTabCounts } from "@/hooks/use-merchant-list";
+import { useLeadsWithNoOwner } from "@/hooks/use-leads";
+import { hasPermission } from "@/lib/admin-permissions";
+import { formatCount, formatDayTime } from "@/lib/format";
+import { TodayNumbers } from "@/components/today/today-numbers";
+import { TodayList } from "@/components/today/today-list";
 import { LoadError } from "@/components/shared/load-error";
 
-const staggerContainer = {
-  initial: {},
-  animate: {
-    transition: {
-      staggerChildren: STAGGER_CHILDREN,
-      delayChildren: DELAY_CHILDREN,
-    },
-  },
-};
+/**
+ * Today, the console's home page (board h1): the shops that need someone now,
+ * grouped by why, with four numbers above them, in place of 18 charts. The
+ * charts moved to Numbers.
+ */
+export default function TodayPage() {
+  const router = useRouter();
+  const today = useToday();
+  const counts = useMerchantTabCounts();
+  const noOwner = useLeadsWithNoOwner();
+  const { role } = useAdminAuth();
+  const canCheckReceipts = role ? hasPermission(role, "check_payments") : false;
+  const [find, setFind] = useState("");
+  // The page's clock is the moment of the last check, read on the browser: the
+  // server's build-time clock would show a wrong time until the page loaded.
+  const now = today.data ? new Date(today.dataUpdatedAt) : undefined;
 
-const staggerItem = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0, transition: SPRING_CARD },
-};
-
-export default function CommandCenterPage() {
-  const {
-    isLoading,
-    isError,
-    isFetching,
-    refetch,
-    kpis,
-    platformStats,
-    pipeline,
-    topMerchants,
-    geoStats,
-    funnel,
-    growth,
-    walletHealth,
-    peakHours,
-    activityHeatmap,
-    revenueBreakdown,
-    planMovements,
-    onboarding,
-    timeToFirstOrder,
-    merchantLTV,
-    topUpPatterns,
-    data,
-  } = useDashboardV2();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
-      </div>
-    );
-  }
-
-  // Only when there is nothing to show: a failed background refresh keeps the last good numbers.
-  if (isError && !data) {
-    return <LoadError what="the dashboard" onRetry={() => refetch()} retrying={isFetching} />;
-  }
+  const waiting = today.data?.shops.length;
+  const onFind = (event: FormEvent) => {
+    event.preventDefault();
+    const q = find.trim();
+    router.push(q ? `/merchants?q=${encodeURIComponent(q)}` : "/merchants");
+  };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Command Center</h1>
-          <p className="text-foreground-muted mt-1">
-            Platform overview and key metrics
+          <h1 className="text-[22px] font-semibold text-foreground">Today</h1>
+          <p className="min-h-5 text-[13px] text-foreground/60">
+            {now && waiting !== undefined && (
+              <>
+                {formatDayTime(now, now)}.{" "}
+                {waiting === 0
+                  ? "Nobody is waiting."
+                  : `${formatCount(waiting)} ${waiting === 1 ? "shop is" : "shops are"} waiting for someone.`}
+              </>
+            )}
           </p>
         </div>
-        <SeedAutomationToggle />
+        <form onSubmit={onFind} role="search">
+          <label className="relative block">
+            <span className="sr-only">Find a shop</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" aria-hidden />
+            <input
+              type="search"
+              value={find}
+              onChange={(event) => setFind(event.target.value)}
+              placeholder="Find a shop by name, number or phone"
+              className="w-80 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] py-2 pl-9 pr-3 text-[15px] text-foreground placeholder:text-foreground/45 focus:border-foreground/40 focus:outline-none"
+            />
+          </label>
+        </form>
       </div>
 
-      <motion.div
-        variants={staggerContainer}
-        initial="initial"
-        animate="animate"
-        className="space-y-6"
-      >
-        {/* Row 1: KPI Cards (full width) */}
-        <motion.div variants={staggerItem}>
-          <KpiGridV2 kpis={kpis} />
-        </motion.div>
+      <TodayNumbers counts={counts.data} numbers={today.data?.numbers} leadsWithNoOwner={noOwner.data} now={now} />
 
-        {/* Row 2: Platform Order Stats (full width) */}
-        <motion.div variants={staggerItem}>
-          <PlatformOrderStats stats={platformStats} />
-        </motion.div>
-
-        {/* Row 3: Leaderboard + Pipeline + Growth (3 cols) */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"
-        >
-          <TopMerchants merchants={topMerchants} />
-          <OrderPipeline pipeline={pipeline} />
-          <GrowthMetrics growth={growth} />
-        </motion.div>
-
-        {/* Row 4: Iraq Map + Revenue Breakdown (2 cols) */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6"
-        >
-          <IraqHeatmap geoStats={geoStats} />
-          <RevenueBreakdown breakdown={revenueBreakdown} />
-        </motion.div>
-
-        {/* Row 5: Funnel + Peak Hours + Wallet Health (3 cols) */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"
-        >
-          <FulfillmentFunnel funnel={funnel} />
-          <PeakHours cells={peakHours} />
-          <WalletHealth health={walletHealth} />
-        </motion.div>
-
-        {/* Row 6: Activity Heatmap + Plan Movement */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"
-        >
-          <div className="lg:col-span-2">
-            <ActivityHeatmap days={activityHeatmap} />
-          </div>
-          <PlanMovementWidget movements={planMovements} />
-        </motion.div>
-
-        {/* Row 7: Onboarding Tracker + Time to First Order */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"
-        >
-          <div className="lg:col-span-2">
-            <OnboardingTracker tenants={onboarding} />
-          </div>
-          <TimeToFirstOrder buckets={timeToFirstOrder} />
-        </motion.div>
-
-        {/* Row 8: Merchant LTV + Top-Up Patterns */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6"
-        >
-          <MerchantLTV data={merchantLTV} />
-          <TopUpPatterns patterns={topUpPatterns} />
-        </motion.div>
-
-        {/* Row 9: Activity Feed + Watchlist */}
-        <motion.div
-          variants={staggerItem}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6"
-        >
-          <div className="lg:col-span-2">
-          <ActivityFeed
-            activities={
-              data?.recentActivity ?? []
-            }
-            isLoading={false}
-          />
-          </div>
-        </motion.div>
-      </motion.div>
+      {today.isLoading ? (
+        <p className="flex items-center gap-2 py-10 text-[13px] text-foreground/60">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Looking for shops that need someone...
+        </p>
+      ) : today.data && now ? (
+        <TodayList
+          shops={today.data.shops}
+          canCheckReceipts={canCheckReceipts}
+          now={now}
+        />
+      ) : (
+        <LoadError what="who is waiting" error={today.error} onRetry={() => today.refetch()} retrying={today.isFetching} />
+      )}
     </div>
   );
 }
