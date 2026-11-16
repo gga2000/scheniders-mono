@@ -36,7 +36,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
             <Filter className="w-4 h-4 text-[var(--ink-teal)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
-            Fulfillment Funnel
+            Fulfillment Funnel, last 90 days
           </h3>
         </div>
       </div>
