@@ -36,6 +36,15 @@ const HEALTH_BANDS = new Map<string, ShopFilter[]>([
 export const ATTENTION = "attention";
 
 /**
+ * A wallet under this many IQD puts a shop on the "Needs attention" list. The
+ * database decides who is on that list (staff_needs_attention, migration
+ * staff_list_filters); this copy only lets the numbers above the list say how
+ * many shops are there for that reason. It is not the "critical" balance band
+ * above, which is under 10,000 IQD.
+ */
+export const ATTENTION_WALLET_IQD = 5_000;
+
+/**
  * The filters to put on a read of `tenants` for these query values. A band
  * name the console does not use adds no filter, as before.
  */

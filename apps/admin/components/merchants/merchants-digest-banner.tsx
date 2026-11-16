@@ -13,13 +13,23 @@ import {
 } from "lucide-react";
 import { useAdminStore } from "@/store/use-admin-store";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
+import { merchantsDigest, type DigestReason } from "@/lib/merchants-digest";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "merchants-digest-dismissed";
 
+const CARD_LOOK: Record<DigestReason, { icon: typeof AlertCircle; accent: string }> = {
+  trials_expired: { icon: AlertCircle, accent: "from-rose-500 to-red-600 text-white shadow-rose-500/40" },
+  trials_today: { icon: Clock, accent: "from-amber-400 to-orange-500 text-white shadow-amber-500/40" },
+  suspended: { icon: Ban, accent: "from-rose-500 to-red-600 text-white shadow-rose-500/40" },
+  low_wallet: { icon: Wallet, accent: "from-fuchsia-500 to-pink-600 text-white shadow-fuchsia-500/40" },
+};
+
 export function MerchantsDigestBanner() {
-  const { setStatusFilter, setBalanceFilter } = useAdminStore();
-  const { data } = useMerchantsStats();
+  const { setStatusFilter } = useAdminStore();
+  // The same read as the status pills, whatever status is picked: the headline
+  // is the "Needs attention" pill's number, and a tap on one card leaves the others.
+  const { data } = useMerchantsStats({ ignoreStatusFilter: true });
   const [dismissed, setDismissed] = useState<boolean>(false);
 
   useEffect(() => {
@@ -31,12 +41,7 @@ export function MerchantsDigestBanner() {
     }
   }, []);
 
-  const buckets = data?.buckets;
-  const totalUrgent =
-    (buckets?.trials_today ?? 0) +
-    (buckets?.trials_expired ?? 0) +
-    (buckets?.suspended ?? 0) +
-    (buckets?.critical_balance ?? 0);
+  const digest = data ? merchantsDigest(data.buckets) : null;
 
   function handleDismiss() {
     setDismissed(true);
@@ -47,52 +52,7 @@ export function MerchantsDigestBanner() {
     }
   }
 
-  if (!buckets || totalUrgent === 0 || dismissed) return null;
-
-  const cards: Array<{
-    label: string;
-    count: number;
-    icon: typeof AlertCircle;
-    accent: string;
-    onClick: () => void;
-  }> = [];
-
-  if (buckets.trials_expired > 0) {
-    cards.push({
-      label: "Trial expired",
-      count: buckets.trials_expired,
-      icon: AlertCircle,
-      accent: "from-rose-500 to-red-600 text-white shadow-rose-500/40",
-      onClick: () => setStatusFilter("attention"),
-    });
-  }
-  if (buckets.trials_today > 0) {
-    cards.push({
-      label: "Trial ends today",
-      count: buckets.trials_today,
-      icon: Clock,
-      accent: "from-amber-400 to-orange-500 text-white shadow-amber-500/40",
-      onClick: () => setStatusFilter("attention"),
-    });
-  }
-  if (buckets.suspended > 0) {
-    cards.push({
-      label: "Suspended",
-      count: buckets.suspended,
-      icon: Ban,
-      accent: "from-rose-500 to-red-600 text-white shadow-rose-500/40",
-      onClick: () => setStatusFilter("suspended"),
-    });
-  }
-  if (buckets.critical_balance > 0) {
-    cards.push({
-      label: "Critical balance",
-      count: buckets.critical_balance,
-      icon: Wallet,
-      accent: "from-fuchsia-500 to-pink-600 text-white shadow-fuchsia-500/40",
-      onClick: () => setBalanceFilter("critical"),
-    });
-  }
+  if (!digest || digest.shops === 0 || dismissed) return null;
 
   return (
     <AnimatePresence>
@@ -119,7 +79,7 @@ export function MerchantsDigestBanner() {
                 Daily Digest
               </p>
               <p className="text-sm font-black text-foreground truncate">
-                {totalUrgent} {totalUrgent === 1 ? "merchant" : "merchants"} need your attention
+                {digest.shops === 1 ? "1 merchant needs" : `${digest.shops} merchants need`} your attention
               </p>
             </div>
           </div>
@@ -135,17 +95,17 @@ export function MerchantsDigestBanner() {
         </div>
 
         <div className="relative flex items-center gap-2 flex-wrap">
-          {cards.map((card) => {
-            const Icon = card.icon;
+          {digest.cards.map((card) => {
+            const { icon: Icon, accent } = CARD_LOOK[card.reason];
             return (
               <button
-                key={card.label}
+                key={card.reason}
                 type="button"
-                onClick={card.onClick}
+                onClick={() => setStatusFilter(card.status)}
                 className={cn(
                   "group inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full ring-1 ring-white/20 shadow-sm transition-all hover:scale-105 active:scale-95",
                   "bg-gradient-to-br",
-                  card.accent
+                  accent
                 )}
               >
                 <span className="w-7 h-7 rounded-full flex items-center justify-center bg-white/15">
