@@ -40,11 +40,17 @@ INSERT INTO public.tenants (id, business_name, is_demo) VALUES
     ('00000000-0000-4000-8000-000000000001', 'Real shop', false),
     ('00000000-0000-4000-8000-000000000002', 'Demo shop', true);
 
+-- Two days ago at noon Baghdad time: inside support hours, so the reply clock
+-- starts with the message (support-hours.test.sql covers night messages).
+CREATE OR REPLACE FUNCTION pg_temp.noon_2d() RETURNS timestamptz LANGUAGE sql AS $$
+    SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Baghdad') - interval '2 days' + interval '12 hours') AT TIME ZONE 'Asia/Baghdad'
+$$;
+
 -- Real shop, last 7 days: replies after 1, 2, 4 and 20 minutes; one not answered yet.
 INSERT INTO public.support_cases (tenant_id, status, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, created_at)
 SELECT '00000000-0000-4000-8000-000000000001', v.status, v.owner, v.reason,
-       now() - interval '2 days' + v.reply, v.waiting, now() - interval '2 days' + v.solve, v.rating, v.reopened,
-       now() - interval '2 days'
+       pg_temp.noon_2d() + v.reply, v.waiting, pg_temp.noon_2d() + v.solve, v.rating, v.reopened,
+       pg_temp.noon_2d()
 FROM (VALUES
     ('solved',           'Noor',   'orders',   interval '1 minute',  NULL::timestamptz,              interval '1 hour',  'yes', 0),
     ('solved',           'Noor',   'orders',   interval '2 minutes', NULL,                           interval '3 hours', 'yes', 1),
@@ -56,7 +62,8 @@ FROM (VALUES
 -- Real shop, 10 days ago: only in the 30-day board.
 INSERT INTO public.support_cases (tenant_id, status, owner_name, reason, first_reply_at, solved_at, created_at)
 VALUES ('00000000-0000-4000-8000-000000000001', 'solved', 'Noor', 'wallet_billing',
-        now() - interval '10 days' + interval '1 minute', now() - interval '10 days' + interval '1 hour', now() - interval '10 days');
+        pg_temp.noon_2d() - interval '8 days' + interval '1 minute', pg_temp.noon_2d() - interval '8 days' + interval '1 hour',
+        pg_temp.noon_2d() - interval '8 days');
 
 -- Demo shop: never counts, in any window, nor in waiting now.
 INSERT INTO public.support_cases (tenant_id, status, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, created_at) VALUES

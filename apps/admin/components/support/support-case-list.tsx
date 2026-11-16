@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Clock, Inbox, ThumbsDown, ThumbsUp } from "lucide-react";
+import { SUPPORT_REPLY_MINUTES, supportWaitMinutes } from "@scheniders/shared/support-hours";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { formatWait, SUPPORT_REASON_LABELS, type SupportCaseRow } from "@/lib/support";
@@ -13,11 +14,14 @@ interface SupportCaseListProps {
   emptyLabel: string;
 }
 
-/** Wait colour: calm under 5 minutes, amber to 15, red after. */
+/**
+ * Wait colour, counted in support hours (a night message starts at 9 AM):
+ * calm inside the 5-minute promise, amber once it is broken, red after 15.
+ */
 function waitTone(since: string, now: number): string {
-  const minutes = (now - new Date(since).getTime()) / 60_000;
+  const minutes = supportWaitMinutes(Date.parse(since), now);
   if (minutes >= 15) return "bg-red-100 text-red-800";
-  if (minutes >= 5) return "bg-amber-100 text-amber-800";
+  if (minutes >= SUPPORT_REPLY_MINUTES) return "bg-amber-100 text-amber-800";
   return "bg-foreground/5 text-foreground/70";
 }
 
