@@ -113,10 +113,16 @@ export async function DELETE(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
   if (admin instanceof NextResponse) return admin;
 
-  const { error } = await createAdminClient().rpc("support_view_end", { p_admin_id: admin.user.id });
+  const { data, error } = await createAdminClient().rpc("support_view_end", { p_admin_id: admin.user.id });
   if (error) {
     console.error("Support view end error:", error);
     return NextResponse.json({ error: "Failed to end the merchant view" }, { status: 500 });
   }
+  await logAdminActivity({
+    adminUserId: admin.user.id,
+    actorEmail: admin.user.email,
+    action: "support_view_end",
+    details: { ended: data },
+  });
   return NextResponse.json({ success: true });
 }

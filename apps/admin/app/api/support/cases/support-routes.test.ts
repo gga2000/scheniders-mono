@@ -788,5 +788,10 @@ describe("support view as merchant", () => {
     dbResult = { data: 1, error: null };
     expect((await stop("support")).status).toBe(200);
     expect(rpcCall()?.args).toEqual(["support_view_end", { p_admin_id: SUPPORT_ID }]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      action: "support_view_end",
+      details: { ended: 1 },
+    });
   });
 });
