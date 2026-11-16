@@ -38,8 +38,21 @@ describe("LoadError", () => {
     expect(html).not.toContain("Try again");
   });
 
+  it("says a record that is gone could not be found, with nothing to retry", () => {
+    const html = render(new LoadFailure(404, "the wallets"));
+    expect(html).toContain("Could not find the wallets");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("Could not load");
+  });
+
+  it("fits a pop-up when compact, a whole page otherwise", () => {
+    const compact = renderToStaticMarkup(createElement(LoadError, { what: "this shop", onRetry: () => {}, compact: true }));
+    expect(compact).not.toContain("min-h-[60vh]");
+    expect(render()).toContain("min-h-[60vh]");
+  });
+
   it("is announced as an alert in every case", () => {
-    for (const status of [401, 403, 500]) {
+    for (const status of [401, 403, 404, 500]) {
       expect(render(new LoadFailure(status, "the wallets"))).toContain('role="alert"');
     }
   });
