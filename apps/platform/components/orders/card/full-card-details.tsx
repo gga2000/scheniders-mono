@@ -98,6 +98,11 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                             style={items.length > 1 ? undefined : ({ borderLeftColor: item.tag_color || '#22c55e', "--product-hue": item.tag_color || '#22c55e' } as CSSProperties)}
                                         >
                                             {item.name}
+                                            {item.variant_name?.trim() && (
+                                                <span className="text-xs font-semibold text-[var(--foreground-muted)]" data-testid="order-line-variant">
+                                                    {item.variant_name.trim()}
+                                                </span>
+                                            )}
                                             <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
                                                 ×{item.quantity}
                                             </span>

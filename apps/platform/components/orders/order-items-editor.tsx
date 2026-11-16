@@ -8,6 +8,7 @@ import { Package, X } from "lucide-react";
 import { DiscountBadge } from "./discount-badge";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 interface OrderItemsEditorProps {
     isEditing: boolean;
@@ -88,7 +89,7 @@ export function OrderItemsEditor({
                             )}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                    <p className="font-medium text-foreground truncate">{item.name}</p>
+                                    <p className="font-medium text-foreground truncate">{orderItemLabel(item)}</p>
                                     {isEditing ? (
                                         <button
                                             onClick={() => toggleOpenBox(index)}

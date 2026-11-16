@@ -34,7 +34,7 @@ export function ReplaceEntry({ order }: { order: Order }) {
                 kind: "replacement",
                 originalOrderId: order.id,
                 lines: request.lines.map((l) => ({ originalLine: l.index, qty: l.quantity })),
-                outLines: request.outItems.map((i) => ({ productId: i.productId, variantId: null, qty: i.quantity })),
+                outLines: request.outItems.map((i) => ({ productId: i.productId, variantId: i.variantId, qty: i.quantity })),
                 chargeFee: request.chargeFee,
                 notes: request.note || null,
             },

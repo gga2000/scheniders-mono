@@ -15,10 +15,14 @@ import { useLanguage } from "@/hooks/use-language";
 import { previewReplacement } from "@/lib/after-sale/replacement-math";
 import type { RefundableLine, RefundSelection } from "@/lib/refunds/refund-math";
 import { cn, formatIQD, formatIQDChange } from "@/lib/utils";
+import { orderItemLabel } from "@/lib/orders/item-label";
 import { ProductPicker } from "./product-picker";
 
 export interface ReplacementOutItem {
     productId: string;
+    /** The size or colour going out, for a product sold by variant. */
+    variantId: string | null;
+    variantName: string | null;
     name: string;
     price: number;
     quantity: number;
@@ -152,9 +156,9 @@ export function ReplaceSheet({ open, onClose, orderNumber, lines, defaultFee, on
                             {outItems.length > 0 && (
                                 <ul className="mb-2 divide-y divide-(--card-border) rounded-xl border border-violet-200 dark:border-violet-500/30">
                                     {outItems.map((item, i) => (
-                                        <li key={`${item.productId}-${i}`} className="flex items-center gap-3 p-3">
+                                        <li key={`${item.productId}-${item.variantId ?? ""}-${i}`} className="flex items-center gap-3 p-3">
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
+                                                <p className="truncate text-sm font-medium text-foreground">{orderItemLabel({ name: item.name, variant_name: item.variantName })}</p>
                                                 <p className="text-xs text-muted tabular-nums">{formatIQD(item.price * item.quantity)}</p>
                                             </div>
                                             <Stepper
@@ -262,7 +266,14 @@ export function ReplaceSheet({ open, onClose, orderNumber, lines, defaultFee, on
                 onSelect={(p) =>
                     setOutItems((items) => [
                         ...items,
-                        { productId: p.product_id, name: p.name, price: p.price, quantity: p.quantity },
+                        {
+                            productId: p.product_id,
+                            variantId: p.variant_id ?? null,
+                            variantName: p.variant_name ?? null,
+                            name: p.name,
+                            price: p.price,
+                            quantity: p.quantity,
+                        },
                     ])
                 }
             />

@@ -12,6 +12,7 @@
 import type { Order } from "@/lib/supabase";
 import { getBaseOrderId } from "@/lib/utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { orderItemLabel } from "@/lib/orders/item-label";
 import { computeCodAmount, computeRefundPayout, courierAmount } from "@/lib/order-money";
 import { code128Svg, qrSvg } from "@/lib/print-codes";
 import { escapeHtml } from "@/lib/html-escape";
@@ -150,7 +151,7 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     // A gift parcel never prints its price: the recipient sees the label, and the
     // courier reads the amount to collect from the delivery company's app.
     const giftBox = Boolean(order.is_gift) && !afterSale;
-    const items = mergeOrderItems(order.items).map((i) => ({ name: i.name, qty: i.quantity }));
+    const items = mergeOrderItems(order.items).map((i) => ({ name: orderItemLabel(i), qty: i.quantity }));
     const pieces = items.reduce((sum, i) => sum + i.qty, 0);
     const e = (value: string | null | undefined) => escapeHtml(value ?? "");
     const courierLogo = !options.courierLogo?.show

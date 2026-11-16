@@ -274,10 +274,11 @@ export const getAgeUrgency = (
  * orders) are collapsed into one line with the summed quantity — see
  * merge-order-items.ts.
  */
-export const getItemsDisplay = (items: Array<{ name: string; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
+export const getItemsDisplay = (items: Array<{ name: string; variant_name?: string | null; quantity: number; image_url?: string; tag_color?: string | null; is_open_box?: boolean; is_ai_extracted?: boolean }>) => {
     if (!items || items.length === 0) return [];
     return mergeOrderItems(items).map(item => ({
         name: item.name,
+        variant_name: item.variant_name,
         quantity: item.quantity,
         image_url: item.image_url,
         tag_color: item.tag_color,

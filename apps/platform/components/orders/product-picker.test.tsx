@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
-import type { Product } from "@/types/product";
+import type { Product, ProductVariant } from "@/types/product";
 
 // t() returns the key so assertions can target strings without coupling the
 // test to Arabic or English copy.
@@ -257,5 +257,60 @@ describe("ProductPicker stock left", () => {
 
         expect(screen.getByText("جديد 94 زيادة")).toBeDefined();
         expect(screen.queryByText(/جديد 1 زيادة/)).toBeNull();
+    });
+});
+
+describe("ProductPicker sizes and colours", () => {
+    const variant = (id: string, name: string, over: Partial<ProductVariant> = {}): ProductVariant => ({
+        id, product_id: "shirt", created_at: "2026-01-01T00:00:00Z", name,
+        stock_quantity: 5, reserved_quantity: 0, is_enabled: true, ...over,
+    });
+    const SHIRT = makeProduct({
+        id: "shirt", name: "قميص قطن", short_name: "قميص", price: 25000, image_url: "https://img/shirt.jpg",
+        variants: [
+            variant("v-s", "S / أسود", { display_order: 0 }),
+            variant("v-m", "M / أسود", { display_order: 1, price: 27000, image_url: "https://img/m.jpg", stock_quantity: 3, reserved_quantity: 1 }),
+            variant("v-l", "L / أسود", { display_order: 2, stock_quantity: 0 }),
+            variant("v-off", "XL / أسود", { display_order: 3, is_enabled: false }),
+        ],
+    });
+
+    it("opens the sizes, with what is left of each, and never the switched-off one", () => {
+        setProducts([SHIRT]);
+        renderPicker();
+        fireEvent.click(screen.getByText("قميص قطن"));
+
+        expect(screen.getByRole("button", { name: /M \/ أسود/ }).textContent).toContain("orders.productPicker.variantLeft");
+        expect(screen.getByRole("button", { name: /L \/ أسود/ }).textContent).toContain("orders.productPicker.variantSoldOut");
+        expect(screen.queryByText("XL / أسود")).toBeNull();
+    });
+
+    it("hands back each size picked as its own line, at the size's price and picture", () => {
+        setProducts([SHIRT]);
+        const { onSelect } = renderPicker();
+        fireEvent.click(screen.getByText("قميص قطن"));
+        fireEvent.click(screen.getByRole("button", { name: /S \/ أسود/ }));
+        fireEvent.click(screen.getByRole("button", { name: /M \/ أسود/ }));
+        const mLine = screen.getAllByTestId("picker-variant-line")[1];
+        fireEvent.click(within(mLine).getAllByRole("button")[1]);
+        fireEvent.click(screen.getByRole("button", { name: /orders\.productPicker\.add/ }));
+
+        expect(onSelect).toHaveBeenCalledTimes(2);
+        expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
+            product_id: "shirt", variant_id: "v-s", variant_name: "S / أسود", name: "قميص", price: 25000, quantity: 1,
+            image_url: "https://img/shirt.jpg",
+        }));
+        expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
+            product_id: "shirt", variant_id: "v-m", variant_name: "M / أسود", price: 27000, quantity: 2,
+            image_url: "https://img/m.jpg",
+        }));
+    });
+
+    it("cannot add the product itself without a size", () => {
+        setProducts([SHIRT]);
+        renderPicker();
+        fireEvent.click(screen.getByText("قميص قطن"));
+
+        expect((screen.getByRole("button", { name: /orders\.productPicker\.add/ }) as HTMLButtonElement).disabled).toBe(true);
     });
 });

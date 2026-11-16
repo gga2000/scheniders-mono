@@ -38,6 +38,7 @@ import {
 import { LikelihoodMeter } from "./duplicate-comparison/likelihood-meter";
 import { OrderTimeline } from "./duplicate-comparison/order-timeline";
 import { ColumnHeaderControls } from "./duplicate-comparison/column-header-controls";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 interface DuplicateComparisonModalProps {
     open: boolean;
@@ -668,7 +669,7 @@ export function DuplicateComparisonModal({
                                                                             ? "text-emerald-800 dark:text-[#66FFAA]"
                                                                             : "text-amber-800 dark:text-[#FFB347]"
                                                                     )}>
-                                                                        {item.name}
+                                                                        {orderItemLabel(item)}
                                                                     </p>
                                                                     <p className={cn(
                                                                         "text-[11px] font-bold",
@@ -737,7 +738,7 @@ export function DuplicateComparisonModal({
                                             <div className="space-y-1 mt-2">
                                                 {mergedItemsPreview.items.map((item, idx) => (
                                                     <div key={idx} className="flex items-center justify-between text-xs">
-                                                        <span className="text-purple-700 dark:text-[var(--foreground-muted)]">{item.name} ×{item.quantity}</span>
+                                                        <span className="text-purple-700 dark:text-[var(--foreground-muted)]">{orderItemLabel(item)} ×{item.quantity}</span>
                                                         <span className="font-mono text-purple-800 dark:text-[var(--foreground)]">{formatIQD(item.price * item.quantity)}</span>
                                                     </div>
                                                 ))}

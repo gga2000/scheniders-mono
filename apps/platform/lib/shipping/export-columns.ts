@@ -2,6 +2,7 @@ import { z } from "zod";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { computeCodAmount } from "@/lib/order-money";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { orderItemLabel } from "@/lib/orders/item-label";
 import {
     cleanPhoneForExport,
     courierNotes,
@@ -164,11 +165,7 @@ export function formatPhoneForCourier(raw: string | null | undefined, format: Ph
 export function itemsText(order: Pick<CourierSheetOrder, "items">): string {
     return mergeOrderItems(order.items)
         .filter((item) => item.name)
-        .map((item) => {
-            const variant = item.variant_name?.trim();
-            const qty = item.quantity || 1;
-            return `${item.name}${variant ? ` (${variant})` : ""} × ${qty}`;
-        })
+        .map((item) => `${orderItemLabel(item)} × ${item.quantity || 1}`)
         .join(" + ");
 }
 

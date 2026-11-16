@@ -11,6 +11,8 @@ import { freshAccessToken } from "@/lib/authed-fetch";
 export interface PendingBackItem {
     id: string;
     name: string;
+    /** The size or colour, when the line has one. */
+    variant_name: string | null;
     qty: number;
     amount: number;
     created_at: string;
@@ -44,7 +46,7 @@ export function useAfterSaleIntake(enabled: boolean) {
             const [items, tenant] = await Promise.all([
                 supabase
                     .from("after_sale_items")
-                    .select("id, name, qty, amount, created_at, child:orders!after_sale_items_order_id_fkey!inner(id, order_id, status, customer_name, is_return, deleted_at)")
+                    .select("id, name, variant_name, qty, amount, created_at, child:orders!after_sale_items_order_id_fkey!inner(id, order_id, status, customer_name, is_return, deleted_at)")
                     .eq("tenant_id", tenantId)
                     .eq("direction", "back")
                     .eq("expects_back", true)

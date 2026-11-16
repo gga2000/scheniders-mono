@@ -4,7 +4,7 @@ import { useState, useEffect, useEffectEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { calculateTotal, normalizeIraqiPhone, type OrderFormData, type ValidationErrors } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
-import type { CreateOrderInput, CreateOrderResult, OrderSource, TakeKind } from "@/types/order";
+import type { CreateOrderInput, CreateOrderResult, OrderSource, PickedOrderLine, TakeKind } from "@/types/order";
 import { useAuth } from "@/components/auth/auth-provider";
 import { checkOrderLimitsAction } from "@/app/actions/orders";
 import { limitMessage } from "./limit-message";
@@ -283,7 +283,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         }));
     };
 
-    const handleProductSelect = (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; is_open_box?: boolean }) => {
+    const handleProductSelect = (product: PickedOrderLine) => {
         setFormData((prev) => ({
             ...prev,
             items: [...prev.items, product],

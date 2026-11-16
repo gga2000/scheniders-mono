@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { getBaseOrderId } from "@/lib/utils";
 import { slotToSave } from "@/lib/whatsapp-contact";
 import { FUTURE_ORDER_DATE_CODE, isFutureInstant } from "@/lib/order-date-guard";
+import type { PickedOrderLine } from "@/types/order";
 
 interface UseOrderDetailsFormProps {
     order: Order | null;
@@ -189,7 +190,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
         setShowProductPicker(true);
     };
 
-    const handleProductSelect = (product: { name: string; price: number; quantity: number; image_url?: string; tag_color?: string; product_id?: string; is_open_box?: boolean }) => {
+    const handleProductSelect = (product: PickedOrderLine) => {
         if (!order) return;
         setFormData((prev) => {
             const currentItems = [...((prev.items || order.items || []) as OrderItem[])];
