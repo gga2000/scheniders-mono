@@ -104,6 +104,10 @@ export const FinanceSummarySchema = z.object({
             unpaid_orders: z.number(),
             /** Of the unpaid orders, those Prime delivered and has not paid out yet. */
             unpaid_prime: z.number(),
+            /** Of `reached`, what Prime paid. Zero from a server older than the field. */
+            reached_prime: z.number().catch(0),
+            /** Of `reached`, what courier files dated before the period paid: orders marked delivered after their payment. */
+            reached_before: z.number().catch(0),
         }),
     }),
     failed: z.object({
@@ -450,6 +454,31 @@ const COMPARABLE_SALES_RATIO = 11;
  */
 export function isComparablePeriod(statement: ProfitStatement, before: ProfitStatement): boolean {
     return before.sales > 0 && statement.sales < before.sales * COMPARABLE_SALES_RATIO;
+}
+
+/** A day holding at least this part of the period's delivered orders was a day of marking orders delivered in bulk. */
+const BULK_DAY_SHARE = 0.2;
+/** ...and at least this many orders, so a quiet period's one busy day is not called bulk. */
+const BULK_DAY_ORDERS = 10;
+/** ...and this many times a usual (median) day, so a steady busy shop is not called bulk. */
+const BULK_DAY_OVER_USUAL = 3;
+
+/**
+ * The days on which a big part of the period's orders were marked delivered at
+ * once (a shop that marks orders delivered when it imports the courier's file),
+ * and what part of the orders they hold. Daily averages over such a period are
+ * rough. Null when no day stands out.
+ */
+export function bulkDays(daily: readonly { orders: number }[]): { days: number; share: number } | null {
+    const total = daily.reduce((sum, day) => sum + day.orders, 0);
+    if (total === 0) return null;
+    const sorted = daily.map((day) => day.orders).sort((x, y) => x - y);
+    const usual = sorted[Math.floor((sorted.length - 1) / 2)];
+    const bulk = daily.filter(
+        (day) => day.orders >= BULK_DAY_ORDERS && day.orders >= total * BULK_DAY_SHARE && day.orders >= usual * BULK_DAY_OVER_USUAL,
+    );
+    if (bulk.length === 0) return null;
+    return { days: bulk.length, share: bulk.reduce((sum, day) => sum + day.orders, 0) / total };
 }
 
 export interface BreakEven {

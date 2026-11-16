@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { adReturn, breakEven, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { adReturn, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
@@ -39,6 +39,11 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
     const spent = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
     const brought = adReturn(statement);
     const even = breakEven(summary, statement);
+    const bulk = bulkDays(summary.daily);
+    // Only the daily costs this period has, so the brackets never name a cost that is zero.
+    const costItems = (["ads", "salaries", "other"] as const)
+        .filter((id) => (statement.lines.find((l) => l.id === id)?.amount ?? 0) > 0)
+        .map((id) => t(`fin.even.item.${id}`));
     const quiet = "text-left text-[13.5px] leading-relaxed text-muted";
     const label = "flex min-w-0 items-center gap-1.5";
     const dot = "size-2.5 shrink-0 rounded-[3px]";
@@ -94,8 +99,21 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                     )}
                 </div>
                 <p className="mt-2.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir}>
-                    {t("fin.even.how", { left: money(even.leftPerOrder), bill: money(even.dailyBill), after: money(perOrder(statement.netProfit, statement.orders) ?? 0) })}
+                    {t("fin.even.how", {
+                        items: costItems.join(t("fin.even.item.and")),
+                        left: money(even.leftPerOrder),
+                        bill: money(even.dailyBill),
+                        after: money(perOrder(statement.netProfit, statement.orders) ?? 0),
+                    })}
                 </p>
+                {bulk && (
+                    <p className="mt-1.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="break-even-bulk">
+                        {t("fin.even.bulk", {
+                            share: String(Math.round(bulk.share * 100)),
+                            days: t("fin.even.bulk.days", { n: String(bulk.days), count: bulk.days }),
+                        })}
+                    </p>
+                )}
             </div>
         );
     }

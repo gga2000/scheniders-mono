@@ -12,6 +12,7 @@ import {
     lensChange,
     perOrder,
     productRows,
+    bulkDays,
     wholePercents,
     profitBars,
     profitPath,
@@ -50,7 +51,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
-            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1 },
+            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_prime: 0, reached_before: 0 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 1, prime_returned_fee: 5_000 },
         daily: [
@@ -291,6 +292,22 @@ describe("profitPath", () => {
 
     it("is empty for an empty period", () => {
         expect(profitPath([]).points).toEqual([]);
+    });
+});
+
+describe("bulkDays", () => {
+    it("names the days that hold a big part of the period's orders, marked delivered at once", () => {
+        // the live shop on 16 Nov: 206 and 138 of 406 orders on two days
+        const daily = [206, 1, 5, 1, 1, 1, 1, 138, 17, 17, 11, 1, 6].map((orders) => ({ orders }));
+        const bulk = bulkDays(daily);
+        expect(bulk?.days).toBe(2);
+        expect(bulk?.share).toBeCloseTo(344 / 406);
+    });
+
+    it("leaves a steady period, a small one and an empty one alone", () => {
+        expect(bulkDays([14, 12, 15, 13, 16].map((orders) => ({ orders })))).toBeNull();
+        expect(bulkDays([3, 1, 0, 2].map((orders) => ({ orders })))).toBeNull();
+        expect(bulkDays([])).toBeNull();
     });
 });
 
