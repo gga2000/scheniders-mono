@@ -24,8 +24,8 @@ interface MerchantResult {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  starter: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  internal: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  starter: "bg-blue-500/15 text-[var(--ink-blue)] dark:bg-blue-900",
+  internal: "bg-gray-500/15 text-[var(--muted)] dark:bg-gray-700 dark:text-gray-300",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -55,8 +55,10 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { title: pageHeaderTitle, subtitle: pageHeaderSubtitle, tab } = usePageHeader();
-  const pageTitle = pageHeaderTitle ?? menuPageTitle(pathname ?? "/") ?? "Admin";
+  // Each page names itself once, in its own heading (board n3). The top bar
+  // names the browser tab only.
+  const tab = usePageHeader((s) => s.tab);
+  const pageTitle = menuPageTitle(pathname ?? "/") ?? "Admin";
 
   // The browser tab says where you are, in the menu's words or the shop's name.
   // React puts this <title> in the document head, on the server and after every
@@ -141,7 +143,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   return (
     <header className="h-16 flex items-center justify-between px-6 gap-4">
       <title>{tabTitle}</title>
-      {/* Left: Mobile menu + Page title */}
+      {/* Left: mobile menu */}
       <div className="flex items-center gap-3">
         {isMobile && (
           <button
@@ -151,22 +153,6 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           >
             <Menu className="w-5 h-5 text-foreground" />
           </button>
-        )}
-        {pageTitle && (
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground leading-tight truncate">
-              {pageTitle}
-            </h1>
-            {pageHeaderSubtitle && (
-              <p className="hidden sm:flex items-center gap-1.5 text-[11px] text-foreground-muted leading-tight mt-0.5">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                </span>
-                {pageHeaderSubtitle}
-              </p>
-            )}
-          </div>
         )}
       </div>
 
@@ -192,7 +178,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           {!query && (
             <button
               onClick={onOpenCommandPalette}
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-foreground/30 hover:text-foreground/50 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-foreground/70 hover:text-foreground transition-colors"
             >
               <kbd className="bg-foreground/5 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
             </button>
@@ -225,7 +211,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
 
                     {/* Plan badge */}
                     <span
-                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-500/15 text-[var(--muted)] dark:bg-gray-700 dark:text-gray-300"}`}
                     >
                       {merchant.plan}
                     </span>
@@ -269,13 +255,13 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                   {user.full_name || user.email?.split("@")[0]}
                 </span>
                 {(ROLE_LABELS[user.role] || user.role) && (
-                  <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-[var(--primary)]">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)]">
                     <Shield className="w-2.5 h-2.5" strokeWidth={2.5} />
                     {ROLE_LABELS[user.role] ?? "Admin"}
                   </span>
                 )}
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-[var(--primary)]/20 shadow-sm">
+              <div className="w-9 h-9 rounded-full bg-[#FBE38E] flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-[var(--primary)]/20 shadow-sm">
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}

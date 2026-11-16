@@ -55,7 +55,7 @@ export function OnboardingChecklist({ tenant, orderCount, teamCount, walletBalan
 
   return (
     <section className="pastel-card p-5" aria-label="Setting up">
-      <p className="text-[13px] text-foreground/60">Setting up</p>
+      <p className="text-[13px] text-foreground/70">Setting up</p>
       <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">
         {done} of {steps.length} steps done
       </p>
@@ -78,7 +78,7 @@ export function OnboardingChecklist({ tenant, orderCount, teamCount, walletBalan
                 {step.title}
                 <span className="sr-only">{step.done ? ", done" : ", not done"}</span>
               </p>
-              <p className="text-[13px] text-foreground/60">{step.line}</p>
+              <p className="text-[13px] text-foreground/70">{step.line}</p>
             </div>
           </li>
         ))}

@@ -6,6 +6,7 @@ import { CityPerformance } from "./city-performance";
 import { KPICards } from "./kpi-cards";
 import { ReturnBreakdown } from "./return-breakdown";
 import type { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
+import { formatIQD } from "@/lib/utils";
 import { NO_RETURN_REASON, type CityPerformanceMetrics, type KPIMetrics, type ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 
 afterEach(cleanup);
@@ -44,6 +45,17 @@ describe("PeriodComparison", () => {
         inLanguage("en", <PeriodComparison data={data} currentRange={range} />);
         expect(screen.getByText(/20\.0\s*pp/)).toBeTruthy();
     });
+
+    it("writes revenue in the one money format, never «8.1M»", () => {
+        const data = comparison({
+            current: { ...empty, totalOrders: 10, deliveredOrders: 8, rejectedOrders: 2, deliveryRate: 80, totalRevenue: 8_075_500 },
+            previous: { ...empty, totalOrders: 9, deliveredOrders: 7, rejectedOrders: 2, deliveryRate: 77.8, totalRevenue: 8_529_250 },
+        });
+        const { container } = inLanguage("ar", <PeriodComparison data={data} currentRange={range} />);
+        expect(container.textContent).toContain(formatIQD(8_075_500, "ar"));
+        expect(container.textContent).toContain(formatIQD(8_529_250, "ar"));
+        expect(container.textContent).not.toMatch(/\d(\.\d)?[MK]\b/);
+    });
 });
 
 describe("CityPerformance", () => {
@@ -63,7 +75,7 @@ describe("CityPerformance", () => {
 });
 
 const kpis: KPIMetrics = {
-    totalOrders: 8, totalOrdersChange: 0, deliveryRate: 50, deliveryRateChange: 0, contactSuccessRate: 60, contactSuccessChange: 0,
+    totalOrders: 8, totalOrdersChange: 0, deliveryRate: 50, deliveredCount: 1, decidedCount: 2, deliveryRateChange: 0, contactSuccessRate: 60, contactSuccessChange: 0,
     rejectionRate: 10, rejectionRateChange: 0, noResponseRate: 14.3, noResponseChange: 0, avgProcessingTime: 5, avgProcessingTimeChange: 0,
 };
 
@@ -78,6 +90,15 @@ describe("KPICards", () => {
     it("adds no note when there are no returns, because the two counts already agree", () => {
         const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={0} />);
         expect(container.querySelector("[data-kpi-note]")).toBeNull();
+    });
+
+    it("puts the delivery rate's base on its card, and a dash while nothing has finished", () => {
+        const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={0} />);
+        expect(container.querySelector("[data-kpi-base]")?.textContent).toBe("سُلِّم 1 من 2 منتهية");
+        cleanup();
+        const none = inLanguage("ar", <KPICards metrics={{ ...kpis, deliveryRate: null, deliveredCount: 0, decidedCount: 0 }} returnsCount={0} />);
+        expect(none.container.textContent).toContain("—");
+        expect(none.container.querySelector("[data-kpi-base]")?.textContent).toBe("ما انتهى أي طلب بعد");
     });
 });
 

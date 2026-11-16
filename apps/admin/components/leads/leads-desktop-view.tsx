@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/use-leads";
@@ -12,7 +12,6 @@ import {
   useBulkLeadAction,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
-import { usePageHeader } from "@/store/use-page-header";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
@@ -33,60 +32,12 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  Users,
-  Sparkles,
-  Flame,
-  Store,
-  CheckCircle2,
-  Percent,
-  Wallet,
   SlidersHorizontal,
-  type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount } from "@/lib/format";
 
-const countFmt = (n: number) => Math.round(n).toLocaleString();
-
-/** Animated count-up that eases from 0 → value on mount / value change. */
-function CountUp({
-  value,
-  format,
-}: {
-  value: number | null;
-  format: (n: number) => string;
-}) {
-  const [display, setDisplay] = useState(0);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (value == null) return;
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setDisplay(value);
-      return;
-    }
-    const to = value;
-    const duration = 750;
-    let start: number | null = null;
-    const tick = (t: number) => {
-      if (start === null) start = t;
-      const p = Math.min(1, (t - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(to * eased);
-      if (p < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [value]);
-
-  if (value == null) return <>—</>;
-  return <>{format(display)}</>;
-}
 
 export function LeadsDesktopView() {
   const router = useRouter();
@@ -109,8 +60,7 @@ export function LeadsDesktopView() {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
   const { data, isLoading, isError } = useLeads(page, viewMode === "kanban" ? 100 : 20);
-  const { data: analytics, isLoading: analyticsLoading } = useLeadAnalytics();
-  const kpiLoading = analyticsLoading && !analytics;
+  const { data: analytics } = useLeadAnalytics();
   const lastTrend = analytics?.monthly_trends?.[analytics.monthly_trends.length - 1];
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
@@ -120,17 +70,6 @@ export function LeadsDesktopView() {
   const leads = data?.leads ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
-
-  // Publish the page header (title + live pipeline count) to the global topbar.
-  const setPageHeader = usePageHeader((s) => s.setHeader);
-  const clearPageHeader = usePageHeader((s) => s.clearHeader);
-  useEffect(() => {
-    setPageHeader({
-      title: "Leads",
-      subtitle: `${total.toLocaleString()} ${total === 1 ? "lead" : "leads"} in the pipeline`,
-    });
-    return () => clearPageHeader();
-  }, [total, setPageHeader, clearPageHeader]);
 
   const handleCreateLead = (formData: LeadFormData) =>
     new Promise<boolean>((resolve) => {
@@ -179,35 +118,16 @@ export function LeadsDesktopView() {
     else toast.info("No WhatsApp number on file");
   }, []);
 
-  const kpis: {
-    label: string;
-    raw: number | null;
-    format: (n: number) => string;
-    suffix?: string;
-    trend?: number;
-    icon: LucideIcon;
-    color: string;
-  }[] = [
-    { label: "Pipeline", raw: analytics?.total_leads ?? null, format: countFmt, trend: lastTrend?.added, icon: Users, color: "#7C3AED" },
-    { label: "New", raw: analytics ? (analytics.by_status.new ?? 0) : null, format: countFmt, icon: Sparkles, color: "#D97706" },
-    { label: "Interested", raw: analytics ? (analytics.by_status.interested ?? 0) : null, format: countFmt, icon: Flame, color: "#2563EB" },
-    { label: "Store Built", raw: analytics ? (analytics.by_status.store_built ?? 0) : null, format: countFmt, icon: Store, color: "#7C3AED" },
-    { label: "Converted", raw: analytics ? (analytics.by_status.converted ?? 0) : null, format: countFmt, trend: lastTrend?.converted, icon: CheckCircle2, color: "#16A34A" },
-    { label: "Conv. Rate", raw: analytics?.conversion_rate ?? null, format: (n: number) => `${Math.round(n)}%`, icon: Percent, color: "#D97706" },
-    {
-      label: "Est. Revenue",
-      raw: analytics?.total_estimated_revenue ?? null,
-      format: formatCount,
-      suffix: "IQD/mo",
-      icon: Wallet,
-      color: "#16A34A",
-    },
-  ];
 
   return (
     <div className="space-y-5 p-5 sm:p-6">
-      {/* Toolbar — title + "prospects in pipeline" now live in the global topbar */}
-      <div className="flex items-center justify-end gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
+          <p className="text-[13px] text-foreground/70">
+            {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+          </p>
+        </div>
         <div className="flex items-center gap-2.5">
           {/* View Toggle */}
           <div className="flex items-center bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-1">
@@ -243,7 +163,7 @@ export function LeadsDesktopView() {
 
           <button
             onClick={() => setFormOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] text-white text-sm font-bold hover:brightness-105 transition-all shadow-sm"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-bold hover:opacity-90 transition-all shadow-sm"
           >
             <UserPlus className="w-4 h-4" />
             Add Lead
@@ -251,49 +171,31 @@ export function LeadsDesktopView() {
         </div>
       </div>
 
-      {/* KPI Pipeline Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-        {kpis.map((kpi, i) => (
-          <motion.div
-            key={kpi.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
-            className="group rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3.5 flex items-center gap-3 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-[transform,box-shadow]"
-          >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105"
-              style={{ backgroundColor: kpi.color }}
-            >
-              <kpi.icon className="w-4 h-4 text-white" strokeWidth={2.4} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-1.5">
-                <div className="text-xl font-bold text-[var(--foreground)] leading-tight tabular-nums truncate">
-                  {kpiLoading ? (
-                    <span className="inline-block h-5 w-10 rounded-md bg-[var(--card-border)]/60 animate-pulse align-middle" />
-                  ) : (
-                    <>
-                      <CountUp value={kpi.raw} format={kpi.format} />
-                      {kpi.suffix && (
-                        <span className="text-[10px] font-medium text-[var(--muted)] ml-1">
-                          {kpi.suffix}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-                {!kpiLoading && kpi.trend != null && kpi.trend > 0 && (
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                    ↑{kpi.trend}
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] text-[var(--muted)] truncate">{kpi.label}</div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      {/* Headline numbers in one surface (board v6), each naming its window. */}
+      <NumberStrip columns={4} label="Lead numbers">
+        <NumberCell
+          label="Leads, now"
+          value={analytics ? formatCount(analytics.total_leads) : "..."}
+          note={lastTrend ? `${formatCount(lastTrend.added)} added this month` : undefined}
+        />
+        <NumberCell
+          label="New, not contacted yet"
+          value={analytics ? formatCount(analytics.by_status.new ?? 0) : "..."}
+        />
+        <NumberCell
+          label="Interested or store built, now"
+          value={
+            analytics
+              ? formatCount((analytics.by_status.interested ?? 0) + (analytics.by_status.store_built ?? 0))
+              : "..."
+          }
+        />
+        <NumberCell
+          label="Converted, all time"
+          value={analytics ? formatCount(analytics.by_status.converted ?? 0) : "..."}
+          note={analytics ? `${analytics.conversion_rate.toFixed(1)}% of all leads` : undefined}
+        />
+      </NumberStrip>
 
       {/* Workspace Panel */}
       <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">
@@ -323,7 +225,7 @@ export function LeadsDesktopView() {
         {isError ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-400" />
+              <AlertTriangle className="w-8 h-8 text-[var(--ink-red)]" />
             </div>
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Failed to load leads</h3>
             <p className="text-sm text-[var(--muted)] mb-6 max-w-sm">
@@ -362,7 +264,7 @@ export function LeadsDesktopView() {
           )
         ) : leads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF8899]/15 to-[#A78BFA]/15 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-foreground/[0.05] flex items-center justify-center mb-4">
               <UserPlus className="w-8 h-8 text-[#FF8899]" />
             </div>
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">No prospects yet</h3>
@@ -371,7 +273,7 @@ export function LeadsDesktopView() {
             </p>
             <button
               onClick={() => setFormOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] text-white text-sm font-bold hover:brightness-105 transition-all shadow-sm"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-foreground text-background text-sm font-bold hover:opacity-90 transition-all shadow-sm"
             >
               <UserPlus className="w-4 h-4" />
               Add Your First Lead
@@ -509,7 +411,7 @@ export function LeadsDesktopView() {
                 );
               }}
               disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-red-400"
+              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--ink-red)]"
             >
               Delete
             </button>

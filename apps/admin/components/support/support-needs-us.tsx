@@ -55,7 +55,7 @@ export function SupportNeedsUs({ onOpenCase }: SupportNeedsUsProps) {
   const list = shops.data ?? [];
   if (list.length === 0) {
     return (
-      <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/50")}>
+      <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/70")}>
         <CheckCircle2 className="h-8 w-8" />
         <p className="text-sm font-medium">Every shop looks fine right now.</p>
       </div>
@@ -102,12 +102,12 @@ function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; on
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-foreground">
             <span dir="auto">{shop.business_name}</span>
-            {shop.display_id !== null && <span className="text-xs font-medium text-foreground/40">#{shop.display_id}</span>}
+            {shop.display_id !== null && <span className="text-xs font-medium text-foreground/70">#{shop.display_id}</span>}
           </p>
           <p className="mt-0.5 flex items-center gap-1 text-xs text-foreground-muted">
             <UserRound className="h-3 w-3" />
             {shop.owner_name ? <span dir="auto">{shop.owner_name}</span> : "No active member"}
-            <span className="text-foreground/30">·</span>
+            <span className="text-foreground/70">·</span>
             {shop.last_contact_at ? `We last wrote ${formatAgo(shop.last_contact_at, now)}` : "We never wrote to them"}
           </p>
         </div>
@@ -141,17 +141,17 @@ function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; on
           return (
             <li
               key={p.code}
-              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-[var(--ink-amber)]"
             >
               <AlertTriangle className="h-3 w-3" />
               {SHOP_PROBLEM_LABELS[p.code]}
               {detail && (
-                <span dir="auto" className="max-w-[260px] truncate font-medium text-amber-900/70">
+                <span dir="auto" className="max-w-[260px] truncate font-medium text-[var(--ink-amber)]">
                   · {detail}
                 </span>
               )}
               {p.since && p.code !== "trial_ending" && (
-                <span className="font-medium text-amber-900/60">· {formatAgo(p.since, now)}</span>
+                <span className="font-medium text-[var(--ink-amber)]">· {formatAgo(p.since, now)}</span>
               )}
             </li>
           );
@@ -170,14 +170,14 @@ function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; on
             className="w-full resize-none rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
           />
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-foreground/70">
               Goes to {shop.owner_name}&apos;s Help chat with a phone ping. Edit it first if you like.
             </p>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => setDraft(null)}
-                className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-foreground/60 transition-colors hover:bg-foreground/5"
+                className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-foreground/70 transition-colors hover:bg-foreground/5"
               >
                 Cancel
               </button>

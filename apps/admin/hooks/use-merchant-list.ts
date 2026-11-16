@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { ListSort, MerchantListRow, MerchantTab } from "@/lib/merchant-list";
 import { okOrLoadFailure } from "@/lib/load-failure";
 
@@ -13,7 +13,11 @@ interface MerchantListPage {
 
 export const LIST_PAGE_SIZE = 50;
 
-/** The Merchants list for one tab, search and sort, 50 shops a page. */
+/**
+ * The Merchants list for one tab, search and sort, 50 shops a page. A new
+ * tab, search or sort keeps the rows on screen until the new ones arrive, so
+ * the table does not blink to a spinner on every click.
+ */
 export function useMerchantList({ tab, search, sort }: { tab: MerchantTab; search: string; sort: ListSort }) {
   const query = useInfiniteQuery<MerchantListPage>({
     queryKey: ["admin", "merchants", "list", { tab, search, sort }],
@@ -26,6 +30,7 @@ export function useMerchantList({ tab, search, sort }: { tab: MerchantTab; searc
     },
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page * last.limit < last.total ? last.page + 1 : undefined),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
   return {

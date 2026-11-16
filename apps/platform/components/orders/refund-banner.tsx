@@ -25,7 +25,7 @@ export function RefundBanner({ order }: { order: Order }) {
                 <Undo2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="font-semibold">{t("refund.chip")}</span>
                 {original && <span>{t("refund.of", { number: getBaseOrderId(original.order_id) })}</span>}
-                <span className="ms-auto font-semibold tabular-nums">−{formatIQD(computeRefundPayout(order))}</span>
+                <span className="ms-auto font-semibold tabular-nums">{formatIQD(-computeRefundPayout(order))}</span>
             </div>
         );
     }
@@ -39,7 +39,7 @@ export function RefundBanner({ order }: { order: Order }) {
                     <span className="font-medium">
                         {t("refund.original.by", {
                             id: refund.order_id,
-                            amount: formatIQD(computeRefundPayout(refund)),
+                            amount: formatIQD(-computeRefundPayout(refund)),
                         })}
                     </span>
                     <span className={cn("ms-auto text-xs", refund.status === "refund_delivered" ? "font-semibold" : "text-rose-700 dark:text-rose-300")}>

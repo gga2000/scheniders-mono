@@ -119,9 +119,7 @@ describe("get_finance_summary gate", () => {
     it("splits the paid orders by the date of the courier file that paid them, so the parts add up to what reached the shop", () => {
         expect(core).toMatch(/WHERE i\.order_id = s\.id AND di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)\s+AND di\.payment_date < \(SELECT ts_from FROM w\)\) AS file_before/);
         expect(core).toMatch(/AND di\.payment_date >= \(SELECT ts_from FROM w\)\s+AND di\.payment_date < \(SELECT ts_to FROM w\)\) AS file_now/);
-        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND file_before\), 0\) AS reached_before/);
-        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT file_before AND file_now\), 0\) AS reached_now/);
-        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE paid AND NOT file_before AND NOT file_now\), 0\) AS reached_other/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE settled AND NOT prepaid AND file_before\), 0\) AS reached_before/);
         // Prime's payments are the same courier files, so there is no separate Prime part
         expect(core).not.toMatch(/reached_prime/);
         expect(core).toMatch(/'reached_now', reached_now, 'reached_other', reached_other/);
@@ -130,6 +128,30 @@ describe("get_finance_summary gate", () => {
     it("names the unpaid orders with money owed, oldest first and capped, scoped to the shop", () => {
         expect(core).toMatch(/unpaid_list AS \([\s\S]*?JOIN public\.orders o ON o\.id = sf\.id AND o\.tenant_id = _tenant_id\s+WHERE NOT sf\.paid AND sf\.price - sf\.fee > 0\s+ORDER BY s\.day, o\.id\s+LIMIT 20/);
         expect(core).toMatch(/'unpaid_list', COALESCE\(\(SELECT jsonb_agg\(jsonb_build_object\('id', u\.id, 'code', u\.code, 'customer', u\.customer,\s+'amount', u\.amount, 'day', u\.day, 'prime', u\.prime\) ORDER BY u\.day, u\.id\)/);
+    });
+
+    it("counts an order the customer paid up front as paid, apart while no payment file names it", () => {
+        expect(core).toMatch(/COALESCE\(o\.payment_status = 'prepaid', false\) AS prepaid/);
+        expect(core).toMatch(/\(s\.prepaid OR s\.id IN \(SELECT id FROM paid_ids\)\) AS paid/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE prepaid\), 0\) AS reached_prepaid/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE settled AND NOT prepaid AND NOT file_before AND file_now\), 0\) AS reached_now/);
+        expect(core).toMatch(/sum\(price - fee\) FILTER \(WHERE settled AND NOT prepaid AND NOT file_before AND NOT file_now\), 0\) AS reached_other/);
+    });
+
+    it("takes the period's courier payments apart from their own rows", () => {
+        expect(core).toMatch(/stmt_items AS \(\s*SELECT [\s\S]*?FROM payout_files f\s+JOIN public\.delivery_import_items i ON i\.import_id = f\.import_id/);
+        expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE si\.is_return\), 0\) AS returns/);
+        expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE sf\.prepaid\), 0\) AS prepaid_gap/);
+        expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE si\.is_return AND si\.status IS DISTINCT FROM 'refund_delivered'\), 0\) AS returns_open/);
+        expect(core).toMatch(/LEFT JOIN sold_fee sf ON sf\.id = si\.order_id AND NOT si\.is_return AND NOT sf\.file_before AND sf\.file_now/);
+        expect(core).toMatch(/'statement', \(SELECT jsonb_build_object\('returns', returns/);
+    });
+
+    it("names the orders a courier paid for that are not marked delivered", () => {
+        expect(core).toMatch(/AND o\.status NOT IN \('delivered', 'completed'\)\) AS undelivered/);
+        expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE si\.undelivered\), 0\) AS undelivered/);
+        expect(core).toMatch(/stmt_orders AS \([\s\S]*?SELECT 'refund_open' AS kind[\s\S]*?SELECT 'undelivered'[\s\S]*?SELECT 'price'[\s\S]*?SELECT 'prepaid'[\s\S]*?WHERE sf\.prepaid[\s\S]*?WHERE n <= 10/);
+        expect(core).toMatch(/'statement_orders', COALESCE\(/);
     });
 
     it("scopes every table it reads to the shop", () => {

@@ -282,7 +282,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                           />
                           <span
                             className={cn(
-                              "text-[11px] font-semibold transition-colors",
+                              "text-xs font-semibold transition-colors",
                               isSelected ? "text-[var(--foreground)]" : "text-[var(--muted)]"
                             )}
                           >
@@ -362,7 +362,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                           <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
                             Initial Products
                           </label>
-                          <span className="text-[10px] text-[var(--muted)]">
+                          <span className="text-xs text-[var(--muted)]">
                             {products.length}/10
                           </span>
                         </div>
@@ -436,7 +436,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
 
                 {/* Error State */}
                 {buildStore.isError && (
-                  <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+                  <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
                     {buildStore.error?.message || "Failed to build store. Please try again."}
                   </div>
                 )}

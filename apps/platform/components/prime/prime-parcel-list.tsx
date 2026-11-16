@@ -16,7 +16,6 @@ const REASON_CHIP: Record<PrimeNeedReason, string> = {
     stuck: "bg-[#FEF3E2] text-[#8A4B00] dark:bg-amber-400/15 dark:text-amber-200",
     needs_you: "bg-[#F5F1FE] text-[#4B2FA8] dark:bg-violet-400/15 dark:text-violet-200",
     cancelled_by_prime: "bg-[#F1EFEA] text-[#4A4A4A] dark:bg-white/10 dark:text-white/70",
-    returning: "bg-[#FBEAE8] text-[#8F1D13] dark:bg-rose-500/15 dark:text-rose-200",
 };
 
 const button =
@@ -100,7 +99,9 @@ export function PrimeParcelList({
                                         </span>
                                     )}
                                     {chip.canResend ? (
-                                        <button type="button" onClick={() => toggle(orderId, "resend")} className={cn(button, "border-[#B42318] bg-[#B42318] text-white hover:bg-[#8F1D13] dark:border-rose-500 dark:bg-rose-500/80")}>
+                                        // The row's own action, like «اسأل برايم»: resending is routine, not a danger,
+                                        // so it is not a red block on every returning row (round 16 critic: 13 of 14).
+                                        <button type="button" onClick={() => toggle(orderId, "resend")} className={button}>
                                             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
                                             {t("prime.page.newAttempt")}
                                         </button>

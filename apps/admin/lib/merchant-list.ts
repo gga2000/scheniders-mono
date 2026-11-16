@@ -8,11 +8,12 @@ import type { ShopTone } from "@/lib/shop-status";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
 import { formatDay } from "@/lib/format";
 
-export const MERCHANT_TABS = ["all", "trial", "paying", "stopped", "cancelled", "internal"] as const;
+export const MERCHANT_TABS = ["all", "locked", "trial", "paying", "stopped", "cancelled", "internal"] as const;
 export type MerchantTab = (typeof MERCHANT_TABS)[number];
 
 export const TAB_LABEL: Record<MerchantTab, string> = {
   all: "All",
+  locked: "Locked",
   trial: "Trial",
   paying: "Paying",
   stopped: "On hold",
@@ -25,16 +26,20 @@ export function isMerchantTab(value: string | null | undefined): value is Mercha
 }
 
 /** One PostgREST filter on a read of `tenants`, as `query.filter(column, operator, value)` takes it. */
-export type TabFilter = [column: string, operator: "eq" | "neq" | "in", value: string];
+export type TabFilter = [column: string, operator: "eq" | "neq" | "in" | "is", value: string];
 
 /**
  * The filters a tab puts on a read of `tenants`. Our own shops have status
  * "active" but are never billed, so they sit under Internal, not Paying.
+ * Locked reads the database's staff_locked, the rule the row's status words
+ * use; a locked trial still shows under Trial too.
  */
 export function tabFilters(tab: MerchantTab): TabFilter[] {
   switch (tab) {
     case "all":
       return [];
+    case "locked":
+      return [["staff_locked", "is", "true"]];
     case "trial":
       return [["status", "eq", "trial"], ["plan", "neq", "internal"]];
     case "paying":

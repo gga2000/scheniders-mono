@@ -3,6 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { FileText } from "lucide-react";
 import type { Order } from "@/types/order";
+import { showReorderNote } from "@/lib/order-format-utils";
 
 type NotesKey = "notes" | "internal_notes";
 
@@ -50,7 +51,10 @@ export function OrderNotes({
                         />
                     ) : (
                         <p className="text-sm text-amber-800 min-h-[40px]">
-                            {order.notes || <span className="text-muted italic">{t("orderDetail.noNotes")}</span>}
+                            {/* The stored marker stays English for the courier import; it reads in the page's language here. */}
+                            {order.notes
+                                ? showReorderNote(order.notes, (orderId) => t("orders.note.reorderFrom", { orderId }))
+                                : <span className="text-muted italic">{t("orderDetail.noNotes")}</span>}
                         </p>
                     )}
                 </div>

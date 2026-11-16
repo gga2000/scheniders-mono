@@ -1,6 +1,7 @@
 "use client";
 
 import { ordersDateLabel } from "@/lib/orders-date-label";
+import { edgeFadeClass } from "@/hooks/use-edge-overflow";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useOrderStore } from "@/store/use-order-store";
@@ -224,9 +225,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                         ref={toolbarScrollRef}
                                         className={cn(
                                             "flex items-start justify-between gap-3 pt-2 pb-6 flex-1 min-w-0 md:mx-0 md:px-0 overflow-x-auto scrollbar-hide flex-nowrap",
-                                            toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px,black_calc(100%-32px),transparent)]",
-                                            toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px)]",
-                                            !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]"
+                                            edgeFadeClass(toolbarFade)
                                         )}
                                     >
 

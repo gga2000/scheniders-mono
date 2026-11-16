@@ -8,6 +8,7 @@ import {
     realizedAt,
     realizedRevenueBetween,
     type ChartLocale,
+    type DateRangeKey,
     type RevenueTrendPoint,
     trendWindowStart,
 } from "@/lib/analytics/dashboard-calculations";
@@ -37,6 +38,26 @@ export function pctChange(current: number, previous: number): number | null {
 // =============================================
 export type RevenueWindow = 7 | 14 | 30;
 export type RevenueMeasure = "orders" | "revenue";
+
+/**
+ * The revenue card's window for the header's period: 7 days for today and 7
+ * days (one day is not a line), 30 for 30 days and «all» (the card reads 60
+ * days, so 30 against the 30 before is its longest).
+ */
+export function revenueWindowFor(range: DateRangeKey): RevenueWindow {
+    return range === "today" || range === "7d" ? 7 : 30;
+}
+
+/** A window picked on the revenue card, and the header period it was picked under. */
+export type RevenueWindowPick = { range: DateRangeKey; days: RevenueWindow } | null;
+
+/**
+ * The window the revenue card shows: the one picked on it while the header's
+ * period is still the one it was picked under, else the header's own.
+ */
+export function revenueWindowShown(range: DateRangeKey, pick: RevenueWindowPick): RevenueWindow {
+    return pick && pick.range === range ? pick.days : revenueWindowFor(range);
+}
 
 export interface RevenueCardFigures {
     /** One point per Baghdad day, oldest first, `window` long. */

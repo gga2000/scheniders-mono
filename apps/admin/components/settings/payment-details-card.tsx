@@ -52,18 +52,18 @@ export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
         </div>
         <div>
           <h2 className="text-sm font-semibold text-foreground">How shops pay us</h2>
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-foreground/70">
             Every shop sees these when it pays by transfer. {canEdit ? "" : "Only a super admin can change them."}
           </p>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/40">
+        <div className="flex items-center justify-center py-6 text-foreground/70">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError || !data ? (
-        <p className="text-xs text-red-600">Could not load the payment details. Reload the page.</p>
+        <p className="text-xs text-[var(--ink-red)]">Could not load the payment details. Reload the page.</p>
       ) : (
         // A new save gives a new updated_at, so the form starts again from what was saved.
         <PaymentDetailsForm key={data.updated_at ?? "unsaved"} saved={data.details} canEdit={canEdit} save={save} />
@@ -105,15 +105,15 @@ function PaymentDetailsForm({
             className="rounded-xl bg-white/80 px-3 py-1.5 text-sm ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 disabled:opacity-60 dark:bg-white/10"
             data-testid={`payment-details-${f.key}`}
           />
-          <span className="text-[11px] text-foreground/45">{f.hint}</span>
+          <span className="text-xs text-foreground/70">{f.hint}</span>
         </label>
       ))}
       {canEdit && (
         <div className="md:col-span-2 flex items-center justify-end gap-3">
-          {!valid.success && <span className="text-[11px] text-red-600">{valid.error.issues[0]?.message}</span>}
-          {save.isError && <span className="text-[11px] text-red-600">{save.error.message}</span>}
+          {!valid.success && <span className="text-xs text-[var(--ink-red)]">{valid.error.issues[0]?.message}</span>}
+          {save.isError && <span className="text-xs text-[var(--ink-red)]">{save.error.message}</span>}
           {save.isSuccess && !dirty && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-green-700">
+            <span className="inline-flex items-center gap-1 text-xs text-[var(--ink-green)]">
               <Check className="w-3 h-3" />
               Saved
             </span>

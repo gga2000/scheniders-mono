@@ -55,7 +55,7 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-blue)]/40 flex items-center justify-center">
-          <Wallet className="w-4 h-4 text-blue-700" />
+          <Wallet className="w-4 h-4 text-[var(--ink-blue)]" />
         </div>
         <h3 className="font-bold text-foreground text-sm">Top-Up Patterns</h3>
       </div>
@@ -63,7 +63,7 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
       {!patterns ? (
         <Skeleton />
       ) : patterns.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           No top-up data available
         </p>
       ) : (
@@ -75,13 +75,13 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
             >
               <XAxis
                 dataKey="dayLabel"
-                tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 yAxisId="left"
-                tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
@@ -89,7 +89,7 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fontSize: 10, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) =>

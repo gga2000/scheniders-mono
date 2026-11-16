@@ -61,18 +61,18 @@ const ACTION_OPTIONS = [
 function getActionBadge(action: string): { bg: string; text: string } {
   const lower = action.toLowerCase();
   if (lower.includes("login") || lower.includes("auth") || lower.includes("sign") || lower.includes("impersonate")) {
-    return { bg: "bg-blue-100 text-blue-800", text: action };
+    return { bg: "bg-blue-500/15 text-[var(--ink-blue)]", text: action };
   }
   if (lower.includes("create") || lower.includes("add") || lower.includes("new") || lower.includes("top_up")) {
-    return { bg: "bg-green-100 text-green-800", text: action };
+    return { bg: "bg-green-500/15 text-[var(--ink-green)]", text: action };
   }
   if (lower.includes("update") || lower.includes("edit") || lower.includes("change") || lower.includes("extend")) {
-    return { bg: "bg-amber-100 text-amber-800", text: action };
+    return { bg: "bg-amber-500/15 text-[var(--ink-amber)]", text: action };
   }
   if (lower.includes("delete") || lower.includes("remove") || lower.includes("suspend") || lower.includes("cancel")) {
-    return { bg: "bg-rose-100 text-rose-800", text: action };
+    return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text: action };
   }
-  return { bg: "bg-gray-100 text-gray-600", text: action };
+  return { bg: "bg-gray-500/15 text-[var(--muted)]", text: action };
 }
 
 function summarizeDetails(details: Record<string, unknown> | null): string {
@@ -144,11 +144,8 @@ export default function ActivityLogPage() {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <FileText className="w-6 h-6" />
-          Activity Log
-        </h1>
-        <p className="text-foreground-muted mt-1">
+        <h1 className="text-[22px] font-semibold text-foreground">Activity log</h1>
+        <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : `${total} log entr${total !== 1 ? "ies" : "y"}`}
         </p>
       </div>
@@ -156,7 +153,7 @@ export default function ActivityLogPage() {
       {/* Filter Bar */}
       <div className="sticky top-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm py-3 -mx-1 px-1">
         <div className="flex flex-wrap items-center gap-2">
-          <Filter className="h-4 w-4 text-foreground/40 shrink-0" />
+          <Filter className="h-4 w-4 text-foreground/70 shrink-0" />
 
           {/* Action Filter Pill */}
           <div className="relative inline-flex items-center">
@@ -171,7 +168,7 @@ export default function ActivityLogPage() {
                 ${
                   actionFilter
                     ? "border-[#1E1E1E] text-[#1E1E1E] bg-[var(--card-bg)] shadow-sm"
-                    : "border-[var(--card-border)] text-foreground/60 hover:border-foreground/30 bg-[var(--card-bg)]"
+                    : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30 bg-[var(--card-bg)]"
                 }
               `}
             >
@@ -181,7 +178,7 @@ export default function ActivityLogPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 h-3 w-3 text-foreground/40" />
+            <ChevronDown className="pointer-events-none absolute right-2 h-3 w-3 text-foreground/70" />
           </div>
 
           {actionFilter && (
@@ -190,7 +187,7 @@ export default function ActivityLogPage() {
                 setActionFilter(null);
                 setPage(1);
               }}
-              className="text-xs text-foreground/50 hover:text-foreground underline transition-colors"
+              className="text-xs text-foreground/70 hover:text-foreground underline transition-colors"
             >
               Clear
             </button>
@@ -201,10 +198,10 @@ export default function ActivityLogPage() {
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+          <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
         </div>
       ) : logs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <FileText className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">No activity logged yet</p>
           <p className="text-sm mt-1">Actions performed in the admin panel will appear here.</p>
@@ -215,19 +212,19 @@ export default function ActivityLogPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--card-border)]">
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Time
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Action
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Details
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Tenant
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Admin
                   </th>
                 </tr>
@@ -247,7 +244,7 @@ export default function ActivityLogPage() {
                       </td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badge.bg}`}
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge.bg}`}
                         >
                           {badge.text}
                         </span>
@@ -258,7 +255,7 @@ export default function ActivityLogPage() {
                       <td className="p-3 text-foreground/70">
                         {log.business_name || (log.tenant_id ? shortenId(log.tenant_id) : "\u2014")}
                       </td>
-                      <td className="p-3 text-foreground/50 font-mono text-xs">
+                      <td className="p-3 text-foreground/70 font-mono text-xs">
                         {actorLabel(log)}
                       </td>
                     </tr>
@@ -276,18 +273,18 @@ export default function ActivityLogPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="p-2 rounded-xl border border-[var(--card-border)] text-foreground/60 hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-xl border border-[var(--card-border)] text-foreground/70 hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-sm text-foreground/60">
+          <span className="text-sm text-foreground/70">
             Page <span className="font-semibold text-foreground">{page}</span> of{" "}
             <span className="font-semibold text-foreground">{totalPages}</span>
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="p-2 rounded-xl border border-[var(--card-border)] text-foreground/60 hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-xl border border-[var(--card-border)] text-foreground/70 hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

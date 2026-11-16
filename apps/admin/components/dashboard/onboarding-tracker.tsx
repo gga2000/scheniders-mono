@@ -49,7 +49,7 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-yellow)]/40 flex items-center justify-center">
-            <ListChecks className="w-4 h-4 text-amber-700" />
+            <ListChecks className="w-4 h-4 text-[var(--ink-amber)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
             Onboarding Progress
@@ -60,8 +60,8 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
             onClick={() => setIncompleteOnly(!incompleteOnly)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors border ${
               incompleteOnly
-                ? "bg-[var(--pastel-yellow)] border-amber-300 text-amber-900"
-                : "bg-[var(--background)] border-[var(--card-border)] text-foreground/60 hover:text-foreground"
+                ? "bg-[var(--pastel-yellow)] border-amber-300 text-[var(--ink-amber)]"
+                : "bg-[var(--background)] border-[var(--card-border)] text-foreground/70 hover:text-foreground"
             }`}
           >
             <Filter className="h-3 w-3" />
@@ -69,7 +69,7 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
           </button>
           <button
             onClick={() => setSortAsc(!sortAsc)}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] border border-[var(--card-border)] text-foreground/60 hover:text-foreground transition-colors"
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--background)] border border-[var(--card-border)] text-foreground/70 hover:text-foreground transition-colors"
           >
             {sortAsc ? "Low first" : "High first"}
           </button>
@@ -79,7 +79,7 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
       {!tenants ? (
         <Skeleton />
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           {incompleteOnly
             ? "All tenants have completed onboarding!"
             : "No onboarding data available"}
@@ -88,24 +88,24 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
         <>
           {/* Table header */}
           <div className="hidden sm:grid grid-cols-[1fr_auto_100px_50px] gap-2 px-3 mb-2">
-            <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
               Business
             </span>
             <div className="flex gap-3">
               {STEPS.map((s) => (
                 <span
                   key={s.key}
-                  className="w-7 text-center text-[9px] font-semibold text-foreground/40 uppercase"
+                  className="w-7 text-center text-xs font-semibold text-foreground/70 uppercase"
                   title={s.label}
                 >
                   {s.label.slice(0, 3)}
                 </span>
               ))}
             </div>
-            <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider text-right">
+            <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider text-right">
               Progress
             </span>
-            <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider text-right">
+            <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider text-right">
               %
             </span>
           </div>
@@ -138,8 +138,8 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
                         key={step.key}
                         className={`w-7 h-7 rounded-full flex items-center justify-center ${
                           done
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-50 text-red-400"
+                            ? "bg-green-500/15 text-[var(--ink-green)]"
+                            : "bg-red-500/5 text-[var(--ink-red)]"
                         }`}
                         title={step.label}
                       >

@@ -177,7 +177,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
           {filterCount > 0 && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
             >
               <Filter className="w-3.5 h-3.5" />
               Clear {filterCount}
@@ -188,7 +188,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
 
       {/* Status Chips */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] text-[var(--muted)] font-semibold uppercase tracking-wider mr-1">
+        <span className="text-xs text-[var(--muted)] font-semibold uppercase tracking-wider mr-1">
           Status
         </span>
         {(Object.entries(LEAD_STATUS_CONFIG) as [LeadStatus, (typeof LEAD_STATUS_CONFIG)["new"]][]).map(
@@ -205,7 +205,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
                 )}
                 style={
                   active
-                    ? { backgroundColor: `${ui.solid}26`, borderColor: ui.solid, color: ui.solid }
+                    ? { backgroundColor: ui.strong, borderColor: ui.solid, color: ui.solid }
                     : { backgroundColor: ui.soft, color: ui.solid }
                 }
               >

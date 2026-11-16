@@ -6,13 +6,12 @@ import Link from "next/link";
 import {
   CreditCard,
   Wallet,
-  TrendingUp,
-  AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
@@ -60,10 +59,10 @@ interface BillingData {
 // ---------------------------------------------------------------------------
 
 const TYPE_STYLES: Record<string, string> = {
-  topup: "bg-green-100 text-green-800",
-  charge: "bg-amber-100 text-amber-800",
-  refund: "bg-blue-100 text-blue-800",
-  adjustment: "bg-purple-100 text-purple-800",
+  topup: "bg-green-500/15 text-[var(--ink-green)]",
+  charge: "bg-amber-500/15 text-[var(--ink-amber)]",
+  refund: "bg-blue-500/15 text-[var(--ink-blue)]",
+  adjustment: "bg-purple-500/15 text-[var(--ink-violet)]",
 };
 
 const PRESET_AMOUNTS = [25_000, 50_000, 100_000, 250_000, 500_000];
@@ -154,95 +153,25 @@ export default function BillingPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <CreditCard className="w-6 h-6" />
-            Billing & Wallets
-          </h1>
-          <p className="text-foreground-muted mt-1">
-            Manage wallet balances, top-ups, and transaction history
+          <h1 className="text-[22px] font-semibold text-foreground">Wallets</h1>
+          <p className="text-[13px] text-foreground/70">
+            Every shop&apos;s wallet, its top-ups and its charges.
           </p>
         </div>
         <ExportButton type="transactions" label="Export Transactions" />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Balance - Green */}
-        <div className="pastel-card pastel-card-green p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <Wallet className="h-5 w-5 text-green-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-green-900/70 uppercase tracking-wider">
-            Total Balance
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-green-950 tracking-tight mt-1">
-              {formatIQD(summary?.totalBalance ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Total Charged - Amber */}
-        <div className="pastel-card pastel-card-yellow p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <ArrowDownRight className="h-5 w-5 text-amber-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-amber-900/70 uppercase tracking-wider">
-            Total Charged
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-amber-950 tracking-tight mt-1">
-              {formatIQD(summary?.totalCharged ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Total Topped Up - Blue */}
-        <div className="pastel-card pastel-card-blue p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <TrendingUp className="h-5 w-5 text-blue-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-blue-900/70 uppercase tracking-wider">
-            Total Topped Up
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-blue-950 tracking-tight mt-1">
-              {formatIQD(summary?.totalToppedUp ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Low Balance - Pink */}
-        <div className="pastel-card pastel-card-pink p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <AlertTriangle className="h-5 w-5 text-rose-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-rose-900/70 uppercase tracking-wider">
-            Low Balance
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-16 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-rose-950 tracking-tight mt-1">
-              {summary?.lowBalanceCount ?? 0}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Headline numbers, each naming its window (board v6: one surface). */}
+      <NumberStrip columns={4} label="Wallet numbers">
+        <NumberCell label="In wallets, now" value={summary ? formatIQD(summary.totalBalance) : "..."} />
+        <NumberCell label="Charged, all time" value={summary ? formatIQD(summary.totalCharged) : "..."} />
+        <NumberCell label="Added, all time" value={summary ? formatIQD(summary.totalToppedUp) : "..."} />
+        <NumberCell
+          label="Wallets under their alert amount, now"
+          value={summary ? formatCount(summary.lowBalanceCount) : "..."}
+          alert={(summary?.lowBalanceCount ?? 0) > 0}
+        />
+      </NumberStrip>
 
       {/* Top-up Form */}
       <div className="pastel-card p-4 md:p-5">
@@ -255,7 +184,7 @@ export default function BillingPage() {
         >
           {/* Merchant Select */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/60 mb-1">
+            <label className="block text-xs font-medium text-foreground/70 mb-1">
               Merchant
             </label>
             <select
@@ -274,7 +203,7 @@ export default function BillingPage() {
 
           {/* Amount */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/60 mb-1">
+            <label className="block text-xs font-medium text-foreground/70 mb-1">
               Amount (IQD)
             </label>
             <div className="flex gap-1.5 flex-wrap mb-1.5">
@@ -283,10 +212,10 @@ export default function BillingPage() {
                   key={preset}
                   type="button"
                   onClick={() => setTopupAmount(preset)}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold border transition-all ${
+                  className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
                     topupAmount === preset
                       ? "bg-foreground text-background border-foreground"
-                      : "bg-[var(--card-bg)] text-foreground/60 border-[var(--card-border)] hover:border-foreground/30"
+                      : "bg-[var(--card-bg)] text-foreground/70 border-[var(--card-border)] hover:border-foreground/30"
                   }`}
                 >
                   {formatCount(preset)}
@@ -307,7 +236,7 @@ export default function BillingPage() {
 
           {/* Description */}
           <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/60 mb-1">
+            <label className="block text-xs font-medium text-foreground/70 mb-1">
               Description (optional)
             </label>
             <input
@@ -340,12 +269,12 @@ export default function BillingPage() {
         </form>
 
         {topupMutation.isError && (
-          <p className="text-xs text-red-600 mt-2">
+          <p className="text-xs text-[var(--ink-red)] mt-2">
             {(topupMutation.error as Error).message}
           </p>
         )}
         {topupMutation.isSuccess && (
-          <p className="text-xs text-green-600 mt-2">
+          <p className="text-xs text-[var(--ink-green)] mt-2">
             Top-up successful! New balance:{" "}
             {formatIQD(topupMutation.data?.newBalance ?? 0)}
           </p>
@@ -364,10 +293,10 @@ export default function BillingPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+              <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
             </div>
           ) : sortedWallets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+            <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
               <Wallet className="w-10 h-10 mb-2" />
               <p className="text-sm">No wallets found</p>
             </div>
@@ -376,16 +305,16 @@ export default function BillingPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--card-border)]">
-                    <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Business
                     </th>
-                    <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Plan
                     </th>
-                    <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Balance
                     </th>
-                    <th className="p-3 text-center text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                    <th className="p-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
@@ -397,7 +326,7 @@ export default function BillingPage() {
                       <tr
                         key={w.tenant_id}
                         className={`border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.02] transition-colors ${
-                          isLow ? "bg-rose-50/50" : ""
+                          isLow ? "bg-rose-500/5" : ""
                         }`}
                       >
                         <td className="p-3">
@@ -418,11 +347,11 @@ export default function BillingPage() {
                         </td>
                         <td className="p-3 text-center">
                           {isLow ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-[var(--ink-red)]">
                               Low
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-[var(--ink-green)]">
                               OK
                             </span>
                           )}
@@ -444,10 +373,10 @@ export default function BillingPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+              <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
             </div>
           ) : transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+            <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
               <CreditCard className="w-10 h-10 mb-2" />
               <p className="text-sm">No transactions yet</p>
             </div>
@@ -460,8 +389,8 @@ export default function BillingPage() {
                 >
                   {/* Type badge */}
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize shrink-0 ${
-                      TYPE_STYLES[tx.type] ?? "bg-gray-100 text-gray-800"
+                    className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize shrink-0 ${
+                      TYPE_STYLES[tx.type] ?? "bg-gray-500/15 text-foreground"
                     }`}
                   >
                     {tx.type}
@@ -470,9 +399,9 @@ export default function BillingPage() {
                   {/* Amount + direction icon */}
                   <div className="flex items-center gap-1 min-w-0">
                     {tx.type === "topup" || tx.type === "refund" ? (
-                      <ArrowUpRight className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                      <ArrowUpRight className="w-3.5 h-3.5 text-[var(--ink-green)] shrink-0" />
                     ) : (
-                      <ArrowDownRight className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <ArrowDownRight className="w-3.5 h-3.5 text-[var(--ink-amber)] shrink-0" />
                     )}
                     <span className="text-sm font-semibold text-foreground tabular-nums">
                       {formatIQD(Number(tx.amount_iqd) || 0)}
@@ -480,12 +409,12 @@ export default function BillingPage() {
                   </div>
 
                   {/* Business name */}
-                  <span className="text-xs text-foreground/60 truncate flex-1 min-w-0">
+                  <span className="text-xs text-foreground/70 truncate flex-1 min-w-0">
                     {tx.tenants?.business_name ?? "Unknown"}
                   </span>
 
                   {/* Time ago */}
-                  <span className="text-[11px] text-foreground/40 shrink-0">
+                  <span className="text-xs text-foreground/70 shrink-0">
                     {formatWhen(tx.created_at)}
                   </span>
                 </div>

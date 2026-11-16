@@ -126,7 +126,7 @@ export function useMerchantRecentOrders(id: string, limit = 10) {
     queryKey: ["admin", "merchant", id, "recent-orders", limit],
     queryFn: async () => {
       const res = await fetch(`/api/merchants/${id}/orders?limit=${limit}`);
-      if (!res.ok) throw new Error("Failed to fetch recent orders");
+      okOrLoadFailure(res, "recent orders");
       return res.json();
     },
     staleTime: 30_000,

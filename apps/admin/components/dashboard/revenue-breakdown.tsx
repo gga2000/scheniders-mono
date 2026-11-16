@@ -36,7 +36,7 @@ const CustomTooltip = ({
 };
 
 function EmptyNote({ text }: { text: string }) {
-  return <p className="text-sm text-foreground/40 py-10 text-center">{text}</p>;
+  return <p className="text-sm text-foreground/70 py-10 text-center">{text}</p>;
 }
 
 function SkeletonContent() {
@@ -83,7 +83,7 @@ function PieView({ slices }: { slices: RevenueSlice[] }) {
         {/* Center label */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <p className="text-xs text-foreground/50">Total</p>
+            <p className="text-xs text-foreground/70">Total</p>
             <p className="text-sm font-bold text-foreground">{formatIQD(total)}</p>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function RevenueBreakdown({ breakdown }: RevenueBreakdownProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
-            <svg className="w-4 h-4 text-green-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            <svg className="w-4 h-4 text-[var(--ink-green)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
           </div>
           <h3 className="font-bold text-foreground text-sm">Last 90 days</h3>
         </div>
@@ -164,7 +164,7 @@ export function RevenueBreakdown({ breakdown }: RevenueBreakdownProps) {
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                 tab === t.key
                   ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                  : "text-foreground/50 hover:text-foreground"
+                  : "text-foreground/70 hover:text-foreground"
               }`}
             >
               {t.label}

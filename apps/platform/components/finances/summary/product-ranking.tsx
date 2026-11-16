@@ -113,7 +113,7 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                 <button
                                     type="button"
                                     onClick={() => setAll((v) => !v)}
-                                    className="text-[13px] font-medium text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
+                                    className="text-[13px] font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                                 >
                                     {all ? t("fin.products.showLess") : t("fin.products.showAll", { n: formatWhole(rows.length) })}
                                 </button>

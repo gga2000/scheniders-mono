@@ -29,13 +29,24 @@ describe("calculateKPIs", () => {
         ]);
         expect(k.deliveryRate).toBeCloseTo((2 / 3) * 100);
         expect(k.rejectionRate).toBeCloseTo((1 / 3) * 100);
-        expect(k.deliveryRate + k.rejectionRate).toBeCloseTo(100);
+        expect((k.deliveryRate ?? 0) + k.rejectionRate).toBeCloseTo(100);
+        expect(k.deliveredCount).toBe(2);
+        expect(k.decidedCount).toBe(3);
     });
 
-    it("an empty period is all zeros, not NaN", () => {
+    it("an empty period is zeros, not NaN, and has no delivery rate yet", () => {
         const k = calculateKPIs([]);
-        for (const v of Object.values(k)) expect(Number.isFinite(v)).toBe(true);
+        const { deliveryRate, ...rest } = k;
+        for (const v of Object.values(rest)) expect(Number.isFinite(v)).toBe(true);
+        expect(deliveryRate).toBeNull();
         expect(k.totalOrders).toBe(0);
+    });
+
+    it("has no delivery rate, and no fall in it, while no order has an answer at the door", () => {
+        const k = calculateKPIs([order({ status: "in_transit" })], [order(), order({ status: "rejected" })]);
+        expect(k.deliveryRate).toBeNull();
+        expect(k.decidedCount).toBe(0);
+        expect(k.deliveryRateChange).toBe(0);
     });
 
     it("shows no change at all when the previous period is empty", () => {
@@ -117,6 +128,11 @@ describe("calculateCityPerformance", () => {
         expect(basra?.deliveryRate).toBe(50);
         expect(basra?.avgDeliveryDays).toBeCloseTo(2);
         expect(r.find((c) => c.city === "Erbil")?.noResponse).toBe(1);
+    });
+
+    it("gives a city with no delivered or rejected order no rate, not a red 0%", () => {
+        const r = calculateCityPerformance([order({ city: "Najaf", status: "in_transit" })]);
+        expect(r[0]?.deliveryRate).toBeNull();
     });
 
     it("falls back to the governorate code, then Unknown", () => {

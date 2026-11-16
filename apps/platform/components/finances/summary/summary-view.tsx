@@ -7,6 +7,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { buildStatement, productRows, type FinanceSummary } from "@/lib/finance/summary";
+import { CourierPayments } from "./courier-payments";
 import { DailyCosts } from "./daily-costs";
 import { FinanceStrip } from "./finance-strip";
 import type { FinanceTab } from "./finance-tabs";
@@ -35,7 +36,8 @@ interface SummaryViewProps {
 /**
  * The Summary tab, in the order a shop owner asks: did I make money (the dark
  * strip), where did my sales go (the statement), where is my cash and is the
- * period building (the money route, then the path beside it), which product
+ * period building (the money route, with the path and the courier payments
+ * beside it), which product
  * earns, then one panel of three columns: what returns cost, what the ads and
  * the daily costs ask of each day, and the money sitting in stock.
  * Every figure comes from one database answer (useFinanceSummary).
@@ -86,13 +88,16 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             <ProfitStatement summary={summary} statement={statement} previous={beforeFigures?.statement ?? null} onOpenTab={onOpenTab} />
 
-            <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]")}>
+            <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start")}>
                 <MoneyRoute
                     summary={summary}
                     delivery={statement.lines.find((l) => l.id === "delivery") ?? { id: "delivery", amount: 0, share: 0, parts: [] }}
-                    onAddPayment={() => setImportOpen(true)}
                 />
-                {!nothingDelivered && <ProfitPath daily={summary.daily} />}
+                {/* Beside the long money card: the path, then what the delivery companies actually paid out. */}
+                <div className="flex min-w-0 flex-col gap-5">
+                    {!nothingDelivered && <ProfitPath daily={summary.daily} />}
+                    <CourierPayments summary={summary} onAddPayment={() => setImportOpen(true)} />
+                </div>
             </div>
 
             {!nothingDelivered && <ProductRanking rows={products} />}

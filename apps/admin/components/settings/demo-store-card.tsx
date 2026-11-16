@@ -84,7 +84,7 @@ export function DemoStoreCard() {
         </div>
         <div>
           <h2 className="text-sm font-semibold text-foreground">Demo store</h2>
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-foreground/70">
             A separate shop with invented orders, for videos. It sends no WhatsApp, calls no courier, charges no
             money, and is left out of every number in this console.
           </p>
@@ -92,14 +92,14 @@ export function DemoStoreCard() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/40">
+        <div className="flex items-center justify-center py-6 text-foreground/70">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError || !data ? (
-        <p className="text-xs text-red-600">Could not load the demo store. Reload the page.</p>
+        <p className="text-xs text-[var(--ink-red)]">Could not load the demo store. Reload the page.</p>
       ) : !data.store ? (
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-foreground/60">No demo store yet.</p>
+          <p className="text-xs text-foreground/70">No demo store yet.</p>
           <button
             type="button"
             onClick={() => create.mutate()}
@@ -174,7 +174,7 @@ export function DemoStoreCard() {
               </button>
             )}
           </div>
-          <p className="text-[11px] text-foreground/45">
+          <p className="text-xs text-foreground/70">
             Reset puts back the same store with dates moved to today; anything recorded in it is lost. Open signs this
             browser in to the merchant app as the demo owner, so use a private window if you are signed in to a real
             store there.
@@ -182,8 +182,8 @@ export function DemoStoreCard() {
         </div>
       )}
 
-      {failure && <p className="mt-3 text-xs text-red-600">{failure.message}</p>}
-      {done && !failure && <p className="mt-3 text-xs text-green-700">Ready: {demoCountsLine(done)}.</p>}
+      {failure && <p className="mt-3 text-xs text-[var(--ink-red)]">{failure.message}</p>}
+      {done && !failure && <p className="mt-3 text-xs text-[var(--ink-green)]">Ready: {demoCountsLine(done)}.</p>}
     </div>
   );
 }

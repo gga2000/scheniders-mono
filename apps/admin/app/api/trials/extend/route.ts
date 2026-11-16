@@ -3,12 +3,13 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
-import { staffReasonSchema } from "@/lib/staff-reason";
+import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 
 const ExtendSchema = z.object({
   tenant_id: z.string().uuid(),
   days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
   reason: staffReasonSchema,
+  request_id: staffRequestIdSchema,
 });
 
 export async function POST(request: NextRequest) {
@@ -21,13 +22,13 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.flatten() },
+        { error: parsed.error.issues[0]?.message ?? "Invalid input" },
         { status: 400 }
       );
     }
 
-    const { tenant_id, days, reason } = parsed.data;
-    const result = await extendTrial(createAdminClient(), tenant_id, days, reason, auth.user);
+    const { tenant_id, days, reason, request_id } = parsed.data;
+    const result = await extendTrial(createAdminClient(), tenant_id, days, reason, auth.user, request_id);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       new_trial_ends_at: result.trialEndsAt,
+      repeat: result.repeat,
     });
   } catch (error) {
     console.error("Extend trial error:", error);

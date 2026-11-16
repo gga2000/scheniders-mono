@@ -11,6 +11,7 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { createRequestIds } from "@/lib/request-ids";
 import { formatDay, formatIQD } from "@/lib/format";
 
 interface BillingLockCardProps {
@@ -46,6 +47,8 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
   const [reason, setReason] = useState("");
   const [customOrders, setCustomOrders] = useState("");
   const [unlockDays, setUnlockDays] = useState(30);
+  // One id per ask: a retry after a lost answer adds the orders or unlocks once.
+  const [requestIds] = useState(createRequestIds);
   const reasonOk = isStaffReason(reason);
 
   const mutation = useMutation({
@@ -54,10 +57,12 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
         action.kind === "orders"
           ? `/api/merchants/${merchantId}/lock-orders`
           : `/api/merchants/${merchantId}/force-unlock`;
+      const amount = action.kind === "orders" ? action.orders : action.days;
+      const request_id = requestIds.idFor(`${merchantId}:${action.kind}:${amount}:${reason.trim()}`);
       const body =
         action.kind === "orders"
-          ? { orders: action.orders, reason: reason.trim() }
-          : { days: action.days, reason: reason.trim() };
+          ? { orders: action.orders, reason: reason.trim(), request_id }
+          : { days: action.days, reason: reason.trim(), request_id };
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,6 +79,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
       return res.json();
     },
     onSuccess: () => {
+      requestIds.done();
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       setReason("");
@@ -104,39 +110,39 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
     <section className="pastel-card border-l-4 border-l-rose-600 p-5" data-testid="billing-lock-card" aria-label="Store locked">
       <div className="mb-4 flex items-start justify-between gap-6">
         <div>
-          <p className="flex items-center gap-1.5 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--ink-red)]">
             <Lock className="h-4 w-4" aria-hidden />
             Store locked
           </p>
           <p className="mt-1 text-[22px] font-semibold text-foreground">
             {lock.reason ? REASON_LABEL[lock.reason] : "Locked"}
           </p>
-          <p className="mt-1 text-[13px] text-foreground/65">
+          <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}
             Paying {formatIQD(lock.price_iqd)} from the wallet unlocks it
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="flex items-center justify-end gap-1.5 text-[13px] text-foreground/60">
+          <p className="flex items-center justify-end gap-1.5 text-[13px] text-foreground/70">
             <ShoppingBag className="h-4 w-4" aria-hidden />
             Store orders left
           </p>
           <p
             className={cn(
               "mt-1 text-[22px] font-semibold tabular-nums",
-              paused ? "text-rose-700 dark:text-rose-300" : "text-foreground",
+              paused ? "text-[var(--ink-red)]" : "text-foreground",
             )}
           >
             {ordersLeft}
-            <span className="ml-1 text-[15px] font-medium text-foreground/50">/ {lock.allowance}</span>
+            <span className="ml-1 text-[15px] font-medium text-foreground/70">/ {lock.allowance}</span>
           </p>
-          <p className="mt-1 text-[13px] text-foreground/60">
+          <p className="mt-1 text-[13px] text-foreground/70">
             {paused ? "Storefront paused" : "Then the storefront pauses"}
           </p>
         </div>
       </div>
 
-      <p className="mb-4 text-[13px] text-foreground/65">
+      <p className="mb-4 text-[13px] text-foreground/70">
         Orders, shipping, labels, export and paying stay open for the merchant. Everything else shows the lock screen.
       </p>
 
@@ -212,7 +218,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
                     Unlock for {unlockDays} days
                   </button>
                 </div>
-                <p className="mt-1.5 text-[13px] text-foreground/60">
+                <p className="mt-1.5 text-[13px] text-foreground/70">
                   Opens a paid period with no wallet charge. When it ends, renewal charges the wallet as usual.
                 </p>
               </div>
@@ -220,13 +226,13 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
           </div>
         </>
       ) : (
-        <p className="text-[13px] font-medium text-rose-700 dark:text-rose-300" data-testid="billing-lock-super-admin-only">
+        <p className="text-[13px] font-medium text-[var(--ink-red)]" data-testid="billing-lock-super-admin-only">
           A store locked for an unpaid month gets more orders or a free unlock from a super admin.
         </p>
       )}
 
       {mutation.isError && (
-        <p role="alert" className="mt-3 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+        <p role="alert" className="mt-3 text-[13px] font-medium text-[var(--ink-red)]">
           {mutation.error.message}
         </p>
       )}

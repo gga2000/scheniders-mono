@@ -5,13 +5,11 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useCommissionConfigs } from "@/hooks/use-admin-commissions";
 import {
-  DollarSign,
-  Clock,
-  CheckCircle2,
   Settings,
   Loader2,
 } from "lucide-react";
 import type { AdminEmployee, CommissionType } from "@/types/leads";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface TeamCommissionDashboardProps {
   employees: AdminEmployee[];
@@ -27,10 +25,10 @@ const commissionTypeLabels: Record<CommissionType, string> = {
 };
 
 const commissionTypeBadge: Record<CommissionType, string> = {
-  per_order: "bg-blue-100 text-blue-800",
-  percentage: "bg-purple-100 text-purple-800",
-  tiered_bonus: "bg-amber-100 text-amber-800",
-  custom: "bg-gray-100 text-gray-700",
+  per_order: "bg-blue-500/15 text-[var(--ink-blue)]",
+  percentage: "bg-purple-500/15 text-[var(--ink-violet)]",
+  tiered_bonus: "bg-amber-500/15 text-[var(--ink-amber)]",
+  custom: "bg-gray-500/15 text-[var(--muted)]",
 };
 
 type Period = "month" | "quarter";
@@ -64,44 +62,17 @@ export function TeamCommissionDashboard({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Earned</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(totals.totalEarned)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-amber-50/50">
-          <div className="flex items-center gap-2 text-amber-700 mb-1">
-            <Clock className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Pending</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(totals.totalPending)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Paid</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(totals.totalPaid)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-      </div>
+      <NumberStrip columns={3}>
+        <NumberCell label="Commission earned" value={`${fmt(totals.totalEarned)} IQD`} />
+        <NumberCell label="Commission waiting" value={`${fmt(totals.totalPending)} IQD`} />
+        <NumberCell label="Commission paid" value={`${fmt(totals.totalPaid)} IQD`} />
+      </NumberStrip>
 
       {/* Commission Configs */}
       <div className="pastel-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-foreground/50" />
+            <Settings className="w-4 h-4 text-foreground/70" />
             <h3 className="font-bold text-foreground text-sm">
               Commission Configurations
             </h3>
@@ -110,10 +81,10 @@ export function TeamCommissionDashboard({
 
         {configsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-foreground/30" />
+            <Loader2 className="w-5 h-5 animate-spin text-foreground/70" />
           </div>
         ) : !configs || configs.length === 0 ? (
-          <p className="text-sm text-foreground/40 py-4">
+          <p className="text-sm text-foreground/70 py-4">
             No commission configurations set up yet.
           </p>
         ) : (
@@ -134,7 +105,7 @@ export function TeamCommissionDashboard({
                   </h4>
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                      "px-2 py-0.5 rounded-full text-xs font-semibold",
                       commissionTypeBadge[config.type]
                     )}
                   >
@@ -143,17 +114,17 @@ export function TeamCommissionDashboard({
                 </div>
                 <div className="flex items-center gap-2">
                   {config.is_active ? (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-green-600">
+                    <span className="flex items-center gap-1 text-xs font-medium text-[var(--ink-green)]">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                       Active
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-foreground/40">
+                    <span className="flex items-center gap-1 text-xs font-medium text-foreground/70">
                       <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                       Inactive
                     </span>
                   )}
-                  <button className="ml-auto text-[10px] font-semibold text-foreground/50 hover:text-foreground transition-colors">
+                  <button className="ml-auto text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors">
                     Edit
                   </button>
                 </div>
@@ -172,7 +143,7 @@ export function TeamCommissionDashboard({
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value as Period)}
-            className="text-xs font-semibold text-foreground/60 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            className="text-xs font-semibold text-foreground/70 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[var(--primary)]"
           >
             <option value="month">This Month</option>
             <option value="quarter">This Quarter</option>
@@ -183,25 +154,25 @@ export function TeamCommissionDashboard({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                   Employee
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Merchants
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Conversions
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Earned
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Pending
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                   Paid
                 </th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/70">
                   Status
                 </th>
               </tr>
@@ -211,7 +182,7 @@ export function TeamCommissionDashboard({
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-12 text-center text-foreground/40 text-sm"
+                    className="px-4 py-12 text-center text-foreground/70 text-sm"
                   >
                     No employees found
                   </td>
@@ -244,7 +215,7 @@ export function TeamCommissionDashboard({
                               className="w-8 h-8 rounded-lg object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold shrink-0">
                               {initial}
                             </div>
                           )}
@@ -262,19 +233,19 @@ export function TeamCommissionDashboard({
                       <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">
                         {fmt(emp.commission_earned)}
                       </td>
-                      <td className="px-4 py-3 text-right text-amber-600 tabular-nums">
+                      <td className="px-4 py-3 text-right text-[var(--ink-amber)] tabular-nums">
                         {fmt(emp.commission_pending)}
                       </td>
-                      <td className="px-4 py-3 text-right text-green-600 tabular-nums">
+                      <td className="px-4 py-3 text-right text-[var(--ink-green)] tabular-nums">
                         {fmt(paid)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
                           className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                            "px-2 py-0.5 rounded-full text-xs font-semibold",
                             isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-600"
+                              ? "bg-green-500/15 text-[var(--ink-green)]"
+                              : "bg-gray-500/15 text-[var(--muted)]"
                           )}
                         >
                           {isActive ? "Active" : "No activity"}

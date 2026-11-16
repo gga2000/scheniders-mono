@@ -27,6 +27,7 @@ import { PLAN_LABELS, PLAN_TIERS, type TenantRestrictions } from "@/types/admin"
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
 import { loadFailureKind } from "@/lib/load-failure";
+import { inkOn } from "@/lib/ink-on";
 import { usePageHeader } from "@/store/use-page-header";
 
 /** "Starter plan", or "Growth plan" from the plan's own word for a plan this console does not sell. */
@@ -83,7 +84,7 @@ export default function MerchantDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -99,12 +100,12 @@ export default function MerchantDetailPage() {
       <div className="p-4 md:p-6 space-y-4">
         <Link
           href="/merchants"
-          className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Merchants
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <UserCircle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Merchant not found</p>
         </div>
@@ -120,7 +121,7 @@ export default function MerchantDetailPage() {
       {/* Back button */}
       <Link
         href="/merchants"
-        className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Merchants
@@ -128,21 +129,21 @@ export default function MerchantDetailPage() {
 
       {/* Prospect Banner */}
       {tenant.is_prospect && (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-50 dark:bg-amber-400/10 border border-amber-200 dark:border-amber-400/20">
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-500/5 border border-amber-200 dark:border-amber-400/20">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-400/20 flex items-center justify-center">
-              <UserCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+              <UserCircle className="w-5 h-5 text-[var(--ink-amber)]" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">This is a pre-built prospect store</p>
-              <p className="text-[13px] text-amber-700 dark:text-amber-300">Created for a potential merchant. Not yet converted.</p>
+              <p className="text-sm font-semibold text-[var(--ink-amber)]">This is a pre-built prospect store</p>
+              <p className="text-[13px] text-[var(--ink-amber)]">Created for a potential merchant. Not yet converted.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {tenant.prospect_lead_id && (
               <Link
                 href={`/leads/${tenant.prospect_lead_id}`}
-                className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-[13px] font-semibold text-amber-800 transition-colors hover:bg-amber-200 dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-200 dark:hover:bg-amber-400/25"
+                className="rounded-lg border border-amber-300 bg-amber-500/15 px-3 py-1.5 text-[13px] font-semibold text-[var(--ink-amber)] transition-colors hover:bg-amber-200 dark:border-amber-400/30 dark:bg-amber-400/15 dark:hover:bg-amber-400/25"
               >
                 View Lead Details
               </Link>
@@ -156,14 +157,14 @@ export default function MerchantDetailPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shrink-0"
-              style={{ backgroundColor: primaryColor }}
+              className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shrink-0"
+              style={{ backgroundColor: primaryColor, color: inkOn(primaryColor) }}
             >
               {tenant.business_name.charAt(0).toUpperCase()}
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">{tenant.business_name}</h1>
-              <div className="flex items-center gap-2 text-sm text-foreground/50">
+              <div className="flex items-center gap-2 text-sm text-foreground/70">
                 <span>{tenant.slug}</span>
                 <span className="w-0.5 h-0.5 rounded-full bg-foreground/20 shrink-0" />
                 <CopyableText
@@ -237,7 +238,7 @@ export default function MerchantDetailPage() {
           { label: "Team now", value: formatCount(team.filter((member) => member.status === "active").length) },
         ].map((tile) => (
           <div key={tile.label} className="px-5 py-4" title={tile.title}>
-            <dt className="text-[13px] text-foreground/60">{tile.label}</dt>
+            <dt className="text-[13px] text-foreground/70">{tile.label}</dt>
             <dd className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">{tile.value}</dd>
           </div>
         ))}
@@ -255,7 +256,7 @@ export default function MerchantDetailPage() {
             className={`px-4 py-2.5 text-sm font-semibold transition-colors ${
               activeTab === tab
                 ? "text-foreground border-b-2 border-foreground"
-                : "text-foreground/50 hover:text-foreground/70"
+                : "text-foreground/70 hover:text-foreground"
             }`}
           >
             {tab}

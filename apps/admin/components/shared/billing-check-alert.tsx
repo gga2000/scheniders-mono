@@ -34,17 +34,17 @@ function names(rows: BillingCheck["renewalsMissed"]): string {
 /** The bell's red row when a daily billing job missed a shop. */
 export function BillingCheckAlert({ check }: { check: BillingCheck }) {
   return (
-    <div className="flex items-start gap-3 border-b border-[var(--card-border)] bg-red-50 px-4 py-3 dark:bg-red-950/30" data-testid="billing-check-alert">
-      <span className="mt-0.5 text-red-600"><CalendarX className="w-3.5 h-3.5" /></span>
+    <div className="flex items-start gap-3 border-b border-[var(--card-border)] bg-red-500/5 px-4 py-3 dark:bg-red-950/30" data-testid="billing-check-alert">
+      <span className="mt-0.5 text-[var(--ink-red)]"><CalendarX className="w-3.5 h-3.5" /></span>
       <div className="min-w-0 space-y-1">
-        <p className="text-xs font-semibold text-red-700 dark:text-red-300">The daily renewal job missed shops</p>
+        <p className="text-xs font-semibold text-[var(--ink-red)]">The daily renewal job missed shops</p>
         {check.trialsNotBilled.length > 0 && (
-          <p className="text-[11px] text-red-700/80 dark:text-red-300/80">
+          <p className="text-xs text-[var(--ink-red)]">
             Trial ended, never billed: {names(check.trialsNotBilled)}
           </p>
         )}
         {check.renewalsMissed.length > 0 && (
-          <p className="text-[11px] text-red-700/80 dark:text-red-300/80">
+          <p className="text-xs text-[var(--ink-red)]">
             Month ended, not renewed: {names(check.renewalsMissed)}
           </p>
         )}

@@ -20,7 +20,7 @@ function Tile({ label, value, note }: { label: string; value: string; note?: str
     <div className={cn(CARD, "px-4 py-3.5")}>
       <p className="text-xs font-medium text-foreground-muted">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
-      {note && <p className="mt-0.5 text-xs text-foreground/50">{note}</p>}
+      {note && <p className="mt-0.5 text-xs text-foreground/70">{note}</p>}
     </div>
   );
 }
@@ -71,7 +71,7 @@ function Board({ board }: { board: SupportScoreboard }) {
           <h2 className="text-sm font-semibold text-foreground">What merchants wrote about</h2>
           <p className="text-xs text-foreground-muted">The reason picked when a conversation was solved.</p>
           {board.reasons.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-foreground/40">No solved conversations in this window.</p>
+            <p className="mt-6 text-center text-sm text-foreground/70">No solved conversations in this window.</p>
           ) : (
             <ul className="mt-3 space-y-2">
               {board.reasons.map((r) => (
@@ -94,7 +94,7 @@ function Board({ board }: { board: SupportScoreboard }) {
           <h2 className="text-sm font-semibold text-foreground">Team</h2>
           <p className="text-xs text-foreground-muted">By who took the conversation.</p>
           {board.by_staff.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-foreground/40">Nobody has taken a conversation in this window.</p>
+            <p className="mt-6 text-center text-sm text-foreground/70">Nobody has taken a conversation in this window.</p>
           ) : (
             <table className="mt-3 w-full text-sm">
               <thead>
@@ -110,8 +110,8 @@ function Board({ board }: { board: SupportScoreboard }) {
                   <tr key={s.name} className="border-t border-[var(--card-border)]">
                     <td className="py-2 text-foreground">{s.name}</td>
                     <td className="py-2 text-right tabular-nums">{s.solved}</td>
-                    <td className="py-2 text-right tabular-nums text-green-700">{s.rated_yes}</td>
-                    <td className={cn("py-2 text-right tabular-nums", s.rated_no > 0 && "text-red-700")}>{s.rated_no}</td>
+                    <td className="py-2 text-right tabular-nums text-[var(--ink-green)]">{s.rated_yes}</td>
+                    <td className={cn("py-2 text-right tabular-nums", s.rated_no > 0 && "text-[var(--ink-red)]")}>{s.rated_no}</td>
                   </tr>
                 ))}
               </tbody>
@@ -120,7 +120,7 @@ function Board({ board }: { board: SupportScoreboard }) {
         </section>
       </div>
 
-      <p className="text-xs text-foreground/40">
+      <p className="text-xs text-foreground/70">
         Counts conversations opened in the last {board.days} days. First reply counts support hours, 9 AM to 12 AM
         Baghdad: a message sent at night starts at 9 AM. Time to solve is clock time. The demo store is left out.
       </p>
@@ -160,7 +160,7 @@ export function SupportScoreboardView({
         <Board board={board.data} />
       ) : (
         <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-foreground/30" />
+          <Loader2 className="h-6 w-6 animate-spin text-foreground/70" />
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useLanguage } from "@/hooks/use-language";
 import { previewReplacement } from "@/lib/after-sale/replacement-math";
 import type { RefundableLine, RefundSelection } from "@/lib/refunds/refund-math";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, formatIQDChange } from "@/lib/utils";
 import { ProductPicker } from "./product-picker";
 
 export interface ReplacementOutItem {
@@ -225,12 +225,12 @@ export function ReplaceSheet({ open, onClose, orderNumber, lines, defaultFee, on
                                 </div>
                                 <div className="flex justify-between text-muted">
                                     <dt>{t("replace.creditOld")}</dt>
-                                    <dd>−{formatIQD(preview.credit)}</dd>
+                                    <dd>{formatIQD(-preview.credit)}</dd>
                                 </div>
                                 {preview.feeKept > 0 && (
                                     <div className="flex justify-between text-muted">
                                         <dt>{t("replace.feeLine")}</dt>
-                                        <dd>+{formatIQD(preview.feeKept)}</dd>
+                                        <dd>{formatIQDChange(preview.feeKept)}</dd>
                                     </div>
                                 )}
                                 <div className="flex items-baseline justify-between pt-1 font-semibold text-foreground">

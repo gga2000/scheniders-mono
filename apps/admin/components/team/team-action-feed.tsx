@@ -60,9 +60,9 @@ function getActionCategory(action: string): "lead" | "merchant" | "system" {
 }
 
 const categoryColors: Record<string, { dot: string; bg: string }> = {
-  lead: { dot: "bg-blue-400", bg: "bg-blue-50" },
-  merchant: { dot: "bg-purple-400", bg: "bg-purple-50" },
-  system: { dot: "bg-gray-400", bg: "bg-gray-50" },
+  lead: { dot: "bg-blue-400", bg: "bg-blue-500/5" },
+  merchant: { dot: "bg-purple-400", bg: "bg-purple-500/5" },
+  system: { dot: "bg-gray-400", bg: "bg-gray-500/5" },
 };
 
 export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
@@ -82,7 +82,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
   if (items.length === 0) {
     return (
       <div className="pastel-card p-6">
-        <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
           <Inbox className="w-10 h-10 mb-3" />
           <p className="text-sm font-medium">No actions recorded</p>
           <p className="text-xs mt-1">Activity will appear here as actions are performed.</p>
@@ -116,7 +116,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
                       className="w-7 h-7 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
+                    <div className="w-7 h-7 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold">
                       {userInitial}
                     </div>
                   )
@@ -135,7 +135,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 {showUser && item.admin_user && (
-                  <p className="text-[10px] text-foreground/40 font-medium mb-0.5">
+                  <p className="text-xs text-foreground/70 font-medium mb-0.5">
                     {item.admin_user.display_name ??
                       item.admin_user.email.split("@")[0]}
                   </p>
@@ -144,13 +144,13 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
                 {item.entity_type && (
                   <span
                     className={cn(
-                      "inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium",
+                      "inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium",
                       item.colors.bg,
                       item.category === "lead"
-                        ? "text-blue-700"
+                        ? "text-[var(--ink-blue)]"
                         : item.category === "merchant"
-                          ? "text-purple-700"
-                          : "text-gray-600"
+                          ? "text-[var(--ink-violet)]"
+                          : "text-[var(--muted)]"
                     )}
                   >
                     {item.entity_type}
@@ -160,7 +160,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
               </div>
 
               {/* Timestamp */}
-              <span className="text-xs text-foreground/40 flex-shrink-0 mt-0.5 whitespace-nowrap">
+              <span className="text-xs text-foreground/70 flex-shrink-0 mt-0.5 whitespace-nowrap">
                 {item.relativeTime}
               </span>
             </div>

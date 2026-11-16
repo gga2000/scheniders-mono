@@ -43,6 +43,8 @@ export function CityPerformance({ data }: CityPerformanceProps) {
     const sortedData = [...data].sort((a, b) => {
         const aVal = a[sortKey];
         const bVal = b[sortKey];
+        // A city with no answer yet has no rate: it sorts last either way.
+        if (aVal === null || bVal === null) return aVal === bVal ? 0 : aVal === null ? 1 : -1;
         if (typeof aVal === 'number' && typeof bVal === 'number') {
             return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
         }
@@ -63,7 +65,8 @@ export function CityPerformance({ data }: CityPerformanceProps) {
         return { card: "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/30", icon: "text-orange-500" };
     };
 
-    const getDeliveryRateColor = (rate: number) => {
+    const getDeliveryRateColor = (rate: number | null) => {
+        if (rate === null) return { bg: "bg-gray-100 dark:bg-white/10", text: "text-muted" };
         if (rate >= 85) return { bg: "bg-emerald-100 dark:bg-emerald-500/20", text: "text-emerald-700 dark:text-emerald-300" };
         if (rate >= 70) return { bg: "bg-amber-100 dark:bg-amber-500/20", text: "text-amber-700 dark:text-amber-300" };
         return { bg: "bg-rose-100 dark:bg-rose-500/20", text: "text-rose-700 dark:text-rose-300" };
@@ -134,7 +137,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                     />
                                 </div>
                                 <div className="text-xs mt-1 text-muted">
-                                    <bdi>{t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) })}</bdi>
+                                    <bdi>{city.deliveryRate === null ? t("reports.city.noAnswerYet") : t("reports.city.deliveredOf", { pct: city.deliveryRate.toFixed(0), delivered: city.delivered, decided: city.delivered + city.rejected })}</bdi>
                                 </div>
                             </div>
                         </motion.div>
@@ -185,7 +188,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                                 rateColors.bg,
                                                 rateColors.text
                                             )}>
-                                                {city.deliveryRate.toFixed(0)}%
+                                                {city.deliveryRate === null ? "—" : `${city.deliveryRate.toFixed(0)}%`}
                                             </span>
                                         </td>
                                         <td className="py-3 px-4 text-muted">

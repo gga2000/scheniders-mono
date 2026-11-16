@@ -32,6 +32,7 @@ const shop = (n: number, extra: Row = {}): Row => ({
   trial_ends_at: null,
   restrictions: null,
   staff_wallet_balance: 20000,
+  staff_locked: false,
   subscriptions: [],
   ...extra,
 });
@@ -130,16 +131,23 @@ describe("GET /api/merchants", () => {
         shop(4, { status: "suspended" }),
         shop(5, { status: "limited" }),
         shop(6, { status: "cancelled" }),
+        shop(7, { status: "active", staff_locked: true }),
       ];
     });
     const ids = async (tab: string) => ((await (await call(`tab=${tab}`)).json()).merchants as Row[]).map((m) => m.id);
 
     it("lists every shop on All", async () => {
-      expect(await ids("all")).toHaveLength(6);
+      expect(await ids("all")).toHaveLength(7);
+    });
+
+    it("lists the shops the database counts as locked on Locked, and keeps them on their own tab too", async () => {
+      expect(await ids("locked")).toEqual(["shop-7"]);
+      expect(stub.callsTo("tenants.filter")).toContainEqual(["staff_locked", "is", "true"]);
+      expect(await ids("paying")).toContain("shop-7");
     });
 
     it("keeps our own shops out of Paying: they are never billed", async () => {
-      expect(await ids("paying")).toEqual(["shop-2"]);
+      expect(await ids("paying")).toEqual(["shop-2", "shop-7"]);
       expect(await ids("internal")).toEqual(["shop-3"]);
     });
 

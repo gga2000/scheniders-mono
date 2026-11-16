@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { BarChart3, TrendingUp, Calendar, Activity } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import type { AdminEmployeeTracking } from "@/types/leads";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface TeamPerformanceChartProps {
   employeeId?: string;
@@ -90,38 +91,18 @@ export function TeamPerformanceChart({
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <Activity className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Actions (14d)</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">{stats.total}</p>
-        </div>
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-semibold">Avg per Day</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">{stats.avg}</p>
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Calendar className="w-4 h-4" />
-            <span className="text-xs font-semibold">Most Active Day</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {stats.mostActiveDay
+      <NumberStrip columns={3}>
+        <NumberCell label="Actions, last 14 days" value={stats.total} />
+        <NumberCell label="Actions a day, last 14 days" value={stats.avg} />
+        <NumberCell label="Busiest day, last 14 days" value={stats.mostActiveDay
               ? `${stats.mostActiveDay.shortLabel} (${stats.mostActiveDay.count})`
-              : "---"}
-          </p>
-        </div>
-      </div>
+              : "---"} />
+      </NumberStrip>
 
       {/* Bar Chart */}
       <div className="pastel-card p-5">
         <div className="flex items-center gap-2 mb-5">
-          <BarChart3 className="w-4 h-4 text-foreground/50" />
+          <BarChart3 className="w-4 h-4 text-foreground/70" />
           <h3 className="font-bold text-foreground text-sm">
             Daily Activity (Last 14 Days)
           </h3>
@@ -133,7 +114,7 @@ export function TeamPerformanceChart({
             {[...yTicks].reverse().map((tick) => (
               <span
                 key={tick}
-                className="text-[10px] text-foreground/40 text-right tabular-nums leading-none"
+                className="text-xs text-foreground/70 text-right tabular-nums leading-none"
               >
                 {tick}
               </span>
@@ -162,7 +143,7 @@ export function TeamPerformanceChart({
                   >
                     {/* Tooltip */}
                     {isHovered && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-[var(--card-bg)] px-2 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap z-10 shadow-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-[var(--card-bg)] px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap z-10 shadow-lg">
                         {day.count} action{day.count !== 1 ? "s" : ""}
                       </div>
                     )}
@@ -192,10 +173,10 @@ export function TeamPerformanceChart({
                 <div key={i} className="flex-1 text-center">
                   <span
                     className={cn(
-                      "text-[8px] sm:text-[10px] leading-none",
+                      "text-xs leading-none",
                       i === chartData.length - 1
                         ? "font-semibold text-foreground/70"
-                        : "text-foreground/30"
+                        : "text-foreground/70"
                     )}
                   >
                     {day.label.split(" ")[1]}

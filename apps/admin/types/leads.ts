@@ -34,18 +34,38 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
 };
 
 /**
- * Accessible, vivid status palette for UI surfaces (chips, badges, columns).
- * `LEAD_STATUS_CONFIG.color` is the neon brand accent (great on dark charcoal,
- * unreadable as text on light) — use these mid-dark hues for text + dots so
- * status reads clearly and vividly in both light and dark mode.
+ * A colour that reads in both themes (board v7). `solid` is the ink, a dark
+ * shade in light mode and a light shade in dark mode (--ink-* in
+ * app/globals.css); `soft` and `strong` are 12% and 22% tints mixed from it.
+ * Text in `solid` on `soft` passes WCAG AA in both themes.
  */
-export const LEAD_STATUS_UI: Record<LeadStatus, { solid: string; soft: string }> = {
-  new: { solid: "#D97706", soft: "rgba(217,119,6,0.12)" }, // amber-600
-  contacted: { solid: "#0891B2", soft: "rgba(8,145,178,0.12)" }, // cyan-600
-  interested: { solid: "#2563EB", soft: "rgba(37,99,235,0.12)" }, // blue-600
-  store_built: { solid: "#7C3AED", soft: "rgba(124,58,237,0.12)" }, // violet-600
-  converted: { solid: "#16A34A", soft: "rgba(22,163,74,0.12)" }, // green-600
-  lost: { solid: "#64748B", soft: "rgba(100,116,139,0.12)" }, // slate-500
+export interface UiHue {
+  solid: string;
+  soft: string;
+  strong: string;
+}
+
+type Ink = "amber" | "orange" | "yellow" | "green" | "teal" | "cyan" | "blue" | "violet" | "fuchsia" | "red" | "slate";
+
+export function uiHue(ink: Ink): UiHue {
+  return {
+    solid: `var(--ink-${ink})`,
+    soft: `color-mix(in srgb, var(--ink-${ink}) 12%, transparent)`,
+    strong: `color-mix(in srgb, var(--ink-${ink}) 22%, transparent)`,
+  };
+}
+
+/**
+ * Status colours for chips, dots and columns. `LEAD_STATUS_CONFIG.color` is
+ * the neon accent and must never be text; use these.
+ */
+export const LEAD_STATUS_UI: Record<LeadStatus, UiHue> = {
+  new: uiHue("amber"),
+  contacted: uiHue("cyan"),
+  interested: uiHue("blue"),
+  store_built: uiHue("violet"),
+  converted: uiHue("green"),
+  lost: uiHue("slate"),
 };
 
 export const LEAD_PRIORITY_CONFIG: Record<LeadPriority, { label: string; color: string }> = {
@@ -55,12 +75,12 @@ export const LEAD_PRIORITY_CONFIG: Record<LeadPriority, { label: string; color: 
   urgent: { label: "Urgent", color: "#EF4444" },
 };
 
-/** Readable text/dot colors for priority (mirrors LEAD_STATUS_UI rationale). */
+/** Priority ink for text and dots, readable in both themes (see uiHue). */
 export const LEAD_PRIORITY_UI: Record<LeadPriority, string> = {
-  low: "#64748B", // slate-500
-  medium: "#D97706", // amber-600
-  high: "#EA580C", // orange-600
-  urgent: "#DC2626", // red-600
+  low: uiHue("slate").solid,
+  medium: uiHue("amber").solid,
+  high: uiHue("orange").solid,
+  urgent: uiHue("red").solid,
 };
 
 // Thresholds mirror the DB `compute_lead_tier` function (the source of truth that
@@ -75,19 +95,16 @@ export const LEAD_TIER_CONFIG: Record<LeadTier, { label: string; minFollowers: n
 };
 
 /**
- * Readable, high-contrast tier palette for light surfaces.
- * `LEAD_TIER_CONFIG.color` is the vivid trophy-metal brand hue (gold, ice-blue…)
- * — gorgeous as a fill or glow but unreadable as text on light. Mirrors the
- * LEAD_STATUS_UI rationale: `solid` is a mid-dark hue for badge text + dots,
- * `soft` a tinted background, and `gradient` a glossy jewel fill for the
- * merchant medallion (paired with white text).
+ * Tier colours for chips, the first letter and the follower count, readable
+ * in both themes (see uiHue). `LEAD_TIER_CONFIG.color` is the metal hue for
+ * fills only and must never be text.
  */
-export const LEAD_TIER_UI: Record<LeadTier, { solid: string; soft: string; gradient: string }> = {
-  bronze: { solid: "#B45309", soft: "rgba(180,83,9,0.12)", gradient: "linear-gradient(135deg,#CD7F32,#7C3A12)" },
-  silver: { solid: "#475569", soft: "rgba(71,85,105,0.12)", gradient: "linear-gradient(135deg,#8B97A6,#3F4C5A)" },
-  gold: { solid: "#A16207", soft: "rgba(161,98,7,0.14)", gradient: "linear-gradient(135deg,#D8951A,#7A4309)" },
-  diamond: { solid: "#0E7490", soft: "rgba(14,116,144,0.12)", gradient: "linear-gradient(135deg,#38BDF8,#0E7490)" },
-  legendary: { solid: "#A21CAF", soft: "rgba(162,28,175,0.14)", gradient: "linear-gradient(135deg,#E879F9,#A21CAF)" },
+export const LEAD_TIER_UI: Record<LeadTier, UiHue> = {
+  bronze: uiHue("orange"),
+  silver: uiHue("slate"),
+  gold: uiHue("amber"),
+  diamond: uiHue("cyan"),
+  legendary: uiHue("fuchsia"),
 };
 
 export const PLATFORM_CONFIG: Record<LeadSourcePlatform, { label: string; icon: string; color: string }> = {

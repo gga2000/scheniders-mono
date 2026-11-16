@@ -2,11 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  TrendingUp,
   Loader2,
-  DollarSign,
-  Users,
-  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -19,10 +15,9 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { AnimatedCounter } from "@/components/shared/animated-counter";
-import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatIQD } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -47,13 +42,13 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   return (
     <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg px-3 py-2 shadow-xl text-xs">
       <p className="font-semibold text-foreground">{label}</p>
-      <p className="text-foreground/60">{new Intl.NumberFormat("en-IQ").format(payload[0].value)} IQD</p>
+      <p className="text-foreground/70">{new Intl.NumberFormat("en-IQ").format(payload[0].value)} IQD</p>
     </div>
   );
 }
 
 function EmptyChart({ text }: { text: string }) {
-  return <p className="text-sm text-foreground/40 py-16 text-center">{text}</p>;
+  return <p className="text-sm text-foreground/70 py-16 text-center">{text}</p>;
 }
 
 export default function RevenuePage() {
@@ -75,7 +70,7 @@ export default function RevenuePage() {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -87,42 +82,21 @@ export default function RevenuePage() {
     <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <TrendingUp className="w-6 h-6" />
-          Revenue Analytics
-        </h1>
-        <p className="text-foreground-muted mt-1">
+        <h1 className="text-[22px] font-semibold text-foreground">Our fees</h1>
+        <p className="text-[13px] text-foreground/70">
           Fees shops paid us: monthly plan, delivered orders and paid messages. Months on Baghdad time.
         </p>
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">Fees, last 6 months</span>
-          </div>
-          <AnimatedCounter value={totalRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
-        </div>
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <BarChart3 className="w-4 h-4" />
-            <span className="text-xs font-semibold">This month so far</span>
-          </div>
-          <AnimatedCounter value={thisMonthRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-semibold">Avg fees per shop, all time</span>
-          </div>
-          <AnimatedCounter value={data.avgLTV} suffix=" IQD" className="text-lg font-bold text-foreground" />
-        </div>
-      </div>
+      <NumberStrip columns={3}>
+        <NumberCell label="Fees, last 6 months" value={formatIQD(totalRevenue)} />
+        <NumberCell label="Fees, this month so far" value={formatIQD(thisMonthRevenue)} />
+        <NumberCell label="Avg fees per shop, all time" value={formatIQD(data.avgLTV)} />
+      </NumberStrip>
 
       {data.otherCharges > 0 && (
-        <p className="text-xs text-foreground/50">
+        <p className="text-xs text-foreground/70">
           Not counted as income: {new Intl.NumberFormat("en-IQ").format(data.otherCharges)} IQD of other wallet
           charges in these six months (corrections and test reversals).
         </p>
@@ -130,7 +104,7 @@ export default function RevenuePage() {
 
       {/* Fees by month */}
       <div className="pastel-card p-5">
-        <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+        <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
           Fees by month
         </h2>
         {totalRevenue === 0 ? (
@@ -140,8 +114,8 @@ export default function RevenuePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.mrrWaterfall}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <XAxis dataKey="month" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="revenue" fill="#86efac" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -153,17 +127,17 @@ export default function RevenuePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Cohort Analysis */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
             Fees by signup month
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr>
-                  <th className="p-2 text-left text-foreground/50 font-medium">Cohort</th>
-                  <th className="p-2 text-center text-foreground/50 font-medium">#</th>
+                  <th className="p-2 text-left text-foreground/70 font-medium">Cohort</th>
+                  <th className="p-2 text-center text-foreground/70 font-medium">#</th>
                   {[0, 1, 2, 3, 4, 5].map((m) => (
-                    <th key={m} className="p-2 text-center text-foreground/50 font-medium">M{m}</th>
+                    <th key={m} className="p-2 text-center text-foreground/70 font-medium">M{m}</th>
                   ))}
                 </tr>
               </thead>
@@ -173,7 +147,7 @@ export default function RevenuePage() {
                   return (
                     <tr key={cohort.cohort} className="border-t border-[var(--card-border)]">
                       <td className="p-2 font-medium text-foreground">{cohort.cohort}</td>
-                      <td className="p-2 text-center text-foreground/50">{cohort.tenantCount}</td>
+                      <td className="p-2 text-center text-foreground/70">{cohort.tenantCount}</td>
                       {cohort.months.map((rev, i) => {
                         const intensity = rev / maxVal;
                         return (
@@ -198,15 +172,15 @@ export default function RevenuePage() {
 
         {/* LTV Distribution */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
             Shops by fees paid, all time
           </h2>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.ltvDistribution} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={70} />
+                <XAxis type="number" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="label" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={70} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#c4b5fd" radius={[0, 6, 6, 0]} />
               </BarChart>
@@ -215,17 +189,17 @@ export default function RevenuePage() {
 
           {/* Top LTV merchants */}
           <div className="mt-4 pt-3 border-t border-[var(--card-border)]">
-            <h3 className="text-xs font-semibold text-foreground/50 mb-2">Top shops by fees paid</h3>
+            <h3 className="text-xs font-semibold text-foreground/70 mb-2">Top shops by fees paid</h3>
             <div className="space-y-1.5">
               {data.topLTV.slice(0, 5).map((m, i) => (
                 <div key={m.id} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 text-foreground/30 font-bold">{i + 1}</span>
+                  <span className="w-4 text-foreground/70 font-bold">{i + 1}</span>
                   <span className="flex-1 text-foreground font-medium truncate">{m.name}</span>
-                  <span className="text-foreground/50 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
+                  <span className="text-foreground/70 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
                 </div>
               ))}
               {data.topLTV.length === 0 && (
-                <p className="text-xs text-foreground/40">No shop has paid a fee yet.</p>
+                <p className="text-xs text-foreground/70">No shop has paid a fee yet.</p>
               )}
             </div>
           </div>
@@ -234,7 +208,7 @@ export default function RevenuePage() {
 
       {/* Fees by plan */}
       <div className="pastel-card p-5">
-        <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
+        <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">
           Fees by plan (the plan each shop is on today)
         </h2>
         {data.revenueByPlan.length === 0 ? (
@@ -252,8 +226,8 @@ export default function RevenuePage() {
                 })}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <XAxis dataKey="month" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                 <Tooltip />
                 {data.revenueByPlan.map((p) => (
                   <Area
@@ -272,7 +246,7 @@ export default function RevenuePage() {
         )}
         <div className="flex items-center gap-4 mt-3">
           {data.revenueByPlan.map((p) => (
-            <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/60">
+            <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/70">
               <span className="w-3 h-3 rounded" style={{ backgroundColor: PLAN_COLORS[p.plan] || "#d1d5db" }} />
               <span className="capitalize">{p.plan}</span>
             </div>

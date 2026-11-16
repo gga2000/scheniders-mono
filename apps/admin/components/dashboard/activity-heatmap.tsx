@@ -108,8 +108,8 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
     };
   }, [days]);
 
-  const labelWidth = 28;
-  const headerHeight = 16;
+  const labelWidth = 34;
+  const headerHeight = 20;
   const svgWidth = labelWidth + weeks * (CELL_SIZE + GAP);
   const svgHeight = headerHeight + 7 * (CELL_SIZE + GAP);
 
@@ -119,12 +119,12 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
-            <BarChart3 className="w-4 h-4 text-green-700" />
+            <BarChart3 className="w-4 h-4 text-[var(--ink-green)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">Platform Activity</h3>
         </div>
         {/* Color scale legend */}
-        <div className="flex items-center gap-1 text-[10px] text-foreground/50">
+        <div className="flex items-center gap-1 text-xs text-foreground/70">
           <span>Less</span>
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <span
@@ -147,7 +147,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       {!days ? (
         <SkeletonContent />
       ) : days.length === 0 ? (
-        <p className="text-sm text-foreground/40 py-6 text-center">
+        <p className="text-sm text-foreground/70 py-6 text-center">
           No activity data yet.
         </p>
       ) : (
@@ -163,9 +163,9 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               <text
                 key={i}
                 x={labelWidth + m.col * (CELL_SIZE + GAP)}
-                y={10}
+                y={14}
                 className="fill-[var(--foreground)]"
-                style={{ fontSize: 9, opacity: 0.5 }}
+                style={{ fontSize: 13, opacity: 0.5 }}
               >
                 {m.label}
               </text>
@@ -179,7 +179,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
                   x={0}
                   y={headerHeight + i * (CELL_SIZE + GAP) + CELL_SIZE - 2}
                   className="fill-[var(--foreground)]"
-                  style={{ fontSize: 9, opacity: 0.4 }}
+                  style={{ fontSize: 13, opacity: 0.4 }}
                 >
                   {label}
                 </text>
@@ -224,7 +224,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               <span className="font-semibold text-foreground">
                 {tooltip.count} {tooltip.count === 1 ? "action" : "actions"}
               </span>
-              <span className="text-foreground/50 ml-1.5">{tooltip.date}</span>
+              <span className="text-foreground/70 ml-1.5">{tooltip.date}</span>
             </div>
           )}
         </div>

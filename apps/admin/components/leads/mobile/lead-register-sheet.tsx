@@ -71,7 +71,7 @@ const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
 // Touch-first: h-11 instead of h-10
 const FIELD =
   "w-full h-11 px-3.5 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-shadow";
-const LABEL = "block text-[11px] font-medium text-[var(--muted)] mb-1.5";
+const LABEL = "block text-xs font-medium text-[var(--muted)] mb-1.5";
 
 export function LeadRegisterSheet({
   open,
@@ -150,8 +150,8 @@ export function LeadRegisterSheet({
         onClick={() => submit(false)}
         disabled={submitting}
         className={cn(
-          "flex flex-1 items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-sm",
-          "bg-gradient-to-r from-[#FF8899] to-[#A78BFA] hover:brightness-105",
+          "flex flex-1 items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm",
+          "bg-foreground text-background hover:opacity-90",
           submitting && "opacity-70 cursor-not-allowed",
         )}
       >
@@ -180,7 +180,7 @@ export function LeadRegisterSheet({
           <div className="rounded-xl border border-dashed border-[#A78BFA]/40 bg-[#A78BFA]/[0.05] p-3 space-y-2.5">
             <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-[#A78BFA]" />
-              <span className="text-[11px] font-bold text-[#A78BFA] uppercase tracking-wider">
+              <span className="text-xs font-bold text-[#A78BFA] uppercase tracking-wider">
                 Auto-fill from {PLATFORM_CONFIG[form.platform].label}
               </span>
             </div>
@@ -208,8 +208,8 @@ export function LeadRegisterSheet({
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || !analyzeHandle.trim()}
                 className={cn(
-                  "flex items-center gap-2 px-4 h-11 rounded-xl text-sm font-bold transition-all whitespace-nowrap text-white",
-                  "bg-gradient-to-r from-[#FF8899] to-[#A78BFA] hover:brightness-105",
+                  "flex items-center gap-2 px-4 h-11 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                  "bg-foreground text-background hover:opacity-90",
                   (isAnalyzing || !analyzeHandle.trim()) && "opacity-50 cursor-not-allowed",
                 )}
               >
@@ -222,12 +222,12 @@ export function LeadRegisterSheet({
               </button>
             </div>
             {analyzeError && (
-              <p className="text-[11px] text-red-500 font-medium flex items-center gap-1">
+              <p className="text-xs text-[var(--ink-red)] font-medium flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" /> {analyzeError}
               </p>
             )}
             {analyzeSuccess && (
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <p className="text-xs text-[var(--ink-green)] font-medium flex items-center gap-1">
                 <Check className="w-3 h-3" /> Profile loaded — fields below were auto-filled.
               </p>
             )}
@@ -237,7 +237,7 @@ export function LeadRegisterSheet({
         {/* 2. Merchant name */}
         <div>
           <label className={LABEL}>
-            Merchant Name <span className="text-red-500">*</span>
+            Merchant Name <span className="text-[var(--ink-red)]">*</span>
           </label>
           <input
             ref={nameRef}
@@ -307,7 +307,7 @@ export function LeadRegisterSheet({
               onClick={() => update("contact_via_dm", !form.contact_via_dm)}
               aria-pressed={form.contact_via_dm}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all",
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold transition-all",
                 form.contact_via_dm
                   ? "border-[#A78BFA]/50 bg-[#A78BFA]/10 text-[#A78BFA]"
                   : "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)]/40",
@@ -372,7 +372,7 @@ export function LeadRegisterSheet({
                   <button
                     type="button"
                     onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-[11px] font-medium text-indigo-500 hover:underline"
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] hover:underline"
                   >
                     <Settings2 className="w-3 h-3" /> Manage
                   </button>
@@ -396,7 +396,7 @@ export function LeadRegisterSheet({
                 </div>
                 {showIndustryDetail || form.industry_detail ? (
                   <div className="relative mt-2">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-blue)] pointer-events-none">
                       <Tag className="w-4 h-4" />
                     </span>
                     <input
@@ -411,7 +411,7 @@ export function LeadRegisterSheet({
                   <button
                     type="button"
                     onClick={() => setShowIndustryDetail(true)}
-                    className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+                    className="mt-2 flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
                   >
                     <Plus className="w-3 h-3" /> Specify the niche
                   </button>
@@ -465,7 +465,7 @@ export function LeadRegisterSheet({
                       <button
                         type="button"
                         onClick={addPhone}
-                        className="flex items-center gap-1 text-[11px] font-medium text-[#A78BFA] hover:underline"
+                        className="flex items-center gap-1 text-xs font-medium text-[#A78BFA] hover:underline"
                       >
                         <Plus className="w-3 h-3" /> Add
                       </button>
@@ -509,7 +509,7 @@ export function LeadRegisterSheet({
                           <button
                             type="button"
                             onClick={() => removePhone(idx)}
-                            className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -547,7 +547,7 @@ export function LeadRegisterSheet({
                         placeholder="0"
                       />
                       {key === "avg_order_count" && (
-                        <p className="mt-1 text-[10px] text-[var(--muted)]">
+                        <p className="mt-1 text-xs text-[var(--muted)]">
                           Overrides the views-based forecast
                         </p>
                       )}
@@ -558,10 +558,10 @@ export function LeadRegisterSheet({
 
               {/* Order Prediction card */}
               {hasPrediction && (
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 p-3.5">
+                <div className="rounded-xl bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 p-3.5">
                   <div className="flex items-center gap-2 mb-2.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                    <TrendingUp className="w-3.5 h-3.5 text-[var(--ink-green)]" />
+                    <span className="text-xs font-bold text-[var(--ink-green)] uppercase tracking-wider">
                       Order Prediction
                     </span>
                   </div>
@@ -572,10 +572,10 @@ export function LeadRegisterSheet({
                       [formatIQD(estimatedMonthlyRevenue), "per month"],
                     ].map(([value, label]) => (
                       <div key={label}>
-                        <div className="text-xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums break-all">
+                        <div className="text-xl font-black text-[var(--ink-green)] tabular-nums break-all">
                           {value}
                         </div>
-                        <div className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
+                        <div className="text-xs text-[var(--ink-green)]">
                           {label}
                         </div>
                       </div>
@@ -644,7 +644,7 @@ export function LeadRegisterSheet({
                     onClick={() => update("is_online_only", !form.is_online_only)}
                     aria-pressed={form.is_online_only}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all",
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold transition-all",
                       form.is_online_only
                         ? "border-[#A78BFA]/50 bg-[#A78BFA]/10 text-[#A78BFA]"
                         : "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)]/40",
@@ -711,20 +711,20 @@ export function LeadRegisterSheet({
                     {/* Branches — additional physical locations, each with its own phone(s) */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--muted)]">
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)]">
                           <Building2 className="w-3 h-3" /> Branches
                         </label>
                         <button
                           type="button"
                           onClick={addBranch}
-                          className="flex items-center gap-1 text-[11px] font-medium text-[#A78BFA] hover:underline"
+                          className="flex items-center gap-1 text-xs font-medium text-[#A78BFA] hover:underline"
                         >
                           <Plus className="w-3 h-3" /> Add branch
                         </button>
                       </div>
 
                       {form.branches.length === 0 ? (
-                        <p className="text-[11px] text-[var(--muted)] italic">
+                        <p className="text-xs text-[var(--muted)] italic">
                           Single location — the fields above are the main branch. Add more for
                           multi-branch stores.
                         </p>
@@ -746,7 +746,7 @@ export function LeadRegisterSheet({
                                 <button
                                   type="button"
                                   onClick={() => removeBranch(bi)}
-                                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                                   title="Remove branch"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -811,7 +811,7 @@ export function LeadRegisterSheet({
                                         <button
                                           type="button"
                                           onClick={() => removeBranchPhone(bi, pi)}
-                                          className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                          className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </button>
@@ -823,7 +823,7 @@ export function LeadRegisterSheet({
                                   <button
                                     type="button"
                                     onClick={() => addBranchPhone(bi)}
-                                    className="flex items-center gap-1 text-[11px] font-medium text-[#A78BFA] hover:underline"
+                                    className="flex items-center gap-1 text-xs font-medium text-[#A78BFA] hover:underline"
                                   >
                                     <Plus className="w-3 h-3" /> Add number
                                   </button>

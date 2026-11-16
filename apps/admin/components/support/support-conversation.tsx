@@ -34,7 +34,7 @@ import { formatDayTime } from "@/lib/format";
 function ContextChips({ message }: { message: SupportMessageRow }) {
   const { path, orderNumber, errorCode, errorMessage, sentryEventId } = message.context;
   if (!path && !orderNumber && !errorCode && !errorMessage) return null;
-  const chip = "inline-flex max-w-full items-center gap-1 rounded-full bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-foreground/70";
+  const chip = "inline-flex max-w-full items-center gap-1 rounded-full bg-foreground/5 px-2 py-0.5 text-xs font-medium text-foreground/70";
   return (
     <div className="mt-1.5 flex flex-wrap gap-1.5">
       {path && (
@@ -51,7 +51,7 @@ function ContextChips({ message }: { message: SupportMessageRow }) {
       )}
       {(errorCode || errorMessage) && (
         <span
-          className={cn(chip, "bg-red-100 text-red-800")}
+          className={cn(chip, "bg-red-500/15 text-[var(--ink-red)]")}
           title={sentryEventId ? `Sentry event ${sentryEventId}` : "Error they saw"}
         >
           <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -87,12 +87,12 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
   if (message.sender_kind === "system") {
     const solved = message.body === "solved";
     return (
-      <div className="flex items-center justify-center gap-1.5 py-1 text-xs font-medium text-foreground/50">
+      <div className="flex items-center justify-center gap-1.5 py-1 text-xs font-medium text-foreground/70">
         {solved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
         {solved
           ? `Marked solved${message.sender_name ? ` by ${message.sender_name}` : ""}`
           : "Merchant said it is not solved. Reopened."}
-        <span className="text-foreground/30">· {formatDayTime(message.created_at)}</span>
+        <span className="text-foreground/70">· {formatDayTime(message.created_at)}</span>
       </div>
     );
   }
@@ -123,18 +123,18 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
           </a>
         )}
         {message.context.screenshot && !message.screenshot_url && (
-          <p className="mb-1 text-[11px] text-foreground/50">The picture of the screen is no longer stored.</p>
+          <p className="mb-1 text-xs text-foreground/70">The picture of the screen is no longer stored.</p>
         )}
         {message.voice_url && <VoiceNote url={message.voice_url} />}
         {message.context.voice && !message.voice_url && (
-          <p className="mb-1 text-[11px] text-foreground/50">The voice note is no longer stored.</p>
+          <p className="mb-1 text-xs text-foreground/70">The voice note is no longer stored.</p>
         )}
         <p dir="auto" className="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {message.body}
         </p>
       </div>
       {!fromStaff && <ContextChips message={message} />}
-      <span className="mt-1 text-[11px] text-foreground/40">
+      <span className="mt-1 text-xs text-foreground/70">
         {message.sender_name ? `${message.sender_name} · ` : ""}
         {formatDayTime(message.created_at)}
       </span>
@@ -222,7 +222,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
             <button
               type="button"
               onClick={() => setSolving((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-green-600/40 px-3 py-1.5 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100"
+              className="inline-flex items-center gap-1.5 rounded-full border border-green-600/40 px-3 py-1.5 text-xs font-semibold text-[var(--ink-green)] transition-colors hover:bg-green-100"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               Mark solved
@@ -269,7 +269,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
           <MessageLine key={message.id} message={message} />
         ))}
         {isSolved && supportCase.rating && (
-          <p className="py-1 text-center text-xs font-medium text-foreground/50">
+          <p className="py-1 text-center text-xs font-medium text-foreground/70">
             {supportCase.rating === "yes" ? "Merchant confirmed: solved." : "Merchant said: not solved."}
           </p>
         )}
@@ -298,7 +298,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
                     }),
                   )
                 }
-                className="rounded-full border border-[var(--card-border)] px-2.5 py-1 text-[11px] font-medium text-foreground/70 transition-colors hover:bg-foreground/5"
+                className="rounded-full border border-[var(--card-border)] px-2.5 py-1 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5"
               >
                 {saved.title}
               </button>
@@ -306,7 +306,7 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
             <button
               type="button"
               onClick={() => setEditingReplies(true)}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
               <Pencil className="h-3 w-3" />
               Edit replies

@@ -11,7 +11,7 @@ export function PanelTitle({ children, aside }: { children: ReactNode; aside?: R
   return (
     <div className="mb-3 flex items-baseline justify-between gap-3">
       <p className="text-[15px] font-semibold text-foreground">{children}</p>
-      {aside && <p className="text-[13px] text-foreground/60 tabular-nums">{aside}</p>}
+      {aside && <p className="text-[13px] text-foreground/70 tabular-nums">{aside}</p>}
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function ConfirmButton({
 export function ErrorLine({ error }: { error: Error | null }) {
   if (!error) return null;
   return (
-    <p role="alert" className="mb-2 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+    <p role="alert" className="mb-2 text-[13px] font-medium text-[var(--ink-red)]">
       {error.message}
     </p>
   );

@@ -2,8 +2,8 @@ import { CALL_OUTCOME_LABELS, formatAgo, type SupportCall } from "@/lib/support"
 import { cn } from "@/lib/utils";
 
 const OUTCOME_TONE: Record<SupportCall["outcome"], string> = {
-  done: "bg-emerald-100 text-emerald-900",
-  no_answer: "bg-amber-100 text-amber-900",
+  done: "bg-emerald-500/15 text-[var(--ink-green)]",
+  no_answer: "bg-amber-500/15 text-[var(--ink-amber)]",
   later: "bg-foreground/5 text-foreground-muted",
 };
 
@@ -14,7 +14,7 @@ export function SupportCallList({ calls, now }: { calls: SupportCall[]; now: num
       {calls.map((call) => (
         <li key={`${call.created_at}-${call.admin_name}`} className="text-[13px]">
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", OUTCOME_TONE[call.outcome])}>
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", OUTCOME_TONE[call.outcome])}>
               {CALL_OUTCOME_LABELS[call.outcome]}
             </span>
             <span dir="auto" className="font-medium text-foreground">

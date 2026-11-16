@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import { useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
-import { usePageHeader } from "@/store/use-page-header";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
@@ -39,17 +38,6 @@ export function LeadsMobileView() {
 
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
   const total = data?.pages[0]?.total ?? 0;
-
-  // Publish the page header (title + live count) to the global topbar.
-  const setPageHeader = usePageHeader((s) => s.setHeader);
-  const clearPageHeader = usePageHeader((s) => s.clearHeader);
-  useEffect(() => {
-    setPageHeader({
-      title: "Leads",
-      subtitle: `${total.toLocaleString()} ${total === 1 ? "lead" : "leads"} in the pipeline`,
-    });
-    return () => clearPageHeader();
-  }, [total, setPageHeader, clearPageHeader]);
 
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } =
     useLeadStore();
@@ -90,7 +78,12 @@ export function LeadsMobileView() {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      {/* Title + count live in the global topbar (see usePageHeader) */}
+      <div>
+        <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
+        <p className="text-[13px] text-foreground/70">
+          {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+        </p>
+      </div>
 
       {/* Sticky search */}
       <div className="sticky top-0 z-20 -mx-4 bg-[var(--background)]/85 px-4 py-2 backdrop-blur">
@@ -147,7 +140,7 @@ export function LeadsMobileView() {
                 style={
                   isActive
                     ? {
-                        backgroundColor: `${ui.solid}26`,
+                        backgroundColor: ui.strong,
                         borderColor: ui.solid,
                         color: ui.solid,
                       }
@@ -169,7 +162,7 @@ export function LeadsMobileView() {
       {/* List area */}
       {isError ? (
         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-          <AlertTriangle className="h-8 w-8 text-red-400" />
+          <AlertTriangle className="h-8 w-8 text-[var(--ink-red)]" />
           <p className="text-sm font-semibold text-[var(--foreground)]">
             Failed to load leads
           </p>
@@ -192,7 +185,7 @@ export function LeadsMobileView() {
         </div>
       ) : leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF8899]/15 to-[#A78BFA]/15">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/[0.05]">
             <UserPlus className="h-7 w-7 text-[#FF8899]" />
           </div>
           <p className="text-sm font-bold text-[var(--foreground)]">
@@ -201,7 +194,7 @@ export function LeadsMobileView() {
           <button
             type="button"
             onClick={() => setRegisterOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:brightness-105"
+            className="flex items-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm transition-all hover:opacity-90"
           >
             <UserPlus className="h-4 w-4" />
             Add Lead
@@ -243,7 +236,7 @@ export function LeadsMobileView() {
       <button
         type="button"
         onClick={() => setRegisterOpen(true)}
-        className="fixed bottom-6 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF8899] to-[#A78BFA] text-white shadow-lg active:scale-95 transition-transform"
+        className="fixed bottom-6 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background shadow-lg active:scale-95 transition-transform"
         aria-label="Add lead"
       >
         <Plus className="h-7 w-7" />

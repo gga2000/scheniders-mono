@@ -122,7 +122,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-2xl overflow-hidden">
               {/* Search Input */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--card-border)]">
-                <Search className="w-4 h-4 text-foreground/40 shrink-0" />
+                <Search className="w-4 h-4 text-foreground/70 shrink-0" />
                 <input
                   ref={inputRef}
                   value={query}
@@ -131,7 +131,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   placeholder="Search pages, merchants, actions..."
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground/40 outline-none"
                 />
-                <kbd className="text-[10px] text-foreground/30 bg-foreground/5 px-1.5 py-0.5 rounded font-mono">
+                <kbd className="text-xs text-foreground/70 bg-foreground/5 px-1.5 py-0.5 rounded font-mono">
                   ESC
                 </kbd>
               </div>
@@ -139,7 +139,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               {/* Results */}
               <div className="max-h-[300px] overflow-y-auto py-2">
                 {filtered.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-sm text-foreground/40">
+                  <div className="px-4 py-8 text-center text-sm text-foreground/70">
                     No results found
                   </div>
                 ) : (
@@ -154,17 +154,17 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                           : "text-foreground/70 hover:bg-foreground/[0.02]"
                       }`}
                     >
-                      <span className="text-foreground/50">{item.icon}</span>
+                      <span className="text-foreground/70">{item.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.label}</p>
                         {item.sublabel && (
-                          <p className="text-[11px] text-foreground/40 truncate">
+                          <p className="text-xs text-foreground/70 truncate">
                             {item.sublabel}
                           </p>
                         )}
                       </div>
                       {i === selectedIndex && (
-                        <ArrowRight className="w-3.5 h-3.5 text-foreground/30 shrink-0" />
+                        <ArrowRight className="w-3.5 h-3.5 text-foreground/70 shrink-0" />
                       )}
                     </button>
                   ))
@@ -173,7 +173,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
               {/* Footer */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--card-border)] bg-foreground/[0.02]">
-                <div className="flex items-center gap-2 text-[10px] text-foreground/30">
+                <div className="flex items-center gap-2 text-xs text-foreground/70">
                   <span>Navigate</span>
                   <kbd className="bg-foreground/5 px-1 py-0.5 rounded font-mono">↑↓</kbd>
                   <span>Select</span>

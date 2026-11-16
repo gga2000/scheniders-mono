@@ -1,22 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatCount, formatIQD } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import {
   LEAD_STATUS_CONFIG,
+  LEAD_STATUS_UI,
   LEAD_TIER_CONFIG,
+  LEAD_TIER_UI,
   PLATFORM_CONFIG,
 } from "@/types/leads";
 import type { LeadStatus, LeadTier } from "@/types/leads";
 import {
-  ArrowLeft,
   BarChart3,
-  Users,
-  TrendingUp,
-  Clock,
-  DollarSign,
   Medal,
 } from "lucide-react";
 
@@ -106,26 +103,11 @@ export default function LeadAnalyticsPage() {
   const { data, isLoading } = useLeadAnalytics();
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/leads"
-          className="w-9 h-9 rounded-xl border border-[var(--card-border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#60A5FA]/20 to-[#A78BFA]/20 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-[#60A5FA]" />
-            </div>
-            Lead Analytics
-          </h1>
-          <p className="text-sm text-[var(--muted)] mt-1">
-            Pipeline insights and performance metrics
-          </p>
-        </div>
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header: the menu calls this page Lead numbers (board n3, one name). */}
+      <div>
+        <h1 className="text-[22px] font-semibold text-foreground">Lead numbers</h1>
+        <p className="text-xs text-foreground/70">Every lead together: where they stand, where they came from, how many became shops.</p>
       </div>
 
       {/* Content */}
@@ -174,40 +156,16 @@ function AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      {/* ── KPI Cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          label="Total Leads"
-          value={data.total_leads.toLocaleString()}
-          icon={<Users className="w-5 h-5" />}
-          iconColor="#60A5FA"
-          iconBg="rgba(96,165,250,0.15)"
-        />
-        <KpiCard
-          label="Conversion Rate"
-          value={`${data.conversion_rate.toFixed(1)}%`}
-          icon={<TrendingUp className="w-5 h-5" />}
-          iconColor="#34D399"
-          iconBg="rgba(52,211,153,0.15)"
-          valueColor="#34D399"
-        />
-        <KpiCard
-          label="Avg Time to Convert"
+      {/* ── Headline numbers, one surface (board v6) ───────────── */}
+      <NumberStrip columns={4} label="Lead numbers">
+        <NumberCell label="Leads, now" value={formatCount(data.total_leads)} />
+        <NumberCell label="Became a shop, all time" value={`${data.conversion_rate.toFixed(1)}%`} note="of all leads" />
+        <NumberCell
+          label="Days from lead to shop, average"
           value={`${data.avg_time_to_convert_days.toFixed(1)} days`}
-          icon={<Clock className="w-5 h-5" />}
-          iconColor="#60A5FA"
-          iconBg="rgba(96,165,250,0.15)"
-          valueColor="#60A5FA"
         />
-        <KpiCard
-          label="Total Est. Revenue"
-          value={formatIQD(data.total_estimated_revenue)}
-          icon={<DollarSign className="w-5 h-5" />}
-          iconColor="#A78BFA"
-          iconBg="rgba(167,139,250,0.15)"
-          valueColor="#A78BFA"
-        />
-      </div>
+        <NumberCell label="Est. revenue, all leads" value={formatIQD(data.total_estimated_revenue)} />
+      </NumberStrip>
 
       {/* ── Pipeline Funnel ──────────────────────────────────────── */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6">
@@ -218,7 +176,6 @@ function AnalyticsDashboard({
           {STATUS_ORDER.map((status) => {
             const count = data.by_status[status] ?? 0;
             const cfg = LEAD_STATUS_CONFIG[status];
-            const widthPct = Math.max((count / maxStatus) * 100, 8);
 
             return (
               <div key={status} className="flex-1 flex flex-col items-center gap-2">
@@ -229,14 +186,10 @@ function AnalyticsDashboard({
                   className="w-full rounded-lg transition-all"
                   style={{
                     height: `${Math.max((count / maxStatus) * 120, 12)}px`,
-                    backgroundColor: cfg.color,
-                    opacity: 0.85,
+                    backgroundColor: LEAD_STATUS_UI[status].solid,
                   }}
                 />
-                <span
-                  className="text-[11px] font-semibold text-center leading-tight"
-                  style={{ color: cfg.color }}
-                >
+                <span className="text-xs font-semibold text-center leading-tight text-foreground/70">
                   {cfg.label}
                 </span>
               </div>
@@ -306,11 +259,11 @@ function AnalyticsDashboard({
                   return (
                     <div
                       key={tier}
-                      className="h-full flex items-center justify-center text-[10px] font-bold transition-all"
+                      className="h-full flex items-center justify-center text-xs font-bold transition-all"
                       style={{
                         width: `${pct}%`,
-                        backgroundColor: cfg.color,
-                        color: tier === "bronze" || tier === "gold" || tier === "legendary" ? "#000" : "#fff",
+                        backgroundColor: LEAD_TIER_UI[tier].strong,
+                        color: LEAD_TIER_UI[tier].solid,
                         minWidth: count > 0 ? "28px" : 0,
                       }}
                       title={`${cfg.label}: ${count}`}
@@ -335,7 +288,7 @@ function AnalyticsDashboard({
                       <div className="flex items-center gap-2">
                         <div
                           className="w-3 h-3 rounded-sm"
-                          style={{ backgroundColor: cfg.color }}
+                          style={{ backgroundColor: LEAD_TIER_UI[tier].solid }}
                         />
                         <span className="text-xs font-medium text-[var(--foreground)]">
                           {cfg.label}
@@ -390,7 +343,7 @@ function AnalyticsDashboard({
                   <span className="text-xs font-bold text-[var(--foreground)] w-8 text-right">
                     {entry.count}
                   </span>
-                  <span className="text-[11px] text-[var(--muted)] w-12 text-right">
+                  <span className="text-xs text-[var(--muted)] w-12 text-right">
                     {pct}%
                   </span>
                 </div>
@@ -447,7 +400,7 @@ function AnalyticsDashboard({
                     title={`Converted: ${month.converted}`}
                   />
                 </div>
-                <span className="text-[10px] text-[var(--muted)] font-medium mt-1 truncate w-full text-center">
+                <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center">
                   {formatMonth(month.month)}
                 </span>
               </div>
@@ -511,7 +464,7 @@ function AnalyticsDashboard({
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#A78BFA] flex items-center justify-center text-xs font-bold text-white">
+                        <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center text-xs font-bold text-foreground">
                           {(emp.display_name ?? "?").charAt(0).toUpperCase()}
                         </div>
                         <span className="font-semibold text-[var(--foreground)]">
@@ -523,12 +476,12 @@ function AnalyticsDashboard({
                       {emp.leads_added}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <span className="font-bold text-[#34D399]">
+                      <span className="font-bold text-[var(--ink-green)]">
                         {emp.leads_converted}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <span className="font-semibold text-[#A78BFA]">
+                      <span className="font-semibold text-[var(--ink-violet)]">
                         {formatIQD(emp.commission_earned)}
                       </span>
                     </td>
@@ -543,44 +496,6 @@ function AnalyticsDashboard({
             </p>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ── KPI Card component ────────────────────────────────────────────────
-
-function KpiCard({
-  label,
-  value,
-  icon,
-  iconColor,
-  iconBg,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  iconColor: string;
-  iconBg: string;
-  valueColor?: string;
-}) {
-  return (
-    <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 flex items-start gap-4">
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ backgroundColor: iconBg, color: iconColor }}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-[var(--muted)] mb-1">{label}</p>
-        <p
-          className="text-xl font-bold truncate"
-          style={{ color: valueColor ?? "var(--foreground)" }}
-        >
-          {value}
-        </p>
       </div>
     </div>
   );

@@ -95,7 +95,7 @@ export function PlatformChip({
     <span
       className={cn(
         "inline-flex items-center rounded-full font-medium text-[var(--foreground)] bg-black/[0.04] dark:bg-white/[0.06] ring-1 ring-inset ring-black/[0.05] dark:ring-white/[0.06]",
-        sm ? "h-5 gap-1 px-2 text-[10px]" : "h-6 gap-1.5 px-2.5 text-[11px]",
+        sm ? "h-5 gap-1 px-2 text-xs" : "h-6 gap-1.5 px-2.5 text-xs",
       )}
     >
       <span className="inline-flex shrink-0" style={{ color: meta.color }}>
@@ -146,7 +146,7 @@ export function IndustryChip({
     <span
       className={cn(
         "inline-flex items-center whitespace-nowrap rounded-full font-medium text-[var(--foreground)]",
-        sm ? "h-5 gap-1 pl-0.5 pr-2 text-[10px]" : "h-6 gap-1.5 pl-1 pr-2.5 text-[11px]",
+        sm ? "h-5 gap-1 pl-0.5 pr-2 text-xs" : "h-6 gap-1.5 pl-1 pr-2.5 text-xs",
       )}
       style={{ backgroundColor: `${color}14`, boxShadow: `inset 0 0 0 1px ${color}3d` }}
     >
@@ -180,7 +180,7 @@ export function TierChip({ tier, size = "md" }: { tier: LeadTier; size?: "sm" | 
     <span
       className={cn(
         "inline-flex items-center whitespace-nowrap rounded-full font-bold",
-        sm ? "h-5 gap-1 px-2 text-[10px]" : "h-6 gap-1.5 px-2.5 text-[11px]",
+        sm ? "h-5 gap-1 px-2 text-xs" : "h-6 gap-1.5 px-2.5 text-xs",
       )}
       style={{ backgroundColor: ui.soft, color: ui.solid }}
     >

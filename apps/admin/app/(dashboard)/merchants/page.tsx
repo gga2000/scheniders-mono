@@ -20,6 +20,7 @@ import { Choice } from "@/components/merchants/detail/action-ui";
 import { ExportButton } from "@/components/shared/export-button";
 import { LoadError } from "@/components/shared/load-error";
 import { formatCount } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const SORT_WORDS: Record<ListSort, string> = {
   "created:desc": "Newest first.",
@@ -88,7 +89,7 @@ function MerchantsList() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Merchants</h1>
-          <p className="text-[13px] text-foreground/60">
+          <p className="text-[13px] text-foreground/70">
             {counts.data ? `${formatCount(counts.data.all)} ${counts.data.all === 1 ? "shop" : "shops"}. ` : ""}
             {SORT_WORDS[sort]}
           </p>
@@ -96,7 +97,7 @@ function MerchantsList() {
         <div className="flex items-center gap-2">
           <label className="relative block">
             <span className="sr-only">Find a shop</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" aria-hidden />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/70" aria-hidden />
             <input
               type="search"
               value={typed}
@@ -109,7 +110,7 @@ function MerchantsList() {
                 type="button"
                 onClick={() => onType("")}
                 aria-label="Clear the search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-foreground/50 hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-foreground/70 hover:text-foreground"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
@@ -129,7 +130,7 @@ function MerchantsList() {
       </div>
 
       {list.isLoading ? (
-        <p className="flex items-center gap-2 py-10 text-[13px] text-foreground/60">
+        <p className="flex items-center gap-2 py-10 text-[13px] text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Loading the shops...
         </p>
@@ -152,9 +153,11 @@ function MerchantsList() {
         </div>
       ) : (
         <>
-          <MerchantTable merchants={list.merchants} sort={sort} onSort={(next) => setParam("sort", next === DEFAULT_LIST_SORT ? null : next)} />
+          <div aria-busy={list.isPlaceholderData} className={cn("transition-opacity", list.isPlaceholderData && "opacity-60")}>
+            <MerchantTable merchants={list.merchants} sort={sort} onSort={(next) => setParam("sort", next === DEFAULT_LIST_SORT ? null : next)} />
+          </div>
           <div className="flex items-center gap-3">
-            <p className="text-[13px] text-foreground/60">
+            <p className="text-[13px] text-foreground/70">
               {formatCount(list.merchants.length)} of {formatCount(list.total)} shops shown.
             </p>
             {list.hasNextPage && (

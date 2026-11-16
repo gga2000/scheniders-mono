@@ -4,6 +4,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import type { Lead } from "@/types/leads";
 import { useLeadStore } from "@/store/use-lead-store";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 interface LeadsPage { leads: Lead[]; total: number; page: number; limit: number; }
 
@@ -37,7 +38,7 @@ export function useInfiniteLeads() {
       if (searchQuery) params.set("search", searchQuery);
       if (sortBy) params.set("sort", sortBy);
       const res = await adminFetch(`/api/leads?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch leads");
+      okOrLoadFailure(res, "leads");
       return res.json();
     },
     getNextPageParam: (lastPage) => {

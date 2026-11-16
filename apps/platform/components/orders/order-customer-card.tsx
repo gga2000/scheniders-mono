@@ -7,7 +7,7 @@ import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { GovernorateOptions } from "./governorate-options";
 import { PrimeDistrictField } from "./prime-district-field";
 import { readPrimeDistrict } from "@/lib/prime/district";
-import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
+import { getAllGovernorateCodes } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
@@ -19,7 +19,7 @@ import type { OrderStatus } from "@/lib/supabase";
 import type { Order, OrderSource } from "@/types/order";
 import { SourceBadge } from "./card/source-badge";
 import { isWhatsAppSlot, swapPhones, type WhatsAppSlot } from "@/lib/whatsapp-contact";
-import { formatOrderDateTime, formatOrderDayMonthTime, formatScheduledDate, isScheduledToday, scheduleDayFromToday } from "@/lib/order-format-utils";
+import { formatOrderNamedDateTime, formatScheduledDate, isScheduledToday, scheduleDayFromToday } from "@/lib/order-format-utils";
 
 /**
  * "The customer told us to reach them here." Green + the WhatsApp glyph so it
@@ -92,6 +92,9 @@ interface OrderCustomerCardProps {
      */
     onContactRecorded?: (orderId: string) => void;
 }
+
+/** A saved fact outside editing: plain text, so it does not read as a form field. */
+const FACT = "min-h-[28px] flex items-center";
 
 /** Sources a merchant picks by hand when editing; the order's own source is always listed too. */
 const PICKABLE_SOURCES: readonly OrderSource[] = ["whatsapp", "lightfunnels", "meta", "tiktok", "delivery_import", "shop", "other"];
@@ -211,8 +214,8 @@ export function OrderCustomerCard({
             </div>
 
             <div className="p-4 grid gap-4">
-                {/* Row 1: Name, Governorate, Governorate Code - 3 equal columns */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Row 1: Name, Governorate, and the governorate code while editing */}
+                <div className={cn("grid grid-cols-1 gap-3", isEditing ? "md:grid-cols-3" : "md:grid-cols-2")}>
                     {/* Name */}
                     <div>
                         <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.name")}</span>
@@ -223,7 +226,7 @@ export function OrderCustomerCard({
                                 className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                             />
                         ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div className={FACT}>
                                 <p className="text-sm font-medium text-foreground">{order.customer_name}</p>
                             </div>
                         )}
@@ -253,27 +256,29 @@ export function OrderCustomerCard({
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div className={FACT}>
                                 <p className="text-sm font-medium text-foreground">{order.city || "—"}</p>
                             </div>
                         )}
                     </div>
-                    {/* Governorate Code */}
-                    <div>
-                        <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.provinceCode")}</span>
-                        {isEditing ? (
+                    {/* The governorate the courier routes to (stored as its code), named, for fixing a mismatch with the one above */}
+                    {isEditing && (
+                        <div>
+                            <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.provinceCode")}</span>
                             <div className="relative">
                                 <select
                                     value={(displayValue("governorate_code") || "") as string}
                                     onChange={(e) => {
                                         updateFormData("governorate_code", e.target.value);
                                     }}
-                                    className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                    className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                 >
                                     <option value="">{t("orderDetail.noCode")}</option>
                                     {governorates.map((gov) => (
+                                        // The governorate by its own name; the courier code stays the stored value only
+                                        // (round 16 critic: «KOT - واسط» in an Arabic window).
                                         <option key={gov.code} value={gov.code}>
-                                            {gov.code} - {gov.nameAr}
+                                            {language === "ar" ? gov.nameAr : gov.nameEn}
                                         </option>
                                     ))}
                                 </select>
@@ -281,23 +286,8 @@ export function OrderCustomerCard({
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
-                                <p className="text-sm font-medium text-foreground font-mono">
-                                    {(() => {
-                                        const code = order.governorate_code || order.validated_governorate_code;
-                                        if (code) return code;
-                                        // If not stored, extract from city
-                                        if (order.city) {
-                                            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
-                                            if (governorate?.code) return governorate.code;
-                                        }
-                                        return <span className="text-muted">—</span>;
-                                    })()}
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Row 2: Full Address */}
@@ -320,7 +310,7 @@ export function OrderCustomerCard({
                             className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--card-border)] resize-none"
                         />
                     ) : (
-                        <p className="text-sm font-medium text-foreground bg-[var(--background)] border border-[var(--card-border)] px-3 py-2.5 rounded-lg leading-relaxed min-h-[38px] flex items-center">
+                        <p className={cn("text-sm font-medium leading-relaxed", FACT, order.address_details ? "text-foreground" : "text-muted")}>
                             {order.address_details || t("orderDetail.noAddress")}
                         </p>
                     )}
@@ -406,10 +396,7 @@ export function OrderCustomerCard({
                                     )}
                                 </div>
                             ) : (
-                                <div className={cn(
-                                    "flex-1 h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg",
-                                    !validatePhoneDetailed(order.phone).isValid && "border-red-200 bg-red-50"
-                                )}>
+                                <div className={cn("flex-1", FACT)}>
                                     <span
                                         className={cn(
                                             "font-mono text-sm font-medium text-foreground",
@@ -436,7 +423,7 @@ export function OrderCustomerCard({
                                 className={cn(
                                     "w-9 h-9 rounded-lg transition-all flex items-center justify-center flex-shrink-0",
                                     validatePhoneDetailed(order.phone).isValid
-                                        ? "bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)]"
+                                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400"
                                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                 )}
                                 title={validatePhoneDetailed(order.phone).isValid ? t("orderDetail.whatsApp") : validatePhoneDetailed(order.phone).errorMessageAr}
@@ -445,82 +432,81 @@ export function OrderCustomerCard({
                             </button>
                         </div>
                     </div>
-                    {/* Secondary Phone */}
-                    <div>
-                        <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
-                            <Phone className="w-3 h-3" />
-                            {t("orderDetail.secondaryPhone")}
-                            {slotKnown && isWhatsAppSlot(currentPhones, "secondary") && <WhatsAppBadge label={t("orders.phone.whatsappBadge")} />}
-                            {!isEditing && order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && (
-                                <span className="relative flex h-2.5 w-2.5 ml-1">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-                                </span>
-                            )}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            {isEditing ? (
-                                <div className="flex-1 relative">
-                                    <input
-                                        {...secondaryPhoneInput}
-                                        inputMode="tel"
-                                        dir="ltr"
-                                        placeholder={t("orderDetail.optional")}
-                                        className={cn(
-                                            "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
-                                            (displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid
-                                                ? "border-red-300 focus:ring-red-200"
-                                                : "border-[var(--card-border)] focus:ring-[var(--card-border)]"
-                                        )}
-                                    />
-                                    {(displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid && (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
-                                            <span className="relative flex h-2.5 w-2.5">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-                                            </span>
-                                            <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                                {validatePhoneDetailed(displayValue("secondary_phone") as string).errorMessageAr}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className={cn(
-                                    "flex-1 h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg",
-                                    order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "border-red-200 bg-red-50"
-                                )}>
-                                    <span
-                                        className={cn(
-                                            "font-mono text-sm font-medium text-foreground",
-                                            order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
-                                        )}
-                                        dir="ltr"
-                                    >
-                                        {formatPhoneGrouped(order.secondary_phone) || "—"}
+                    {/* Secondary Phone: left out of the plain view when there is none */}
+                    {(isEditing || order.secondary_phone) && (
+                        <div>
+                            <span className="text-xs text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                                <Phone className="w-3 h-3" />
+                                {t("orderDetail.secondaryPhone")}
+                                {slotKnown && isWhatsAppSlot(currentPhones, "secondary") && <WhatsAppBadge label={t("orders.phone.whatsappBadge")} />}
+                                {!isEditing && order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && (
+                                    <span className="relative flex h-2.5 w-2.5 ml-1">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                                     </span>
-                                </div>
-                            )}
-                            {isEditing && slotKnown && (
-                                <DesignateWhatsAppButton
-                                    active={isWhatsAppSlot(currentPhones, "secondary")}
-                                    disabled={!currentPhones.secondary_phone.trim()}
-                                    onClick={() => handleDesignateWhatsApp("secondary")}
-                                    title={designateTitle("secondary")}
-                                />
-                            )}
-                            {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
-                                <button
-                                    type="button"
-                                    onClick={handleSecondaryWhatsApp}
-                                    className="w-9 h-9 rounded-lg bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all flex items-center justify-center flex-shrink-0"
-                                    title={t("orderDetail.whatsApp")}
-                                >
-                                    <MessageCircle className="h-4 w-4" />
-                                </button>
-                            )}
+                                )}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                {isEditing ? (
+                                    <div className="flex-1 relative">
+                                        <input
+                                            {...secondaryPhoneInput}
+                                            inputMode="tel"
+                                            dir="ltr"
+                                            placeholder={t("orderDetail.optional")}
+                                            className={cn(
+                                                "w-full h-[38px] px-3 bg-[var(--background)] border rounded-lg text-foreground font-mono focus:outline-none focus:ring-2",
+                                                (displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid
+                                                    ? "border-red-300 focus:ring-red-200"
+                                                    : "border-[var(--card-border)] focus:ring-[var(--card-border)]"
+                                            )}
+                                        />
+                                        {(displayValue("secondary_phone") as string) && !validatePhoneDetailed(displayValue("secondary_phone") as string).isValid && (
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 group">
+                                                <span className="relative flex h-2.5 w-2.5">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                                </span>
+                                                <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                                    {validatePhoneDetailed(displayValue("secondary_phone") as string).errorMessageAr}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className={cn("flex-1", FACT)}>
+                                        <span
+                                            className={cn(
+                                                "font-mono text-sm font-medium text-foreground",
+                                                order.secondary_phone && !validatePhoneDetailed(order.secondary_phone).isValid && "text-red-600"
+                                            )}
+                                            dir="ltr"
+                                        >
+                                            {formatPhoneGrouped(order.secondary_phone) || "—"}
+                                        </span>
+                                    </div>
+                                )}
+                                {isEditing && slotKnown && (
+                                    <DesignateWhatsAppButton
+                                        active={isWhatsAppSlot(currentPhones, "secondary")}
+                                        disabled={!currentPhones.secondary_phone.trim()}
+                                        onClick={() => handleDesignateWhatsApp("secondary")}
+                                        title={designateTitle("secondary")}
+                                    />
+                                )}
+                                {order.secondary_phone && validatePhoneDetailed(order.secondary_phone).isValid && (
+                                    <button
+                                        type="button"
+                                        onClick={handleSecondaryWhatsApp}
+                                        className="w-9 h-9 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 transition-all flex items-center justify-center flex-shrink-0"
+                                        title={t("orderDetail.whatsApp")}
+                                    >
+                                        <MessageCircle className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* View mode has no inputs, so offer the one-click way in. */}
                     {!isEditing && slotKnown && onRequestEdit && !order.whatsapp_contact_slot && (
@@ -571,10 +557,9 @@ export function OrderCustomerCard({
                             </>
                         ) : (
                             <div className={cn(
-                                "min-h-[38px] py-1 flex flex-col justify-center px-3 rounded-lg transition-all",
+                                "min-h-[28px] flex flex-col justify-center rounded-lg",
                                 order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime()
-                                    ? "bg-amber-50/60 border border-amber-200/80 border-l-[3px] border-l-amber-400"
-                                    : "bg-[var(--background)] border border-[var(--card-border)]"
+                                    && "py-1 px-3 bg-amber-50/60 border border-amber-200/80 border-l-[3px] border-l-amber-400"
                             )}>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className={cn(
@@ -583,7 +568,8 @@ export function OrderCustomerCard({
                                             ? "text-amber-900 font-semibold"
                                             : "text-foreground"
                                     )}>
-                                        {formatOrderDateTime(order.created_at, language)}
+                                        {/* Isolated in the page's direction, so an Arabic date reads day first: «14 تشرين الثاني · 07:01 ص» */}
+                                        <bdi dir={dir}>{formatOrderNamedDateTime(order.created_at, language)}</bdi>
                                     </span>
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
@@ -592,7 +578,7 @@ export function OrderCustomerCard({
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">{t("orders.ui.wasLower")}</span>
-                                            {formatOrderDayMonthTime(order.original_created_at, language)}
+                                            <bdi dir={dir}>{formatOrderNamedDateTime(order.original_created_at, language)}</bdi>
                                         </span>
                                     )}
                                 </div>
@@ -614,7 +600,7 @@ export function OrderCustomerCard({
                                 className="w-full h-[38px] px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                             />
                         ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div className={FACT}>
                                 <span className="font-mono text-sm text-foreground">
                                     {order.delivery_order_id || <span className="text-muted">{t("orderDetail.notSet")}</span>}
                                 </span>
@@ -646,7 +632,7 @@ export function OrderCustomerCard({
                             // The same chip as the order's card, so the two never
                             // disagree; sources the card shows no chip for get
                             // their shared name (reports.source.name.*).
-                            <div data-testid="order-source" className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div data-testid="order-source" className={FACT}>
                                 <SourceBadge source={order.source || "other"} fallback={
                                     <span className="text-sm font-medium">{t(`reports.source.name.${order.source || "other"}`, order.source || "other")}</span>
                                 } />
@@ -681,7 +667,7 @@ export function OrderCustomerCard({
                                 ))}
                             </div>
                         ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div className={FACT}>
                                 <span className={cn(
                                     "px-2.5 py-1 rounded-full text-xs font-semibold",
                                     order.payment_status === "prepaid" ? "bg-emerald-100 text-emerald-800" :
@@ -707,7 +693,7 @@ export function OrderCustomerCard({
                                 onChange={(slot) => updateFormData("delivery_slot", slot ?? null)}
                             />
                         ) : (
-                            <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                            <div className={FACT}>
                                 <span className="text-sm text-foreground font-medium">
                                     {(() => {
                                         const slot = parseDeliverySlot(order.delivery_slot);
@@ -775,7 +761,7 @@ export function OrderCustomerCard({
                             </div>
                         </div>
                     ) : (
-                        <div className="min-h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
+                        <div className={FACT}>
                             {scheduledDate ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
                                     <Calendar className="w-3 h-3" />

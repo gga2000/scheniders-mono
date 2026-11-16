@@ -1,21 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, FileUp } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
+import { COURIER_PAYMENTS_ID } from "./courier-payments";
 import { CARD_LINK, SummaryCard } from "./summary-card";
-import { UnpaidOrders } from "./unpaid-orders";
+import { UNPAID_LIST_CAP, UnpaidOrders } from "./unpaid-orders";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
     /** The statement's Delivery line: it also counts what this card leaves out (returned parcels, courier bills). */
     delivery: CostLine;
-    /** Opens the courier payment file import: how an unpaid order becomes paid. */
-    onAddPayment: () => void;
 }
 
 /** Your money, not in your hand yet: the green of "reached you", striped. */
@@ -62,17 +61,22 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
  * delivery fee itself, and what the courier or Prime has not paid yet. The
  * three add up to the sales to the dinar, so nothing looks missing. Parcels
  * still on the road sit under a line, because they are not sales yet. The
- * courier payments dated in the period are a quiet caption: a payment file can
- * pay for orders of an earlier period, so that figure never matches the sales.
- * Stuck parcels are not repeated here: the strip and the banner above carry them.
+ * courier payments dated in the period have their own card (CourierPayments):
+ * a payment file can pay for orders of an earlier period. Stuck parcels are not repeated here: the strip and the banner above carry them.
  */
-export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps) {
+export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, returning, reached: payments, split } = summary.cash;
+    const { in_transit: road, returning, split } = summary.cash;
     const { orders, revenue } = summary.sales;
-    const courierOnly = split.unpaid_orders - split.unpaid_prime;
+    // The note counts the orders that still owe money, as the list under it names them; orders that
+    // owe nothing after the fee get their own line there. A full list (or none) falls back to all.
+    const listed = summary.cash.unpaid_list;
+    const named = listed.length > 0 && listed.length < UNPAID_LIST_CAP;
+    const owedOrders = named ? listed.length : split.unpaid_orders;
+    const owedPrime = named ? listed.filter((order) => order.prime).length : split.unpaid_prime;
+    const courierOnly = owedOrders - owedPrime;
     const sold = orders > 0;
     const onRoad = road.count > 0 || returning.count > 0;
 
@@ -80,15 +84,15 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
     const unpaidNote =
         split.unpaid_orders === 0
             ? t("fin.money.unpaid.none")
-            : split.unpaid_prime > 0 && courierOnly > 0
+            : owedPrime > 0 && courierOnly > 0
               ? t("fin.money.unpaid.both", {
-                    n: formatWhole(split.unpaid_orders),
-                    count: split.unpaid_orders,
-                    prime: formatWhole(split.unpaid_prime),
+                    n: formatWhole(owedOrders),
+                    count: owedOrders,
+                    prime: formatWhole(owedPrime),
                     courier: formatWhole(courierOnly),
                 })
-              : split.unpaid_prime > 0
-                ? t("fin.money.unpaid.prime", { n: formatWhole(split.unpaid_prime), count: split.unpaid_prime })
+              : owedPrime > 0
+                ? t("fin.money.unpaid.prime", { n: formatWhole(owedPrime), count: owedPrime })
                 : t("fin.money.unpaid.courier", { n: formatWhole(courierOnly), count: courierOnly });
     // The statement's Delivery line adds the fee on parcels that came back and the courier bills:
     // say so here, so the two delivery figures on the page never look like they disagree.
@@ -102,31 +106,25 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                   total: money(delivery.amount),
                   extra: money(returnedFee + bills),
               });
-    const paymentsNote =
-        payments.payments === 0
-            ? t("fin.money.payments.none")
-            : payments.payments === 1
-              ? t("fin.money.payments.one", { amount: money(payments.amount) })
-              : t("fin.money.payments", { n: formatWhole(payments.payments), count: payments.payments, amount: money(payments.amount) });
-    // "Paid to you" by the date of the statement that paid it, listed under it so the parts visibly
-    // add up; the footer then says why the period's payments differ from the part they paid.
-    const fromElsewhere = split.reached_before > 0 || split.reached_other > 0;
+    // "Paid to you" by where its money came from, listed under it so the parts visibly add up.
+    const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
         ? [
-              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now },
-              { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before },
-              { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other },
+              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now, href: `#${COURIER_PAYMENTS_ID}` },
+              { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before, href: null },
+              {
+                  key: "prepaid",
+                  label:
+                      split.reached_prepaid_orders > 0
+                          ? t("fin.money.from.prepaid", { n: formatWhole(split.reached_prepaid_orders), count: split.reached_prepaid_orders })
+                          : t("fin.money.from.prepaidPlain"),
+                  note: null,
+                  amount: split.reached_prepaid,
+                  href: null,
+              },
+              { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other, href: null },
           ].filter((source) => source.amount > 0)
         : [];
-    const gap = payments.amount - split.reached_now;
-    const paymentsWhy =
-        payments.payments > 0 && split.reached_now > 0
-            ? gap === 0
-                ? null
-                : t(gap < 0 ? "fin.money.payments.less" : "fin.money.payments.more", { gap: money(Math.abs(gap)), now: money(split.reached_now) })
-            : payments.payments > 0 && !fromElsewhere
-              ? t("fin.money.payments.why")
-              : null;
 
     return (
         <SummaryCard
@@ -144,17 +142,6 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                         </p>
                     </div>
                 )
-            }
-            footer={
-                <div className="w-full">
-                    <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments">
-                        {paymentsNote} {paymentsWhy}
-                    </p>
-                    <button type="button" onClick={onAddPayment} className={`${CARD_LINK} mt-1.5`} data-testid="money-add-payment">
-                        <FileUp className="size-3.5" aria-hidden="true" />
-                        {t("fin.money.addPayment")}
-                    </button>
-                </div>
             }
         >
             {!sold && !onRoad && <p className="py-2 text-left text-[14px] text-muted" dir={dir}>{t("fin.money.none")}</p>}
@@ -188,6 +175,12 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                                             <dt className="min-w-0 text-left text-muted" dir={dir}>
                                                 {source.label}
                                                 {source.note && <span className="block text-[12px]">{source.note}</span>}
+                                                {/* The statement part is what the courier payments card takes apart: link the two. */}
+                                                {source.href && (
+                                                    <Link href={source.href} className="mt-0.5 block w-fit text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current" data-testid="money-from-now-link">
+                                                        {t("fin.money.from.nowLink")}
+                                                    </Link>
+                                                )}
                                             </dt>
                                             <dd className="shrink-0">
                                                 <Money value={source.amount} className="font-semibold text-foreground" />

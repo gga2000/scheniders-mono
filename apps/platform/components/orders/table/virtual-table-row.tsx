@@ -318,7 +318,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                 <div className="flex flex-col items-start gap-0.5">
                     <div className="flex items-center gap-1">
                         <span className={cn("font-mono font-bold whitespace-nowrap", isReturn ? "text-xs text-red-600" : "text-sm text-emerald-600", !isReturn && Math.abs(Number(order.price)) > modePrice && modePrice > 0 && "text-amber-600", !isReturn && Math.abs(Number(order.price)) < modePrice && modePrice > 0 && "text-blue-600")}>
-                            {isReturn && "-"}{formatIQD(Math.abs(Number(order.price)))}
+                            {formatIQD(isReturn ? -Math.abs(Number(order.price)) : Math.abs(Number(order.price)))}
                         </span>
                         {!isReturn && Math.abs(Number(order.price)) > modePrice && modePrice > 0 && <TrendingUp className="w-3 h-3 text-amber-500" />}
                         {!isReturn && Math.abs(Number(order.price)) < modePrice && modePrice > 0 && <TrendingDown className="w-3 h-3 text-blue-500" />}

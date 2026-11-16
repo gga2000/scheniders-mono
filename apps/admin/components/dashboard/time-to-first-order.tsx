@@ -48,7 +48,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-purple)]/40 flex items-center justify-center">
-          <Clock className="w-4 h-4 text-purple-700" />
+          <Clock className="w-4 h-4 text-[var(--ink-violet)]" />
         </div>
         <h3 className="font-bold text-foreground text-sm">
           Time to First Order
@@ -58,7 +58,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
       {!buckets ? (
         <Skeleton />
       ) : buckets.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           No data available
         </p>
       ) : (
@@ -75,7 +75,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
               />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 10, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
@@ -83,7 +83,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
                 dy={6}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}

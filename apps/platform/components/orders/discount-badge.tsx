@@ -23,7 +23,7 @@ export function DiscountBadge({ price, discountAmount, className }: DiscountBadg
             className
         )}>
             <Tag className="w-3 h-3" />
-            <span>-{formatIQD(discountAmount)}</span>
+            <span>{formatIQD(-discountAmount)}</span>
             <span className="opacity-75">({percentage}%)</span>
         </span>
     );

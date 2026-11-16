@@ -18,8 +18,11 @@ const LABELS = 4;
 /** The drawing's own units; it stretches to the card's width. */
 const VIEW_W = 1000;
 const VIEW_H = 200;
-/** The drawing's least height; it grows to fill the card when the card beside it is taller. */
-const LINE_HEIGHT = 250;
+/**
+ * The drawing's height. The card keeps its own height beside the taller money card: a
+ * drawing stretched to match it made every dip look far deeper than it was.
+ */
+const LINE_HEIGHT = 260;
 /** Room above the highest point and under the lowest, as a share of the range. */
 const PAD = 0.1;
 /** A day gets a ring on the line, and its name under the chart, when it alone made at least this share of the path's range. */
@@ -90,7 +93,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             const digits = Number.isInteger(n) ? String(n) : n.toFixed(1);
             return value < 0 ? `\u2066−${digits}\u2069` : digits;
         };
-        if (abs >= 1_000_000) return t("fin.path.scale.million", { n: short(abs / 1_000_000) });
+        if (abs >= 1_000_000) return t("fin.path.scale.million", { n: short(abs / 1_000_000), count: abs / 1_000_000 });
         if (abs >= 1_000) return t("fin.path.scale.thousand", { n: short(abs / 1_000) });
         return short(abs);
     };
@@ -131,7 +134,6 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             sub={t(`fin.path.sub.${step}`)}
             textDir={dir}
             testId="profit-path"
-            className="h-full"
         >
             <div className="flex flex-1 flex-col" onMouseLeave={() => setHovered(null)}>
                 <div className="mb-2 flex h-[20px] items-center text-[12.5px]" aria-live="polite">

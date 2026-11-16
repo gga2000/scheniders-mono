@@ -33,12 +33,15 @@ const AGE_TONE: Record<PrimeAgeTone, string> = {
  */
 export function PrimePipeline({
     board,
+    needs,
     branchName,
     selected,
     onSelect,
     ages,
 }: {
     board: PrimeBoard;
+    /** Parcels waiting on a decision: the Orders page's «معالجة» queue (handled ones and returns left out). */
+    needs: number;
     branchName: string | null;
     selected: PrimeBoardList;
     onSelect: (list: PrimeBoardList) => void;
@@ -87,8 +90,8 @@ export function PrimePipeline({
             <span className={cn("h-1 w-5 rounded-full opacity-60", green ? "bg-[#1F7A4D]" : "bg-[#315EA8]")} />
         </span>
     );
-    const side = (list: PrimeBoardList, tone: keyof typeof SIDE_TONE, label: string) =>
-        lists[list].length === 0 ? null : (
+    const side = (list: PrimeBoardList, tone: keyof typeof SIDE_TONE, label: string, count = lists[list].length) =>
+        count === 0 ? null : (
             <button
                 key={list}
                 type="button"
@@ -98,10 +101,10 @@ export function PrimePipeline({
                 className={cn("inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-shadow", SIDE_TONE[tone], selected === list && "shadow-[0_0_0_2px_currentColor]")}
             >
                 {label}
-                <b className="tabular-nums">{lists[list].length}</b>
+                <b className="tabular-nums">{count}</b>
             </button>
         );
-    const sides = [side("postponed", "amber", t("orders.prime.row.postponed")), side("returning", "red", t("orders.prime.row.returning")), side("needs", "violet", t("prime.page.needsDecision"))].filter(Boolean);
+    const sides = [side("postponed", "amber", t("orders.prime.row.postponed")), side("returning", "red", t("orders.prime.row.returning")), side("needs", "violet", t("prime.page.needsDecision"), needs)].filter(Boolean);
 
     return (
         <section aria-label={t("prime.page.pipelineTitle")} className="flex flex-col gap-3 rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-4">

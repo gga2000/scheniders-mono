@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { containsAny } from "@/lib/search-filter";
+
+/** The leads search box looks in these: name, page owner, handle, phone and city. */
+const LEAD_SEARCH_COLUMNS = ["merchant_name", "management_name", "handle", "page_phone", "city"] as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,11 +49,7 @@ export async function GET(request: NextRequest) {
     if (scoreMin) query = query.gte("lead_score", Number(scoreMin));
     if (scoreMax) query = query.lte("lead_score", Number(scoreMax));
 
-    if (search) {
-      query = query.or(
-        `merchant_name.ilike.%${search}%,management_name.ilike.%${search}%,handle.ilike.%${search}%,page_phone.ilike.%${search}%,city.ilike.%${search}%`
-      );
-    }
+    if (search?.trim()) query = query.or(containsAny(LEAD_SEARCH_COLUMNS, search));
 
     // Sort
     const sortParts = sortParam.split(",").filter(Boolean);

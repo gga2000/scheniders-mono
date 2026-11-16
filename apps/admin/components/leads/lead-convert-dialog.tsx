@@ -1,10 +1,11 @@
 "use client";
 
+import { PlatformChip } from "@/components/leads/lead-chips";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
-import { LEAD_TIER_CONFIG, PLATFORM_CONFIG } from "@/types/leads";
+import { LEAD_TIER_CONFIG, LEAD_TIER_UI } from "@/types/leads";
 import { useConvertLead } from "@/hooks/use-lead-mutations";
 import {
   Trophy,
@@ -76,7 +77,6 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
   ];
 
   const tierConfig = LEAD_TIER_CONFIG[lead.tier];
-  const platformConfig = PLATFORM_CONFIG[lead.platform];
 
   // Submit
   const handleConvert = () => {
@@ -136,7 +136,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                       transition={{ duration: 0.5, times: [0, 0.6, 1] }}
                       className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4"
                     >
-                      <Trophy className="w-8 h-8 text-emerald-500" />
+                      <Trophy className="w-8 h-8 text-[var(--ink-green)]" />
                     </motion.div>
                     <motion.h3
                       initial={{ opacity: 0, y: 8 }}
@@ -193,7 +193,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                          <Trophy className="w-5 h-5 text-emerald-500" />
+                          <Trophy className="w-5 h-5 text-[var(--ink-green)]" />
                         </div>
                         <h2 className="text-lg font-bold text-[var(--foreground)]">
                           Convert to Merchant
@@ -218,24 +218,19 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                             </h3>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                               <span
-                                className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                                style={{ backgroundColor: `${tierConfig.color}20`, color: tierConfig.color }}
+                                className="px-2 py-0.5 rounded-full text-xs font-bold"
+                                style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
                               >
                                 {tierConfig.label}
                               </span>
-                              <span
-                                className="px-2 py-0.5 rounded-full text-[10px] font-medium"
-                                style={{ backgroundColor: `${platformConfig.color}15`, color: platformConfig.color }}
-                              >
-                                {platformConfig.label}
-                              </span>
+                              <PlatformChip platform={lead.platform} size="sm" />
                             </div>
                           </div>
                           <div className="text-right shrink-0">
                             <div className="text-2xl font-bold text-[var(--foreground)]">
                               {lead.lead_score}
                             </div>
-                            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">
+                            <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                               Score
                             </div>
                           </div>
@@ -267,22 +262,22 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                             className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
                           >
                             {item.status === "pass" ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-[var(--ink-green)] shrink-0" />
                             ) : (
-                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                              <AlertTriangle className="w-4 h-4 text-[var(--ink-amber)] shrink-0" />
                             )}
                             <span
                               className={cn(
                                 "text-sm",
                                 item.status === "pass"
                                   ? "text-[var(--foreground)]"
-                                  : "text-amber-600 dark:text-amber-400"
+                                  : "text-[var(--ink-amber)]"
                               )}
                             >
                               {item.label}
                             </span>
                             {item.detail && (
-                              <span className="text-[10px] text-[var(--muted)] ml-auto">
+                              <span className="text-xs text-[var(--muted)] ml-auto">
                                 {item.detail}
                               </span>
                             )}
@@ -316,7 +311,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
 
                       {/* Error State */}
                       {convertLead.isError && (
-                        <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+                        <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
                           {convertLead.error?.message || "Failed to convert lead. Please try again."}
                         </div>
                       )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatIQD } from "@scheniders/shared";
+import { formatIQD } from "@/lib/utils";
 import { formatBaghdadShortDate, spentLabel } from "./customer-format";
 
 describe("spentLabel", () => {
@@ -7,10 +7,12 @@ describe("spentLabel", () => {
         expect(spentLabel(0, true)).toBe("—");
     });
 
-    it("shows the amount once something is delivered, or when the customer is not pending", () => {
+    // The app's own money format (round 15 critic: Customers wrote «IQD 192,000» beside «د.ع» everywhere else).
+    it("shows the amount once something is delivered, or when the customer is not pending, as every page writes money", () => {
         expect(spentLabel(0, false)).toBe(formatIQD(0));
         expect(spentLabel(190000, true)).toBe(formatIQD(190000));
         expect(spentLabel(190000, false)).toBe(formatIQD(190000));
+        expect(spentLabel(190000, false)).toContain("190,000 د.ع");
     });
 });
 

@@ -17,6 +17,8 @@ import { AdminAuthError } from "@/lib/admin-auth-error";
 const SUPER_ID = "11111111-1111-4111-8111-111111111111";
 const SUPPORT_ID = "22222222-2222-4222-8222-222222222222";
 const TENANT = "33333333-3333-4333-8333-333333333333";
+/** The id the browser makes for one staff ask (lib/request-ids.ts). */
+const REQ = "44444444-4444-4444-8444-444444444444";
 
 const IDENTITIES: Record<string, { user: { id: string; email: string }; role: AdminRole }> = {
   super: { user: { id: SUPER_ID, email: "boss@example.com" }, role: "super_admin" },
@@ -179,7 +181,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-subscription/route");
       return POST(
-        req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, { days: 30 }),
+        req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, { days: 30, request_id: REQ }),
         idParams,
       );
     },
@@ -189,7 +191,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/force-unlock/route");
       return POST(
-        req(`/api/merchants/${TENANT}/force-unlock`, "POST", t, { days: 30, reason: "paid in cash" }),
+        req(`/api/merchants/${TENANT}/force-unlock`, "POST", t, { days: 30, reason: "paid in cash", request_id: REQ }),
         idParams,
       );
     },
@@ -298,7 +300,7 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-trial/route");
       return POST(
-        req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 7, reason: "customer asked" }),
+        req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 7, reason: "customer asked", request_id: REQ }),
         idParams,
       );
     },
@@ -324,7 +326,7 @@ const ANY_ADMIN: Case[] = [
     name: "POST /api/trials/extend (extend_trial)",
     call: async (t) => {
       const { POST } = await import("./trials/extend/route");
-      return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 7, reason: "customer asked" }));
+      return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 7, reason: "customer asked", request_id: REQ }));
     },
   },
   {
@@ -332,7 +334,7 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/lock-orders/route");
       return POST(
-        req(`/api/merchants/${TENANT}/lock-orders`, "POST", t, { orders: 10, reason: "courier delay" }),
+        req(`/api/merchants/${TENANT}/lock-orders`, "POST", t, { orders: 10, reason: "courier delay", request_id: REQ }),
         idParams,
       );
     },
@@ -463,7 +465,7 @@ describe("trial extension goes through admin_extend_trial only", () => {
       call: async (t) => {
         const { POST } = await import("./merchants/[id]/extend-trial/route");
         return POST(
-          req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 30, reason: "  customer asked  " }),
+          req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 30, reason: "  customer asked  ", request_id: REQ }),
           idParams,
         );
       },
@@ -472,7 +474,7 @@ describe("trial extension goes through admin_extend_trial only", () => {
       name: "POST /api/trials/extend",
       call: async (t) => {
         const { POST } = await import("./trials/extend/route");
-        return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 30, reason: "  customer asked  " }));
+        return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 30, reason: "  customer asked  ", request_id: REQ }));
       },
     },
   ];
@@ -509,8 +511,9 @@ describe("trial extension goes through admin_extend_trial only", () => {
       expect(res.status).toBe(200);
       expect(dbCalls.filter((c) => c.method === "rpc").map((c) => c.args)).toEqual([
         [
-          "admin_extend_trial",
+          "admin_extend_trial_once",
           {
+            _request_id: REQ,
             _tenant_id: TENANT,
             _days: 30,
             _reason: "customer asked",
@@ -538,11 +541,11 @@ describe("trial extension goes through admin_extend_trial only", () => {
     const { POST: trials } = await import("./trials/extend/route");
 
     const a = await perMerchant(
-      req(`/api/merchants/${TENANT}/extend-trial`, "POST", "super", { days: 91, reason: "customer asked" }),
+      req(`/api/merchants/${TENANT}/extend-trial`, "POST", "super", { days: 91, reason: "customer asked", request_id: REQ }),
       idParams,
     );
     const b = await trials(
-      req("/api/trials/extend", "POST", "super", { tenant_id: TENANT, days: 91, reason: "customer asked" }),
+      req("/api/trials/extend", "POST", "super", { tenant_id: TENANT, days: 91, reason: "customer asked", request_id: REQ }),
     );
     expect(a.status).toBe(400);
     expect(b.status).toBe(400);
@@ -556,10 +559,10 @@ describe("trial extension goes through admin_extend_trial only", () => {
       const { POST: trials } = await import("./trials/extend/route");
 
       const a = await perMerchant(
-        req(`/api/merchants/${TENANT}/extend-trial`, "POST", "support", { days: 7, reason }),
+        req(`/api/merchants/${TENANT}/extend-trial`, "POST", "support", { days: 7, reason, request_id: REQ }),
         idParams,
       );
-      const b = await trials(req("/api/trials/extend", "POST", "support", { tenant_id: TENANT, days: 7, reason }));
+      const b = await trials(req("/api/trials/extend", "POST", "support", { tenant_id: TENANT, days: 7, reason, request_id: REQ }));
       expect(a.status).toBe(400);
       expect(b.status).toBe(400);
       expect(createAdminClient).not.toHaveBeenCalled();
@@ -588,14 +591,15 @@ describe("billing lock staff tools", () => {
 
   it("gives a locked store more orders through one RPC that names the admin and the reason", async () => {
     dbResult = { data: { success: true, tenant_id: TENANT, orders_left: 12 }, error: null };
-    const res = await lockOrders("support", { orders: 10, reason: " courier delay " });
+    const res = await lockOrders("support", { orders: 10, reason: " courier delay ", request_id: REQ });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ id: TENANT, orders_left: 12 });
+    expect(await res.json()).toEqual({ id: TENANT, orders_left: 12, repeat: false });
     expect(rpcCalls()).toEqual([
       [
-        "admin_add_lock_orders",
+        "admin_add_lock_orders_once",
         {
+          _request_id: REQ,
           _tenant_id: TENANT,
           _orders: 10,
           _reason: "courier delay",
@@ -610,13 +614,13 @@ describe("billing lock staff tools", () => {
 
   it("lets only a super admin give orders to a store locked for an unpaid month", async () => {
     dbResult = { data: { success: false, error: "unpaid_lock" }, error: null };
-    const refused = await lockOrders("support", { orders: 1000, reason: "keeps selling" });
+    const refused = await lockOrders("support", { orders: 1000, reason: "keeps selling", request_id: REQ });
     expect(refused.status).toBe(403);
     expect((await refused.json()).error).toMatch(/super admin/);
     expect(rpcCalls().at(-1)?.[1]).toMatchObject({ _may_grant_unpaid: false });
 
     dbResult = { data: { success: true, tenant_id: TENANT, orders_left: 1010 }, error: null };
-    expect((await lockOrders("super", { orders: 1000, reason: "paid in cash, bank slow" })).status).toBe(200);
+    expect((await lockOrders("super", { orders: 1000, reason: "paid in cash, bank slow", request_id: REQ })).status).toBe(200);
     expect(rpcCalls().at(-1)?.[1]).toMatchObject({ _may_grant_unpaid: true });
   });
 
@@ -625,14 +629,15 @@ describe("billing lock staff tools", () => {
       data: { success: true, tenant_id: TENANT, period_end: "2099-01-31T00:00:00+00:00", lock_reason: "unpaid" },
       error: null,
     };
-    const res = await forceUnlock("super", { days: 30, reason: "paid in cash" });
+    const res = await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ status: "active", period_end: "2099-01-31T00:00:00+00:00" });
     expect(rpcCalls()).toEqual([
       [
-        "admin_force_unlock",
+        "admin_force_unlock_once",
         {
+          _request_id: REQ,
           _tenant_id: TENANT,
           _days: 30,
           _reason: "paid in cash",
@@ -646,34 +651,130 @@ describe("billing lock staff tools", () => {
 
   it("a store that is not locked is a 409, an unknown one a 404", async () => {
     dbResult = { data: { success: false, error: "not_locked" }, error: null };
-    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(409);
-    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(409);
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(409);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(409);
 
     dbResult = { data: { success: false, error: "not_found" }, error: null };
-    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(404);
-    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(404);
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(404);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(404);
   });
 
   it("a database error or an unreadable answer is a 500, not a success", async () => {
     dbResult = { data: null, error: { code: "40P01", message: "deadlock detected" } };
-    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(500);
-    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(500);
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(500);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(500);
 
     dbResult = { data: { success: true }, error: null };
-    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(500);
-    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(500);
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(500);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(500);
   });
 
   it.each([
-    ["no reason", { orders: 10 }, { days: 30 }],
-    ["a short reason", { orders: 10, reason: "ok" }, { days: 30, reason: "ok" }],
-    ["zero", { orders: 0, reason: "courier delay" }, { days: 0, reason: "paid in cash" }],
-    ["over the cap", { orders: 1001, reason: "courier delay" }, { days: 91, reason: "paid in cash" }],
-    ["a fraction", { orders: 2.5, reason: "courier delay" }, { days: 1.5, reason: "paid in cash" }],
+    ["no reason", { orders: 10, request_id: REQ }, { days: 30, request_id: REQ }],
+    ["a short reason", { orders: 10, reason: "ok", request_id: REQ }, { days: 30, reason: "ok", request_id: REQ }],
+    ["zero", { orders: 0, reason: "courier delay", request_id: REQ }, { days: 0, reason: "paid in cash", request_id: REQ }],
+    ["over the cap", { orders: 1001, reason: "courier delay", request_id: REQ }, { days: 91, reason: "paid in cash", request_id: REQ }],
+    ["a fraction", { orders: 2.5, reason: "courier delay", request_id: REQ }, { days: 1.5, reason: "paid in cash", request_id: REQ }],
   ])("refuses %s before touching the database", async (_label, ordersBody, unlockBody) => {
     expect((await lockOrders("support", ordersBody)).status).toBe(400);
     expect((await forceUnlock("super", unlockBody)).status).toBe(400);
     expect(createAdminClient).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Free days, more lock orders and a free unlock happen once per staff ask
+ * (audit N3): every route needs the request id the browser made, sends it to
+ * the database's *_once function, and passes a repeat or a reused id back.
+ * The once-only rule itself is proven in
+ * packages/supabase/tests/behaviour/staff-action-once.test.sql.
+ */
+describe("one change per staff request", () => {
+  const CALLS = [
+    {
+      name: "extend-trial",
+      role: "support",
+      body: { days: 7, reason: "customer asked" },
+      ok: { success: true, tenant_id: TENANT, trial_ends_at: "2099-01-31T00:00:00+00:00" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./merchants/[id]/extend-trial/route");
+        return POST(req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, body), idParams);
+      },
+    },
+    {
+      name: "trials/extend",
+      role: "support",
+      body: { tenant_id: TENANT, days: 7, reason: "customer asked" },
+      ok: { success: true, tenant_id: TENANT, trial_ends_at: "2099-01-31T00:00:00+00:00" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./trials/extend/route");
+        return POST(req("/api/trials/extend", "POST", t, body));
+      },
+    },
+    {
+      name: "extend-subscription",
+      role: "super",
+      body: { days: 30 },
+      ok: { success: true, tenant_id: TENANT, current_period_end: "2099-01-31T00:00:00+00:00", status: "active" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./merchants/[id]/extend-subscription/route");
+        return POST(req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, body), idParams);
+      },
+    },
+    {
+      name: "lock-orders",
+      role: "support",
+      body: { orders: 10, reason: "courier delay" },
+      ok: { success: true, tenant_id: TENANT, orders_left: 12 },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./merchants/[id]/lock-orders/route");
+        return POST(req(`/api/merchants/${TENANT}/lock-orders`, "POST", t, body), idParams);
+      },
+    },
+    {
+      name: "force-unlock",
+      role: "super",
+      body: { days: 30, reason: "paid in cash" },
+      ok: { success: true, tenant_id: TENANT, period_end: "2099-01-31T00:00:00+00:00", lock_reason: "unpaid" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./merchants/[id]/force-unlock/route");
+        return POST(req(`/api/merchants/${TENANT}/force-unlock`, "POST", t, body), idParams);
+      },
+    },
+  ];
+
+  it.each(CALLS)("$name: a page with no request id is asked to reload, before the database", async (c) => {
+    for (const bad of [undefined, "", "not-a-uuid"]) {
+      const res = await c.call(c.role, { ...c.body, request_id: bad });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/Reload/);
+    }
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it.each(CALLS)("$name: sends the request id to the once-only database function", async (c) => {
+    dbResult = { data: c.ok, error: null };
+    const res = await c.call(c.role, { ...c.body, request_id: REQ });
+    expect(res.status).toBe(200);
+    expect((await res.json()).repeat).toBe(false);
+    const rpcs = dbCalls.filter((d) => d.method === "rpc").map((d) => d.args);
+    expect(rpcs).toHaveLength(1);
+    expect(String(rpcs[0]?.[0])).toMatch(/_once$/);
+    expect(rpcs[0]?.[1]).toMatchObject({ _request_id: REQ, _tenant_id: TENANT });
+  });
+
+  it.each(CALLS)("$name: a repeat answers 200 with the first result, marked repeat", async (c) => {
+    dbResult = { data: { ...c.ok, repeat: true }, error: null };
+    const res = await c.call(c.role, { ...c.body, request_id: REQ });
+    expect(res.status).toBe(200);
+    expect((await res.json()).repeat).toBe(true);
+  });
+
+  it.each(CALLS)("$name: an id the database saw for another change is a 409", async (c) => {
+    dbResult = { data: { success: false, error: "request_reused" }, error: null };
+    const res = await c.call(c.role, { ...c.body, request_id: REQ });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/already used/);
   });
 });
 
@@ -817,7 +918,6 @@ describe("every role rule is proven from the source", () => {
         "merchants/[id]/route.ts PATCH",
         "admin-users/route.ts POST",
         "admin-users/route.ts DELETE",
-        "seed-automation/route.ts POST",
         "billing/route.ts GET",
         "admin/leads-table-layout/route.ts PUT",
         "billing/topup/route.ts POST",

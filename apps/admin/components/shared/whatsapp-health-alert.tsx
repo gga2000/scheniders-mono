@@ -28,15 +28,15 @@ export function WhatsAppPausedAlert({ count, onOpen }: { count: number; onOpen?:
     <Link
       href="/whatsapp"
       onClick={onOpen}
-      className="flex items-start gap-3 border-b border-[var(--card-border)] bg-amber-50 px-4 py-3 hover:bg-amber-100/70 dark:bg-amber-950/30"
+      className="flex items-start gap-3 border-b border-[var(--card-border)] bg-amber-500/5 px-4 py-3 hover:bg-amber-100/70 dark:bg-amber-950/30"
       data-testid="whatsapp-paused-alert"
     >
-      <span className="mt-0.5 text-amber-600"><MessageCircleOff className="w-3.5 h-3.5" /></span>
+      <span className="mt-0.5 text-[var(--ink-amber)]"><MessageCircleOff className="w-3.5 h-3.5" /></span>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+        <p className="text-xs font-semibold text-[var(--ink-amber)]">
           WhatsApp paused for {count} {count === 1 ? "shop" : "shops"}
         </p>
-        <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+        <p className="text-xs text-[var(--ink-amber)] mt-0.5">
           Most of their recent messages did not reach customers, or staff paused them. Orders still come in.
         </p>
       </div>
@@ -47,14 +47,14 @@ export function WhatsAppPausedAlert({ count, onOpen }: { count: number; onOpen?:
 /** The bell's red row while Interakt refuses sends for lack of balance. */
 export function WhatsAppHealthAlert({ since }: { since: string | null }) {
   return (
-    <div className="flex items-start gap-3 border-b border-[var(--card-border)] bg-red-50 px-4 py-3 dark:bg-red-950/30" data-testid="interakt-empty-alert">
-      <span className="mt-0.5 text-red-600"><MessageCircleWarning className="w-3.5 h-3.5" /></span>
+    <div className="flex items-start gap-3 border-b border-[var(--card-border)] bg-red-500/5 px-4 py-3 dark:bg-red-950/30" data-testid="interakt-empty-alert">
+      <span className="mt-0.5 text-[var(--ink-red)]"><MessageCircleWarning className="w-3.5 h-3.5" /></span>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-red-700 dark:text-red-300">Interakt balance is empty</p>
-        <p className="text-[11px] text-red-700/80 dark:text-red-300/80 mt-0.5">
+        <p className="text-xs font-semibold text-[var(--ink-red)]">Interakt balance is empty</p>
+        <p className="text-xs text-[var(--ink-red)] mt-0.5">
           WhatsApp messages to every shop&apos;s customers are not being sent. Top up Interakt.
         </p>
-        {since && <p className="text-[10px] text-red-700/60 mt-1">Since {formatDayTime(since)}</p>}
+        {since && <p className="text-xs text-[var(--ink-red)] mt-1">Since {formatDayTime(since)}</p>}
       </div>
     </div>
   );

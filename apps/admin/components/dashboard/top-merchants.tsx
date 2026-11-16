@@ -51,7 +51,7 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
           ))}
         </div>
       ) : merchants.length === 0 ? (
-        <p className="text-sm text-foreground/40 py-6 text-center">
+        <p className="text-sm text-foreground/70 py-6 text-center">
           No merchant data yet.
         </p>
       ) : (
@@ -65,15 +65,12 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
                 className="flex items-center gap-3 py-3 border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.04] transition-colors rounded-lg px-1 -mx-1"
               >
                 {/* Rank */}
-                <span className="w-6 text-center text-sm font-bold text-foreground/60 flex-shrink-0">
+                <span className="w-6 text-center text-sm font-bold text-foreground/70 flex-shrink-0">
                   {idx in medals ? medals[idx] : idx + 1}
                 </span>
 
                 {/* Avatar */}
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  style={{ backgroundColor: merchant.primaryColor || "#6B7280" }}
-                >
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold flex-shrink-0">
                   {merchant.businessName.charAt(0).toUpperCase()}
                 </div>
 
@@ -82,7 +79,7 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
                   <p className="text-sm font-semibold text-foreground truncate">
                     {merchant.businessName}
                   </p>
-                  <p className="text-[10px] text-foreground/50">
+                  <p className="text-xs text-foreground/70">
                     {merchant.orderCount} orders
                   </p>
                   {/* Progress bar */}

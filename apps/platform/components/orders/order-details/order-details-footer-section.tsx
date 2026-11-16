@@ -1,11 +1,41 @@
 "use client";
 
 import { DialogFooter } from "@scheniders/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { MessageCircle, Save, X, Trash2, AlertTriangle, Scissors, Send } from "lucide-react";
 import type { OrderDetailsView } from "./use-order-details-model";
 import { PrimeEditReview } from "./prime-edit-review";
 import { canMoveToTrash } from "@/lib/order-trash";
+import { computeRefundPayout } from "@/lib/order-money";
+
+/**
+ * The amount that stays in view in the footer. On a refund it is what the
+ * customer receives, the same figure as the refund banner and the order card,
+ * with the pickup fee the store keeps named under it; otherwise the order's
+ * total, live while it is being edited.
+ */
+function FooterTotal({ m }: { m: OrderDetailsView }) {
+    const { order, formData, isEditing, t } = m;
+    if (order.is_return) {
+        const kept = Math.round(Number(order.delivery_fee) || 0);
+        return (
+            <div data-order-total className="flex flex-col self-center ps-1">
+                <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-muted">{t("refund.customerReceives")}</span>
+                    <span className="text-lg font-bold text-foreground font-mono tabular-nums">{formatIQD(-computeRefundPayout(order))}</span>
+                </div>
+                {kept > 0 && <span data-order-total-note className="text-[11px] text-muted">{t("refund.afterPickupFee", { amount: formatIQD(kept) })}</span>}
+            </div>
+        );
+    }
+    const price = isEditing && formData.price !== undefined ? Number(formData.price) || 0 : Number(order.price);
+    return (
+        <div data-order-total className="flex items-baseline gap-2 self-center ps-1">
+            <span className="text-xs text-muted">{t("orderDetail.grandTotal")}</span>
+            <span className="text-lg font-bold text-foreground font-mono tabular-nums">{formatIQD(price)}</span>
+        </div>
+    );
+}
 
 /** One section of OrderDetailsModal. */
 export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
@@ -77,6 +107,8 @@ export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
                                         <X className="h-4 w-4" />
                                         {t("orderDetail.cancel")}
                                     </button>
+                                    {/* Still in view while items and price change */}
+                                    <FooterTotal m={m} />
                                     <button
                                         onClick={primeEdit.requestSave}
                                         disabled={isSaving}
@@ -111,6 +143,8 @@ export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     )}
+                                    {/* The total stays in view however long the order is */}
+                                    <FooterTotal m={m} />
                                     <button
                                         onClick={onClose}
                                         className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all font-medium ml-auto"
@@ -118,30 +152,28 @@ export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
                                         {t("orderDetail.close")}
                                     </button>
                                     <button
-                                        onClick={handleSendTemplate}
-                                        disabled={isSendingTemplate || order.status !== "new"}
-                                        className={cn(
-                                            "flex items-center gap-2 px-6 py-3 rounded-xl text-white transition-all font-semibold shadow-md",
-                                            order.status !== "new"
-                                                ? "bg-gray-300 cursor-not-allowed shadow-none"
-                                                : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
-                                        )}
-                                        title={t("orderDetail.sendConfirmTooltip")}
-                                    >
-                                        {isSendingTemplate ? (
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <Send className="h-4 w-4" />
-                                        )}
-                                        {t("orderDetail.sendConfirmTemplate")}
-                                    </button>
-                                    <button
                                         onClick={handleWhatsApp}
-                                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20"
+                                        className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all font-medium"
                                     >
-                                        <MessageCircle className="h-4 w-4" />
+                                        <MessageCircle className="h-4 w-4 text-[var(--button-success)]" />
                                         {t("orderDetail.openWhatsApp")}
                                     </button>
+                                    {/* The one strong button, and only where it can be used: a new order */}
+                                    {order.status === "new" && (
+                                        <button
+                                            onClick={handleSendTemplate}
+                                            disabled={isSendingTemplate}
+                                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all font-semibold shadow-md shadow-blue-500/20 disabled:opacity-70 disabled:cursor-wait"
+                                            title={t("orderDetail.sendConfirmTooltip")}
+                                        >
+                                            {isSendingTemplate ? (
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Send className="h-4 w-4" />
+                                            )}
+                                            {t("orderDetail.sendConfirmTemplate")}
+                                        </button>
+                                    )}
                                 </>
                             )}
                         </div>

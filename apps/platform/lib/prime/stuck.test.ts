@@ -12,7 +12,7 @@ const board = (reasons: Record<string, PrimeNeedReason>): PrimeBoard => ({
 describe("primeStuckSummary", () => {
     it("counts only the stuck parcels, sums their cash and names the governorate holding most", () => {
         const stuck = primeStuckSummary(
-            board({ a: "stuck", b: "stuck", c: "stuck", d: "stuck", back: "returning" }),
+            board({ a: "stuck", b: "stuck", c: "stuck", d: "stuck", back: "cancelled_by_prime" }),
             new Map([["a", 40_000], ["b", 30_000], ["c", 50_000], ["d", 23_000], ["back", 99_000]]),
             (id) => ({ a: "الأنبار", b: "الأنبار", c: " الأنبار ", d: "بغداد", back: "الأنبار" })[id],
         );
@@ -25,6 +25,6 @@ describe("primeStuckSummary", () => {
     });
 
     it("is null when nothing is stuck", () => {
-        expect(primeStuckSummary(board({ back: "returning", asks: "needs_you" }), new Map(), () => null)).toBeNull();
+        expect(primeStuckSummary(board({ back: "cancelled_by_prime", asks: "needs_you" }), new Map(), () => null)).toBeNull();
     });
 });

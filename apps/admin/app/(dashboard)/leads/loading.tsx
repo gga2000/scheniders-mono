@@ -31,7 +31,7 @@ export default function LeadsLoading() {
             <div className="h-10 w-10 bg-zinc-200 dark:bg-zinc-700 rounded-xl" />
             <div className="flex-1 space-y-2">
               <div className="h-4 w-40 bg-zinc-200 dark:bg-zinc-700 rounded" />
-              <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-800 rounded" />
+              <div className="h-3 w-24 bg-zinc-500/15 rounded" />
             </div>
             <div className="h-6 w-16 bg-zinc-200 dark:bg-zinc-700 rounded-full" />
             <div className="h-6 w-12 bg-zinc-200 dark:bg-zinc-700 rounded-full" />

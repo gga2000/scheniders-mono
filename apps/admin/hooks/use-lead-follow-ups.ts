@@ -3,13 +3,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadFollowUp } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 export function useLeadFollowUps(leadId: string | null) {
   return useQuery<LeadFollowUp[]>({
     queryKey: ["lead-follow-ups", leadId],
     queryFn: async () => {
       const res = await adminFetch(`/api/leads/${leadId}/follow-ups`);
-      if (!res.ok) throw new Error("Failed to fetch follow-ups");
+      okOrLoadFailure(res, "follow-ups");
       const data = await res.json();
       return data.follow_ups;
     },

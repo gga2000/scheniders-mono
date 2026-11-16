@@ -127,7 +127,7 @@ export function ShopActions({ shopId, facts, plan, balance, freeDaysFrom, onGive
                 <button
                   type="button"
                   onClick={() => setView(null)}
-                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground/60 hover:text-foreground"
+                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground/70 hover:text-foreground"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                   Back

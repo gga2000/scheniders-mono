@@ -1,6 +1,7 @@
 import { supabase, type Order, type PrintBatch } from "@/lib/supabase";
 import type { OrderStatus } from "@/types/order";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { formatBaghdadShortDate } from "@/lib/customer-format";
 
 /** What a recorded run was: a label print, or a courier hand-off file. */
 export type RunKind = "labels" | "prime" | "waseet";
@@ -15,15 +16,27 @@ export function runKind(batch: Pick<PrintBatch, "name">): RunKind {
     return "labels";
 }
 
+/** The stored "dd/mm/yyyy" (and a label run's " hh:mm"), as every other date on screen reads: «14 تشرين الثاني». */
+const STORED_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(\s+\d{1,2}:\d{2})?$/;
+
+function shownDate(stored: string, language: string, now: Date): string {
+    const m = STORED_DATE.exec(stored);
+    if (!m) return stored;
+    const [, day, month, year, time = ""] = m;
+    const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T12:00:00+03:00`;
+    return `${formatBaghdadShortDate(iso, language, now)}${time}`;
+}
+
 /**
  * The run's name in the merchant's language. The stored name keeps its English
- * prefix because runKind reads it; only what is shown is translated. Label runs
- * are named by their date and time, which reads the same in every language.
+ * prefix and numeric date because runKind and the courier files read them; only
+ * what is shown is translated, with the date written as every other date on
+ * screen (round 15 critic: «14/11/2026» beside «14 تشرين الثاني»).
  */
-export function runTitle(batch: Pick<PrintBatch, "name">, t: (key: string) => string): string {
+export function runTitle(batch: Pick<PrintBatch, "name">, t: (key: string) => string, language: string, now: Date = new Date()): string {
     const kind = runKind(batch);
-    if (kind === "labels") return batch.name;
-    const rest = batch.name.slice(HANDOFF_PREFIX[kind].length).trim();
+    if (kind === "labels") return shownDate(batch.name, language, now);
+    const rest = shownDate(batch.name.slice(HANDOFF_PREFIX[kind].length).trim(), language, now);
     return rest ? `${t(HANDOFF_TITLE_KEY[kind])} ${rest}` : t(HANDOFF_TITLE_KEY[kind]);
 }
 

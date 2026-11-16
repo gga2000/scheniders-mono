@@ -35,10 +35,10 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
       {/* Stats header */}
       <div className="pastel-card p-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-500" />
+          <Trophy className="w-5 h-5 text-[var(--ink-amber)]" />
           <h3 className="font-bold text-foreground">Achievement Wall</h3>
         </div>
-        <p className="text-sm text-foreground/50">
+        <p className="text-sm text-foreground/70">
           <span className="font-semibold text-foreground">
             {totalUnlocked}
           </span>{" "}
@@ -111,13 +111,13 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                                             : "\u2B50"}
                   </span>
                 ) : (
-                  <Lock className="w-5 h-5 text-foreground/30" />
+                  <Lock className="w-5 h-5 text-foreground/70" />
                 )}
               </div>
 
               {/* Info */}
               <h4 className="text-sm font-bold text-foreground">{ach.name}</h4>
-              <p className="text-xs text-foreground/50 mt-0.5">
+              <p className="text-xs text-foreground/70 mt-0.5">
                 {ach.description}
               </p>
 
@@ -140,7 +140,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                       ) : (
                         <div
                           key={emp.id}
-                          className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-[8px] font-bold"
+                          className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold"
                           title={emp.display_name ?? emp.email}
                         >
                           {initial}
@@ -148,12 +148,12 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                       );
                     })}
                     {unlockers.length > 5 && (
-                      <div className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-foreground/10 flex items-center justify-center text-[8px] font-bold text-foreground/60">
+                      <div className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-foreground/10 flex items-center justify-center text-xs font-bold text-foreground/70">
                         +{unlockers.length - 5}
                       </div>
                     )}
                   </div>
-                  <p className="text-[10px] text-foreground/40 mt-1.5">
+                  <p className="text-xs text-foreground/70 mt-1.5">
                     {unlockers.length} member{unlockers.length !== 1 ? "s" : ""}
                   </p>
                 </div>
@@ -161,7 +161,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
 
               {!unlocked && (
                 <div className="mt-3 pt-3 border-t border-[var(--card-border)]">
-                  <p className="text-[10px] text-foreground/30">
+                  <p className="text-xs text-foreground/70">
                     Not yet unlocked by any team member
                   </p>
                 </div>

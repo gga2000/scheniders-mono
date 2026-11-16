@@ -29,9 +29,9 @@ const STATUS: Record<string, { word: string; tone: Tone }> = {
 
 const TONE: Record<Tone, string> = {
   neutral: "bg-foreground/[0.06] text-foreground/70",
-  moving: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
-  done: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
-  lost: "bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
+  moving: "bg-amber-500/15 text-[var(--ink-amber)] dark:bg-amber-400/15",
+  done: "bg-emerald-500/15 text-[var(--ink-green)] dark:bg-emerald-400/15",
+  lost: "bg-rose-500/15 text-[var(--ink-red)] dark:bg-rose-400/15",
 };
 
 export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSectionProps) {
@@ -42,11 +42,11 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
     <section className="pastel-card p-5" aria-label="Latest orders">
       <h2 className="mb-3 text-[15px] font-semibold text-foreground">Latest orders</h2>
       {isLoading ? (
-        <div className="flex justify-center py-6 text-foreground/40">
+        <div className="flex justify-center py-6 text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-label="Loading orders" />
         </div>
       ) : orders.length === 0 ? (
-        <p className="py-4 text-[13px] text-foreground/60">No orders yet.</p>
+        <p className="py-4 text-[13px] text-foreground/70">No orders yet.</p>
       ) : (
         <ul className="divide-y divide-[var(--card-border)]">
           {orders.map((o) => {
@@ -57,7 +57,7 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
                   <p className="truncate text-[15px] font-medium text-foreground">
                     {o.customer_name ?? "No name"}
                   </p>
-                  <p className="truncate text-[13px] text-foreground/60">
+                  <p className="truncate text-[13px] text-foreground/70">
                     {formatWhen(o.created_at)}
                     {o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : ""}
                     {o.customer_phone ? ` · ${o.customer_phone}` : ""}

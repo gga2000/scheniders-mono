@@ -21,10 +21,11 @@ const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 const podiumOrder = [1, 0, 2] as const;
 const podiumHeights = ["h-28", "h-36", "h-24"] as const;
+// Podium steps: a soft tint with its own ink, readable in both themes.
 const podiumColors = [
-  "from-gray-300 to-gray-400",
-  "from-yellow-300 to-amber-400",
-  "from-orange-300 to-orange-400",
+  "bg-slate-500/15 text-[var(--ink-slate)]",
+  "bg-amber-500/15 text-[var(--ink-amber)]",
+  "bg-orange-500/15 text-[var(--ink-orange)]",
 ] as const;
 const podiumLabels = ["2nd", "1st", "3rd"] as const;
 const podiumRingColors = [
@@ -46,7 +47,8 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
   }, [employees, sortKey, sortDir]);
 
   const top3 = sorted.slice(0, 3);
-  const hasTop3 = top3.length >= 3;
+  // A podium only means something when the top three have a number to rank by.
+  const hasTop3 = top3.length >= 3 && top3.every((emp) => emp[sortKey] > 0);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -72,7 +74,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
       {hasTop3 && (
         <div className="pastel-card p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Trophy className="w-5 h-5 text-amber-500" />
+            <Trophy className="w-5 h-5 text-[var(--ink-amber)]" />
             <h3 className="font-bold text-foreground">Top Performers</h3>
           </div>
 
@@ -114,22 +116,22 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                   </p>
 
                   {/* Stats */}
-                  <p className="text-[10px] text-foreground/50 mt-0.5">
+                  <p className="text-xs text-foreground/70 mt-0.5">
                     {emp.leads_converted} conversions
                   </p>
-                  <p className="text-[10px] font-semibold text-green-600 mt-0.5">
+                  <p className="text-xs font-semibold text-[var(--ink-green)] mt-0.5">
                     {fmt(emp.commission_earned)} IQD
                   </p>
 
                   {/* Podium bar */}
                   <div
                     className={cn(
-                      "w-20 md:w-24 rounded-t-xl mt-3 flex items-start justify-center pt-2 bg-gradient-to-b",
+                      "w-20 md:w-24 rounded-t-xl mt-3 flex items-start justify-center pt-2",
                       podiumHeights[visualIdx],
                       podiumColors[visualIdx]
                     )}
                   >
-                    <span className="text-sm font-bold text-white/90">
+                    <span className="text-sm font-bold">
                       {podiumLabels[visualIdx]}
                     </span>
                   </div>
@@ -144,7 +146,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
       <div className="pastel-card overflow-hidden">
         <div className="p-4 border-b border-[var(--card-border)]">
           <div className="flex items-center gap-2">
-            <Medal className="w-5 h-5 text-foreground/50" />
+            <Medal className="w-5 h-5 text-foreground/70" />
             <h3 className="font-bold text-foreground">Full Rankings</h3>
           </div>
         </div>
@@ -153,42 +155,42 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50 w-12">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70 w-12">
                   #
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                   Employee
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("leads_added")}
                 >
                   Leads Added
                   <SortIcon column="leads_added" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("leads_converted")}
                 >
                   Converted
                   <SortIcon column="leads_converted" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("stores_built")}
                 >
                   Stores Built
                   <SortIcon column="stores_built" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("commission_earned")}
                 >
                   Commission
                   <SortIcon column="commission_earned" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("total_actions")}
                 >
                   Actions
@@ -201,7 +203,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-12 text-center text-foreground/40 text-sm"
+                    className="px-4 py-12 text-center text-foreground/70 text-sm"
                   >
                     No team members yet
                   </td>
@@ -221,12 +223,12 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                           className={cn(
                             "text-xs font-bold",
                             i === 0
-                              ? "text-amber-500"
+                              ? "text-[var(--ink-amber)]"
                               : i === 1
-                                ? "text-gray-400"
+                                ? "text-[var(--muted)]"
                                 : i === 2
-                                  ? "text-orange-400"
-                                  : "text-foreground/40"
+                                  ? "text-[var(--ink-orange)]"
+                                  : "text-foreground/70"
                           )}
                         >
                           {i + 1}
@@ -244,7 +246,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                               className="w-8 h-8 rounded-lg object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold shrink-0">
                               {initial}
                             </div>
                           )}
@@ -252,7 +254,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                             <p className="text-sm font-semibold text-foreground truncate">
                               {emp.display_name ?? emp.email.split("@")[0]}
                             </p>
-                            <p className="text-[10px] text-foreground/40 truncate">
+                            <p className="text-xs text-foreground/70 truncate">
                               {emp.email}
                             </p>
                           </div>

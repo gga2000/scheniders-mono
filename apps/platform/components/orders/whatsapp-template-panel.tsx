@@ -23,7 +23,7 @@ import {
     Loader2,
     Clock,
 } from "lucide-react";
-import { cn, formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
+import { cn, formatIQD, formatIQDText, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
 import { processEmojis } from "@/lib/emoji-shortcodes";
 import { formatPhoneForDisplay, formatPhoneGrouped } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
@@ -210,9 +210,9 @@ export function WhatsAppTemplatePanel({
             .replace(/\{address\}/g, fullAddress)
             .replace(/\{phone\}/g, formattedPhone)
             .replace(/\{secondary_phone\}/g, formattedSecondaryPhone || "—")
-            .replace(/\{original_price\}/g, formatIQD(displayOriginalPrice))
-            .replace(/\{price\}/g, formatIQD(orderPrice))
-            .replace(/\{discounted_price\}/g, formatIQD(discountedPrice))
+            .replace(/\{original_price\}/g, formatIQDText(displayOriginalPrice))
+            .replace(/\{price\}/g, formatIQDText(orderPrice))
+            .replace(/\{discounted_price\}/g, formatIQDText(discountedPrice))
             .replace(/\{discount_percent\}/g, activeDiscount.toString())
             .replace(/\{city\}/g, city)
             .replace(/\{status\}/g, previewOrder.status || "");
@@ -529,7 +529,7 @@ export function WhatsAppTemplatePanel({
                                                     className="flex-1 px-3 py-1.5 rounded-lg border border-rose-300 text-sm font-mono font-bold text-rose-700 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
                                                     dir="ltr"
                                                 />
-                                                <span className="text-xs font-bold text-rose-600">IQD</span>
+                                                <span className="text-xs font-bold text-rose-600">{t("common.iqd")}</span>
                                             </div>
                                         )}
                                     </div>
@@ -548,7 +548,7 @@ export function WhatsAppTemplatePanel({
                                             <div className="flex justify-between text-xs text-muted mt-1">
                                                 <span>{t("orders.tpl.savings")}</span>
                                                 <span className="font-mono text-emerald-600">
-                                                    -{formatIQD(previewOrder.price - effectiveDiscountedPrice)} ({Math.round((1 - effectiveDiscountedPrice / previewOrder.price) * 100)}%)
+                                                    {formatIQD(effectiveDiscountedPrice - previewOrder.price)} ({Math.round((1 - effectiveDiscountedPrice / previewOrder.price) * 100)}%)
                                                 </span>
                                             </div>
                                         )}

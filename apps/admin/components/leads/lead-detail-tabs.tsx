@@ -464,7 +464,7 @@ export function CompetitorsContent({
                 className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-10 h-10 rounded-xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-sm">
                     {name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -477,7 +477,7 @@ export function CompetitorsContent({
                   </div>
                 </div>
                 <span
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize"
+                  className="px-2.5 py-1 rounded-full text-xs font-bold capitalize"
                   style={{ backgroundColor: relColors.bg, color: relColors.text }}
                 >
                   {comp.relationship_type}
@@ -564,7 +564,7 @@ export function StoreContent({ lead }: { lead: Lead }) {
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
               copied
-                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                ? "border-emerald-500/30 text-[var(--ink-green)] bg-emerald-500/10"
                 : "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)]"
             )}
           >

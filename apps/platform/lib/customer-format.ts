@@ -1,6 +1,6 @@
 // Shared formatting helpers for the customers page (card, list, drawer).
 
-import { formatIQD } from '@scheniders/shared';
+import { formatIQD } from '@/lib/utils';
 
 /**
  * Iraqi phone for display: any input → "0780 123 4567" (LTR, Western digits).

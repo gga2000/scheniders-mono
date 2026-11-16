@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Loader2, Calendar, Clock, TrendingUp } from "lucide-react";
+import { Loader2, Calendar, Clock, TrendingUp } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -36,7 +36,7 @@ const orderCount = (n: number) => `${n} ${n === 1 ? "order" : "orders"}`;
 function getHeatmapColor(count: number, maxCount: number): string {
   if (count === 0) return "bg-foreground/[0.03]";
   const ratio = count / maxCount;
-  if (ratio < 0.15) return "bg-green-100 dark:bg-green-900/30";
+  if (ratio < 0.15) return "bg-green-500/15";
   if (ratio < 0.3) return "bg-green-200 dark:bg-green-800/40";
   if (ratio < 0.5) return "bg-green-300 dark:bg-green-700/50";
   if (ratio < 0.7) return "bg-green-400 dark:bg-green-600/60";
@@ -95,7 +95,7 @@ export default function UsagePage() {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -105,21 +105,18 @@ export default function UsagePage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="w-6 h-6" />
-            Usage Heatmap
-          </h1>
-          <p className="text-foreground-muted mt-1">Orders per day and hour, Baghdad time, last 365 days</p>
+          <h1 className="text-[22px] font-semibold text-foreground">Orders by hour</h1>
+          <p className="text-[13px] text-foreground/70">Orders per day and hour, Baghdad time, last 365 days</p>
         </div>
         <div className="flex items-center gap-2">
           <AnimatedCounter value={data.totalOrders} className="text-lg font-bold text-foreground" />
-          <span className="text-sm text-foreground/50">orders in 365 days</span>
+          <span className="text-sm text-foreground/70">orders in 365 days</span>
         </div>
       </div>
 
       {/* Heatmap */}
       <div className="pastel-card p-5 overflow-x-auto">
-        <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4 flex items-center gap-2">
           <Calendar className="w-4 h-4" />
           Activity Heatmap
         </h2>
@@ -141,7 +138,7 @@ export default function UsagePage() {
               return labels.map((l) => (
                 <span
                   key={`${l.label}-${l.offset}`}
-                  className="text-[9px] text-foreground/30 absolute"
+                  className="text-xs text-foreground/70 absolute"
                   style={{ left: `${l.offset * 14 + 32}px` }}
                 >
                   {l.label}
@@ -157,7 +154,7 @@ export default function UsagePage() {
               {DAY_LABELS.map((label, i) => (
                 <div key={label} className="h-[12px] flex items-center">
                   {i % 2 === 1 && (
-                    <span className="text-[9px] text-foreground/30 w-6 text-right pr-1">{label}</span>
+                    <span className="text-xs text-foreground/70 w-6 text-right pr-1">{label}</span>
                   )}
                 </div>
               ))}
@@ -186,7 +183,7 @@ export default function UsagePage() {
 
           {/* Legend */}
           <div className="flex items-center gap-1 mt-3 ml-8">
-            <span className="text-[9px] text-foreground/30">Less</span>
+            <span className="text-xs text-foreground/70">Less</span>
             {[0, 0.15, 0.3, 0.5, 0.7, 0.85, 1].map((ratio) => (
               <div
                 key={ratio}
@@ -196,7 +193,7 @@ export default function UsagePage() {
                 )}
               />
             ))}
-            <span className="text-[9px] text-foreground/30">More</span>
+            <span className="text-xs text-foreground/70">More</span>
           </div>
         </div>
       </div>
@@ -204,7 +201,7 @@ export default function UsagePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Hourly Distribution */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4 flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Orders by Hour of Day
           </h2>
@@ -212,8 +209,8 @@ export default function UsagePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.hourlyCounts.map((count, hour) => ({ hour: `${hour}:00`, count }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={2} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="hour" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={2} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#fcd34d" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -223,7 +220,7 @@ export default function UsagePage() {
 
         {/* Weekly Trend */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4" />
             Weekly Trend
           </h2>
@@ -231,8 +228,8 @@ export default function UsagePage() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.weeklyTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="week" tick={{ fontSize: 9, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={7} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="week" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={7} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
                 <Tooltip />
                 <Line type="monotone" dataKey="count" stroke="#86efac" strokeWidth={2} dot={false} />
               </LineChart>
@@ -244,42 +241,42 @@ export default function UsagePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Busiest Days */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-3">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-3">
             Top 10 Busiest Days
           </h2>
           <div className="space-y-2">
             {data.busiestDays.map((day, i) => (
               <div key={day.date} className="flex items-center gap-3 text-sm">
-                <span className="w-5 text-foreground/30 font-bold text-right">{i + 1}</span>
+                <span className="w-5 text-foreground/70 font-bold text-right">{i + 1}</span>
                 <span className="flex-1 font-medium text-foreground">
                   {formatDay(day.date)}
                 </span>
-                <span className="text-foreground/50 font-mono">{orderCount(day.count)}</span>
+                <span className="text-foreground/70 font-mono">{orderCount(day.count)}</span>
               </div>
             ))}
             {data.busiestDays.length === 0 && (
-              <p className="text-sm text-foreground/40 text-center py-4">No data</p>
+              <p className="text-sm text-foreground/70 text-center py-4">No data</p>
             )}
           </div>
         </div>
 
         {/* Quietest Days */}
         <div className="pastel-card p-5">
-          <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-3">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-3">
             Top 10 Quietest Days
           </h2>
           <div className="space-y-2">
             {data.quietestDays.map((day, i) => (
               <div key={day.date} className="flex items-center gap-3 text-sm">
-                <span className="w-5 text-foreground/30 font-bold text-right">{i + 1}</span>
+                <span className="w-5 text-foreground/70 font-bold text-right">{i + 1}</span>
                 <span className="flex-1 font-medium text-foreground">
                   {formatDay(day.date)}
                 </span>
-                <span className="text-foreground/50 font-mono">{orderCount(day.count)}</span>
+                <span className="text-foreground/70 font-mono">{orderCount(day.count)}</span>
               </div>
             ))}
             {data.quietestDays.length === 0 && (
-              <p className="text-sm text-foreground/40 text-center py-4">No data</p>
+              <p className="text-sm text-foreground/70 text-center py-4">No data</p>
             )}
           </div>
         </div>

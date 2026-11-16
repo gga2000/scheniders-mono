@@ -7,6 +7,7 @@ import {
   IRAQ_MAP_WIDTH,
   IRAQ_MAP_HEIGHT,
 } from "@scheniders/shared/iraq-map-paths";
+import { resolveGovernorate } from "@scheniders/shared";
 import type { GeoStats } from "@/types/dashboard";
 import { formatIQD } from "@/lib/format";
 
@@ -101,7 +102,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-blue)]/40 flex items-center justify-center">
-            <MapPin className="w-4 h-4 text-blue-700" />
+            <MapPin className="w-4 h-4 text-[var(--ink-blue)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
             Geographic Distribution
@@ -116,7 +117,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all capitalize ${
                 view === v
                   ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                  : "text-foreground/50 hover:text-foreground"
+                  : "text-foreground/70 hover:text-foreground"
               }`}
             >
               {v === "revenue" ? "Shop sales" : "Orders"}
@@ -157,7 +158,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                           e.currentTarget as SVGPathElement
                         ).getBoundingClientRect();
                         setTooltip({
-                          name: gov.code,
+                          name: resolveGovernorate(gov.code)?.name_en ?? gov.code,
                           orders: stats?.orderCount ?? 0,
                           revenue: stats?.revenue ?? 0,
                           x: rect.left + rect.width / 2,
@@ -166,19 +167,6 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                       }}
                       onMouseLeave={() => setTooltip(null)}
                     />
-                    <text
-                      x={gov.labelX}
-                      y={gov.labelY}
-                      textAnchor="middle"
-                      className="pointer-events-none select-none"
-                      style={{
-                        fontSize: 7,
-                        fill: "#334155",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {gov.code}
-                    </text>
                   </g>
                 );
               })}
@@ -190,8 +178,8 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                 className="fixed z-50 pointer-events-none bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg px-3 py-2 text-xs"
                 style={{
                   left: tooltip.x,
-                  top: tooltip.y - 48,
-                  transform: "translateX(-50%)",
+                  top: tooltip.y - 8,
+                  transform: "translate(-50%, -100%)",
                 }}
               >
                 <p className="font-bold text-foreground mb-0.5">
@@ -215,7 +203,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
 
           {/* Legend */}
           <div className="flex items-center justify-center gap-1 mt-3">
-            <span className="text-[10px] text-foreground/50">Less</span>
+            <span className="text-xs text-foreground/70">Less</span>
             {scale.map((color, i) => (
               <div
                 key={i}
@@ -223,7 +211,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                 style={{ backgroundColor: color }}
               />
             ))}
-            <span className="text-[10px] text-foreground/50">More</span>
+            <span className="text-xs text-foreground/70">More</span>
           </div>
         </>
       )}

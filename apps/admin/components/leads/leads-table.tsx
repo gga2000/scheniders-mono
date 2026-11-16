@@ -279,7 +279,7 @@ export function LeadsTable({
         onDrop={isEditing && reorder ? (e) => handleDrop(e, col.id) : undefined}
         onDragEnd={isEditing && reorder ? handleDragEnd : undefined}
         className={cn(
-          "relative py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider select-none",
+          "relative py-2.5 px-4 text-left text-xs font-bold text-[var(--muted)] uppercase tracking-wider select-none",
           isEditing && reorder && "cursor-grab active:cursor-grabbing",
           draggingId === col.id && "opacity-40",
         )}
@@ -377,7 +377,7 @@ export function LeadsTable({
                     "group border-b border-[var(--card-border)] last:border-0 transition-colors",
                     isEditing ? "cursor-default" : "cursor-pointer",
                     lead.is_draft
-                      ? "bg-amber-50/60 hover:bg-amber-50 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/[0.1]"
+                      ? "bg-amber-500/5 hover:bg-amber-50 dark:bg-amber-500/[0.06] dark:hover:bg-amber-500/[0.1]"
                       : "hover:bg-black/[0.02] dark:hover:bg-white/[0.03]",
                   )}
                 >

@@ -79,13 +79,13 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
 
       {shop.pinnedNotes.length > 0 && (
         <div className="border-t border-[var(--card-border)] p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/70">
             <Pin className="h-3.5 w-3.5" />
             Pinned notes
           </p>
           <ul className="space-y-2">
             {shop.pinnedNotes.map((note) => (
-              <li key={note.id} dir="auto" className="rounded-lg bg-amber-50 p-2.5 text-[13px] text-foreground">
+              <li key={note.id} dir="auto" className="rounded-lg bg-amber-500/5 p-2.5 text-[13px] text-foreground">
                 {note.content}
               </li>
             ))}
@@ -95,7 +95,7 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
 
       {shop.calls.length > 0 && (
         <div className="border-t border-[var(--card-border)] p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/70">
             <Phone className="h-3.5 w-3.5" />
             Last calls
           </p>
@@ -104,7 +104,7 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
       )}
 
       <div className="border-t border-[var(--card-border)] p-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground/50">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground/70">
           Earlier conversations
         </p>
         {shop.earlierCases.length === 0 ? (

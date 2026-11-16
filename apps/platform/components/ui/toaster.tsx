@@ -9,10 +9,12 @@ import {
     ToastViewport,
 } from "@/components/ui/toast";
 import { useToast, dismissToast, updateToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 import { AnimatePresence } from "framer-motion";
 
 export function Toaster() {
     const { toasts } = useToast();
+    const { t } = useLanguage();
     // dir="auto" per line: an Arabic toast keeps its full stop and numbers in
     // order, an English one stays LTR; text-left keeps the app's alignment.
 
@@ -61,7 +63,8 @@ export function Toaster() {
                     </Toast>
                 ))}
             </AnimatePresence>
-            <ToastViewport />
+            {/* Radix names this region "Notifications ({hotkey})", English with "F8", by default. */}
+            <ToastViewport label={t("toast.regionLabel")} />
         </ToastProvider>
     );
 }

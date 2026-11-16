@@ -4,11 +4,13 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { addLockOrders, MAX_LOCK_ORDERS_GRANT } from "@/lib/billing-lock-tools";
-import { staffReasonSchema } from "@/lib/staff-reason";
+import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
+import { notAnId } from "@/lib/route-id";
 
 const bodySchema = z.object({
   orders: z.number().int().min(1).max(MAX_LOCK_ORDERS_GRANT),
   reason: staffReasonSchema,
+  request_id: staffRequestIdSchema,
 });
 
 /**
@@ -26,6 +28,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const parsed = bodySchema.safeParse(await request.json());
@@ -43,11 +47,12 @@ export async function POST(
       parsed.data.reason,
       auth.user,
       hasPermission(auth.role, "manage_subscription"),
+      parsed.data.request_id,
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
-    return NextResponse.json({ id, orders_left: result.ordersLeft });
+    return NextResponse.json({ id, orders_left: result.ordersLeft, repeat: result.repeat });
   } catch (error) {
     console.error("Add lock orders error:", error);
     return NextResponse.json({ error: "Failed to add store orders" }, { status: 500 });

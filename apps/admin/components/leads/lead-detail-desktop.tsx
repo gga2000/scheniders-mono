@@ -1,15 +1,17 @@
 "use client";
 
+import { PlatformChip } from "@/components/leads/lead-chips";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
+import { loadFailureKind } from "@/lib/load-failure";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
-  PLATFORM_CONFIG,
+  LEAD_TIER_UI,
 } from "@/types/leads";
 import type { LeadFormData } from "@/types/leads";
 import {
@@ -54,7 +56,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadDetailDesktop() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError } = useLeadDetail(id);
+  const { data, isLoading, isError, error } = useLeadDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [buildStoreOpen, setBuildStoreOpen] = useState(false);
@@ -72,7 +74,8 @@ export function LeadDetailDesktop() {
   }
 
   // Error
-  if (isError) {
+  // A lead that does not exist (404) falls through to "not found" below.
+  if (isError && loadFailureKind(error) !== "missing") {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Link
@@ -82,7 +85,7 @@ export function LeadDetailDesktop() {
           <ArrowLeft className="w-4 h-4" />
           Back to Leads
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-red-400">
+        <div className="flex flex-col items-center justify-center py-20 text-[var(--ink-red)]">
           <AlertTriangle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Failed to load lead</p>
           <p className="text-sm text-[var(--muted)] mt-1">Something went wrong. Please try again later.</p>
@@ -114,7 +117,6 @@ export function LeadDetailDesktop() {
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
-  const platformCfg = PLATFORM_CONFIG[lead.platform];
 
   const engagementRate =
     ((lead.avg_like_count + lead.avg_comments_count) /
@@ -143,7 +145,7 @@ export function LeadDetailDesktop() {
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
           {/* Left: Avatar + name */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF8899] to-[#A78BFA] flex items-center justify-center text-white font-bold text-2xl shrink-0 shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-2xl shrink-0">
               {lead.merchant_name.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -156,12 +158,7 @@ export function LeadDetailDesktop() {
                 </p>
               )}
               <div className="flex items-center gap-2 mt-2">
-                <span
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
-                  style={{ backgroundColor: `${platformCfg.color}20`, color: platformCfg.color }}
-                >
-                  {platformCfg.label}
-                </span>
+                <PlatformChip platform={lead.platform} />
               </div>
             </div>
           </div>
@@ -172,14 +169,14 @@ export function LeadDetailDesktop() {
             <div className="flex flex-wrap items-center gap-2">
               {/* Tier */}
               <span
-                className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
-                style={{ backgroundColor: `${tierCfg.color}20`, color: tierCfg.color }}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
               >
                 {tierCfg.label}
               </span>
 
               {/* Priority */}
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/5 text-[var(--foreground)]">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white/5 text-[var(--foreground)]">
                 <span
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: priorityCfg.color }}
@@ -189,7 +186,7 @@ export function LeadDetailDesktop() {
 
               {/* Status */}
               <span
-                className="px-3 py-1 rounded-full text-[11px] font-bold"
+                className="px-3 py-1 rounded-full text-xs font-bold"
                 style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
               >
                 {statusCfg.label}
@@ -213,7 +210,7 @@ export function LeadDetailDesktop() {
                     strokeLinecap="round"
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[var(--foreground)]">
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[var(--foreground)]">
                   {lead.lead_score}
                 </span>
               </div>
@@ -293,7 +290,7 @@ export function LeadDetailDesktop() {
       </div>
 
       {/* ── Prediction Card ──────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-[#A78BFA]/10 to-[#34D399]/10 border border-[#A78BFA]/20 rounded-2xl p-5 md:p-6">
+      <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 md:p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
@@ -305,7 +302,7 @@ export function LeadDetailDesktop() {
             <p className="text-lg font-semibold text-[var(--muted)] mt-1">
               ~{fmt(estMonthlyOrders)} orders/month
             </p>
-            <p className="text-lg font-bold text-emerald-400 mt-1">
+            <p className="text-lg font-bold text-[var(--ink-green)] mt-1">
               ~{fmt(lead.estimated_monthly_revenue)} IQD/month potential revenue
             </p>
           </div>
@@ -357,8 +354,8 @@ export function LeadDetailDesktop() {
             {fmt(lead.follower_count)}
           </p>
           <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 inline-block"
-            style={{ backgroundColor: `${tierCfg.color}15`, color: tierCfg.color }}
+            className="text-xs font-bold px-1.5 py-0.5 rounded mt-1 inline-block"
+            style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
           >
             {tierCfg.label}
           </span>
@@ -373,7 +370,7 @@ export function LeadDetailDesktop() {
           <p className="text-xl font-bold text-[var(--foreground)]">
             {engagementRate.toFixed(1)}%
           </p>
-          <span className="text-[10px] text-[var(--muted)] mt-1 inline-block">
+          <span className="text-xs text-[var(--muted)] mt-1 inline-block">
             Likes + Comments / Followers
           </span>
         </div>
@@ -387,7 +384,7 @@ export function LeadDetailDesktop() {
           <p className="text-xl font-bold text-[var(--foreground)]">
             {daysInPipeline}
           </p>
-          <span className="text-[10px] text-[var(--muted)] mt-1 inline-block">
+          <span className="text-xs text-[var(--muted)] mt-1 inline-block">
             Since {formatDay(lead.created_at)}
           </span>
         </div>

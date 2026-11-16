@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { formatDayTime } from "@/lib/format";
 import { endAfterDays, type FreeDaysKind } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
+import { createRequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, WillHappen } from "./action-ui";
@@ -30,6 +31,8 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
   const [preset, setPreset] = useState<number | null>(PRESETS[kind][1] ?? null);
   const [typed, setTyped] = useState("");
   const [why, setWhy] = useState("");
+  // One id per ask: a retry after a lost answer gives the days once.
+  const [requestIds] = useState(createRequestIds);
 
   const typedDays = /^\d+$/.test(typed.trim()) ? Number(typed.trim()) : null;
   const days = preset ?? typedDays;
@@ -38,11 +41,16 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
   const ready = daysOk && (kind === "month" || isStaffReason(why));
 
   const give = useMutation({
-    mutationFn: (value: number) =>
-      kind === "trial"
-        ? postJson(`/api/merchants/${shopId}/extend-trial`, { days: value, reason: why.trim() })
-        : postJson(`/api/merchants/${shopId}/extend-subscription`, { days: value }),
-    onSuccess: onDone,
+    mutationFn: (value: number) => {
+      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}:${why.trim()}`);
+      return kind === "trial"
+        ? postJson(`/api/merchants/${shopId}/extend-trial`, { days: value, reason: why.trim(), request_id })
+        : postJson(`/api/merchants/${shopId}/extend-subscription`, { days: value, request_id });
+    },
+    onSuccess: () => {
+      requestIds.done();
+      onDone();
+    },
   });
 
   const what = kind === "trial" ? "The trial" : "This month";
@@ -81,7 +89,7 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
         <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (saved in the log)" className="mb-3" />
       )}
       {days !== null && !daysOk && (
-        <p className="mb-2 text-[13px] text-rose-700 dark:text-rose-300">From 1 to {MAX_DAYS[kind]} days.</p>
+        <p className="mb-2 text-[13px] text-[var(--ink-red)]">From 1 to {MAX_DAYS[kind]} days.</p>
       )}
       {daysOk && (
         <WillHappen>

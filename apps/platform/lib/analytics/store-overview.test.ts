@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { storeOverviewMetrics, storeOverviewSchema } from "./store-overview";
+import { storeLogStart, storeOverviewMetrics, storeOverviewSchema } from "./store-overview";
 
 const raw = storeOverviewSchema.parse({
     days: [
@@ -76,6 +76,21 @@ describe("storeOverviewMetrics for a period", () => {
     it("reads every day the log returns for «all», with no comparison", () => {
         expect(pick("all", "orders").value).toBe(60);
         expect(pick("all", "orders").deltaPct).toBeNull();
+    });
+
+    it("starts «all» at the log's first activity, not at the empty days the RPC pads with", () => {
+        const days = Array.from({ length: 60 }, (_, i) => ({
+            day: `2026-09-${String(i).padStart(2, "0")}`,
+            visitors: i >= 30 ? 10 : 0,
+            orders: i >= 30 ? 1 : 0,
+            sales: i >= 30 ? 1000 : 0,
+        }));
+        const young = storeOverviewSchema.parse({ days, yesterday_same_time: {} });
+        expect(storeLogStart(young)).toBe("2026-09-30");
+        const orders = storeOverviewMetrics(young, "all").find((m) => m.key === "orders")!;
+        expect(orders.value).toBe(30);
+        expect(orders.series).toHaveLength(30);
+        expect(storeLogStart(storeOverviewSchema.parse({}))).toBeNull();
     });
 
     it("keeps Today as today against yesterday at the same time, with 14 days of line", () => {

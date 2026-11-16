@@ -9,6 +9,7 @@ import {
   type NoteRow,
   type WalletRow,
 } from "@/lib/shop-timeline";
+import { notAnId } from "@/lib/route-id";
 
 /** Rows read from each table per page. */
 const PAGE = 100;
@@ -23,6 +24,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
   const beforeParam = new URL(request.url).searchParams.get("before");
   const before = beforeParam && !Number.isNaN(Date.parse(beforeParam)) ? beforeParam : null;
 

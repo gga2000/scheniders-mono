@@ -3,20 +3,15 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
-  Activity,
-  Shield,
-  ShoppingBag,
-  TrendingUp,
   AlertTriangle,
   Wallet,
-  ArrowUp,
-  ArrowDown,
   CheckCircle2,
   Loader2,
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import { formatIQD } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatCount, formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,9 +65,9 @@ function getRiskBarColor(score: number): string {
 }
 
 function getRiskBarBg(score: number): string {
-  if (score <= 3) return "bg-green-100";
-  if (score <= 6) return "bg-amber-100";
-  return "bg-red-100";
+  if (score <= 3) return "bg-green-500/15";
+  if (score <= 6) return "bg-amber-500/15";
+  return "bg-red-500/15";
 }
 
 // ---------------------------------------------------------------------------
@@ -114,22 +109,11 @@ export default function HealthPage() {
       ? Math.round((health.activeTenants / health.totalTenants) * 100)
       : 0;
 
-  const growthDiff =
-    growth ? growth.thisMonth - growth.lastMonth : 0;
-
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Activity className="w-6 h-6" />
-          Platform Health
-        </h1>
-        <p className="text-foreground-muted mt-1">
-          {isLoading
-            ? "Loading..."
-            : "Real-time monitoring and risk assessment"}
-        </p>
+        <h1 className="text-[22px] font-semibold text-foreground">Shops at risk</h1>
       </div>
 
       {/* Platform Status Bar */}
@@ -137,8 +121,8 @@ export default function HealthPage() {
         <div
           className={`rounded-2xl px-4 py-3 flex items-center gap-3 text-sm font-semibold ${
             hasIssues
-              ? "bg-amber-50 border border-amber-200 text-amber-800"
-              : "bg-green-50 border border-green-200 text-green-800"
+              ? "bg-amber-500/5 border border-amber-200 text-[var(--ink-amber)]"
+              : "bg-green-500/5 border border-green-200 text-[var(--ink-green)]"
           }`}
         >
           {hasIssues ? (
@@ -159,116 +143,35 @@ export default function HealthPage() {
         </div>
       )}
 
-      {/* Health Cards */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Active Tenants - Green */}
-        <div className="pastel-card pastel-card-green p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <Shield className="h-5 w-5 text-green-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-green-900/70 uppercase tracking-wider">
-            Active Tenants
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <>
-              <p className="text-2xl md:text-3xl font-bold text-green-950 tracking-tight mt-1">
-                {health?.activeTenants ?? 0}
-              </p>
-              <p className="text-xs text-green-800/70 font-medium mt-0.5">
-                {activePercent}% of {health?.totalTenants ?? 0} total
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Orders (24h) - Blue */}
-        <div className="pastel-card pastel-card-blue p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <ShoppingBag className="h-5 w-5 text-blue-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-blue-900/70 uppercase tracking-wider">
-            Orders (24h)
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-20 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-blue-950 tracking-tight mt-1">
-              {health?.ordersLast24h ?? 0}
-            </p>
-          )}
-        </div>
-
-        {/* At Risk - Pink */}
-        <div className="pastel-card pastel-card-pink p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <AlertTriangle className="h-5 w-5 text-rose-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-rose-900/70 uppercase tracking-wider">
-            At Risk
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-16 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-rose-950 tracking-tight mt-1">
-              {riskIndicators.length}
-            </p>
-          )}
-        </div>
-
-        {/* Growth - Mint/Green */}
-        <div className="pastel-card pastel-card-green p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <TrendingUp className="h-5 w-5 text-green-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-green-900/70 uppercase tracking-wider">
-            Growth
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-24 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <>
-              <p className="text-2xl md:text-3xl font-bold text-green-950 tracking-tight mt-1 flex items-center gap-2">
-                {growth?.thisMonth ?? 0}
-                {growthDiff > 0 && (
-                  <span className="flex items-center text-sm text-green-600 font-semibold">
-                    <ArrowUp className="w-3.5 h-3.5" />
-                    {growthDiff}
-                  </span>
-                )}
-                {growthDiff < 0 && (
-                  <span className="flex items-center text-sm text-red-600 font-semibold">
-                    <ArrowDown className="w-3.5 h-3.5" />
-                    {Math.abs(growthDiff)}
-                  </span>
-                )}
-              </p>
-              <p className="text-xs text-green-800/70 font-medium mt-0.5">
-                this month vs {growth?.lastMonth ?? 0} last month
-              </p>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Headline numbers, each naming its window (board v6: one surface). */}
+      <NumberStrip columns={4} label="Shop health numbers">
+        <NumberCell
+          label="Active shops, now"
+          value={health ? formatCount(health.activeTenants) : "..."}
+          note={health ? `${activePercent}% of ${formatCount(health.totalTenants)} shops` : undefined}
+        />
+        <NumberCell label="Orders, last 24 hours" value={health ? formatCount(health.ordersLast24h) : "..."} />
+        <NumberCell
+          label="Shops at risk, now"
+          value={data ? formatCount(riskIndicators.length) : "..."}
+          alert={riskIndicators.length > 0}
+        />
+        <NumberCell
+          label="New shops, this month"
+          value={growth ? formatCount(growth.thisMonth) : "..."}
+          note={growth ? `${formatCount(growth.lastMonth)} last month` : undefined}
+        />
+      </NumberStrip>
 
       {/* Risk Alerts */}
       <div className="pastel-card overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-foreground/60" />
+          <AlertTriangle className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
             Tenants at Risk
           </h2>
           {!isLoading && (
-            <span className="ml-auto text-xs text-foreground/40">
+            <span className="ml-auto text-xs text-foreground/70">
               {riskIndicators.length} tenant
               {riskIndicators.length !== 1 ? "s" : ""}
             </span>
@@ -277,10 +180,10 @@ export default function HealthPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+            <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
           </div>
         ) : riskIndicators.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+          <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
             <CheckCircle2 className="w-10 h-10 mb-2" />
             <p className="text-sm font-medium">No tenants at risk</p>
             <p className="text-xs mt-1">All merchants are operating normally</p>
@@ -300,7 +203,7 @@ export default function HealthPage() {
                   >
                     {ri.business_name}
                   </Link>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize bg-foreground/5 text-foreground/60 mt-1 inline-block">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/70 mt-1 inline-block">
                     {ri.plan}
                   </span>
                 </div>
@@ -333,7 +236,7 @@ export default function HealthPage() {
                   {ri.reasons.map((reason) => (
                     <span
                       key={reason}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700"
+                      className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-[var(--ink-red)]"
                     >
                       {reason}
                     </span>
@@ -355,12 +258,12 @@ export default function HealthPage() {
       {/* Low Balance Wallets */}
       <div className="pastel-card overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-foreground/60" />
+          <Wallet className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
             Low Balance Alerts
           </h2>
           {!isLoading && (
-            <span className="ml-auto text-xs text-foreground/40">
+            <span className="ml-auto text-xs text-foreground/70">
               {lowBalanceWallets.length} wallet
               {lowBalanceWallets.length !== 1 ? "s" : ""}
             </span>
@@ -369,10 +272,10 @@ export default function HealthPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+            <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
           </div>
         ) : lowBalanceWallets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+          <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
             <CheckCircle2 className="w-10 h-10 mb-2" />
             <p className="text-sm font-medium">All wallets healthy</p>
             <p className="text-xs mt-1">
@@ -384,19 +287,19 @@ export default function HealthPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--card-border)]">
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Business Name
                   </th>
-                  <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Balance
                   </th>
-                  <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Threshold
                   </th>
-                  <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Deficit
                   </th>
-                  <th className="p-3 text-center text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
@@ -423,7 +326,7 @@ export default function HealthPage() {
                       <td className="p-3 text-right text-foreground/70 tabular-nums">
                         {formatIQD(w.threshold_iqd)}
                       </td>
-                      <td className="p-3 text-right font-semibold text-red-600 tabular-nums">
+                      <td className="p-3 text-right font-semibold text-[var(--ink-red)] tabular-nums">
                         -{formatIQD(deficit)}
                       </td>
                       <td className="p-3 text-center">

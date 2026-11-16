@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Headset, Loader2, MessageSquareText } from "lucide-react";
+import { Loader2, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSupportCase, useSupportCases, useSupportNeedsUs, useSupportTasks } from "@/hooks/use-support-cases";
 import { SupportCaseList } from "@/components/support/support-case-list";
@@ -61,11 +61,8 @@ function SupportInbox() {
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <Headset className="h-6 w-6" />
-            Support
-          </h1>
-          <p className="mt-1 text-foreground-muted">
+          <h1 className="text-[22px] font-semibold text-foreground">Support</h1>
+          <p className="text-[13px] text-foreground/70">
             {list.isLoading
               ? "Loading..."
               : waiting === 0
@@ -91,12 +88,12 @@ function SupportInbox() {
               >
                 {v.label}
                 {v.id === "needs" && needsUs > 0 && (
-                  <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-900">
+                  <span className="ml-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--ink-amber)]">
                     {needsUs}
                   </span>
                 )}
                 {v.id === "today" && myCalls > 0 && (
-                  <span className="ml-1.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-900">
+                  <span className="ml-1.5 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--ink-blue)]">
                     {myCalls}
                   </span>
                 )}
@@ -120,7 +117,7 @@ function SupportInbox() {
           }}
         />
       ) : list.isError ? (
-        <div className={cn(PANE, "p-6 text-sm text-red-700")}>
+        <div className={cn(PANE, "p-6 text-sm text-[var(--ink-red)]")}>
           Could not load support conversations. {list.error.message}
         </div>
       ) : (
@@ -137,14 +134,14 @@ function SupportInbox() {
 
           <div className={PANE}>
             {activeId === null ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-foreground/40">
+              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-foreground/70">
                 <MessageSquareText className="h-10 w-10" />
                 <p className="text-sm font-medium">
                   When a merchant presses Help in their app, the conversation shows up here.
                 </p>
               </div>
             ) : detail.isError ? (
-              <div className="p-6 text-sm text-red-700">{detail.error.message}</div>
+              <div className="p-6 text-sm text-[var(--ink-red)]">{detail.error.message}</div>
             ) : detail.data ? (
               <SupportConversation
                 key={detail.data.case.id}
@@ -153,7 +150,7 @@ function SupportInbox() {
               />
             ) : (
               <div className="flex h-full items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-foreground/30" />
+                <Loader2 className="h-6 w-6 animate-spin text-foreground/70" />
               </div>
             )}
           </div>
@@ -162,7 +159,7 @@ function SupportInbox() {
             {detail.data && activeId !== null ? (
               <SupportShopCard shop={detail.data.shop} caseId={detail.data.case.id} />
             ) : (
-              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-foreground/40">
+              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-foreground/70">
                 The shop&apos;s plan, wallet and orders show here.
               </div>
             )}

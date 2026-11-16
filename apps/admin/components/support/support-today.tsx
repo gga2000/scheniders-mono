@@ -56,7 +56,7 @@ export function SupportToday() {
   const list = sortTasks(tasks.data?.tasks ?? [], me);
   if (list.length === 0) {
     return (
-      <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/50")}>
+      <div className={cn(CARD, "flex flex-col items-center gap-2 px-6 py-16 text-center text-foreground/70")}>
         <CheckCircle2 className="h-8 w-8" />
         <p className="text-sm font-medium">No calls left for today.</p>
       </div>
@@ -111,12 +111,12 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-foreground">
             {task.kind === "call_back" ? (
-              <PhoneCall className="h-3.5 w-3.5 self-center text-emerald-700" />
+              <PhoneCall className="h-3.5 w-3.5 self-center text-[var(--ink-green)]" />
             ) : (
               <CalendarCheck className="h-3.5 w-3.5 self-center" />
             )}
             {label.title}
-            <span className={cn("text-xs font-medium", late ? "text-red-700" : "text-foreground-muted")}>
+            <span className={cn("text-xs font-medium", late ? "text-[var(--ink-red)]" : "text-foreground-muted")}>
               {formatDue(task.due_at, now)}
             </span>
             {task.attempts > 0 && (
@@ -149,7 +149,7 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
         >
           <ExternalLink className="h-3.5 w-3.5" />
           <span dir="auto">{task.business_name}</span>
-          {task.display_id !== null && <span className="text-foreground/40">#{task.display_id}</span>}
+          {task.display_id !== null && <span className="text-foreground/70">#{task.display_id}</span>}
         </Link>
       </div>
 

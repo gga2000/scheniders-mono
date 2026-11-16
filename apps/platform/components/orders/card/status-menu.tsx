@@ -45,27 +45,35 @@ function StatusIcon({ status }: { status: Order["status"] }) {
     }
 }
 
+const BADGE_TRIGGER = "block w-full text-start cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all outline-none";
+
 /**
- * The status badge on an order card, opening a menu of every status. Cancel and
- * reject go through their reason dialogs when the card provides them.
+ * A menu of every status, opened from an order card's badge or the order
+ * window. The current status is marked and cannot be picked again. Cancel and
+ * reject go through their reason dialogs when the caller provides them.
  */
 export function CardStatusMenu({
     order,
     onStatusUpdate,
     onCancelWithReason,
     onRejectWithReason,
+    triggerClassName = BADGE_TRIGGER,
     children,
 }: {
     order: Order;
     onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
     onCancelWithReason?: (order: Order) => void;
     onRejectWithReason?: (order: Order) => void;
+    /** The trigger's look; a card's badge by default. */
+    triggerClassName?: string;
     children: React.ReactNode;
 }) {
     const { t } = useLanguage();
     const orderStatusLabel = useStatusLabel();
     const isReturn = order.is_return;
     const handleInlineStatusUpdate = (newStatus: Order["status"]) => {
+        // Picking the status it already has would only add a stray history row.
+        if (newStatus === order.status) return;
         if (newStatus === "cancelled" && onCancelWithReason) {
             onCancelWithReason(order);
         } else if (newStatus === "rejected" && onRejectWithReason) {
@@ -79,10 +87,7 @@ export function CardStatusMenu({
         <div onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        className="block w-full text-start cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all outline-none"
-                    >
+                    <button type="button" className={triggerClassName}>
                         {children}
                     </button>
                 </DropdownMenuTrigger>
@@ -91,6 +96,7 @@ export function CardStatusMenu({
                     {CARD_STATUSES.map((status) => (
                         <DropdownMenuItem
                             key={status}
+                            disabled={order.status === status}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleInlineStatusUpdate(status);

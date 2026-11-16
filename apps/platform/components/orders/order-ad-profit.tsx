@@ -41,9 +41,9 @@ function AdProfitCard({ order }: { order: Order }) {
         <section className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 text-sm" data-testid="order-ad-profit">
             <div className="flex flex-col">
                 <Line label={t("orders.adProfit.total")} value={formatIQD(lines.revenue)} />
-                <Line label={t("orders.adProfit.productCost")} value={`− ${formatIQD(lines.productCost)}`} tone="neg" />
-                <Line label={t("orders.adProfit.otherCosts")} value={`− ${formatIQD(lines.otherCosts)}`} tone="neg" />
-                <Line label={t("orders.adProfit.adCost").replace("{campaign}", campaign.campaignName)} value={`− ${formatIQD(lines.adCost)}`} tone="neg" />
+                <Line label={t("orders.adProfit.productCost")} value={formatIQD(-lines.productCost)} tone="neg" />
+                <Line label={t("orders.adProfit.otherCosts")} value={formatIQD(-lines.otherCosts)} tone="neg" />
+                <Line label={t("orders.adProfit.adCost").replace("{campaign}", campaign.campaignName)} value={formatIQD(-lines.adCost)} tone="neg" />
                 <Line label={t("orders.adProfit.profit")} value={formatIQD(lines.profitAfterAds)} tone={lines.profitAfterAds < 0 ? "neg" : "pos"} />
             </div>
             <p className="mt-2 text-xs text-muted">{t("orders.adProfit.note")}</p>

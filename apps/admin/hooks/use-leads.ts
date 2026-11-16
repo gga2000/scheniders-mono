@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Lead } from "@/types/leads";
 import { useLeadStore } from "@/store/use-lead-store";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 interface UseLeadsResponse {
   leads: Lead[];
@@ -60,7 +61,7 @@ export function useLeads(page = 1, limit = 20) {
       if (sortBy) params.set("sort", sortBy);
 
       const res = await adminFetch(`/api/leads?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch leads");
+      okOrLoadFailure(res, "leads");
       return res.json();
     },
     staleTime: 30_000,

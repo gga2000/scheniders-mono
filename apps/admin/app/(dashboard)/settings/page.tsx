@@ -33,13 +33,7 @@ export default function SettingsPage() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Settings className="w-6 h-6" />
-          Settings
-        </h1>
-        <p className="text-foreground-muted mt-1">
-          Manage platform configuration and admin preferences
-        </p>
+        <h1 className="text-[22px] font-semibold text-foreground">Settings</h1>
       </div>
 
       <PaymentDetailsCard canEdit={role ? hasPermission(role, "update_settings") : false} />
@@ -57,7 +51,7 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-foreground">
                 Store Industries
               </h2>
-              <p className="text-xs text-foreground/50">
+              <p className="text-xs text-foreground/70">
                 Categories shown in the store-creation wizard. Add, remove, or reorder.
               </p>
             </div>
@@ -69,7 +63,7 @@ export default function SettingsPage() {
             Manage
           </button>
         </div>
-        <p className="text-xs text-foreground/40">
+        <p className="text-xs text-foreground/70">
           Changes take effect immediately for new merchants going through onboarding.
         </p>
       </div>
@@ -89,7 +83,7 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold text-foreground">
               Admin Users
             </h2>
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-foreground/70">
               Admin user management coming soon
             </p>
           </div>
@@ -99,7 +93,7 @@ export default function SettingsPage() {
           <div className="pastel-card p-4 bg-foreground/[0.02]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-foreground/10 flex items-center justify-center">
-                <User className="w-5 h-5 text-foreground/60" />
+                <User className="w-5 h-5 text-foreground/70" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -107,19 +101,19 @@ export default function SettingsPage() {
                     {user.email}
                   </p>
                   {role && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-foreground/10 text-foreground/70 capitalize shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-foreground/10 text-foreground/70 capitalize shrink-0">
                       {role.replace("_", " ")}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-foreground/50 mt-0.5">
+                <p className="text-xs text-foreground/70 mt-0.5">
                   Last login: {lastLogin}
                 </p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center py-8 text-foreground/40">
+          <div className="flex items-center justify-center py-8 text-foreground/70">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         )}
@@ -128,14 +122,14 @@ export default function SettingsPage() {
       {/* Danger zone */}
       <div className="pastel-card p-6 border-red-200">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
+          <div className="w-8 h-8 rounded-lg bg-red-500/5 flex items-center justify-center">
+            <AlertTriangle className="w-4 h-4 text-[var(--ink-red)]" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-red-700">
+            <h2 className="text-sm font-semibold text-[var(--ink-red)]">
               Danger Zone
             </h2>
-            <p className="text-xs text-red-500/70">
+            <p className="text-xs text-[var(--ink-red)]">
               Irreversible and destructive actions
             </p>
           </div>
@@ -143,12 +137,12 @@ export default function SettingsPage() {
 
         <div className="space-y-3">
           {/* Purge Activity Logs */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-50/30">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-500/5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">
                 Purge Activity Logs
               </p>
-              <p className="text-xs text-foreground/50 mt-0.5">
+              <p className="text-xs text-foreground/70 mt-0.5">
                 Permanently delete all admin activity logs. This action cannot
                 be undone.
               </p>
@@ -163,12 +157,12 @@ export default function SettingsPage() {
           </div>
 
           {/* Reset All Settings */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-50/30">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-500/5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">
                 Reset All Settings
               </p>
-              <p className="text-xs text-foreground/50 mt-0.5">
+              <p className="text-xs text-foreground/70 mt-0.5">
                 Reset all platform settings to their default values. This will
                 affect all merchants.
               </p>

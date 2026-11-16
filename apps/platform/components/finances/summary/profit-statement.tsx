@@ -184,7 +184,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     <button
                         type="button"
                         onClick={() => onOpenTab("expenses")}
-                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
+                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                     >
                         {t("fin.statement.addExpense")}
                         <ArrowUpRight className="size-3.5" aria-hidden="true" />

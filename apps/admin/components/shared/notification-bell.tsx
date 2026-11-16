@@ -20,19 +20,19 @@ interface Notification {
 }
 
 const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, label: "Wallet Top-Up", color: "text-green-600" },
-  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Plan Changed", color: "text-blue-600" },
-  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, label: "Trial Extended", color: "text-amber-600" },
-  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Tenant Suspended", color: "text-red-600" },
-  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, label: "Tenant Reactivated", color: "text-green-600" },
-  add_note: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Note Added", color: "text-foreground/60" },
+  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, label: "Wallet Top-Up", color: "text-[var(--ink-green)]" },
+  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Plan Changed", color: "text-[var(--ink-blue)]" },
+  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, label: "Trial Extended", color: "text-[var(--ink-amber)]" },
+  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Tenant Suspended", color: "text-[var(--ink-red)]" },
+  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, label: "Tenant Reactivated", color: "text-[var(--ink-green)]" },
+  add_note: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Note Added", color: "text-foreground/70" },
 };
 
 function getActionConfig(action: string) {
   return ACTION_CONFIG[action] || {
     icon: <Bell className="w-3.5 h-3.5" />,
     label: action.replace(/_/g, " "),
-    color: "text-foreground/60",
+    color: "text-foreground/70",
   };
 }
 
@@ -93,14 +93,14 @@ export function NotificationBell() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="relative p-2 rounded-xl text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors"
+        className="relative p-2 rounded-xl text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
       >
         <Bell className="w-4.5 h-4.5" />
         {unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold tabular-nums text-white"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
           </motion.span>
@@ -123,7 +123,7 @@ export function NotificationBell() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="text-[10px] text-foreground/40 hover:text-foreground transition-colors"
+                  className="text-xs text-foreground/70 hover:text-foreground transition-colors"
                 >
                   Mark all read
                 </button>
@@ -148,7 +148,7 @@ export function NotificationBell() {
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
               {notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed ? (
-                <div className="px-4 py-8 text-center text-sm text-foreground/40">
+                <div className="px-4 py-8 text-center text-sm text-foreground/70">
                   No notifications yet
                 </div>
               ) : (
@@ -169,13 +169,13 @@ export function NotificationBell() {
                           {config.label}
                         </p>
                         {notif.details && (
-                          <p className="text-[11px] text-foreground/50 truncate mt-0.5">
+                          <p className="text-xs text-foreground/70 truncate mt-0.5">
                             {typeof notif.details === "object"
                               ? Object.values(notif.details).filter(Boolean).join(" · ")
                               : String(notif.details)}
                           </p>
                         )}
-                        <p className="text-[10px] text-foreground/30 mt-1">
+                        <p className="text-xs text-foreground/70 mt-1">
                           {formatWhen(notif.created_at)}
                         </p>
                       </div>

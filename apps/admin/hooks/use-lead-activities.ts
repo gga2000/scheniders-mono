@@ -3,13 +3,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadActivity, LeadActivityType } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 export function useLeadActivities(leadId: string | null) {
   return useQuery<LeadActivity[]>({
     queryKey: ["lead-activities", leadId],
     queryFn: async () => {
       const res = await adminFetch(`/api/leads/${leadId}/activities`);
-      if (!res.ok) throw new Error("Failed to fetch activities");
+      okOrLoadFailure(res, "activities");
       const data = await res.json();
       return data.activities;
     },

@@ -14,11 +14,6 @@ import {
   ArrowLeft,
   UserCircle,
   Loader2,
-  Target,
-  TrendingUp,
-  Store,
-  DollarSign,
-  Trophy,
   Lock,
   CheckCircle2,
 } from "lucide-react";
@@ -28,6 +23,7 @@ import {
   type EmployeeCommission,
 } from "@/types/leads";
 import { formatDay } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 const tabs = ["Actions", "Commissions", "Achievements", "Performance"] as const;
 type Tab = (typeof tabs)[number];
@@ -35,9 +31,9 @@ type Tab = (typeof tabs)[number];
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 const commissionStatusStyles: Record<CommissionStatus, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  approved: "bg-blue-100 text-blue-800",
-  paid: "bg-green-100 text-green-800",
+  pending: "bg-amber-500/15 text-[var(--ink-amber)]",
+  approved: "bg-blue-500/15 text-[var(--ink-blue)]",
+  paid: "bg-green-500/15 text-[var(--ink-green)]",
 };
 
 export default function TeamMemberDetailPage() {
@@ -50,7 +46,7 @@ export default function TeamMemberDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -60,12 +56,12 @@ export default function TeamMemberDetailPage() {
       <div className="p-4 md:p-6 space-y-4">
         <Link
           href="/team"
-          className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Team
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <UserCircle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Employee not found</p>
         </div>
@@ -77,9 +73,9 @@ export default function TeamMemberDetailPage() {
   const initial = (employee.display_name ?? employee.email).charAt(0).toUpperCase();
 
   const roleStyles: Record<string, string> = {
-    admin: "bg-purple-100 text-purple-800",
-    manager: "bg-blue-100 text-blue-800",
-    agent: "bg-green-100 text-green-800",
+    admin: "bg-purple-500/15 text-[var(--ink-violet)]",
+    manager: "bg-blue-500/15 text-[var(--ink-blue)]",
+    agent: "bg-green-500/15 text-[var(--ink-green)]",
   };
 
   const totalPages = actionsData ? Math.ceil(actionsData.total / 50) : 1;
@@ -90,7 +86,7 @@ export default function TeamMemberDetailPage() {
       {/* Back link */}
       <Link
         href="/team"
-        className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Team
@@ -106,7 +102,7 @@ export default function TeamMemberDetailPage() {
               className="w-14 h-14 rounded-2xl object-cover shrink-0"
             />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white font-bold text-xl shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-xl shrink-0">
               {initial}
             </div>
           )}
@@ -114,12 +110,12 @@ export default function TeamMemberDetailPage() {
             <h1 className="text-xl font-bold text-foreground truncate">
               {employee.display_name ?? "Unnamed"}
             </h1>
-            <p className="text-sm text-foreground/50 truncate">{employee.email}</p>
+            <p className="text-sm text-foreground/70 truncate">{employee.email}</p>
           </div>
           <span
             className={cn(
-              "px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize shrink-0",
-              roleStyles[employee.role] ?? "bg-gray-100 text-gray-600"
+              "px-2.5 py-1 rounded-full text-xs font-semibold capitalize shrink-0",
+              roleStyles[employee.role] ?? "bg-gray-500/15 text-[var(--muted)]"
             )}
           >
             {employee.role}
@@ -128,45 +124,12 @@ export default function TeamMemberDetailPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <Target className="w-4 h-4" />
-            <span className="text-xs font-semibold">Leads Added</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.leads_added)}
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-semibold">Leads Converted</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.leads_converted)}
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Store className="w-4 h-4" />
-            <span className="text-xs font-semibold">Stores Built</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.stores_built)}
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-amber-50/50">
-          <div className="flex items-center gap-2 text-amber-700 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">Commission Earned</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.commission_earned)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-      </div>
+      <NumberStrip columns={4}>
+        <NumberCell label="Leads added" value={fmt(employee.leads_added)} />
+        <NumberCell label="Leads converted" value={fmt(employee.leads_converted)} />
+        <NumberCell label="Stores built" value={fmt(employee.stores_built)} />
+        <NumberCell label="Commission earned" value={`${fmt(employee.commission_earned)} IQD`} />
+      </NumberStrip>
 
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-[var(--card-border)]">
@@ -178,7 +141,7 @@ export default function TeamMemberDetailPage() {
               "px-4 py-2.5 text-sm font-semibold transition-colors",
               activeTab === tab
                 ? "text-foreground border-b-2 border-[#1E1E1E]"
-                : "text-foreground/50 hover:text-foreground/70"
+                : "text-foreground/70 hover:text-foreground"
             )}
           >
             {tab}
@@ -195,17 +158,17 @@ export default function TeamMemberDetailPage() {
               <button
                 onClick={() => setActionPage((p) => Math.max(1, p - 1))}
                 disabled={actionPage === 1}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/70 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 Previous
               </button>
-              <span className="text-xs text-foreground/50">
+              <span className="text-xs text-foreground/70">
                 Page {actionPage} of {totalPages}
               </span>
               <button
                 onClick={() => setActionPage((p) => Math.min(totalPages, p + 1))}
                 disabled={actionPage === totalPages}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/70 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 Next
               </button>
@@ -220,22 +183,22 @@ export default function TeamMemberDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--card-border)]">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                     Period
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                     Merchant
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                     Orders
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                     Revenue
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                     Earned
                   </th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/70">
                     Status
                   </th>
                 </tr>
@@ -245,7 +208,7 @@ export default function TeamMemberDetailPage() {
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-12 text-center text-foreground/40 text-sm"
+                      className="px-4 py-12 text-center text-foreground/70 text-sm"
                     >
                       No commission records yet
                     </td>
@@ -276,7 +239,7 @@ export default function TeamMemberDetailPage() {
                       <td className="px-4 py-3 text-center">
                         <span
                           className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
+                            "px-2 py-0.5 rounded-full text-xs font-semibold capitalize",
                             commissionStatusStyles[c.status]
                           )}
                         >
@@ -328,11 +291,11 @@ export default function TeamMemberDetailPage() {
                       style={{ color: ach.color }}
                     />
                   ) : (
-                    <Lock className="w-5 h-5 text-foreground/30" />
+                    <Lock className="w-5 h-5 text-foreground/70" />
                   )}
                 </div>
                 <p className="text-xs font-bold text-foreground">{ach.name}</p>
-                <p className="text-[10px] text-foreground/50 mt-0.5">
+                <p className="text-xs text-foreground/70 mt-0.5">
                   {ach.description}
                 </p>
               </div>

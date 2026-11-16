@@ -44,10 +44,12 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
-            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_before: 0, reached_now: 0, reached_other: 0 },
+            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_before: 0, reached_now: 0, reached_other: 0, reached_prepaid: 0, reached_prepaid_orders: 0 },
+            statement: { returns: 0, returns_orders: 0, returns_open: 0, returns_open_orders: 0, prepaid_gap: 0, prepaid_orders: 0, price_gap: 0, price_gap_orders: 0, undelivered: 0, undelivered_orders: 0 },
+            statement_orders: [],
             unpaid_list: [
                 { id: "11111111-1111-4111-8111-111111111111", code: "4260905001", customer: "محمد كاظم", amount: 25_000, day: "2026-11-01", prime: false },
-                { id: "22222222-2222-4222-8222-222222222222", code: "1261112002", customer: "عباس عادل", amount: 15_000, day: "2026-11-02", prime: true },
+                { id: "22222222-2222-4222-8222-222222222222", code: "1261112002", customer: "عباس عادل", amount: 15_000, day: "2026-11-15", prime: true },
             ],
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 0, prime_returned_fee: 0 },
@@ -132,7 +134,7 @@ describe("SummaryView", () => {
         expect(byTestId("profit-path-end")?.textContent).toContain("95,000");
         const toggle = line("delivery")?.querySelector("button");
         if (toggle) fireEvent.click(toggle);
-        expect(line("delivery")?.textContent).toContain("أجرة المندوب في كشوف التوصيل عن 4 طلبات");
+        expect(line("delivery")?.textContent).toContain("أجرة التوصيل في الكشوف عن 4 طلبات");
         expect(line("delivery")?.textContent).toContain("20,000");
         // no courier bill is typed: nothing can be counted twice
         expect(document.querySelector('[data-alert="delivery_twice"]')).toBeNull();
@@ -210,12 +212,13 @@ describe("SummaryView", () => {
         expect(byTestId("money-sold")?.textContent).toContain("10 طلبات");
         // 330,000 + 30,000 + 40,000 = 400,000
         expect(byTestId("money-reached")?.textContent).toContain("330,000");
-        expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات بعد أجرة التوصيل");
+        expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات مسلَّمة في هذه الفترة، بعد أجرة التوصيل");
         expect(byTestId("money-fee")?.textContent).toContain("30,000");
         // the statement's delivery line has nothing more here, so no second figure to explain
         expect(byTestId("money-fee-statement")).toBeNull();
         expect(byTestId("money-unpaid")?.textContent).toContain("40,000");
-        expect(byTestId("money-unpaid")?.textContent).toContain("3 طلبات: 1 عند برايم و2 عند المندوب");
+        // the note counts the orders that still owe money, as the list names them
+        expect(byTestId("money-unpaid")?.textContent).toContain("طلبان: واحد عند برايم وواحد عند شركة التوصيل");
         expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
         // the road is not a sale yet: it sits under the line, apart from the three parts
         expect(byTestId("money-road")?.textContent).toContain("160,000");
@@ -227,8 +230,17 @@ describe("SummaryView", () => {
         expect(byTestId("money-split")?.querySelectorAll("i")).toHaveLength(2);
     });
 
-    it("lists the unpaid orders, each opening its order, and says what the rest owe", () => {
+    it("lists the unpaid orders, each opening its order, says how long each waited, and what the rest owe", () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-11-20T09:00:00Z"));
         renderView(query(summary()));
+        const ages = Array.from(byTestId("money-unpaid-list")?.querySelectorAll("li p span") ?? []);
+        expect(ages.map((age) => age.textContent)).toEqual(["سُلِّم قبل 19 يوماً", "سُلِّم قبل 5 أيام"]);
+        // over two weeks is late: only the first row is marked
+        expect(ages.map((age) => age.hasAttribute("data-late"))).toEqual([true, false]);
+        // a late row says once what to do about it
+        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة بالبرتقالي سُلِّمت قبل أكثر من أسبوعين ولم يُدفع ثمنها بعد: اسأل عنها شركة التوصيل.");
+        vi.useRealTimers();
         const list = byTestId("money-unpaid-list");
         const links = Array.from(list?.querySelectorAll("a") ?? []);
         expect(links.map((a) => a.getAttribute("href"))).toEqual([
@@ -238,10 +250,10 @@ describe("SummaryView", () => {
         expect(links[0]?.textContent).toBe("4260905001");
         expect(list?.textContent).toContain("محمد كاظم");
         expect(list?.textContent).toContain("25,000");
-        expect(list?.textContent).toContain("عند المندوب");
+        expect(list?.textContent).toContain("عند شركة التوصيل");
         expect(list?.textContent).toContain("عند برايم");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
-        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا مبلغ لك فيه بعد أجرة التوصيل.");
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا يبقى لك منه شيء بعد أجرة التوصيل.");
         cleanup();
         const s = summary();
         const full = Array.from({ length: 20 }, (_, i) => ({ ...s.cash.unpaid_list[0], id: `id-${i}`, code: `${i}` }));
@@ -261,7 +273,7 @@ describe("SummaryView", () => {
     it("names Prime's unpaid orders and links to Prime even with no link row (the demo store), and says Prime took part of the fee", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, prime_linked: false } })));
-        expect(byTestId("money-unpaid")?.textContent).toContain("1 عند برايم");
+        expect(byTestId("money-unpaid")?.textContent).toContain("واحد عند برايم");
         expect(byTestId("money-unpaid")?.querySelector('a[href="/prime"]')).not.toBeNull();
         expect(byTestId("money-fee")?.textContent).toContain("وبرايم");
         cleanup();
@@ -282,34 +294,81 @@ describe("SummaryView", () => {
         expect(byTestId("money-fee-statement")?.textContent).toContain("15,000 د.ع أجرة الطرود الراجعة");
     });
 
-    it("names the courier payments dated in the period in one quiet line under the card", () => {
+    it("shows what the courier paid out in the period, taken apart so the lines add up to it", () => {
         renderView(query(summary()));
-        expect(byTestId("money-payments")?.textContent).toContain("دفعتين");
+        expect(byTestId("money-payments")?.textContent).toContain("دفعات استلمتها من شركات التوصيل");
+        expect(byTestId("money-payments")?.textContent).toContain("دفعتان");
         expect(byTestId("money-payments")?.textContent).toContain("300,000");
-        // Says why "reached you" differs from the dated payments: Prime, and statements of any date.
+        // nothing of the period's payments is tied to its orders: say why the two figures differ
         expect(byTestId("money-payments")?.textContent).toContain("أيّاً كان تاريخ الدفعة");
+        expect(byTestId("money-payments-parts")).toBeNull();
         cleanup();
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
-        expect(byTestId("money-payments")?.textContent).toContain("لم تستلم من المندوب أي دفعة");
+        expect(byTestId("money-payments")?.textContent).toContain("لم تستلم من شركات التوصيل أي دفعة");
         cleanup();
-        // when the server says where "paid to you" came from, its parts are listed under it, each with its amount
-        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000, reached_other: 30_000 } } })));
-        const parts = byTestId("money-reached-parts")?.textContent ?? "";
-        expect(parts).toContain("من كشوف هذه الفترة100,000");
-        expect(parts).toContain("من كشوف مؤرَّخة قبل هذه الفترة");
-        expect(parts).toContain("طلبات تغيّرت حالتها إلى «مُسلَّم» بعدها200,000");
-        expect(parts).toContain("من كشوف مؤرَّخة بعد هذه الفترة30,000");
+        // 300,000 paid = 380,000 for the period's orders − 30,000 refunds marked done − 20,000 refunds not marked
+        // − 10,000 on two prepaid orders + 5,000 price + 3,000 for an order not marked delivered − 28,000 other
+        renderView(query(summary({
+            cash: {
+                ...s.cash,
+                split: { ...s.cash.split, reached_now: 380_000, reached_before: 1_000 },
+                statement: {
+                    returns: -50_000,
+                    returns_orders: 3,
+                    returns_open: -20_000,
+                    returns_open_orders: 1,
+                    prepaid_gap: -9_999,
+                    prepaid_orders: 2,
+                    price_gap: 5_000,
+                    price_gap_orders: 1,
+                    undelivered: 3_000,
+                    undelivered_orders: 1,
+                },
+                statement_orders: [
+                    { kind: "price", id: "p-1", code: "4261101004", amount: 5_000 },
+                    { kind: "refund_open", id: "r-1", code: "RTN-4108-1", amount: -20_000 },
+                    { kind: "undelivered", id: "u-1", code: "4261102012", amount: 3_000 },
+                    { kind: "prepaid", id: "pp-1", code: "1261030001", amount: -4_999 },
+                    { kind: "prepaid", id: "pp-2", code: "1261104002", amount: -5_000 },
+                ],
+            },
+        })));
+        const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
+        expect(rows).toEqual([
+            "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
+            "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». حتى ذلك الحين صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً. الطلب 1261030001 كتب الكشف أن شركة التوصيل قبضت عنه 1 د.ع، فخصمت منه 4,999 د.ع بدل 5,000 د.ع.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
+            "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
+            "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
+            "فروق أخرى−28,001د.ع",
+        ]);
+        expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
+        expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
+        // The refund not marked yet also warns at the top, and the warning scrolls to this card.
+        const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
+        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
+        expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
+        expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
+        expect(byTestId("money-payments-link")?.textContent).toBe(
+            "هذا ما دفعته لك شركات التوصيل فعلاً خلال الفترة: ثمن طلبات هذه الفترة في الكشوف (380,000 د.ع) بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
+        );
         expect(byTestId("money-payments")?.textContent).not.toContain("أيّاً كان تاريخ الدفعة");
+    });
+
+    it("lists where \"paid to you\" came from, including orders the customer paid up front", () => {
+        const s = summary();
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000, reached_prepaid: 20_000, reached_prepaid_orders: 2, reached_other: 10_000 } } })));
+        const parts = byTestId("money-reached-parts")?.textContent ?? "";
+        expect(parts).toContain("من كشوف هذه الفترةاعرض الدفعات وفروقها100,000");
+        expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
+        expect(parts).toContain("طلبات سجّلتها «مُسلَّمة» داخل هذه الفترة200,000");
+        expect(parts).toContain("دفعها الزبون لك مسبقاً (طلبان)20,000");
+        expect(parts).toContain("من كشوف مؤرَّخة بعد هذه الفترة10,000");
         cleanup();
-        // the period's payments differ from the part they paid: the footer says by how much and why
-        const paid = s.cash.reached.amount;
-        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: paid + 25_000, reached_before: 1_000 } } })));
-        expect(byTestId("money-payments")?.textContent).toContain(`وهو ما دفعته كشوف هذه الفترة (${(paid + 25_000).toLocaleString("en-US")} د.ع) بعد أن خصم المندوب منها 25,000 د.ع`);
-        cleanup();
-        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: paid - 5_000 } } })));
+        renderView(query(summary()));
         expect(byTestId("money-reached-parts")).toBeNull();
-        expect(byTestId("money-payments")?.textContent).toContain("لأنه يشمل طلبات من فترات أخرى");
     });
 
     it("names the parcels on their way back beside the road", () => {
@@ -319,7 +378,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
-        expect(byTestId("money-returning")?.textContent).toContain("5 طرود في طريق العودة إليك الآن");
+        expect(byTestId("money-returning")?.textContent).toContain("5 طرود مرفوضة في طريق العودة إليك الآن");
     });
 
     it("leaves the stuck parcels to the strip and the banner: the money card does not say them a third time", () => {
@@ -375,7 +434,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة عودة 13 طلباً رجعت عبر برايم");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً (ضمن بند التوصيل)");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
@@ -386,9 +445,9 @@ describe("SummaryView", () => {
         // 400,000 of sales on 60,000 of ads.
         const figure = byTestId("ad-return-figure")?.textContent ?? "";
         expect(figure).toContain("6,667");
-        expect(figure).toContain("لكل ألف");
+        expect(figure).toContain("دينار مبيعات لكل 1,000 دينار إعلان");
         expect(figure).not.toContain("د.ع");
-        expect(byTestId("ad-return")?.textContent).toContain("كل 1,000 دينار صرفتها على الإعلانات جاءتك بـ6,667 دينار مبيعات");
+        expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة.");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
         // the cost per order stays in the dark strip only
         expect(byTestId("ad-return")?.textContent).not.toContain("6,000");
@@ -541,7 +600,7 @@ describe("SummaryView", () => {
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
         expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
-        expect(bar?.textContent).toContain("3 من 5 طلبات يومياً ربح لك");
+        expect(bar?.textContent).toContain("3 من 5 طلبات يومياً تبقى ربحاً لك");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         // and what each order leaves after the daily costs: the strip's profit per order

@@ -16,6 +16,7 @@ import {
     Eye,
     EyeOff,
     ShoppingCart,
+    Banknote,
     Tag,
     GripVertical,
     ChevronDown,
@@ -455,10 +456,10 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-2 py-1">
-                        <span className="text-[9px] font-bold text-[var(--foreground-muted)] shrink-0">IQD</span>
+                        <Banknote className="w-3 h-3 text-[var(--foreground-muted)] shrink-0" />
                         <div className="flex flex-col leading-tight min-w-0">
-                            <span className="text-xs font-semibold text-foreground truncate tabular-nums">
-                                {maskIQD(product.total_revenue || 0, showFinancials).replace(/^IQD\s*/, "")}
+                            <span className="text-xs font-semibold text-foreground truncate tabular-nums" title={maskIQD(product.total_revenue || 0, showFinancials)}>
+                                {maskIQD(product.total_revenue || 0, showFinancials)}
                             </span>
                             <span className="text-[9px] text-muted uppercase tracking-wide">
                                 {t("products.revenue")}

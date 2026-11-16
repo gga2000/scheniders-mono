@@ -1,4 +1,5 @@
 import { isMerchantCodeQuery, normalizeMerchantCodeQuery } from "@scheniders/shared";
+import { containsAny, ilikeContains } from "@/lib/search-filter";
 
 /**
  * The filter for the Merchants search box: shop name, slug and email, plus the
@@ -9,20 +10,10 @@ import { isMerchantCodeQuery, normalizeMerchantCodeQuery } from "@scheniders/sha
  * shops the list shows.
  */
 export function merchantSearchFilter(search: string): string {
-  const text = contains(search.trim());
   // The phone too: staff often have only the number a merchant called from.
-  const parts = [`business_name.ilike.${text}`, `slug.ilike.${text}`, `contact_email.ilike.${text}`, `contact_phone.ilike.${text}`];
+  const parts = [containsAny(["business_name", "slug", "contact_email", "contact_phone"], search)];
   // merchant_code is a database function over the shop (the six digits staff
   // read). The API cannot match the number column as text: a cast does not parse.
-  if (isMerchantCodeQuery(search)) parts.push(`merchant_code.ilike.${contains(normalizeMerchantCodeQuery(search))}`);
+  if (isMerchantCodeQuery(search)) parts.push(`merchant_code.ilike.${ilikeContains(normalizeMerchantCodeQuery(search))}`);
   return parts.join(",");
-}
-
-/**
- * "Contains this text", as a quoted filter value: in quotes a comma or a
- * bracket is read as text, not as filter syntax. "%" is dropped so the text
- * cannot widen the match.
- */
-function contains(text: string): string {
-  return `"%${text.replace(/%/g, "").replace(/[\\"]/g, "\\$&")}%"`;
 }

@@ -35,12 +35,12 @@ export function OrderPipeline({ pipeline }: OrderPipelineProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-blue)]/40 flex items-center justify-center">
-          <GitBranch className="w-4 h-4 text-blue-700" />
+          <GitBranch className="w-4 h-4 text-[var(--ink-blue)]" />
         </div>
         <div>
           <h3 className="font-bold text-foreground text-sm">Order Pipeline</h3>
           {pipeline && (
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-foreground/70">
               {new Intl.NumberFormat("en-IQ").format(total)} orders in these stages, last 90 days
             </p>
           )}
@@ -50,7 +50,7 @@ export function OrderPipeline({ pipeline }: OrderPipelineProps) {
       {!pipeline ? (
         <SkeletonPipeline />
       ) : pipeline.length === 0 ? (
-        <p className="text-sm text-foreground/40 py-6 text-center">
+        <p className="text-sm text-foreground/70 py-6 text-center">
           No pipeline data available.
         </p>
       ) : (
@@ -73,7 +73,7 @@ export function OrderPipeline({ pipeline }: OrderPipelineProps) {
                     <span className="text-xs font-bold text-foreground">
                       {stage.count}
                     </span>
-                    <span className="text-[10px] text-foreground/40">
+                    <span className="text-xs text-foreground/70">
                       {stage.pct}%
                     </span>
                   </div>

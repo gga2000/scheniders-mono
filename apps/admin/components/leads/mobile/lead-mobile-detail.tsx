@@ -1,5 +1,6 @@
 "use client";
 
+import { PlatformChip } from "@/components/leads/lead-chips";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -17,11 +18,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
+import { loadFailureKind } from "@/lib/load-failure";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
-  PLATFORM_CONFIG,
+  LEAD_TIER_UI,
 } from "@/types/leads";
 import {
   OverviewContent,
@@ -48,7 +50,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadMobileDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError } = useLeadDetail(id);
+  const { data, isLoading, isError, error } = useLeadDetail(id);
   const [tab, setTab] = useState<Tab>("Overview");
   const [noteOpen, setNoteOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
@@ -65,7 +67,8 @@ export function LeadMobileDetail() {
   }
 
   // Error
-  if (isError) {
+  // A lead that does not exist (404) falls through to "not found" below.
+  if (isError && loadFailureKind(error) !== "missing") {
     return (
       <div className="p-4 space-y-4">
         <Link
@@ -75,7 +78,7 @@ export function LeadMobileDetail() {
           <ArrowLeft className="w-4 h-4" />
           Back to Leads
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-red-400">
+        <div className="flex flex-col items-center justify-center py-20 text-[var(--ink-red)]">
           <AlertTriangle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Failed to load lead</p>
           <p className="text-sm text-[var(--muted)] mt-1">Something went wrong. Please try again later.</p>
@@ -108,7 +111,6 @@ export function LeadMobileDetail() {
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
-  const platformCfg = PLATFORM_CONFIG[lead.platform];
 
   // Phone helpers
   const phone = leadPhone(lead);
@@ -129,7 +131,7 @@ export function LeadMobileDetail() {
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5">
         {/* Avatar + name */}
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF8899] to-[#A78BFA] flex items-center justify-center text-white font-bold text-2xl shrink-0 shadow-lg">
+          <div className="w-14 h-14 rounded-2xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-2xl shrink-0">
             {lead.merchant_name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -156,23 +158,18 @@ export function LeadMobileDetail() {
         {/* Badge row */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Platform */}
-          <span
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
-            style={{ backgroundColor: `${platformCfg.color}20`, color: platformCfg.color }}
-          >
-            {platformCfg.label}
-          </span>
+          <PlatformChip platform={lead.platform} />
 
           {/* Tier */}
           <span
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
-            style={{ backgroundColor: `${tierCfg.color}20`, color: tierCfg.color }}
+            className="px-2.5 py-1 rounded-lg text-xs font-bold"
+            style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
           >
             {tierCfg.label}
           </span>
 
           {/* Priority */}
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/5 text-[var(--foreground)]">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white/5 text-[var(--foreground)]">
             <span
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: priorityCfg.color }}
@@ -182,7 +179,7 @@ export function LeadMobileDetail() {
 
           {/* Status */}
           <span
-            className="px-3 py-1 rounded-full text-[11px] font-bold"
+            className="px-3 py-1 rounded-full text-xs font-bold"
             style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
           >
             {statusCfg.label}
@@ -206,7 +203,7 @@ export function LeadMobileDetail() {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[var(--foreground)]">
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[var(--foreground)]">
               {lead.lead_score}
             </span>
           </div>

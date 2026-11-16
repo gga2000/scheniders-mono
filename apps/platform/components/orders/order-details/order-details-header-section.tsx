@@ -3,7 +3,8 @@
 import { DialogTitle } from "@scheniders/ui/dialog";
 import { getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { formatOrderDate, scheduleDayFromToday } from "@/lib/order-format-utils";
+import { scheduleDayFromToday } from "@/lib/order-format-utils";
+import { formatBaghdadShortDate } from "@/lib/customer-format";
 import type { Order } from "@/lib/supabase";
 import { PresenceAvatarGroup } from "../presence-avatar-group";
 import { AbandonedCartBadge } from "../abandoned-cart-badge";
@@ -13,11 +14,23 @@ import { RefundEntry } from "../refund-entry";
 import { ReplaceEntry } from "../replace-entry";
 import { ReplacementBanner } from "../replacement-banner";
 import { AfterSaleLossChip } from "../after-sale-loss-chip";
+import { CardStatusMenu } from "../card/status-menu";
 import type { OrderDetailsView } from "./use-order-details-model";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 
 /** One section of OrderDetailsModal. */
 export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
-    const { onClose, onUpdate, onStatusUpdate, order, setOrder, showStatusDropdown, setShowStatusDropdown, t, orderStatusLabel, isEditing, handleEdit, isEditingId, tempOrderId, idError, isCheckingId, showIdWarning, setShowIdWarning, idCountdown, isSavingId, startIdEdit, cancelIdEdit, handleIdChange, initiateIdSave, confirmIdSave, isBlacklisted, canUnblock, canBlock, startOrderConv, setBlacklistDialogOpen, setBlacklistDialogMode, activeTab, setActiveTab, handleStatusChange, quickActions, handleReorder, handleDiscuss, getStatusBadgeStyle } = m;
+    const { language } = useLanguage();
+    const dir = useTextDir();
+    const { onClose, onUpdate, onStatusUpdate, order, setOrder, t, orderStatusLabel, isEditing, handleEdit, isEditingId, tempOrderId, idError, isCheckingId, showIdWarning, setShowIdWarning, idCountdown, isSavingId, startIdEdit, cancelIdEdit, handleIdChange, initiateIdSave, confirmIdSave, isBlacklisted, canUnblock, canBlock, startOrderConv, setBlacklistDialogOpen, setBlacklistDialogMode, activeTab, setActiveTab, handleStatusChange, handleReorder, handleDiscuss, getStatusBadgeStyle } = m;
+    const statusBadge = (
+        <span
+            data-status={order.is_return ? "return" : order.status}
+            className={cn("inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider", getStatusBadgeStyle())}
+        >
+            {orderStatusLabel(order.status, order.is_return)}
+        </span>
+    );
     return (
         <>
             {/* Top Row: Order ID and Control Buttons */}
@@ -48,55 +61,12 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                             )}
                         </div>
                         <AbandonedCartBadge order={order} withDetail className="text-[11px] px-2 py-1" />
-                        {/* Status Badge with Dropdown */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                                data-status={order.is_return ? "return" : order.status}
-                                className={cn(
-                                    "inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer hover:opacity-80",
-                                    getStatusBadgeStyle()
-                                )}
-                            >
-                                {orderStatusLabel(order.status, order.is_return)}
-                            </button>
-
-                            {/* Status Dropdown Menu */}
-                            {showStatusDropdown && onStatusUpdate && (
-                                <div data-status-menu="" className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 min-w-[240px] max-h-[500px] overflow-y-auto">
-                                    <div className="space-y-1.5">
-                                        {quickActions.map((action) => {
-                                            const Icon = action.icon;
-                                            const isCurrentStatus = order.status === action.status;
-                                            return (
-                                                <button
-                                                    key={action.status}
-                                                    data-status-option={action.status}
-                                                    data-current={isCurrentStatus ? "" : undefined}
-                                                    onClick={() => {
-                                                        handleStatusChange(action.status);
-                                                        setShowStatusDropdown(false);
-                                                    }}
-                                                    disabled={isCurrentStatus}
-                                                    className={cn(
-                                                        "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium transition-all rounded-lg",
-                                                        action.bgColor,
-                                                        action.textColor,
-                                                        isCurrentStatus
-                                                            ? "ring-2 ring-offset-2 shadow-sm cursor-default font-bold"
-                                                            : cn(action.hoverColor, "cursor-pointer hover:shadow-sm")
-                                                    )}
-                                                >
-                                                    <Icon className="w-4 h-4 flex-shrink-0" />
-                                                    <span className="flex-1 text-left">{action.label}</span>
-                                                    {isCurrentStatus && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        {/* Status badge: opens the same status menu as the order's card */}
+                        {onStatusUpdate && !isEditing ? (
+                            <CardStatusMenu order={order} onStatusUpdate={(_id, status) => handleStatusChange(status)}>
+                                {statusBadge}
+                            </CardStatusMenu>
+                        ) : statusBadge}
 
                         {/* Blacklist toggle icon */}
                         {isBlacklisted(order.phone) && !canUnblock ? (
@@ -123,10 +93,10 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                             </button>
                         ) : null}
                     </div>
-                    {/* Arrival day in Baghdad, written like the order date below it (day first) */}
+                    {/* Arrival day in Baghdad, its month named like every other date in the app */}
                     <span className="flex items-center gap-1.5 text-xs text-muted tabular-nums">
                         <Calendar className="h-3 w-3" />
-                        {formatOrderDate(order.created_at)}
+                        <bdi dir={dir}>{formatBaghdadShortDate(order.created_at, language)}</bdi>
                     </span>
                     <RefundBanner order={order} />
                     <ReplacementBanner order={order} />

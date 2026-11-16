@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Lead, LeadActivity, LeadFollowUp, LeadSocialLink, LeadCompetitor } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 interface LeadDetailResponse {
   lead: Lead;
@@ -17,7 +18,7 @@ export function useLeadDetail(id: string | null) {
     queryKey: ["lead", id],
     queryFn: async () => {
       const res = await adminFetch(`/api/leads/${id}`);
-      if (!res.ok) throw new Error("Failed to fetch lead");
+      okOrLoadFailure(res, "lead");
       return res.json();
     },
     enabled: !!id,
