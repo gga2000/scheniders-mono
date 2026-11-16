@@ -9,12 +9,15 @@ import { SupportCaseList } from "@/components/support/support-case-list";
 import { SupportConversation } from "@/components/support/support-conversation";
 import { SupportShopCard } from "@/components/support/support-shop-card";
 import { SupportAlertsToggle } from "@/components/support/support-alerts-toggle";
+import { SupportScoreboardView } from "@/components/support/support-scoreboard";
+import type { ScoreboardDays } from "@/lib/support";
 
-type View = "open" | "solved";
+type View = "open" | "solved" | "scoreboard";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "open", label: "Open" },
   { id: "solved", label: "Solved" },
+  { id: "scoreboard", label: "Scoreboard" },
 ];
 
 const PANE = "min-h-0 overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]";
@@ -36,10 +39,12 @@ function SupportInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(
     linkedCase && UUID_RE.test(linkedCase) ? linkedCase : null,
   );
-  const list = useSupportCases(view);
+  const [boardDays, setBoardDays] = useState<ScoreboardDays>(7);
+  // The scoreboard keeps the open inbox loaded for the "waiting on us" line.
+  const list = useSupportCases(view === "solved" ? "solved" : "open");
   const cases = list.data?.cases ?? [];
   // Nothing picked yet: open the conversation that has waited longest.
-  const activeId = selectedId ?? cases[0]?.id ?? null;
+  const activeId = view === "scoreboard" ? null : (selectedId ?? cases[0]?.id ?? null);
   const detail = useSupportCase(activeId);
   const waiting = list.data?.waitingOnUs ?? 0;
 
@@ -82,7 +87,9 @@ function SupportInbox() {
         </div>
       </div>
 
-      {list.isError ? (
+      {view === "scoreboard" ? (
+        <SupportScoreboardView days={boardDays} onDaysChange={setBoardDays} />
+      ) : list.isError ? (
         <div className={cn(PANE, "p-6 text-sm text-red-700")}>
           Could not load support conversations. {list.error.message}
         </div>

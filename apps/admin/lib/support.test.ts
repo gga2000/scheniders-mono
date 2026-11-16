@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   CaseActionSchema,
   fillSavedReply,
+  formatDuration,
   formatWait,
   latestOrderNumber,
+  percentOf,
   sortInbox,
   supportRefusal,
   type SupportCaseRow,
@@ -119,5 +121,29 @@ describe("latestOrderNumber", () => {
 
   it("is null when no merchant message names an order", () => {
     expect(latestOrderNumber([msg("merchant"), msg("staff")])).toBeNull();
+  });
+});
+
+describe("formatDuration", () => {
+  it.each([
+    [null, "–"],
+    [0, "0s"],
+    [45.4, "45s"],
+    [60, "1 min"],
+    [12 * 60 + 20, "12 min"],
+    [3600, "1 h"],
+    [3 * 3600 + 5 * 60, "3 h 5 min"],
+    [86400, "1 d"],
+    [2 * 86400 + 4 * 3600, "2 d 4 h"],
+  ])("shows %s seconds as %s", (input, expected) => {
+    expect(formatDuration(input)).toBe(expected);
+  });
+});
+
+describe("percentOf", () => {
+  it("rounds to a whole percent and has no answer for nothing", () => {
+    expect(percentOf(2, 3)).toBe(67);
+    expect(percentOf(0, 5)).toBe(0);
+    expect(percentOf(0, 0)).toBeNull();
   });
 });

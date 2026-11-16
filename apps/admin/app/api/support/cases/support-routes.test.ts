@@ -345,3 +345,57 @@ describe("support saved replies", () => {
     expect(bad.status).toBe(404);
   });
 });
+
+describe("support scoreboard", () => {
+  const BOARD = {
+    days: 30,
+    opened: 3,
+    answered: 2,
+    first_reply_median_s: 90,
+    first_reply_p90_s: 300,
+    answered_within_5m: 2,
+    solved: 1,
+    solve_median_s: 3600,
+    rated_yes: 1,
+    rated_no: 0,
+    reopened: 0,
+    reasons: [{ reason: "orders", count: 1 }],
+    by_staff: [{ name: "Noor", solved: 1, rated_yes: 1, rated_no: 0 }],
+    waiting_now: 1,
+    oldest_wait_s: 120,
+  };
+
+  async function board(token: string | null, query = ""): Promise<Response> {
+    const { GET } = await import("../scoreboard/route");
+    return GET(req(`/api/support/scoreboard${query}`, "GET", token));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await board(null)).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it.each(["?days=14", "?days=abc", "?days=0"])("refuses a window it does not offer (%s)", async (query) => {
+    expect((await board("support", query)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("asks the database for the window and passes its answer on", async () => {
+    dbResult = { data: BOARD, error: null };
+    const res = await board("support", "?days=30");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(BOARD);
+    expect(rpcCall()?.args).toEqual(["support_scoreboard", { p_days: 30 }]);
+  });
+
+  it("defaults to 7 days", async () => {
+    dbResult = { data: { ...BOARD, days: 7 }, error: null };
+    expect((await board("super")).status).toBe(200);
+    expect(rpcCall()?.args).toEqual(["support_scoreboard", { p_days: 7 }]);
+  });
+
+  it("says it failed rather than drawing zeros when the answer is not the expected shape", async () => {
+    dbResult = { data: { opened: 0 }, error: null };
+    expect((await board("support")).status).toBe(500);
+  });
+});

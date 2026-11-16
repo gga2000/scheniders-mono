@@ -245,3 +245,49 @@ export function latestOrderNumber(messages: SupportMessageRow[]): string | null 
   }
   return null;
 }
+
+/** The windows the scoreboard offers. */
+export const SCOREBOARD_DAYS = [7, 30] as const;
+export type ScoreboardDays = (typeof SCOREBOARD_DAYS)[number];
+
+const count = z.number().int().min(0);
+const seconds = z.number().min(0).nullable();
+
+/** What `support_scoreboard(p_days)` answers. Demo store left out in SQL. */
+export const SupportScoreboardSchema = z.object({
+  days: z.number().int(),
+  opened: count,
+  answered: count,
+  first_reply_median_s: seconds,
+  first_reply_p90_s: seconds,
+  answered_within_5m: count,
+  solved: count,
+  solve_median_s: seconds,
+  rated_yes: count,
+  rated_no: count,
+  reopened: count,
+  reasons: z.array(z.object({ reason: z.enum(SUPPORT_REASONS), count })),
+  by_staff: z.array(z.object({ name: z.string(), solved: count, rated_yes: count, rated_no: count })),
+  waiting_now: count,
+  oldest_wait_s: seconds,
+});
+
+export type SupportScoreboard = z.infer<typeof SupportScoreboardSchema>;
+
+/** "45s", "12 min", "3 h 5 min", "2 d 4 h"; a dash when there is nothing to measure. */
+export function formatDuration(totalSeconds: number | null): string {
+  if (totalSeconds === null) return "–";
+  const s = Math.round(totalSeconds);
+  if (s < 60) return `${s}s`;
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
+  const days = Math.floor(hours / 24);
+  return hours % 24 === 0 ? `${days} d` : `${days} d ${hours % 24} h`;
+}
+
+/** A share as a whole percent, or null when there is nothing to divide. */
+export function percentOf(part: number, whole: number): number | null {
+  return whole === 0 ? null : Math.round((part / whole) * 100);
+}
