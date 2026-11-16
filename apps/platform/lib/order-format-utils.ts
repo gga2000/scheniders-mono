@@ -78,6 +78,12 @@ const relativeTimeFormatters: Record<Locale, Intl.RelativeTimeFormat> = {
     ar: new Intl.RelativeTimeFormat("ar-u-nu-latn", { numeric: "always", style: "narrow" }),
 };
 
+/** "now" / «الآن» for anything under a minute, rather than "0m ago". */
+const justNow: Record<Locale, string> = {
+    en: new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(0, "second"),
+    ar: new Intl.RelativeTimeFormat("ar-u-nu-latn", { numeric: "auto" }).format(0, "second"),
+};
+
 export const getOrderAge = (
     dateStr: string | Date | undefined | null,
     locale: Locale = "ar",
@@ -92,6 +98,7 @@ export const getOrderAge = (
     const diffDays = Math.floor(diffMs / 86400000);
 
     const format = relativeTimeFormatters[locale] ?? relativeTimeFormatters.ar;
+    if (diffMins < 1) return justNow[locale] ?? justNow.ar;
     if (diffMins < 60) return format.format(-diffMins, "minute");
     if (diffHours < 24) return format.format(-diffHours, "hour");
     return format.format(-diffDays, "day");

@@ -78,8 +78,8 @@ export function TodayStrip({ metrics }: TodayStripProps) {
                             The definition is stated rather than left implicit; which
                             definition SHOULD be canonical is an open business decision. */}
                         <p className="text-xs text-muted font-medium" title={t("dashboard.revenue.definition")}>
-                            {t("dashboard.today.revenue")}
-                            <span className="ml-1 text-[10px] text-muted/70 font-normal">
+                            {t("dashboard.today.revenue")}{" "}
+                            <span className="text-[10px] text-muted-foreground/70 font-normal">
                                 {t("dashboard.revenue.short")}
                             </span>
                         </p>

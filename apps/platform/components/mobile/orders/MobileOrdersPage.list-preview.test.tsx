@@ -63,7 +63,7 @@ function context(over: Record<string, unknown>): Record<string, unknown> {
         loading: true,
         ordersPending: true,
         isRefreshing: true,
-        orderSearch: { active: false, pending: false, isFetching: false, error: null },
+        orderSearch: { active: false, pending: false, isFetching: false, error: null, failure: null, retry: () => {} },
         getCustomerArchivedCount: () => 0,
         getCustomerOrderCount: () => 0,
         hasDuplicates: () => false,

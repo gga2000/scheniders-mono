@@ -4,10 +4,12 @@ import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/hooks/use-language";
 
 export function ThemeToggle() {
     const [mounted, setMounted] = useState(false);
     const { setTheme, resolvedTheme } = useTheme();
+    const { t } = useLanguage();
 
     useEffect(() => {
         setMounted(true);
@@ -25,8 +27,8 @@ export function ThemeToggle() {
         <button
             onClick={() => setTheme(isDark ? "light" : "dark")}
             className="relative w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--foreground-muted)] transition-all overflow-hidden"
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            title={t(isDark ? "theme.toLight" : "theme.toDark")}
+            aria-label={t(isDark ? "theme.toLight" : "theme.toDark")}
         >
             <motion.div
                 initial={false}

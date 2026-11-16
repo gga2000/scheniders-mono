@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle, CircleHelp, Megaphone, RefreshCw } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { useLoadFailureHint } from "@/hooks/use-load-failure-hint";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { resolveChannel } from "@/lib/ad-attribution";
 import type { ChannelPerformanceRow, ChannelPerformanceSummary } from "@/lib/analytics/channel-metrics";
@@ -77,6 +78,7 @@ function Headline({ row }: { row: ChannelPerformanceRow }) {
 
 export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPerformanceProps) {
     const { t } = useLanguage();
+    const failureHint = useLoadFailureHint();
 
     if (loading && !data) {
         return <div className="h-64 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" />;
@@ -87,7 +89,7 @@ export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPer
             <motion.div {...cardMotion} className="pastel-card p-8 text-center">
                 <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-3" />
                 <h3 className="text-base font-bold text-foreground">{t("reports.channels.error")}</h3>
-                <p className="text-xs text-muted mt-1 break-words">{error.message}</p>
+                <p className="text-xs text-muted mt-1">{failureHint(error).hint}</p>
                 <button
                     type="button"
                     onClick={onRetry}

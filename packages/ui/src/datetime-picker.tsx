@@ -302,7 +302,8 @@ export function DateTimePicker({
                         className
                     )}
                 >
-                    <span className={cn(
+                    {/* Its own direction, so an Arabic date keeps its order inside the LTR app. */}
+                    <span dir={language === "ar" ? "rtl" : "ltr"} className={cn(
                         "flex-1 text-left text-sm font-mono",
                         value ? "text-foreground" : "text-muted"
                     )}>
@@ -345,7 +346,7 @@ export function DateTimePicker({
                                             <DialogPrimitive.Title className="font-bold text-foreground">
                                                 {copy.pickTitle}
                                             </DialogPrimitive.Title>
-                                            <DialogPrimitive.Description className="text-xs text-muted">
+                                            <DialogPrimitive.Description dir={language === "ar" ? "rtl" : "ltr"} className="text-xs text-muted">
                                                 {selectedDay} {months[viewMonth]} {viewYear}
                                                 {showTime && ` - ${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`}
                                             </DialogPrimitive.Description>

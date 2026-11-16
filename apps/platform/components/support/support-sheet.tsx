@@ -262,7 +262,7 @@ export function SupportSheet() {
                                     maxLength={4000}
                                     placeholder={t("support.placeholder")}
                                     aria-label={t("support.placeholder")}
-                                    className="min-h-[52px] flex-1 resize-none rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                                    className="min-h-[52px] flex-1 resize-none rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
                                 />
                                 <button
                                     type="button"

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RotateCw } from "lucide-react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting } from "@/hooks/use-printing";
 import { useDispatchQueue, DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
@@ -10,6 +11,7 @@ import { usePrimeLink } from "@/hooks/use-prime-link";
 import { usePrimeDeskPreview } from "@/hooks/use-prime-desk";
 import { useDispatchTwins } from "@/hooks/use-dispatch-twins";
 import { useLanguage } from "@/hooks/use-language";
+import { useLoadFailureHint } from "@/hooks/use-load-failure-hint";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getQueueFlags, groupForPacking, hasBlockingFlag, type PackGroup } from "@/lib/dispatch-queue";
@@ -54,6 +56,7 @@ const tickedByDefault = (o: Order) => {
 export default function PrintingPage() {
     const { bulkUpdateStatus } = useOrdersContext();
     const queue = useDispatchQueue();
+    const failureHint = useLoadFailureHint();
     const printing = usePrinting();
     const queryClient = useQueryClient();
     const { t, language } = useLanguage();
@@ -231,7 +234,14 @@ export default function PrintingPage() {
                 ) : queue.isError ? (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center dark:border-rose-900 dark:bg-rose-950/40">
                         <p className="font-semibold text-rose-900 dark:text-rose-200">{t("printing.errorTitle")}</p>
-                        <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">{queue.error.message}</p>
+                        <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">{failureHint(queue.error).hint}</p>
+                        <button
+                            type="button"
+                            onClick={() => void queue.refetch()}
+                            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-900 hover:bg-rose-100 dark:border-rose-900 dark:text-rose-200 dark:hover:bg-rose-900/40"
+                        >
+                            <RotateCw className="h-4 w-4" aria-hidden /> {t("orders.ui.tryAgain")}
+                        </button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">

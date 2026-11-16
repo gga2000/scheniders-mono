@@ -45,6 +45,10 @@ export function PrimeRateCard({ summary }: { summary: PrimeHomeSummary }) {
                     )}
                 </div>
             )}
+            {/* Another rate on this page, «نسبة التسليم», counts every order; this one only Prime's parcels. */}
+            <p dir={dir} className="-mt-1 text-left text-xs text-muted">
+                {t("prime.home.rateFormula")}
+            </p>
             <div className="mt-auto flex h-16 items-end gap-2" role="list">
                 {days.map((d, i) => {
                     const label = dayName.format(Date.parse(`${d.day}T00:00:00Z`));

@@ -13,6 +13,11 @@ import { Delta } from "./delta";
 import { smoothPath, type Pt } from "./chart-geometry";
 
 const MONEY: ReadonlySet<OverviewMetricKey> = new Set(["sales", "aov", "epc"]);
+const GRID = "grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6";
+/** Visitors, orders, sales, conversion, AOV, EPC. */
+const CARD_COUNT = 6;
+/** A card with its sparkline is 126 px; one with the money hidden is shorter, so all take this floor. */
+const CARD_HEIGHT = "min-h-[126px]";
 const whole = (n: number) => Math.round(n).toLocaleString("en-US");
 const percent = (n: number) => `${n.toFixed(2)}%`;
 const FORMAT: Record<OverviewMetricKey, (n: number) => string> = {
@@ -62,7 +67,7 @@ function MetricCard({ metric, order, moneyOn }: { metric: OverviewMetric; order:
     const hidden = MONEY.has(metric.key) && !moneyOn;
     const label = t(`dashboard.overview.${metric.key}`);
     return (
-        <BentoCard label={label} order={order} className="flex flex-col justify-between gap-3 !p-5">
+        <BentoCard label={label} order={order} className={`flex flex-col justify-between gap-3 !p-5 ${CARD_HEIGHT}`}>
             {/* The row is always today, whatever the header's range chip says, so each card names its day. */}
             <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">
                 {label} <span className="opacity-70">· {t("dashboard.overview.today")}</span>
@@ -95,10 +100,20 @@ export function StoreOverviewRow() {
     const query = useStoreOverview();
 
     if (query.isError) return <WidgetLoadError onRetry={() => void query.refetch()} className="min-h-[120px]" />;
-    if (!query.data) return <WidgetPending className="min-h-[120px]" />;
+    // The same grid of six cards at the cards' own height, so nothing below
+    // moves when the numbers arrive (one 120 px block became 257 px: CLS 0.05).
+    if (!query.data) {
+        return (
+            <section aria-busy="true" className={GRID}>
+                {Array.from({ length: CARD_COUNT }, (_, i) => (
+                    <WidgetPending key={i} className={CARD_HEIGHT} />
+                ))}
+            </section>
+        );
+    }
 
     return (
-        <section aria-label={t("dashboard.overview.title")} className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+        <section aria-label={t("dashboard.overview.title")} className={GRID}>
             {query.data.map((metric, i) => (
                 <MetricCard key={metric.key} metric={metric} order={i} moneyOn={revealed && canReveal} />
             ))}

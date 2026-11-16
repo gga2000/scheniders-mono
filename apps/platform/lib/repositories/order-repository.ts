@@ -3,6 +3,7 @@ import type { Order } from "@/types/order";
 import { normalizeOrder } from "@/lib/order-normalize-utils";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
+import { LoadFailure, loadFailureKindFromStatus } from "@/lib/load-failure";
 import { addDaysToDayKey, baghdadDayStart, type OrderWindow } from "@/lib/order-window";
 import {
     PREVIEW_HEAD_ROWS,
@@ -429,6 +430,16 @@ export function exportBounds(opts: { dateFrom?: string; dateTo?: string }): { fr
     };
 }
 
+/**
+ * A failed search read, tagged with whether the request reached the server.
+ * Supabase reports a fetch that never left the browser as status 0 with the
+ * raw "TypeError: Failed to fetch (host)" as its message; the UI must say
+ * "check your connection" for that, never print the message.
+ */
+function searchFailure(error: { message: string }, status: number): LoadFailure {
+    return new LoadFailure(`Order search failed: ${error.message}`, loadFailureKindFromStatus(status), { cause: error });
+}
+
 export const orderRepository = {
     /**
      * Every active (non-archived, not trashed) order, newest first — the
@@ -736,12 +747,12 @@ export const orderRepository = {
 
         let rows: Order[] | null = null;
         if (!searchRpcMissing) {
-            const { data, error } = await supabase
+            const { data, error, status } = await supabase
                 .rpc("search_orders_v2", { p_tenant_id: tenantId, p_term: parsed.text, p_limit: cappedLimit })
                 .select(SEARCH_COLUMNS)
                 .is("deleted_at", null);
             if (error) {
-                if (error.code !== RPC_NOT_FOUND) throw error;
+                if (error.code !== RPC_NOT_FOUND) throw searchFailure(error, status);
                 searchRpcMissing = true;
                 diag.log(`[Diag:Repo] search_orders_v2 not deployed; using direct selects`);
             } else {
@@ -764,8 +775,8 @@ export const orderRepository = {
                         .limit(cappedLimit),
                 ),
             );
-            if (exact.error) throw exact.error;
-            if (partial.error) throw partial.error;
+            if (exact.error) throw searchFailure(exact.error, exact.status);
+            if (partial.error) throw searchFailure(partial.error, partial.status);
             rows = [
                 ...((exact.data ?? []) as unknown as Order[]),
                 ...((partial.data ?? []) as unknown as Order[]),

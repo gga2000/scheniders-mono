@@ -4,17 +4,7 @@ import { useState, useRef } from "react";
 import { Announcement } from "@/hooks/use-announcements";
 import { Pin, PinOff, Trash2, Plus, Megaphone, X, Send, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
-
-function useTimeAgoAnnouncements() {
-    const { t } = useLanguage();
-    return (dateStr: string): string => {
-        const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-        if (diff < 60) return t("dashboard.announcements.justNow");
-        if (diff < 3600) return `${Math.floor(diff / 60)}${t("dashboard.timeAgo.minutes")}`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}${t("dashboard.timeAgo.hours")}`;
-        return `${Math.floor(diff / 86400)}${t("dashboard.timeAgo.days")}`;
-    };
-}
+import { getOrderAge } from "@/lib/order-format-utils";
 
 interface TeamAnnouncementsProps {
     announcements: Announcement[];
@@ -42,8 +32,8 @@ export function TeamAnnouncements({
     const [submitting, setSubmitting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const { t } = useLanguage();
-    const timeAgo = useTimeAgoAnnouncements();
+    const { t, language } = useLanguage();
+    const timeAgo = (dateStr: string) => getOrderAge(dateStr, language);
 
     const handleSubmit = async () => {
         if (!draft.trim() || submitting) return;

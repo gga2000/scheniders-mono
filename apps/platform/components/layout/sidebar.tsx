@@ -338,7 +338,7 @@ export function Sidebar({
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.92 }}
                     className="absolute -right-3 top-16 z-10 w-8 h-8 rounded-full bg-[#E4B5D1] hover:bg-[#d9a0c4] flex items-center justify-center shadow-md hover:shadow-lg border-[3px] border-[#1E1E1E]"
-                    aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    aria-label={t(collapsed ? "nav.expandSidebar" : "nav.collapseSidebar")}
                 >
                     <motion.span
                         animate={{ rotate: collapsed ? 0 : 180 }}

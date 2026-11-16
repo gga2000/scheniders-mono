@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Search, X } from "lucide-react";
+import { Loader2, RotateCw, Search, X } from "lucide-react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useLanguage } from "@/hooks/use-language";
@@ -35,8 +35,10 @@ export function OrderSearchBanner({ count }: { count: number }) {
                 <Search className="w-4 h-4 shrink-0 text-muted" aria-hidden />
             )}
             <span className="min-w-0 truncate">
-                {orderSearch.error ? (
-                    <span className="text-rose-600">{t("orders.ui.searchFailed", { message: orderSearch.error.message })}</span>
+                {orderSearch.failure ? (
+                    <span className="text-rose-600">
+                        {t(orderSearch.failure === "network" ? "orders.ui.searchFailedOffline" : "orders.ui.searchFailedServer")}
+                    </span>
                 ) : orderSearch.pending ? (
                     <>{t("orders.ui.searchingFor", { query: filters.searchQuery ?? "" })}</>
                 ) : (
@@ -46,13 +48,24 @@ export function OrderSearchBanner({ count }: { count: number }) {
                     </>
                 )}
             </span>
-            <button
-                type="button"
-                onClick={clear}
-                className="ml-auto inline-flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg text-xs font-semibold text-muted hover:text-foreground hover:bg-[var(--background)]"
-            >
-                <X className="w-3.5 h-3.5" aria-hidden /> {t("orders.ui.clearSearch")}
-            </button>
+            <div className="ml-auto flex items-center gap-1 shrink-0">
+                {orderSearch.failure && (
+                    <button
+                        type="button"
+                        onClick={orderSearch.retry}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-foreground hover:bg-[var(--background)]"
+                    >
+                        <RotateCw className="w-3.5 h-3.5" aria-hidden /> {t("orders.ui.tryAgain")}
+                    </button>
+                )}
+                <button
+                    type="button"
+                    onClick={clear}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-muted hover:text-foreground hover:bg-[var(--background)]"
+                >
+                    <X className="w-3.5 h-3.5" aria-hidden /> {t("orders.ui.clearSearch")}
+                </button>
+            </div>
         </div>
     );
 }

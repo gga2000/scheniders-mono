@@ -198,8 +198,8 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
 
                                             {/* Layout Toggles */}
                                             {[
-                                                { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
-                                                { mode: "table" as const, icon: Table, label: "Table" },
+                                                { mode: "cards" as const, icon: LayoutGrid, label: t("orders.toolbar.viewCards") },
+                                                { mode: "table" as const, icon: Table, label: t("orders.toolbar.viewTable") },
                                             ].map((v) => (
                                                 <button
                                                     key={v.mode}
@@ -230,7 +230,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                         compactView === 2 && "bg-indigo-100 text-indigo-600 shadow-sm dark:bg-[var(--primary)] dark:text-black",
                                                         compactView === 0 && "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                     )}
-                                                    title={compactView === 0 ? "Switch to Compact" : compactView === 1 ? "Compact View" : "Ultra Compact"}
+                                                    title={t(compactView === 0 ? "orders.toolbar.compactOff" : compactView === 1 ? "orders.toolbar.compactOn" : "orders.toolbar.compactUltra")}
                                                 >
                                                     {compactView === 0
                                                         ? <Rows3 className="w-4 h-4" />
@@ -255,7 +255,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                             ? "bg-amber-100 text-amber-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
                                                             : "text-muted-foreground hover:bg-lime-50 dark:hover:bg-[#EFFF00]/10 hover:text-foreground dark:hover:bg-white/5"
                                                     )}
-                                                    title={compactGrid ? "Grid View" : "Switch to Grid"}
+                                                    title={t(compactGrid ? "orders.toolbar.gridOn" : "orders.toolbar.gridOff")}
                                                 >
                                                     <LayoutGrid className="w-4 h-4" />
                                                 </button>

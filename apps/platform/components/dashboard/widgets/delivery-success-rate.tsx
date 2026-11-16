@@ -88,7 +88,12 @@ export function DeliverySuccessRate({ metrics }: DeliverySuccessRateProps) {
 
             {/* Day labels */}
             <div className="flex justify-between text-[10px] text-teal-800/50 -mt-1">
-                {sparkline.map(s => <span key={s.day}>{s.day}</span>)}
+                {/* The RPC names days in English ("Tue"); show them in the reader's language. */}
+                {sparkline.map(s => (
+                    <span key={s.day} title={t(`dashboard.day.long.${s.day}`, s.day)}>
+                        {t(`dashboard.day.short.${s.day}`, s.day)}
+                    </span>
+                ))}
             </div>
         </div>
     );

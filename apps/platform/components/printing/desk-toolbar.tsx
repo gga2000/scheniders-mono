@@ -82,7 +82,7 @@ export function DeskToolbar({
                         value={query}
                         onChange={(e) => onQuery(e.target.value)}
                         placeholder={t("printing.searchPlaceholder")}
-                        className="w-full bg-transparent text-sm outline-none placeholder:text-muted"
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                     />
                 </label>
             </div>

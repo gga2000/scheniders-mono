@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useAutoSend } from "@/hooks/use-auto-send";
+import { useLanguage } from "@/hooks/use-language";
 
 interface AutoSendToggleProps {
     /** "navbar" = round 40px button matching theme/language toggles. "mobile" = inline bar segment */
@@ -12,9 +13,8 @@ interface AutoSendToggleProps {
 export function AutoSendToggle({ variant = "mobile" }: AutoSendToggleProps) {
     const { enabled, isLoading: loading, isToggling: toggling, toggle: handleToggle } = useAutoSend();
 
-    const title = enabled
-        ? "Auto-send: ON — WhatsApp templates sent automatically"
-        : "Auto-send: OFF — Click to enable";
+    const { t } = useLanguage();
+    const title = t(enabled ? "orders.autoSend.on" : "orders.autoSend.off");
 
     // ─── Navbar variant (round button matching ThemeToggle / LanguageToggle) ───
     if (variant === "navbar") {

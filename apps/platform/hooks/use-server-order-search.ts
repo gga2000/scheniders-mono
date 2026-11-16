@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { orderSearchKeys } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { MAX_SEARCH_RESULTS, parseOrderSearchTerm } from "@/lib/order-server-search";
+import { loadFailureKind, type LoadFailureKind } from "@/lib/load-failure";
+import { reportOrderError } from "@/lib/order-telemetry";
+import { useNetworkStatus } from "@/hooks/use-network-status";
 import type { Order } from "@/types/order";
 
 const EMPTY: Order[] = [];
@@ -27,6 +30,10 @@ export interface ServerOrderSearch {
     pending: boolean;
     isFetching: boolean;
     error: Error | null;
+    /** Why the last search failed, for the copy: "network" means the user's connection. */
+    failure: LoadFailureKind | null;
+    /** Runs the current search again (after a failure). */
+    retry: () => void;
 }
 
 /**
@@ -59,6 +66,21 @@ export function useServerOrderSearch(
         placeholderData: keepPreviousData,
     });
 
+    const { refetch } = query;
+    // Stable, so the orders context that carries it does not change every render.
+    const retry = useCallback(() => void refetch(), [refetch]);
+    const online = useNetworkStatus();
+    const failure = query.error ? loadFailureKind(query.error, online) : null;
+
+    // A server-side failure is ours to fix, so it goes to Sentry; a dropped
+    // connection is not, and would only bury real failures. Reported once per
+    // failed search (after the client's retries), not once per attempt.
+    useEffect(() => {
+        if (query.error && failure === "server") {
+            reportOrderError(query.error, { operation: "search", tenantId, extra: { termLength: text.length } });
+        }
+    }, [query.error, failure, tenantId, text.length]);
+
     const orders = useMemo(() => {
         if (!parsed || !query.data) return EMPTY;
         if (!liveOrders || liveOrders.length === 0) return query.data;
@@ -73,5 +95,7 @@ export function useServerOrderSearch(
         pending: parsed !== null && (query.isPending || query.isPlaceholderData),
         isFetching: query.isFetching,
         error: query.error,
+        failure,
+        retry,
     };
 }

@@ -57,8 +57,8 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
                         className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5"
                         title={t("dashboard.revenue.definition")}
                     >
-                        {t("dashboard.forecast.projectedRevenue")}
-                        <span className="ml-1 normal-case font-normal text-purple-900/40">
+                        {t("dashboard.forecast.projectedRevenue")}{" "}
+                        <span className="normal-case font-normal text-purple-900/40">
                             {t("dashboard.revenue.short")}
                         </span>
                     </p>

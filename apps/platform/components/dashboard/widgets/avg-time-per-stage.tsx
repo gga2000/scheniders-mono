@@ -8,12 +8,11 @@ interface AvgTimePerStageProps {
     metrics: StageTimeMetric[];
 }
 
-function formatHours(hours: number): string {
+function formatHours(hours: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
     if (hours === 0) return '—';
-    if (hours < 1) return `${Math.round(hours * 60)}m`;
-    if (hours < 24) return `${hours.toFixed(1)}h`;
-    const days = hours / 24;
-    return `${days.toFixed(1)}d`;
+    if (hours < 1) return t("dashboard.avgTime.minutes", { n: Math.round(hours * 60) });
+    if (hours < 24) return t("reports.unit.hours", { n: hours.toFixed(1) });
+    return t("reports.unit.days", { n: (hours / 24).toFixed(1) });
 }
 
 const STAGE_COLORS = [
@@ -56,8 +55,8 @@ export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-muted font-medium truncate pr-2">{translatedLabel}</span>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-sm font-bold text-foreground">{formatHours(m.avgHours)}</span>
-                                    <span className="text-[10px] text-muted">n={m.sampleSize}</span>
+                                    <span className="text-sm font-bold text-foreground whitespace-nowrap">{formatHours(m.avgHours, t)}</span>
+                                    <span className="text-[10px] text-muted whitespace-nowrap">{t("dashboard.avgTime.sample", { count: m.sampleSize })}</span>
                                     {/* DQ-D1: say when rows were dropped rather than
                                         letting the sample quietly shrink. */}
                                     {!!m.excluded && m.excluded > 0 && (
