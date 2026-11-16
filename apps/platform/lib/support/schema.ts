@@ -114,6 +114,14 @@ export interface SupportThread {
     contactPhone: string | null;
     /** What support has told every merchant right now ("Prime is slow today"), if anything. */
     notice: SupportNotice | null;
+    /** A staff member opened the conversation after the merchant's last message, before replying. */
+    seen: SupportSeen | null;
+}
+
+export interface SupportSeen {
+    /** The staff member's name, as on their replies. */
+    name: string;
+    at: string;
 }
 
 export interface SupportNotice {

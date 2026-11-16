@@ -169,3 +169,10 @@ A second person picking up a conversation should not have to read the whole chat
 - **Hand over.** In the conversation header, Hand over → pick an active teammate (super admin or support staff) → optional note → the teammate becomes the owner. The timeline shows "Noor handed this to Karrar", with the note under it. The merchant is not told. Each hand-over is in the staff activity log (`support_case_handed_over`).
 - Notes live in `support_case_notes`, a table of their own, so nothing the merchant's Help chat reads (`support_messages`) can carry one. Server-only (RLS on, no policies); the service role only reads it and writes through `support_case_add_note` and `support_case_hand_over`. Nobody updates or deletes a note. The new owner's name comes from `admin_users`, never from the caller.
 - Migration `20261116191003_support_case_notes.sql`. Behaviour suite `support-notes`.
+
+## Wave 6, part 2: "Seen" under the merchant's message
+
+- When a staff member has a conversation open on a visible screen, the merchant's Help chat shows «شافها نور · 10:04 م» under their last message, until staff reply (the reply then speaks for itself) or the merchant writes again.
+- `support_cases.staff_seen_at` and `staff_seen_name` keep the mark. The console sends a quiet `seen` action; `support_staff_mark_seen` only moves the mark when the merchant wrote something staff have not seen yet, so polling and re-opening change nothing. A console left in a hidden tab does not mark anything.
+- The merchant API decides when to show it (`apps/platform/lib/support/seen.ts`): only for the latest conversation, only when the merchant's message is the last word, and only when staff opened it after that message.
+- Migration `20261116191454_support_seen.sql`. Behaviour suite `support-seen`.

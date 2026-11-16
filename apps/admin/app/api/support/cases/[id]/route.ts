@@ -171,7 +171,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 /**
  * Reply to the merchant, take the conversation, hand it to a teammate, add a
- * staff-only note, or mark it solved.
+ * staff-only note, mark it seen, or mark it solved.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminPermission(request, "handle_support");
@@ -210,6 +210,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         details: { case_id: id },
       });
       return NextResponse.json({ success: true });
+    }
+
+    if (input.action === "seen") {
+      const { data, error } = await supabase.rpc("support_staff_mark_seen", {
+        p_case_id: id,
+        p_admin_name: adminName,
+      });
+      const refusal = supportRefusal(error);
+      if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+      if (error) throw error;
+      return NextResponse.json({ success: true, moved: data === true });
     }
 
     if (input.action === "note" || input.action === "hand_over") {

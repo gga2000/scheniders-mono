@@ -324,6 +324,28 @@ describe("support staff notes and hand-over", () => {
   });
 });
 
+describe("support seen mark", () => {
+  it("marks the conversation seen under the signed-in admin's name and logs nothing", async () => {
+    dbQueue.push({ data: { display_name: "Noor", email: null }, error: null }, { data: true, error: null });
+    const res = await post("support", { action: "seen", p_admin_name: "Someone else" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, moved: true });
+    expect(rpcCall()?.args).toEqual(["support_staff_mark_seen", { p_case_id: CASE_ID, p_admin_name: "Noor" }]);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("says nothing moved when there was nothing new to see", async () => {
+    dbQueue.push({ data: { display_name: "Noor", email: null }, error: null }, { data: false, error: null });
+    expect(await (await post("support", { action: "seen" })).json()).toEqual({ success: true, moved: false });
+  });
+
+  it("turns away a caller with no session", async () => {
+    const res = await post(null, { action: "seen" });
+    expect(res.status).toBe(401);
+    expect(dbCalls.some((c) => c.method === "rpc")).toBe(false);
+  });
+});
+
 describe("support phone alerts", () => {
   const SUB = {
     endpoint: "https://fcm.googleapis.com/fcm/send/abc",

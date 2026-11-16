@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
+import { seenMark } from "@/lib/support/seen";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import {
     SUPPORT_SHOT_BUCKET,
@@ -124,15 +125,21 @@ async function shopSide(db: ServiceDb, tenantId: string) {
 async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread> {
     const { data: caseRows, error: caseError } = await db
         .from("support_cases")
-        .select("id, status, rating, solved_at, created_at, merchant_last_read_at")
+        .select("id, status, rating, solved_at, created_at, merchant_last_read_at, staff_seen_at, staff_seen_name")
         .eq("tenant_id", caller.tenantId)
         .eq("opened_by", caller.userId)
         .order("created_at", { ascending: false })
         .limit(20);
     if (caseError) throw new Error(`Support cases read failed: ${caseError.message}`);
 
-    const cases = (caseRows ?? []) as (SupportCase & { merchant_last_read_at: string })[];
-    if (cases.length === 0) return { case: null, messages: [], unread: 0, ...(await shopSide(db, caller.tenantId)) };
+    const cases = (caseRows ?? []) as (SupportCase & {
+        merchant_last_read_at: string;
+        staff_seen_at: string | null;
+        staff_seen_name: string | null;
+    })[];
+    if (cases.length === 0) {
+        return { case: null, messages: [], unread: 0, seen: null, ...(await shopSide(db, caller.tenantId)) };
+    }
 
     const { data: messageRows, error: messageError } = await db
         .from("support_messages")
@@ -150,8 +157,15 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
         return m.sender_kind === "staff" && seen !== undefined && m.created_at > seen;
     }).length;
 
-    const { id, status, rating, solved_at, created_at } = cases[0];
-    return { case: { id, status, rating, solved_at, created_at }, messages, unread, ...(await shopSide(db, caller.tenantId)) };
+    const latest = cases[0];
+    const { id, status, rating, solved_at, created_at } = latest;
+    return {
+        case: { id, status, rating, solved_at, created_at },
+        messages,
+        unread,
+        seen: seenMark(latest, messages),
+        ...(await shopSide(db, caller.tenantId)),
+    };
 }
 
 /** GET /api/support — my conversation with the support team. */

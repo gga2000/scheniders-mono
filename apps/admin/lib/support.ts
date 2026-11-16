@@ -49,6 +49,8 @@ export const CaseActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reply"), body: z.string().trim().min(1).max(4000) }),
   z.object({ action: z.literal("solve"), reason: z.enum(SUPPORT_REASONS) }),
   z.object({ action: z.literal("assign") }),
+  /** Staff have the conversation open: the merchant sees "Seen by <name>". */
+  z.object({ action: z.literal("seen") }),
   z.object({ action: z.literal("note"), body: z.string().trim().min(1).max(NOTE_MAX_LENGTH) }),
   z.object({
     action: z.literal("hand_over"),
@@ -216,6 +218,7 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_notice_bad_hours: { status: 400, error: "A notice runs for 1 to 72 hours." },
   support_note_bad_body: { status: 400, error: "A note needs a text of up to 2,000 letters." },
   support_handover_bad_target: { status: 400, error: "Pick a teammate who answers support." },
+  support_empty_name: { status: 400, error: "Your console name is empty. Set a name first." },
   support_handover_same_owner: { status: 409, error: "This teammate already owns the conversation." },
 };
 

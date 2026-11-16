@@ -89,7 +89,7 @@ describe("GET /api/support", () => {
         const res = await GET(request("GET"));
         expect(await res.json()).toEqual({
             success: true,
-            data: { case: null, messages: [], unread: 0, owner: null, callBack: null, contactPhone: null, notice: null },
+            data: { case: null, messages: [], unread: 0, seen: null, owner: null, callBack: null, contactPhone: null, notice: null },
         });
         expect(eqCalls()).toEqual([
             ["tenant_id", TENANT],
@@ -167,6 +167,21 @@ describe("GET /api/support", () => {
         // The messages read is scoped to the shop as well as to the caller's cases.
         expect(eqCalls()).toContainEqual(["tenant_id", TENANT]);
         expect(state.calls.find((c) => c.method === "in")?.args).toEqual(["case_id", [CASE]]);
+        // Staff replied last, so no "Seen" line.
+        expect(body.data.seen).toBeNull();
+    });
+
+    it("says who saw the merchant's last message before staff replied", async () => {
+        state.queue.push(
+            {
+                data: [{ ...caseRow, status: "waiting_us", staff_seen_at: "2026-11-16T10:08:00Z", staff_seen_name: "Noor" }],
+                error: null,
+            },
+            { data: [message("m3", "merchant", "2026-11-16T10:07:00Z")], error: null },
+        );
+        const body = await (await GET(request("GET"))).json();
+        expect(body.data.seen).toEqual({ name: "Noor", at: "2026-11-16T10:08:00Z" });
+        expect(state.calls.find((c) => c.method === "select")?.args[0]).toContain("staff_seen_name");
     });
 });
 

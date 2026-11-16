@@ -73,6 +73,23 @@ export function useSupportCaseAction(caseId: string) {
   });
 }
 
+/**
+ * Tell the merchant a person read their message. Quiet: no refetch of the
+ * inbox, and the server only moves the mark when there is something new.
+ */
+export function useSupportMarkSeen(caseId: string) {
+  return useMutation({
+    mutationFn: async () =>
+      readJson<{ success: true; moved: boolean }>(
+        await fetch(`/api/support/cases/${caseId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "seen" } satisfies CaseAction),
+        }),
+      ),
+  });
+}
+
 /** Everyone a conversation can be handed to. Rarely changes. */
 export function useSupportTeam() {
   return useQuery<SupportTeammate[]>({

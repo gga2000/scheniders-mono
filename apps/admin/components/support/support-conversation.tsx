@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useSupportCaseAction, useSupportTeam } from "@/hooks/use-support-cases";
+import { useSupportCaseAction, useSupportMarkSeen, useSupportTeam } from "@/hooks/use-support-cases";
 import { useSavedReplies } from "@/hooks/use-saved-replies";
 import { SavedRepliesDialog } from "@/components/support/saved-replies-dialog";
 import {
@@ -294,6 +294,23 @@ export function SupportConversation({ supportCase, messages, notes }: SupportCon
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [lastItemKey]);
+
+  // "Seen by Noor" for the merchant: only once this conversation is on a
+  // screen someone is looking at, not from a console left in a hidden tab.
+  const { mutate: sendSeen } = useSupportMarkSeen(supportCase.id);
+  const lastMerchantId = messages.findLast((m) => m.sender_kind === "merchant")?.id;
+  useEffect(() => {
+    if (!lastMerchantId) return;
+    let sent = false;
+    const mark = () => {
+      if (sent || document.visibilityState !== "visible") return;
+      sent = true;
+      sendSeen();
+    };
+    mark();
+    document.addEventListener("visibilitychange", mark);
+    return () => document.removeEventListener("visibilitychange", mark);
+  }, [lastMerchantId, sendSeen]);
 
   const saveNote = () => {
     const body = noteDraft.trim();

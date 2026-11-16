@@ -7867,6 +7867,7 @@ export const ar: Record<string, string> = {
     "support.send": "إرسال",
     "support.attached": "يُرسل مع رسالتك:",
     "support.staffName": "{name} · دعم شنايدر",
+    "support.seen": "شافها {name} · {time}",
     "support.system.solved": "فريق الدعم علّم المحادثة كمحلولة",
     "support.system.reopened": "قلت إن المشكلة لم تُحل. فتحنا المحادثة من جديد.",
     "support.rate.question": "هل انحلت مشكلتك؟",

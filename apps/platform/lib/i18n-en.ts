@@ -7361,6 +7361,7 @@ export const en: Record<string, string> = {
     "support.send": "Send",
     "support.attached": "Sent with your message:",
     "support.staffName": "{name} · Schenider support",
+    "support.seen": "Seen by {name} · {time}",
     "support.system.solved": "Support marked this chat as solved",
     "support.system.reopened": "You said it is not solved. We reopened the chat.",
     "support.rate.question": "Did this solve your problem?",

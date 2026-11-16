@@ -7,6 +7,7 @@ import { lastReportedEventId } from "@/lib/report-error";
 import {
     AlertTriangle,
     Camera,
+    CheckCheck,
     CheckCircle2,
     FileText,
     LifeBuoy,
@@ -34,7 +35,7 @@ import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
 import { takeSupportOpenLink } from "@/lib/support/open-link";
 import { formatVoiceLength } from "@/lib/support/voice";
-import type { SupportMessage } from "@/lib/support/schema";
+import type { SupportMessage, SupportSeen } from "@/lib/support/schema";
 import { cn } from "@/lib/utils";
 
 // dir="auto" on sentences: an Arabic sentence ends with its own full stop,
@@ -89,6 +90,21 @@ function MessageLine({ message }: { message: SupportMessage }) {
             </div>
             <span className="mt-1 text-[11px] text-muted">{time}</span>
         </div>
+    );
+}
+
+/** «شافها نور · 10:04 م» under the merchant's last message, until staff reply. */
+function SeenLine({ seen }: { seen: SupportSeen }) {
+    const { t, language } = useLanguage();
+    const time = new Date(seen.at).toLocaleTimeString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+    return (
+        <p className="-mt-2 flex items-center justify-end gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+            <CheckCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span dir="auto">{t("support.seen", { name: seen.name, time })}</span>
+        </p>
     );
 }
 
@@ -289,6 +305,8 @@ export function SupportSheet() {
                             ) : (
                                 messages.map((message) => <MessageLine key={message.id} message={message} />)
                             )}
+
+                            {thread?.seen && <SeenLine seen={thread.seen} />}
 
                             {awaitingRating && (
                                 <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
