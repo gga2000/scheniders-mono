@@ -22,6 +22,12 @@ const billingLockSchema = z.object({
     price_iqd: z.coerce.number(),
     /** Only for the shop's admins. */
     balance_iqd: z.coerce.number().nullable(),
+    /**
+     * What the shop spends from its wallet a day: its last 7 days of
+     * delivered-order fees and WhatsApp messages over 7 (Fermi B3 part 2).
+     * Only for the shop's admins.
+     */
+    daily_spend_iqd: z.coerce.number().nullable().default(null),
     can_pay: z.boolean(),
 });
 

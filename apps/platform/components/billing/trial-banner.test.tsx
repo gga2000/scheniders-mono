@@ -43,14 +43,14 @@ beforeEach(() => {
     state.tenant = { status: "trial", plan: "starter", trial_ends_at: inDays(6) };
     state.used = 0;
     state.cap = 50;
-    state.lock = { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9000, balance_iqd: 0, can_pay: true };
+    state.lock = { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9000, balance_iqd: 0, daily_spend_iqd: null, can_pay: true };
     state.pathname = "/orders";
     state.section = null;
 });
 
 const locked = (over: Record<string, unknown> = {}) => ({
     locked: true, reason: "trial_ended", since: inDays(-1), orders_left: 12, allowance: 50,
-    plan: "starter", price_iqd: 9000, balance_iqd: 0, can_pay: true, ...over,
+    plan: "starter", price_iqd: 9000, balance_iqd: 0, daily_spend_iqd: null, can_pay: true, ...over,
 });
 afterEach(cleanup);
 

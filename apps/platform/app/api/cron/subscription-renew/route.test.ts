@@ -155,4 +155,45 @@ describe("subscription-renew cron", () => {
         expect(body).toMatchObject({ success: true, renewed: 0, locked: 0, errors: 0 });
         expect(body.results[0]).toMatchObject({ outcome: "on_hold", details: "Shop is limited: not charged" });
     });
+
+    describe("renewal reminders (Fermi B3)", () => {
+        const withReminders = (reminders: { data: unknown; error: { message: string } | null }, due = true) =>
+            respond((q) => {
+                if (q.target === "send_renewal_reminders") return reminders;
+                if (q.target === "subscriptions") {
+                    return { data: due ? [{ id: SUB, tenant_id: TENANT, plan: "starter", current_period_end: PERIOD_END }] : [], error: null };
+                }
+                if (q.target === "tenants") return { data: [{ id: TENANT, business_name: "Test Store" }], error: null };
+                if (q.target === "renew_subscription_atomic") return { data: renewResult, error: null };
+                return { data: null, error: null };
+            });
+
+        it("reminds shops whose month ends within 3 days, once a run, before renewing", async () => {
+            withReminders({ data: 2, error: null });
+            const res = await GET(cronRequest());
+            const body = await res.json();
+            expect(res.status).toBe(200);
+            expect(body).toMatchObject({ success: true, reminded: 2, renewed: 1 });
+            expect(queriesOn("send_renewal_reminders")).toHaveLength(1);
+            const order = recorded.map((q) => q.target);
+            expect(order.indexOf("send_renewal_reminders")).toBeLessThan(order.indexOf("renew_subscription_atomic"));
+        });
+
+        it("reminds even on a day nothing is due", async () => {
+            withReminders({ data: 1, error: null }, false);
+            const res = await GET(cronRequest());
+            const body = await res.json();
+            expect(res.status).toBe(200);
+            expect(body).toMatchObject({ success: true, reminded: 1, renewed: 0 });
+        });
+
+        it("reports a failed reminder run as failure, and still renews", async () => {
+            withReminders({ data: null, error: { message: "reminders down" } });
+            const res = await GET(cronRequest());
+            const body = await res.json();
+            expect(res.status).toBe(500);
+            expect(body).toMatchObject({ success: false, reminded: 0, reminderError: "reminders down", renewed: 1 });
+            expect(queriesOn("renew_subscription_atomic")).toHaveLength(1);
+        });
+    });
 });

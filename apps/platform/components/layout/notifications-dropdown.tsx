@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
+import { billingNotificationPath } from "@/lib/billing/lock-routes";
 
 interface NotificationsDropdownProps {
     onOpenChange?: (open: boolean) => void;
@@ -100,6 +101,13 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
         if (n.type === "prime.ticket_reply") {
             const ticket = typeof n.payload.ticket === "number" ? n.payload.ticket : null;
             router.push(ticket === null ? "/prime?tab=tickets" : `/prime?tab=tickets&ticket=${ticket}`);
+            return;
+        }
+
+        // Wallet and billing lines open the billing page, or the pay form when they ask for money.
+        const billingPath = billingNotificationPath(n);
+        if (billingPath) {
+            router.push(billingPath);
             return;
         }
 

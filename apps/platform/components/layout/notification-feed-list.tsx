@@ -15,6 +15,7 @@ import { format, formatDistanceToNowStrict } from "date-fns";
 import { ar as arLocale, enUS as enLocale } from "date-fns/locale";
 import type { FeedNotification } from "@/hooks/use-notification-feed";
 import type { FeedGroup, FeedSection } from "@/lib/notification-feed-sections";
+import { formatBillingDate } from "@/components/settings/billing/billing-format";
 import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { getStatusBadgeStyle, isSystemActor } from "@/lib/order-format-utils";
@@ -140,9 +141,25 @@ export function NotificationFeedList({
                     "Shipping export to {ref} failed — {count} orders", { ref, count: orders });
             }
             case "finance.wallet_empty":
-                return t("notifications.msgWalletEmpty", "Wallet is empty — orders will stop");
-            case "finance.wallet_low":
-                return t("notifications.msgWalletLow", "Wallet is running low");
+                return t("notifications.msgWalletEmpty");
+            case "finance.wallet_low": {
+                // Since Fermi B3 part 2 the line says how many days of the shop's
+                // own spend are left; older rows only knew the balance was low.
+                const days = n.payload.days;
+                return typeof days === "number" && Number.isFinite(days)
+                    ? t("billing.runway.low", { count: days })
+                    : t("notifications.msgWalletLow");
+            }
+            case "billing.renewal_soon": {
+                const due = payloadText(n, "due_at");
+                const short = payloadNumber(n, "short");
+                const vars = {
+                    date: due ? formatBillingDate(due, language) : "",
+                    price: money(payloadNumber(n, "price")),
+                    short: money(short),
+                };
+                return t(short > 0 ? "notifications.billing.renewalShort" : "notifications.billing.renewalSoon", vars);
+            }
             case "wallet.topup_approved":
                 return t("notifications.wallet.topupApproved", { amount: money(payloadNumber(n, "amount")) });
             case "wallet.topup_rejected": {
@@ -240,7 +257,7 @@ export function NotificationFeedList({
             case "delivery":
                 return <Truck className="w-4 h-4 text-orange-500" />;
             case "finance":
-                return <Wallet className="w-4 h-4 text-rose-500" />;
+                return <Wallet className="w-4 h-4 text-emerald-600" />;
             case "customer":
                 return <Star className="w-4 h-4 text-amber-500" />;
             case "team":

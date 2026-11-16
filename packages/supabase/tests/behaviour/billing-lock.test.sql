@@ -176,9 +176,9 @@ SELECT set_config('test.admin_of', '', false);
 SELECT pg_temp.check(
   (SELECT s->>'locked' = 'true' AND s->>'reason' = 'trial_ended' AND (s->>'orders_left')::int = 0
           AND (s->>'allowance')::int = 3 AND (s->>'price_iqd')::numeric = 9000
-          AND s->'balance_iqd' = 'null'::jsonb AND s->>'can_pay' = 'false'
+          AND s->'balance_iqd' = 'null'::jsonb AND s->'daily_spend_iqd' = 'null'::jsonb AND s->>'can_pay' = 'false'
      FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
-  'a member sees the lock, orders left and the price, not the balance');
+  'a member sees the lock, orders left and the price, not the balance or the spend');
 SELECT set_config('test.member_of', '20000000-0000-4000-8000-00000000000b', false);
 SELECT pg_temp.check(
   pg_temp.raises($q$SELECT public.billing_lock_status('20000000-0000-4000-8000-00000000000a')$q$) = 'forbidden',
@@ -191,9 +191,9 @@ SELECT pg_temp.check(
   'a non-admin member cannot pay');
 SELECT set_config('test.admin_of', '20000000-0000-4000-8000-00000000000a', false);
 SELECT pg_temp.check(
-  (SELECT s->>'balance_iqd' = '0' AND s->>'can_pay' = 'true'
+  (SELECT s->>'balance_iqd' = '0' AND s->>'daily_spend_iqd' = '0' AND s->>'can_pay' = 'true'
      FROM public.billing_lock_status('20000000-0000-4000-8000-00000000000a') s),
-  'the admin sees the balance and may pay');
+  'the admin sees the balance and the daily spend, and may pay');
 SELECT pg_temp.check(
   (public.pay_billing_lock('20000000-0000-4000-8000-00000000000a'))->>'outcome' = 'locked',
   'paying from an empty wallet keeps the lock');

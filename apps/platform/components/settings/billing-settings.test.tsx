@@ -91,6 +91,7 @@ const LOCK: BillingLock = {
     plan: "starter",
     price_iqd: 9000,
     balance_iqd: 20_000,
+    daily_spend_iqd: null,
     can_pay: true,
 };
 
@@ -261,16 +262,17 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("BillingSettings", () => {
-    it("trial: shows days and orders left, and no low-balance warning on an empty wallet", () => {
+    it("trial: shows days and orders left, and no wallet warning on an empty wallet", () => {
         state.tenant = tenant("trial", new Date(Date.now() + 3.5 * 86_400_000).toISOString());
         state.balance = 0;
         state.trialOrders = 12;
+        state.lock = { ...LOCK, balance_iqd: 0, daily_spend_iqd: 900 };
         show();
         const card = screen.getByTestId("billing-plan-card").textContent ?? "";
         expect(card).toContain("تجربة مجانية");
         expect(card).toContain("باقي 4 أيام");
         expect(card).toContain("12 من 50 طلب");
-        expect(screen.queryByTestId("low-balance-warning")).toBeNull();
+        expect(screen.queryByTestId("wallet-runway")).toBeNull();
     });
 
     it("an ended, unpaid trial says it ended instead of 'ends today'", () => {
@@ -282,11 +284,49 @@ describe("BillingSettings", () => {
         expect(card).not.toContain("تنتهي اليوم");
     });
 
-    it("after the trial: low balance is warned and the next renewal is shown", () => {
-        state.balance = 3000;
+    it("a paying shop under 3 days of its own spend is told calmly how long the wallet lasts", () => {
+        // 900 a day: 3 days = 2,700. 1,800 lasts about 2 days.
+        state.balance = 1800;
+        state.lock = { ...LOCK, balance_iqd: 1800, daily_spend_iqd: 900 };
         show();
-        expect(screen.getByTestId("low-balance-warning")).toBeTruthy();
+        const note = screen.getByTestId("wallet-runway");
+        expect(note.textContent).toContain("رصيدك يكفي تقريباً يومين");
+        expect(note.textContent).toContain("المحفظة تدفع أجور الطلبات المسلَّمة ورسائل واتساب");
+        expect(note.textContent).toMatch(/IQD\s900 باليوم/);
+        expect(note.className).not.toMatch(/amber|red|rose/);
+        // Its button opens the form with a month: 9,000 + 30 x 900 - 1,800 = 34,200, to 35,000.
+        fireEvent.click(within(note).getByRole("button"));
+        expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("35000");
+        expect(screen.getByTestId("topup-suggested").textContent).toMatch(/^يكفي IQD\s35,000 لشهر: الباقة وأجور الطلبات والرسائل حسب آخر 7 أيام$/);
+    });
+
+    it("a paying shop with 3 days in its wallet, or no daily spend, sees no note, and the next renewal", () => {
+        state.balance = 2700;
+        state.lock = { ...LOCK, balance_iqd: 2700, daily_spend_iqd: 900 };
+        show();
+        expect(screen.queryByTestId("wallet-runway")).toBeNull();
         expect(screen.getByTestId("billing-plan-card").textContent).toContain("التجديد القادم");
+        cleanup();
+        state.balance = 0;
+        state.lock = { ...LOCK, balance_iqd: 0, daily_spend_iqd: 0 };
+        show();
+        expect(screen.queryByTestId("wallet-runway")).toBeNull();
+    });
+
+    it("an empty wallet says WhatsApp messages wait and orders go on", () => {
+        state.balance = -300;
+        state.lock = { ...LOCK, balance_iqd: -300, daily_spend_iqd: 900 };
+        show();
+        const note = screen.getByTestId("wallet-runway");
+        expect(note.textContent).toContain("نفد رصيد المحفظة");
+        expect(note.textContent).toContain("الطلبات تستمر كالمعتاد");
+    });
+
+    it("a locked shop gets no wallet note: the lock screen already says what to pay", () => {
+        state.balance = 100;
+        state.lock = { ...LOCK, locked: true, reason: "unpaid", balance_iqd: 100, daily_spend_iqd: 900 };
+        show();
+        expect(screen.queryByTestId("wallet-runway")).toBeNull();
     });
 
     it("wallet history reads in Arabic", () => {
@@ -438,10 +478,10 @@ describe("BillingSettings", () => {
         show();
         expect(screen.getByTestId("topup-form")).toBeTruthy();
         expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("8000");
-        expect(screen.getByTestId("topup-suggested").textContent).toMatch(/^يكفي IQD\s8,000 لتفعيل باقتك$/);
+        expect(screen.getByTestId("topup-suggested").textContent).toMatch(/^يكفي IQD\s8,000 لدفع باقتك$/);
     });
 
-    it("a paying shop gets no suggestion and the usual amount", () => {
+    it("a paying shop whose wallet covers its plan and its spend gets no suggestion and the usual amount", () => {
         show();
         fireEvent.click(screen.getByText("شحن المحفظة"));
         expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("50000");

@@ -32,6 +32,11 @@ const renewResultSchema = z.object({
  * Cron: Renew subscriptions and charge monthly base price.
  * Runs daily at 3am UTC.
  *
+ * First it reminds every shop whose paid month ends within 3 days (Fermi B3):
+ * send_renewal_reminders tells it the date, the price and what the wallet
+ * still needs, once per month however often this runs. A failed reminder run
+ * is reported, and the renewals still run.
+ *
  * Each due subscription is renewed by renew_subscription_atomic, which in ONE
  * transaction: locks the subscription row, re-checks that the period the cron
  * saw is still the current, due period (compare-and-set on
@@ -56,6 +61,13 @@ async function runScheduled(request: Request) {
     const now = new Date().toISOString();
     const results: RenewalResult[] = [];
 
+    // 0. Remind shops whose month ends within 3 days.
+    const { data: reminded, error: remindError } = await supabaseAdmin().rpc("send_renewal_reminders");
+    if (remindError) console.error("[subscription-renew] Reminder error:", remindError.message);
+    const reminders = remindError
+        ? { reminded: 0, reminderError: remindError.message }
+        : { reminded: typeof reminded === "number" ? reminded : 0 };
+
     // 1. Find expired subscriptions
     const { data: expiredSubs, error: fetchError } = await supabaseAdmin()
         .from("subscriptions")
@@ -72,7 +84,10 @@ async function runScheduled(request: Request) {
     }
 
     if (!expiredSubs || expiredSubs.length === 0) {
-        return NextResponse.json({ success: true, renewed: 0, locked: 0, results: [] });
+        return NextResponse.json(
+            { success: !remindError, ...reminders, renewed: 0, locked: 0, results: [] },
+            { status: remindError ? 500 : 200 },
+        );
     }
 
     console.log(`[subscription-renew] ${expiredSubs.length} subscription(s) due for renewal`);
@@ -144,7 +159,8 @@ async function runScheduled(request: Request) {
 
     console.log(`[subscription-renew] Done: ${renewed} renewed, ${locked} locked, ${errors} error(s)`);
 
-    return NextResponse.json({ success: errors === 0, renewed, locked, errors, results }, { status: errors === 0 ? 200 : 500 });
+    const ok = errors === 0 && !remindError;
+    return NextResponse.json({ success: ok, ...reminders, renewed, locked, errors, results }, { status: ok ? 200 : 500 });
 }
 
 export const GET = withCronMonitor(CRON_MONITORS.subscriptionRenew, runScheduled);

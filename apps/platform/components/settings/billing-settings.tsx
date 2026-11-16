@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2, Plus, Wallet } from "lucide-react";
+import { Loader2, Plus, Wallet } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useBilling, useTrialOrderCount } from "@/hooks/use-billing";
@@ -16,12 +16,14 @@ import { fetchPaymentReceipt } from "@/lib/billing/fetch-payment-receipt";
 import { paymentReceiptDocument } from "@/lib/billing/payment-receipt";
 import { useQiSavedCard } from "@/hooks/use-qi-topup";
 import { isBillingExempt } from "@/lib/billing-exempt";
+import { walletRunway } from "@/lib/billing/wallet-runway";
 import { PlanCard } from "./billing/plan-card";
 import { PlanPicker, type PlanMode } from "./billing/plan-picker";
 import { PlanChangeDialog } from "./billing/plan-change-dialog";
 import { AddonsCard } from "./billing/addons-card";
 import { hasPassed } from "./billing/billing-format";
 import { TopupForm } from "./billing/topup-form";
+import { WalletRunwayNote } from "./billing/wallet-runway-note";
 import { QiAutoRefill } from "./billing/qi-auto-refill";
 import { QiReturnCheck } from "./billing/qi-return-check";
 import { TopupRequests } from "./billing/topup-requests";
@@ -56,9 +58,8 @@ export function BillingSettings() {
     const exempt = isBillingExempt(tenant?.plan ?? null);
     const plan = allPlans.find((p) => p.plan === (subscription?.plan ?? tenant?.plan)) ?? null;
     const balance = wallet?.balance_iqd ?? 0;
-    const threshold = wallet?.threshold_iqd ?? 0;
-    // During the free trial nothing is charged yet, so a low balance is not a problem.
-    const showLowBalance = !exempt && !inTrial && balance <= threshold;
+    // What the wallet pays day to day (last 7 days of fees and messages; admins only).
+    const dailySpend = lock?.daily_spend_iqd ?? null;
     // As change_plan decides it: in a paid month a switch happens now (or at the
     // renewal); in the trial or a lock it picks what the next payment buys.
     const paidMonth =
@@ -70,8 +71,11 @@ export function BillingSettings() {
     const canChange = lock?.can_pay ?? false;
     const addonPlanKey = subscription ? (paidMonth ? subscription.plan : (subscription.pending_plan ?? subscription.plan)) : null;
     const addonPlan = allPlans.find((p) => p.plan === addonPlanKey) ?? null;
-    // A locked shop, or one in its trial, is told what its plan still needs.
-    const suggested = !exempt && (inTrial || lock?.locked) ? suggestedTopup(lock?.price_iqd ?? null, balance) : null;
+    // Only a paying shop that is not locked hears that its wallet runs low: in
+    // the trial nothing is charged, and the lock screen already says what to pay.
+    const runway = !exempt && tenant?.status === "active" && !lock?.locked ? walletRunway(balance, dailySpend) : null;
+    // The next plan payment, and a month of the shop's spend when it has any.
+    const suggestion = exempt ? null : suggestedTopup(lock?.price_iqd ?? null, balance, dailySpend);
     const legalName = paymentDetails?.legal_name ?? null;
 
     async function printReceipt(request: TopupRequest) {
@@ -99,14 +103,8 @@ export function BillingSettings() {
                 }}
             />
 
-            {showLowBalance && (
-                <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30" data-testid="low-balance-warning">
-                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
-                    <div>
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{t("billing.wallet.low")}</p>
-                        <p className="text-xs text-amber-700 dark:text-amber-400">{t("billing.wallet.lowBody")}</p>
-                    </div>
-                </div>
+            {runway && dailySpend !== null && (
+                <WalletRunwayNote runway={runway} dailySpendIqd={dailySpend} onTopUp={() => setShowTopUp(true)} />
             )}
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -138,7 +136,7 @@ export function BillingSettings() {
                         <div>
                             <p className="mb-1 text-xs text-muted-foreground">{t("billing.wallet.balance")}</p>
                             <p
-                                className={cn("text-2xl font-bold tabular-nums", showLowBalance ? "text-amber-600" : "text-green-700 dark:text-green-400")}
+                                className={cn("text-2xl font-bold tabular-nums", runway ? "text-sky-700 dark:text-sky-300" : "text-green-700 dark:text-green-400")}
                                 data-testid="wallet-balance"
                             >
                                 {formatIQD(balance)}
@@ -158,7 +156,7 @@ export function BillingSettings() {
 
                         {showTopUp ? (
                             <TopupForm
-                                suggestedAmount={suggested}
+                                suggestion={suggestion}
                                 onDone={() => {
                                     setShowTopUp(false);
                                     refetch();

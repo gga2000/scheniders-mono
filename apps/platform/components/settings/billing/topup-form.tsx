@@ -13,6 +13,7 @@ import {
     receiptProblem,
     useWalletTopup,
     type TopupMethod,
+    type TopupSuggestion,
 } from "@/hooks/use-wallet-topup";
 import { useQiTopup } from "@/hooks/use-qi-topup";
 import { QiPay } from "./qi-pay";
@@ -25,10 +26,11 @@ const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
  * transfer to our number, uploads the receipt, and our team adds the balance
  * after checking it; a top-up that covers the plan unlocks a locked shop. With
  * Qi card payments switched on, Qi is paid on Qi's own card page instead
- * (QiPay) and the wallet fills by itself. `suggestedAmount` is what a locked
- * shop, or one in its trial, still needs for its plan.
+ * (QiPay) and the wallet fills by itself. `suggestion` is what the shop still
+ * needs for its next plan payment, and a month of its spend when it has any.
  */
-export function TopupForm({ onDone, suggestedAmount = null }: { onDone: () => void; suggestedAmount?: number | null }) {
+export function TopupForm({ onDone, suggestion = null }: { onDone: () => void; suggestion?: TopupSuggestion | null }) {
+    const suggestedAmount = suggestion?.amount ?? null;
     const { t } = useLanguage();
     const { paymentDetails, paymentDetailsLoading, submit } = useWalletTopup();
     const formRef = useRef<HTMLDivElement>(null);
@@ -49,7 +51,7 @@ export function TopupForm({ onDone, suggestedAmount = null }: { onDone: () => vo
 
     const number = paymentDetails?.[method] ?? null;
     const accountName = method === "qi_card" ? (paymentDetails?.qi_card_name ?? null) : null;
-    // What the plan needs comes first, so one tap picks it.
+    // The suggestion comes first, so one tap picks it.
     const presets = suggestedAmount !== null && !AMOUNT_PRESETS.includes(suggestedAmount) ? [suggestedAmount, ...AMOUNT_PRESETS] : AMOUNT_PRESETS;
     const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
     const canSend = !!number && amountOk && !!file && !submit.isPending;
@@ -212,9 +214,11 @@ export function TopupForm({ onDone, suggestedAmount = null }: { onDone: () => vo
                     className="w-full rounded-lg border border-(--card-border) bg-background px-3 py-2 text-sm tabular-nums"
                 />
                 {!amountOk && <p className="mt-1 text-xs text-red-600">{t("billing.topup.amountRange")}</p>}
-                {amountOk && suggestedAmount !== null && (
+                {amountOk && suggestion !== null && (
                     <p className="mt-1 text-xs text-muted-foreground" data-testid="topup-suggested">
-                        {t("billing.topup.suggested", { amount: formatIQD(suggestedAmount) })}
+                        {t(suggestion.covers === "month" ? "billing.topup.suggestedMonth" : "billing.topup.suggested", {
+                            amount: formatIQD(suggestion.amount),
+                        })}
                     </p>
                 )}
             </div>
