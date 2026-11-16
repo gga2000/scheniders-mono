@@ -75,13 +75,13 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
             >
               <XAxis
                 dataKey="dayLabel"
-                tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 yAxisId="left"
-                tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
@@ -89,7 +89,7 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tick={{ fontSize: 10, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) =>

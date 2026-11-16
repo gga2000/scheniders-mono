@@ -66,21 +66,21 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
                 key={metric.label}
                 className={`rounded-2xl border border-[var(--card-border)] p-4 ${gradients[i] || gradients[0]}`}
               >
-                <p className="text-[11px] font-semibold text-foreground/50 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                   {metric.label}
                 </p>
                 <p className="text-xl font-bold text-foreground tracking-tight">
                   {formatNumber(metric, metric.current)}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-[10px] text-foreground/40">
+                  <span className="text-xs text-foreground/40">
                     {metric.current === null && metric.emptyNote
                       ? metric.emptyNote
                       : `before: ${formatNumber(metric, metric.previous, false)}`}
                   </span>
                   {metric.deltaPct !== null && (
                     <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold ${
                         isPositive
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"

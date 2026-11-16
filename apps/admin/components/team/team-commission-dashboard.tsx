@@ -134,7 +134,7 @@ export function TeamCommissionDashboard({
                   </h4>
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                      "px-2 py-0.5 rounded-full text-xs font-semibold",
                       commissionTypeBadge[config.type]
                     )}
                   >
@@ -143,17 +143,17 @@ export function TeamCommissionDashboard({
                 </div>
                 <div className="flex items-center gap-2">
                   {config.is_active ? (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-green-600">
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-600">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                       Active
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-foreground/40">
+                    <span className="flex items-center gap-1 text-xs font-medium text-foreground/40">
                       <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                       Inactive
                     </span>
                   )}
-                  <button className="ml-auto text-[10px] font-semibold text-foreground/50 hover:text-foreground transition-colors">
+                  <button className="ml-auto text-xs font-semibold text-foreground/50 hover:text-foreground transition-colors">
                     Edit
                   </button>
                 </div>
@@ -271,7 +271,7 @@ export function TeamCommissionDashboard({
                       <td className="px-4 py-3 text-center">
                         <span
                           className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                            "px-2 py-0.5 rounded-full text-xs font-semibold",
                             isActive
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-600"

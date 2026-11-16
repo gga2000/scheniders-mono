@@ -35,7 +35,7 @@ export function LeadColumnsPanel({
           align="end"
           className="z-50 w-72 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-2 shadow-xl"
         >
-          <div className="px-2 pt-1 pb-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">
+          <div className="px-2 pt-1 pb-2 text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
             Columns · {visibleCount} shown
           </div>
           <ul className="space-y-0.5 max-h-[60vh] overflow-y-auto">
@@ -104,7 +104,7 @@ export function LeadColumnsPanel({
               );
             })}
           </ul>
-          <p className="px-2 pt-2 text-[10px] text-[var(--muted)]">
+          <p className="px-2 pt-2 text-xs text-[var(--muted)]">
             Drag headers to reorder · drag a header edge to resize.
           </p>
         </Popover.Content>

@@ -80,7 +80,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
                 {idx < funnel.length - 1 && step.dropOffPct > 0 && (
                   <div className="flex items-center gap-1.5 py-1">
                     <div className="w-px h-3 bg-foreground/20" />
-                    <span className="text-[10px] font-medium text-foreground/50">
+                    <span className="text-xs font-medium text-foreground/50">
                       {step.dropOffPct.toFixed(0)}% drop-off
                     </span>
                     <div className="w-px h-3 bg-foreground/20" />

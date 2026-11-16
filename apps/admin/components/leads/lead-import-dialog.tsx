@@ -226,7 +226,7 @@ function StepIndicator({ currentStep }: { currentStep: WizardStep }) {
             </div>
             <span
               className={cn(
-                "text-[10px] font-semibold transition-colors",
+                "text-xs font-semibold transition-colors",
                 step.num <= currentStep ? "text-[var(--foreground)]" : "text-[var(--muted)]"
               )}
             >
@@ -684,14 +684,14 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                           <div className="text-2xl font-bold text-[var(--foreground)]">
                             {validationResults.length}
                           </div>
-                          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">
+                          <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                             Total
                           </div>
                         </div>
                         <div className="w-px h-8 bg-[var(--card-border)]" />
                         <div className="text-center">
                           <div className="text-2xl font-bold text-emerald-500">{validCount}</div>
-                          <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">
+                          <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                             Valid
                           </div>
                         </div>
@@ -700,7 +700,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             <div className="w-px h-8 bg-[var(--card-border)]" />
                             <div className="text-center">
                               <div className="text-2xl font-bold text-amber-500">{warningCount}</div>
-                              <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">
+                              <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                                 Warnings
                               </div>
                             </div>
@@ -744,12 +744,12 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                               {result.row.merchant_name || `Row ${result.index + 1}`}
                             </span>
                             {result.row.platform && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 text-[var(--muted)] shrink-0">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 text-[var(--muted)] shrink-0">
                                 {result.row.platform}
                               </span>
                             )}
                             {!result.valid && (
-                              <span className="ml-auto text-[10px] text-amber-500 shrink-0">
+                              <span className="ml-auto text-xs text-amber-500 shrink-0">
                                 {result.warnings.join(", ")}
                               </span>
                             )}
@@ -794,7 +794,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                               />
                             </div>
-                            <p className="text-[10px] text-[var(--muted)] text-center mt-1.5">
+                            <p className="text-xs text-[var(--muted)] text-center mt-1.5">
                               {Math.round(importProgress)}%
                             </p>
                           </div>

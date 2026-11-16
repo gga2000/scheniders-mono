@@ -39,12 +39,12 @@ export function BillingCheckAlert({ check }: { check: BillingCheck }) {
       <div className="min-w-0 space-y-1">
         <p className="text-xs font-semibold text-red-700 dark:text-red-300">The daily renewal job missed shops</p>
         {check.trialsNotBilled.length > 0 && (
-          <p className="text-[11px] text-red-700/80 dark:text-red-300/80">
+          <p className="text-xs text-red-700/80 dark:text-red-300/80">
             Trial ended, never billed: {names(check.trialsNotBilled)}
           </p>
         )}
         {check.renewalsMissed.length > 0 && (
-          <p className="text-[11px] text-red-700/80 dark:text-red-300/80">
+          <p className="text-xs text-red-700/80 dark:text-red-300/80">
             Month ended, not renewed: {names(check.renewalsMissed)}
           </p>
         )}

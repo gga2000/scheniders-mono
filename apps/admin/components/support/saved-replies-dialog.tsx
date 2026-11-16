@@ -114,7 +114,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-foreground">
                         {reply.title}
-                        <span className="ml-2 text-[11px] font-medium text-foreground/40">order {reply.position}</span>
+                        <span className="ml-2 text-xs font-medium text-foreground/40">order {reply.position}</span>
                       </p>
                       <p dir="auto" className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/70">
                         {reply.body}

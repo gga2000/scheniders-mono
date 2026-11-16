@@ -157,7 +157,7 @@ export function LeadMobileDetail() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Platform */}
           <span
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+            className="px-2.5 py-1 rounded-lg text-xs font-bold"
             style={{ backgroundColor: `${platformCfg.color}20`, color: platformCfg.color }}
           >
             {platformCfg.label}
@@ -165,14 +165,14 @@ export function LeadMobileDetail() {
 
           {/* Tier */}
           <span
-            className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+            className="px-2.5 py-1 rounded-lg text-xs font-bold"
             style={{ backgroundColor: `${tierCfg.color}20`, color: tierCfg.color }}
           >
             {tierCfg.label}
           </span>
 
           {/* Priority */}
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/5 text-[var(--foreground)]">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white/5 text-[var(--foreground)]">
             <span
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: priorityCfg.color }}
@@ -182,7 +182,7 @@ export function LeadMobileDetail() {
 
           {/* Status */}
           <span
-            className="px-3 py-1 rounded-full text-[11px] font-bold"
+            className="px-3 py-1 rounded-full text-xs font-bold"
             style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
           >
             {statusCfg.label}
@@ -206,7 +206,7 @@ export function LeadMobileDetail() {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[var(--foreground)]">
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[var(--foreground)]">
               {lead.lead_score}
             </span>
           </div>

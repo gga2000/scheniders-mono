@@ -116,7 +116,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
                       className="w-7 h-7 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                       {userInitial}
                     </div>
                   )
@@ -135,7 +135,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 {showUser && item.admin_user && (
-                  <p className="text-[10px] text-foreground/40 font-medium mb-0.5">
+                  <p className="text-xs text-foreground/40 font-medium mb-0.5">
                     {item.admin_user.display_name ??
                       item.admin_user.email.split("@")[0]}
                   </p>
@@ -144,7 +144,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
                 {item.entity_type && (
                   <span
                     className={cn(
-                      "inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium",
+                      "inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium",
                       item.colors.bg,
                       item.category === "lead"
                         ? "text-blue-700"

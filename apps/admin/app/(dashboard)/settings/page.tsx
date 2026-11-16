@@ -107,7 +107,7 @@ export default function SettingsPage() {
                     {user.email}
                   </p>
                   {role && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-foreground/10 text-foreground/70 capitalize shrink-0">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-foreground/10 text-foreground/70 capitalize shrink-0">
                       {role.replace("_", " ")}
                     </span>
                   )}

@@ -247,7 +247,7 @@ export default function ActivityLogPage() {
                       </td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badge.bg}`}
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge.bg}`}
                         >
                           {badge.text}
                         </span>

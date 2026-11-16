@@ -70,7 +70,7 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
           type="button"
           onClick={() => check.refetch()}
           disabled={check.isFetching}
-          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-foreground/60 transition-colors hover:bg-foreground/5 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-foreground/60 transition-colors hover:bg-foreground/5 disabled:opacity-50"
         >
           <RotateCw className={cn("h-3 w-3", check.isFetching && "animate-spin")} />
           Check again

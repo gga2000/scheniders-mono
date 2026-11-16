@@ -79,7 +79,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
 
   return (
     <div className="border-b border-[var(--card-border)]" data-testid="prime-link-requests">
-      <p className="px-4 pt-3 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Prime link requests</p>
+      <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-foreground/40">Prime link requests</p>
       {requests.map((req) => {
         const shops = req.prime_shops ?? [];
         const shopId = req.prime_shop_id ?? picked[req.id] ?? null;
@@ -90,18 +90,18 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
             <span className="mt-0.5 text-[#315EA8]"><Truck className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{req.tenants?.business_name ?? req.tenant_id}</p>
-              <p className="text-[11px] text-foreground/50 tabular-nums mt-0.5">
+              <p className="text-xs text-foreground/50 tabular-nums mt-0.5">
                 Prime account {req.prime_phone}
                 {req.prime_name ? ` · ${req.prime_name}` : ""}
                 {req.prime_login_id && req.prime_login_id !== req.prime_phone ? ` (${req.prime_login_id})` : ""}
               </p>
-              <p className="text-[11px] text-foreground/60 mt-1">{WAITING_ON[req.outcome ?? "unchecked"]}</p>
+              <p className="text-xs text-foreground/60 mt-1">{WAITING_ON[req.outcome ?? "unchecked"]}</p>
               {req.prime_login_id && req.prime_shop_id === null && shops.length > 1 && (
                 <select
                   aria-label="Prime shop"
                   value={picked[req.id] ?? ""}
                   onChange={(e) => setPicked((p) => ({ ...p, [req.id]: Number(e.target.value) }))}
-                  className="mt-1.5 w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-2 py-1 text-[11px] text-foreground"
+                  className="mt-1.5 w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-2 py-1 text-xs text-foreground"
                 >
                   <option value="" disabled>Pick the Prime shop</option>
                   {shops.map((s) => (
@@ -109,14 +109,14 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
                   ))}
                 </select>
               )}
-              <p className="text-[10px] text-foreground/30 mt-1">{formatWhen(req.created_at)}</p>
+              <p className="text-xs text-foreground/30 mt-1">{formatWhen(req.created_at)}</p>
             </div>
             {canApprove && (
               <button
                 type="button"
                 onClick={() => approve.mutate({ id: req.id, shopId: req.prime_shop_id === null ? shopId : null })}
                 disabled={busy || shopId === null}
-                className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-semibold text-background hover:opacity-90 disabled:opacity-50"
+                className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                 Approve
@@ -125,7 +125,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
           </div>
         );
       })}
-      {approve.isError && <p className="px-4 pb-3 text-[11px] text-red-600">{approve.error.message}</p>}
+      {approve.isError && <p className="px-4 pb-3 text-xs text-red-600">{approve.error.message}</p>}
     </div>
   );
 }

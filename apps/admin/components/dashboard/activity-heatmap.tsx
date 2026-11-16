@@ -108,8 +108,8 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
     };
   }, [days]);
 
-  const labelWidth = 28;
-  const headerHeight = 16;
+  const labelWidth = 34;
+  const headerHeight = 20;
   const svgWidth = labelWidth + weeks * (CELL_SIZE + GAP);
   const svgHeight = headerHeight + 7 * (CELL_SIZE + GAP);
 
@@ -124,7 +124,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
           <h3 className="font-bold text-foreground text-sm">Platform Activity</h3>
         </div>
         {/* Color scale legend */}
-        <div className="flex items-center gap-1 text-[10px] text-foreground/50">
+        <div className="flex items-center gap-1 text-xs text-foreground/50">
           <span>Less</span>
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <span
@@ -163,9 +163,9 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               <text
                 key={i}
                 x={labelWidth + m.col * (CELL_SIZE + GAP)}
-                y={10}
+                y={14}
                 className="fill-[var(--foreground)]"
-                style={{ fontSize: 9, opacity: 0.5 }}
+                style={{ fontSize: 13, opacity: 0.5 }}
               >
                 {m.label}
               </text>
@@ -179,7 +179,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
                   x={0}
                   y={headerHeight + i * (CELL_SIZE + GAP) + CELL_SIZE - 2}
                   className="fill-[var(--foreground)]"
-                  style={{ fontSize: 9, opacity: 0.4 }}
+                  style={{ fontSize: 13, opacity: 0.4 }}
                 >
                   {label}
                 </text>

@@ -49,7 +49,7 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
         <div className="flex items-center gap-1.5">
           <span className="truncate font-semibold text-[var(--foreground)]">{lead.merchant_name}</span>
           {lead.is_draft && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
               <Pencil className="h-2.5 w-2.5" /> Draft
             </span>
           )}
@@ -64,7 +64,7 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onStatusTap(lead); }}
-          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
+          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
           style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: statusUi.solid }} />

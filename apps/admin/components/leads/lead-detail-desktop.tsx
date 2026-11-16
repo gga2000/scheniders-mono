@@ -157,7 +157,7 @@ export function LeadDetailDesktop() {
               )}
               <div className="flex items-center gap-2 mt-2">
                 <span
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold"
                   style={{ backgroundColor: `${platformCfg.color}20`, color: platformCfg.color }}
                 >
                   {platformCfg.label}
@@ -172,14 +172,14 @@ export function LeadDetailDesktop() {
             <div className="flex flex-wrap items-center gap-2">
               {/* Tier */}
               <span
-                className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                className="px-2.5 py-1 rounded-lg text-xs font-bold"
                 style={{ backgroundColor: `${tierCfg.color}20`, color: tierCfg.color }}
               >
                 {tierCfg.label}
               </span>
 
               {/* Priority */}
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/5 text-[var(--foreground)]">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white/5 text-[var(--foreground)]">
                 <span
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: priorityCfg.color }}
@@ -189,7 +189,7 @@ export function LeadDetailDesktop() {
 
               {/* Status */}
               <span
-                className="px-3 py-1 rounded-full text-[11px] font-bold"
+                className="px-3 py-1 rounded-full text-xs font-bold"
                 style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
               >
                 {statusCfg.label}
@@ -213,7 +213,7 @@ export function LeadDetailDesktop() {
                     strokeLinecap="round"
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[var(--foreground)]">
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[var(--foreground)]">
                   {lead.lead_score}
                 </span>
               </div>
@@ -357,7 +357,7 @@ export function LeadDetailDesktop() {
             {fmt(lead.follower_count)}
           </p>
           <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 inline-block"
+            className="text-xs font-bold px-1.5 py-0.5 rounded mt-1 inline-block"
             style={{ backgroundColor: `${tierCfg.color}15`, color: tierCfg.color }}
           >
             {tierCfg.label}
@@ -373,7 +373,7 @@ export function LeadDetailDesktop() {
           <p className="text-xl font-bold text-[var(--foreground)]">
             {engagementRate.toFixed(1)}%
           </p>
-          <span className="text-[10px] text-[var(--muted)] mt-1 inline-block">
+          <span className="text-xs text-[var(--muted)] mt-1 inline-block">
             Likes + Comments / Followers
           </span>
         </div>
@@ -387,7 +387,7 @@ export function LeadDetailDesktop() {
           <p className="text-xl font-bold text-[var(--foreground)]">
             {daysInPipeline}
           </p>
-          <span className="text-[10px] text-[var(--muted)] mt-1 inline-block">
+          <span className="text-xs text-[var(--muted)] mt-1 inline-block">
             Since {formatDay(lead.created_at)}
           </span>
         </div>

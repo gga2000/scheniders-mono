@@ -73,7 +73,7 @@ export function OrderPipeline({ pipeline }: OrderPipelineProps) {
                     <span className="text-xs font-bold text-foreground">
                       {stage.count}
                     </span>
-                    <span className="text-[10px] text-foreground/40">
+                    <span className="text-xs text-foreground/40">
                       {stage.pct}%
                     </span>
                   </div>

@@ -269,7 +269,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                       {/* Name inputs */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] uppercase tracking-wider font-medium text-[var(--muted)] mb-1">
+                          <label className="block text-xs uppercase tracking-wider font-medium text-[var(--muted)] mb-1">
                             Name (English)
                           </label>
                           <input
@@ -283,7 +283,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] uppercase tracking-wider font-medium text-[var(--muted)] mb-1">
+                          <label className="block text-xs uppercase tracking-wider font-medium text-[var(--muted)] mb-1">
                             Name (Arabic)
                           </label>
                           <input
@@ -301,7 +301,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
                       {/* Icon selector */}
                       <div>
-                        <label className="block text-[10px] uppercase tracking-wider font-medium text-[var(--muted)] mb-1.5">
+                        <label className="block text-xs uppercase tracking-wider font-medium text-[var(--muted)] mb-1.5">
                           Icon
                         </label>
                         <div className="grid grid-cols-8 gap-1.5">
@@ -330,7 +330,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
                       {/* Color picker */}
                       <div>
-                        <label className="block text-[10px] uppercase tracking-wider font-medium text-[var(--muted)] mb-1.5">
+                        <label className="block text-xs uppercase tracking-wider font-medium text-[var(--muted)] mb-1.5">
                           Color
                         </label>
                         <div className="flex flex-wrap gap-1.5">
@@ -355,7 +355,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
                       {/* Average Order Value */}
                       <div>
-                        <label className="block text-[10px] uppercase tracking-wider font-medium text-[var(--muted)] mb-1">
+                        <label className="block text-xs uppercase tracking-wider font-medium text-[var(--muted)] mb-1">
                           Average Order Value (IQD)
                         </label>
                         <input
@@ -440,7 +440,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-[11px] text-[var(--muted)]">
+                                <div className="text-xs text-[var(--muted)]">
                                   Avg. {industry.avg_order_value_iqd.toLocaleString()} IQD
                                 </div>
                               </div>
@@ -575,7 +575,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
                               {/* Avg order value */}
                               <div className="flex items-center gap-2">
-                                <label className="text-[10px] uppercase tracking-wider font-medium text-[var(--muted)] shrink-0">
+                                <label className="text-xs uppercase tracking-wider font-medium text-[var(--muted)] shrink-0">
                                   Avg Order (IQD)
                                 </label>
                                 <input

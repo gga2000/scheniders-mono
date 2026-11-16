@@ -96,13 +96,13 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
                   />
                   <XAxis
                     dataKey="bucket"
-                    tick={{ fontSize: 9, fill: "var(--foreground)" }}
+                    tick={{ fontSize: 13, fill: "var(--foreground)" }}
                     axisLine={false}
                     tickLine={false}
                     interval={0}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                    tick={{ fontSize: 13, fill: "var(--foreground)" }}
                     axisLine={false}
                     tickLine={false}
                     allowDecimals={false}

@@ -188,7 +188,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
 
       {/* Status Chips */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] text-[var(--muted)] font-semibold uppercase tracking-wider mr-1">
+        <span className="text-xs text-[var(--muted)] font-semibold uppercase tracking-wider mr-1">
           Status
         </span>
         {(Object.entries(LEAD_STATUS_CONFIG) as [LeadStatus, (typeof LEAD_STATUS_CONFIG)["new"]][]).map(

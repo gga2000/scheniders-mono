@@ -138,7 +138,7 @@ function FieldLabel({
   required?: boolean;
 }) {
   return (
-    <label className="mb-1.5 block text-[11px] font-semibold text-[var(--muted)]">
+    <label className="mb-1.5 block text-xs font-semibold text-[var(--muted)]">
       {children}
       {required && <span className="text-rose-500"> *</span>}
     </label>
@@ -229,7 +229,7 @@ function InputField({
           <AlertCircle className="h-3 w-3" /> {error}
         </p>
       )}
-      {hint && !error && <p className="mt-1 text-[10px] text-[var(--muted)]">{hint}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-[var(--muted)]">{hint}</p>}
     </div>
   );
 }
@@ -365,11 +365,11 @@ function Section({
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className={cn("text-[11px] font-bold uppercase tracking-wider", a.title)}>
+          <div className={cn("text-xs font-bold uppercase tracking-wider", a.title)}>
             {title}
           </div>
           {subtitle && (
-            <div className="mt-0.5 text-[10px] normal-case text-[var(--muted)]">{subtitle}</div>
+            <div className="mt-0.5 text-xs normal-case text-[var(--muted)]">{subtitle}</div>
           )}
         </div>
         {badge}
@@ -397,7 +397,7 @@ function PillToggle({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
+        "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all",
         active
           ? "border-[#A78BFA]/50 bg-[#A78BFA]/10 text-[#A78BFA]"
           : "border-[var(--card-border)] text-[var(--muted)] hover:border-[var(--muted)]/40 hover:text-[var(--foreground)]",
@@ -532,7 +532,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]"
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]"
                   title="Clear all fields"
                 >
                   <RotateCcw className="h-3 w-3" />
@@ -593,7 +593,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   <button
                     type="button"
                     onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-[11px] font-medium text-indigo-500 transition-colors hover:text-indigo-600 hover:underline"
+                    className="flex items-center gap-1 text-xs font-medium text-indigo-500 transition-colors hover:text-indigo-600 hover:underline"
                   >
                     <Settings2 className="h-3 w-3" /> Manage
                   </button>
@@ -630,7 +630,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   <button
                     type="button"
                     onClick={() => setShowIndustryDetail(true)}
-                    className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+                    className="mt-2 flex items-center gap-1 text-xs font-medium text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
                   >
                     <Plus className="h-3 w-3" /> Specify the niche
                   </button>
@@ -679,7 +679,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 (showAutofill ? (
                   <div className="space-y-2.5 rounded-xl border border-dashed border-[#A78BFA]/40 bg-[#A78BFA]/[0.05] p-3">
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[#A78BFA]">
+                      <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#A78BFA]">
                         <Sparkles className="h-3.5 w-3.5" />
                         Auto-fill from {PLATFORM_CONFIG[form.platform].label}
                       </span>
@@ -730,12 +730,12 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                       </button>
                     </div>
                     {analyzeError && (
-                      <p className="flex items-center gap-1 text-[11px] font-medium text-red-500">
+                      <p className="flex items-center gap-1 text-xs font-medium text-red-500">
                         <AlertCircle className="h-3 w-3" /> {analyzeError}
                       </p>
                     )}
                     {analyzeSuccess && (
-                      <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <p className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                         <Check className="h-3 w-3" /> Profile loaded — fields above were auto-filled.
                       </p>
                     )}
@@ -744,7 +744,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   <button
                     type="button"
                     onClick={() => setShowAutofill(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#A78BFA]/40 bg-[#A78BFA]/[0.04] py-2.5 text-[12px] font-semibold text-[#A78BFA] transition-colors hover:bg-[#A78BFA]/[0.09]"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#A78BFA]/40 bg-[#A78BFA]/[0.04] py-2.5 text-xs font-semibold text-[#A78BFA] transition-colors hover:bg-[#A78BFA]/[0.09]"
                   >
                     <Sparkles className="h-4 w-4" />
                     Auto-fill from {PLATFORM_CONFIG[form.platform].label} — followers, posts &amp; more
@@ -884,7 +884,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                     <button
                       type="button"
                       onClick={addPhone}
-                      className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 transition-colors hover:underline"
+                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 transition-colors hover:underline"
                     >
                       <Plus className="h-3 w-3" /> Add another number
                     </button>
@@ -954,7 +954,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
               accent="violet"
               badge={
                 hasPrediction ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                     <TrendingUp className="h-3 w-3" />~{estimatedDailyOrders}/day
                   </span>
                 ) : undefined
@@ -992,7 +992,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 ))}
               </div>
               {isOrdersOverride && (
-                <p className="-mt-1 text-[10px] text-[var(--muted)]">
+                <p className="-mt-1 text-xs text-[var(--muted)]">
                   Orders/day overrides the views-based forecast
                 </p>
               )}
@@ -1001,7 +1001,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/10">
                   <div className="mb-2.5 flex items-center gap-2">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                       Order Prediction
                     </span>
                   </div>
@@ -1015,13 +1015,13 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                         <div className="text-xl font-black tabular-nums text-emerald-700 dark:text-emerald-300">
                           {value}
                         </div>
-                        <div className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
+                        <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
                           {label}
                         </div>
                       </div>
                     ))}
                   </div>
-                  <p className="mt-2.5 text-[10px] text-emerald-700/70 dark:text-emerald-300/70">
+                  <p className="mt-2.5 text-xs text-emerald-700/70 dark:text-emerald-300/70">
                     {isOrdersOverride
                       ? `Manual override · views forecast ~${viewsBasedDailyOrders.toLocaleString()}/day`
                       : "Based on avg views ÷ 10,000 (1% interested × 1% buy)"}
@@ -1094,20 +1094,20 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   {/* Branches — additional physical locations, each with its own phone(s) */}
                   <div>
                     <div className="mb-1.5 flex items-center justify-between">
-                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)]">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-[var(--muted)]">
                         <Building2 className="h-3 w-3" /> Branches
                       </label>
                       <button
                         type="button"
                         onClick={addBranch}
-                        className="flex items-center gap-1 text-[11px] font-medium text-amber-600 transition-colors hover:underline"
+                        className="flex items-center gap-1 text-xs font-medium text-amber-600 transition-colors hover:underline"
                       >
                         <Plus className="h-3 w-3" /> Add branch
                       </button>
                     </div>
 
                     {form.branches.length === 0 ? (
-                      <p className="text-[11px] italic text-[var(--muted)]">
+                      <p className="text-xs italic text-[var(--muted)]">
                         Single location — the fields above are the main branch. Add more for
                         multi-branch stores.
                       </p>
@@ -1206,7 +1206,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                                 <button
                                   type="button"
                                   onClick={() => addBranchPhone(bi)}
-                                  className="flex items-center gap-1 text-[11px] font-medium text-amber-600 transition-colors hover:underline"
+                                  className="flex items-center gap-1 text-xs font-medium text-amber-600 transition-colors hover:underline"
                                 >
                                   <Plus className="h-3 w-3" /> Add number
                                 </button>
@@ -1242,7 +1242,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 </span>
               </div>
             ) : (
-              <span className="hidden text-[11px] text-[var(--muted)] sm:block">
+              <span className="hidden text-xs text-[var(--muted)] sm:block">
                 Add audience metrics to forecast orders
               </span>
             )}

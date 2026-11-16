@@ -234,7 +234,7 @@ function AnalyticsDashboard({
                   }}
                 />
                 <span
-                  className="text-[11px] font-semibold text-center leading-tight"
+                  className="text-xs font-semibold text-center leading-tight"
                   style={{ color: cfg.color }}
                 >
                   {cfg.label}
@@ -306,7 +306,7 @@ function AnalyticsDashboard({
                   return (
                     <div
                       key={tier}
-                      className="h-full flex items-center justify-center text-[10px] font-bold transition-all"
+                      className="h-full flex items-center justify-center text-xs font-bold transition-all"
                       style={{
                         width: `${pct}%`,
                         backgroundColor: cfg.color,
@@ -390,7 +390,7 @@ function AnalyticsDashboard({
                   <span className="text-xs font-bold text-[var(--foreground)] w-8 text-right">
                     {entry.count}
                   </span>
-                  <span className="text-[11px] text-[var(--muted)] w-12 text-right">
+                  <span className="text-xs text-[var(--muted)] w-12 text-right">
                     {pct}%
                   </span>
                 </div>
@@ -447,7 +447,7 @@ function AnalyticsDashboard({
                     title={`Converted: ${month.converted}`}
                   />
                 </div>
-                <span className="text-[10px] text-[var(--muted)] font-medium mt-1 truncate w-full text-center">
+                <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center">
                   {formatMonth(month.month)}
                 </span>
               </div>

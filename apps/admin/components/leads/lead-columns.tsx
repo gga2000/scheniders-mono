@@ -51,7 +51,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
             {lead.merchant_name}
           </span>
           {lead.is_draft && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
               <Pencil className="h-2.5 w-2.5" /> Draft
             </span>
           )}
@@ -71,7 +71,7 @@ function DateAddedCell({ iso }: { iso: string }) {
   return (
     <>
       <div className="text-xs font-medium text-[var(--foreground)]">{day}</div>
-      {when !== day && <div className="text-[10px] text-[var(--muted)]">{when}</div>}
+      {when !== day && <div className="text-xs text-[var(--muted)]">{when}</div>}
     </>
   );
 }

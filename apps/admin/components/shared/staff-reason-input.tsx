@@ -31,7 +31,7 @@ export function StaffReasonInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={cn(
-        "w-full px-3 py-1.5 rounded-xl bg-white/80 dark:bg-white/10 ring-1 ring-foreground/10 focus:ring-foreground/30 outline-none text-[12px] font-medium text-foreground placeholder:text-foreground/40",
+        "w-full px-3 py-1.5 rounded-xl bg-white/80 dark:bg-white/10 ring-1 ring-foreground/10 focus:ring-foreground/30 outline-none text-xs font-medium text-foreground placeholder:text-foreground/40",
         className,
       )}
     />

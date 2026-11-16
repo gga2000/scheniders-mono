@@ -282,7 +282,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                           />
                           <span
                             className={cn(
-                              "text-[11px] font-semibold transition-colors",
+                              "text-xs font-semibold transition-colors",
                               isSelected ? "text-[var(--foreground)]" : "text-[var(--muted)]"
                             )}
                           >
@@ -362,7 +362,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                           <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
                             Initial Products
                           </label>
-                          <span className="text-[10px] text-[var(--muted)]">
+                          <span className="text-xs text-[var(--muted)]">
                             {products.length}/10
                           </span>
                         </div>

@@ -477,7 +477,7 @@ export function CompetitorsContent({
                   </div>
                 </div>
                 <span
-                  className="px-2.5 py-1 rounded-full text-[10px] font-bold capitalize"
+                  className="px-2.5 py-1 rounded-full text-xs font-bold capitalize"
                   style={{ backgroundColor: relColors.bg, color: relColors.text }}
                 >
                   {comp.relationship_type}

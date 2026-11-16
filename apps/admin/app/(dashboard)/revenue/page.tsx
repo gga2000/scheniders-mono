@@ -140,8 +140,8 @@ export default function RevenuePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.mrrWaterfall}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <XAxis dataKey="month" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="revenue" fill="#86efac" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -205,8 +205,8 @@ export default function RevenuePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.ltvDistribution} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={70} />
+                <XAxis type="number" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="label" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={70} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#c4b5fd" radius={[0, 6, 6, 0]} />
               </BarChart>
@@ -252,8 +252,8 @@ export default function RevenuePage() {
                 })}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <XAxis dataKey="month" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                 <Tooltip />
                 {data.revenueByPlan.map((p) => (
                   <Area

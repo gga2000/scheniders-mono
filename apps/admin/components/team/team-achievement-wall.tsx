@@ -140,7 +140,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                       ) : (
                         <div
                           key={emp.id}
-                          className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-[8px] font-bold"
+                          className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold"
                           title={emp.display_name ?? emp.email}
                         >
                           {initial}
@@ -148,12 +148,12 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                       );
                     })}
                     {unlockers.length > 5 && (
-                      <div className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-foreground/10 flex items-center justify-center text-[8px] font-bold text-foreground/60">
+                      <div className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-foreground/10 flex items-center justify-center text-xs font-bold text-foreground/60">
                         +{unlockers.length - 5}
                       </div>
                     )}
                   </div>
-                  <p className="text-[10px] text-foreground/40 mt-1.5">
+                  <p className="text-xs text-foreground/40 mt-1.5">
                     {unlockers.length} member{unlockers.length !== 1 ? "s" : ""}
                   </p>
                 </div>
@@ -161,7 +161,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
 
               {!unlocked && (
                 <div className="mt-3 pt-3 border-t border-[var(--card-border)]">
-                  <p className="text-[10px] text-foreground/30">
+                  <p className="text-xs text-foreground/30">
                     Not yet unlocked by any team member
                   </p>
                 </div>

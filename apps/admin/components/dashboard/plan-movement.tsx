@@ -81,7 +81,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
                   <p className={`text-xl font-bold ${style.text}`}>
                     {summary[type]}
                   </p>
-                  <p className={`text-[10px] font-semibold uppercase tracking-wider ${style.text}/70`}>
+                  <p className={`text-xs font-semibold uppercase tracking-wider ${style.text}/70`}>
                     {style.label}
                   </p>
                 </div>
@@ -112,7 +112,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
                       {m.count}
                     </span>
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}
                     >
                       {m.type}
                     </span>

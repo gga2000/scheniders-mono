@@ -82,7 +82,7 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
                   <p className="text-sm font-semibold text-foreground truncate">
                     {merchant.businessName}
                   </p>
-                  <p className="text-[10px] text-foreground/50">
+                  <p className="text-xs text-foreground/50">
                     {merchant.orderCount} orders
                   </p>
                   {/* Progress bar */}

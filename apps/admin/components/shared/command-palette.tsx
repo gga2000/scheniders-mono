@@ -131,7 +131,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   placeholder="Search pages, merchants, actions..."
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground/40 outline-none"
                 />
-                <kbd className="text-[10px] text-foreground/30 bg-foreground/5 px-1.5 py-0.5 rounded font-mono">
+                <kbd className="text-xs text-foreground/30 bg-foreground/5 px-1.5 py-0.5 rounded font-mono">
                   ESC
                 </kbd>
               </div>
@@ -158,7 +158,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.label}</p>
                         {item.sublabel && (
-                          <p className="text-[11px] text-foreground/40 truncate">
+                          <p className="text-xs text-foreground/40 truncate">
                             {item.sublabel}
                           </p>
                         )}
@@ -173,7 +173,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
               {/* Footer */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--card-border)] bg-foreground/[0.02]">
-                <div className="flex items-center gap-2 text-[10px] text-foreground/30">
+                <div className="flex items-center gap-2 text-xs text-foreground/30">
                   <span>Navigate</span>
                   <kbd className="bg-foreground/5 px-1 py-0.5 rounded font-mono">↑↓</kbd>
                   <span>Select</span>

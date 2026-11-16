@@ -105,15 +105,15 @@ function PaymentDetailsForm({
             className="rounded-xl bg-white/80 px-3 py-1.5 text-sm ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 disabled:opacity-60 dark:bg-white/10"
             data-testid={`payment-details-${f.key}`}
           />
-          <span className="text-[11px] text-foreground/45">{f.hint}</span>
+          <span className="text-xs text-foreground/45">{f.hint}</span>
         </label>
       ))}
       {canEdit && (
         <div className="md:col-span-2 flex items-center justify-end gap-3">
-          {!valid.success && <span className="text-[11px] text-red-600">{valid.error.issues[0]?.message}</span>}
-          {save.isError && <span className="text-[11px] text-red-600">{save.error.message}</span>}
+          {!valid.success && <span className="text-xs text-red-600">{valid.error.issues[0]?.message}</span>}
+          {save.isError && <span className="text-xs text-red-600">{save.error.message}</span>}
           {save.isSuccess && !dirty && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-green-700">
+            <span className="inline-flex items-center gap-1 text-xs text-green-700">
               <Check className="w-3 h-3" />
               Saved
             </span>

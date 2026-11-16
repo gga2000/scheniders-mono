@@ -48,7 +48,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
         </div>
 
         {health && health.critical > 5 && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">
             <AlertTriangle className="w-3 h-3" />
             {health.critical} critical
           </span>
@@ -71,7 +71,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 title={`Healthy: ${health.healthy} (${healthyPct.toFixed(0)}%)`}
               >
                 {healthyPct >= 15 && (
-                  <span className="text-[10px] font-bold text-green-900">
+                  <span className="text-xs font-bold text-green-900">
                     {health.healthy}
                   </span>
                 )}
@@ -87,7 +87,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 title={`Warning: ${health.warning} (${warningPct.toFixed(0)}%)`}
               >
                 {warningPct >= 15 && (
-                  <span className="text-[10px] font-bold text-amber-900">
+                  <span className="text-xs font-bold text-amber-900">
                     {health.warning}
                   </span>
                 )}
@@ -103,7 +103,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 title={`Critical: ${health.critical} (${criticalPct.toFixed(0)}%)`}
               >
                 {criticalPct >= 15 && (
-                  <span className="text-[10px] font-bold text-red-900">
+                  <span className="text-xs font-bold text-red-900">
                     {health.critical}
                   </span>
                 )}
@@ -112,7 +112,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
           </div>
 
           {/* Legend row */}
-          <div className="flex items-center gap-4 mb-4 text-[10px]">
+          <div className="flex items-center gap-4 mb-4 text-xs">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-300" />
               <span className="text-foreground/60">Healthy (&gt;50K)</span>
@@ -133,7 +133,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
           {/* Stats row */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="rounded-2xl bg-gradient-to-br from-green-50/80 to-green-100/40 dark:from-green-950/20 dark:to-green-900/10 border border-green-200/50 dark:border-green-800/30 p-3">
-              <p className="text-[10px] text-foreground/50 uppercase tracking-wider mb-0.5">
+              <p className="text-xs text-foreground/50 uppercase tracking-wider mb-0.5">
                 Avg Balance
               </p>
               <p className="text-sm font-bold text-foreground">
@@ -141,7 +141,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
               </p>
             </div>
             <div className="rounded-2xl bg-gradient-to-br from-purple-50/80 to-purple-100/40 dark:from-purple-950/20 dark:to-purple-900/10 border border-purple-200/50 dark:border-purple-800/30 p-3">
-              <p className="text-[10px] text-foreground/50 uppercase tracking-wider mb-0.5">
+              <p className="text-xs text-foreground/50 uppercase tracking-wider mb-0.5">
                 Median Balance
               </p>
               <p className="text-sm font-bold text-foreground">
@@ -152,7 +152,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
 
           {/* Top-up rate sparkline */}
           <div>
-            <p className="text-[10px] text-foreground/50 uppercase tracking-wider mb-1">
+            <p className="text-xs text-foreground/50 uppercase tracking-wider mb-1">
               Daily Top-up Rate (7d)
             </p>
             <Sparkline

@@ -168,7 +168,7 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
                             <p className="text-sm font-semibold text-[var(--foreground)]">
                               {opt.label}
                             </p>
-                            <p className="text-[11px] text-[var(--muted)] leading-snug">
+                            <p className="text-xs text-[var(--muted)] leading-snug">
                               {opt.hint}
                             </p>
                           </div>
@@ -190,7 +190,7 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
                     autoComplete="off"
                     className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                   />
-                  <p className="text-[11px] text-[var(--muted)] mt-1.5 leading-snug">
+                  <p className="text-xs text-[var(--muted)] mt-1.5 leading-snug">
                     Leave blank to add an existing main-app user — they keep their
                     current password. A password is required only when the email
                     has no account yet (or to reset an existing one).

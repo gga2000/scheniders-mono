@@ -37,8 +37,8 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
   return (
     <div className="border-b border-[var(--card-border)]" data-testid="wallet-topup-requests">
       <div className="flex items-center justify-between px-4 pt-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Payments to check</p>
-        <Link href="/payments" className="text-[10px] font-semibold text-blue-600 hover:underline">
+        <p className="text-xs font-semibold uppercase tracking-wide text-foreground/40">Payments to check</p>
+        <Link href="/payments" className="text-xs font-semibold text-blue-600 hover:underline">
           Open all
         </Link>
       </div>
@@ -49,10 +49,10 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
             <span className="mt-0.5 text-green-600"><Wallet className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{req.business_name ?? req.tenant_id}</p>
-              <p className="text-[11px] text-foreground/50 tabular-nums mt-0.5">
+              <p className="text-xs text-foreground/50 tabular-nums mt-0.5">
                 {formatIQD(req.amount_iqd)} by {METHOD_LABEL[req.method]}
               </p>
-              <div className="mt-1 flex items-center gap-2 text-[10px] text-foreground/40">
+              <div className="mt-1 flex items-center gap-2 text-xs text-foreground/40">
                 <span>{formatWhen(req.created_at)}</span>
                 {req.billing?.locked && (
                   <span className="inline-flex items-center gap-0.5 text-amber-700">

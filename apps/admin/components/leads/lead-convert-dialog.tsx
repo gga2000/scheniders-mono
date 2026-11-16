@@ -218,13 +218,13 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                             </h3>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                               <span
-                                className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                className="px-2 py-0.5 rounded-full text-xs font-bold"
                                 style={{ backgroundColor: `${tierConfig.color}20`, color: tierConfig.color }}
                               >
                                 {tierConfig.label}
                               </span>
                               <span
-                                className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                className="px-2 py-0.5 rounded-full text-xs font-medium"
                                 style={{ backgroundColor: `${platformConfig.color}15`, color: platformConfig.color }}
                               >
                                 {platformConfig.label}
@@ -235,7 +235,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                             <div className="text-2xl font-bold text-[var(--foreground)]">
                               {lead.lead_score}
                             </div>
-                            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">
+                            <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                               Score
                             </div>
                           </div>
@@ -282,7 +282,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                               {item.label}
                             </span>
                             {item.detail && (
-                              <span className="text-[10px] text-[var(--muted)] ml-auto">
+                              <span className="text-xs text-[var(--muted)] ml-auto">
                                 {item.detail}
                               </span>
                             )}
