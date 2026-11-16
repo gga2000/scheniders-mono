@@ -34,6 +34,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { BUSINESS_TYPES, isBusinessTypeId, type BusinessTypeId } from "@/lib/business-types";
 import { supabase } from "@/lib/supabase";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
+import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 
 const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -75,6 +76,8 @@ function SignupForm() {
     /** The address the confirm link went to; the form is replaced by "check your email". */
     const [sentTo, setSentTo] = useState<string | null>(null);
     const captcha = useAuthCaptcha();
+    // The store's address, offered from its name and the merchant's to change (B11).
+    const storeAddress = useStoreAddress(businessName);
 
     /**
      * The account is created unconfirmed, so it cannot sign in until its owner
@@ -110,7 +113,8 @@ function SignupForm() {
         sells.length > 0 &&
         email.length > 0 &&
         password.length >= 8 &&
-        businessName.trim().length > 0;
+        businessName.trim().length > 0 &&
+        storeAddressSendable(storeAddress.state);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -127,6 +131,7 @@ function SignupForm() {
                     password,
                     business_name: businessName.trim(),
                     business_types: sells,
+                    slug: storeAddress.slug,
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
                     captcha_token: captcha.token,
@@ -138,10 +143,18 @@ function SignupForm() {
             if (!res.ok) {
                 // The server spent this token whatever the outcome.
                 captcha.reset();
+                if (data.code === "slug_taken") {
+                    // Shown at the address field, with a free one to take.
+                    storeAddress.markTaken(storeAddress.slug, typeof data.suggestion === "string" ? data.suggestion : null);
+                    setIsLoading(false);
+                    return;
+                }
                 setError(
                     data.code === "captcha_failed"
                         ? t("signup.captchaRejected")
-                        : data.error || "Something went wrong. Please try again.",
+                        : data.code === "slug_invalid"
+                          ? t("signup.addressInvalid")
+                          : data.error || "Something went wrong. Please try again.",
                 );
                 setIsLoading(false);
                 return;
@@ -272,12 +285,13 @@ function SignupForm() {
 
                     {/* Business Name */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}>
-                        <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.businessName")}</label>
+                        <label htmlFor="signup-business-name" className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.businessName")}</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                                 <Building2 className="w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
                             </div>
                             <input
+                                id="signup-business-name"
                                 type="text"
                                 value={businessName}
                                 onChange={(e) => setBusinessName(e.target.value)}
@@ -286,6 +300,11 @@ function SignupForm() {
                                 className="w-full h-12 pl-11 pr-4 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
                             />
                         </div>
+                    </motion.div>
+
+                    {/* Store address (B11) */}
+                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.375 }}>
+                        <StoreAddressField address={storeAddress} t={t} dir={dir} />
                     </motion.div>
 
                     {/* Email */}

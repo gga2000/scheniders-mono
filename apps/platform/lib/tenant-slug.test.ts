@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 
 import { describe, it, expect } from "vitest";
-import { isValidSlug, normalizeSlug, slugRejection } from "./tenant-slug";
+import { isValidSlug, normalizeSlug, slugRejection, suggestSlug } from "./tenant-slug";
 
 describe("isValidSlug (handle claim, UX2-13)", () => {
     it("accepts readable handles", () => {
@@ -31,5 +31,32 @@ describe("isValidSlug (handle claim, UX2-13)", () => {
 
     it("normalizes pasted input", () => {
         expect(normalizeSlug("  Zahraa-Beauty ")).toBe("zahraa-beauty");
+    });
+});
+
+describe("platform-looking addresses (B11)", () => {
+    it("refuses an address that poses as the platform's name", () => {
+        expect(slugRejection("scheniders-shop")).toBe("reserved");
+        expect(slugRejection("usefermi-store")).toBe("reserved");
+        expect(slugRejection("fermi-perfume")).toBeNull();
+    });
+});
+
+describe("suggestSlug: the address offered at signup (B11)", () => {
+    it("spells an Arabic store name in Latin letters", () => {
+        expect(suggestSlug("متجر زهراء")).toBe("mtjr-zhra");
+        expect(suggestSlug("Noor Beauty")).toBe("noor-beauty");
+    });
+
+    it("always offers an address the form accepts", () => {
+        for (const name of ["نو", "متجر عطور العراق الأول للعطور الفرنسية الأصلية", "Store", "Scheniders", "a", "  --Noor--  "]) {
+            const slug = suggestSlug(name);
+            expect(slugRejection(slug), `${name} → ${slug}`).toBeNull();
+        }
+    });
+
+    it("offers nothing for a name with nothing to spell it with, so the merchant types one", () => {
+        expect(suggestSlug("")).toBe("");
+        expect(suggestSlug("🌸")).toBe("");
     });
 });
