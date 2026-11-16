@@ -343,6 +343,11 @@ describe("SummaryView", () => {
                 ],
             },
         })));
+        // Lines with nothing to do fold their explanation behind the label; lines to act on stay open
+        const folded = () => Array.from(byTestId("money-payments-parts")?.querySelectorAll("[data-fold]") ?? []);
+        expect(folded().map((button) => button.getAttribute("data-fold"))).toEqual(["refunds", "prepaid"]);
+        expect(byTestId("money-payments-parts")?.querySelector('[data-part="refunds"]')?.textContent).toBe("مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)−30,000د.ع");
+        for (const button of folded()) fireEvent.click(button);
         const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
