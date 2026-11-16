@@ -46,8 +46,8 @@ export function StockShelf({ summary }: StockShelfProps) {
                     <Money value={value} className={CARD_FIGURE} />
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {costed < pieces
-                            ? t("fin.stock.sayPart", { costed: formatWhole(costed), n: formatWhole(pieces) })
-                            : t("fin.stock.say", { n: formatWhole(pieces) })}
+                            ? t("fin.stock.sayPart", { costed: formatWhole(costed), n: formatWhole(pieces), count: pieces })
+                            : t("fin.stock.say", { n: formatWhole(pieces), count: pieces })}
                     </p>
                 </div>
             )}

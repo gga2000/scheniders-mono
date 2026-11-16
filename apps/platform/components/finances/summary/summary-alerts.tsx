@@ -49,7 +49,7 @@ export function SummaryAlerts({ summary, onOpenTab }: SummaryAlertsProps) {
         alerts.push({
             key: "no_cost",
             icon: Tag,
-            text: t("fin.alert.noCost", { n: formatWhole(summary.sales.missing_cost_units) }),
+            text: t("fin.alert.noCost", { n: formatWhole(summary.sales.missing_cost_units), count: summary.sales.missing_cost_units }),
             target: { href: "/products" },
             action: t("fin.alert.noCost.open"),
         });

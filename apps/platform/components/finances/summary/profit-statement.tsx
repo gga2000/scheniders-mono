@@ -72,6 +72,9 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const netChange = change(statement.netProfit, previous?.netProfit);
     const lineChanges = new Map(shown.map((line) => [line.id, change(line.amount, previous?.lines.find((l) => l.id === line.id)?.amount)]));
     const compared = salesChange !== null || netChange !== null || [...lineChanges.values()].some((value) => value !== null);
+    /** A comparison is on, but the period before sold too little to be a fair base: say why no arrow shows. */
+    const tooThinBefore = previous !== null && !isComparablePeriod(statement, previous);
+    const compareNote = compared ? t("fin.statement.compare") : tooThinBefore ? t("fin.statement.noCompare") : null;
     /** A figure through the chosen lens; a dash when the lens has no base (no order delivered). */
     const amount = (value: number, className: string, options: { minus?: boolean; unitClassName?: string } = {}) => {
         const read = throughLens(value, statement, lens);
@@ -82,7 +85,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     return (
         <SummaryCard
             title={t("fin.statement.title")}
-            sub={compared ? `${t("fin.statement.sub")} ${t("fin.statement.compare")}` : t("fin.statement.sub")}
+            sub={compareNote ? `${t("fin.statement.sub")} ${compareNote}` : t("fin.statement.sub")}
             textDir={dir}
             testId="profit-statement"
             action={<LensSwitch value={lens} onChange={setLens} />}
