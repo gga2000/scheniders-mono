@@ -45,8 +45,8 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
             split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_before: 0, reached_now: 0, reached_other: 0, reached_prepaid: 0, reached_prepaid_orders: 0 },
-            statement: { returns: 0, returns_orders: 0, prepaid_gap: 0, prepaid_orders: 0, price_gap: 0, price_gap_orders: 0, undelivered: 0, undelivered_orders: 0 },
-            undelivered_list: [],
+            statement: { returns: 0, returns_orders: 0, returns_open: 0, returns_open_orders: 0, prepaid_gap: 0, prepaid_orders: 0, price_gap: 0, price_gap_orders: 0, undelivered: 0, undelivered_orders: 0 },
+            statement_orders: [],
             unpaid_list: [
                 { id: "11111111-1111-4111-8111-111111111111", code: "4260905001", customer: "محمد كاظم", amount: 25_000, day: "2026-11-01", prime: false },
                 { id: "22222222-2222-4222-8222-222222222222", code: "1261112002", customer: "عباس عادل", amount: 15_000, day: "2026-11-15", prime: true },
@@ -305,37 +305,45 @@ describe("SummaryView", () => {
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
         expect(byTestId("money-payments")?.textContent).toContain("لم تستلم من شركات التوصيل أي دفعة");
         cleanup();
-        // 300,000 paid = 380,000 for the period's orders − 50,000 returns − 40,000 prepaid + 5,000 price
-        // + 3,000 for an order not marked delivered + 2,000 other
+        // 300,000 paid = 380,000 for the period's orders − 30,000 refunds marked done − 20,000 refunds not marked
+        // − 10,000 on two prepaid orders + 5,000 price + 3,000 for an order not marked delivered − 28,000 other
         renderView(query(summary({
             cash: {
                 ...s.cash,
                 split: { ...s.cash.split, reached_now: 380_000, reached_before: 1_000 },
                 statement: {
                     returns: -50_000,
-                    returns_orders: 2,
-                    prepaid_gap: -40_000,
-                    prepaid_orders: 1,
+                    returns_orders: 3,
+                    returns_open: -20_000,
+                    returns_open_orders: 1,
+                    prepaid_gap: -10_000,
+                    prepaid_orders: 2,
                     price_gap: 5_000,
                     price_gap_orders: 1,
                     undelivered: 3_000,
                     undelivered_orders: 1,
                 },
-                undelivered_list: [{ id: "u-1", code: "4261102012", amount: 3_000 }],
+                statement_orders: [
+                    { kind: "price", id: "p-1", code: "4261101004", amount: 5_000 },
+                    { kind: "refund_open", id: "r-1", code: "RTN-4108-1", amount: -20_000 },
+                    { kind: "undelivered", id: "u-1", code: "4261102012", amount: 3_000 },
+                ],
             },
         })));
-        const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("div") ?? []).map((row) => row.textContent);
+        const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
-            "طرود راجعة خُصمت من الكشوف (2)−50,000د.ع",
-            "طلبات دفعها الزبون لك مسبقاً، فلم يُقبض ثمنها (1)−40,000د.ع",
-            "طلبات قُبض فيها سعر مختلف (1)5,000د.ع",
-            "دُفع ثمنها وما زالت غير «مُسلَّمة» عندك (1)42611020123,000د.ع",
-            "فروق أخرى2,000د.ع",
+            "مبلغا استرجاع دفعهما المندوب لزبونين عنك (2)سجّلتها «تم الاسترجاع»، فهي محسوبة في «مبالغ مستردة» بكشف الربح.−30,000د.ع",
+            "مبلغ استرجاع دفعه المندوب ولم تسجّله بعد (1)افتح كل طلب وغيّر حالته إلى «تم الاسترجاع»، ليُحسب في ربحك.RTN-4108-1−20,000د.ع",
+            "طلبان دفعهما الزبون لك مسبقاً (2)لم يقبض المندوب ثمنها، وخصم أجرة توصيلها.−10,000د.ع",
+            "طلب قُبض فيه سعر مختلف (1)42611010045,000د.ع",
+            "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)42611020123,000د.ع",
+            "فروق أخرى−28,000د.ع",
         ]);
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
+        expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
         expect(byTestId("money-payments-link")?.textContent).toBe(
-            "هذا ما دفعته لك فعلاً خلال الفترة، ومنه 380,000 د.ع ثمن طلبات هذه الفترة. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف قبل هذه الفترة.",
+            "هذا ما دفعته لك فعلاً خلال الفترة: ثمن طلبات هذه الفترة في الكشوف (380,000 د.ع) بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
         );
         expect(byTestId("money-payments")?.textContent).not.toContain("أيّاً كان تاريخ الدفعة");
     });
@@ -346,7 +354,7 @@ describe("SummaryView", () => {
         const parts = byTestId("money-reached-parts")?.textContent ?? "";
         expect(parts).toContain("من كشوف هذه الفترة100,000");
         expect(parts).toContain("طلبات سجّلتها «مُسلَّمة» داخل هذه الفترة200,000");
-        expect(parts).toContain("دفعها الزبون لك مسبقاً، وليست في أي كشف20,000");
+        expect(parts).toContain("دفعها الزبون لك مسبقاً20,000");
         expect(parts).toContain("من كشوف مؤرَّخة بعد هذه الفترة10,000");
         cleanup();
         renderView(query(summary()));
@@ -360,7 +368,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
-        expect(byTestId("money-returning")?.textContent).toContain("5 طرود في طريق العودة إليك الآن");
+        expect(byTestId("money-returning")?.textContent).toContain("5 طرود مرفوضة في طريق العودة إليك الآن");
     });
 
     it("leaves the stuck parcels to the strip and the banner: the money card does not say them a third time", () => {
