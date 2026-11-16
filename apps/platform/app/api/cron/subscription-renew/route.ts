@@ -19,12 +19,14 @@ interface RenewalResult {
     details?: string;
 }
 
-/** What renew_subscription_atomic returns (renew_subscription_core, 20261116014641_billing_lock_instead_of_suspend.sql). */
+/** What renew_subscription_atomic returns (renew_subscription_core, 20261116114258_b13_demo_store_renewal_free.sql). */
 const renewResultSchema = z.object({
     success: z.boolean(),
     outcome: z.enum(["renewed", "plan_changed", "locked", "already_processed", "exempt", "on_hold", "error"]),
     plan: z.string().optional(),
     charged: z.coerce.number().optional(),
+    /** The demo store (B13): its month renews at no charge and is never locked. */
+    demo: z.boolean().optional(),
     error: z.string().optional(),
 });
 
@@ -47,7 +49,9 @@ const renewResultSchema = z.object({
  * suspended; the hourly billing-lock job and any wallet credit pay it later).
  * A billing-exempt (`internal`) tenant is skipped here (lib/billing-exempt.ts)
  * and refused again inside the RPC, which returns outcome "exempt" without
- * charging, locking or touching the row.
+ * charging, locking or touching the row. The demo store (B13) renews inside
+ * the RPC at no charge, whatever its wallet holds (demo: true), so it is never
+ * locked in front of a customer; it gets no reminder either.
  *
  * That makes the cron idempotent: a retry, an overlapping run, or a crash
  * after the charge can never charge the same period twice (the period either
@@ -145,6 +149,8 @@ async function runScheduled(request: Request) {
                   ? "Period already renewed by another run"
                   : r.outcome === "exempt"
                     ? "Billing-exempt plan: not charged"
+                  : r.demo
+                    ? "Demo store: not charged"
                   : r.charged && r.charged > 0
                     ? `Charged ${r.charged} IQD`
                     : "Free plan";
