@@ -27,7 +27,8 @@ vi.mock("@/lib/restrictions", () => ({
     TenantBlockedError: class TenantBlockedError extends Error {},
 }));
 
-import { POST } from "./route";
+import { PATCH, POST } from "./route";
+import { hashInviteToken } from "@/lib/team-invites";
 
 function request(body: Record<string, unknown>) {
     return new Request("http://localhost/api/team/invite", {
@@ -121,5 +122,161 @@ describe("POST /api/team/invite — join email", () => {
         expect(res.status).toBe(502);
         const revoke = fake.calls.find((c) => c.table === "team_invites" && c.op === "update");
         expect(revoke?.payload).toMatchObject({ status: "revoked" });
+    });
+});
+
+describe("POST /api/team/invite — link and phone invites (Fermi A2)", () => {
+    const INVITE_ROW = { id: "invite-5", phone: "07701234567", role: "employee", status: "pending" };
+    let insertResult: FakeResult;
+    let pendingRow: { id: string; expires_at: string } | null;
+
+    const admin = (call: FakeCall): FakeResult => {
+        if (call.table === "user_profiles" && call.op === "select") {
+            return { data: { id: "caller", current_tenant_id: TENANT, is_active: true } };
+        }
+        if (call.table === "tenant_members" && call.op === "select") return { data: { role: "admin" } };
+        if (call.table === "tenants") return { data: { business_name: "متجر سارة" } };
+        if (call.table === "team_invites" && call.op === "insert") return insertResult;
+        if (call.table === "team_invites" && call.op === "select") return { data: pendingRow };
+        if (call.table === "team_invites" && call.op === "update") return { data: INVITE_ROW };
+        return {};
+    };
+
+    function phoneRequest(body: Record<string, unknown>) {
+        return new Request("http://localhost/api/team/invite", {
+            method: "POST",
+            headers: { Authorization: "Bearer t", "content-type": "application/json" },
+            body: JSON.stringify({ tenantId: TENANT, ...body }),
+        });
+    }
+
+    function setUp() {
+        insertResult = { data: INVITE_ROW };
+        pendingRow = null;
+        respond = admin;
+        fake = fakeServiceClient((call) => respond(call));
+    }
+
+    it("a phone invite returns the join link and a WhatsApp chat with it, and sends no email", async () => {
+        setUp();
+        const res = await POST(phoneRequest({ phone: "+964 770 123 4567" }));
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { link: string; whatsappUrl: string };
+        const token = body.link.replace("http://localhost/join/", "");
+        expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+        expect(body.whatsappUrl.startsWith("https://wa.me/9647701234567?text=")).toBe(true);
+        expect(decodeURIComponent(body.whatsappUrl.split("text=")[1] ?? "")).toContain(body.link);
+        expect(decodeURIComponent(body.whatsappUrl)).toContain("متجر سارة");
+
+        // Only the token's hash is stored; the link itself is never written.
+        const insert = fake.calls.find((c) => c.table === "team_invites" && c.op === "insert");
+        expect(insert?.payload).toMatchObject({ phone: "07701234567", email: null, token_hash: hashInviteToken(token) });
+        expect(JSON.stringify(insert?.payload)).not.toContain(token);
+        expect(fake.invited).toEqual([]);
+    });
+
+    it("refuses a number that is not an Iraqi mobile, and an email and a phone together", async () => {
+        setUp();
+        expect((await POST(phoneRequest({ phone: "12345" }))).status).toBe(400);
+        expect((await POST(phoneRequest({ phone: "07701234567", email: "a@b.co" }))).status).toBe(400);
+        expect(fake.calls.some((c) => c.table === "team_invites")).toBe(false);
+    });
+
+    it("a full team is refused with 402 and the Arabic upgrade message", async () => {
+        setUp();
+        insertResult = { error: { message: "team is full", code: "PT402", hint: "TEAM_LIMIT" } };
+        const res = await POST(phoneRequest({ phone: "07701234567" }));
+        expect(res.status).toBe(402);
+        expect(await res.json()).toMatchObject({ code: "team_limit", error: expect.stringContaining("رقِّ الباقة") });
+    });
+
+    it("a second invite for a live pending one says to resend", async () => {
+        setUp();
+        insertResult = { error: { message: "duplicate", code: "23505" } };
+        pendingRow = { id: "invite-5", expires_at: new Date(Date.now() + 86_400_000).toISOString() };
+        const res = await POST(phoneRequest({ phone: "07701234567" }));
+        expect(res.status).toBe(409);
+        expect(fake.calls.some((c) => c.table === "team_invites" && c.op === "update")).toBe(false);
+    });
+
+    it("inviting again after the old invite expired renews it with a new link", async () => {
+        setUp();
+        insertResult = { error: { message: "duplicate", code: "23505" } };
+        pendingRow = { id: "invite-5", expires_at: new Date(Date.now() - 1000).toISOString() };
+        const res = await POST(phoneRequest({ phone: "07701234567" }));
+        expect(res.status).toBe(200);
+        const update = fake.calls.find((c) => c.table === "team_invites" && c.op === "update");
+        expect(update?.payload).toMatchObject({ token_hash: expect.stringMatching(/^[0-9a-f]{64}$/), expires_at: expect.any(String) });
+        expect(update?.filters).toContainEqual({ method: "eq", args: ["id", "invite-5"] });
+    });
+
+    it("a locked store cannot invite", async () => {
+        setUp();
+        lockState.locked = true;
+        try {
+            const res = await POST(phoneRequest({ phone: "07701234567" }));
+            expect(res.status).toBe(402);
+            expect(fake.calls.some((c) => c.table === "team_invites")).toBe(false);
+        } finally {
+            lockState.locked = false;
+        }
+    });
+});
+
+describe("PATCH /api/team/invite — resend", () => {
+    let invite: Record<string, unknown> | null;
+    let updateResult: FakeResult;
+
+    function setUp() {
+        invite = { id: "invite-5", tenant_id: TENANT, status: "pending", email: null, phone: "07701234567" };
+        updateResult = {};
+        respond = (call) => {
+            if (call.table === "user_profiles" && call.op === "select") return { data: { id: "caller", is_active: true } };
+            if (call.table === "tenant_members" && call.op === "select") return { data: { role: "admin" } };
+            if (call.table === "tenants") return { data: { business_name: "متجر سارة" } };
+            if (call.table === "team_invites" && call.op === "select") return { data: invite };
+            if (call.table === "team_invites" && call.op === "update") return updateResult;
+            return {};
+        };
+        fake = fakeServiceClient((call) => respond(call));
+    }
+
+    const resend = () =>
+        PATCH(new Request("http://localhost/api/team/invite?id=invite-5", { method: "PATCH", headers: { Authorization: "Bearer t" } }));
+
+    it("gives a new link and a new 7 days; the old link stops working", async () => {
+        setUp();
+        const res = await resend();
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { link: string; whatsappUrl: string };
+        const token = body.link.replace("http://localhost/join/", "");
+        const update = fake.calls.find((c) => c.table === "team_invites" && c.op === "update");
+        expect(update?.payload).toMatchObject({ token_hash: hashInviteToken(token) });
+        const days = (new Date((update?.payload as { expires_at: string }).expires_at).getTime() - Date.now()) / 86_400_000;
+        expect(days).toBeGreaterThan(6.99);
+        expect(body.whatsappUrl).toContain("wa.me/9647701234567");
+    });
+
+    it("an email invite is emailed again", async () => {
+        setUp();
+        invite = { ...invite, email: "new@example.com", phone: null };
+        const res = await resend();
+        expect(res.status).toBe(200);
+        expect(fake.invited).toEqual(["new@example.com"]);
+    });
+
+    it("refuses an invite that is no longer pending", async () => {
+        setUp();
+        invite = { ...invite, status: "accepted" };
+        expect((await resend()).status).toBe(409);
+        expect(fake.calls.some((c) => c.table === "team_invites" && c.op === "update")).toBe(false);
+    });
+
+    it("an expired invite needs a free seat again", async () => {
+        setUp();
+        updateResult = { error: { message: "team is full", code: "PT402", hint: "TEAM_LIMIT" } };
+        const res = await resend();
+        expect(res.status).toBe(402);
+        expect(await res.json()).toMatchObject({ code: "team_limit" });
     });
 });

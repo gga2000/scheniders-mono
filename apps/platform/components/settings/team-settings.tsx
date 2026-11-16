@@ -330,7 +330,7 @@ export function TeamSettings() {
 
             {isAdmin && (
                 <div className="grid gap-4 2xl:grid-cols-2">
-                    <GoogleInvitesCard onMembersChanged={fetchUsers} />
+                    <GoogleInvitesCard onMembersChanged={fetchUsers} memberCount={users.length} />
                     <LinkMemberGoogleCard />
                 </div>
             )}

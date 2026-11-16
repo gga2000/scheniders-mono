@@ -49,6 +49,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         pathname?.startsWith('/forgot-password') ||
         pathname?.startsWith('/reset-password') ||
         pathname?.startsWith('/signup') ||
+        pathname?.startsWith('/join/') ||
         pathname?.startsWith('/landing');
 
     if (isAuthPage) {
