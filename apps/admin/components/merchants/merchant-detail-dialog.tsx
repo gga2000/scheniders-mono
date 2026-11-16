@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useMerchantDetail, type MerchantDetail } from "@/hooks/use-merchant-detail";
+import { LoadError } from "@/components/shared/load-error";
 import { useAdminStore } from "@/store/use-admin-store";
 import {
   Dialog,
@@ -97,7 +98,7 @@ function DetailSkeleton() {
 
 export function MerchantDetailDialog() {
   const { activeDetailId, setActiveDetailId, setDetailViewMode } = useAdminStore();
-  const { data, isLoading } = useMerchantDetail(activeDetailId ?? "");
+  const { data, isError, error, refetch, isFetching } = useMerchantDetail(activeDetailId ?? "");
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [noteText, setNoteText] = useState("");
 
@@ -123,12 +124,7 @@ export function MerchantDetailDialog() {
         className="md:max-w-4xl"
         aria-describedby={undefined}
       >
-        {isLoading || !data ? (
-          <>
-            <DialogTitle className="sr-only">Loading merchant details</DialogTitle>
-            <DetailSkeleton />
-          </>
-        ) : (
+        {data ? (
           <DialogBody
             data={data}
             activeTab={activeTab}
@@ -137,8 +133,19 @@ export function MerchantDetailDialog() {
             setNoteText={setNoteText}
             onOpenPanel={handleOpenPanel}
             onOpenFullscreen={handleOpenFullscreen}
-            merchantId={activeDetailId!}
+            merchantId={data.tenant.id}
           />
+        ) : isError ? (
+          // A failed read says so; the skeleton stayed up for good, as if still loading.
+          <>
+            <DialogTitle className="sr-only">Could not open this shop</DialogTitle>
+            <LoadError compact what="this shop" error={error} onRetry={() => refetch()} retrying={isFetching} />
+          </>
+        ) : (
+          <>
+            <DialogTitle className="sr-only">Loading merchant details</DialogTitle>
+            <DetailSkeleton />
+          </>
         )}
       </DialogContent>
     </Dialog>
