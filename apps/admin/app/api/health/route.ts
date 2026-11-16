@@ -56,9 +56,12 @@ export async function GET(request: NextRequest) {
           .order("tenant_id")
           .range(from, to)
       ),
+      // Real orders only: admin_order_facts leaves out the demo store, whose
+      // invented orders would keep this tile busy when every real shop is quiet,
+      // and the deleted, draft, test and practice rows.
       supabase
-        .from("orders")
-        .select("id, tenant_id, created_at", { count: "exact", head: true })
+        .from("admin_order_facts")
+        .select("id", { count: "exact", head: true })
         .gte("created_at", twentyFourHoursAgo),
       everyRow<UsageRow>((from, to) =>
         supabase
