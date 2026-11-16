@@ -21,6 +21,7 @@ import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility";
 import { isScheduleDue } from "@/lib/order-format-utils";
 import { sortDesktopList } from "@/lib/orders/list-sort";
+import { hasNarrowingFilters } from "@/lib/orders/filter-orders";
 import { useShieldDanger } from "@/hooks/use-shield-danger";
 
 /** Statuses that settle a purchase for Shield (shield.sync_phone): only these move a Trust score. */
@@ -925,8 +926,8 @@ export function useOrdersPageModel() {
 
 
 
-    // Check if any advanced filters are active
-    const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority || filters.adChannel || filters.adCampaign);
+    // A filter beyond the period and the status tab (lib/orders/filter-orders.ts).
+    const hasActiveFilters = hasNarrowingFilters(filters);
 
     // Pre-compute maps for O(1) lookups and stable object references to prevent re-renders.
     // An original can have several refunds; the card links to the newest.
