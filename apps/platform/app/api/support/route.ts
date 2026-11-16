@@ -4,6 +4,7 @@ import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-req
 import { withFailureReport } from "@/lib/job-monitor";
 import {
     SUPPORT_SHOT_BUCKET,
+    SUPPORT_VOICE_BUCKET,
     supportPostSchema,
     supportRefusal,
     type SupportCase,
@@ -18,26 +19,44 @@ type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
 /** How far back the chat shows; older lines stay on record for staff. */
 const THREAD_LIMIT = 200;
-/** How long a link to a picture of the screen works. The chat refetches well before. */
-const SHOT_LINK_SECONDS = 60 * 60;
+/** How long a link to a picture or a voice note works. The chat refetches well before. */
+const FILE_LINK_SECONDS = 60 * 60;
 
-type MessageRow = Omit<SupportMessage, "screenshot_url"> & { context: { screenshot?: unknown } | null };
+type MessageRow = Omit<SupportMessage, "screenshot_url" | "voice_url"> & {
+    context: { screenshot?: unknown; voice?: unknown } | null;
+};
 
-/** Links to the pictures merchants sent, signed in one call. A picture that is gone shows as none. */
-async function signShots(db: ServiceDb, rows: MessageRow[]): Promise<SupportMessage[]> {
-    const paths = rows.flatMap((r) => (typeof r.context?.screenshot === "string" ? [r.context.screenshot] : []));
+/** Signed links for every path in one call; a file that is gone has no link. */
+async function signPaths(db: ServiceDb, bucket: string, paths: string[]): Promise<Map<string, string>> {
     const links = new Map<string, string>();
-    if (paths.length > 0) {
-        const { data, error } = await db.storage.from(SUPPORT_SHOT_BUCKET).createSignedUrls(paths, SHOT_LINK_SECONDS);
-        if (error) throw new Error(`Support picture links failed: ${error.message}`);
-        for (const link of data ?? []) {
-            if (link.path && link.signedUrl && !link.error) links.set(link.path, link.signedUrl);
-        }
+    if (paths.length === 0) return links;
+    const { data, error } = await db.storage.from(bucket).createSignedUrls(paths, FILE_LINK_SECONDS);
+    if (error) throw new Error(`Support file links failed (${bucket}): ${error.message}`);
+    for (const link of data ?? []) {
+        if (link.path && link.signedUrl && !link.error) links.set(link.path, link.signedUrl);
     }
-    return rows.map(({ context, ...row }) => ({
-        ...row,
-        screenshot_url: typeof context?.screenshot === "string" ? (links.get(context.screenshot) ?? null) : null,
-    }));
+    return links;
+}
+
+const pathOf = (value: unknown): string | null => (typeof value === "string" ? value : null);
+
+/** Links to the pictures and voice notes merchants sent, one call per kind. */
+async function signFiles(db: ServiceDb, rows: MessageRow[]): Promise<SupportMessage[]> {
+    const shots = rows.flatMap((r) => pathOf(r.context?.screenshot) ?? []);
+    const voices = rows.flatMap((r) => pathOf(r.context?.voice) ?? []);
+    const [shotLinks, voiceLinks] = await Promise.all([
+        signPaths(db, SUPPORT_SHOT_BUCKET, shots),
+        signPaths(db, SUPPORT_VOICE_BUCKET, voices),
+    ]);
+    return rows.map(({ context, ...row }) => {
+        const shot = pathOf(context?.screenshot);
+        const voice = pathOf(context?.voice);
+        return {
+            ...row,
+            screenshot_url: shot ? (shotLinks.get(shot) ?? null) : null,
+            voice_url: voice ? (voiceLinks.get(voice) ?? null) : null,
+        };
+    });
 }
 
 /**
@@ -66,7 +85,7 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
         .limit(THREAD_LIMIT);
     if (messageError) throw new Error(`Support messages read failed: ${messageError.message}`);
 
-    const messages = await signShots(db, ((messageRows ?? []) as MessageRow[]).reverse());
+    const messages = await signFiles(db, ((messageRows ?? []) as MessageRow[]).reverse());
     const readAt = new Map(cases.map((c) => [c.id, c.merchant_last_read_at]));
     const unread = messages.filter((m) => {
         const seen = readAt.get(m.case_id);
@@ -109,9 +128,12 @@ async function handlePOST(request: NextRequest) {
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     const input = parsed.data;
 
-    // A picture belongs to the shop that sent it: its path starts with the shop's id.
-    if (input.action === "send" && input.context.screenshot && !input.context.screenshot.startsWith(`${caller.tenantId}/`)) {
-        return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+    // A picture or voice note belongs to the shop that sent it: its path starts with the shop's id.
+    if (input.action === "send") {
+        const own = (path: string | undefined) => path === undefined || path.startsWith(`${caller.tenantId}/`);
+        if (!own(input.context.screenshot) || !own(input.context.voice)) {
+            return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+        }
     }
 
     const db = createSupabaseServiceClient();

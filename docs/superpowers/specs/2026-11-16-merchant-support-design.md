@@ -97,3 +97,9 @@ A new merchant message pings support staff on their phone or computer.
 - **Inbox:** the wait chip turns amber when the 5-minute promise is broken and red after 15, both counted in support hours.
 - **Scoreboard:** first reply time and "answered within 5 min" count from the clock start, so a 3 AM message answered at 9:03 is a 3-minute reply. Time to solve stays clock time.
 
+
+## Wave 3: reply ping and voice notes
+
+- **Reply ping:** a staff reply already writes a `support.reply` notification and solving writes `support.solved`. The phone push (`send-order-push`) now has its own words for both: «رد عليك دعم شنايدر» with the start of our reply, and «علّمنا محادثتك كمحلولة · هل انحلت مشكلتك؟». Tapping either opens the app on `/?support=open`, and the platform opens the Help chat for `?support=` on any page, then drops it from the address.
+- **Voice notes:** a mic chip beside the camera chip records up to 2 minutes (32 kbit/s, the browser's own format: WebM on Chrome and Android, MP4 on iPhone). The note goes to the private `support-voice` bucket under `<shop id>/<uuid>.<webm|m4a|ogg>` through `POST /api/support/voice`, which checks the file really is audio from its first bytes, caps it at 2 MB and at 10 files per shop in 10 minutes (shared with pictures' rule). A message may carry a voice note with no text; its text is then «رسالة صوتية» (or "Voice note" in English).
+- **Playback:** both apps sign 1-hour links for pictures and voice notes in one call per bucket, and only for files inside the shop's own folder. The staff console keeps the first link while it plays and shows "The voice note is no longer stored." when it is gone.

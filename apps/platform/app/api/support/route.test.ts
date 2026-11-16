@@ -117,6 +117,7 @@ describe("GET /api/support", () => {
 describe("GET /api/support pictures of the screen", () => {
     const SHOT = `${TENANT}/44444444-4444-4444-8444-444444444444.jpg`;
     const GONE = `${TENANT}/55555555-5555-4555-8555-555555555555.jpg`;
+    const VOICE = `${TENANT}/66666666-6666-4666-8666-666666666666.webm`;
 
     it("links each picture through one signing call and drops the stored path", async () => {
         state.queue.push(
@@ -139,14 +140,37 @@ describe("GET /api/support pictures of the screen", () => {
         );
         const body = await (await GET(request("GET"))).json();
         expect(body.data.messages).toEqual([
-            { ...message("m0", "merchant", "2026-11-16T09:00:00Z"), screenshot_url: null },
-            { ...message("m1", "merchant", "2026-11-16T10:00:00Z"), screenshot_url: "https://x/signed-shot" },
-            { ...message("m2", "merchant", "2026-11-16T10:04:00Z"), screenshot_url: null },
+            { ...message("m0", "merchant", "2026-11-16T09:00:00Z"), screenshot_url: null, voice_url: null },
+            { ...message("m1", "merchant", "2026-11-16T10:00:00Z"), screenshot_url: "https://x/signed-shot", voice_url: null },
+            { ...message("m2", "merchant", "2026-11-16T10:04:00Z"), screenshot_url: null, voice_url: null },
         ]);
         const signing = state.calls.filter((c) => c.method === "createSignedUrls");
         expect(signing).toHaveLength(1);
         expect(signing[0].args[0]).toEqual([SHOT, GONE]);
         expect(state.calls.find((c) => c.method === "from" && c.args[0] === "support-shots")).toBeDefined();
+    });
+
+    it("links pictures and voice notes from their own buckets, one call each", async () => {
+        state.queue.push(
+            { data: [caseRow], error: null },
+            {
+                data: [
+                    { ...message("m1", "merchant", "2026-11-16T10:00:00Z"), context: { voice: VOICE } },
+                    { ...message("m0", "merchant", "2026-11-16T09:00:00Z"), context: { screenshot: SHOT } },
+                ],
+                error: null,
+            },
+            { data: [{ path: SHOT, signedUrl: "https://x/signed-shot", error: null }], error: null },
+            { data: [{ path: VOICE, signedUrl: "https://x/signed-voice", error: null }], error: null },
+        );
+        const body = await (await GET(request("GET"))).json();
+        expect(body.data.messages).toEqual([
+            { ...message("m0", "merchant", "2026-11-16T09:00:00Z"), screenshot_url: "https://x/signed-shot", voice_url: null },
+            { ...message("m1", "merchant", "2026-11-16T10:00:00Z"), screenshot_url: null, voice_url: "https://x/signed-voice" },
+        ]);
+        const buckets = state.calls.filter((c) => c.method === "from").map((c) => c.args[0]);
+        expect(buckets).toEqual(expect.arrayContaining(["support-shots", "support-voice"]));
+        expect(state.calls.filter((c) => c.method === "createSignedUrls")).toHaveLength(2);
     });
 
     it("signs nothing when no message carries a picture", async () => {
@@ -164,6 +188,18 @@ describe("POST /api/support with a picture", () => {
                 action: "send",
                 body: "شوف",
                 context: { screenshot: "99999999-9999-4999-8999-999999999999/44444444-4444-4444-8444-444444444444.jpg" },
+            }),
+        );
+        expect(res.status).toBe(400);
+        expect(state.calls).toHaveLength(0);
+    });
+
+    it("refuses a voice note from another shop's folder before touching the database", async () => {
+        const res = await POST(
+            request("POST", {
+                action: "send",
+                body: "رسالة صوتية",
+                context: { voice: "99999999-9999-4999-8999-999999999999/44444444-4444-4444-8444-444444444444.webm" },
             }),
         );
         expect(res.status).toBe(400);

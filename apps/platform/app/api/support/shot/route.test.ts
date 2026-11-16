@@ -86,7 +86,7 @@ describe("POST /api/support/shot", () => {
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.data.path).toMatch(new RegExp(`^${TENANT}/[0-9a-f-]{36}\\.jpg$`));
-        expect(state.calls.filter((c) => c.method === "from").map((c) => c.args[0])).toEqual(["support-shots"]);
+        expect(new Set(state.calls.filter((c) => c.method === "from").map((c) => c.args[0]))).toEqual(new Set(["support-shots"]));
         expect(state.calls.find((c) => c.method === "list")?.args[0]).toBe(TENANT);
         const upload = state.calls.find((c) => c.method === "upload");
         expect(upload?.args[0]).toBe(body.data.path);

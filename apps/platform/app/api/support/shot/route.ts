@@ -4,12 +4,9 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
 import { SUPPORT_SHOT_BUCKET, SUPPORT_SHOT_MAX_BYTES } from "@/lib/support/schema";
+import { supportUploadsFull } from "@/lib/support/upload-limit";
 
 export const dynamic = "force-dynamic";
-
-/** More pictures than this in 10 minutes from one shop is not a support chat. */
-const SHOTS_PER_10_MIN = 10;
-const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 /** Every JPEG starts with these three bytes. */
 const isJpeg = (bytes: Uint8Array) => bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
@@ -30,21 +27,13 @@ async function handlePOST(request: NextRequest) {
     }
     if (!isJpeg(bytes)) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
 
-    const bucket = createSupabaseServiceClient().storage.from(SUPPORT_SHOT_BUCKET);
-
-    const { data: recent, error: listError } = await bucket.list(caller.tenantId, {
-        limit: SHOTS_PER_10_MIN,
-        sortBy: { column: "created_at", order: "desc" },
-    });
-    if (listError) throw new Error(`Support picture list failed: ${listError.message}`);
-    const since = Date.now() - TEN_MINUTES_MS;
-    const lately = (recent ?? []).filter((f) => f.created_at && Date.parse(f.created_at) >= since).length;
-    if (lately >= SHOTS_PER_10_MIN) {
+    const db = createSupabaseServiceClient();
+    if (await supportUploadsFull(db, SUPPORT_SHOT_BUCKET, caller.tenantId)) {
         return NextResponse.json({ success: false, error: "support_rate_limited" }, { status: 429 });
     }
 
     const path = `${caller.tenantId}/${randomUUID()}.jpg`;
-    const { error } = await bucket.upload(path, bytes, { contentType: "image/jpeg", upsert: false });
+    const { error } = await db.storage.from(SUPPORT_SHOT_BUCKET).upload(path, bytes, { contentType: "image/jpeg", upsert: false });
     if (error) throw new Error(`Support picture upload failed: ${error.message}`);
 
     return NextResponse.json({ success: true, data: { path } });
