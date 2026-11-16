@@ -8,6 +8,7 @@ import {
   IRAQ_MAP_HEIGHT,
 } from "@scheniders/shared/iraq-map-paths";
 import type { GeoStats } from "@/types/dashboard";
+import { formatIQD } from "@/lib/format";
 
 interface IraqHeatmapProps {
   geoStats: GeoStats[] | undefined;
@@ -45,9 +46,6 @@ function getHeatColor(count: number, max: number, scale: string[]): string {
   return scale[idx + 1];
 }
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 function Skeleton() {
   return (

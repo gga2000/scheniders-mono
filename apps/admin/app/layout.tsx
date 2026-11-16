@@ -4,8 +4,9 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { WebAnalytics } from "@/components/analytics/web-analytics";
 
+// No title here: the console's top bar names each page's tab ("Wallets ·
+// Scheniders Admin"), and a title set here would be written over it.
 export const metadata: Metadata = {
-  title: "Scheniders Admin",
   description: "Internal admin console for managing merchants, subscriptions, and billing",
 };
 

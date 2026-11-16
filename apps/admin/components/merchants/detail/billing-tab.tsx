@@ -12,14 +12,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
+import { formatCount } from "@/lib/format";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-
-function compact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`;
-  return String(n);
-}
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -140,7 +135,7 @@ export function BillingTab({ wallet, transactions }: BillingTabProps) {
                     : "text-emerald-900 dark:text-emerald-200"
                 )}
               >
-                {compact(totals.balance)}
+                {formatCount(totals.balance)}
                 <span className="text-base font-bold opacity-60 ml-1.5">IQD</span>
               </p>
               <p className="text-[11px] text-foreground/55 mt-2 font-medium">
@@ -161,7 +156,7 @@ export function BillingTab({ wallet, transactions }: BillingTabProps) {
                 Total topped up
               </p>
               <p className="text-lg font-black tabular-nums mt-1.5 text-emerald-700 dark:text-emerald-300">
-                {compact(totals.toppedUp)}
+                {formatCount(totals.toppedUp)}
                 <span className="text-[10px] font-bold opacity-50 ml-1">IQD</span>
               </p>
             </div>
@@ -171,7 +166,7 @@ export function BillingTab({ wallet, transactions }: BillingTabProps) {
                 Total charged
               </p>
               <p className="text-lg font-black tabular-nums mt-1.5 text-rose-700 dark:text-rose-300">
-                {compact(totals.charged)}
+                {formatCount(totals.charged)}
                 <span className="text-[10px] font-bold opacity-50 ml-1">IQD</span>
               </p>
             </div>

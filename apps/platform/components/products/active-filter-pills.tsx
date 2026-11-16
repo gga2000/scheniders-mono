@@ -34,7 +34,9 @@ export function ActiveFilterPills({ filters, onChange }: ActiveFilterPillsProps)
             next.categoryId !== null ||
             next.visibility !== "all" ||
             next.productType !== null ||
-            next.hasVariants !== "all";
+            next.hasVariants !== "all" ||
+            next.tagId !== null ||
+            next.missingCost;
         onChange(anyActive ? next : null);
     };
 
@@ -68,6 +70,13 @@ export function ActiveFilterPills({ filters, onChange }: ActiveFilterPillsProps)
             key: "stockStatus",
             label: `${t("products.filters.stockStatus")}: ${t(`products.stock.${filters.stockStatus === "in_stock" ? "inStock" : filters.stockStatus === "low_stock" ? "lowStock" : "outOfStock"}`)}`,
             onRemove: () => remove(["stockStatus"], { stockStatus: "all" }),
+        });
+    }
+    if (filters.missingCost) {
+        pills.push({
+            key: "missingCost",
+            label: t("products.filters.missingCost"),
+            onRemove: () => remove(["missingCost"], { missingCost: false }),
         });
     }
     if (filters.showArchived) {

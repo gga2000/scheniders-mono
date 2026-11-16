@@ -19,6 +19,7 @@ import { createRequestIds } from "@/lib/request-ids";
 import { PauseButton } from "./pause-button";
 import { ConvertTrialButton } from "./convert-trial-button";
 import { PLAN_LABELS, type TenantStatus, type PlanTier } from "@/types/admin";
+import { formatCount, formatIQD } from "@/lib/format";
 
 interface MerchantActionBarProps {
   merchantId: string;
@@ -41,10 +42,6 @@ const PLAN_OPTIONS: Array<{ value: PlanTier; label: string; gradient: string }> 
     gradient: "bg-gradient-to-br from-slate-400 to-slate-500",
   },
 ];
-
-function fmtIQD(n: number): string {
-  return new Intl.NumberFormat("en-IQ").format(n);
-}
 
 export function MerchantActionBar({
   merchantId,
@@ -190,7 +187,7 @@ export function MerchantActionBar({
               Top Up Wallet
             </p>
             <p className="text-[10px] font-medium text-foreground/40 tabular-nums">
-              Current: {fmtIQD(walletBalance)} IQD
+              Current: {formatIQD(walletBalance)}
             </p>
           </div>
 
@@ -211,7 +208,7 @@ export function MerchantActionBar({
                     : "bg-foreground/[0.04] hover:bg-foreground/10 text-foreground"
                 )}
               >
-                +{fmtIQD(amt)}
+                +{formatCount(amt)}
                 <span className="text-[9px] font-medium opacity-60 ml-0.5">IQD</span>
               </button>
             ))}

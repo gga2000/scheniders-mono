@@ -18,6 +18,7 @@ const LABELS = 4;
 /** The drawing's own units; it stretches to the card's width. */
 const VIEW_W = 1000;
 const VIEW_H = 200;
+/** The drawing's least height; it grows to fill the card when the card beside it is taller. */
 const LINE_HEIGHT = 250;
 /** Room above the highest point and under the lowest, as a share of the range. */
 const PAD = 0.1;
@@ -120,7 +121,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             testId="profit-path"
             className="h-full"
         >
-            <div onMouseLeave={() => setHovered(null)}>
+            <div className="flex flex-1 flex-col" onMouseLeave={() => setHovered(null)}>
                 <div className="mb-2 flex h-[20px] items-center text-[12.5px]" aria-live="polite">
                     {active && (
                         <div className="flex items-baseline gap-x-4 whitespace-nowrap" data-testid="profit-path-readout">
@@ -136,22 +137,26 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                     )}
                 </div>
 
-                <div className="flex">
-                    <div className="relative w-[58px] shrink-0" style={{ height: LINE_HEIGHT }} data-testid="profit-path-scale">
-                        {chart.marks.map((mark) => (
-                            <span
-                                key={mark}
-                                className="absolute right-2.5 -translate-y-1/2 whitespace-nowrap text-[11.5px] tabular-nums text-muted"
-                                style={{ top: `${chart.y(mark) * 100}%` }}
-                                dir={dir}
-                                data-mark={mark}
-                            >
-                                {markLabel(mark)}
-                            </span>
-                        ))}
+                <div className="flex flex-1">
+                    <div className="flex w-[58px] shrink-0 flex-col">
+                        <div className="relative flex-1" data-testid="profit-path-scale">
+                            {chart.marks.map((mark) => (
+                                <span
+                                    key={mark}
+                                    className="absolute right-2.5 -translate-y-1/2 whitespace-nowrap text-[11.5px] tabular-nums text-muted"
+                                    style={{ top: `${chart.y(mark) * 100}%` }}
+                                    dir={dir}
+                                    data-mark={mark}
+                                >
+                                    {markLabel(mark)}
+                                </span>
+                            ))}
+                        </div>
+                        {/* the height of the day labels under the drawing, so the scale lines up with it */}
+                        <div className="h-6 shrink-0" aria-hidden="true" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <div className="relative text-foreground" style={{ height: LINE_HEIGHT }}>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="relative flex-1 text-foreground" style={{ minHeight: LINE_HEIGHT }}>
                             <svg
                                 viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
                                 preserveAspectRatio="none"

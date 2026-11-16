@@ -3,6 +3,7 @@
 import { ShoppingBag, Loader2, Inbox } from "lucide-react";
 import { useMerchantRecentOrders } from "@/hooks/use-merchant-detail";
 import { cn } from "@/lib/utils";
+import { formatCount } from "@/lib/format";
 
 interface RecentOrdersSectionProps {
   merchantId: string;
@@ -23,10 +24,6 @@ const STATUS_TONE: Record<string, string> = {
   pending_checkout: "bg-foreground/[0.06] text-foreground/60",
   suspended: "bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
 };
-
-function fmtIQD(n: number): string {
-  return new Intl.NumberFormat("en-IQ").format(n);
-}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -86,7 +83,7 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
                 {o.status.replace(/_/g, " ")}
               </span>
               <p className="text-xs font-bold tabular-nums text-foreground shrink-0 min-w-[70px] text-right">
-                {fmtIQD(o.total_iqd)}
+                {formatCount(o.total_iqd)}
                 <span className="text-[9px] font-normal text-foreground/50 ml-0.5">IQD</span>
               </p>
             </div>

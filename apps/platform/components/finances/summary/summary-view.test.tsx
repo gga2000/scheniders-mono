@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
+import { parseFilterParam } from "@/lib/product-filter-param";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -251,7 +252,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-payments")?.textContent).toContain("دفعتين");
         expect(byTestId("money-payments")?.textContent).toContain("300,000");
         // Says why "reached you" differs from the dated payments: Prime, and statements of any date.
-        expect(byTestId("money-payments")?.textContent).toContain("من برايم أو من كشف بأي تاريخ");
+        expect(byTestId("money-payments")?.textContent).toContain("أيّاً كان تاريخ الدفعة");
         cleanup();
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
@@ -287,6 +288,8 @@ describe("SummaryView", () => {
         // the hundred squares are named: 17 came back, 83 were accepted
         expect(byTestId("returned-parcels")?.textContent).toContain("رُفض: 17 من 100");
         expect(byTestId("returned-parcels")?.textContent).toContain("استلمه الزبون: 83 من 100");
+        // every refused order, whatever date filter the merchant left on Orders
+        expect(byTestId("returned-parcels")?.querySelector("a")?.getAttribute("href")).toBe("/orders?status=rejected&dates=all");
         expect(byTestId("failed-fee")).toBeNull();
         cleanup();
         const s = summary();
@@ -395,6 +398,9 @@ describe("SummaryView", () => {
         expect(line("other")?.textContent).toContain("−5,000");
         expect(byTestId("stock-bought")?.textContent).toContain("200,000");
         expect(byTestId("stock-missing")?.textContent).toContain("4");
+        // The warning opens the products list on exactly those products.
+        const fix = byTestId("stock-missing-fix")?.getAttribute("href") ?? "";
+        expect(parseFilterParam(new URL(fix, "https://x.test").searchParams.get("filters") ?? "")?.missingCost).toBe(true);
     });
 
     it("draws the profit path with a readout for the day under the pointer", () => {
@@ -424,7 +430,7 @@ describe("SummaryView", () => {
         const rings = document.querySelectorAll("[data-jump]");
         expect(rings).toHaveLength(1);
         expect(rings[0]?.textContent).toBe("");
-        expect(byTestId("profit-path-big")?.textContent).toContain("أعلى يوم ربحاً");
+        expect(byTestId("profit-path-big")?.textContent).toContain("أكبر يوم");
         expect(byTestId("profit-path-big")?.textContent).toContain("6 طلبات");
         expect(byTestId("profit-path-big")?.textContent).toContain("ربح 95,000 د.ع");
     });
@@ -466,11 +472,11 @@ describe("SummaryView", () => {
         expect(document.querySelector("[data-change]")).toBeNull();
         expect(byTestId("profit-statement")?.textContent).not.toContain("الأسهم تقارن");
         // and the statement says why no arrow shows
-        expect(byTestId("profit-statement")?.textContent).toContain("لا مقارنة");
+        expect(byTestId("profit-statement")?.textContent).toContain("لا توجد مقارنة");
         cleanup();
         renderView(query(summary()));
         expect(change("sales")).toBeNull();
-        expect(byTestId("profit-statement")?.textContent).not.toContain("لا مقارنة");
+        expect(byTestId("profit-statement")?.textContent).not.toContain("لا توجد مقارنة");
     });
 
     it("says how many delivered orders a day cover the costs, and what happens when none are needed or none can", () => {
@@ -480,9 +486,11 @@ describe("SummaryView", () => {
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
         expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
-        expect(bar?.textContent).toContain("الباقي ربح: 3 من 5 يومياً");
+        expect(bar?.textContent).toContain("الباقي ربح: 3 من 5 طلبات يومياً");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
+        // and what each order leaves after the daily costs: the strip's profit per order
+        expect(bar?.textContent).toContain("و11,500 د.ع بعدها");
         cleanup();
         // four times the ads: 122,500 a day asks for 7 orders, and the shop delivers 5
         renderView(query(summary({ expenses: [{ category: "marketing", amount: 240_000 }, { category: "packaging", amount: 5_000 }] })));
@@ -523,6 +531,9 @@ describe("SummaryView", () => {
         })));
         expect(document.querySelector('[data-alert="stuck"]')?.textContent).toContain("50,000");
         expect(document.querySelector('[data-alert="no_cost"]')?.textContent).toContain("3");
+        // Stuck parcels open the orders list on the stuck ones only, not every parcel on the road.
+        expect(document.querySelector('[data-alert="stuck"]')?.getAttribute("href")).toBe("/orders?stuck=1");
+        expect(document.querySelector('[data-cell="stuck"] a')?.getAttribute("href")).toBe("/orders?stuck=1");
     });
 
     it("keeps the costs on screen when nothing was delivered, without the charts", () => {

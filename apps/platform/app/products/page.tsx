@@ -44,6 +44,7 @@ import { RevealToggle } from "@/components/ui/reveal-toggle";
 import { ProductDetailModal } from "@/components/products/product-detail-modal";
 import { LowStockAlert } from "@/components/products/low-stock-alert";
 import { parseFilterParam } from "@/lib/product-filter-param";
+import { hasStockWithoutCost } from "@/lib/products/missing-cost";
 import { AdvancedFilters, EMPTY_ADVANCED_FILTERS, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
@@ -330,6 +331,9 @@ function ProductsContent() {
             } else if (advancedFilters.hasVariants === "no") {
                 result = result.filter((p) => !p.variants?.length);
             }
+            if (advancedFilters.missingCost) {
+                result = result.filter(hasStockWithoutCost);
+            }
             if (advancedFilters.tagId) {
                 // Until the tag's members load (or if that fails) show none, not everything.
                 result = result.filter((p) => tagMemberIds?.has(p.id) ?? false);
@@ -342,8 +346,10 @@ function ProductsContent() {
         result = result.filter((p) => !p.is_supply);
 
         // Collapse filler unless asked for — or unless a search is running, in
-        // which case hiding a name the user just typed would be a lie.
-        result = applyFillerVisibility(result, { showFiller, searching: !!searchQuery });
+        // which case hiding a name the user just typed would be a lie. The "no
+        // cost yet" filter is a to-do list (the Finances page counts filler too),
+        // so it shows every product it matched.
+        result = applyFillerVisibility(result, { showFiller, searching: !!searchQuery || !!advancedFilters?.missingCost });
 
         // Sort
         result = [...result].sort((a, b) => {
@@ -1056,6 +1062,7 @@ function ProductsContent() {
                                                 value={advancedFilters}
                                                 onApply={setAdvancedFilters}
                                                 onReset={() => setAdvancedFilters(null)}
+                                                canSeeCost={canSeeCost}
                                             />
                                         </div>
 

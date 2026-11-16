@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,9 +62,6 @@ interface HealthData {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 function getRiskBarColor(score: number): string {
   if (score <= 3) return "bg-green-500";

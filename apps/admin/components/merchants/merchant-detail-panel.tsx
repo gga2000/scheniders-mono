@@ -29,12 +29,7 @@ import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
 import type { TenantStatus, PlanTier } from "@/types/admin";
 import Link from "next/link";
-
-const fmtCompact = (n: number): string => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
-  return new Intl.NumberFormat("en-IQ").format(n);
-};
+import { formatCount } from "@/lib/format";
 
 const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
@@ -317,7 +312,7 @@ function PanelBody({
         <HeroStat
           icon={Wallet}
           label="Balance"
-          value={fmtCompact(wallet?.balance_iqd ?? 0)}
+          value={formatCount(wallet?.balance_iqd ?? 0)}
           unit="IQD"
           tone="emerald"
           onClick={() => setActiveTab("Billing")}
@@ -325,7 +320,7 @@ function PanelBody({
         <HeroStat
           icon={CreditCard}
           label="Wallet charges"
-          value={fmtCompact(wallet?.total_charged_iqd ?? 0)}
+          value={formatCount(wallet?.total_charged_iqd ?? 0)}
           unit="IQD"
           tone="amber"
           onClick={() => setActiveTab("Billing")}
@@ -334,7 +329,7 @@ function PanelBody({
         <HeroStat
           icon={ShoppingBag}
           label="Orders, all time"
-          value={fmtCompact(orderCount)}
+          value={formatCount(orderCount)}
           tone="sky"
           onClick={() => setActiveTab("Usage")}
           title="Every real order since the shop opened"
