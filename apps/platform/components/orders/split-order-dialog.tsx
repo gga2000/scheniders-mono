@@ -10,6 +10,7 @@ import { ArrowRightLeft, AlertTriangle, Package, RotateCcw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 interface SplitOrderDialogProps {
     order: Order;
@@ -169,7 +170,7 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
                                                 </picture>
                                             )}
                                             <div>
-                                                <p className="font-medium text-sm text-gray-900">{item.name}</p>
+                                                <p className="font-medium text-sm text-gray-900">{orderItemLabel(item)}</p>
                                                 <p className="text-xs text-muted font-mono">{formatIQD(item.price)} x {item.quantity}</p>
                                             </div>
                                         </div>
@@ -223,7 +224,7 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
                                         <ArrowRightLeft className="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                                         <div className="flex items-center gap-3 text-right">
                                             <div>
-                                                <p className="font-medium text-sm text-gray-900">{item.name}</p>
+                                                <p className="font-medium text-sm text-gray-900">{orderItemLabel(item)}</p>
                                                 <p className="text-xs text-muted font-mono">{formatIQD(item.price)} x {item.quantity}</p>
                                             </div>
                                             {item.image_url && (

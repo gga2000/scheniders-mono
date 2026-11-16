@@ -15,12 +15,13 @@ import { CardStatusMenu } from "./status-menu";
 import { OrderIdChip } from "./order-id-chip";
 
 import { useOrderCardModel, type OrderCardProps } from "./use-order-card-model";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 /** Compact level 2 in grid mode: a stacked mini-card. */
 export function UltraCompactGridCard(props: OrderCardProps) {
     const { editable, governorateCode, isBlacklisted, isHighPriority, isReturn, isUrgent, items, localSearchQuery, onCancelWithReason, onRejectWithReason, onStatusUpdate, onViewDetails, order, orderStatusLabel, t } = useOrderCardModel(props);
     const itemsText = items.length > 0
-        ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
+        ? items.map(i => `${orderItemLabel(i)}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
         : t("orders.card.noProducts");
 
     return (

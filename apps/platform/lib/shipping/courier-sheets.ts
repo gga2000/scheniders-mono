@@ -4,6 +4,7 @@ import type { Order } from "@/types/order";
 import { extractGovernorate } from "@/lib/address-validator";
 import { computeCodAmount } from "@/lib/order-money";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 /**
  * The courier upload sheets (Prime and Al-Waseet), as plain rows. The orders
@@ -82,7 +83,7 @@ export const totalQuantity = (order: CourierSheetOrder) =>
 export const productType = (order: CourierSheetOrder) =>
     mergeOrderItems(order.items)
         .filter((item) => item.name)
-        .map((item) => (item.variant_name?.trim() ? `${item.name} (${item.variant_name.trim()})` : item.name))
+        .map(orderItemLabel)
         .join(" + ") || "ملابس";
 
 // Prepaid orders: courier must not collect COD, so the amount is 0

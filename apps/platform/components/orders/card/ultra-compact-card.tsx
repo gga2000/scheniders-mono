@@ -15,13 +15,14 @@ import { CardStatusMenu } from "./status-menu";
 import { OrderIdChip } from "./order-id-chip";
 
 import { useOrderCardModel, type OrderCardProps } from "./use-order-card-model";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 /** Compact level 2 as a list: one dense row with only the essentials. */
 export function UltraCompactCard(props: OrderCardProps) {
     const { duplicateAlert, editable, governorateCode, isBlacklisted, isHighPriority, isNew, isPinned, isReturn, isSelected, isUrgent, items, localSearchQuery, messageTemplates, onCancelWithReason, onOpenTemplatePanel, onRejectWithReason, onStatusUpdate, onToggleSelection, onViewDetails, openWhatsApp, order, orderStatusLabel, t } = useOrderCardModel(props);
     const isValidPhone = validatePhoneDetailed(order.phone).isValid;
     const itemsText = items.length > 0
-        ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
+        ? items.map(i => `${orderItemLabel(i)}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
         : t("orders.card.noProducts");
     const cityDisplay = order.city || '';
 

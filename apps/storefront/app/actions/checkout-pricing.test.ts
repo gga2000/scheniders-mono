@@ -362,6 +362,19 @@ describe("P1-2: products sold by variant", () => {
     expect(recordedOrder(fake)?.items[0]).toMatchObject({ variant_id: "v-xl", price: 32000 });
   });
 
+  it("records the size as the store named it, never the shopper's text", async () => {
+    const fake = install(
+      variantTables([{ id: "v-xl", tenant_id: TENANT, product_id: SHIRT, name: "XL / أسود", price: 32000, is_enabled: true }]),
+    );
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer,
+      items: [{ ...line(SHIRT, 32000, 1), variant_id: "v-xl", variant_name: "S" }],
+    });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items[0]).toMatchObject({ variant_id: "v-xl", variant_name: "XL / أسود" });
+  });
+
   it("refuses a disabled variant, and a variant-less line is fine once all are disabled", async () => {
     install(variantTables([{ id: "v-xl", tenant_id: TENANT, product_id: SHIRT, price: 32000, is_enabled: false }]));
     const viaVariant = await submitCheckout({

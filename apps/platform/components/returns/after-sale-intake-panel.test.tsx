@@ -15,9 +15,9 @@ vi.mock("@/hooks/use-after-sale-intake", () => ({
         data: {
             overdueDays: 10,
             items: [
-                { id: "late", name: "Old perfume", qty: 1, amount: 15000, created_at: daysAgo(12),
+                { id: "late", name: "Old perfume", variant_name: null, qty: 1, amount: 15000, created_at: daysAgo(12),
                   child: { id: "c1", order_id: "RPL-3951-1", status: "delivered", customer_name: "Zaid", is_return: false } },
-                { id: "fresh", name: "Body mist", qty: 2, amount: 9000, created_at: daysAgo(2),
+                { id: "fresh", name: "Body mist", variant_name: "100ml", qty: 2, amount: 9000, created_at: daysAgo(2),
                   child: { id: "c2", order_id: "RTN-3960-1", status: "in_transit", customer_name: "Noor", is_return: true } },
             ],
         },

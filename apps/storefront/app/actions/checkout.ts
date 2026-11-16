@@ -294,6 +294,7 @@ export async function submitCheckout(
   type VariantRow = {
     id: string;
     product_id: string;
+    name: string | null;
     price: number | null;
     tenant_id: string;
     is_enabled: boolean | null;
@@ -314,7 +315,7 @@ export async function submitCheckout(
   if (variantIds.length > 0) {
     const { data: variants, error: variantsErr } = await supabase
       .from("product_variants")
-      .select("id, product_id, price, tenant_id, is_enabled")
+      .select("id, product_id, name, price, tenant_id, is_enabled")
       .in("id", variantIds)
       .eq("tenant_id", payload.tenantId);
     if (variantsErr || !variants) {
@@ -690,7 +691,9 @@ export async function submitCheckout(
         product_id: i.product_id,
         variant_id: i.variant_id,
         name: product?.short_name?.trim() || product?.name || i.name,
-        variant_name: i.variant_name,
+        // The size or colour as the merchant named the variant: the label
+        // and the courier read it, so the buyer's own text never reaches them.
+        variant_name: (i.variant_id && variantMap.get(i.variant_id)?.name?.trim()) || null,
         price: i.price,
         quantity: i.quantity,
         ...(look?.image_url ? { image_url: look.image_url } : {}),

@@ -74,6 +74,21 @@ export interface OrderItem {
     is_ai_extracted?: boolean;
 }
 
+/** One line the picker hands back: a product, or one size or colour of it. */
+export interface PickedOrderLine {
+    product_id: string;
+    /** Set when the product is sold in sizes or colours: the one picked. */
+    variant_id?: string;
+    /** The size or colour as the merchant named it, e.g. "M / أسود". */
+    variant_name?: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image_url?: string;
+    tag_color?: string;
+    is_open_box?: boolean;
+}
+
 export interface Order {
     id: string;
     /**

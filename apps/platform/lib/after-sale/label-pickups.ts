@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Order } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 /** What the courier takes back from the customer on one refund or replacement order. */
 export interface AfterSalePickup {
@@ -13,6 +14,7 @@ export interface AfterSalePickup {
 const rowSchema = z.object({
     order_id: z.string(),
     name: z.string(),
+    variant_name: z.string().nullable(),
     qty: z.number(),
     expects_back: z.boolean(),
     original: z.object({ order_id: z.string() }).nullable(),
@@ -30,7 +32,7 @@ export async function loadAfterSalePickups(orders: Order[]): Promise<Record<stri
 
     const { data, error } = await supabase
         .from("after_sale_items")
-        .select("order_id, name, qty, expects_back, original:orders!after_sale_items_original_order_id_fkey(order_id)")
+        .select("order_id, name, variant_name, qty, expects_back, original:orders!after_sale_items_original_order_id_fkey(order_id)")
         .in("order_id", ids)
         .eq("direction", "back")
         .order("created_at", { ascending: true });
@@ -40,7 +42,7 @@ export async function loadAfterSalePickups(orders: Order[]): Promise<Record<stri
     const pickups: Record<string, AfterSalePickup> = {};
     for (const row of rows) {
         const pickup = (pickups[row.order_id] ??= { originalOrderNumber: row.original?.order_id ?? null, items: [] });
-        if (row.expects_back) pickup.items.push({ name: row.name, qty: row.qty });
+        if (row.expects_back) pickup.items.push({ name: orderItemLabel(row), qty: row.qty });
     }
     return pickups;
 }
