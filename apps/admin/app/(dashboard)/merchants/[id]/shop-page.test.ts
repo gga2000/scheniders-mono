@@ -142,6 +142,19 @@ describe("the shop page header (board m6)", () => {
   });
 });
 
+describe("the shop page's Setting up tab", () => {
+  it("counts a logo the merchant uploaded, whatever colour the shop kept", () => {
+    search = new URLSearchParams("tab=Onboarding");
+    const starting = { logo_url: null, primary_color: "#3b82f6", secondary_color: "#8b5cf6" };
+    query = { ...query, data: { ...shop, tenant: { ...shop.tenant, branding: starting } } };
+    expect(render()).toContain("No logo yet");
+    query = { ...query, data: { ...shop, tenant: { ...shop.tenant, branding: { ...starting, logo_url: "https://x/logo.png" } } } };
+    const html = render();
+    expect(html).toContain("The shop has its own logo");
+    expect(html).not.toContain("No logo yet");
+  });
+});
+
 describe("the shop page's one timeline (board m5)", () => {
   beforeEach(() => {
     query = { ...query, data: shop };

@@ -8,7 +8,6 @@ interface OnboardingChecklistProps {
   tenant: {
     branding?: {
       logo_url: string | null;
-      primary_color: string;
     } | null;
   };
   orderCount: number;
@@ -17,16 +16,14 @@ interface OnboardingChecklistProps {
   hasStorefront: boolean;
 }
 
-/** The colour a new shop starts with; a shop that kept it has not picked its own. */
-const STARTING_COLOUR = "#1E1E1E";
-
 /**
  * How far the shop is in setting itself up, in plain words, so staff know what
  * to help with on a call. The steps are the merchant's to do in their own app;
  * the console only shows them.
  */
 export function OnboardingChecklist({ tenant, orderCount, teamCount, walletBalance, hasStorefront }: OnboardingChecklistProps) {
-  const branded = !!(tenant.branding?.logo_url && tenant.branding.primary_color !== STARTING_COLOUR);
+  // The merchant's Business settings save the logo here; every shop starts without one.
+  const hasLogo = !!tenant.branding?.logo_url;
   const steps = [
     {
       title: "First order",
@@ -39,9 +36,9 @@ export function OnboardingChecklist({ tenant, orderCount, teamCount, walletBalan
       line: hasStorefront ? "The store has its pages and settings" : "The store still has the starting pages",
     },
     {
-      title: "Logo and colour",
-      done: branded,
-      line: branded ? "Own logo and colour" : "Still the starting look",
+      title: "Logo",
+      done: hasLogo,
+      line: hasLogo ? "The shop has its own logo" : "No logo yet",
     },
     {
       title: "Money in the wallet",
