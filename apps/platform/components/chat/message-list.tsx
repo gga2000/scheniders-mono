@@ -197,7 +197,7 @@ export function MessageList({
             <ChatEmptyState
                 icon={MessageSquareDashed}
                 title={t("chat.emptyMessages", "No messages yet")}
-                description={t("chat.emptyMessagesDesc", "Say hi 👋 — be the first to post here.")}
+                description={t("chat.emptyMessagesDesc", "Say hi — be the first to post here.")}
             />
         );
     }

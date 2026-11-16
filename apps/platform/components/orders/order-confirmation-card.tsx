@@ -18,6 +18,7 @@ import {
     Phone,
     Calendar,
     CreditCard,
+    Truck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -148,8 +149,9 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
                         <p className="text-sm text-muted">{t("orders.confirm.title")}</p>
                         <p className="text-2xl font-bold text-foreground font-mono">#{order.order_id}</p>
                         {order.delivery_order_id && (
-                            <p className="text-sm font-mono text-violet-600 mt-1">
-                                🚚 {order.delivery_order_id}
+                            <p className="text-sm font-mono text-violet-600 mt-1 inline-flex items-center gap-1.5">
+                                <Truck className="h-4 w-4" aria-hidden />
+                                {order.delivery_order_id}
                             </p>
                         )}
                     </div>

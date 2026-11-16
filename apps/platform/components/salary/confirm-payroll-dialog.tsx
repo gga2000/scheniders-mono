@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle, Eye } from "lucide-react";
+import { Banknote, CheckCircle, CreditCard, Eye, Smartphone, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { EmployeePayrollData } from "@/types/salary";
@@ -10,10 +10,10 @@ import { formatIqdNumber } from "@scheniders/shared";
 
 export type PaymentMethod = "cash" | "zain_cash" | "qi_card";
 
-export const PAYMENT_METHODS: { value: PaymentMethod; labelKey: string; icon: string }[] = [
-    { value: "cash", labelKey: "payroll.method.cash", icon: "💵" },
-    { value: "zain_cash", labelKey: "payroll.method.zainCash", icon: "📱" },
-    { value: "qi_card", labelKey: "payroll.method.qiCard", icon: "💳" },
+export const PAYMENT_METHODS: { value: PaymentMethod; labelKey: string; icon: LucideIcon }[] = [
+    { value: "cash", labelKey: "payroll.method.cash", icon: Banknote },
+    { value: "zain_cash", labelKey: "payroll.method.zainCash", icon: Smartphone },
+    { value: "qi_card", labelKey: "payroll.method.qiCard", icon: CreditCard },
 ];
 
 /** Mark paid: the ledger, how much to hand over now (all or part), method and note. */
@@ -182,7 +182,7 @@ export function ConfirmPayrollDialog({
                                                 : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:text-foreground"
                                         )}
                                     >
-                                        <span className="text-base">{m.icon}</span>
+                                        <m.icon className="h-4 w-4" aria-hidden />
                                         {t(m.labelKey)}
                                     </button>
                                 ))}

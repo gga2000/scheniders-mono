@@ -4,11 +4,9 @@ import { StaffEntry } from "@/lib/analytics/dashboard-calculations";
 import { Trophy, Users } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
-const RANK_BADGES = [
-    { bg: 'bg-amber-400',  text: 'text-amber-900', emoji: '🥇' },
-    { bg: 'bg-gray-300',   text: 'text-gray-700',  emoji: '🥈' },
-    { bg: 'bg-amber-600',  text: 'text-amber-100', emoji: '🥉' },
-];
+/** Gold, silver and bronze rank circles; everyone else gets the plain one. */
+const RANK_COLORS = ['bg-amber-400 text-amber-950', 'bg-gray-300 text-gray-800', 'bg-amber-700 text-amber-50'];
+const RANK_PLAIN = 'bg-amber-200 text-amber-800';
 
 interface StaffLeaderboardProps {
     staff: StaffEntry[];
@@ -60,20 +58,15 @@ export function StaffLeaderboard({ staff }: StaffLeaderboardProps) {
 
             <div className="flex flex-col gap-3 flex-1 overflow-y-auto">
                 {staff.map((member) => {
-                    const badge = RANK_BADGES[member.rank - 1];
                     const barPct = (member.ordersToday / maxToday) * 100;
 
                     return (
                         <div key={member.name} className="space-y-1.5">
                             <div className="flex items-center gap-2">
                                 {/* Rank */}
-                                {badge ? (
-                                    <span className="text-base leading-none shrink-0">{badge.emoji}</span>
-                                ) : (
-                                    <span className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                        {member.rank}
-                                    </span>
-                                )}
+                                <span className={`w-5 h-5 rounded-full ${RANK_COLORS[member.rank - 1] ?? RANK_PLAIN} text-[10px] font-bold flex items-center justify-center shrink-0 tabular-nums`}>
+                                    {member.rank}
+                                </span>
 
                                 {/* Name */}
                                 <span className="text-xs font-semibold text-amber-950 flex-1 truncate">{member.name}</span>
