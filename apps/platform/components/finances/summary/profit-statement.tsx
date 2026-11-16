@@ -202,11 +202,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     data-testid="statement-refunds-open"
                 >
                     <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.refundsOpen", {
-                            n: formatWhole(refundsOpen),
-                            count: refundsOpen,
-                            amount: money(-summary.cash.statement.returns_open),
-                        })}
+                        {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
                     </span>
                     <a
                         href={`#${COURIER_PAYMENTS_ID}`}

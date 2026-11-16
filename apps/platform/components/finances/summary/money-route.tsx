@@ -9,7 +9,7 @@ import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { COURIER_PAYMENTS_ID } from "./courier-payments";
 import { CARD_LINK, SummaryCard } from "./summary-card";
-import { UNPAID_LIST_CAP, UnpaidOrders } from "./unpaid-orders";
+import { UnpaidOrders } from "./unpaid-orders";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
@@ -48,9 +48,10 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
             <div className="min-w-0">
                 <div className="text-left text-[15px] font-semibold text-foreground" dir={textDir}>{label}</div>
                 <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={textDir}>{note}</p>
-                {children}
             </div>
             <Money value={amount} className="text-[18px] font-bold tracking-[-0.01em] text-foreground" />
+            {/* Spans the amount column too, so every amount on the card ends at the same edge. */}
+            {children && <div className="col-span-2 col-start-2 min-w-0">{children}</div>}
         </li>
     );
 }
@@ -62,7 +63,8 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
  * three add up to the sales to the dinar, so nothing looks missing. Parcels
  * still on the road sit under a line, because they are not sales yet. The
  * courier payments dated in the period have their own card (CourierPayments):
- * a payment file can pay for orders of an earlier period. Stuck parcels are not repeated here: the strip and the banner above carry them.
+ * a payment file can pay for orders of an earlier period. The road line says how many of its
+ * parcels are the stuck ones the strip counts, so the two numbers are not added up.
  */
 export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const { t } = useLanguage();
@@ -70,12 +72,10 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const money = useMoneyText();
     const { in_transit: road, returning, split } = summary.cash;
     const { orders, revenue } = summary.sales;
-    // The note counts the orders that still owe money, as the list under it names them; orders that
-    // owe nothing after the fee get their own line there. A full list (or none) falls back to all.
-    const listed = summary.cash.unpaid_list;
-    const named = listed.length > 0 && listed.length < UNPAID_LIST_CAP;
-    const owedOrders = named ? listed.length : split.unpaid_orders;
-    const owedPrime = named ? listed.filter((order) => order.prime).length : split.unpaid_prime;
+    // The note counts every unpaid order, so paid + unpaid adds up to the period's orders; the
+    // list under it names those that still owe money, and a line there counts the ones that owe nothing.
+    const owedOrders = split.unpaid_orders;
+    const owedPrime = split.unpaid_prime;
     const courierOnly = owedOrders - owedPrime;
     const sold = orders > 0;
     const onRoad = road.count > 0 || returning.count > 0;
@@ -225,6 +225,15 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                         amount={road.amount}
                         textDir={dir}
                     >
+                        {summary.cash.stuck.count > 0 && (
+                            <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-road-stuck">
+                                {t("fin.money.road.stuck", {
+                                    n: formatWhole(summary.cash.stuck.count),
+                                    count: summary.cash.stuck.count,
+                                    amount: money(summary.cash.stuck.amount),
+                                })}
+                            </p>
+                        )}
                         {returning.count > 0 && (
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}

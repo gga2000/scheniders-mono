@@ -49,6 +49,8 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
     const now = new Date();
     if (orders.length === 0 && rest === 0) return null;
     const anyLate = orders.some((order) => daysSince(order.day, now) > LATE_AFTER_DAYS);
+    // The courier's fee is only known from its statement, so its rows still show the full price.
+    const anyCourier = orders.some((order) => !order.prime);
 
     const restNote =
         rest === 0
@@ -107,6 +109,11 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                 <button type="button" className={`${CARD_LINK} mt-2`} aria-expanded={open} onClick={() => setOpen((was) => !was)}>
                     {open ? t("fin.money.unpaid.showLess") : t("fin.money.unpaid.showAll", { n: formatWhole(orders.length) })}
                 </button>
+            )}
+            {anyCourier && (
+                <p className="mt-2 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-courier-fee">
+                    {t("fin.money.unpaid.courierFeeNote")}
+                </p>
             )}
             {anyLate && (
                 <p className="mt-2 text-left text-[12px] leading-relaxed text-amber-700 dark:text-amber-400" dir={dir} data-testid="money-unpaid-late">
