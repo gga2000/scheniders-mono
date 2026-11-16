@@ -12,9 +12,11 @@ import type {
   SupportNotice,
   SupportScoreboard,
   SupportTask,
+  SupportTeammate,
   TaskLogInput,
 } from "@/lib/support";
 import type { ShopCheck } from "@/lib/support-shop-check";
+import type { SupportSpike } from "@/lib/support-spike";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -69,6 +71,32 @@ export function useSupportCaseAction(caseId: string) {
         }),
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+  });
+}
+
+/**
+ * Tell the merchant a person read their message. Quiet: no refetch of the
+ * inbox, and the server only moves the mark when there is something new.
+ */
+export function useSupportMarkSeen(caseId: string) {
+  return useMutation({
+    mutationFn: async () =>
+      readJson<{ success: true; moved: boolean }>(
+        await fetch(`/api/support/cases/${caseId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "seen" } satisfies CaseAction),
+        }),
+      ),
+  });
+}
+
+/** Everyone a conversation can be handed to. Rarely changes. */
+export function useSupportTeam() {
+  return useQuery<SupportTeammate[]>({
+    queryKey: ["admin", "support", "team"],
+    queryFn: async () => (await readJson<{ team: SupportTeammate[] }>(await fetch("/api/support/team"))).team,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -185,6 +213,15 @@ export function useSupportNotice() {
     queryKey: ["admin", "support", "notice"],
     queryFn: async () =>
       (await readJson<{ notice: SupportNotice | null }>(await fetch("/api/support/notices"))).notice,
+    refetchInterval: 60_000,
+  });
+}
+
+/** Several shops writing about the same thing in the last 30 minutes, if so. */
+export function useSupportSpike() {
+  return useQuery<SupportSpike | null>({
+    queryKey: ["admin", "support", "spike"],
+    queryFn: async () => (await readJson<{ spike: SupportSpike | null }>(await fetch("/api/support/spike"))).spike,
     refetchInterval: 60_000,
   });
 }

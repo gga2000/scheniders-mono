@@ -34,6 +34,16 @@ export const SUPPORT_REASON_LABELS: Record<SupportReason, string> = {
   other: "Other",
 };
 
+/** Why a merchant said the answer did not solve it (support_cases.no_reason). */
+export const SUPPORT_NO_REASONS = ["still_broken", "unclear", "too_slow"] as const;
+export type SupportNoReason = (typeof SUPPORT_NO_REASONS)[number];
+
+export const SUPPORT_NO_REASON_LABELS: Record<SupportNoReason, string> = {
+  still_broken: "Still not working",
+  unclear: "The answer was unclear",
+  too_slow: "We took too long",
+};
+
 export type SupportStatus = "waiting_us" | "waiting_merchant" | "solved";
 
 export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
@@ -42,17 +52,28 @@ export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
   solved: "Solved",
 };
 
+/** The longest staff note, and the longest note that goes with a hand-over. */
+export const NOTE_MAX_LENGTH = 2000;
+
 export const CaseActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reply"), body: z.string().trim().min(1).max(4000) }),
   z.object({ action: z.literal("solve"), reason: z.enum(SUPPORT_REASONS) }),
   z.object({ action: z.literal("assign") }),
+  /** Staff have the conversation open: the merchant sees "Seen by <name>". */
+  z.object({ action: z.literal("seen") }),
+  z.object({ action: z.literal("note"), body: z.string().trim().min(1).max(NOTE_MAX_LENGTH) }),
+  z.object({
+    action: z.literal("hand_over"),
+    toAdminId: z.string().uuid(),
+    note: z.string().trim().max(NOTE_MAX_LENGTH).optional(),
+  }),
 ]);
 
 export type CaseAction = z.infer<typeof CaseActionSchema>;
 
 /** The `support_cases` columns (plus the shop) every list and detail read selects. */
 export const SUPPORT_CASE_COLUMNS =
-  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, created_at, tenants(business_name, display_id, plan, status)";
+  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, no_reason, created_at, tenants(business_name, display_id, plan, status)";
 
 export interface SupportCaseShop {
   business_name: string;
@@ -73,6 +94,8 @@ export interface SupportCaseRow {
   waiting_since: string | null;
   solved_at: string | null;
   rating: "yes" | "no" | null;
+  /** The latest reason the merchant gave for a No; it stays after a new solve. */
+  no_reason: SupportNoReason | null;
   reopened_count: number;
   last_message_at: string;
   last_message_preview: string;
@@ -113,6 +136,46 @@ export interface SupportMessageRow {
   voice_url: string | null;
 }
 
+/**
+ * A line only staff see inside a conversation (`support_case_notes`): a note,
+ * or a hand-over to a teammate with an optional note. The merchant's Help chat
+ * never reads this table.
+ */
+export interface SupportCaseNote {
+  id: string;
+  kind: "note" | "handover";
+  admin_name: string;
+  body: string | null;
+  to_name: string | null;
+  created_at: string;
+}
+
+export const SUPPORT_CASE_NOTE_COLUMNS = "id, kind, admin_name, body, to_name, created_at";
+
+/** A teammate a conversation can be handed to. */
+export interface SupportTeammate {
+  id: string;
+  name: string;
+  isMe: boolean;
+}
+
+/** One timeline for the conversation: messages and staff notes, oldest first. */
+export type SupportTimelineItem =
+  | { type: "message"; at: string; message: SupportMessageRow }
+  | { type: "note"; at: string; note: SupportCaseNote };
+
+export function supportTimeline(messages: SupportMessageRow[], notes: SupportCaseNote[]): SupportTimelineItem[] {
+  const items: SupportTimelineItem[] = [
+    ...messages.map((message): SupportTimelineItem => ({ type: "message", at: message.created_at, message })),
+    ...notes.map((note): SupportTimelineItem => ({ type: "note", at: note.created_at, note })),
+  ];
+  // Stable: a message and a note at the same moment keep messages first.
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => Date.parse(a.item.at) - Date.parse(b.item.at) || a.index - b.index)
+    .map(({ item }) => item);
+}
+
 export interface SupportShopCard {
   tenant: {
     id: string;
@@ -146,6 +209,7 @@ export interface SupportCasesResponse {
 export interface SupportCaseDetailResponse {
   case: SupportCaseRow;
   messages: SupportMessageRow[];
+  notes: SupportCaseNote[];
   shop: SupportShopCard;
 }
 
@@ -164,6 +228,10 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_bad_outcome: { status: 400, error: "Pick done, no answer or later." },
   support_notice_bad_body: { status: 400, error: "A notice needs a text of up to 300 letters." },
   support_notice_bad_hours: { status: 400, error: "A notice runs for 1 to 72 hours." },
+  support_note_bad_body: { status: 400, error: "A note needs a text of up to 2,000 letters." },
+  support_handover_bad_target: { status: 400, error: "Pick a teammate who answers support." },
+  support_empty_name: { status: 400, error: "Your console name is empty. Set a name first." },
+  support_handover_same_owner: { status: 409, error: "This teammate already owns the conversation." },
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null):
@@ -305,6 +373,7 @@ export const SupportScoreboardSchema = z.object({
   rated_no: count,
   reopened: count,
   reasons: z.array(z.object({ reason: z.enum(SUPPORT_REASONS), count })),
+  no_reasons: z.array(z.object({ reason: z.enum(SUPPORT_NO_REASONS), count })),
   by_staff: z.array(z.object({ name: z.string(), solved: count, rated_yes: count, rated_no: count })),
   waiting_now: count,
   oldest_wait_s: seconds,

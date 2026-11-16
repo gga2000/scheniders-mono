@@ -160,3 +160,38 @@ When something hits many shops at once (Prime is slow, a payment method is down)
 - Behaviour suite `support-notices` covers access, refusals, replacement, early end and notices that ran out.
 
 Found on the way: the view-as lock's event trigger saw a new table with a foreign key twice and failed the migration. Fixed in `support_view_lock_once` (one pass per table); the `support-view` suite now creates such a table.
+
+## Wave 6, part 1: staff notes and hand-over
+
+A second person picking up a conversation should not have to read the whole chat to know what was already checked.
+
+- **Staff note.** Under a conversation, staff switch the box from Reply to Staff note. The note sits in the timeline in a dashed amber box marked "the merchant does not see this", with who wrote it and when. Solved conversations take notes too ("Add a staff note").
+- **Hand over.** In the conversation header, Hand over → pick an active teammate (super admin or support staff) → optional note → the teammate becomes the owner. The timeline shows "Noor handed this to Karrar", with the note under it. The merchant is not told. Each hand-over is in the staff activity log (`support_case_handed_over`).
+- Notes live in `support_case_notes`, a table of their own, so nothing the merchant's Help chat reads (`support_messages`) can carry one. Server-only (RLS on, no policies); the service role only reads it and writes through `support_case_add_note` and `support_case_hand_over`. Nobody updates or deletes a note. The new owner's name comes from `admin_users`, never from the caller.
+- Migration `20261116191003_support_case_notes.sql`. Behaviour suite `support-notes`.
+
+## Wave 6, part 2: "Seen" under the merchant's message
+
+- When a staff member has a conversation open on a visible screen, the merchant's Help chat shows «شافها نور · 10:04 م» under their last message, until staff reply (the reply then speaks for itself) or the merchant writes again.
+- `support_cases.staff_seen_at` and `staff_seen_name` keep the mark. The console sends a quiet `seen` action; `support_staff_mark_seen` only moves the mark when the merchant wrote something staff have not seen yet, so polling and re-opening change nothing. A console left in a hidden tab does not mark anything.
+- The merchant API decides when to show it (`apps/platform/lib/support/seen.ts`): only for the latest conversation, only when the merchant's message is the last word, and only when staff opened it after that message.
+- Migration `20261116191454_support_seen.sql`. Behaviour suite `support-seen`.
+
+## Wave 6, part 3: ask why when the answer was "No"
+
+- After a merchant says the answer did not solve it (the case reopens as before), the Help chat asks «شنو اللي صار؟» with three taps: «بعدها ما تشتغل» (still not working), «الجواب مو واضح» (answer unclear), «تأخرتوا» (too slow). Skipping it is fine; the case is already back with staff.
+- Staff see the reason in the conversation header ("Said not solved: The answer was unclear"). The scoreboard lists "Why merchants said it was not solved" under the reasons.
+- `support_cases.no_reason` keeps the latest reason and stays after staff solve again, so the scoreboard keeps it for the window. One answer per No; a later No can be answered again. `support_merchant_no_reason` checks the shop and member from the session.
+- Migration `20261116192049_support_no_reason.sql` (also adds `no_reasons` to `support_scoreboard`). Behaviour suite `support-no-reason`, and the `support-scoreboard` suite checks the new list and that the demo store never counts.
+
+## Wave 6, part 4: spot a shared problem, suggest a notice
+
+- The Support page checks every minute whether 3 or more different shops wrote about the same thing in the last 30 minutes (demo store left out). Topics come from the merchants' words, with Arabic spellings folded: delivery (Prime, courier, Al-Waseet), the wallet and payments, WhatsApp messages, signing in. Shops whose screens showed the same error code count as one topic too.
+- When no notice is live, the notice bar turns amber: "4 shops wrote about delivery in the last 30 min", with a notice already written in the merchants' Arabic. "Use this notice" opens the usual notice form with that text to edit and post. "Not now" hides that topic for this page visit.
+- `GET /api/support/spike` with `apps/admin/lib/support-spike.ts`. Nothing is posted without a person pressing Post.
+
+## Wave 6, part 5: weekly report to super admins
+
+- Every Sunday at 10 AM Baghdad (cron `support-weekly-report`, `0 7 * * 0` UTC), super admins with phone alerts on get "Support this week: 42 questions · first reply 3 min · 40 solved · 2 said not solved". Tapping it opens `/support?view=scoreboard`.
+- The numbers come from `support_scoreboard(7)` (demo store left out). `support_weekly_report()` queues one push through `send-staff-push` (new kind `weekly`, kept 12 hours for a phone that is off). Support staff do not get it. Nobody with a phone means nothing is sent.
+- Migration `20261116192708_support_weekly_report.sql`. Behaviour suite `support-weekly`. Edge function `send-staff-push` v3 deployed with the weekly kind; the new and late alerts are unchanged.

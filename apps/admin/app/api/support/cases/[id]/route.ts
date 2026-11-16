@@ -6,10 +6,12 @@ import { logAdminActivity } from "@/lib/activity-logger";
 import {
   CaseActionSchema,
   SUPPORT_CASE_COLUMNS,
+  SUPPORT_CASE_NOTE_COLUMNS,
   SUPPORT_SHOT_BUCKET,
   SUPPORT_VOICE_BUCKET,
   filePaths,
   supportRefusal,
+  type SupportCaseNote,
   type SupportCaseRow,
   type SupportMessageRow,
   type SupportShopCard,
@@ -125,16 +127,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!caseRow) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     const supportCase = caseRow as unknown as SupportCaseRow;
 
-    const [messages, shop] = await Promise.all([
+    const [messages, notes, shop] = await Promise.all([
       supabase
         .from("support_messages")
         .select("id, case_id, sender_kind, sender_name, body, context, created_at")
         .eq("case_id", id)
         .order("created_at", { ascending: true })
         .limit(500),
+      supabase
+        .from("support_case_notes")
+        .select(SUPPORT_CASE_NOTE_COLUMNS)
+        .eq("case_id", id)
+        .order("created_at", { ascending: true })
+        .limit(200),
       loadShopCard(supabase, supportCase.tenant_id, id, auth.user.id),
     ]);
     if (messages.error) throw messages.error;
+    if (notes.error) throw notes.error;
 
     const rows = (messages.data ?? []) as Omit<SupportMessageRow, "screenshot_url" | "voice_url">[];
     const [shotLinks, voiceLinks] = await Promise.all([
@@ -151,6 +160,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           voice_url: row.context.voice ? (voiceLinks.get(row.context.voice) ?? null) : null,
         }),
       ),
+      notes: (notes.data ?? []) as SupportCaseNote[],
       shop,
     });
   } catch (error) {
@@ -159,7 +169,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-/** Reply to the merchant, take the conversation, or mark it solved. */
+/**
+ * Reply to the merchant, take the conversation, hand it to a teammate, add a
+ * staff-only note, mark it seen, or mark it solved.
+ */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminPermission(request, "handle_support");
   if (auth instanceof NextResponse) return auth;
@@ -196,6 +209,51 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         action: "support_case_assigned",
         details: { case_id: id },
       });
+      return NextResponse.json({ success: true });
+    }
+
+    if (input.action === "seen") {
+      const { data, error } = await supabase.rpc("support_staff_mark_seen", {
+        p_case_id: id,
+        p_admin_name: adminName,
+      });
+      const refusal = supportRefusal(error);
+      if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+      if (error) throw error;
+      return NextResponse.json({ success: true, moved: data === true });
+    }
+
+    if (input.action === "note" || input.action === "hand_over") {
+      const { data, error } =
+        input.action === "note"
+          ? await supabase.rpc("support_case_add_note", {
+              p_case_id: id,
+              p_admin_id: auth.user.id,
+              p_admin_name: adminName,
+              p_body: input.body,
+            })
+          : await supabase.rpc("support_case_hand_over", {
+              p_case_id: id,
+              p_admin_id: auth.user.id,
+              p_admin_name: adminName,
+              p_to_admin_id: input.toAdminId,
+              p_note: input.note ?? null,
+            });
+      const refusal = supportRefusal(error);
+      if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+      if (error) throw error;
+
+      // Notes are their own record; handing over moves who answers, so it is audited.
+      if (input.action === "hand_over") {
+        const handed = data as { tenant_id: string; to_name: string };
+        await logAdminActivity({
+          adminUserId: auth.user.id,
+          actorEmail: auth.user.email,
+          tenantId: handed.tenant_id,
+          action: "support_case_handed_over",
+          details: { case_id: id, to_admin_id: input.toAdminId, to_name: handed.to_name },
+        });
+      }
       return NextResponse.json({ success: true });
     }
 

@@ -41,7 +41,7 @@ export function useSupportThread(live: boolean) {
 export function useSupportAction() {
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
-    return useMutation<SupportThread, Error, Extract<SupportPost, { action: "send" | "rate" | "callBack" }>>({
+    return useMutation<SupportThread, Error, Extract<SupportPost, { action: "send" | "rate" | "noReason" | "callBack" }>>({
         mutationFn: async (body) =>
             readThread(
                 await authedFetch("/api/support", {

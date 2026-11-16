@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Megaphone, X } from "lucide-react";
+import { Loader2, Megaphone, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
-import { useSupportNotice, useSupportNoticeEnd, useSupportNoticePost } from "@/hooks/use-support-cases";
+import {
+  useSupportNotice,
+  useSupportNoticeEnd,
+  useSupportNoticePost,
+  useSupportSpike,
+} from "@/hooks/use-support-cases";
 import { NOTICE_DURATIONS, formatDuration } from "@/lib/support";
 
 const MAX_LENGTH = 300;
@@ -13,12 +18,15 @@ const MAX_LENGTH = 300;
 /**
  * The notice every merchant sees at the top of their Help chat ("Prime is
  * slow today, orders still go out"). Staff post one, see the live one and end
- * it here; a new notice replaces the old one.
+ * it here; a new notice replaces the old one. When several shops write about
+ * the same thing and no notice is live, it offers a notice already written.
  */
 export function SupportNoticeBar() {
   const notice = useSupportNotice();
   const post = useSupportNoticePost();
   const end = useSupportNoticeEnd();
+  const spike = useSupportSpike();
+  const [dismissedTopic, setDismissedTopic] = useState<string | null>(null);
   const now = useLiveTick(60_000);
   const [writing, setWriting] = useState(false);
   const [body, setBody] = useState("");
@@ -138,6 +146,40 @@ export function SupportNoticeBar() {
         >
           {end.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
           End now
+        </button>
+      </div>
+    );
+  }
+
+  const suggestion = spike.data && spike.data.topic !== dismissedTopic ? spike.data : null;
+  if (suggestion) {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 bg-amber-500/5 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-amber)]" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">{suggestion.label}.</p>
+          <p className="mt-0.5 text-xs text-foreground-muted">Tell every merchant at once? A notice is written below; you can change it before posting.</p>
+          <p dir="auto" className="mt-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground">
+            {suggestion.notice}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setBody(suggestion.notice);
+            setWriting(true);
+          }}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1.5 text-xs font-semibold text-[var(--primary-fg)]"
+        >
+          <Megaphone className="h-3.5 w-3.5" />
+          Use this notice
+        </button>
+        <button
+          type="button"
+          onClick={() => setDismissedTopic(suggestion.topic)}
+          className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-foreground-muted hover:text-foreground"
+        >
+          Not now
         </button>
       </div>
     );

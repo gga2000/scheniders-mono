@@ -1,12 +1,14 @@
 // supabase/functions/send-staff-push/index.ts
 //
-// Web-push sender for the staff console. Two messages:
+// Web-push sender for the staff console. Three messages:
 //   - "a merchant wrote to support": from the `trg_support_notify_staff`
 //     trigger on `public.support_messages` (merchant messages only);
 //   - "a merchant has waited past 5 minutes" (kind "late"): from
 //     `public.support_alert_late()`, run every minute by pg_cron, to the
-//     supervisor.
-// Both call with an `Authorization: Bearer <EDGE_PUSH_SECRET>` header and have
+//     supervisor;
+//   - the week in numbers (kind "weekly"): from
+//     `public.support_weekly_report()`, Sundays 10 AM Baghdad, to super admins.
+// All call with an `Authorization: Bearer <EDGE_PUSH_SECRET>` header and have
 // already picked the recipients (staff with at least one device in
 // `admin_push_subscriptions`); this function only builds the message, delivers
 // it and drops subscriptions the browser threw away.
@@ -45,16 +47,42 @@ interface StaffPushPayload {
     recipients: string[];
 }
 
+interface WeeklyPayload {
+    kind: "weekly";
+    opened: number;
+    firstReplyMedianS: number | null;
+    solved: number;
+    ratedNo: number;
+    recipients: string[];
+}
+
+type Payload = StaffPushPayload | WeeklyPayload;
+
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
-function parse(raw: unknown): StaffPushPayload | null {
+const count = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0);
+
+function parse(raw: unknown): Payload | null {
     if (!raw || typeof raw !== "object") return null;
     const r = raw as Record<string, unknown>;
-    const caseId = str(r.case_id);
-    if (!UUID_RE.test(caseId)) return null;
     const recipients = Array.isArray(r.recipients)
         ? r.recipients.filter((id): id is string => typeof id === "string" && UUID_RE.test(id))
         : [];
+    if (r.kind === "weekly") {
+        return {
+            kind: "weekly",
+            opened: count(r.opened),
+            firstReplyMedianS:
+                typeof r.first_reply_median_s === "number" && Number.isFinite(r.first_reply_median_s)
+                    ? Math.max(0, r.first_reply_median_s)
+                    : null,
+            solved: count(r.solved),
+            ratedNo: count(r.rated_no),
+            recipients,
+        };
+    }
+    const caseId = str(r.case_id);
+    if (!UUID_RE.test(caseId)) return null;
     const waited = typeof r.waited_min === "number" && Number.isFinite(r.waited_min) ? Math.max(0, Math.floor(r.waited_min)) : 0;
     return {
         kind: r.kind === "late" ? "late" : "new",
@@ -67,8 +95,27 @@ function parse(raw: unknown): StaffPushPayload | null {
     };
 }
 
+/** "45 s", "3 min", "1 h 20 min" for the weekly first-reply time. */
+function duration(seconds: number): string {
+    const whole = Math.round(seconds);
+    if (whole < 60) return `${whole} s`;
+    const minutes = Math.round(whole / 60);
+    if (minutes < 60) return `${minutes} min`;
+    const rest = minutes % 60;
+    return rest === 0 ? `${Math.floor(minutes / 60)} h` : `${Math.floor(minutes / 60)} h ${rest} min`;
+}
+
 /** Staff console copy is English, like the rest of the console. */
-function compose(p: StaffPushPayload): string {
+function compose(p: Payload): string {
+    if (p.kind === "weekly") {
+        const reply = p.firstReplyMedianS === null ? "no replies yet" : `first reply ${duration(p.firstReplyMedianS)}`;
+        return JSON.stringify({
+            title: "Support this week",
+            body: `${p.opened} questions · ${reply} · ${p.solved} solved · ${p.ratedNo} said not solved`,
+            url: "/support?view=scoreboard",
+            tag: "support-weekly",
+        });
+    }
     if (p.kind === "late") {
         return JSON.stringify({
             title: `No reply for ${p.waitedMin} min${p.shop ? ` · ${p.shop}` : ""}`,
@@ -95,7 +142,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
     if (!VAPID_PUBLIC || !VAPID_PRIVATE) return json({ skipped: "no_vapid" });
 
-    let payload: StaffPushPayload | null;
+    let payload: Payload | null;
     try {
         payload = parse(await req.json());
     } catch {
@@ -121,7 +168,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             await webpush.sendNotification(
                 { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
                 message,
-                { TTL: 60 * 60, urgency: "high" },
+                // The weekly report waits for a phone that is off at 10 AM; alerts go stale in an hour.
+                payload.kind === "weekly" ? { TTL: 12 * 60 * 60, urgency: "normal" } : { TTL: 60 * 60, urgency: "high" },
             );
             sent++;
         } catch (e) {

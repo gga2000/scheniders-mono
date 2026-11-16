@@ -75,6 +75,12 @@ DECLARE
     w jsonb;
     m jsonb;
 BEGIN
+    -- Why they said No: the real shop's "No" was unclear; the demo's never counts.
+    UPDATE public.support_cases SET no_reason = 'unclear', no_reason_at = now()
+    WHERE rating = 'no' AND tenant_id = '00000000-0000-4000-8000-000000000001';
+    UPDATE public.support_cases SET no_reason = 'too_slow', no_reason_at = now()
+    WHERE rating = 'no' AND tenant_id = '00000000-0000-4000-8000-000000000002';
+
     SET LOCAL ROLE service_role;
     w := public.support_scoreboard(7);
     m := public.support_scoreboard(30);
@@ -94,6 +100,8 @@ BEGIN
     PERFORM pg_temp.check('7d: reopened 1', (w->>'reopened')::int = 1);
     PERFORM pg_temp.check('7d: reasons ' || (w->'reasons')::text,
         w->'reasons' = '[{"reason":"orders","count":2},{"reason":"delivery","count":1}]'::jsonb);
+    PERFORM pg_temp.check('7d: why No ' || (w->'no_reasons')::text,
+        w->'no_reasons' = '[{"reason":"unclear","count":1}]'::jsonb);
     PERFORM pg_temp.check('7d: by staff ' || (w->'by_staff')::text,
         w->'by_staff' = '[{"name":"Noor","solved":2,"rated_yes":2,"rated_no":0},{"name":"Karrar","solved":1,"rated_yes":0,"rated_no":1}]'::jsonb);
     PERFORM pg_temp.check('waiting now 1 (demo left out), got ' || (w->>'waiting_now'), (w->>'waiting_now')::int = 1);

@@ -46,6 +46,9 @@ CREATE TABLE public.support_cases (
     reopened_count integer NOT NULL DEFAULT 0,
     -- From 20261116104616_support_reach_out.sql.
     started_by text NOT NULL DEFAULT 'merchant',
+    -- From 20261116192049_support_no_reason.sql.
+    no_reason text CHECK (no_reason IN ('still_broken', 'unclear', 'too_slow')),
+    no_reason_at timestamptz,
     last_message_preview text NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT support_cases_solved_has_time CHECK ((status = 'solved') = (solved_at IS NOT NULL)),
