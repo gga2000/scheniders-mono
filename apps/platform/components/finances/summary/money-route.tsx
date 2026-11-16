@@ -69,7 +69,7 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, returning, prime_linked: primeLinked, reached: payments, split } = summary.cash;
+    const { in_transit: road, returning, reached: payments, split } = summary.cash;
     const { orders, revenue } = summary.sales;
     const courierOnly = split.unpaid_orders - split.unpaid_prime;
     const sold = orders > 0;
@@ -164,7 +164,7 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                         <PartRow
                             part="fee"
                             label={t("fin.money.fee")}
-                            note={primeLinked ? t("fin.money.fee.note") : t("fin.money.fee.noteCourier")}
+                            note={summary.courier.prime_fee > 0 ? t("fin.money.fee.note") : t("fin.money.fee.noteCourier")}
                             amount={split.fee}
                             textDir={dir}
                         >
@@ -175,6 +175,7 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
                             )}
                         </PartRow>
                         <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
+                            {/* Shown whenever Prime holds unpaid orders, link row or not (the demo store has none). */}
                             {split.unpaid_prime > 0 && (
                                 <Link href="/prime" className={`${CARD_LINK} mt-1.5`}>
                                     {t("fin.money.prime.open")}

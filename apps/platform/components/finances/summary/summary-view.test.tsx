@@ -222,6 +222,21 @@ describe("SummaryView", () => {
         expect(byTestId("money-split")?.querySelectorAll("i")).toHaveLength(2);
     });
 
+    it("names Prime's unpaid orders and links to Prime even with no link row (the demo store), and says Prime took part of the fee", () => {
+        const s = summary();
+        renderView(query(summary({ cash: { ...s.cash, prime_linked: false } })));
+        expect(byTestId("money-unpaid")?.textContent).toContain("1 عند برايم");
+        expect(byTestId("money-unpaid")?.querySelector('a[href="/prime"]')).not.toBeNull();
+        expect(byTestId("money-fee")?.textContent).toContain("وبرايم");
+        cleanup();
+        renderView(query(summary({
+            cash: { ...s.cash, prime_linked: false, split: { ...s.cash.split, unpaid_prime: 0 } },
+            courier: { ...s.courier, prime_fee: 0, prime_parcels: 0 },
+        })));
+        expect(byTestId("money-unpaid")?.querySelector('a[href="/prime"]')).toBeNull();
+        expect(byTestId("money-fee")?.textContent).not.toContain("برايم");
+    });
+
     it("explains why the statement's delivery line is bigger than the fee in the money card", () => {
         const s = summary();
         renderView(query(summary({ failed: { ...s.failed, prime_returned_parcels: 3, prime_returned_fee: 15_000 } })));

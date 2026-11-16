@@ -1,7 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CaseAction, SupportCaseDetailResponse, SupportCasesResponse } from "@/lib/support";
+import type {
+  CaseAction,
+  ScoreboardDays,
+  SupportCaseDetailResponse,
+  SupportCasesResponse,
+  SupportScoreboard,
+} from "@/lib/support";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -56,5 +62,14 @@ export function useSupportCaseAction(caseId: string) {
         }),
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+  });
+}
+
+/** The team scoreboard for the last 7 or 30 days. */
+export function useSupportScoreboard(days: ScoreboardDays) {
+  return useQuery<SupportScoreboard>({
+    queryKey: ["admin", "support", "scoreboard", days],
+    queryFn: async () => readJson<SupportScoreboard>(await fetch(`/api/support/scoreboard?days=${days}`)),
+    refetchInterval: 60_000,
   });
 }

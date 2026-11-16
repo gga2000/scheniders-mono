@@ -4,8 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { PERMISSIONS } from "@/lib/permissions";
 import { callerHasPermission } from "@/lib/auth/caller-has-permission";
-import { getPrimeClient } from "@/lib/prime/client";
-import { loadPrimeMerchant } from "@/lib/prime/connection";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { pullBackPrimeShipment } from "@/lib/prime/pull-back";
 import { withFailureReport } from "@/lib/job-monitor";
 
@@ -31,10 +30,10 @@ async function handlePOST(request: NextRequest) {
         return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
 
-    const client = getPrimeClient();
     const db = createSupabaseServiceClient();
-    const merchant = client ? await loadPrimeMerchant(db, caller.tenantId) : null;
-    if (!client || !merchant) return NextResponse.json({ success: true, ok: false, reason: "not_connected" });
+    const link = await loadPrimeLink(db, caller.tenantId);
+    if (!link) return NextResponse.json({ success: true, ok: false, reason: "not_connected" });
+    const { client } = link;
 
     const { data: profile } = await db.from("user_profiles").select("display_name").eq("id", caller.userId).maybeSingle();
     const changedBy = typeof profile?.display_name === "string" && profile.display_name.trim() ? profile.display_name.trim() : undefined;

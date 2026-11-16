@@ -177,3 +177,117 @@ export function formatWait(since: string, now: number): string {
   }
   return `${Math.floor(hours / 24)} d`;
 }
+
+/**
+ * A browser push subscription, as `PushSubscription.toJSON()` sends it. The
+ * endpoint must be https: push services only issue https endpoints, and the
+ * table refuses anything else.
+ */
+export const StaffPushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2000).startsWith("https://"),
+  keys: z.object({
+    p256dh: z.string().min(1).max(200),
+    auth: z.string().min(1).max(100),
+  }),
+});
+
+export const StaffPushRemoveSchema = z.object({
+  endpoint: z.string().url().max(2000),
+});
+
+export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
+
+/** A ready answer the team keeps in `support_saved_replies`. */
+export interface SupportSavedReply {
+  id: string;
+  title: string;
+  body: string;
+  position: number;
+  updated_at: string;
+}
+
+export const SUPPORT_SAVED_REPLY_COLUMNS = "id, title, body, position, updated_at";
+
+export const SavedReplySchema = z.object({
+  title: z.string().trim().min(1).max(40),
+  body: z.string().trim().min(1).max(2000),
+  position: z.number().int().min(0).max(100_000).optional(),
+});
+
+export type SavedReplyInput = z.infer<typeof SavedReplySchema>;
+
+/** What a saved reply can fill in from the conversation. */
+export interface SavedReplyFill {
+  name?: string | null;
+  shop?: string | null;
+  order?: string | null;
+}
+
+/**
+ * Fills {name}, {shop} and {order}. A value the conversation does not have is
+ * left as written, so staff see the gap and fill it before sending.
+ */
+export function fillSavedReply(body: string, fill: SavedReplyFill): string {
+  const firstName = fill.name?.trim().split(/\s+/)[0] ?? "";
+  const values: Record<string, string> = {
+    name: firstName,
+    shop: fill.shop?.trim() ?? "",
+    order: fill.order?.trim() ? `#${fill.order.trim().replace(/^#/, "")}` : "",
+  };
+  return body.replace(/\{(name|shop|order)\}/g, (token, key: string) => values[key] || token);
+}
+
+/** The order the merchant had open most recently in this conversation. */
+export function latestOrderNumber(messages: SupportMessageRow[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const order = messages[i].sender_kind === "merchant" ? messages[i].context.orderNumber : undefined;
+    if (order) return order;
+  }
+  return null;
+}
+
+/** The windows the scoreboard offers. */
+export const SCOREBOARD_DAYS = [7, 30] as const;
+export type ScoreboardDays = (typeof SCOREBOARD_DAYS)[number];
+
+const count = z.number().int().min(0);
+const seconds = z.number().min(0).nullable();
+
+/** What `support_scoreboard(p_days)` answers. Demo store left out in SQL. */
+export const SupportScoreboardSchema = z.object({
+  days: z.number().int(),
+  opened: count,
+  answered: count,
+  first_reply_median_s: seconds,
+  first_reply_p90_s: seconds,
+  answered_within_5m: count,
+  solved: count,
+  solve_median_s: seconds,
+  rated_yes: count,
+  rated_no: count,
+  reopened: count,
+  reasons: z.array(z.object({ reason: z.enum(SUPPORT_REASONS), count })),
+  by_staff: z.array(z.object({ name: z.string(), solved: count, rated_yes: count, rated_no: count })),
+  waiting_now: count,
+  oldest_wait_s: seconds,
+});
+
+export type SupportScoreboard = z.infer<typeof SupportScoreboardSchema>;
+
+/** "45s", "12 min", "3 h 5 min", "2 d 4 h"; a dash when there is nothing to measure. */
+export function formatDuration(totalSeconds: number | null): string {
+  if (totalSeconds === null) return "–";
+  const s = Math.round(totalSeconds);
+  if (s < 60) return `${s}s`;
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
+  const days = Math.floor(hours / 24);
+  return hours % 24 === 0 ? `${days} d` : `${days} d ${hours % 24} h`;
+}
+
+/** A share as a whole percent, or null when there is nothing to divide. */
+export function percentOf(part: number, whole: number): number | null {
+  return whole === 0 ? null : Math.round((part / whole) * 100);
+}

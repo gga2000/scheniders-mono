@@ -1,6 +1,7 @@
 "use client";
 
 import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
+import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
@@ -113,21 +114,19 @@ export function MerchantCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tags }),
       });
-      if (!res.ok) throw new Error("Failed to update tags");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Tags were not saved");
+      }
       return res.json();
     },
     onMutate: async (newTags) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      const previous = queryClient.getQueriesData({ queryKey: ["admin", "merchants"] });
-      patchMerchantInCache(queryClient, merchant.id, { tags: newTags });
-      return { previous };
+      return { restore: patchMerchantInCache(queryClient, merchant.id, { tags: newTags }) };
     },
-    onError: (_err, _newTags, context) => {
-      if (context?.previous) {
-        context.previous.forEach(([key, data]: [unknown, unknown]) =>
-          queryClient.setQueryData(key as string[], data)
-        );
-      }
+    onError: (error: Error, _newTags, context) => {
+      context?.restore();
+      toast.error(error.message);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });

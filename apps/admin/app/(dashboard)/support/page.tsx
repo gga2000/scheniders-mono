@@ -1,29 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Headset, Loader2, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSupportCase, useSupportCases } from "@/hooks/use-support-cases";
 import { SupportCaseList } from "@/components/support/support-case-list";
 import { SupportConversation } from "@/components/support/support-conversation";
 import { SupportShopCard } from "@/components/support/support-shop-card";
+import { SupportAlertsToggle } from "@/components/support/support-alerts-toggle";
+import { SupportScoreboardView } from "@/components/support/support-scoreboard";
+import type { ScoreboardDays } from "@/lib/support";
 
-type View = "open" | "solved";
+type View = "open" | "solved" | "scoreboard";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "open", label: "Open" },
   { id: "solved", label: "Solved" },
+  { id: "scoreboard", label: "Scoreboard" },
 ];
 
 const PANE = "min-h-0 overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function SupportPage() {
+  return (
+    <Suspense>
+      <SupportInbox />
+    </Suspense>
+  );
+}
+
+function SupportInbox() {
+  // An alert links to /support?case=<id>: open that conversation first.
+  const linkedCase = useSearchParams().get("case");
   const [view, setView] = useState<View>("open");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const list = useSupportCases(view);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    linkedCase && UUID_RE.test(linkedCase) ? linkedCase : null,
+  );
+  const [boardDays, setBoardDays] = useState<ScoreboardDays>(7);
+  // The scoreboard keeps the open inbox loaded for the "waiting on us" line.
+  const list = useSupportCases(view === "solved" ? "solved" : "open");
   const cases = list.data?.cases ?? [];
   // Nothing picked yet: open the conversation that has waited longest.
-  const activeId = selectedId ?? cases[0]?.id ?? null;
+  const activeId = view === "scoreboard" ? null : (selectedId ?? cases[0]?.id ?? null);
   const detail = useSupportCase(activeId);
   const waiting = list.data?.waitingOnUs ?? 0;
 
@@ -43,27 +64,32 @@ export default function SupportPage() {
                 : `${waiting} merchant${waiting === 1 ? "" : "s"} waiting on us`}
           </p>
         </div>
-        <div className="inline-flex rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] p-1">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => {
-                setView(v.id);
-                setSelectedId(null);
-              }}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
-                view === v.id ? "bg-foreground text-background" : "text-foreground-muted hover:text-foreground",
-              )}
-            >
-              {v.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <SupportAlertsToggle />
+          <div className="inline-flex rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] p-1">
+            {VIEWS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => {
+                  setView(v.id);
+                  setSelectedId(null);
+                }}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+                  view === v.id ? "bg-foreground text-background" : "text-foreground-muted hover:text-foreground",
+                )}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {list.isError ? (
+      {view === "scoreboard" ? (
+        <SupportScoreboardView days={boardDays} onDaysChange={setBoardDays} />
+      ) : list.isError ? (
         <div className={cn(PANE, "p-6 text-sm text-red-700")}>
           Could not load support conversations. {list.error.message}
         </div>

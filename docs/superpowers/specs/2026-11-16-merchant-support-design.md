@@ -59,3 +59,19 @@ First reply time, time waiting, solved yes/no, reason. These feed the wave 3 sco
 - SQL: migration and the four functions run against a local Postgres 16 with stub tables.
 - API: schema and route tests in Vitest for both apps; admin routes join the existing guard tests.
 - `pnpm type-check`, `pnpm lint`.
+
+## Wave 2: staff alert
+
+A new merchant message pings support staff on their phone or computer.
+
+- Staff press **Turn on alerts** on `/support`. The browser asks for permission, registers `public/support-sw.js` and stores its push subscription through `POST /api/support/push` (owner = the signed-in admin; `DELETE` turns it off). iPhone needs the page added to the Home Screen first.
+- `admin_push_subscriptions`: one row per device. Server-only like the support tables (RLS on, no policies, no browser grants).
+- Trigger `trg_support_notify_staff` on `support_messages` (merchant messages only) queues a call to the `send-staff-push` edge function with the shop name and a 140-character preview. Recipients: every active staff member with a device. A push failure never blocks the merchant's message.
+- `send-staff-push` signs with the same VAPID keys as the merchant push, collapses alerts per conversation (one notification per case, rings again on each message) and drops subscriptions the push service has thrown away (404/410). Tapping the alert opens `/support?case=<id>`.
+- Waiting on Ali's hours answer: moving an unanswered alert to a supervisor after the promised reply time.
+
+## Wave 2: saved replies the team edits
+
+- One shared list in `support_saved_replies` (server-only like the other support tables). Seeded with the four wave 1 replies plus "Checking order".
+- The reply box shows the list as buttons. Picking one fills `{name}` (merchant's first name), `{shop}` and `{order}` (newest order the merchant had open). A value the conversation does not have stays as written, so staff see the gap.
+- "Edit replies" opens the list: add, change text or order, remove (second click confirms). Every change is in the staff activity log with who made it.

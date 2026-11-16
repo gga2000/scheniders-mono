@@ -5907,6 +5907,8 @@ export const ar: Record<string, string> = {
     "settings.print.a4": "A4 (أكثر من ملصق بالصفحة)",
     "settings.print.showPrice": "إظهار السعر على الملصق",
     "settings.print.showPhone": "إظهار رقم الزبون",
+    "settings.print.fragileWarning": "تحذير العطر والزجاج على الملصق",
+    "settings.print.fragileWarningHint": "شريط «زجاج · قابل للكسر» وسطر «يمنع فتح العطر». شغّله إذا تبيع عطور.",
     "settings.print.batching": "إعدادات الدفعات",
     "settings.print.grouping": "تجميع الدفعة الافتراضي",
     "settings.print.groupingHint": "طريقة تجميع الطلبات لما تسوي دفعة طباعة جديدة.",

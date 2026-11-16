@@ -8,6 +8,7 @@ import { usePrinting } from "@/hooks/use-printing";
 import { useDispatchQueue, DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
 import { useDispatchRun } from "@/hooks/use-dispatch-run";
 import { usePrimeLink } from "@/hooks/use-prime-link";
+import { useLabelBrand } from "@/hooks/use-label-brand";
 import { usePrimeDeskPreview } from "@/hooks/use-prime-desk";
 import { useDispatchTwins } from "@/hooks/use-dispatch-twins";
 import { useLanguage } from "@/hooks/use-language";
@@ -118,7 +119,8 @@ export default function PrintingPage() {
     const refreshQueue = () => queryClient.invalidateQueries({ queryKey: DISPATCH_QUEUE_KEY });
 
     const prime = usePrimeLink();
-    const run = useDispatchRun({ printing, bulkUpdateStatus, prime });
+    const labelBrand = useLabelBrand();
+    const run = useDispatchRun({ printing, bulkUpdateStatus, prime, labelBrand });
 
     // With the Prime link: each order's fee and readiness before the run, and its case number as the run goes.
     // Test orders (the guide's practice orders) are printed only and never shown as going to Prime.
@@ -319,6 +321,7 @@ export default function PrintingPage() {
                         </div>
                         <LabelPreviewRail
                             order={focused}
+                            brand={labelBrand}
                             position={focusIndex + 1}
                             total={visible.length}
                             onStep={(delta) => {

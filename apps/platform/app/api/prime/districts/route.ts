@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { getPrimeClient, isPrimeUnreachable, PrimeApiError } from "@/lib/prime/client";
-import { loadPrimeMerchant } from "@/lib/prime/connection";
+import { isPrimeUnreachable, PrimeApiError } from "@/lib/prime/client";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { primeStateOf } from "@/lib/prime/district";
 import { primeDistrictsOf } from "@/lib/prime/districts-load";
 import { withFailureReport } from "@/lib/job-monitor";
@@ -29,9 +29,9 @@ async function handleGET(request: NextRequest) {
     });
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid governorate" }, { status: 400 });
 
-    const client = getPrimeClient();
-    const merchant = client ? await loadPrimeMerchant(createSupabaseServiceClient(), caller.tenantId) : null;
-    if (!client || !merchant) return NextResponse.json({ success: true, connected: false });
+    const link = await loadPrimeLink(createSupabaseServiceClient(), caller.tenantId);
+    if (!link) return NextResponse.json({ success: true, connected: false });
+    const { client } = link;
 
     const state = primeStateOf({ city: parsed.data.city, governorate_code: parsed.data.governorate, validated_governorate_code: undefined, address_details: undefined });
     if (!state) return NextResponse.json({ success: true, connected: true, state: null, districts: [] });

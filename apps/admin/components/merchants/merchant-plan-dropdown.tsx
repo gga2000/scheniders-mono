@@ -61,10 +61,11 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
     },
     onMutate: async (newPlan) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      patchMerchantInCache(queryClient, merchantId, { plan: newPlan });
+      return { restore: patchMerchantInCache(queryClient, merchantId, { plan: newPlan }) };
     },
-    // onSettled reads the list again, which puts the real plan back.
-    onError: (error: Error) => {
+    // The card goes back to the real plan at once, before the list is read again.
+    onError: (error: Error, _newPlan, context) => {
+      context?.restore();
       toast.error(error.message);
     },
     onSettled: () => {
