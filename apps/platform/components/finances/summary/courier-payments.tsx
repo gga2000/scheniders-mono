@@ -99,13 +99,13 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
         const fee = usualAmount(prepaid.map((order) => order.amount));
         const odd = prepaid.length > 1 && fee < 0 ? prepaid.filter((order) => order.amount > fee && order.amount < 0) : [];
         return [
-            t("fin.money.cash.part.prepaidNote"),
+            // Some order on the statement is off the usual fee: say the usual fee first, then the exception.
+            odd.length > 0 ? t("fin.money.cash.part.prepaidNoteOdd", { fee: money(-fee) }) : t("fin.money.cash.part.prepaidNote"),
             ...odd.map((order) =>
                 t("fin.money.cash.part.prepaidOdd", {
                     code: order.code ?? order.id.slice(0, 8),
                     collected: money(order.amount - fee),
                     net: money(-order.amount),
-                    fee: money(-fee),
                 }),
             ),
         ].join(" ");

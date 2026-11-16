@@ -217,8 +217,11 @@ describe("SummaryView", () => {
         // the statement's delivery line has nothing more here, so no second figure to explain
         expect(byTestId("money-fee-statement")).toBeNull();
         expect(byTestId("money-unpaid")?.textContent).toContain("40,000");
-        // the note counts the orders that still owe money, as the list names them
-        expect(byTestId("money-unpaid")?.textContent).toContain("طلبان: واحد عند برايم وواحد عند شركة التوصيل");
+        // the note counts every unpaid order, so 7 paid + 3 unpaid = the 10 orders
+        expect(byTestId("money-unpaid")?.textContent).toContain("3 طلبات: 1 عند برايم و2 عند شركة التوصيل");
+        // the courier's fee is not known before its statement: its rows say so
+        expect(byTestId("money-unpaid")?.textContent).toContain("عند شركة التوصيل، قبل أجرتها");
+        expect(byTestId("money-unpaid-courier-fee")?.textContent).toContain("فيصلك منها أقل من هذا");
         expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
         // the road is not a sale yet: it sits under the line, apart from the three parts
         expect(byTestId("money-road")?.textContent).toContain("160,000");
@@ -273,7 +276,7 @@ describe("SummaryView", () => {
     it("names Prime's unpaid orders and links to Prime even with no link row (the demo store), and says Prime took part of the fee", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, prime_linked: false } })));
-        expect(byTestId("money-unpaid")?.textContent).toContain("واحد عند برايم");
+        expect(byTestId("money-unpaid")?.textContent).toContain("1 عند برايم");
         expect(byTestId("money-unpaid")?.querySelector('a[href="/prime"]')).not.toBeNull();
         expect(byTestId("money-fee")?.textContent).toContain("وبرايم");
         cleanup();
@@ -339,7 +342,7 @@ describe("SummaryView", () => {
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
             "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
-            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً. في الكشف قبضت شركة التوصيل 1 د.ع عن الطلب 1261030001، فخصمت 4,999 د.ع بدل 5,000 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تخصم شركة التوصيل عن كل طلب إلا أجرة التوصيل 5,000 د.ع. إلا الطلب 1261030001: يذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
             "فروق أخرى−28,001د.ع",
@@ -347,7 +350,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
         // the profit card says its net profit is too high until the open refund is marked, and links to it
-        expect(byTestId("statement-refunds-open")?.textContent).toBe("لم يُسجَّل بعد مبلغ مسترد واحد دفعته شركة التوصيل (20,000 د.ع)، فصافي الربح أدناه أعلى من الحقيقي بهذا المبلغ.اعرضها");
+        expect(byTestId("statement-refunds-open")?.textContent).toBe("صافي الربح أدناه أعلى من الحقيقي بـ20,000 د.ع: مبالغ مستردة دفعتها شركة التوصيل ولم تُسجَّل بعد.اعرضها");
         expect(byTestId("statement-refunds-open")?.querySelector("a")?.getAttribute("href")).toBe("#courier-payments");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
@@ -366,7 +369,7 @@ describe("SummaryView", () => {
         const parts = byTestId("money-reached-parts")?.textContent ?? "";
         expect(parts).toContain("من كشوف هذه الفترةاعرض الدفعات وفروقها100,000");
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
-        expect(parts).toContain("طلبات سجّلتها «مُسلَّمة» داخل هذه الفترة200,000");
+        expect(parts).toContain("طلبات دُفع ثمنها لك سابقاً، وسجّلتها «مُسلَّمة» متأخراً في هذه الفترة200,000");
         expect(parts).toContain("دفعها الزبون لك مسبقاً (طلبان)20,000");
         expect(parts).toContain("من كشوف مؤرَّخة بعد هذه الفترة10,000");
         cleanup();
@@ -384,13 +387,15 @@ describe("SummaryView", () => {
         expect(byTestId("money-returning")?.textContent).toContain("وهناك 5 طرود مرفوضة تعيدها برايم إليك الآن");
     });
 
-    it("leaves the stuck parcels to the strip and the banner: the money card does not say them a third time", () => {
+    it("says the stuck parcels are part of the road, so the strip's two parcel counts are not added up", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, stuck: { count: 2, amount: 50_000 } } })));
         expect(stat("stuck")).toBe("2");
         expect(document.querySelector('[data-alert="stuck"]')?.textContent).toContain("50,000");
-        expect(byTestId("money-route")?.textContent).not.toContain("50,000");
-        expect(byTestId("money-route")?.textContent).not.toContain("عالق");
+        expect(byTestId("money-road-stuck")?.textContent).toBe("منها طردان على الطريق منذ 15 يوماً أو أكثر (50,000 د.ع).");
+        cleanup();
+        renderView(query(summary()));
+        expect(byTestId("money-road-stuck")).toBeNull();
     });
 
     it("says how often a parcel comes back, and what the way back cost", () => {
@@ -603,7 +608,7 @@ describe("SummaryView", () => {
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
         expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
-        expect(bar?.textContent).toContain("3 من 5 طلبات يومياً تبقى ربحاً لك");
+        expect(bar?.textContent).toContain("من كل 5 طلبات في اليوم، 3 منها ربح لك");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         // and what each order leaves after the daily costs: the strip's profit per order
