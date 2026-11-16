@@ -83,6 +83,8 @@ CREATE UNIQUE INDEX uq_wallet_tx_subscription_period ON public.wallet_transactio
     WHERE type = 'charge' AND reference_id LIKE 'subscription:%';
 CREATE UNIQUE INDEX uq_wallet_tx_delivered_order ON public.wallet_transactions (reference_id)
     WHERE type = 'charge' AND reference_id LIKE 'delivered:%';
+CREATE UNIQUE INDEX uq_wallet_tx_admin_topup ON public.wallet_transactions (reference_id)
+    WHERE type = 'topup' AND reference_id LIKE 'admin_topup:%';
 
 CREATE TABLE public.usage_tracking (
     tenant_id uuid NOT NULL,
