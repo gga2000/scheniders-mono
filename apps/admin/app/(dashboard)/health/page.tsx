@@ -4,19 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Activity,
-  Shield,
-  ShoppingBag,
-  TrendingUp,
   AlertTriangle,
   Wallet,
-  ArrowUp,
-  ArrowDown,
   CheckCircle2,
   Loader2,
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import { formatIQD } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatCount, formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,9 +110,6 @@ export default function HealthPage() {
       ? Math.round((health.activeTenants / health.totalTenants) * 100)
       : 0;
 
-  const growthDiff =
-    growth ? growth.thisMonth - growth.lastMonth : 0;
-
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -159,106 +152,25 @@ export default function HealthPage() {
         </div>
       )}
 
-      {/* Health Cards */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Active Tenants - Green */}
-        <div className="pastel-card pastel-card-green p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <Shield className="h-5 w-5 text-green-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-green-900/70 uppercase tracking-wider">
-            Active Tenants
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <>
-              <p className="text-2xl md:text-3xl font-bold text-green-950 tracking-tight mt-1">
-                {health?.activeTenants ?? 0}
-              </p>
-              <p className="text-xs text-green-800/70 font-medium mt-0.5">
-                {activePercent}% of {health?.totalTenants ?? 0} total
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Orders (24h) - Blue */}
-        <div className="pastel-card pastel-card-blue p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <ShoppingBag className="h-5 w-5 text-blue-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-blue-900/70 uppercase tracking-wider">
-            Orders (24h)
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-20 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-blue-950 tracking-tight mt-1">
-              {health?.ordersLast24h ?? 0}
-            </p>
-          )}
-        </div>
-
-        {/* At Risk - Pink */}
-        <div className="pastel-card pastel-card-pink p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <AlertTriangle className="h-5 w-5 text-rose-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-rose-900/70 uppercase tracking-wider">
-            At Risk
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-16 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-rose-950 tracking-tight mt-1">
-              {riskIndicators.length}
-            </p>
-          )}
-        </div>
-
-        {/* Growth - Mint/Green */}
-        <div className="pastel-card pastel-card-green p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <TrendingUp className="h-5 w-5 text-green-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-green-900/70 uppercase tracking-wider">
-            Growth
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-24 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <>
-              <p className="text-2xl md:text-3xl font-bold text-green-950 tracking-tight mt-1 flex items-center gap-2">
-                {growth?.thisMonth ?? 0}
-                {growthDiff > 0 && (
-                  <span className="flex items-center text-sm text-green-600 font-semibold">
-                    <ArrowUp className="w-3.5 h-3.5" />
-                    {growthDiff}
-                  </span>
-                )}
-                {growthDiff < 0 && (
-                  <span className="flex items-center text-sm text-red-600 font-semibold">
-                    <ArrowDown className="w-3.5 h-3.5" />
-                    {Math.abs(growthDiff)}
-                  </span>
-                )}
-              </p>
-              <p className="text-xs text-green-800/70 font-medium mt-0.5">
-                this month vs {growth?.lastMonth ?? 0} last month
-              </p>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Headline numbers, each naming its window (board v6: one surface). */}
+      <NumberStrip columns={4} label="Shop health numbers">
+        <NumberCell
+          label="Active shops, now"
+          value={health ? formatCount(health.activeTenants) : "..."}
+          note={health ? `${activePercent}% of ${formatCount(health.totalTenants)} shops` : undefined}
+        />
+        <NumberCell label="Orders, last 24 hours" value={health ? formatCount(health.ordersLast24h) : "..."} />
+        <NumberCell
+          label="Shops at risk, now"
+          value={data ? formatCount(riskIndicators.length) : "..."}
+          alert={riskIndicators.length > 0}
+        />
+        <NumberCell
+          label="New shops, this month"
+          value={growth ? formatCount(growth.thisMonth) : "..."}
+          note={growth ? `${formatCount(growth.lastMonth)} last month` : undefined}
+        />
+      </NumberStrip>
 
       {/* Risk Alerts */}
       <div className="pastel-card overflow-hidden">

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { BarChart3, TrendingUp, Calendar, Activity } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import type { AdminEmployeeTracking } from "@/types/leads";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface TeamPerformanceChartProps {
   employeeId?: string;
@@ -90,33 +91,13 @@ export function TeamPerformanceChart({
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <Activity className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Actions (14d)</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">{stats.total}</p>
-        </div>
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-semibold">Avg per Day</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">{stats.avg}</p>
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Calendar className="w-4 h-4" />
-            <span className="text-xs font-semibold">Most Active Day</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {stats.mostActiveDay
+      <NumberStrip columns={3}>
+        <NumberCell label="Actions, last 14 days" value={stats.total} />
+        <NumberCell label="Actions a day, last 14 days" value={stats.avg} />
+        <NumberCell label="Busiest day, last 14 days" value={stats.mostActiveDay
               ? `${stats.mostActiveDay.shortLabel} (${stats.mostActiveDay.count})`
-              : "---"}
-          </p>
-        </div>
-      </div>
+              : "---"} />
+      </NumberStrip>
 
       {/* Bar Chart */}
       <div className="pastel-card p-5">

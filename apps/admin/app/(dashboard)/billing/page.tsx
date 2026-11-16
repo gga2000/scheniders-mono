@@ -6,13 +6,12 @@ import Link from "next/link";
 import {
   CreditCard,
   Wallet,
-  TrendingUp,
-  AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
@@ -165,84 +164,17 @@ export default function BillingPage() {
         <ExportButton type="transactions" label="Export Transactions" />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Balance - Green */}
-        <div className="pastel-card pastel-card-green p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <Wallet className="h-5 w-5 text-green-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-green-900/70 uppercase tracking-wider">
-            Total Balance
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-green-950 tracking-tight mt-1">
-              {formatIQD(summary?.totalBalance ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Total Charged - Amber */}
-        <div className="pastel-card pastel-card-yellow p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <ArrowDownRight className="h-5 w-5 text-amber-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-amber-900/70 uppercase tracking-wider">
-            Total Charged
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-amber-950 tracking-tight mt-1">
-              {formatIQD(summary?.totalCharged ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Total Topped Up - Blue */}
-        <div className="pastel-card pastel-card-blue p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <TrendingUp className="h-5 w-5 text-blue-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-blue-900/70 uppercase tracking-wider">
-            Total Topped Up
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-28 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-blue-950 tracking-tight mt-1">
-              {formatIQD(summary?.totalToppedUp ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Low Balance - Pink */}
-        <div className="pastel-card pastel-card-pink p-4 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <AlertTriangle className="h-5 w-5 text-rose-700" />
-            </div>
-          </div>
-          <h3 className="text-xs font-semibold text-rose-900/70 uppercase tracking-wider">
-            Low Balance
-          </h3>
-          {isLoading ? (
-            <div className="h-8 w-16 rounded-lg bg-white/40 animate-pulse mt-1" />
-          ) : (
-            <p className="text-2xl md:text-3xl font-bold text-rose-950 tracking-tight mt-1">
-              {summary?.lowBalanceCount ?? 0}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Headline numbers, each naming its window (board v6: one surface). */}
+      <NumberStrip columns={4} label="Wallet numbers">
+        <NumberCell label="In wallets, now" value={summary ? formatIQD(summary.totalBalance) : "..."} />
+        <NumberCell label="Charged, all time" value={summary ? formatIQD(summary.totalCharged) : "..."} />
+        <NumberCell label="Added, all time" value={summary ? formatIQD(summary.totalToppedUp) : "..."} />
+        <NumberCell
+          label="Wallets under their alert amount, now"
+          value={summary ? formatCount(summary.lowBalanceCount) : "..."}
+          alert={(summary?.lowBalanceCount ?? 0) > 0}
+        />
+      </NumberStrip>
 
       {/* Top-up Form */}
       <div className="pastel-card p-4 md:p-5">

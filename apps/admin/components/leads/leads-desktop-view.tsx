@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/use-leads";
@@ -33,60 +33,12 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  Users,
-  Sparkles,
-  Flame,
-  Store,
-  CheckCircle2,
-  Percent,
-  Wallet,
   SlidersHorizontal,
-  type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount } from "@/lib/format";
 
-const countFmt = (n: number) => Math.round(n).toLocaleString();
-
-/** Animated count-up that eases from 0 → value on mount / value change. */
-function CountUp({
-  value,
-  format,
-}: {
-  value: number | null;
-  format: (n: number) => string;
-}) {
-  const [display, setDisplay] = useState(0);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (value == null) return;
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setDisplay(value);
-      return;
-    }
-    const to = value;
-    const duration = 750;
-    let start: number | null = null;
-    const tick = (t: number) => {
-      if (start === null) start = t;
-      const p = Math.min(1, (t - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(to * eased);
-      if (p < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [value]);
-
-  if (value == null) return <>—</>;
-  return <>{format(display)}</>;
-}
 
 export function LeadsDesktopView() {
   const router = useRouter();
@@ -109,8 +61,7 @@ export function LeadsDesktopView() {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
   const { data, isLoading, isError } = useLeads(page, viewMode === "kanban" ? 100 : 20);
-  const { data: analytics, isLoading: analyticsLoading } = useLeadAnalytics();
-  const kpiLoading = analyticsLoading && !analytics;
+  const { data: analytics } = useLeadAnalytics();
   const lastTrend = analytics?.monthly_trends?.[analytics.monthly_trends.length - 1];
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
@@ -179,30 +130,6 @@ export function LeadsDesktopView() {
     else toast.info("No WhatsApp number on file");
   }, []);
 
-  const kpis: {
-    label: string;
-    raw: number | null;
-    format: (n: number) => string;
-    suffix?: string;
-    trend?: number;
-    icon: LucideIcon;
-    color: string;
-  }[] = [
-    { label: "Pipeline", raw: analytics?.total_leads ?? null, format: countFmt, trend: lastTrend?.added, icon: Users, color: "#7C3AED" },
-    { label: "New", raw: analytics ? (analytics.by_status.new ?? 0) : null, format: countFmt, icon: Sparkles, color: "#D97706" },
-    { label: "Interested", raw: analytics ? (analytics.by_status.interested ?? 0) : null, format: countFmt, icon: Flame, color: "#2563EB" },
-    { label: "Store Built", raw: analytics ? (analytics.by_status.store_built ?? 0) : null, format: countFmt, icon: Store, color: "#7C3AED" },
-    { label: "Converted", raw: analytics ? (analytics.by_status.converted ?? 0) : null, format: countFmt, trend: lastTrend?.converted, icon: CheckCircle2, color: "#16A34A" },
-    { label: "Conv. Rate", raw: analytics?.conversion_rate ?? null, format: (n: number) => `${Math.round(n)}%`, icon: Percent, color: "#D97706" },
-    {
-      label: "Est. Revenue",
-      raw: analytics?.total_estimated_revenue ?? null,
-      format: formatCount,
-      suffix: "IQD/mo",
-      icon: Wallet,
-      color: "#16A34A",
-    },
-  ];
 
   return (
     <div className="space-y-5 p-5 sm:p-6">
@@ -251,49 +178,31 @@ export function LeadsDesktopView() {
         </div>
       </div>
 
-      {/* KPI Pipeline Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-        {kpis.map((kpi, i) => (
-          <motion.div
-            key={kpi.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
-            className="group rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3.5 flex items-center gap-3 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-[transform,box-shadow]"
-          >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105"
-              style={{ backgroundColor: kpi.color }}
-            >
-              <kpi.icon className="w-4 h-4 text-white" strokeWidth={2.4} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-1.5">
-                <div className="text-xl font-bold text-[var(--foreground)] leading-tight tabular-nums truncate">
-                  {kpiLoading ? (
-                    <span className="inline-block h-5 w-10 rounded-md bg-[var(--card-border)]/60 animate-pulse align-middle" />
-                  ) : (
-                    <>
-                      <CountUp value={kpi.raw} format={kpi.format} />
-                      {kpi.suffix && (
-                        <span className="text-xs font-medium text-[var(--muted)] ml-1">
-                          {kpi.suffix}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-                {!kpiLoading && kpi.trend != null && kpi.trend > 0 && (
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                    ↑{kpi.trend}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-[var(--muted)] truncate">{kpi.label}</div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      {/* Headline numbers in one surface (board v6), each naming its window. */}
+      <NumberStrip columns={4} label="Lead numbers">
+        <NumberCell
+          label="Leads, now"
+          value={analytics ? formatCount(analytics.total_leads) : "..."}
+          note={lastTrend ? `${formatCount(lastTrend.added)} added this month` : undefined}
+        />
+        <NumberCell
+          label="New, not contacted yet"
+          value={analytics ? formatCount(analytics.by_status.new ?? 0) : "..."}
+        />
+        <NumberCell
+          label="Interested or store built, now"
+          value={
+            analytics
+              ? formatCount((analytics.by_status.interested ?? 0) + (analytics.by_status.store_built ?? 0))
+              : "..."
+          }
+        />
+        <NumberCell
+          label="Converted, all time"
+          value={analytics ? formatCount(analytics.by_status.converted ?? 0) : "..."}
+          note={analytics ? `${analytics.conversion_rate.toFixed(1)}% of all leads` : undefined}
+        />
+      </NumberStrip>
 
       {/* Workspace Panel */}
       <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">

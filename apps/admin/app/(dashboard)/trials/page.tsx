@@ -4,11 +4,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Clock,
-  AlertTriangle,
-  Calendar,
   Plus,
   ChevronRight,
-  Timer,
   Loader2,
 } from "lucide-react";
 import { isStaffReason } from "@/lib/billing-lock-tools";
@@ -16,7 +13,8 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
-import { formatDayTime, formatIQD } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatCount, formatDayTime, formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -213,95 +211,20 @@ export default function TrialsPage() {
       {/* Stores that matched an earlier store (Fermi B5) */}
       <TrialChecksPanel />
 
-      {/* Summary Cards */}
-      <div className="grid gap-3 md:gap-6 grid-cols-1 sm:grid-cols-3">
-        {/* Active Trials - Yellow */}
-        <div className="pastel-card pastel-card-yellow p-4 md:p-6 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <Timer className="h-5 w-5 md:h-6 md:w-6 text-amber-700" />
-            </div>
-            <span className="px-2.5 md:px-3 py-1 rounded-full bg-amber-600/20 text-amber-800 text-xs font-bold uppercase tracking-wider">
-              Active
-            </span>
-          </div>
-          <div className="space-y-1 md:space-y-2">
-            <h3 className="text-xs md:text-sm font-semibold text-amber-900/70 uppercase tracking-wider">
-              Active Trials
-            </h3>
-            {isLoading ? (
-              <div className="h-10 md:h-14 w-24 md:w-32 rounded-lg bg-white/40 animate-pulse" />
-            ) : (
-              <p className="text-3xl md:text-5xl font-bold text-amber-950 tracking-tight">
-                {summary.total}
-              </p>
-            )}
-          </div>
-          <div className="absolute bottom-4 right-4 opacity-10 hidden md:block">
-            <Timer className="h-24 w-24 text-amber-900" />
-          </div>
-        </div>
-
-        {/* Expiring Soon - Pink */}
-        <div className="pastel-card pastel-card-pink p-4 md:p-6 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-rose-700" />
-            </div>
-            <span className="px-2.5 md:px-3 py-1 rounded-full bg-rose-600/20 text-rose-800 text-xs font-bold uppercase tracking-wider">
-              Urgent
-            </span>
-          </div>
-          <div className="space-y-1 md:space-y-2">
-            <h3 className="text-xs md:text-sm font-semibold text-rose-900/70 uppercase tracking-wider">
-              Expiring Soon
-            </h3>
-            {isLoading ? (
-              <div className="h-10 md:h-14 w-24 md:w-32 rounded-lg bg-white/40 animate-pulse" />
-            ) : (
-              <p className="text-3xl md:text-5xl font-bold text-rose-950 tracking-tight">
-                {summary.expiringSoon}
-              </p>
-            )}
-            <p className="text-xs md:text-sm text-rose-800/70 font-medium">
-              &le; 3 days
-            </p>
-          </div>
-          <div className="absolute bottom-4 right-4 opacity-10 hidden md:block">
-            <AlertTriangle className="h-24 w-24 text-rose-900" />
-          </div>
-        </div>
-
-        {/* Expired - Gray */}
-        <div className="pastel-card p-4 md:p-6 relative overflow-hidden">
-          <div className="flex items-start justify-between mb-3 md:mb-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-foreground/5 flex items-center justify-center shadow-sm">
-              <Calendar className="h-5 w-5 md:h-6 md:w-6 text-foreground/50" />
-            </div>
-            <span className="px-2.5 md:px-3 py-1 rounded-full bg-foreground/5 text-foreground/60 text-xs font-bold uppercase tracking-wider">
-              Expired
-            </span>
-          </div>
-          <div className="space-y-1 md:space-y-2">
-            <h3 className="text-xs md:text-sm font-semibold text-foreground/50 uppercase tracking-wider">
-              Expired
-            </h3>
-            {isLoading ? (
-              <div className="h-10 md:h-14 w-24 md:w-32 rounded-lg bg-foreground/5 animate-pulse" />
-            ) : (
-              <p className="text-3xl md:text-5xl font-bold text-foreground/70 tracking-tight">
-                {summary.expired}
-              </p>
-            )}
-            <p className="text-xs md:text-sm text-foreground/40 font-medium">
-              needs action
-            </p>
-          </div>
-          <div className="absolute bottom-4 right-4 opacity-10 hidden md:block">
-            <Calendar className="h-24 w-24 text-foreground/30" />
-          </div>
-        </div>
-      </div>
+      {/* Headline numbers, each naming its window (board v6: one surface). */}
+      <NumberStrip columns={3} label="Trial numbers">
+        <NumberCell label="Shops on trial, now" value={isLoading ? "..." : formatCount(summary.total)} />
+        <NumberCell
+          label="Ending in 3 days or less"
+          value={isLoading ? "..." : formatCount(summary.expiringSoon)}
+          alert={summary.expiringSoon > 0}
+        />
+        <NumberCell
+          label="Trial ended, not paid yet"
+          value={isLoading ? "..." : formatCount(summary.expired)}
+          note="Needs a call or a decision"
+        />
+      </NumberStrip>
 
       {/* Trial List */}
       {isLoading ? (
