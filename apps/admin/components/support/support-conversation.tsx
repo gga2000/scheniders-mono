@@ -72,6 +72,25 @@ function ContextChips({ message }: { message: SupportMessageRow }) {
   );
 }
 
+/**
+ * The page refetches every few seconds and each answer signs a fresh link.
+ * Keep the first one so a note that is playing does not restart; take the
+ * newest only when the kept one stops working (it lasts 15 minutes).
+ */
+function VoiceNote({ url }: { url: string }) {
+  const [src, setSrc] = useState(url);
+  return (
+    <audio
+      controls
+      preload="none"
+      src={src}
+      onError={() => setSrc(url)}
+      aria-label="Voice note from the merchant"
+      className="mb-2 h-9 w-64 max-w-full"
+    />
+  );
+}
+
 function MessageLine({ message }: { message: SupportMessageRow }) {
   if (message.sender_kind === "system") {
     const solved = message.body === "solved";
@@ -113,6 +132,10 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
         )}
         {message.context.screenshot && !message.screenshot_url && (
           <p className="mb-1 text-[11px] text-foreground/50">The picture of the screen is no longer stored.</p>
+        )}
+        {message.voice_url && <VoiceNote url={message.voice_url} />}
+        {message.context.voice && !message.voice_url && (
+          <p className="mb-1 text-[11px] text-foreground/50">The voice note is no longer stored.</p>
         )}
         <p dir="auto" className="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {message.body}

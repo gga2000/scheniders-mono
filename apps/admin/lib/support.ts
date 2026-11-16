@@ -93,6 +93,8 @@ export interface SupportMessageContext {
   userAgent?: string;
   /** A picture of the merchant's screen: `<tenant_id>/<uuid>.jpg` in the private support-shots bucket. */
   screenshot?: string;
+  /** A voice note: `<tenant_id>/<uuid>.<webm|m4a|ogg>` in the private support-voice bucket. */
+  voice?: string;
 }
 
 export interface SupportMessageRow {
@@ -105,6 +107,8 @@ export interface SupportMessageRow {
   created_at: string;
   /** A short-lived link to the picture of the screen, when the merchant sent one. */
   screenshot_url: string | null;
+  /** A short-lived link to the voice note, when the merchant sent one. */
+  voice_url: string | null;
 }
 
 export interface SupportShopCard {
@@ -202,12 +206,18 @@ export const StaffPushRemoveSchema = z.object({
 export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
 
 export const SUPPORT_SHOT_BUCKET = "support-shots";
+export const SUPPORT_VOICE_BUCKET = "support-voice";
 
-/** The pictures this conversation's merchant sent: only paths inside their own shop's folder. */
-export function shotPaths(messages: Pick<SupportMessageRow, "context">[], tenantId: string): string[] {
-  return messages.flatMap((m) =>
-    typeof m.context.screenshot === "string" && m.context.screenshot.startsWith(`${tenantId}/`) ? [m.context.screenshot] : [],
-  );
+/** The files of one kind this conversation's merchant sent: only paths inside their own shop's folder. */
+export function filePaths(
+  messages: Pick<SupportMessageRow, "context">[],
+  tenantId: string,
+  kind: "screenshot" | "voice",
+): string[] {
+  return messages.flatMap((m) => {
+    const path = m.context[kind];
+    return typeof path === "string" && path.startsWith(`${tenantId}/`) ? [path] : [];
+  });
 }
 
 /** A ready answer the team keeps in `support_saved_replies`. */

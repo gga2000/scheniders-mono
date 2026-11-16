@@ -92,3 +92,21 @@ export function useSupportShot() {
         },
     });
 }
+
+/** Uploads a recorded voice note; answers its stored path. */
+export function useSupportVoice() {
+    return useMutation<string, Error, Blob>({
+        mutationFn: async (recording) => {
+            const reply = await readApiJson<ApiReply<{ path: string }>>(
+                await authedFetch("/api/support/voice", {
+                    method: "POST",
+                    // The server reads the kind from the bytes; the label is only a hint.
+                    headers: { "Content-Type": recording.type.split(";")[0] || "audio/webm" },
+                    body: recording,
+                }),
+            );
+            if (!reply.success) throw new SupportRequestError(reply.error ?? "failed");
+            return reply.data.path;
+        },
+    });
+}

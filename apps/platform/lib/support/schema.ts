@@ -14,6 +14,15 @@ export const SUPPORT_SHOT_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 /** Same as the bucket's own limit. */
 export const SUPPORT_SHOT_MAX_BYTES = 1_572_864;
 
+/** Private bucket for voice notes (service role only). */
+export const SUPPORT_VOICE_BUCKET = "support-voice";
+/** A stored voice note: `<tenant_id>/<uuid>.<webm|m4a|ogg>`. */
+export const SUPPORT_VOICE_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webm|m4a|ogg)$/;
+/** Same as the bucket's own limit: 2 minutes at 64 kbit/s fit with room. */
+export const SUPPORT_VOICE_MAX_BYTES = 2_097_152;
+/** The recorder stops itself here. */
+export const SUPPORT_VOICE_MAX_SECONDS = 120;
+
 /** What the merchant was looking at when they wrote. Staff see it under the message. */
 export const supportContextSchema = z.object({
     /** Page path in the app, without the query string. */
@@ -32,6 +41,8 @@ export const supportContextSchema = z.object({
     userAgent: z.string().max(300).optional(),
     /** A picture of the screen the merchant attached (stored path). */
     screenshot: z.string().regex(SUPPORT_SHOT_PATH).optional(),
+    /** A voice note the merchant recorded (stored path). */
+    voice: z.string().regex(SUPPORT_VOICE_PATH).optional(),
 });
 
 export type SupportContext = z.infer<typeof supportContextSchema>;
@@ -68,6 +79,8 @@ export interface SupportMessage {
     created_at: string;
     /** A short-lived link to the picture of the screen sent with it, if any. */
     screenshot_url: string | null;
+    /** A short-lived link to the voice note sent with it, if any. */
+    voice_url: string | null;
 }
 
 export interface SupportThread {
