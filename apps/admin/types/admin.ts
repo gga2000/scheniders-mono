@@ -196,7 +196,8 @@ export type AdminAction =
   | "link_prime"
   | "handle_support"
   | "pause_whatsapp"
-  | "check_payments";
+  | "check_payments"
+  | "manage_demo_store";
 
 // Merchant table column definitions
 export type MerchantColumnId =

@@ -1,0 +1,1341 @@
+{
+  "schema_version": 2,
+  "brand_kit": {
+    "colors": {
+      "primary": "#ff6a2b",
+      "secondary": "#405cff",
+      "accent": "#ff9f1c",
+      "surface": "#0a0c12",
+      "surface_alt": "#151925",
+      "ink": "#f3f4f8",
+      "success": "#3ecf8e",
+      "danger": "#ff5a5a"
+    },
+    "typography": {
+      "display": "Space Grotesk",
+      "body": "Manrope",
+      "display_ar": "Alexandria",
+      "body_ar": "Cairo",
+      "scale": "comfortable"
+    },
+    "shape": {
+      "radius": "pill",
+      "border_thickness": "none",
+      "shadow_style": "elevated",
+      "rotation_intensity": "none"
+    },
+    "motion": {
+      "enabled": true,
+      "speed": "snappy"
+    },
+    "voice": {
+      "formality": "casual"
+    },
+    "identity": {
+      "name": "متجر مثال"
+    }
+  },
+  "pages": [
+    {
+      "page_id": "home",
+      "sections": [
+        {
+          "id": "e6aaf58f-8a59-4cf1-891f-58a81d42e91d",
+          "type": "announcement_bar",
+          "enabled": true,
+          "base": {
+            "messages_i18n": [
+              {
+                "ar": "تجرّب قبل ما تدفع",
+                "en": "Try before you pay"
+              },
+              {
+                "ar": "مقاسات بالسنتيمتر",
+                "en": "Sizes in cm"
+              },
+              {
+                "ar": "الدفع عند الاستلام",
+                "en": "Cash on delivery"
+              },
+              {
+                "ar": "توصيل لكل المحافظات",
+                "en": "Delivery everywhere"
+              }
+            ],
+            "bg": "butter",
+            "speed": "normal"
+          }
+        },
+        {
+          "id": "a52290bc-c7fd-4d91-b439-79346a4fbd91",
+          "type": "hero_image",
+          "enabled": true,
+          "base": {
+            "title_i18n": {
+              "ar": "لبس يشبهك",
+              "en": "Clothes that look like you"
+            },
+            "subtitle_i18n": {
+              "ar": "قطع مختارة بمقاسات واضحة، تجرّبها عند المندوب وتدفع إذا عجبتك.",
+              "en": "Chosen pieces with clear sizing — try them with the courier and pay only if they fit."
+            },
+            "cta_label_i18n": {
+              "ar": "شوف الجديد",
+              "en": "See what's new"
+            },
+            "cta_href": "/products",
+            "secondary_cta_kind": "whatsapp",
+            "secondary_cta_value": "",
+            "secondary_cta_label_i18n": {
+              "en": "Order on WhatsApp",
+              "ar": "اطلب عبر واتساب"
+            },
+            "eyebrow_i18n": {
+              "ar": "متجر مثال"
+            }
+          }
+        },
+        {
+          "id": "5e4b3ebf-2a01-43d0-bba8-1c1c540ce281",
+          "type": "marquee_strip",
+          "enabled": true,
+          "base": {
+            "messages_i18n": [
+              {
+                "ar": "تجرّب قبل ما تدفع",
+                "en": "Try before you pay"
+              },
+              {
+                "ar": "مقاسات بالسنتيمتر",
+                "en": "Sizes in cm"
+              },
+              {
+                "ar": "الدفع عند الاستلام",
+                "en": "Cash on delivery"
+              },
+              {
+                "ar": "توصيل لكل المحافظات",
+                "en": "Delivery everywhere"
+              }
+            ],
+            "bg": "butter",
+            "speed": "normal"
+          }
+        },
+        {
+          "id": "2c766e32-31b3-4bbb-b867-149c998f2bbe",
+          "type": "category_grid",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Shop by category",
+              "ar": "تسوّق حسب الفئة"
+            },
+            "mode": "auto",
+            "manual_category_ids": [],
+            "columns": 3,
+            "limit": 12
+          }
+        },
+        {
+          "id": "c02e0979-b84c-4362-a265-02e006a486f0",
+          "type": "product_grid",
+          "enabled": true,
+          "base": {
+            "mode": "auto",
+            "query": {
+              "sort": "newest",
+              "limit": 8
+            },
+            "manual_product_ids": [],
+            "pinned_product_ids": [],
+            "heading_i18n": {
+              "ar": "أكثر القطع مبيعاً",
+              "en": "Our best-selling pieces"
+            },
+            "enable_filters": false,
+            "scribble_color": "butter",
+            "card_style": "standard",
+            "eyebrow_i18n": {
+              "ar": "الأكثر مبيعاً",
+              "en": "Best sellers"
+            },
+            "subheading_i18n": {
+              "ar": "اللي طلبوه زبائننا أكثر شي",
+              "en": "What our customers ordered most"
+            }
+          }
+        },
+        {
+          "id": "452a297b-41da-4738-9acd-b0cb11d9e2bc",
+          "type": "delivery_promise",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Delivery promise",
+              "ar": "وعد التوصيل"
+            },
+            "baghdad_hours": 6,
+            "provinces_hours": 48,
+            "governorates_covered": [
+              "Baghdad",
+              "Basra",
+              "Erbil",
+              "Sulaymaniyah",
+              "Duhok",
+              "Najaf",
+              "Karbala",
+              "Babil",
+              "Anbar",
+              "Ninawa",
+              "Kirkuk",
+              "Diwaniyah",
+              "Wasit",
+              "Maysan",
+              "Dhi Qar",
+              "Muthanna",
+              "Saladin",
+              "Diyala"
+            ],
+            "inspection_text_i18n": {
+              "ar": "افتح الطلب وتأكد قبل ما تدفع",
+              "en": "Open and check your order before you pay"
+            }
+          }
+        },
+        {
+          "id": "0da857dc-aaf9-4bc2-abea-d3396fdaf3f9",
+          "type": "testimonials_carousel",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "What customers say",
+              "ar": "ماذا يقول الزبائن"
+            },
+            "items": []
+          }
+        },
+        {
+          "id": "b617e1d3-c066-4520-ad29-b57b3f463a92",
+          "type": "newsletter_inline",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Get the drops first",
+              "ar": "كن أول من يعرف"
+            },
+            "body_i18n": {
+              "en": "Subscribe for restocks and first-look launches.",
+              "ar": "اشترك ليصلك كل جديد وإعادة التوفير."
+            },
+            "placeholder_i18n": {
+              "en": "you@email.com",
+              "ar": "بريدك الإلكتروني"
+            },
+            "cta_label_i18n": {
+              "en": "Sign me up",
+              "ar": "اشترك"
+            },
+            "bg": "butter"
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "category",
+      "sections": [
+        {
+          "id": "f198c5cc-1f13-441b-9a45-26316ad72ac8",
+          "type": "promo_banner",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Mid-season sale — 30% off",
+              "ar": "تخفيض منتصف الموسم — 30٪"
+            },
+            "body_i18n": {
+              "en": "Site-wide. No code needed. Cash on delivery as always.",
+              "ar": "خصم على كل الموقع. لا حاجة لكود. الدفع عند الاستلام كالعادة."
+            },
+            "cta_label_i18n": {
+              "en": "Shop the sale",
+              "ar": "تسوّق التخفيض"
+            },
+            "cta_href": "/products?sort=sale",
+            "bg": "pink"
+          }
+        },
+        {
+          "id": "ceb243d6-68fb-4db1-81f8-fd20b7eabc86",
+          "type": "category_grid",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Shop by category",
+              "ar": "تسوّق حسب الفئة"
+            },
+            "mode": "auto",
+            "manual_category_ids": [],
+            "columns": 3,
+            "limit": 12
+          }
+        },
+        {
+          "id": "ba428e04-dd54-4c6a-bb0d-2c66ddac0969",
+          "type": "product_grid",
+          "enabled": true,
+          "base": {
+            "mode": "auto",
+            "query": {
+              "sort": "newest",
+              "limit": 8
+            },
+            "manual_product_ids": [],
+            "pinned_product_ids": [],
+            "heading_i18n": {
+              "en": "Just dropped",
+              "ar": "وصل حديثاً"
+            },
+            "enable_filters": false,
+            "scribble_color": "butter",
+            "card_style": "standard"
+          }
+        },
+        {
+          "id": "16e8f156-9501-4da7-bc86-34ad9983e060",
+          "type": "trust_strip",
+          "enabled": true,
+          "base": {
+            "pills": [
+              {
+                "label_i18n": {
+                  "ar": "تجرّب قبل ما تدفع",
+                  "en": "Try before you pay"
+                },
+                "icon": "payments",
+                "bg": "mint"
+              },
+              {
+                "label_i18n": {
+                  "ar": "مقاسات بالسنتيمتر",
+                  "en": "Sizes in cm"
+                },
+                "icon": "local_shipping",
+                "bg": "butter"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery"
+                },
+                "icon": "verified"
+              },
+              {
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery everywhere"
+                },
+                "icon": "chat"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "product",
+      "sections": [
+        {
+          "id": "94acb830-81d7-4793-a19d-6ad1de7dccd8",
+          "type": "pdp_gallery",
+          "enabled": true,
+          "base": {
+            "layout": "stacked",
+            "show_zoom": true,
+            "show_thumbnails": true,
+            "aspect": "square",
+            "low_stock_threshold": 5
+          }
+        },
+        {
+          "id": "525cd857-7fc0-47ae-8a7a-44344a4b1ada",
+          "type": "pdp_variants",
+          "enabled": true,
+          "base": {
+            "layout": "buttons",
+            "show_oos": true
+          }
+        },
+        {
+          "id": "e5b8effc-2a08-4c4f-813f-5dc6c6da2028",
+          "type": "pdp_buy_box",
+          "enabled": true,
+          "base": {
+            "add_to_cart_label_i18n": {
+              "en": "Add to cart",
+              "ar": "أضف إلى السلة"
+            },
+            "cod_badge_label_i18n": {
+              "en": "Cash on delivery",
+              "ar": "الدفع عند الاستلام"
+            },
+            "show_compare_price": true,
+            "show_variant_picker": true,
+            "show_qty_stepper": true,
+            "show_cod_card": true,
+            "show_size_guide": true
+          }
+        },
+        {
+          "id": "b91e982e-2312-46c3-aa3b-47d34a50a375",
+          "type": "trust_strip",
+          "enabled": true,
+          "base": {
+            "pills": [
+              {
+                "label_i18n": {
+                  "ar": "تجرّب قبل ما تدفع",
+                  "en": "Try before you pay"
+                },
+                "icon": "payments",
+                "bg": "mint"
+              },
+              {
+                "label_i18n": {
+                  "ar": "مقاسات بالسنتيمتر",
+                  "en": "Sizes in cm"
+                },
+                "icon": "local_shipping",
+                "bg": "butter"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery"
+                },
+                "icon": "verified"
+              },
+              {
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery everywhere"
+                },
+                "icon": "chat"
+              }
+            ]
+          }
+        },
+        {
+          "id": "720239f0-1cac-41ce-9954-b557f330df7e",
+          "type": "delivery_promise",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Delivery promise",
+              "ar": "وعد التوصيل"
+            },
+            "baghdad_hours": 6,
+            "provinces_hours": 48,
+            "governorates_covered": [
+              "Baghdad",
+              "Basra",
+              "Erbil",
+              "Sulaymaniyah",
+              "Duhok",
+              "Najaf",
+              "Karbala",
+              "Babil",
+              "Anbar",
+              "Ninawa",
+              "Kirkuk",
+              "Diwaniyah",
+              "Wasit",
+              "Maysan",
+              "Dhi Qar",
+              "Muthanna",
+              "Saladin",
+              "Diyala"
+            ],
+            "inspection_text_i18n": {
+              "ar": "افتح الطلب وتأكد قبل ما تدفع",
+              "en": "Open and check your order before you pay"
+            }
+          }
+        },
+        {
+          "id": "16ce8dc5-abdc-4f92-ade3-82f381a381cc",
+          "type": "pdp_info_tabs",
+          "enabled": true,
+          "base": {
+            "tabs": [
+              {
+                "key": "description",
+                "label_i18n": {
+                  "en": "Description",
+                  "ar": "الوصف"
+                }
+              },
+              {
+                "key": "specs",
+                "label_i18n": {
+                  "en": "Specs",
+                  "ar": "المواصفات"
+                },
+                "body_i18n": {
+                  "en": "Material, dimensions, and care details.",
+                  "ar": "تفاصيل المواد والأبعاد والعناية."
+                }
+              },
+              {
+                "key": "shipping",
+                "label_i18n": {
+                  "en": "Shipping",
+                  "ar": "الشحن"
+                },
+                "body_i18n": {
+                  "en": "Same-day Baghdad. 1–3 days for other governorates.",
+                  "ar": "نفس اليوم في بغداد، 1-3 أيام للمحافظات الأخرى."
+                }
+              },
+              {
+                "key": "returns",
+                "label_i18n": {
+                  "en": "Returns",
+                  "ar": "الإرجاع"
+                },
+                "body_i18n": {
+                  "en": "14-day free returns on unopened items.",
+                  "ar": "إرجاع مجاني خلال 14 يوماً للمنتجات غير المفتوحة."
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "9245fea6-1f84-494e-9ed6-03d9b782fcec",
+          "type": "product_reviews",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Customer reviews",
+              "ar": "آراء العملاء"
+            },
+            "show_form": true
+          }
+        },
+        {
+          "id": "56a35448-b09a-4a98-aa43-44595b28f514",
+          "type": "pdp_related_products",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "You might also like",
+              "ar": "قد يعجبك أيضاً"
+            },
+            "layout": "carousel",
+            "limit": 8
+          }
+        },
+        {
+          "id": "eb20b945-cdea-43e2-b867-d776946a06e3",
+          "type": "sticky_cta_bar",
+          "enabled": true,
+          "base": {
+            "primary_label_i18n": {
+              "en": "Continue",
+              "ar": "متابعة"
+            },
+            "primary_href": "/checkout",
+            "secondary_label_i18n": {
+              "en": "Chat",
+              "ar": "تواصل"
+            },
+            "secondary_kind": "whatsapp",
+            "show_total": false,
+            "show_product_price": false
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "search",
+      "sections": [
+        {
+          "id": "bcdc03ea-e6bb-4769-b276-5f299853384d",
+          "type": "search_results_grid",
+          "enabled": true,
+          "base": {
+            "empty_state_message_i18n": {
+              "en": "No products matched your search.",
+              "ar": "لا توجد منتجات تطابق بحثك."
+            },
+            "cols_mobile": 2,
+            "cols_desktop": 4
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "cart",
+      "sections": [
+        {
+          "id": "2f9a0766-fc71-4581-851c-4f4b570b827a",
+          "type": "cart_line_items",
+          "enabled": true,
+          "base": {
+            "show_thumbnails": true,
+            "empty_state_message_i18n": {
+              "en": "Your cart is empty — keep shopping.",
+              "ar": "سلتك فارغة — تابع التسوّق."
+            }
+          }
+        },
+        {
+          "id": "d07b6047-757a-4388-bfd2-1e241ffe6738",
+          "type": "cart_summary",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Order summary",
+              "ar": "ملخّص الطلب"
+            },
+            "checkout_label_i18n": {
+              "en": "Continue to checkout",
+              "ar": "متابعة الدفع"
+            },
+            "show_promo_input": false
+          }
+        },
+        {
+          "id": "ee70a58f-9a98-48fe-9605-a2ecad00dac3",
+          "type": "trust_strip",
+          "enabled": true,
+          "base": {
+            "pills": [
+              {
+                "label_i18n": {
+                  "ar": "تجرّب قبل ما تدفع",
+                  "en": "Try before you pay"
+                },
+                "icon": "payments",
+                "bg": "mint"
+              },
+              {
+                "label_i18n": {
+                  "ar": "مقاسات بالسنتيمتر",
+                  "en": "Sizes in cm"
+                },
+                "icon": "local_shipping",
+                "bg": "butter"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery"
+                },
+                "icon": "verified"
+              },
+              {
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery everywhere"
+                },
+                "icon": "chat"
+              }
+            ]
+          }
+        },
+        {
+          "id": "eb7ceec6-425e-4696-a209-b30e73f29190",
+          "type": "sticky_cta_bar",
+          "enabled": true,
+          "base": {
+            "primary_label_i18n": {
+              "en": "Continue",
+              "ar": "متابعة"
+            },
+            "primary_href": "/checkout",
+            "secondary_label_i18n": {
+              "en": "Chat",
+              "ar": "تواصل"
+            },
+            "secondary_kind": "whatsapp",
+            "show_total": false,
+            "show_product_price": false
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "checkout",
+      "sections": [
+        {
+          "id": "8bf29688-8d74-4545-8a50-4c9a78661071",
+          "type": "checkout_form",
+          "enabled": true,
+          "base": {
+            "require_email": false,
+            "require_notes": false,
+            "payment_methods": [
+              "cod"
+            ],
+            "reassurance_text_i18n": {
+              "en": "Free inspection on delivery — pay only if you're happy.",
+              "ar": "فحص مجاني عند الاستلام — لا تدفع إلا إذا أعجبتك القطعة."
+            },
+            "call_promise_i18n": {
+              "en": "We'll call to confirm your order",
+              "ar": "سنتصل بك لتأكيد الطلب"
+            },
+            "call_promise_note_i18n": {
+              "en": "No upfront payment needed.",
+              "ar": "لا حاجة لأي دفع مسبق."
+            },
+            "trust_pills": [
+              {
+                "label_i18n": {
+                  "en": "Secure order",
+                  "ar": "طلب آمن"
+                },
+                "icon": "verified_user"
+              },
+              {
+                "label_i18n": {
+                  "en": "Verified seller",
+                  "ar": "بائع موثّق"
+                },
+                "icon": "storefront"
+              }
+            ]
+          }
+        },
+        {
+          "id": "e3bafed9-3d98-4da5-a001-5fbeaf22dab2",
+          "type": "checkout_order_summary",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Order summary",
+              "ar": "ملخّص الطلب"
+            },
+            "cod_note_i18n": {
+              "en": "Cash on delivery — pay only after inspection.",
+              "ar": "الدفع عند الاستلام — لا تدفع إلا بعد فحص الطلب."
+            },
+            "sticky": true,
+            "show_thumbnails": true
+          }
+        },
+        {
+          "id": "63768809-2658-47f8-b177-f32d78bc07aa",
+          "type": "trust_strip",
+          "enabled": true,
+          "base": {
+            "pills": [
+              {
+                "label_i18n": {
+                  "ar": "تجرّب قبل ما تدفع",
+                  "en": "Try before you pay"
+                },
+                "icon": "payments",
+                "bg": "mint"
+              },
+              {
+                "label_i18n": {
+                  "ar": "مقاسات بالسنتيمتر",
+                  "en": "Sizes in cm"
+                },
+                "icon": "local_shipping",
+                "bg": "butter"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الدفع عند الاستلام",
+                  "en": "Cash on delivery"
+                },
+                "icon": "verified"
+              },
+              {
+                "label_i18n": {
+                  "ar": "توصيل لكل المحافظات",
+                  "en": "Delivery everywhere"
+                },
+                "icon": "chat"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "checkout_success",
+      "sections": [
+        {
+          "id": "ecaf152a-a0f6-4487-8c1a-c3b9172b8b4c",
+          "type": "order_confirmation",
+          "enabled": true,
+          "base": {
+            "eyebrow_i18n": {
+              "ar": "تم استلام طلبك",
+              "en": "Order received"
+            },
+            "heading_i18n": {
+              "ar": "شكراً لك على طلبك",
+              "en": "Thank you for your order"
+            },
+            "heading_named_i18n": {
+              "ar": "شكراً {name}",
+              "en": "Thanks, {name}"
+            },
+            "call_promise_i18n": {
+              "ar": "سنتصل بك لتأكيد الطلب والعنوان قبل الشحن.",
+              "en": "We'll call you to confirm your order and address before shipping."
+            },
+            "order_label_i18n": {
+              "ar": "رقم الطلب",
+              "en": "Order number"
+            },
+            "copy_label_i18n": {
+              "ar": "نسخ",
+              "en": "Copy"
+            },
+            "copied_label_i18n": {
+              "ar": "تم النسخ",
+              "en": "Copied"
+            },
+            "steps_heading_i18n": {
+              "ar": "ماذا يحدث الآن؟",
+              "en": "What happens next"
+            },
+            "steps": [
+              {
+                "title_i18n": {
+                  "ar": "نتصل بك للتأكيد",
+                  "en": "We call to confirm"
+                },
+                "body_i18n": {
+                  "ar": "نراجع معك الطلب والعنوان.",
+                  "en": "We double-check your order and address with you."
+                }
+              },
+              {
+                "title_i18n": {
+                  "ar": "نجهّز طلبك",
+                  "en": "We prepare your order"
+                },
+                "body_i18n": {
+                  "ar": "يُغلّف طلبك بعناية ويُسلّم للمندوب.",
+                  "en": "Your order is packed with care and handed to the courier."
+                }
+              },
+              {
+                "title_i18n": {
+                  "ar": "تستلم وتدفع عند الباب",
+                  "en": "You receive and pay at the door"
+                },
+                "body_i18n": {
+                  "ar": "افحص طلبك ثم ادفع للمندوب نقداً.",
+                  "en": "Check your order, then pay the courier in cash."
+                }
+              }
+            ],
+            "eta_label_i18n": {
+              "ar": "موعد التوصيل المتوقع",
+              "en": "Estimated delivery"
+            },
+            "whatsapp_label_i18n": {
+              "ar": "تواصل معنا عبر واتساب",
+              "en": "Message us on WhatsApp"
+            },
+            "whatsapp_message_i18n": {
+              "ar": "مرحباً! عندي استفسار عن طلبي رقم {order}",
+              "en": "Hi! I have a question about my order {order}"
+            },
+            "track_label_i18n": {
+              "ar": "تتبّع طلبك",
+              "en": "Track your order"
+            },
+            "continue_label_i18n": {
+              "ar": "متابعة التسوّق",
+              "en": "Continue shopping"
+            },
+            "referral_heading_i18n": {
+              "ar": "عندك رمز تشاركه",
+              "en": "You have a code to share"
+            },
+            "referral_body_i18n": {
+              "ar": "دز الرمز لصديق: ياخذ {discount} خصم على أول طلب، وانت تاخذ {points} لما يوصله الطلب.",
+              "en": "Send it to a friend: they get {discount} off their first order, and you get {points} when it is delivered."
+            },
+            "referral_share_label_i18n": {
+              "ar": "شارك على واتساب",
+              "en": "Share on WhatsApp"
+            },
+            "referral_share_message_i18n": {
+              "ar": "اطلب من {store} واستخدم رمزي {code} حتى تاخذ {discount} خصم على أول طلب: {link}",
+              "en": "Order from {store} with my code {code} for {discount} off your first order: {link}"
+            },
+            "recap_heading_i18n": {
+              "ar": "ملخّص طلبك",
+              "en": "Your order"
+            },
+            "total_label_i18n": {
+              "ar": "المجموع",
+              "en": "Total"
+            },
+            "show_order_recap": true
+          }
+        },
+        {
+          "id": "b719b0df-602c-478b-b290-8cf2855ae57c",
+          "type": "product_grid",
+          "enabled": true,
+          "base": {
+            "mode": "auto",
+            "query": {
+              "sort": "newest",
+              "limit": 8
+            },
+            "manual_product_ids": [],
+            "pinned_product_ids": [],
+            "heading_i18n": {
+              "en": "Just dropped",
+              "ar": "وصل حديثاً"
+            },
+            "enable_filters": false,
+            "scribble_color": "butter",
+            "card_style": "standard"
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "track",
+      "sections": [
+        {
+          "id": "325a520d-d542-4652-8642-ea15a3c0b878",
+          "type": "order_tracker",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Track your order",
+              "ar": "تتبّع طلبك"
+            },
+            "lookup_method": "both",
+            "show_timeline": true
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "about",
+      "sections": [
+        {
+          "id": "ba097b79-ee7c-4162-be6c-62064110ad1d",
+          "type": "brand_story",
+          "enabled": true,
+          "base": {
+            "eyebrow_i18n": {
+              "en": "Since 2024",
+              "ar": "منذ 2024"
+            },
+            "title_i18n": {
+              "ar": "منو احنا؟",
+              "en": "Who we are"
+            },
+            "paragraphs_i18n": {
+              "ar": "متجر ملابس عراقي. نصوّر كل قطعة بأنفسنا ونكتب مقاساتها بالسنتيمتر حتى توصلك مثل ما توقعتها.",
+              "en": "An Iraqi clothing store. We photograph every piece ourselves and list its measurements in centimetres so it arrives as you expected."
+            },
+            "link_label_i18n": {
+              "en": "Read the full story",
+              "ar": "اقرأ القصة كاملةً"
+            },
+            "link_href": "/about"
+          }
+        },
+        {
+          "id": "dd50c866-90fa-44f6-977d-7aadc3f0dbf4",
+          "type": "numbers_stat_strip",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "By the numbers",
+              "ar": "بالأرقام"
+            },
+            "bg": "butter",
+            "items": []
+          }
+        },
+        {
+          "id": "c66e71cf-1133-4fff-ae06-a39b292f5cad",
+          "type": "founder_note",
+          "enabled": true,
+          "base": {
+            "quote_i18n": {
+              "ar": "إذا المقاس مو مضبوط، ما تدفع. بهذي البساطة.",
+              "en": "If the size is not right, you do not pay. That simple."
+            },
+            "founder_name_i18n": {
+              "en": "",
+              "ar": ""
+            },
+            "founder_role_i18n": {
+              "ar": "المؤسِّس",
+              "en": "Founder"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "faq",
+      "sections": [
+        {
+          "id": "020c379c-e6b8-4f27-9f6a-34561c54fd96",
+          "type": "faq_accordion",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Frequently asked",
+              "ar": "الأسئلة الشائعة"
+            },
+            "items": [
+              {
+                "q_i18n": {
+                  "ar": "شلون أختار المقاس؟",
+                  "en": "How do I choose my size?"
+                },
+                "a_i18n": {
+                  "ar": "كل قطعة عليها جدول بالسنتيمتر. قيس قطعة عندك تناسبك وقارن.",
+                  "en": "Every piece has a chart in centimetres. Measure a piece you own that fits and compare."
+                }
+              },
+              {
+                "q_i18n": {
+                  "ar": "أكدر أبدّل المقاس؟",
+                  "en": "Can I exchange the size?"
+                },
+                "a_i18n": {
+                  "ar": "نعم خلال ٣ أيام إذا القطعة بحالتها، والمندوب يجيب البديل.",
+                  "en": "Yes, within 3 days if the piece is unworn — the courier brings the replacement."
+                }
+              },
+              {
+                "q_i18n": {
+                  "ar": "أكدر أدفع عند الاستلام؟",
+                  "en": "Can I pay on delivery?"
+                },
+                "a_i18n": {
+                  "ar": "نعم — تدفع كاش للمندوب بعد ما تفتح الطلب وتتأكد منه.",
+                  "en": "Yes — you pay the courier in cash after opening and checking the order."
+                }
+              },
+              {
+                "q_i18n": {
+                  "ar": "كيف ألغي طلبي؟",
+                  "en": "How do I cancel an order?"
+                },
+                "a_i18n": {
+                  "ar": "تكدر تلغي خلال أول ١٢ ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
+                  "en": "You can cancel within the first 12 hours over WhatsApp. After that the order has usually shipped."
+                }
+              },
+              {
+                "q_i18n": {
+                  "ar": "متى يوصل طلبي؟",
+                  "en": "When will my order arrive?"
+                },
+                "a_i18n": {
+                  "ar": "بغداد عادة خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب.",
+                  "en": "Baghdad usually within a day; other governorates within 1–3 days of confirmation."
+                }
+              },
+              {
+                "q_i18n": {
+                  "ar": "شلون أتابع طلبي؟",
+                  "en": "How do I track my order?"
+                },
+                "a_i18n": {
+                  "ar": "من صفحة تتبع الطلب برقم هاتفك ورقم الطلب، أو راسلنا على واتساب.",
+                  "en": "From the order-tracking page with your phone and order number, or message us on WhatsApp."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "contact",
+      "sections": []
+    },
+    {
+      "page_id": "policy_shipping",
+      "sections": [
+        {
+          "id": "5ce63cf9-2c6e-4ba8-84a2-587bb7a8fb24",
+          "type": "policy_content",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Our policy",
+              "ar": "سياستنا"
+            },
+            "eyebrow_i18n": {
+              "en": "Policies",
+              "ar": "السياسات"
+            },
+            "body_md_i18n": {
+              "en": "## Overview\n\nWe deliver across Iraq with cash on delivery and a free inspection on arrival.\n\n## What's included\n\n- Free inspection on delivery\n- Same-day Baghdad shipping\n- **14-day returns** on unopened items\n- Cash on delivery across every governorate\n\n## How to contact us\n\nReach out on WhatsApp or via the contact page — we reply within one business day.",
+              "ar": "## نظرة عامة\n\nنوصّل في كل العراق بنظام الدفع عند الاستلام مع فحص مجاني عند الوصول.\n\n## ماذا يشمل ذلك\n\n- فحص مجاني عند التسليم\n- شحن بنفس اليوم داخل بغداد\n- **إرجاع خلال 14 يوماً** للمنتجات غير المفتوحة\n- الدفع عند الاستلام في كل المحافظات\n\n## كيف تتواصل معنا\n\nنحن متواجدون عبر واتساب أو صفحة التواصل — نردّ خلال يوم عمل واحد."
+            },
+            "last_updated_label_i18n": {
+              "en": "Last updated",
+              "ar": "آخر تحديث"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "policy_returns",
+      "sections": [
+        {
+          "id": "3d1cab72-48f7-4209-b088-0c5a7b61490e",
+          "type": "policy_content",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Our policy",
+              "ar": "سياستنا"
+            },
+            "eyebrow_i18n": {
+              "en": "Policies",
+              "ar": "السياسات"
+            },
+            "body_md_i18n": {
+              "en": "## Overview\n\nWe deliver across Iraq with cash on delivery and a free inspection on arrival.\n\n## What's included\n\n- Free inspection on delivery\n- Same-day Baghdad shipping\n- **14-day returns** on unopened items\n- Cash on delivery across every governorate\n\n## How to contact us\n\nReach out on WhatsApp or via the contact page — we reply within one business day.",
+              "ar": "## نظرة عامة\n\nنوصّل في كل العراق بنظام الدفع عند الاستلام مع فحص مجاني عند الوصول.\n\n## ماذا يشمل ذلك\n\n- فحص مجاني عند التسليم\n- شحن بنفس اليوم داخل بغداد\n- **إرجاع خلال 14 يوماً** للمنتجات غير المفتوحة\n- الدفع عند الاستلام في كل المحافظات\n\n## كيف تتواصل معنا\n\nنحن متواجدون عبر واتساب أو صفحة التواصل — نردّ خلال يوم عمل واحد."
+            },
+            "last_updated_label_i18n": {
+              "en": "Last updated",
+              "ar": "آخر تحديث"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "policy_privacy",
+      "sections": [
+        {
+          "id": "cbd4c4db-0d29-47f8-8817-fb30a0285431",
+          "type": "policy_content",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Our policy",
+              "ar": "سياستنا"
+            },
+            "eyebrow_i18n": {
+              "en": "Policies",
+              "ar": "السياسات"
+            },
+            "body_md_i18n": {
+              "en": "## Overview\n\nWe deliver across Iraq with cash on delivery and a free inspection on arrival.\n\n## What's included\n\n- Free inspection on delivery\n- Same-day Baghdad shipping\n- **14-day returns** on unopened items\n- Cash on delivery across every governorate\n\n## How to contact us\n\nReach out on WhatsApp or via the contact page — we reply within one business day.",
+              "ar": "## نظرة عامة\n\nنوصّل في كل العراق بنظام الدفع عند الاستلام مع فحص مجاني عند الوصول.\n\n## ماذا يشمل ذلك\n\n- فحص مجاني عند التسليم\n- شحن بنفس اليوم داخل بغداد\n- **إرجاع خلال 14 يوماً** للمنتجات غير المفتوحة\n- الدفع عند الاستلام في كل المحافظات\n\n## كيف تتواصل معنا\n\nنحن متواجدون عبر واتساب أو صفحة التواصل — نردّ خلال يوم عمل واحد."
+            },
+            "last_updated_label_i18n": {
+              "en": "Last updated",
+              "ar": "آخر تحديث"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "policy_terms",
+      "sections": [
+        {
+          "id": "d49a83df-7d0a-4b9d-969c-cd51af51c3ef",
+          "type": "policy_content",
+          "enabled": true,
+          "base": {
+            "heading_i18n": {
+              "en": "Our policy",
+              "ar": "سياستنا"
+            },
+            "eyebrow_i18n": {
+              "en": "Policies",
+              "ar": "السياسات"
+            },
+            "body_md_i18n": {
+              "en": "## Overview\n\nWe deliver across Iraq with cash on delivery and a free inspection on arrival.\n\n## What's included\n\n- Free inspection on delivery\n- Same-day Baghdad shipping\n- **14-day returns** on unopened items\n- Cash on delivery across every governorate\n\n## How to contact us\n\nReach out on WhatsApp or via the contact page — we reply within one business day.",
+              "ar": "## نظرة عامة\n\nنوصّل في كل العراق بنظام الدفع عند الاستلام مع فحص مجاني عند الوصول.\n\n## ماذا يشمل ذلك\n\n- فحص مجاني عند التسليم\n- شحن بنفس اليوم داخل بغداد\n- **إرجاع خلال 14 يوماً** للمنتجات غير المفتوحة\n- الدفع عند الاستلام في كل المحافظات\n\n## كيف تتواصل معنا\n\nنحن متواجدون عبر واتساب أو صفحة التواصل — نردّ خلال يوم عمل واحد."
+            },
+            "last_updated_label_i18n": {
+              "en": "Last updated",
+              "ar": "آخر تحديث"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "page_id": "not_found",
+      "sections": []
+    }
+  ],
+  "globals": {
+    "header": {
+      "id": "a64dafcf-2b3d-46ab-ae1f-e9ed169d5dbf",
+      "type": "site_header",
+      "enabled": true,
+      "base": {
+        "wordmark_style": "pill",
+        "nav_links": [
+          {
+            "label_i18n": {
+              "ar": "الرئيسية",
+              "en": "Home"
+            },
+            "href": "/"
+          },
+          {
+            "label_i18n": {
+              "ar": "المنتجات",
+              "en": "Shop"
+            },
+            "href": "/products"
+          },
+          {
+            "label_i18n": {
+              "ar": "تتبّع الطلب",
+              "en": "Track order"
+            },
+            "href": "/track"
+          }
+        ],
+        "show_search": true,
+        "show_cart": true,
+        "sticky": true
+      }
+    },
+    "footer": {
+      "id": "e1e836a8-a6c3-4c93-a8cb-42fa168e93c3",
+      "type": "site_footer",
+      "enabled": true,
+      "base": {
+        "tagline_i18n": {
+          "ar": "لبس يشبهك، تجرّبه قبل ما تدفع",
+          "en": "Clothes that look like you, tried before you pay"
+        },
+        "columns": [
+          {
+            "heading_i18n": {
+              "ar": "تسوّق",
+              "en": "Shop"
+            },
+            "links": [
+              {
+                "label_i18n": {
+                  "ar": "كل المنتجات",
+                  "en": "All products"
+                },
+                "href": "/products"
+              },
+              {
+                "label_i18n": {
+                  "ar": "بحث",
+                  "en": "Search"
+                },
+                "href": "/search"
+              }
+            ]
+          },
+          {
+            "heading_i18n": {
+              "ar": "المساعدة",
+              "en": "Help"
+            },
+            "links": [
+              {
+                "label_i18n": {
+                  "ar": "تتبّع الطلب",
+                  "en": "Track order"
+                },
+                "href": "/track"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الأسئلة الشائعة",
+                  "en": "FAQ"
+                },
+                "href": "/faq"
+              },
+              {
+                "label_i18n": {
+                  "ar": "تواصل معنا",
+                  "en": "Contact"
+                },
+                "href": "/contact"
+              }
+            ]
+          },
+          {
+            "heading_i18n": {
+              "ar": "السياسات",
+              "en": "Policies"
+            },
+            "links": [
+              {
+                "label_i18n": {
+                  "ar": "الشحن والتوصيل",
+                  "en": "Shipping"
+                },
+                "href": "/policies/shipping"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الإرجاع والتبديل",
+                  "en": "Returns"
+                },
+                "href": "/policies/returns"
+              },
+              {
+                "label_i18n": {
+                  "ar": "الخصوصية",
+                  "en": "Privacy"
+                },
+                "href": "/policies/privacy"
+              },
+              {
+                "label_i18n": {
+                  "ar": "شروط الخدمة",
+                  "en": "Terms"
+                },
+                "href": "/policies/terms"
+              }
+            ]
+          }
+        ],
+        "show_cod_badge": true
+      }
+    }
+  },
+  "experiments": [],
+  "segments": [],
+  "schedules": [],
+  "default_locale": "ar",
+  "enabled_locales": [
+    "ar"
+  ],
+  "template": {
+    "direction_id": "kinetic_ink",
+    "pack_id": "fashion",
+    "version": 1,
+    "applied_at": "2026-11-16T08:11:28.577Z",
+    "source": "signup"
+  }
+}

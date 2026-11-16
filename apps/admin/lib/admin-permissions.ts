@@ -41,6 +41,10 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         once, under its own key, and every decision is in
  *                         the staff log. A top-up without a receipt stays
  *                         `top_up_wallet`, super admins only.
+ *   manage_demo_store   — create the demo store (Fermi B13), reset its data,
+ *                         and open it signed in as its owner. Super admins
+ *                         only: a reset wipes the store, and the open link
+ *                         is a sign-in.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -64,6 +68,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "handle_support",
     "pause_whatsapp",
     "check_payments",
+    "manage_demo_store",
   ]),
   support_staff: new Set([
     "extend_trial",

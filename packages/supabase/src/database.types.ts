@@ -9272,6 +9272,10 @@ export type Database = {
           reset_at: string
         }[]
       }
+      create_demo_store: {
+        Args: { _owner_email: string; _owner_id: string; _storefront: Json }
+        Returns: Json
+      }
       create_order_atomic: {
         Args: { _order_data: Json; _tenant_id?: string }
         Returns: Json
@@ -9941,6 +9945,10 @@ export type Database = {
           price: number
           status: string
         }[]
+      }
+      seed_demo_store: {
+        Args: { _owner_id: string; _storefront: Json; _tenant_id: string }
+        Returns: Json
       }
       seed_store_config_v2_draft: {
         Args: { p_config: Json; p_tenant_id: string }
