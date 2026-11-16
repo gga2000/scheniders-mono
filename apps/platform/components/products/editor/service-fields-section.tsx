@@ -23,13 +23,14 @@ export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSec
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-duration-hours" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.service.duration")}
                     </label>
                     <div className="flex gap-2">
                         <div className="flex-1">
                             <div className="relative">
                                 <input
+                                    id="product-duration-hours"
                                     type="number"
                                     value={hours || ""}
                                     onChange={(e) => {

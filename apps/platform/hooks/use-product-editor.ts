@@ -231,7 +231,8 @@ export interface BundleItemFormData {
     image_url?: string;
 }
 
-const DEFAULT_FORM_DATA: ProductEditorFormData = {
+/** The form a new product starts from. */
+export const DEFAULT_FORM_DATA: ProductEditorFormData = {
     name: "",
     short_name: "",
     description: "",
@@ -244,7 +245,9 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     stock_quantity: 0,
     low_stock_threshold: 5,
     reorder_point: null,
-    status: "draft",
+    // A new product is meant to sell, so it starts live (Fermi B11); the
+    // merchant can still pick Draft before saving.
+    status: "active",
     is_supply: false,
     is_filler: false,
     tag_color: "#22c55e",

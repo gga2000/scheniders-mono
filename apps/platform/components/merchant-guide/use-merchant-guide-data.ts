@@ -98,38 +98,60 @@ async function fetchProgress(tenantId: string, userId: string): Promise<GuidePro
     return data ? progressSchema.parse(data) : null;
 }
 
+/** A product a shopper can buy today, before stock: live, priced, with a photo. */
+function readyProductsQuery(columns: string) {
+    return supabase
+        .from("products")
+        .select(columns, { count: "exact" })
+        .eq("status", "active")
+        .eq("is_visible", true)
+        .eq("is_supply", false)
+        .gt("price", 0)
+        .not("image_url", "is", null)
+        .neq("image_url", "");
+}
+
+const readyProductSchema = z.object({
+    name: z.string(),
+    image_url: z.string().nullable(),
+    price: z.coerce.number(),
+    created_at: z.string(),
+});
+
 async function fetchShop(tenantId: string): Promise<GuideShopState> {
-    const [tenantRes, productsRes] = await Promise.all([
+    const [tenantRes, plainRes, sizedRes] = await Promise.all([
         supabase
             .from("tenants")
             .select("slug, store_config_v2, store_config_v2_draft")
             .eq("id", tenantId)
             .single(),
-        supabase
-            .from("products")
-            // The count says whether a ready product exists; the first one is
-            // drawn on the done card.
-            .select("name, image_url, price", { count: "exact" })
+        // The count says whether a ready product exists; the oldest one is
+        // drawn on the done card. A product with stock on its own row...
+        readyProductsQuery("name, image_url, price, created_at")
             .eq("tenant_id", tenantId)
-            .eq("status", "active")
-            .eq("is_visible", true)
-            .eq("is_supply", false)
-            .gt("price", 0)
             .gt("stock_quantity", 0)
-            .not("image_url", "is", null)
-            .neq("image_url", "")
+            .order("created_at", { ascending: true })
+            .limit(1),
+        // ...or one sold in sizes, whose stock is on its sizes only (B10):
+        // an enabled size with stock makes it ready.
+        readyProductsQuery("name, image_url, price, created_at, product_variants!inner(id)")
+            .eq("tenant_id", tenantId)
+            .gt("product_variants.stock_quantity", 0)
+            .or("is_enabled.is.null,is_enabled.eq.true", { referencedTable: "product_variants" })
             .order("created_at", { ascending: true })
             .limit(1),
     ]);
     if (tenantRes.error) throw tenantRes.error;
-    if (productsRes.error) throw productsRes.error;
+    if (plainRes.error) throw plainRes.error;
+    if (sizedRes.error) throw sizedRes.error;
     const tenant = tenantRes.data as {
         slug: string;
         store_config_v2: StoreConfigV2 | null;
         store_config_v2_draft: StoreConfigV2 | null;
     };
     const working = tenant.store_config_v2_draft ?? tenant.store_config_v2;
-    const first = productsRes.data?.[0];
+    const first = [...z.array(readyProductSchema).parse(plainRes.data ?? []), ...z.array(readyProductSchema).parse(sizedRes.data ?? [])]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
     return {
         slug: tenant.slug,
         working,
@@ -137,7 +159,7 @@ async function fetchShop(tenantId: string): Promise<GuideShopState> {
         status: foundationStatus({
             working,
             published: tenant.store_config_v2,
-            readyProducts: productsRes.count ?? 0,
+            readyProducts: (plainRes.count ?? 0) + (sizedRes.count ?? 0),
         }),
     };
 }

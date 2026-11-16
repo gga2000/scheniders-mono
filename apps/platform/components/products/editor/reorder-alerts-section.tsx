@@ -27,10 +27,11 @@ export function ReorderAlertsSection({ formData, updateField }: ReorderAlertsSec
 
             {/* Reorder point input */}
             <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label htmlFor="product-reorder-point" className="block text-sm font-medium text-foreground mb-2">
                     {t("products.ed.reorder.point")}
                 </label>
                 <input
+                    id="product-reorder-point"
                     type="number"
                     value={reorderPoint ?? ""}
                     onChange={(e) => {

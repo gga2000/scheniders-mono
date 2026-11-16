@@ -41,6 +41,8 @@ export interface CategoryComboboxProps {
     variant?: "trigger" | "anchored";
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    /** Id of the trigger button, so a field label can point at it. */
+    id?: string;
 }
 
 type ListRow =
@@ -93,6 +95,7 @@ export function CategoryCombobox({
     variant = "trigger",
     open: openProp,
     onOpenChange,
+    id,
 }: CategoryComboboxProps) {
     const { t } = useLanguage();
     const { data: categories = [], isLoading } = useCategoriesQuery();
@@ -413,6 +416,7 @@ export function CategoryCombobox({
         <div ref={rootRef} className={cn("relative", className)}>
             <button
                 ref={triggerRef}
+                id={id}
                 type="button"
                 onClick={() => setOpen(!open)}
                 className={cn(

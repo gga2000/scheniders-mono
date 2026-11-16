@@ -43,7 +43,7 @@ import { SectionNav } from "./section-nav";
 import { AutoSaveIndicator } from "./auto-save-indicator";
 import { useLanguage } from "@/hooks/use-language";
 import dynamic from "next/dynamic";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useGuideSetup } from "@/components/merchant-guide/guide-setup-store";
 
 // Collapsed-by-default sections: their code (jsbarcode, qrcode, batch and
@@ -81,25 +81,11 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
     const guideStep = useGuideSetup((s) => s.step);
     const setProductDraft = useGuideSetup((s) => s.setProductDraft);
     const guideFocus = mode === "create" && guideStep === "product" && !editor.formData.is_supply;
-    const { name: draftName, image_url: draftImage, price: draftPrice, stock_quantity: draftStock, status: draftStatus } = editor.formData;
+    const { name: draftName, image_url: draftImage, price: draftPrice, stock_quantity: draftStock } = editor.formData;
     useEffect(() => {
         setProductDraft(guideFocus ? { name: draftName, imageUrl: draftImage, price: draftPrice, stock: draftStock } : null);
     }, [guideFocus, draftName, draftImage, draftPrice, draftStock, setProductDraft]);
     useEffect(() => () => setProductDraft(null), [setProductDraft]);
-    // The first product is meant to sell, so it saves as active, not draft.
-    const { updateField } = editor;
-    const guideActivated = useRef(false);
-    // A remount resets the form to draft (the editor hook re-runs its reset),
-    // so the switch to active has to happen again after one.
-    useEffect(() => () => {
-        guideActivated.current = false;
-    }, []);
-    useEffect(() => {
-        if (!guideFocus || guideActivated.current || draftStatus !== "draft") return;
-        guideActivated.current = true;
-        updateField("status", "active");
-    }, [guideFocus, draftStatus, updateField]);
-
     return (
         <div className="min-h-screen bg-[var(--background)]">
             <ProductEditorHeader
