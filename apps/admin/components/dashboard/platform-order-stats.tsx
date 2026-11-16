@@ -66,9 +66,11 @@ export function PlatformOrderStats({ stats }: PlatformOrderStatsProps) {
             />
             <DeltaBadge deltaPct={stat.deltaPct} />
           </div>
-          <p className="text-[10px] text-foreground/40 mt-0.5">
-            prev: {new Intl.NumberFormat("en-IQ").format(stat.previousValue)}
-          </p>
+          {stat.previousLabel && (
+            <p className="text-[10px] text-foreground/40 mt-0.5">
+              {stat.previousLabel}: {new Intl.NumberFormat("en-IQ").format(stat.previousValue)}
+            </p>
+          )}
         </div>
       ))}
     </div>

@@ -4,18 +4,13 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Check, X, ListChecks, Filter } from "lucide-react";
 import type { TenantOnboarding } from "@/types/dashboard";
+import { ONBOARDING_STEPS } from "@/lib/onboarding-steps";
 
 interface OnboardingTrackerProps {
   tenants: TenantOnboarding[] | undefined;
 }
 
-const STEPS = [
-  { key: "has_orders", label: "Has Orders" },
-  { key: "team", label: "Team" },
-  { key: "branding", label: "Branding" },
-  { key: "storefront", label: "Storefront" },
-  { key: "wallet", label: "Wallet" },
-];
+const STEPS = ONBOARDING_STEPS;
 
 function Skeleton() {
   return (

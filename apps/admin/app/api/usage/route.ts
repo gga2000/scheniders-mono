@@ -1,90 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { addDays, dayOfWeek, daysEnding, fetchUsageStats } from "@/lib/console-stats";
 
 export const dynamic = "force-dynamic";
+
+const tenantIdSchema = z.string().uuid();
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = createAdminClient();
-  if (!supabase) {
-    return NextResponse.json({ error: "Not configured" }, { status: 500 });
+  const tenantParam = new URL(request.url).searchParams.get("tenant_id");
+  const tenantId = tenantParam ? tenantIdSchema.safeParse(tenantParam) : null;
+  if (tenantId && !tenantId.success) {
+    return NextResponse.json({ error: "tenant_id must be a UUID" }, { status: 400 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const tenantId = searchParams.get("tenant_id");
-
   try {
-    // Query orders for the last 365 days
-    let query = supabase
-      .from("orders")
-      .select("id, created_at, tenant_id")
-      .not("is_test", "is", true)
-      .gte("created_at", new Date(Date.now() - 365 * 86400000).toISOString())
-      .order("created_at", { ascending: true });
+    // Real orders per Baghdad day and hour, counted in the database. Fetching
+    // the rows stopped at the API's 1,000-row cap, so the page went blank from
+    // the 1,001st order of the year on.
+    const usage = await fetchUsageStats(createAdminClient(), tenantId?.data ?? null);
+    const countOn = (day: string) => usage.days[day] ?? 0;
 
-    if (tenantId) {
-      query = query.eq("tenant_id", tenantId);
-    }
+    const heatmapData = daysEnding(usage.today, 365).map((date) => ({ date, count: countOn(date) }));
 
-    const { data: orders, error } = await query;
-    if (error) throw error;
-
-    // --- Daily counts for heatmap (365 days) ---
-    const dailyCounts: Record<string, number> = {};
-    const hourlyCounts: number[] = new Array(24).fill(0);
-
-    (orders || []).forEach((order) => {
-      const d = new Date(order.created_at);
-      const dateKey = d.toISOString().split("T")[0];
-      dailyCounts[dateKey] = (dailyCounts[dateKey] || 0) + 1;
-      hourlyCounts[d.getHours()] += 1;
-    });
-
-    // Fill in missing days
-    const heatmapData: Array<{ date: string; count: number }> = [];
-    const today = new Date();
-    for (let i = 364; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().split("T")[0];
-      heatmapData.push({ date: key, count: dailyCounts[key] || 0 });
-    }
-
-    // --- Top busiest / quietest days ---
-    const sortedDays = [...heatmapData].filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
-    const busiestDays = sortedDays.slice(0, 10);
-    const quietestDays = sortedDays.length > 10
-      ? [...sortedDays].sort((a, b) => a.count - b.count).slice(0, 10)
+    const activeDays = heatmapData.filter((d) => d.count > 0);
+    const busiestDays = [...activeDays].sort((a, b) => b.count - a.count).slice(0, 10);
+    const quietestDays = activeDays.length > 10
+      ? [...activeDays].sort((a, b) => a.count - b.count).slice(0, 10)
       : [];
 
-    // --- Weekly trend ---
-    const weeklyTrend: Array<{ week: string; count: number }> = [];
-    for (let w = 51; w >= 0; w--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(weekStart.getDate() - w * 7 - weekStart.getDay());
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      const startKey = weekStart.toISOString().split("T")[0];
-      const endKey = weekEnd.toISOString().split("T")[0];
-      const count = heatmapData
-        .filter((d) => d.date >= startKey && d.date <= endKey)
-        .reduce((s, d) => s + d.count, 0);
-      weeklyTrend.push({ week: startKey, count });
-    }
-
-    // Total orders
-    const totalOrders = (orders || []).length;
+    // 52 weeks, Sunday to Saturday, ending with the week in progress.
+    const thisSunday = addDays(usage.today, -dayOfWeek(usage.today));
+    const weeklyTrend = Array.from({ length: 52 }, (_, i) => {
+      const week = addDays(thisSunday, (i - 51) * 7);
+      const count = daysEnding(addDays(week, 6), 7).reduce((sum, day) => sum + countOn(day), 0);
+      return { week, count };
+    });
 
     return NextResponse.json({
       heatmapData,
-      hourlyCounts,
+      hourlyCounts: usage.hours,
       busiestDays,
       quietestDays,
       weeklyTrend,
-      totalOrders,
+      totalOrders: usage.total,
     });
   } catch (error) {
     console.error("Usage API error:", error);
