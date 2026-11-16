@@ -74,7 +74,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
           {/* Avg LTV */}
           <div className="mb-4">
             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-1">
-              Average LTV
+              Average fees paid per shop, all time
             </p>
             <AnimatedCounter
               value={data.avgLTV}
@@ -125,7 +125,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
           {data.topMerchants.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
-                Top 5 by LTV
+                Top 5 by fees paid
               </p>
               <div className="space-y-1.5">
                 {data.topMerchants.slice(0, 5).map((m, idx) => (

@@ -7,24 +7,15 @@ interface GrowthMetricsProps {
   growth: GrowthMetric[] | undefined;
 }
 
-function formatValue(metric: GrowthMetric): string {
+function formatNumber(metric: GrowthMetric, value: number | null, withCurrency = true): string {
+  if (value === null) return "\u2014";
   if (metric.isFinancial) {
-    return new Intl.NumberFormat("en-IQ").format(metric.current) + " IQD";
+    return new Intl.NumberFormat("en-IQ").format(value) + (withCurrency ? " IQD" : "");
   }
   if (metric.unit === "%") {
-    return metric.current.toFixed(1) + "%";
+    return value.toFixed(1) + "%";
   }
-  return new Intl.NumberFormat("en-IQ").format(metric.current);
-}
-
-function formatPrevious(metric: GrowthMetric): string {
-  if (metric.isFinancial) {
-    return new Intl.NumberFormat("en-IQ").format(metric.previous) + " IQD";
-  }
-  if (metric.unit === "%") {
-    return metric.previous.toFixed(1) + "%";
-  }
-  return new Intl.NumberFormat("en-IQ").format(metric.previous);
+  return new Intl.NumberFormat("en-IQ").format(value);
 }
 
 function SkeletonCard() {
@@ -46,7 +37,7 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
           <TrendingUp className="w-4 h-4 text-green-700" />
         </div>
         <h3 className="font-bold text-foreground text-sm">
-          Growth (Week over Week)
+          Last 7 days vs the 7 before
         </h3>
       </div>
 
@@ -79,11 +70,13 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
                   {metric.label}
                 </p>
                 <p className="text-xl font-bold text-foreground tracking-tight">
-                  {formatValue(metric)}
+                  {formatNumber(metric, metric.current)}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-[10px] text-foreground/40">
-                    prev: {formatPrevious(metric)}
+                    {metric.current === null && metric.emptyNote
+                      ? metric.emptyNote
+                      : `before: ${formatNumber(metric, metric.previous, false)}`}
                   </span>
                   {metric.deltaPct !== null && (
                     <span

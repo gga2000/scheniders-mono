@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
+import { LoadError } from "@/components/shared/load-error";
 
 interface UsageData {
   heatmapData: Array<{ date: string; count: number }>;
@@ -28,6 +29,8 @@ interface UsageData {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const orderCount = (n: number) => `${n} ${n === 1 ? "order" : "orders"}`;
 
 function getHeatmapColor(count: number, maxCount: number): string {
   if (count === 0) return "bg-foreground/[0.03]";
@@ -43,7 +46,7 @@ function getHeatmapColor(count: number, maxCount: number): string {
 export default function UsagePage() {
   const [tenantFilter, setTenantFilter] = useState("");
 
-  const { data, isLoading } = useQuery<UsageData>({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<UsageData>({
     queryKey: ["admin", "usage", tenantFilter],
     queryFn: async () => {
       const params = tenantFilter ? `?tenant_id=${tenantFilter}` : "";
@@ -63,8 +66,9 @@ export default function UsagePage() {
     let currentWeek: Array<{ date: string; count: number; dayOfWeek: number }> = [];
 
     data.heatmapData.forEach((day) => {
+      // A day key is a Baghdad calendar day: read it as a plain date, not in the browser's zone.
       const d = new Date(day.date);
-      const dow = d.getDay();
+      const dow = d.getUTCDay();
 
       if (dow === 0 && currentWeek.length > 0) {
         weeks.push(currentWeek);
@@ -83,6 +87,10 @@ export default function UsagePage() {
     [data?.heatmapData],
   );
 
+  if (isError && !data) {
+    return <LoadError what="the usage numbers" onRetry={() => refetch()} retrying={isFetching} />;
+  }
+
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -100,11 +108,11 @@ export default function UsagePage() {
             <BarChart3 className="w-6 h-6" />
             Usage Heatmap
           </h1>
-          <p className="text-foreground-muted mt-1">Platform activity patterns over 365 days</p>
+          <p className="text-foreground-muted mt-1">Orders per day and hour, Baghdad time, last 365 days</p>
         </div>
         <div className="flex items-center gap-2">
           <AnimatedCounter value={data.totalOrders} className="text-lg font-bold text-foreground" />
-          <span className="text-sm text-foreground/50">total orders</span>
+          <span className="text-sm text-foreground/50">orders in 365 days</span>
         </div>
       </div>
 
@@ -116,14 +124,14 @@ export default function UsagePage() {
         </h2>
 
         <div className="min-w-[700px]">
-          {/* Month labels */}
-          <div className="flex ml-8 mb-1">
+          {/* Month labels: each sits over the first week of its month */}
+          <div className="relative h-3 mb-1">
             {(() => {
               const labels: Array<{ label: string; offset: number }> = [];
               let lastMonth = -1;
               heatmapGrid.forEach((week, i) => {
                 const d = new Date(week[0].date);
-                const m = d.getMonth();
+                const m = d.getUTCMonth();
                 if (m !== lastMonth) {
                   labels.push({ label: MONTH_LABELS[m], offset: i });
                   lastMonth = m;
@@ -167,7 +175,7 @@ export default function UsagePage() {
                         "w-[12px] h-[12px] rounded-[2px] transition-colors",
                         getHeatmapColor(cell.count, maxCount),
                       )}
-                      title={`${cell.date}: ${cell.count} orders`}
+                      title={`${cell.date}: ${orderCount(cell.count)}`}
                     />
                   );
                 })}
@@ -243,9 +251,9 @@ export default function UsagePage() {
               <div key={day.date} className="flex items-center gap-3 text-sm">
                 <span className="w-5 text-foreground/30 font-bold text-right">{i + 1}</span>
                 <span className="flex-1 font-medium text-foreground">
-                  {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                  {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}
                 </span>
-                <span className="text-foreground/50 font-mono">{day.count} orders</span>
+                <span className="text-foreground/50 font-mono">{orderCount(day.count)}</span>
               </div>
             ))}
             {data.busiestDays.length === 0 && (
@@ -264,9 +272,9 @@ export default function UsagePage() {
               <div key={day.date} className="flex items-center gap-3 text-sm">
                 <span className="w-5 text-foreground/30 font-bold text-right">{i + 1}</span>
                 <span className="flex-1 font-medium text-foreground">
-                  {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                  {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}
                 </span>
-                <span className="text-foreground/50 font-mono">{day.count} orders</span>
+                <span className="text-foreground/50 font-mono">{orderCount(day.count)}</span>
               </div>
             ))}
             {data.quietestDays.length === 0 && (
