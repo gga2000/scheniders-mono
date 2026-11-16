@@ -1,1 +1,1 @@
-export { cn, formatIQD, slugify } from "@scheniders/shared";
+export { cn, slugify } from "@scheniders/shared";

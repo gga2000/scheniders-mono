@@ -1,4 +1,4 @@
-import { formatIQD } from "@/lib/utils";
+import { formatIQD } from "@/lib/format";
 import { ATTENTION, ATTENTION_WALLET_IQD } from "@/lib/merchant-filters";
 import type { MerchantsStats } from "@/hooks/use-merchants-stats";
 

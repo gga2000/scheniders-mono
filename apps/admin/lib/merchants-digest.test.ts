@@ -40,7 +40,7 @@ describe("merchantsDigest", () => {
     const [card] = merchantsDigest(buckets({ low_wallet: 2, attention: 2 })).cards;
 
     // The money formatter puts a no-break space after "IQD".
-    expect(card.label).toBe("Wallet under IQD\u00a05,000");
+    expect(card.label).toBe("Wallet under 5,000 IQD");
     expect(card.status).toBe("attention");
   });
 

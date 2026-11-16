@@ -9,12 +9,7 @@ import { SupportCallList } from "@/components/support/support-call-list";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportTakeShop } from "@/hooks/use-support-cases";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
-import { formatIQD } from "@/lib/format";
-
-
-function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
+import { formatDay, formatIQD } from "@/lib/format";
 
 function isPlanTier(plan: string): plan is PlanTier {
   return PLAN_TIERS.some((tier) => tier === plan);

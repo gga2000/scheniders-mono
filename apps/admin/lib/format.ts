@@ -5,7 +5,8 @@
  * screens, and a day read "11/15/2026", "Nov 15" or "5mo ago". Staff compare
  * numbers across screens, so each kind of number is written one way: whole
  * dinars with commas and " IQD" after, and days as "Sun 15 Nov" in Baghdad
- * time, with the year only when it is not this year.
+ * time, with the year only when it is not this year. Something that happened
+ * in the last day reads "12 min ago" or "5 h ago"; anything older is its day.
  */
 
 const WHOLE = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
@@ -44,8 +45,30 @@ export function formatDay(value: string | number | Date, now: Date = new Date())
   return (sameYear ? DAY : DAY_YEAR).format(date).replace(",", "");
 }
 
+/** "14:05" in Baghdad time. */
+export function formatTime(value: string | number | Date): string {
+  return TIME.format(asDate(value));
+}
+
 /** "Sun 15 Nov, 14:05" in Baghdad time. */
 export function formatDayTime(value: string | number | Date, now: Date = new Date()): string {
   const date = asDate(value);
   return `${formatDay(date, now)}, ${TIME.format(date)}`;
+}
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+
+/**
+ * When something happened: "just now", "12 min ago" and "5 h ago" within the
+ * last day, then the day ("Sun 15 Nov"). A time still to come is its day too.
+ */
+export function formatWhen(value: string | number | Date, now: Date = new Date()): string {
+  const date = asDate(value);
+  const elapsed = now.getTime() - date.getTime();
+  if (elapsed <= -MINUTE || elapsed >= 24 * HOUR) return formatDay(date, now);
+  // A few seconds "ahead" is the server's clock, not the future.
+  if (elapsed < MINUTE) return "just now";
+  if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`;
+  return `${Math.floor(elapsed / HOUR)} h ago`;
 }

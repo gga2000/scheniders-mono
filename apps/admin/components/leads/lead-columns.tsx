@@ -15,6 +15,7 @@ import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import type { LeadColumnId } from "@/lib/leads-table-columns";
 import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
+import { formatDay, formatWhen } from "@/lib/format";
 
 /** Extra inputs a cell may need beyond the Lead. Built once per render by <LeadsTable>. */
 export interface LeadCellContext {
@@ -22,23 +23,6 @@ export interface LeadCellContext {
   onQuickWhatsApp: (lead: Lead) => void;
 }
 
-/** Absolute "12 Jun 2026" + a relative hint ("3d ago") for the Date added column. */
-export function formatAdded(iso: string): { date: string; rel: string } {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-  const rel =
-    days <= 0
-      ? "Today"
-      : days === 1
-        ? "Yesterday"
-        : days < 30
-          ? `${days}d ago`
-          : days < 365
-            ? `${Math.floor(days / 30)}mo ago`
-            : `${Math.floor(days / 365)}y ago`;
-  return { date, rel };
-}
 
 // ── Presentational cells (inner <td> content only; the row owns the <td> + click) ──
 
@@ -80,12 +64,14 @@ function MerchantCell({ lead }: { lead: Lead }) {
   );
 }
 
+/** The day a lead was added ("Sun 15 Nov"), and "5 h ago" under it while that day is recent. */
 function DateAddedCell({ iso }: { iso: string }) {
-  const added = formatAdded(iso);
+  const day = formatDay(iso);
+  const when = formatWhen(iso);
   return (
     <>
-      <div className="text-xs font-medium text-[var(--foreground)]">{added.date}</div>
-      <div className="text-[10px] text-[var(--muted)]">{added.rel}</div>
+      <div className="text-xs font-medium text-[var(--foreground)]">{day}</div>
+      {when !== day && <div className="text-[10px] text-[var(--muted)]">{when}</div>}
     </>
   );
 }

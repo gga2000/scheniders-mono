@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StickyNote, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
+import { formatWhen } from "@/lib/format";
 
 interface QuickNotePopoverProps {
   merchantId: string;
@@ -126,7 +127,7 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
                 >
                   <p className="text-[11px] text-foreground line-clamp-2">{note.content}</p>
                   <span className="text-[9px] text-foreground/30 mt-0.5 block">
-                    {new Date(note.created_at).toLocaleDateString()}
+                    {formatWhen(note.created_at)}
                   </span>
                 </div>
               ))}

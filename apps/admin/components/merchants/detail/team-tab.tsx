@@ -4,6 +4,7 @@ import { Users, Crown, ShieldCheck, Briefcase, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { CopyableText } from "@/components/shared/copyable-text";
+import { formatWhen } from "@/lib/format";
 
 interface TeamTabProps {
   team: MerchantDetail["team"];
@@ -66,21 +67,6 @@ function roleKey(role: string): RoleKey {
   // The merchant app's word for a staff member is "employee".
   if (r === "staff" || r === "member" || r === "employee") return "staff";
   return "other";
-}
-
-function relativeTime(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  if (day < 30) return `${Math.floor(day / 7)}w ago`;
-  if (day < 365) return `${Math.floor(day / 30)}mo ago`;
-  return `${Math.floor(day / 365)}y ago`;
 }
 
 /** When the member joined; for one who has not signed in to the shop yet, when they were added. */
@@ -239,7 +225,7 @@ export function TeamTab({ team }: TeamTabProps) {
                   {member.joined_at ? "Joined" : "Added"}
                 </p>
                 <p className="text-[11px] font-bold text-foreground/70 tabular-nums mt-0.5">
-                  {since ? relativeTime(since) : "\u2014"}
+                  {since ? formatWhen(since) : "\u2014"}
                 </p>
               </div>
             </div>

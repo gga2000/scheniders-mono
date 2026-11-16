@@ -21,6 +21,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { formatWhen } from "@/lib/format";
 
 // ── Activity Type Config ────────────────────────────────────────────────
 
@@ -51,18 +52,6 @@ const QUICK_ADD_TYPES: { type: LeadActivityType; label: string }[] = [
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────
-
-function timeAgo(date: string): string {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(date).toLocaleDateString();
-}
 
 // ── Component ───────────────────────────────────────────────────────────
 
@@ -245,7 +234,7 @@ export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelin
 
                     {/* Footer: time + user */}
                     <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--muted)]">
-                      <span>{timeAgo(activity.created_at)}</span>
+                      <span>{formatWhen(activity.created_at)}</span>
                       {activity.created_by_user && (
                         <>
                           <span className="opacity-40">·</span>

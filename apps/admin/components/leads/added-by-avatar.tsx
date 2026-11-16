@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { formatDay } from "@/lib/format";
 
 export interface AddedByUser {
   display_name: string | null;
@@ -18,11 +19,6 @@ interface AddedByAvatarProps {
   /** Render the employee's name beside the avatar. */
   showName?: boolean;
   className?: string;
-}
-
-function formatAddedAt(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
 /**
@@ -121,7 +117,7 @@ export function AddedByAvatar({
             </div>
           </div>
           <p className="text-[10px] text-[var(--muted)] mt-1.5 leading-snug">
-            Added this lead{addedAt ? ` · ${formatAddedAt(addedAt)}` : ""}
+            Added this lead{addedAt ? ` · ${formatDay(addedAt)}` : ""}
           </p>
         </div>
       )}
