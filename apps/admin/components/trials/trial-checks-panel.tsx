@@ -216,8 +216,14 @@ export function TrialChecksPanel() {
     staleTime: 30_000,
   });
 
+  // A side card on the Trials page: its failure stays in the card, so the
+  // trial list and "Ends today" below it, which did load, stay in view.
   if (isError && !data) {
-    return <LoadError what="the trial checks" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return (
+      <section className="pastel-card">
+        <LoadError compact what="the one-trial checks" error={error} onRetry={() => refetch()} retrying={isFetching} />
+      </section>
+    );
   }
   if (isLoading || !data || data.checks.length === 0) return null;
 
