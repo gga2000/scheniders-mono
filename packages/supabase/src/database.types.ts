@@ -8349,36 +8349,48 @@ export type Database = {
         Row: {
           amount_iqd: number
           created_at: string
+          credited_iqd: number | null
           decided_at: string | null
           decided_by: string | null
           id: string
           method: string
           outcome: string | null
+          receipt_no: number | null
           receipt_path: string
+          receipt_sha256: string | null
+          reject_reason: string | null
           requested_by: string
           tenant_id: string
         }
         Insert: {
           amount_iqd: number
           created_at?: string
+          credited_iqd?: number | null
           decided_at?: string | null
           decided_by?: string | null
           id?: string
           method: string
           outcome?: string | null
+          receipt_no?: number | null
           receipt_path: string
+          receipt_sha256?: string | null
+          reject_reason?: string | null
           requested_by?: string
           tenant_id: string
         }
         Update: {
           amount_iqd?: number
           created_at?: string
+          credited_iqd?: number | null
           decided_at?: string | null
           decided_by?: string | null
           id?: string
           method?: string
           outcome?: string | null
+          receipt_no?: number | null
           receipt_path?: string
+          receipt_sha256?: string | null
+          reject_reason?: string | null
           requested_by?: string
           tenant_id?: string
         }
@@ -8986,6 +8998,7 @@ export type Database = {
         }
         Returns: number
       }
+      admin_topup_queue: { Args: never; Returns: Json }
       admin_topup_wallet: {
         Args: {
           _amount: number
@@ -9270,7 +9283,13 @@ export type Database = {
         Returns: Json
       }
       decide_wallet_topup_request: {
-        Args: { _admin_id: string; _approve: boolean; _request_id: string }
+        Args: {
+          _admin_id: string
+          _amount?: number
+          _approve: boolean
+          _reason?: string
+          _request_id: string
+        }
         Returns: Json
       }
       generate_seed_orders: { Args: never; Returns: undefined }

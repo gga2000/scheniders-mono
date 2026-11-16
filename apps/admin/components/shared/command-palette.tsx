@@ -15,6 +15,7 @@ import {
   TrendingUp,
   BarChart3,
   MessageCircle,
+  Landmark,
   ArrowRight,
 } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
@@ -32,6 +33,7 @@ interface CommandItem {
 const PAGES: CommandItem[] = [
   { id: "dashboard", label: "Dashboard", sublabel: "Command Center", icon: <LayoutDashboard className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "merchants", label: "Merchants", sublabel: "All merchants", icon: <Building2 className="w-4 h-4" />, action: () => {}, category: "page" },
+  { id: "payments", label: "Payments to check", sublabel: "Transfer receipts to approve", icon: <Landmark className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "billing", label: "Billing", sublabel: "Wallets & transactions", icon: <CreditCard className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "trials", label: "Trials", sublabel: "Trial management", icon: <Clock className="w-4 h-4" />, action: () => {}, category: "page" },
   { id: "health", label: "Health", sublabel: "Platform health", icon: <Activity className="w-4 h-4" />, action: () => {}, category: "page" },
@@ -45,6 +47,7 @@ const PAGES: CommandItem[] = [
 const PAGE_ROUTES: Record<string, string> = {
   dashboard: "/",
   merchants: "/merchants",
+  payments: "/payments",
   billing: "/billing",
   trials: "/trials",
   health: "/health",

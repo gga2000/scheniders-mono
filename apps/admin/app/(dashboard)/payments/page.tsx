@@ -1,0 +1,299 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
+import { AlertTriangle, Check, ExternalLink, FileText, Landmark, Loader2, Lock, X } from "lucide-react";
+import { adminFetch } from "@/lib/admin-fetch";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { hasPermission } from "@/lib/admin-permissions";
+import { LoadError } from "@/components/shared/load-error";
+import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { okOrLoadFailure } from "@/lib/load-failure";
+import {
+  REJECT_REASON_MAX,
+  REJECT_REASON_MIN,
+  TOPUP_QUEUE_KEY,
+  TOPUP_MAX_IQD,
+  TOPUP_MIN_IQD,
+  amountStillOwed,
+  topupQueueItemSchema,
+  topupWarnings,
+  type TopupDecision,
+  type TopupQueueItem,
+} from "@/lib/topup-queue";
+
+const responseSchema = z.object({ requests: z.array(topupQueueItemSchema) });
+
+const iqd = (n: number) => `${new Intl.NumberFormat("en-IQ").format(n)} IQD`;
+const METHOD_LABEL: Record<TopupQueueItem["method"], string> = { zain_cash: "Zain Cash", qi_card: "Qi Card" };
+const PLAN_LABEL: Record<string, string> = { starter: "Start", growth: "Team", professional: "Business", enterprise: "Custom" };
+
+function sentAgo(iso: string): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
+}
+
+function billingLine(row: TopupQueueItem): string {
+  const plan = row.billing?.plan ? (PLAN_LABEL[row.billing.plan] ?? row.billing.plan) : "No plan";
+  const parts = [`${plan} plan`];
+  if (row.billing) parts.push(`next payment ${iqd(row.billing.price_iqd)}`);
+  parts.push(`wallet ${iqd(row.balance_iqd)}`);
+  return parts.join(" · ");
+}
+
+function Receipt({ row }: { row: TopupQueueItem }) {
+  if (!row.receipt_url) {
+    return <div className="flex h-36 w-28 items-center justify-center rounded-xl bg-foreground/5 text-[11px] text-foreground/40">No file</div>;
+  }
+  if (row.receipt_kind === "pdf") {
+    return (
+      <a
+        href={row.receipt_url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex h-36 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--card-border)] text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
+      >
+        <FileText className="w-6 h-6" />
+        Open PDF
+      </a>
+    );
+  }
+  return (
+    <a href={row.receipt_url} target="_blank" rel="noreferrer" className="group relative block h-36 w-28 shrink-0 overflow-hidden rounded-xl border border-[var(--card-border)]">
+      {/* A short-lived signed link to a private file: shown as it is, never copied into the image cache. */}
+      <Image
+        src={row.receipt_url}
+        alt={`Receipt from ${row.business_name ?? "the shop"}`}
+        fill
+        unoptimized
+        sizes="112px"
+        className="object-cover"
+      />
+      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 py-1 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+        <ExternalLink className="w-3 h-3" />
+        Full size
+      </span>
+    </a>
+  );
+}
+
+function Decision({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean }) {
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState<number>(row.amount_iqd);
+  const [refusing, setRefusing] = useState(false);
+  const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState<"approve" | "refuse" | null>(null);
+  const decide = useMutation({
+    mutationFn: async (decision: TopupDecision) => {
+      const res = await adminFetch(`/api/wallet-topup-requests/${row.id}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(decision),
+      });
+      // 409: someone else decided it first; the refreshed list shows that.
+      if (!res.ok && res.status !== 409) {
+        const body = await res.json().catch(() => null);
+        throw new Error(typeof body?.error === "string" ? body.error : `Decision failed: ${res.status}`);
+      }
+    },
+    onSuccess: () => setConfirming(null),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: TOPUP_QUEUE_KEY });
+    },
+  });
+
+  if (!canDecide) return <p className="text-[11px] text-foreground/50">Your login can see receipts but not decide them.</p>;
+
+  const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
+  const reasonOk = reason.trim().length >= REJECT_REASON_MIN && reason.trim().length <= REJECT_REASON_MAX;
+  const differs = amountOk && amount !== row.amount_iqd;
+
+  if (confirming) {
+    const approve = confirming === "approve";
+    return (
+      <div className="flex flex-col items-end gap-2 text-right" data-testid="payment-confirm">
+        <p className="text-xs font-semibold text-foreground">
+          {approve ? `Add ${iqd(amount)} to ${row.business_name ?? "this shop"}'s wallet?` : "Refuse this receipt?"}
+        </p>
+        {!approve && <p className="max-w-[16rem] text-[11px] text-foreground/60">The shop will read: “{reason.trim()}”</p>}
+        <div className="flex gap-1.5">
+          <button type="button" onClick={() => setConfirming(null)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-[11px]">
+            Back
+          </button>
+          <button
+            type="button"
+            disabled={decide.isPending}
+            onClick={() => decide.mutate(approve ? { approve: true, amount } : { approve: false, reason: reason.trim() })}
+            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50 ${approve ? "bg-green-600" : "bg-red-600"}`}
+          >
+            {decide.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+            {approve ? "Yes, add it" : "Yes, refuse"}
+          </button>
+        </div>
+        {decide.isError && <p className="text-[11px] text-red-600">{decide.error.message}</p>}
+      </div>
+    );
+  }
+
+  if (refusing) {
+    return (
+      <div className="flex w-64 flex-col gap-2">
+        <StaffReasonInput value={reason} onChange={setReason} placeholder="Why? The shop will read this" />
+        <div className="flex justify-end gap-1.5">
+          <button type="button" onClick={() => setRefusing(false)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-[11px]">
+            Back
+          </button>
+          <button
+            type="button"
+            disabled={!reasonOk}
+            onClick={() => setConfirming("refuse")}
+            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+          >
+            <X className="w-3 h-3" />
+            Refuse
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-64 flex-col gap-2">
+      <label className="text-[10px] font-semibold uppercase tracking-wide text-foreground/45" htmlFor={`amount-${row.id}`}>
+        Amount that arrived
+      </label>
+      <input
+        id={`amount-${row.id}`}
+        type="number"
+        inputMode="numeric"
+        min={TOPUP_MIN_IQD}
+        max={TOPUP_MAX_IQD}
+        step={1000}
+        value={Number.isNaN(amount) ? "" : amount}
+        onChange={(e) => setAmount(e.target.valueAsNumber)}
+        className="w-full rounded-xl bg-white/80 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 dark:bg-white/10"
+      />
+      {differs && <p className="text-[10px] text-amber-700">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>}
+      {!amountOk && <p className="text-[10px] text-red-600">Between 1,000 and 10,000,000 IQD.</p>}
+      <div className="flex justify-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => setRefusing(true)}
+          className="inline-flex items-center gap-1 rounded-lg border border-[var(--card-border)] px-2.5 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50"
+        >
+          <X className="w-3 h-3" />
+          Refuse
+        </button>
+        <button
+          type="button"
+          disabled={!amountOk}
+          onClick={() => setConfirming("approve")}
+          className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-semibold text-background hover:opacity-90 disabled:opacity-40"
+          data-testid="payment-approve"
+        >
+          <Check className="w-3 h-3" />
+          {amountOk ? `Add ${iqd(amount)}` : "Add"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentRow({ row, canDecide }: { row: TopupQueueItem; canDecide: boolean }) {
+  const owed = amountStillOwed(row);
+  const warnings = topupWarnings(row);
+  return (
+    <div className="pastel-card flex flex-wrap items-start gap-4 p-4" data-testid="payment-row">
+      <Receipt row={row} />
+      <div className="min-w-[16rem] flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <Link href={`/merchants/${row.tenant_id}`} className="text-sm font-semibold text-foreground hover:underline">
+            {row.business_name ?? "Shop"}
+          </Link>
+          {row.display_id && <span className="text-xs text-foreground/40 tabular-nums">#{row.display_id}</span>}
+        </div>
+        <p className="text-sm text-foreground">
+          <span className="font-bold tabular-nums">{iqd(row.amount_iqd)}</span>
+          <span className="text-foreground/60"> by {METHOD_LABEL[row.method]} · sent {sentAgo(row.created_at)}</span>
+        </p>
+        <p className="text-xs text-foreground/60">{billingLine(row)}</p>
+        {row.billing?.locked && (
+          <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+            <Lock className="w-3 h-3" />
+            {row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended"}
+            {owed > 0 ? ` · needs ${iqd(owed)} to open` : " · this payment opens it"}
+          </p>
+        )}
+        {warnings.map((w) => (
+          <p key={w} className="flex items-center gap-1 text-[11px] font-medium text-rose-700">
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            {w}
+          </p>
+        ))}
+      </div>
+      <Decision row={row} canDecide={canDecide} />
+    </div>
+  );
+}
+
+/**
+ * «Payments to check» (Fermi B3): shops pay us by Qi or Zain Cash transfer
+ * and upload the receipt. Staff check the money arrived, then add what came
+ * in to the shop's wallet (a payment that covers the plan opens a locked shop
+ * at once), or refuse and say why; the shop reads the reason and can send
+ * again.
+ */
+export default function PaymentsPage() {
+  const { role } = useAdminAuth();
+  const canDecide = role ? hasPermission(role, "check_payments") : false;
+  const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: TOPUP_QUEUE_KEY,
+    queryFn: async () => {
+      const res = okOrLoadFailure(await adminFetch("/api/wallet-topup-requests"), "the payments");
+      return responseSchema.parse(await res.json()).requests;
+    },
+    refetchInterval: 60_000,
+  });
+
+  if (isError && !data) {
+    return <LoadError what="the payments" onRetry={() => refetch()} retrying={isFetching} error={error} />;
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Landmark className="w-6 h-6" />
+          Payments to check
+        </h1>
+        <p className="text-foreground-muted mt-1 max-w-2xl">
+          Shops paid us by transfer and sent the receipt. Check the money arrived, then add what came in. A payment that
+          covers the plan opens a locked shop at once. Refuse with a reason and the shop can send again.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-foreground/40">
+          <Loader2 className="w-5 h-5 animate-spin" />
+        </div>
+      ) : data && data.length > 0 ? (
+        <div className="space-y-3" data-testid="payments-list">
+          {data.map((row) => (
+            <PaymentRow key={row.id} row={row} canDecide={canDecide} />
+          ))}
+        </div>
+      ) : (
+        <div className="pastel-card flex flex-col items-center gap-2 py-14 text-center" data-testid="payments-empty">
+          <Check className="w-6 h-6 text-green-600" />
+          <p className="text-sm font-semibold text-foreground">No receipts waiting</p>
+          <p className="text-xs text-foreground/50">New receipts show up here and in the bell.</p>
+        </div>
+      )}
+    </div>
+  );
+}

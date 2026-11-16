@@ -110,10 +110,19 @@ const SUPER_ADMIN_ONLY: Case[] = [
     },
   },
   {
-    name: "POST /api/wallet-topup-requests/[id] (top_up_wallet)",
+    name: "PUT /api/settings/payment-details (update_settings)",
     call: async (t) => {
-      const { POST } = await import("./wallet-topup-requests/[id]/route");
-      return POST(req(`/api/wallet-topup-requests/${TENANT}`, "POST", t, { approve: true }), idParams);
+      const { PUT } = await import("./settings/payment-details/route");
+      return PUT(
+        req("/api/settings/payment-details", "PUT", t, {
+          qi_card: "1234",
+          qi_card_name: "Fermi",
+          zain_cash: "",
+          support_whatsapp: "9647701234567",
+          working_hours: "10-6",
+          legal_name: "Fermi",
+        }),
+      );
     },
   },
   {
@@ -238,6 +247,37 @@ const SUPER_ADMIN_ONLY: Case[] = [
 
 /** Handlers both roles may use (reads, and actions support_staff holds). */
 const ANY_ADMIN: Case[] = [
+  {
+    name: "POST /api/wallet-topup-requests/[id] approve (check_payments)",
+    call: async (t) => {
+      const { POST } = await import("./wallet-topup-requests/[id]/route");
+      return POST(req(`/api/wallet-topup-requests/${TENANT}`, "POST", t, { approve: true, amount: 9000 }), idParams);
+    },
+  },
+  {
+    name: "POST /api/wallet-topup-requests/[id] refuse (check_payments)",
+    call: async (t) => {
+      const { POST } = await import("./wallet-topup-requests/[id]/route");
+      return POST(
+        req(`/api/wallet-topup-requests/${TENANT}`, "POST", t, { approve: false, reason: "Receipt is blurry" }),
+        idParams,
+      );
+    },
+  },
+  {
+    name: "GET /api/wallet-topup-requests",
+    call: async (t) => {
+      const { GET } = await import("./wallet-topup-requests/route");
+      return GET(req("/api/wallet-topup-requests", "GET", t));
+    },
+  },
+  {
+    name: "GET /api/settings/payment-details",
+    call: async (t) => {
+      const { GET } = await import("./settings/payment-details/route");
+      return GET(req("/api/settings/payment-details", "GET", t));
+    },
+  },
   {
     name: "POST /api/merchants/[id]/extend-trial (extend_trial)",
     call: async (t) => {

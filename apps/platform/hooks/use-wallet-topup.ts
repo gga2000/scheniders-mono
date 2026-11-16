@@ -39,9 +39,19 @@ export function receiptProblem(file: Pick<File, "type" | "size">): ReceiptProble
     return null;
 }
 
+/** One field our team fills in (staff console, Settings); null until it is. */
+const detail = z.string().nullable().default(null);
+
 const paymentDetailsSchema = z.object({
-    zain_cash: z.string().nullable(),
-    qi_card: z.string().nullable(),
+    zain_cash: detail,
+    qi_card: detail,
+    /** The name on the Qi account, so the shop can check it before sending. */
+    qi_card_name: detail,
+    /** Digits with the country code, for a wa.me link. */
+    support_whatsapp: detail,
+    working_hours: detail,
+    /** Printed at the top of every receipt and invoice. */
+    legal_name: detail,
 });
 export type TopupPaymentDetails = z.infer<typeof paymentDetailsSchema>;
 
@@ -52,6 +62,33 @@ export interface TopupRequest {
     created_at: string;
     decided_at: string | null;
     outcome: "approved" | "rejected" | null;
+    /** What our team found had arrived and added; can differ from amount_iqd. */
+    credited_iqd: number | null;
+    /** Why our team refused the receipt, in their words. */
+    reject_reason: string | null;
+    /** The payment receipt's number, given on approval. */
+    receipt_no: number | null;
+}
+
+const REQUEST_COLUMNS = "id, amount_iqd, method, created_at, decided_at, outcome, credited_iqd, reject_reason, receipt_no";
+
+/**
+ * The receipt file's SHA-256, in hex. Staff are warned when the same file
+ * comes in twice (from this shop or another one).
+ */
+export async function receiptSha256(file: Blob): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * What a locked shop (or one in its trial) still needs to send so the next
+ * payment is covered: the plan price minus the wallet, in whole thousands and
+ * never under the smallest top-up. Null when the wallet already covers it.
+ */
+export function suggestedTopup(priceIqd: number | null, balanceIqd: number): number | null {
+    if (priceIqd === null || priceIqd <= balanceIqd) return null;
+    return Math.min(TOPUP_MAX_IQD, Math.max(TOPUP_MIN_IQD, Math.ceil((priceIqd - balanceIqd) / 1000) * 1000));
 }
 
 /** Whether the shop may send another request, given its recent ones. */
@@ -69,7 +106,7 @@ export function useWalletTopup() {
         queryFn: async () => {
             const { data, error } = await supabase.rpc("get_topup_payment_details");
             if (error) throw error;
-            return paymentDetailsSchema.parse(data ?? { zain_cash: null, qi_card: null });
+            return paymentDetailsSchema.parse(data ?? {});
         },
         staleTime: 5 * 60_000,
     });
@@ -79,7 +116,7 @@ export function useWalletTopup() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("wallet_topup_requests")
-                .select("id, amount_iqd, method, created_at, decided_at, outcome")
+                .select(REQUEST_COLUMNS)
                 .eq("tenant_id", tenantId!)
                 .order("created_at", { ascending: false })
                 .limit(20);
@@ -96,6 +133,7 @@ export function useWalletTopup() {
             if (!ext) throw new Error("Unsupported receipt type");
             // Checked before the upload so a refused request leaves no stray receipt behind.
             if (!hasRoomForTopup(requests.data ?? [])) throw new TopupWaitingLimitError();
+            const sha256 = await receiptSha256(input.file);
             // The folder must be the shop's id: storage and the table both check it.
             const path = `${tenantId}/${crypto.randomUUID()}.${ext}`;
             const upload = await supabase.storage
@@ -107,6 +145,7 @@ export function useWalletTopup() {
                 amount_iqd: input.amount,
                 method: input.method,
                 receipt_path: path,
+                receipt_sha256: sha256,
             });
             if (error?.message === "topup_pending_limit") throw new TopupWaitingLimitError();
             if (error) throw error;

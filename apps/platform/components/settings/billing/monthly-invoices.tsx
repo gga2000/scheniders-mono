@@ -20,7 +20,7 @@ function monthName(month: string, language: string): string {
     });
 }
 
-export function MonthlyInvoices({ tenantId, displayId }: { tenantId: string; displayId: number | null }) {
+export function MonthlyInvoices({ tenantId, displayId, legalName }: { tenantId: string; displayId: number | null; legalName: string | null }) {
     const { t, language } = useLanguage();
     const [printing, setPrinting] = useState<string | null>(null);
     const months = recentMonths(new Date(), MONTHS_SHOWN);
@@ -29,7 +29,7 @@ export function MonthlyInvoices({ tenantId, displayId }: { tenantId: string; dis
         setPrinting(month);
         try {
             const invoice = await fetchMonthlyInvoice(supabase, { id: tenantId, displayId }, month);
-            printHtmlDocument(monthlyInvoiceDocument(invoice));
+            printHtmlDocument(monthlyInvoiceDocument(invoice, legalName));
         } catch {
             toast.error(t("billing.invoices.error"));
         } finally {

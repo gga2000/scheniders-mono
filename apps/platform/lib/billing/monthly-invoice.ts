@@ -155,14 +155,15 @@ export function arabicMonth(month: string): string {
     return `${MONTHS_AR[m - 1]} ${y}`;
 }
 
-const METHOD_AR: Record<string, string> = {
+export const METHOD_AR: Record<string, string> = {
     qi_card: "كي كارد",
     zain_cash: "زين كاش",
     bank_transfer: "حوالة مصرفية",
     cash: "نقداً",
 };
 
-function iqd(n: number): string {
+/** "9,000 د.ع", with Latin digits and a real minus sign. */
+export function iqd(n: number): string {
     const sign = n < 0 ? "−" : "";
     return `${sign}${Math.round(Math.abs(n)).toLocaleString("en-US")} د.ع`;
 }
@@ -199,8 +200,14 @@ function row(label: string, value: string, cls = ""): string {
     return `<tr${cls ? ` class="${cls}"` : ""}><td>${label}</td><td class="num">${value}</td></tr>`;
 }
 
-/** A full A4 HTML document for one monthly invoice. */
-export function monthlyInvoiceDocument(inv: MonthlyInvoice): string {
+/** Who issues our invoices and receipts when the legal name is not set yet. */
+export const ISSUER_FALLBACK = "شنايدر";
+
+/**
+ * A full A4 HTML document for one monthly invoice. `legalName` is the name our
+ * team sets in the staff console (How shops pay us).
+ */
+export function monthlyInvoiceDocument(inv: MonthlyInvoice, legalName: string | null = null): string {
     const charges = inv.lines.length
         ? inv.lines.map((l) => row(escapeHtml(lineLabel(l)), iqd(l.total))).join("")
         : row("لا توجد رسوم هذا الشهر", iqd(0));
@@ -239,7 +246,7 @@ export function monthlyInvoiceDocument(inv: MonthlyInvoice): string {
 </head>
 <body>
 <div class="head">
-  <div><div class="brand">شنايدر</div><div class="muted">فاتورة شهرية</div></div>
+  <div><div class="brand">${escapeHtml(legalName?.trim() || ISSUER_FALLBACK)}</div><div class="muted">فاتورة شهرية</div></div>
   <div class="muted">رقم الفاتورة: <span class="num">${escapeHtml(inv.number)}</span><br>الفترة: ${arabicMonth(inv.month)}</div>
 </div>
 <div class="to">إلى: ${store}</div>

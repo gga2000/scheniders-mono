@@ -20,16 +20,19 @@ import {
   Users,
   Headset,
   MessageCircle,
+  Landmark,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSupportWaitingCount } from "@/hooks/use-support-cases";
+import { useTopupRequests } from "@/components/shared/topup-requests-section";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Merchants", icon: Building2, href: "/merchants" },
   { label: "Support", icon: Headset, href: "/support" },
+  { label: "Payments", icon: Landmark, href: "/payments" },
   { label: "Prospects", icon: UserPlus, href: "/leads" },
   { label: "Team", icon: Users, href: "/team" },
   { label: "Billing", icon: CreditCard, href: "/billing" },
@@ -66,6 +69,12 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const supportWaiting = useSupportWaitingCount().data ?? 0;
+  const paymentsWaiting = useTopupRequests().data?.length ?? 0;
+  /** Pages with work waiting on us, and how much: a red count beside the link. */
+  const waiting: Record<string, { count: number; label: string }> = {
+    "/support": { count: supportWaiting, label: `${supportWaiting} waiting on us` },
+    "/payments": { count: paymentsWaiting, label: `${paymentsWaiting} receipts to check` },
+  };
 
   const isCollapsed = isMobile ? false : collapsed;
 
@@ -128,6 +137,7 @@ export function AdminSidebar({
 
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
+            const badge = (waiting[item.href]?.count ?? 0) > 0 ? waiting[item.href] : null;
             return (
               <Link
                 key={item.href}
@@ -158,9 +168,9 @@ export function AdminSidebar({
                   {item.label}
                 </span>
 
-                {item.href === "/support" && supportWaiting > 0 && (
+                {badge && (
                   <span
-                    aria-label={`${supportWaiting} waiting on us`}
+                    aria-label={badge.label}
                     className={cn(
                       "flex items-center justify-center rounded-full bg-red-500 font-bold text-white tabular-nums",
                       collapsed
@@ -168,11 +178,11 @@ export function AdminSidebar({
                         : "ml-auto h-5 min-w-5 px-1.5 text-[11px]"
                     )}
                   >
-                    {supportWaiting > 99 ? "99+" : supportWaiting}
+                    {badge.count > 99 ? "99+" : badge.count}
                   </span>
                 )}
 
-                {isActive && !collapsed && !(item.href === "/support" && supportWaiting > 0) && (
+                {isActive && !collapsed && !badge && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                 )}
 

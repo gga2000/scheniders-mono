@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Loader2, Plus, Wallet } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useBilling, useTrialOrderCount } from "@/hooks/use-billing";
 import { useBillingLock } from "@/hooks/use-billing-lock";
 import { useTenant } from "@/hooks/use-tenant";
-import { useWalletTopup } from "@/hooks/use-wallet-topup";
+import { suggestedTopup, useWalletTopup, type TopupRequest } from "@/hooks/use-wallet-topup";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { printHtmlDocument } from "@/lib/print-html";
+import { fetchPaymentReceipt } from "@/lib/billing/fetch-payment-receipt";
+import { paymentReceiptDocument } from "@/lib/billing/payment-receipt";
 import { useQiSavedCard } from "@/hooks/use-qi-topup";
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { PlanCard } from "./billing/plan-card";
@@ -27,11 +33,12 @@ export function BillingSettings() {
     const { t } = useLanguage();
     const { data: tenant, isLoading: tenantLoading } = useTenant();
     const { wallet, subscription, allPlans, transactions, isLoading, refetch } = useBilling();
-    const { requests } = useWalletTopup();
+    const { requests, paymentDetails } = useWalletTopup();
     const { refresh: refreshQiCard } = useQiSavedCard();
     const inTrial = tenant?.status === "trial";
     const { data: trialOrders } = useTrialOrderCount(inTrial);
-    const [showTopUp, setShowTopUp] = useState(false);
+    // The lock screen and the trial chip open the page with ?pay=1: straight to the form.
+    const [showTopUp, setShowTopUp] = useState(useSearchParams().get("pay") === "1");
     const [choosing, setChoosing] = useState<string | null>(null);
     // The lock read also says who may pay and change plans (the shop's admins)
     // and what the next payment takes, add-ons included.
@@ -63,6 +70,19 @@ export function BillingSettings() {
     const canChange = lock?.can_pay ?? false;
     const addonPlanKey = subscription ? (paidMonth ? subscription.plan : (subscription.pending_plan ?? subscription.plan)) : null;
     const addonPlan = allPlans.find((p) => p.plan === addonPlanKey) ?? null;
+    // A locked shop, or one in its trial, is told what its plan still needs.
+    const suggested = !exempt && (inTrial || lock?.locked) ? suggestedTopup(lock?.price_iqd ?? null, balance) : null;
+    const legalName = paymentDetails?.legal_name ?? null;
+
+    async function printReceipt(request: TopupRequest) {
+        if (!tenant) return;
+        try {
+            const receipt = await fetchPaymentReceipt(supabase, { id: tenant.id, displayId: tenant.display_id }, request, legalName);
+            printHtmlDocument(paymentReceiptDocument(receipt));
+        } catch {
+            toast.error(t("billing.requests.printError"));
+        }
+    }
 
     return (
         <div className="space-y-4">
@@ -138,6 +158,7 @@ export function BillingSettings() {
 
                         {showTopUp ? (
                             <TopupForm
+                                suggestedAmount={suggested}
                                 onDone={() => {
                                     setShowTopUp(false);
                                     refetch();
@@ -175,8 +196,8 @@ export function BillingSettings() {
                 </>
             )}
 
-            <TopupRequests requests={requests} />
-            {!exempt && tenant && <MonthlyInvoices tenantId={tenant.id} displayId={tenant.display_id} />}
+            <TopupRequests requests={requests} onSendAgain={() => setShowTopUp(true)} onPrintReceipt={printReceipt} />
+            {!exempt && tenant && <MonthlyInvoices tenantId={tenant.id} displayId={tenant.display_id} legalName={legalName} />}
             <WalletHistory transactions={transactions} />
         </div>
     );
