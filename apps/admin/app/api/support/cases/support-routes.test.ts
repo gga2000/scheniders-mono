@@ -346,6 +346,51 @@ describe("support seen mark", () => {
   });
 });
 
+describe("support shared problem spotter", () => {
+  async function spike(token: string | null): Promise<Response> {
+    const { GET } = await import("../spike/route");
+    return GET(req("/api/support/spike", "GET", token));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await spike(null)).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("reads only merchant messages of real shops from the last 30 minutes", async () => {
+    dbResult = {
+      data: [
+        { tenant_id: "s1", body: "برايم متأخر", context: {} },
+        { tenant_id: "s2", body: "المندوب ما اجه", context: {} },
+        { tenant_id: "s3", body: "التوصيل واقف", context: {} },
+      ],
+      error: null,
+    };
+    const before = Date.now();
+    const res = await spike("support");
+    expect(res.status).toBe(200);
+    expect((await res.json()).spike).toMatchObject({ topic: "delivery", shops: 3 });
+    expect(dbCalls).toContainEqual({ method: "from", args: ["support_messages"] });
+    expect(dbCalls).toContainEqual({ method: "eq", args: ["sender_kind", "merchant"] });
+    expect(dbCalls).toContainEqual({ method: "eq", args: ["tenants.is_demo", false] });
+    const since = dbCalls.find((c) => c.method === "gte")?.args;
+    expect(since?.[0]).toBe("created_at");
+    const sinceMs = Date.parse(String(since?.[1]));
+    expect(before - sinceMs).toBeGreaterThanOrEqual(30 * 60_000 - 1000);
+    expect(before - sinceMs).toBeLessThanOrEqual(30 * 60_000 + 1000);
+  });
+
+  it("answers no spike when shops write about different things", async () => {
+    dbResult = { data: [{ tenant_id: "s1", body: "برايم", context: {} }], error: null };
+    expect(await (await spike("support")).json()).toEqual({ spike: null });
+  });
+
+  it("says it failed instead of answering no spike when the read fails", async () => {
+    dbResult = { data: null, error: { code: "57014", message: "timeout" } };
+    expect((await spike("support")).status).toBe(500);
+  });
+});
+
 describe("support phone alerts", () => {
   const SUB = {
     endpoint: "https://fcm.googleapis.com/fcm/send/abc",

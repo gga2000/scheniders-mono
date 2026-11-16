@@ -16,6 +16,7 @@ import type {
   TaskLogInput,
 } from "@/lib/support";
 import type { ShopCheck } from "@/lib/support-shop-check";
+import type { SupportSpike } from "@/lib/support-spike";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -212,6 +213,15 @@ export function useSupportNotice() {
     queryKey: ["admin", "support", "notice"],
     queryFn: async () =>
       (await readJson<{ notice: SupportNotice | null }>(await fetch("/api/support/notices"))).notice,
+    refetchInterval: 60_000,
+  });
+}
+
+/** Several shops writing about the same thing in the last 30 minutes, if so. */
+export function useSupportSpike() {
+  return useQuery<SupportSpike | null>({
+    queryKey: ["admin", "support", "spike"],
+    queryFn: async () => (await readJson<{ spike: SupportSpike | null }>(await fetch("/api/support/spike"))).spike,
     refetchInterval: 60_000,
   });
 }

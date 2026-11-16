@@ -183,3 +183,9 @@ A second person picking up a conversation should not have to read the whole chat
 - Staff see the reason in the conversation header ("Said not solved: The answer was unclear"). The scoreboard lists "Why merchants said it was not solved" under the reasons.
 - `support_cases.no_reason` keeps the latest reason and stays after staff solve again, so the scoreboard keeps it for the window. One answer per No; a later No can be answered again. `support_merchant_no_reason` checks the shop and member from the session.
 - Migration `20261116192049_support_no_reason.sql` (also adds `no_reasons` to `support_scoreboard`). Behaviour suite `support-no-reason`, and the `support-scoreboard` suite checks the new list and that the demo store never counts.
+
+## Wave 6, part 4: spot a shared problem, suggest a notice
+
+- The Support page checks every minute whether 3 or more different shops wrote about the same thing in the last 30 minutes (demo store left out). Topics come from the merchants' words, with Arabic spellings folded: delivery (Prime, courier, Al-Waseet), the wallet and payments, WhatsApp messages, signing in. Shops whose screens showed the same error code count as one topic too.
+- When no notice is live, the notice bar turns amber: "4 shops wrote about delivery in the last 30 min", with a notice already written in the merchants' Arabic. "Use this notice" opens the usual notice form with that text to edit and post. "Not now" hides that topic for this page visit.
+- `GET /api/support/spike` with `apps/admin/lib/support-spike.ts`. Nothing is posted without a person pressing Post.
