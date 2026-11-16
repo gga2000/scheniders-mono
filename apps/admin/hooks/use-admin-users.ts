@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 export interface AdminUser {
   id: string;
@@ -14,7 +15,7 @@ export function useAdminUsers() {
     queryKey: ["admin", "users"],
     queryFn: async () => {
       const res = await fetch("/api/admin-users");
-      if (!res.ok) throw new Error("Failed to fetch admin users");
+      okOrLoadFailure(res, "admin users");
       const data = await res.json();
       return data.users ?? [];
     },

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
+import { loadFailureKind } from "@/lib/load-failure";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
@@ -49,7 +50,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadMobileDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError } = useLeadDetail(id);
+  const { data, isLoading, isError, error } = useLeadDetail(id);
   const [tab, setTab] = useState<Tab>("Overview");
   const [noteOpen, setNoteOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
@@ -66,7 +67,8 @@ export function LeadMobileDetail() {
   }
 
   // Error
-  if (isError) {
+  // A lead that does not exist (404) falls through to "not found" below.
+  if (isError && loadFailureKind(error) !== "missing") {
     return (
       <div className="p-4 space-y-4">
         <Link

@@ -3,13 +3,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Industry } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 export function useIndustries() {
   return useQuery<Industry[]>({
     queryKey: ["industries"],
     queryFn: async () => {
       const res = await adminFetch("/api/industries");
-      if (!res.ok) throw new Error("Failed to fetch industries");
+      okOrLoadFailure(res, "industries");
       const data = await res.json();
       return data.industries;
     },
