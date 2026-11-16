@@ -15,6 +15,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
+import { formatDayTime } from "@/lib/format";
 
 // ── Date Helpers ────────────────────────────────────────────────────────
 
@@ -26,16 +27,6 @@ function isToday(date: string): boolean {
   const d = new Date(date);
   const now = new Date();
   return d.toDateString() === now.toDateString();
-}
-
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 // ── Props ───────────────────────────────────────────────────────────────
@@ -420,8 +411,8 @@ function FollowUpCard({
             style={!overdue && !today ? { color: "var(--muted)" } : undefined}
           >
             {done && followUp.completed_at
-              ? `Completed ${formatDate(followUp.completed_at)}`
-              : formatDate(followUp.scheduled_at)}
+              ? `Completed ${formatDayTime(followUp.completed_at)}`
+              : formatDayTime(followUp.scheduled_at)}
           </span>
           {followUp.assigned_user?.display_name && (
             <span

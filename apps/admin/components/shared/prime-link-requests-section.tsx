@@ -5,6 +5,7 @@ import { Check, Loader2, Truck } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
+import { formatWhen } from "@/lib/format";
 
 const outcomeSchema = z.enum(["not_linked", "shared_account", "choose_shop", "no_shop", "prime_down"]).nullable();
 
@@ -56,7 +57,7 @@ export function usePrimeLinkRequests() {
  * here waits on Prime or on us. «Approve» links a shop to the Prime account
  * the merchant app found, with a shop picked when the account has several.
  */
-export function PrimeLinkRequestsSection({ requests, timeAgo }: { requests: PrimeLinkRequest[]; timeAgo: (iso: string) => string }) {
+export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequest[] }) {
   const queryClient = useQueryClient();
   const [picked, setPicked] = useState<Record<string, number>>({});
   const approve = useMutation({
@@ -108,7 +109,7 @@ export function PrimeLinkRequestsSection({ requests, timeAgo }: { requests: Prim
                   ))}
                 </select>
               )}
-              <p className="text-[10px] text-foreground/30 mt-1">{timeAgo(req.created_at)}</p>
+              <p className="text-[10px] text-foreground/30 mt-1">{formatWhen(req.created_at)}</p>
             </div>
             {canApprove && (
               <button

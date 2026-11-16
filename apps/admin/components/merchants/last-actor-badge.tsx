@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { LastActor } from "@/hooks/use-last-actors";
+import { formatWhen } from "@/lib/format";
 
 const ACTION_LABELS: Record<string, string> = {
   topup: "topped up",
@@ -21,18 +22,6 @@ const ACTION_LABELS: Record<string, string> = {
   auto_renew_toggle: "toggled auto-renew",
   bulk_action: "ran bulk action",
 };
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d}d ago`;
-  return `${Math.floor(d / 30)}mo ago`;
-}
 
 interface LastActorBadgeProps {
   actor: LastActor | null | undefined;
@@ -111,7 +100,7 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
           </div>
           <p className="text-[10px] text-foreground/60 mt-1.5 leading-snug">
             <span className="font-semibold text-foreground/80">{verb}</span>
-            <span className="text-foreground/40"> · {timeAgo(actor.when)}</span>
+            <span className="text-foreground/40"> · {formatWhen(actor.when)}</span>
           </p>
         </div>
       )}

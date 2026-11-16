@@ -9,6 +9,7 @@ import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section
 import { WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
 import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing-check-alert";
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
+import { formatWhen } from "@/lib/format";
 
 interface Notification {
   id: string;
@@ -33,17 +34,6 @@ function getActionConfig(action: string) {
     label: action.replace(/_/g, " "),
     color: "text-foreground/60",
   };
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 export function NotificationBell() {
@@ -144,16 +134,16 @@ export function NotificationBell() {
             {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} />}
 
             {/* Interakt wallet empty: every shop's WhatsApp is stopped */}
-            {interaktEmpty && <WhatsAppHealthAlert since={whatsapp?.since ?? null} timeAgo={timeAgo} />}
+            {interaktEmpty && <WhatsAppHealthAlert since={whatsapp?.since ?? null} />}
 
             {/* Shops whose automatic WhatsApp is paused to protect the shared number */}
             {pausedShops > 0 && <WhatsAppPausedAlert count={pausedShops} onOpen={() => setIsOpen(false)} />}
 
             {/* Top-up receipts: shops waiting for our team to add their money */}
-            <TopupRequestsSection requests={openTopups} timeAgo={timeAgo} />
+            <TopupRequestsSection requests={openTopups} />
 
             {/* Prime link requests: shops whose link waits on Prime or on us */}
-            <PrimeLinkRequestsSection requests={openPrime} timeAgo={timeAgo} />
+            <PrimeLinkRequestsSection requests={openPrime} />
 
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
@@ -186,7 +176,7 @@ export function NotificationBell() {
                           </p>
                         )}
                         <p className="text-[10px] text-foreground/30 mt-1">
-                          {timeAgo(notif.created_at)}
+                          {formatWhen(notif.created_at)}
                         </p>
                       </div>
                       {!isRead && (

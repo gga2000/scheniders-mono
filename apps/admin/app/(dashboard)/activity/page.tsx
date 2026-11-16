@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { formatDayTime, formatWhen } from "@/lib/format";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -72,43 +73,6 @@ function getActionBadge(action: string): { bg: string; text: string } {
     return { bg: "bg-rose-100 text-rose-800", text: action };
   }
   return { bg: "bg-gray-100 text-gray-600", text: action };
-}
-
-function formatRelativeTime(dateString: string): string {
-  const now = Date.now();
-  const then = new Date(dateString).getTime();
-  const diffMs = now - then;
-
-  if (diffMs < 0) return "just now";
-
-  const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return "just now";
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-
-  const years = Math.floor(months / 12);
-  return `${years}y ago`;
-}
-
-function formatFullDate(dateString: string): string {
-  return new Date(dateString).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }
 
 function summarizeDetails(details: Record<string, unknown> | null): string {
@@ -277,8 +241,8 @@ export default function ActivityLogPage() {
                       className="border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.02] transition-colors"
                     >
                       <td className="p-3 whitespace-nowrap">
-                        <span title={formatFullDate(log.created_at)} className="cursor-default">
-                          {formatRelativeTime(log.created_at)}
+                        <span title={formatDayTime(log.created_at)} className="cursor-default">
+                          {formatWhen(log.created_at)}
                         </span>
                       </td>
                       <td className="p-3">

@@ -13,23 +13,9 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDay, formatTime, formatWhen } from "@/lib/format";
 
 const fmtCurrency = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-
-function relativeTime(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  if (day < 30) return `${Math.floor(day / 7)}w ago`;
-  if (day < 365) return `${Math.floor(day / 30)}mo ago`;
-  return `${Math.floor(day / 365)}y ago`;
-}
 
 function dayKey(iso: string): string {
   const d = new Date(iso);
@@ -47,12 +33,7 @@ function formatDayHeader(iso: string): string {
     a.getDate() === b.getDate();
   if (isSameDay(d, today)) return "Today";
   if (isSameDay(d, yesterday)) return "Yesterday";
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
-  });
+  return formatDay(d, today);
 }
 
 type EventKind =
@@ -377,12 +358,9 @@ export function TenantTimeline({ transactions, notes, tenant }: TenantTimelinePr
                             </p>
                           )}
                           <p className="text-[10px] text-foreground/40 mt-1 font-medium tabular-nums">
-                            {relativeTime(event.timestamp)}
+                            {formatWhen(event.timestamp)}
                             <span className="mx-1.5 text-foreground/25">·</span>
-                            {new Date(event.timestamp).toLocaleTimeString("en-US", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatTime(event.timestamp)}
                           </p>
                         </div>
 

@@ -27,7 +27,7 @@ import { MerchantAlertFlag } from "./merchant-alert-flag";
 import { LastActorBadge } from "./last-actor-badge";
 import type { LastActor } from "@/hooks/use-last-actors";
 import { listChurnRisk } from "@/lib/merchant-health";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatWhen } from "@/lib/format";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -43,35 +43,14 @@ interface MerchantCardProps {
   onToggleStar?: (id: string) => void;
 }
 
-function timeAgo(dateStr: string): { text: string; color: string } {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const hours = diff / (1000 * 60 * 60);
-  const days = hours / 24;
-
-  if (hours < 24) {
-    const h = Math.floor(hours);
-    return {
-      text: h < 1 ? "Just now" : `${h}h ago`,
-      color: "text-green-600 dark:text-green-400",
-    };
-  }
-  if (days < 7) {
-    return {
-      text: `${Math.floor(days)}d ago`,
-      color: "text-amber-600 dark:text-amber-400",
-    };
-  }
-  if (days < 30) {
-    return {
-      text: `${Math.floor(days)}d ago`,
-      color: "text-foreground/40",
-    };
-  }
-  return {
-    text: "30d+ ago",
-    color: "text-foreground/30",
-  };
+/** When the shop was last active, coloured green within a day and amber within a week. */
+function lastActiveLine(dateStr: string): { text: string; color: string } {
+  const days = (Date.now() - new Date(dateStr).getTime()) / 86_400_000;
+  const color =
+    days < 1 ? "text-green-600 dark:text-green-400" : days < 7 ? "text-amber-600 dark:text-amber-400" : "text-foreground/40";
+  return { text: formatWhen(dateStr), color };
 }
+
 
 export function MerchantCard({
   merchant,
@@ -90,7 +69,7 @@ export function MerchantCard({
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const healthScore = merchant.staff_health_score;
   const churnRisk = listChurnRisk(merchant);
-  const lastActive = merchant.last_active_at ? timeAgo(merchant.last_active_at) : null;
+  const lastActive = merchant.last_active_at ? lastActiveLine(merchant.last_active_at) : null;
 
   const balance = merchant.wallet?.balance_iqd ?? 0;
   // Real orders and our fees over the same last 30 days.

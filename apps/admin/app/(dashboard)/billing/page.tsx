@@ -16,7 +16,7 @@ import { ExportButton } from "@/components/shared/export-button";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
-import { formatIQD } from "@/lib/format";
+import { formatIQD, formatWhen } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,21 +58,6 @@ interface BillingData {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMins = Math.floor(diffMs / 60_000);
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 30) return `${diffDays}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
 
 const TYPE_STYLES: Record<string, string> = {
   topup: "bg-green-100 text-green-800",
@@ -501,7 +486,7 @@ export default function BillingPage() {
 
                   {/* Time ago */}
                   <span className="text-[11px] text-foreground/40 shrink-0">
-                    {timeAgo(tx.created_at)}
+                    {formatWhen(tx.created_at)}
                   </span>
                 </div>
               ))}

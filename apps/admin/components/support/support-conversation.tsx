@@ -28,15 +28,7 @@ import {
   type SupportMessageRow,
   type SupportReason,
 } from "@/lib/support";
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDayTime } from "@/lib/format";
 
 /** What the merchant was looking at, shown under their message. */
 function ContextChips({ message }: { message: SupportMessageRow }) {
@@ -100,7 +92,7 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
         {solved
           ? `Marked solved${message.sender_name ? ` by ${message.sender_name}` : ""}`
           : "Merchant said it is not solved. Reopened."}
-        <span className="text-foreground/30">· {formatTime(message.created_at)}</span>
+        <span className="text-foreground/30">· {formatDayTime(message.created_at)}</span>
       </div>
     );
   }
@@ -144,7 +136,7 @@ function MessageLine({ message }: { message: SupportMessageRow }) {
       {!fromStaff && <ContextChips message={message} />}
       <span className="mt-1 text-[11px] text-foreground/40">
         {message.sender_name ? `${message.sender_name} · ` : ""}
-        {formatTime(message.created_at)}
+        {formatDayTime(message.created_at)}
       </span>
     </div>
   );

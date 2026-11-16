@@ -5,6 +5,7 @@ import { Pin, PinOff, StickyNote, Sparkles, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
+import { formatWhen } from "@/lib/format";
 
 interface NotesTabProps {
   notes: MerchantDetail["notes"];
@@ -30,21 +31,6 @@ function gradientFor(seed: string): string {
     hash = (hash * 31 + seed.charCodeAt(i)) | 0;
   }
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]!;
-}
-
-function relativeTime(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  if (day < 30) return `${Math.floor(day / 7)}w ago`;
-  if (day < 365) return `${Math.floor(day / 30)}mo ago`;
-  return `${Math.floor(day / 365)}y ago`;
 }
 
 function shortId(id: string): string {
@@ -95,7 +81,7 @@ function NoteRow({ note }: { note: Note }) {
               </span>
             )}
             <span className="text-[10px] text-foreground/45 font-medium tabular-nums">
-              {relativeTime(note.created_at)}
+              {formatWhen(note.created_at)}
             </span>
             {wasEdited && (
               <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/35">

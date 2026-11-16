@@ -43,6 +43,7 @@ import {
   fmt,
   SCORE_KEYS,
 } from "@/components/leads/lead-detail-tabs";
+import { formatDay } from "@/lib/format";
 
 // ── Tabs ───────────────────────────────────────────────────────────────
 
@@ -387,7 +388,7 @@ export function LeadDetailDesktop() {
             {daysInPipeline}
           </p>
           <span className="text-[10px] text-[var(--muted)] mt-1 inline-block">
-            Since {new Date(lead.created_at).toLocaleDateString()}
+            Since {formatDay(lead.created_at)}
           </span>
         </div>
       </div>

@@ -5,12 +5,7 @@ import { ExternalLink, Pin } from "lucide-react";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { SupportShopCheck } from "@/components/support/support-shop-check";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
-import { formatIQD } from "@/lib/format";
-
-
-function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
+import { formatDay, formatIQD } from "@/lib/format";
 
 function isPlanTier(plan: string): plan is PlanTier {
   return PLAN_TIERS.some((tier) => tier === plan);

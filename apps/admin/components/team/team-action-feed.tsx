@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Inbox } from "lucide-react";
 import type { AdminEmployeeTracking } from "@/types/leads";
+import { formatWhen } from "@/lib/format";
 
 interface TeamActionFeedProps {
   actions: AdminEmployeeTracking[];
@@ -64,31 +65,6 @@ const categoryColors: Record<string, { dot: string; bg: string }> = {
   system: { dot: "bg-gray-400", bg: "bg-gray-50" },
 };
 
-function formatRelativeTime(dateString: string): string {
-  const now = Date.now();
-  const then = new Date(dateString).getTime();
-  const diffMs = now - then;
-
-  if (diffMs < 0) return "just now";
-
-  const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return "just now";
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-
-  return `${Math.floor(months / 12)}y ago`;
-}
-
 export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
   const items = useMemo(() => {
     return actions.map((action) => {
@@ -98,7 +74,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
         text: getActionText(action.action, action.metadata),
         category,
         colors: categoryColors[category],
-        relativeTime: formatRelativeTime(action.created_at),
+        relativeTime: formatWhen(action.created_at),
       };
     });
   }, [actions]);

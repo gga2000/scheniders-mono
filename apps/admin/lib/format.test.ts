@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDay, formatDayTime, formatIQD } from "./format";
+import { formatCount, formatDay, formatDayTime, formatIQD, formatWhen } from "./format";
 
 describe("formatIQD", () => {
   it("writes whole dinars with commas and IQD after", () => {
@@ -39,5 +39,27 @@ describe("formatDay", () => {
 
   it("adds the Baghdad time when asked", () => {
     expect(formatDayTime("2026-11-15T11:05:00Z", now)).toBe("Sun 15 Nov, 14:05");
+  });
+});
+
+describe("formatWhen", () => {
+  const now = new Date("2026-11-16T10:00:00Z");
+
+  it("counts minutes and hours within the last day", () => {
+    expect(formatWhen("2026-11-16T09:59:30Z", now)).toBe("just now");
+    expect(formatWhen("2026-11-16T09:48:00Z", now)).toBe("12 min ago");
+    expect(formatWhen("2026-11-16T05:00:00Z", now)).toBe("5 h ago");
+    expect(formatWhen("2026-11-15T10:00:01Z", now)).toBe("23 h ago");
+  });
+
+  it("writes the day once a day has passed, never months ago", () => {
+    expect(formatWhen("2026-11-15T10:00:00Z", now)).toBe("Sun 15 Nov");
+    expect(formatWhen("2026-06-02T10:00:00Z", now)).toBe("Tue 2 Jun");
+    expect(formatWhen("2025-04-09T09:00:00Z", now)).toBe("Wed 9 Apr 2025");
+  });
+
+  it("writes the day for a time still to come", () => {
+    expect(formatWhen("2026-11-18T10:00:00Z", now)).toBe("Wed 18 Nov");
+    expect(formatWhen("2026-11-16T10:00:20Z", now)).toBe("just now");
   });
 });

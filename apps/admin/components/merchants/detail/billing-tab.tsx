@@ -12,24 +12,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatWhen } from "@/lib/format";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-
-function relativeTime(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  if (day < 30) return `${Math.floor(day / 7)}w ago`;
-  if (day < 365) return `${Math.floor(day / 30)}mo ago`;
-  return `${Math.floor(day / 365)}y ago`;
-}
 
 type TxKind = "topup" | "charge" | "refund" | "adjustment" | "other";
 
@@ -227,7 +212,7 @@ export function BillingTab({ wallet, transactions }: BillingTabProps) {
                         {meta.label}
                       </span>
                       <span className="text-[10px] text-foreground/45 font-medium tabular-nums">
-                        {relativeTime(tx.created_at)}
+                        {formatWhen(tx.created_at)}
                       </span>
                     </div>
                     <p className="text-xs text-foreground/65 mt-1 truncate font-medium">

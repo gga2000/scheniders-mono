@@ -27,6 +27,7 @@ import {
   type CommissionStatus,
   type EmployeeCommission,
 } from "@/types/leads";
+import { formatDay } from "@/lib/format";
 
 const tabs = ["Actions", "Commissions", "Achievements", "Performance"] as const;
 type Tab = (typeof tabs)[number];
@@ -256,15 +257,7 @@ export default function TeamMemberDetailPage() {
                       className="border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.02] transition-colors"
                     >
                       <td className="px-4 py-3 text-foreground/70 whitespace-nowrap">
-                        {new Date(c.period_start).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        -{" "}
-                        {new Date(c.period_end).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {formatDay(c.period_start)} to {formatDay(c.period_end)}
                       </td>
                       <td className="px-4 py-3 font-medium text-foreground">
                         {c.tenant?.business_name ??

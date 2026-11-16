@@ -11,6 +11,7 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { formatDay } from "@/lib/format";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -30,10 +31,6 @@ const REASON_LABEL: Record<NonNullable<BillingLockSnapshot["reason"]>, string> =
   trial_ended: "Trial ended, not paid",
   unpaid: "Month not paid",
 };
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 const fmtIqd = (n: number) => new Intl.NumberFormat("en-US").format(Math.round(n));
 
@@ -117,7 +114,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
           <p className="text-[11px] text-foreground/55 mt-2 font-medium">
             {lock.since && (
               <>
-                Since {fmtDate(lock.since)}
+                Since {formatDay(lock.since)}
                 <span className="mx-1.5 text-foreground/30">·</span>
               </>
             )}

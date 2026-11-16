@@ -7,7 +7,7 @@ import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TOPUP_QUEUE_KEY, topupQueueItemSchema, topupWarnings, type TopupQueueItem } from "@/lib/topup-queue";
-import { formatIQD } from "@/lib/format";
+import { formatIQD, formatWhen } from "@/lib/format";
 
 const responseSchema = z.object({ requests: z.array(topupQueueItemSchema) });
 
@@ -31,7 +31,7 @@ export function useTopupRequests() {
  * check» (/payments), where the receipt, the amount that arrived and the
  * reason for a refusal have room.
  */
-export function TopupRequestsSection({ requests, timeAgo }: { requests: TopupQueueItem[]; timeAgo: (iso: string) => string }) {
+export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] }) {
   if (requests.length === 0) return null;
 
   return (
@@ -53,7 +53,7 @@ export function TopupRequestsSection({ requests, timeAgo }: { requests: TopupQue
                 {formatIQD(req.amount_iqd)} by {METHOD_LABEL[req.method]}
               </p>
               <div className="mt-1 flex items-center gap-2 text-[10px] text-foreground/40">
-                <span>{timeAgo(req.created_at)}</span>
+                <span>{formatWhen(req.created_at)}</span>
                 {req.billing?.locked && (
                   <span className="inline-flex items-center gap-0.5 text-amber-700">
                     <Lock className="w-3 h-3" />

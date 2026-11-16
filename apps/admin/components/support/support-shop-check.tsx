@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2, Loader2, MinusCircle, RotateCw, Stethoscop
 import { cn } from "@/lib/utils";
 import { useSupportShopCheck } from "@/hooks/use-support-cases";
 import { shopCheckLines, type CheckState } from "@/lib/support-shop-check";
+import { formatTime } from "@/lib/format";
 
 const STATE_ICON: Record<CheckState, { icon: typeof CheckCircle2; className: string; label: string }> = {
   ok: { icon: CheckCircle2, className: "text-green-700", label: "Fine" },
@@ -56,10 +57,7 @@ export function SupportShopCheck({ caseId }: { caseId: string }) {
   const lines = shopCheckLines(check.data.check, check.data.tenantId).sort((a, b) => order[a.state] - order[b.state]);
   const broken = lines.filter((l) => l.state === "broken").length;
   const look = lines.filter((l) => l.state === "look").length;
-  const checkedAt = new Date(check.data.check.checked_at).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const checkedAt = formatTime(check.data.check.checked_at);
 
   return (
     <div className="space-y-2">

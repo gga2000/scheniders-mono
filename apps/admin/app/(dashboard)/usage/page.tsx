@@ -17,6 +17,7 @@ import {
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
+import { formatDay } from "@/lib/format";
 
 interface UsageData {
   heatmapData: Array<{ date: string; count: number }>;
@@ -251,7 +252,7 @@ export default function UsagePage() {
               <div key={day.date} className="flex items-center gap-3 text-sm">
                 <span className="w-5 text-foreground/30 font-bold text-right">{i + 1}</span>
                 <span className="flex-1 font-medium text-foreground">
-                  {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}
+                  {formatDay(day.date)}
                 </span>
                 <span className="text-foreground/50 font-mono">{orderCount(day.count)}</span>
               </div>
@@ -272,7 +273,7 @@ export default function UsagePage() {
               <div key={day.date} className="flex items-center gap-3 text-sm">
                 <span className="w-5 text-foreground/30 font-bold text-right">{i + 1}</span>
                 <span className="flex-1 font-medium text-foreground">
-                  {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}
+                  {formatDay(day.date)}
                 </span>
                 <span className="text-foreground/50 font-mono">{orderCount(day.count)}</span>
               </div>
