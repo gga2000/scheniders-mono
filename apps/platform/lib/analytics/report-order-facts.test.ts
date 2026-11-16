@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { splitReportOrders, previousPeriod, type ReportOrder } from "./report-order-facts";
+import { splitReportOrders, previousPeriod, reportWindow, type ReportOrder } from "./report-order-facts";
+import { orderInDateWindow, windowFromDateFilter } from "@/lib/order-window";
 import { calculateReturnAnalytics, calculateKPIs } from "./reports-calculations";
 import { calculatePeriodComparison } from "./source-metrics";
 
 function order(over: Partial<ReportOrder>): ReportOrder {
     return {
-        created_at: "2026-10-15T10:00:00.000Z", status: "delivered", delivered_at: null,
+        created_at: "2026-10-15T10:00:00.000Z", scheduled_date: null, status: "delivered", delivered_at: null,
         contact_count: 1, city: "Baghdad", governorate_code: "BG", validated_governorate_code: null,
         rejection_reason: null, phone: "0770", needs_attention: false, attention_reasons: null,
         source: "manual", is_return: false, notes: null, price: 10000,
@@ -28,6 +29,26 @@ describe("splitReportOrders", () => {
         expect(s.current).toHaveLength(1);
         expect(s.previous).toHaveLength(1);
         expect(s.returns).toHaveLength(1);
+    });
+
+    it("counts the orders Orders lists for the same days: arrived in them or scheduled for one (round 14)", () => {
+        // «آخر 7 أيام» on 16 Nov: 10-16 Nov, Baghdad days.
+        const week = { from: new Date("2026-11-09T21:00:00.000Z"), to: new Date("2026-11-16T20:59:59.999Z") };
+        const orders = windowFromDateFilter("2026-11-10", "2026-11-16");
+        if (!orders) throw new Error("no window");
+        expect(reportWindow(week)).toEqual(orders);
+
+        const rows = [
+            order({ created_at: "2026-11-14T09:00:00.000Z" }),                               // arrived this week
+            order({ created_at: "2026-11-02T09:00:00.000Z", scheduled_date: "2026-11-12" }), // arrived earlier, scheduled into the week
+            order({ created_at: "2026-11-09T09:00:00.000Z", scheduled_date: "2026-11-12" }), // the same, and arrived in the week before
+            order({ created_at: "2026-11-05T09:00:00.000Z", scheduled_date: "2026-11-20" }), // scheduled after the week
+        ];
+        const s = splitReportOrders(rows, week);
+        expect(s.current).toEqual(rows.filter((o) => orderInDateWindow(o, orders)));
+        expect(s.current).toHaveLength(3);
+        // The week before holds the orders that arrived in it, whatever their schedule.
+        expect(s.previous).toEqual([rows[2], rows[3]]);
     });
 });
 

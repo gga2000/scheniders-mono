@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useElementSize } from "@/hooks/use-element-size";
 import { squarify } from "./chart-geometry";
+import { formatShare } from "@/lib/utils";
 import { CountUp } from "./count-up";
 import type { TooltipContent } from "./chart-tooltip";
 
@@ -57,7 +58,7 @@ export function GovernorateTreemap({ tiles, label, describe, onTip, onTipEnd }: 
             {rects.map((r) => {
                 const t = r.item;
                 const w = Math.max(0, r.w - GAP), h = Math.max(0, r.h - GAP);
-                const share = `${((r.value / total) * 100).toFixed(1).replace(/\.0$/, "")}%`;
+                const share = formatShare(r.value, total);
                 const digits = r.value.toLocaleString("en-US").length;
                 let fontSize = Math.min(30, (w - 24 - 52) / (digits * 0.62));
                 let showShare = true;

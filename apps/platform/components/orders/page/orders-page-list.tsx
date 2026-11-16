@@ -26,7 +26,7 @@ import { OrderRowsSkeleton } from "./order-rows-skeleton";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageList({ m }: { m: OrdersPageModel }) {
-    const { recordContact, isRefreshing, ordersPending, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
+    const { recordContact, isRefreshing, ordersPending, listIsCurrent, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
     const primeQueue = useOrderStore((s) => s.primeQueue);
     const primeQueuePending = usePrimeQueuePending(primeQueue);
     // In a «معالجة» / «راجع» list the handled orders leave the cards and
@@ -39,6 +39,15 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
     // A failed search says so in the banner above, with a retry. An empty
     // state under it would read as "this customer has no orders".
     const searchFailedEmpty = !showArchived && orderSearch.active && orderSearch.failure !== null && listOrders.length === 0;
+    // An empty list while rows are still arriving is not an empty list, in
+    // cards or table. `loading` covers only the first fetch, so a refetch
+    // (a window change, a reconnect, a stale SWR hydration) used to fall
+    // straight through to the empty state, and a merchant with 4,778 orders
+    // was told "No orders yet". The same held for the render between a
+    // window's rows landing and the list's deferred render catching up
+    // (`listIsCurrent`): 1.5 s of «لا توجد طلبات مطابقة» above 9 orders.
+    const listLoading = listOrders.length === 0
+        && (isRefreshing || ordersPending || previewing || primeQueuePending || (!showArchived && (!listIsCurrent || orderSearch.pending)));
     const handledFold = (
         <PrimeHandledFold orders={handledOrders} renderCard={(order) => <VirtualizedOrderList {...cardListProps} orders={[order]} />} />
     );
@@ -133,13 +142,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                             {/* Cards View */}
                             {(viewMode === "cards" || viewMode === "list") && (
                                 <>
-                                    {listOrders.length === 0 && (isRefreshing || ordersPending || previewing || primeQueuePending || (!showArchived && orderSearch.pending)) ? (
-                                        /* An empty list while rows are still arriving is not an empty
-                                           list. `loading` covers only the first fetch, so a refetch —
-                                           after a window change, a reconnect, or a stale SWR
-                                           hydration — used to fall straight through to the empty
-                                           state, and a merchant with 4,778 orders was told "No orders
-                                           yet. When you receive orders, they'll appear here." */
+                                    {listLoading ? (
                                         <OrderRowsSkeleton variant="cards" />
                                     ) : searchFailedEmpty ? null : listOrders.length === 0 && primeQueue !== null ? (
                                         <PrimeQueueEmpty queue={primeQueue} />
@@ -184,7 +187,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                             )}
 
                             {/* Table View - State of the Art */}
-                            {viewMode === "table" && !searchFailedEmpty && (previewing && listOrders.length === 0 ? (
+                            {viewMode === "table" && !searchFailedEmpty && (listLoading ? (
                                 <OrderRowsSkeleton variant="table" />
                             ) : (
                                 <VirtualizedOrderTable
