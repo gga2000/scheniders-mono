@@ -2,7 +2,7 @@
  * "Dispatch" shipping label, 80 x 120 mm, for thermal printers.
  *
  * Built for the courier's two-second read: destination city in a reversed
- * band, an Arabic fragile-glass tape, the customer card (name, main phone,
+ * band, the shop's fragile-glass tape when it ships glass, the customer card (name, main phone,
  * backup phone) beside the cash box, then the address and a full-width
  * barcode. Black only: a thermal head cannot print grey.
  *
@@ -103,6 +103,8 @@ export interface DispatchLabelOptions {
     pickup?: AfterSalePickup;
     /** Courier logo beside the order number; a custom URL replaces the built-in Prime mark. */
     courierLogo?: { show: boolean; url?: string };
+    /** The glass tape and the sealed-perfume warning: only a shop that ships perfume prints them. */
+    fragileWarning?: boolean;
 }
 
 const itemList = (items: { name: string; qty: number }[]): string =>
@@ -124,6 +126,8 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
         <div class="dl-as-l"><span class="dl-as-k">${BACK_SIGN}استلم منه</span><span class="dl-as-v">${backText}</span></div>`;
     return `<div class="dl-as">${lines}</div>`;
 }
+
+const GLASS_TAPE = `<div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>زجاج · قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>`;
 
 /** Every parcel going out to a customer: the perfume stays sealed; the sample in the box is the tester. */
 const PERFUME_WARNING = `<div class="dl-perf">${NO_OPEN_SIGN}<div class="dl-perf-t"><b>يمنع فتح العطر منعاً باتاً</b><span>يتم الاختبار حصراً من خلال العينة المرفقة</span></div></div>`;
@@ -187,8 +191,8 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         <div class="dl-qr">${qrSvg(id, { moduleSteps: 3, maxSizeMm: 21 })}</div>
     </div>
     <div class="dl-dest${slot && kindPill ? " dl-dest-tight" : ""}"><b>${e(order.city) || "—"}</b>${slotPill}${kindPill}</div>
-    <div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>زجاج · قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>
-    ${order.is_return ? "" : PERFUME_WARNING}
+    ${options.fragileWarning ? GLASS_TAPE : ""}
+    ${options.fragileWarning && !order.is_return ? PERFUME_WARNING : ""}
     ${afterSale ? afterSaleLines(order, items, options.pickup) : ""}
     <div class="dl-cust">
         <div class="dl-who">

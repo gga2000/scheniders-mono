@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
-import { shippingLabelsDocument } from "@/lib/shipping-labels";
+import { shippingLabelsDocument, type LabelBrand } from "@/lib/shipping-labels";
 import { useLanguage } from "@/hooks/use-language";
 import type { Order } from "@/lib/supabase";
 
@@ -14,6 +14,8 @@ interface LabelPreviewRailProps {
     position: number;
     total: number;
     onStep: (delta: -1 | 1) => void;
+    /** The shop's label marks, so the preview matches the printed label. */
+    brand: LabelBrand;
 }
 
 // 80x120 mm at the CSS 96 dpi, shown at 90%.
@@ -21,7 +23,7 @@ const LABEL_PX = { width: 302, height: 454 };
 const SCALE = 0.9;
 
 /** The focused order's label, rendered by the same document the PDF and the printer get. */
-export function LabelPreviewRail({ order, position, total, onStep }: LabelPreviewRailProps) {
+export function LabelPreviewRail({ order, position, total, onStep, brand }: LabelPreviewRailProps) {
     const { t } = useLanguage();
     const afterSale = Boolean(order?.is_return || order?.is_replacement);
     const pickups = useQuery({
@@ -80,7 +82,7 @@ export function LabelPreviewRail({ order, position, total, onStep }: LabelPrevie
                     ready && (
                         <iframe
                             title={t("printing.previewTitle", { name: order.customer_name })}
-                            srcDoc={shippingLabelsDocument([order], pickups.data ?? {})}
+                            srcDoc={shippingLabelsDocument([order], brand, pickups.data ?? {})}
                             sandbox=""
                             className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
                             style={{ width: LABEL_PX.width, height: LABEL_PX.height, transform: `scale(${SCALE})` }}

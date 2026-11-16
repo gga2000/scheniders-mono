@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import type { usePrinting } from "@/hooks/use-printing";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { openPrintWindow, runFileNames, shippingLabelsDocument, writePrintWindow } from "@/lib/shipping-labels";
+import { openPrintWindow, runFileNames, shippingLabelsDocument, writePrintWindow, type LabelBrand } from "@/lib/shipping-labels";
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
@@ -20,6 +20,8 @@ interface DispatchRunOptions {
     bulkUpdateStatus: (ids: string[], status: Order["status"]) => Promise<{ count: number }>;
     /** The tenant's Prime API link; without one the run downloads the Prime Excel file. */
     prime: Pick<ReturnType<typeof usePrimeLink>, "connected" | "send">;
+    /** What this shop's labels carry beyond the order (see useLabelBrand). */
+    labelBrand: LabelBrand;
 }
 
 /**
@@ -28,7 +30,7 @@ interface DispatchRunOptions {
  * order; only the hand-off does. Each run is recorded so a printed order never
  * looks unprinted and an old run can be printed again.
  */
-export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRunOptions) {
+export function useDispatchRun({ printing, bulkUpdateStatus, prime, labelBrand }: DispatchRunOptions) {
     const { t } = useLanguage();
     const [pdfLoading, setPdfLoading] = useState(false);
     const [shipping, setShipping] = useState(false);
@@ -37,7 +39,7 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
 
     // Refund / replacement labels list what the courier takes back from the customer.
     const labelsDocument = async (orders: Order[], autoPrint: boolean) =>
-        shippingLabelsDocument(orders, await loadAfterSalePickups(orders), { autoPrint });
+        shippingLabelsDocument(orders, labelBrand, await loadAfterSalePickups(orders), { autoPrint });
 
     // The output has already left the app by the time this runs, so a failed record must be loud:
     // unrecorded prints look "never printed" and get printed twice.
