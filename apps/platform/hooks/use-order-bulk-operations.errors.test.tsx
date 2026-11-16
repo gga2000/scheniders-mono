@@ -13,6 +13,8 @@ vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ tenantId: 
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 vi.mock("@/app/actions/deleted-orders", () => ({ restoreDeletedOrders: vi.fn() }));
+// The courier export names its file after the store (Fermi B4).
+vi.mock("@/hooks/chat/use-tenant-brand", () => ({ useTenantBrand: () => ({ name: "Store", logoUrl: null }) }));
 
 const toastError = vi.fn();
 const dismissToast = vi.fn();

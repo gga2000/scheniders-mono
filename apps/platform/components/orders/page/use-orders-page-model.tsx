@@ -815,7 +815,6 @@ export function useOrdersPageModel() {
     const {
         isBulkProcessing,
         bulkActions,
-        setShipConfirmCompany,
         setShipConfirmOpen,
         setShipConfirmKey,
     } = bulk;
@@ -1218,7 +1217,6 @@ export function useOrdersPageModel() {
         bulk,
         isBulkProcessing,
         bulkActions,
-        setShipConfirmCompany,
         setShipConfirmOpen,
         setShipConfirmKey,
         guardedStatusUpdate,

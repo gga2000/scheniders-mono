@@ -16,7 +16,16 @@ import { formatBulkProgress } from "@/lib/order-bulk-batches";
 import { formatScheduledDate } from "@/lib/order-format-utils";
 import { summarizeBulkFailures } from "@/lib/order-bulk-result";
 import type { BulkStatusResult } from "@/hooks/use-order-crud";
-import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
+import { downloadShippingSheet } from "@/lib/export-utils";
+import { fetchCourierRows } from "@/lib/shipping/fetch-courier-rows";
+import {
+    targetCompany,
+    targetCourierName,
+    targetFileFormat,
+    targetSheet,
+    type ShipExportTarget,
+} from "@/lib/shipping/export-columns";
+import { useTenantBrand } from "@/hooks/chat/use-tenant-brand";
 
 /**
  * Every bulk operation on the orders page, and the state its dialogs need.
@@ -49,6 +58,7 @@ export function useOrderBulkOperations() {
     const setSelectedOrders = useOrderStore((s) => s.setSelectedOrders);
     const { tenantId } = useAuth();
     const { t, language } = useLanguage();
+    const { name: storeName } = useTenantBrand();
 
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
     // Re-entry is checked against a ref, not the state: a retry button on a
@@ -256,12 +266,13 @@ export function useOrderBulkOperations() {
     const [isDeleting, setIsDeleting] = useState(false);
     // Ship export confirmation dialog state
     const [shipConfirmOpen, setShipConfirmOpen] = useState(false);
-    const [shipConfirmCompany, setShipConfirmCompany] = useState<'prime' | 'waseet'>('prime');
     const [shipConfirmKey, setShipConfirmKey] = useState(0);
     // Post-export: prompt to move newly-exported orders from Confirmed → In Transit
     const [moveTransitOpen, setMoveTransitOpen] = useState(false);
     const [pendingTransitIds, setPendingTransitIds] = useState<string[]>([]);
     const [pendingTransitPrevStatuses, setPendingTransitPrevStatuses] = useState<{ id: string; status: Order["status"] }[]>([]);
+    // The courier they went to, written on each order moved ("sent to …").
+    const [pendingTransitCourier, setPendingTransitCourier] = useState("");
 
     useEffect(() => {
         let timer: NodeJS.Timeout;
@@ -392,20 +403,25 @@ export function useOrderBulkOperations() {
     };
 
     const handleShipExport = async (
-        company: 'prime' | 'waseet',
-        { includeScheduledLater = false }: { includeScheduledLater?: boolean } = {},
+        target: ShipExportTarget,
+        {
+            includeScheduledLater = false,
+            skipIds = [],
+        }: {
+            includeScheduledLater?: boolean;
+            /** Orders already sent to a courier that the merchant chose not to send again. */
+            skipIds?: readonly string[];
+        } = {},
     ) => {
         // Shipping with nothing selected means "everything matching my filter".
         // That is only true while the cached list IS the complete filtered set;
         // against a windowed list it would hand the courier whichever orders
         // happened to be loaded. Refuse rather than dispatch the wrong set.
         if (!canShipWithoutSelection({ selectedCount: selectedOrders.size, ordersAreComplete })) {
-            toast.warning(
-                "Select the orders to ship",
-                "Only part of this filter is loaded, so \"all visible\" would not be all of them.",
-            );
+            toast.warning(t("shipExport.toast.selectFirst"), t("shipExport.toast.selectFirstBody"));
             return;
         }
+        if (!tenantId) return;
 
         const inScope: Order[] = selectedOrders.size > 0
             ? orders.filter(o => selectedOrders.has(o.id))
@@ -413,28 +429,30 @@ export function useOrderBulkOperations() {
 
         // Orders postponed to a later day stay home unless the merchant ticked
         // "include" in the confirmation dialog: handing one to the courier
-        // today would silently undo the postponement.
+        // today would silently undo the postponement. Orders already sent to a
+        // courier stay out unless the merchant chose to send them again.
         const { shippable, scheduledLater } = partitionByShipDay(inScope);
-        const ordersToExport = includeScheduledLater ? inScope : shippable;
-        const ids = ordersToExport.map(o => o.id);
+        const skip = new Set(skipIds);
+        const chosen = (includeScheduledLater ? inScope : shippable).filter(o => !skip.has(o.id));
 
-        if (ids.length === 0) {
+        if (chosen.length === 0) {
             toast.warning(
-                "No orders to export",
-                scheduledLater.length > 0
-                    ? "Every order here is scheduled for a later day."
-                    : "Select orders before exporting",
+                t("shipExport.toast.nothing"),
+                scheduledLater.length > 0 ? t("shipExport.toast.nothingLater") : t("shipExport.toast.nothingSelected"),
             );
             return;
         }
 
-        const companyLabel = company === 'prime' ? 'Prime' : 'Al-Waseet';
+        const company = targetCompany(target);
+        const courierName = targetCourierName(target);
+        let ids = chosen.map(o => o.id);
 
         // OBS-3: shipping-submission failure rate was unanswerable because only
         // successful exports left a trace — `print_batches` is written on
         // success, and a failure showed a toast and nothing else. Every attempt
-        // is now recorded, including which half of it failed. The tenant is
-        // validated inside the function, not taken on trust.
+        // is now recorded, including which half of it failed, with the orders
+        // it carried (Fermi B4: the next export asks before sending them
+        // again). The tenant is validated inside the function, not taken on trust.
         const recordExportOutcome = async (
             succeeded: boolean,
             failureStage?: 'file' | 'batch_record',
@@ -447,6 +465,8 @@ export function useOrderBulkOperations() {
                 p_succeeded: succeeded,
                 p_failure_stage: failureStage ?? null,
                 p_error_message: errorMessage ?? null,
+                p_order_ids: ids,
+                p_courier_name: target.kind === 'layout' ? courierName : null,
             });
             if (error) {
                 // Never let the audit write change what the operator is told
@@ -459,76 +479,98 @@ export function useOrderBulkOperations() {
         };
 
         try {
+            // The sheet is built from the orders as they are now, read by id:
+            // the list holds fewer columns than a courier needs.
+            const rows = await fetchCourierRows(tenantId, ids);
+            if (rows.length === 0) {
+                toast.warning(t("shipExport.toast.nothing"), t("shipExport.toast.nothingSelected"));
+                return;
+            }
+            ids = rows.map(r => r.id);
+            const sheet = targetSheet(target, rows, { storeName: storeName ?? "", date: new Date() });
+
             // Generate the file before recording the batch. The batch row used to
             // be inserted first, so an export that threw left a committed row
             // claiming a shipment that never left.
-            if (company === 'prime') {
-                await exportOrdersToPrimeCSV(ids, ordersToExport);
-            } else {
-                await exportOrdersToWaseetXLSX(ids, ordersToExport);
+            await downloadShippingSheet(sheet, targetFileFormat(target));
+
+            // Prime and Al-Waseet exports also keep their export batch (the
+            // printing page lists them); the log is the record for the rest.
+            let batchError: string | null = null;
+            if (target.kind !== 'layout') {
+                const batchName = `${courierName} Export ${new Date().toLocaleDateString('en-GB')}`;
+                const batch = await createBatch(batchName, ids, target.kind, "invoice");
+                if (!batch.success) batchError = batch.error || "Failed to create export batch";
             }
 
-            const batchName = `${companyLabel} Export ${new Date().toLocaleDateString('en-GB')}`;
-            const { success: batchSuccess, error: batchError } = await createBatch(
-                batchName,
-                ids,
-                company,
-                "invoice"
-            );
-
             // Capture previous statuses for undo capability
-            const previousStatuses = ordersToExport.map(o => ({ id: o.id, status: o.status }));
+            const exported = new Set(ids);
+            const previousStatuses = chosen.filter(o => exported.has(o.id)).map(o => ({ id: o.id, status: o.status }));
             setSelectedOrders(new Set());
 
-            if (batchSuccess) {
+            const keptBack = !includeScheduledLater && scheduledLater.length > 0
+                ? ` ${t("shipExport.toast.keptBack", { count: scheduledLater.length })}`
+                : "";
+            if (batchError === null) {
                 await recordExportOutcome(true);
                 toast.success(
-                    "Export successful",
-                    `${ids.length} orders exported via ${companyLabel}` +
-                        (!includeScheduledLater && scheduledLater.length > 0
-                            ? `. ${scheduledLater.length} scheduled for a later day were kept back.`
-                            : ""),
+                    t("shipExport.toast.done"),
+                    t("shipExport.toast.doneBody", { count: ids.length, courier: courierName }) + keptBack,
                 );
             } else {
-                await recordExportOutcome(false, 'batch_record', batchError || undefined);
+                await recordExportOutcome(false, 'batch_record', batchError);
                 // The file is already in the operator's hands, so this is not an
                 // export failure — say exactly what did and did not happen.
-                reportOrderError(new Error(batchError || "Failed to create export batch"), {
+                reportOrderError(new Error(batchError), {
                     operation: "orders-ship-export-batch-record",
                     extra: { company, orderCount: ids.length },
                 });
                 toast.warning(
-                    "Exported, but not recorded",
-                    `${ids.length} orders were exported via ${companyLabel}. The batch record could not be saved.`,
+                    t("shipExport.toast.notRecorded"),
+                    t("shipExport.toast.notRecordedBody", { count: ids.length, courier: courierName }),
                 );
             }
 
-            // Prompt to move the exported orders to In Transit
+            // Prompt to move the exported orders to In Transit, with this courier
             setPendingTransitIds(ids);
             setPendingTransitPrevStatuses(previousStatuses);
+            setPendingTransitCourier(courierName);
             setMoveTransitOpen(true);
         } catch (err) {
-            await recordExportOutcome(
-                false,
-                'file',
-                err instanceof Error ? err.message : "Could not complete the export process",
-            );
-            toast.error(
-                "Export failed",
-                err instanceof Error ? err.message : "Could not complete the export process"
-            );
+            const message = err instanceof Error ? err.message : t("shipExport.toast.failedBody");
+            await recordExportOutcome(false, 'file', message);
+            toast.error(t("shipExport.toast.failed"), message);
+        }
+    };
+
+    /** Write (or clear, with "") which courier these orders went to. */
+    const markCourier = async (orderIds: string[], courier: string) => {
+        if (!tenantId || orderIds.length === 0) return;
+        const { error } = await supabase.rpc('mark_orders_sent_with_courier', {
+            p_tenant_id: tenantId,
+            p_order_ids: orderIds,
+            p_courier_name: courier,
+        });
+        if (error) {
+            // The statuses already moved; only the courier's name is missing.
+            reportOrderError(error, { operation: "orders-ship-export-mark-courier", extra: { count: orderIds.length } });
+            toast.warning(t("shipExport.toast.courierNotSaved"), error.message);
         }
     };
 
     const handleConfirmMoveToTransit = async () => {
         const ids = pendingTransitIds;
         const previousStatuses = pendingTransitPrevStatuses;
+        const courier = pendingTransitCourier;
         if (ids.length === 0) return;
 
         const moved = await runBulkStatus(ids, "in_transit");
         // Nothing moved (or the run was refused): there is nothing to undo.
         if (!moved || moved.count === 0) return;
         const movedIds = new Set(moved.succeededIds);
+        // API couriers (Prime, Al-Waseet by API) keep their own record; the
+        // name is for orders that left in an export file.
+        await markCourier([...movedIds], courier);
         toast({
             title: `${moved.count} orders moved to In Transit`,
             description: "Click undo to restore previous statuses",
@@ -550,6 +592,7 @@ export function useOrderBulkOperations() {
                         const res = await bulkUpdateStatus(orderIds, status);
                         restored += res.count;
                     }
+                    await markCourier([...movedIds], "");
                     if (restored === movedIds.size) {
                         toast.success("Undone", `${restored} orders restored to their previous statuses`);
                     }
@@ -558,6 +601,7 @@ export function useOrderBulkOperations() {
         });
         setPendingTransitIds([]);
         setPendingTransitPrevStatuses([]);
+        setPendingTransitCourier("");
     };
 
     return {
@@ -577,8 +621,6 @@ export function useOrderBulkOperations() {
         // Courier export
         shipConfirmOpen,
         setShipConfirmOpen,
-        shipConfirmCompany,
-        setShipConfirmCompany,
         shipConfirmKey,
         setShipConfirmKey,
         handleShipExport,
@@ -586,6 +628,7 @@ export function useOrderBulkOperations() {
         moveTransitOpen,
         setMoveTransitOpen,
         pendingTransitIds,
+        pendingTransitCourier,
         handleConfirmMoveToTransit,
     };
 }

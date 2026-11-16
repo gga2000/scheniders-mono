@@ -125,7 +125,8 @@ export const ORDER_READ_COLUMNS = `
   created_via,
   take_kind,
   taken_by,
-  prime_district
+  prime_district,
+  courier_name
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
@@ -245,6 +246,7 @@ export const LIST_COLUMNS = `
   delivery_slot,
   is_gift,
   prime_district,
+  courier_name,
   is_reviewed,
   reviewed_at,
   reviewed_by

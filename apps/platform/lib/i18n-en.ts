@@ -10,6 +10,7 @@ import { guideTranslations } from "@/lib/i18n-guide";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
 import { planTranslations } from "@/lib/i18n-plans";
 import { whatsappTranslations } from "@/lib/i18n-whatsapp";
+import { shipExportTranslations } from "@/lib/i18n-ship-export";
 
 export const en: Record<string, string> = {
     ...orderStatusTranslations("en"),
@@ -21,6 +22,7 @@ export const en: Record<string, string> = {
     ...financeSummaryTranslations("en"),
     ...planTranslations("en"),
     ...whatsappTranslations("en"),
+    ...shipExportTranslations("en"),
     // ── Navigation ──
     "nav.dashboard": "Dashboard",
     "nav.orders": "Orders",
@@ -1202,7 +1204,6 @@ export const en: Record<string, string> = {
     "orders.dateLabel.last30": "Last 30 Days",
     "orders.dateLabel.pastYear": "Past Year",
     "orders.ui.export": "Export",
-    "orders.ui.shipViaPrime": "Ship via Prime",
     "orders.ui.returns": "Returns",
     "orders.ui.nSelected": "{count} orders selected",
     "orders.ui.selectAllN": "Select all {count} orders",

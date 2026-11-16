@@ -125,7 +125,9 @@ CREATE TABLE public.shipping_export_log (
     order_count integer NOT NULL,
     succeeded boolean NOT NULL,
     failure_stage text,
-    error_message text
+    error_message text,
+    order_ids uuid[],
+    courier_name text
 );
 
 CREATE TABLE public.prime_connections (
