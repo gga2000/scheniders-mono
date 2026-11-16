@@ -354,7 +354,8 @@ function renderCell(
     }
 
     case "orders": {
-      const orders = m.usage?.orders_count ?? 0;
+      // Real orders, last 30 days: the card's number. The usage row counts what was billed.
+      const orders = m.orders_30d ?? 0;
       return (
         <div className="flex flex-col items-end leading-tight">
           <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
@@ -384,15 +385,14 @@ function renderCell(
       );
 
     case "revenue": {
-      const rev = m.monthly_revenue ?? 0;
       return (
         <div className="flex flex-col items-end leading-tight">
           <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
-            Revenue
+            Our fees
           </span>
           <span className="font-black tabular-nums text-foreground/85 text-[13px]">
-            {formatCompactIQD(rev)}
-            <span className="text-[9px] font-bold text-foreground/40 ml-1">/mo</span>
+            {formatCompactIQD(m.fees_30d)}
+            <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
           </span>
         </div>
       );

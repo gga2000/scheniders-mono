@@ -7,7 +7,8 @@ import type { AdminTenant } from "@/types/admin";
 import { healthChipClass, healthDotClass } from "@/lib/merchant-health";
 
 interface HealthScoreTooltipProps {
-  merchant: AdminTenant;
+  /** A list row or the shop record: only the parts of the score are read. */
+  merchant: Pick<AdminTenant, "staff_health_parts">;
   score: number;
   isChurnRisk: boolean;
 }
@@ -20,7 +21,7 @@ interface ScoreComponent {
 }
 
 /** The three bars: what the database says each part adds to, or takes from, 50. */
-function getHealthBreakdown(merchant: AdminTenant): ScoreComponent[] {
+function getHealthBreakdown(merchant: Pick<AdminTenant, "staff_health_parts">): ScoreComponent[] {
   const { status, wallet, orders } = merchant.staff_health_parts;
   const tone = (value: number) => (value > 0 ? "bg-green-500" : value < 0 ? "bg-red-500" : "bg-gray-300");
 
