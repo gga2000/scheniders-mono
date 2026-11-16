@@ -12,6 +12,8 @@ interface SummaryCardProps {
     footer?: ReactNode;
     className?: string;
     testId?: string;
+    /** Lets a link elsewhere on the page scroll to this card. */
+    id?: string;
 }
 
 /** The one big figure a small card leads with, before its sentence. */
@@ -19,7 +21,7 @@ export const CARD_FIGURE = "text-[30px] font-bold leading-none tracking-[-0.02em
 
 /** A link at the foot of a card. */
 export const CARD_LINK =
-    "inline-flex items-center gap-1 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current";
+    "inline-flex items-center gap-1 text-[13px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current";
 
 /** True inside a SummaryPanel: the panel draws the frame, so its cards draw none of their own. */
 const InPanel = createContext(false);
@@ -40,11 +42,12 @@ export function SummaryPanel({ children, testId }: { children: ReactNode; testId
 }
 
 /** A white card of the summary page: a plain title, one quiet line under it, then the content. */
-export function SummaryCard({ title, sub, textDir, action, children, footer, className, testId }: SummaryCardProps) {
+export function SummaryCard({ title, sub, textDir, action, children, footer, className, testId, id }: SummaryCardProps) {
     const inPanel = useContext(InPanel);
     return (
         <section
-            className={cn("flex flex-col p-5 lg:p-6", !inPanel && "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]", className)}
+            id={id}
+            className={cn("flex scroll-mt-6 flex-col p-5 lg:p-6", !inPanel && "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]", className)}
             data-testid={testId}
         >
             <header className="mb-4 flex items-start justify-between gap-4">

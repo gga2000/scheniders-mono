@@ -7,6 +7,9 @@ import type { FinanceSummary } from "@/lib/finance/summary";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { CARD_LINK, SummaryCard } from "./summary-card";
 
+/** The card's anchor: the refunds warning at the top of the page scrolls here. */
+export const COURIER_PAYMENTS_ID = "courier-payments";
+
 type StatementOrder = FinanceSummary["cash"]["statement_orders"][number];
 
 interface CourierPaymentsProps {
@@ -35,7 +38,7 @@ function OrderLinks({ orders }: { orders: StatementOrder[] }) {
                     <Link
                         key={order.id}
                         href={`/orders?order=${order.id}`}
-                        className="font-semibold tabular-nums text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
+                        className="font-semibold tabular-nums text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                         aria-label={t("fin.money.unpaid.row.open", { code })}
                     >
                         {code}
@@ -72,13 +75,18 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                   {
                       key: "refunds",
                       label: counted("fin.money.cash.part.refunds", statement.returns_orders - statement.returns_open_orders),
-                      note: t("fin.money.cash.part.refundsNote"),
+                      // "Refunds" in the profit statement takes each refund's order price, and every refund paid
+                      // in the period: say why it differs from what the statements took off, when it does.
+                      note:
+                          summary.refunds.amount === -refundsDone
+                              ? t("fin.money.cash.part.refundsNote")
+                              : t("fin.money.cash.part.refundsNoteDiff", { amount: money(summary.refunds.amount) }),
                       amount: refundsDone,
                   },
                   {
                       key: "refunds-open",
                       label: counted("fin.money.cash.part.refundsOpen", statement.returns_open_orders),
-                      note: t("fin.money.cash.part.refundsOpenNote"),
+                      note: t("fin.money.cash.part.refundsOpenNote", { amount: money(-statement.returns_open) }),
                       amount: statement.returns_open,
                       orders: ordersOf("refund_open"),
                   },
@@ -114,6 +122,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
             sub={payments.payments > 0 ? counted("fin.money.cash.count", payments.payments) : t("fin.money.payments.none")}
             textDir={dir}
             testId="money-payments"
+            id={COURIER_PAYMENTS_ID}
             action={payments.payments > 0 && <Money value={payments.amount} className="text-[22px] font-bold tracking-[-0.01em] text-foreground" />}
             footer={
                 <button type="button" onClick={onAddPayment} className={CARD_LINK} data-testid="money-add-payment">

@@ -17,7 +17,7 @@ interface StatementDetailProps {
 }
 
 const linkClass =
-    "inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current";
+    "inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current";
 
 /** What is inside one cost line of the statement, and where to go to change it. */
 export function StatementDetail({ line, summary, onOpenTab, averaged }: StatementDetailProps) {

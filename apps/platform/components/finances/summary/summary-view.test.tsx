@@ -294,7 +294,7 @@ describe("SummaryView", () => {
 
     it("shows what the courier paid out in the period, taken apart so the lines add up to it", () => {
         renderView(query(summary()));
-        expect(byTestId("money-payments")?.textContent).toContain("وصلك من شركات التوصيل في هذه الفترة");
+        expect(byTestId("money-payments")?.textContent).toContain("دفعات استلمتها من شركات التوصيل");
         expect(byTestId("money-payments")?.textContent).toContain("دفعتان");
         expect(byTestId("money-payments")?.textContent).toContain("300,000");
         // nothing of the period's payments is tied to its orders: say why the two figures differ
@@ -333,8 +333,8 @@ describe("SummaryView", () => {
         const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
-            "مبلغا استرجاع دفعهما المندوب لزبونين عنك (2)سجّلتها «تم الاسترجاع»، فهي محسوبة في «مبالغ مستردة» بكشف الربح.−30,000د.ع",
-            "مبلغ استرجاع دفعه المندوب ولم تسجّله بعد (1)افتح كل طلب وغيّر حالته إلى «تم الاسترجاع»، ليُحسب في ربحك.RTN-4108-1−20,000د.ع",
+            "مبلغا استرجاع دفعهما المندوب لزبونين عنك (2)سجّلتها «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في كشف الربح. ذلك البند 40,000 د.ع لأنه يحسب سعر كل طلب استرجاع دُفع في الفترة، لا مبلغ الكشف.−30,000د.ع",
+            "مبلغ استرجاع دفعه المندوب ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». حتى ذلك الحين صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
             "طلبان دفعهما الزبون لك مسبقاً (2)لم يقبض المندوب ثمنها، وخصم أجرة توصيلها.−10,000د.ع",
             "طلب قُبض فيه سعر مختلف (1)42611010045,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)42611020123,000د.ع",
@@ -342,6 +342,11 @@ describe("SummaryView", () => {
         ]);
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
+        // The refund not marked yet also warns at the top, and the warning scrolls to this card.
+        const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
+        expect(refundsAlert?.textContent).toContain("طلب استرجاع واحد دفع المندوب مبلغه لزبونك ولم تسجّله «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
+        expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
+        expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
         expect(byTestId("money-payments-link")?.textContent).toBe(
             "هذا ما دفعته لك فعلاً خلال الفترة: ثمن طلبات هذه الفترة في الكشوف (380,000 د.ع) بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
         );
@@ -424,7 +429,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة عودة 13 طلباً رجعت عبر برايم");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً (ضمن بند التوصيل)");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
