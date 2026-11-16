@@ -22,6 +22,11 @@
 --   Due list:
 --     * lists open tasks due by the end of today in Baghdad, with owner, order
 --       count and the last calls; leaves out done and later tasks.
+--   Call back:
+--     * a merchant's request is a task due now with the number, and a line
+--       in the chat; the same number again changes nothing, a new one
+--       updates it; a done call lets a new one in; the demo store and a bad
+--       number are refused; it does not stop a new shop's plan.
 --   Cron:
 --     * runs every 5 minutes.
 --
@@ -183,6 +188,78 @@ BEGIN
         NOT EXISTS (SELECT 1 FROM jsonb_array_elements(due) x WHERE x ->> 'kind' = 'trial_end'));
     PERFORM pg_temp.check('due: next day shows the first order',
         EXISTS (SELECT 1 FROM jsonb_array_elements(public.support_tasks_due('2026-11-18 08:00+03')) x WHERE x ->> 'kind' = 'first_order'));
+END $$;
+
+-- Call me back.
+DO $$
+DECLARE
+    shop uuid := '20000000-0000-4000-8000-000000000002';
+    member uuid := 'b1000000-0000-4000-8000-000000000001';
+    r jsonb;
+    again jsonb;
+    v_msg text;
+    due jsonb;
+    row_ jsonb;
+BEGIN
+    BEGIN
+        PERFORM public.support_request_call_back(shop, member, 'Huda', '0770123');
+        v_msg := 'none';
+    EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
+    END;
+    PERFORM pg_temp.check('call back: bad number refused ' || v_msg, v_msg = 'support_bad_phone');
+    BEGIN
+        PERFORM public.support_request_call_back('40000000-0000-4000-8000-000000000004', member, 'Huda', '07701234567');
+        v_msg := 'none';
+    EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
+    END;
+    PERFORM pg_temp.check('call back: demo store refused ' || v_msg, v_msg = 'support_call_back_unavailable');
+
+    r := public.support_request_call_back(shop, member, ' Huda ', '07701234567');
+    PERFORM pg_temp.check('call back: task due now with the number',
+        (SELECT kind = 'call_back' AND phone = '07701234567' AND requested_by_name = 'Huda'
+                AND due_at = public.support_clock_start(created_at) AND done_at IS NULL
+         FROM public.support_tasks WHERE id = (r ->> 'task_id')::uuid));
+    PERFORM pg_temp.check('call back: a line in the chat, case waiting on us',
+        (SELECT count(*) FROM public.support_messages m JOIN public.support_cases c ON c.id = m.case_id
+         WHERE m.tenant_id = shop AND m.sender_id = member AND m.body = 'اتصلوا بي على 07701234567'
+           AND m.context ->> 'callBack' = '07701234567' AND c.status = 'waiting_us') = 1);
+
+    again := public.support_request_call_back(shop, member, 'Huda', '07701234567');
+    PERFORM pg_temp.check('call back: same number again changes nothing',
+        again ->> 'task_id' = r ->> 'task_id'
+        AND (SELECT count(*) FROM public.support_messages WHERE tenant_id = shop) = 1);
+
+    again := public.support_request_call_back(shop, member, 'Huda', '07809876543');
+    PERFORM pg_temp.check('call back: new number updates the same task and tells staff',
+        again ->> 'task_id' = r ->> 'task_id'
+        AND (SELECT phone FROM public.support_tasks WHERE id = (r ->> 'task_id')::uuid) = '07809876543'
+        AND (SELECT count(*) FROM public.support_messages WHERE tenant_id = shop) = 2
+        AND (SELECT count(*) FROM public.support_tasks WHERE tenant_id = shop AND kind = 'call_back') = 1);
+
+    due := public.support_tasks_due(clock_timestamp());
+    SELECT x INTO row_ FROM jsonb_array_elements(due) x WHERE x ->> 'kind' = 'call_back';
+    PERFORM pg_temp.check('call back: in Today with number and name ' || coalesce(row_::text, 'missing'),
+        row_ ->> 'phone' = '07809876543' AND row_ ->> 'requested_by' = 'Huda' AND row_ ->> 'business_name' = 'New shop');
+    PERFORM pg_temp.check('due: plan tasks carry no number',
+        NOT EXISTS (SELECT 1 FROM jsonb_array_elements(due) x WHERE x ->> 'kind' <> 'call_back' AND x ->> 'phone' IS NOT NULL));
+
+    PERFORM public.support_task_log((r ->> 'task_id')::uuid, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'done', 'called');
+    again := public.support_request_call_back(shop, member, 'Huda', '07809876543');
+    PERFORM pg_temp.check('call back: after a done call, a new request is a new task',
+        again ->> 'task_id' <> r ->> 'task_id'
+        AND (SELECT count(*) FROM public.support_tasks WHERE tenant_id = shop AND kind = 'call_back') = 2);
+
+    -- A shop that asks for a call before its plan is made still gets the plan.
+    INSERT INTO public.tenants (id, business_name, display_id, status, trial_ends_at, created_at)
+    VALUES ('80000000-0000-4000-8000-000000000008', 'Brand new', 8, 'trial', NULL, '2026-11-16 11:58+03');
+    PERFORM public.support_request_call_back('80000000-0000-4000-8000-000000000008', member, 'Huda', '07701234567');
+    PERFORM public.support_onboard_shops('2026-11-16 12:15+03');
+    PERFORM pg_temp.check('onboard: call-back first, plan still made',
+        (SELECT count(*) FROM public.support_tasks WHERE tenant_id = '80000000-0000-4000-8000-000000000008') = 5);
+    PERFORM pg_temp.check('access: anon call back',
+        NOT has_function_privilege('anon', 'public.support_request_call_back(uuid,uuid,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: service call back',
+        has_function_privilege('service_role', 'public.support_request_call_back(uuid,uuid,text,text)', 'EXECUTE'));
 END $$;
 
 DO $$

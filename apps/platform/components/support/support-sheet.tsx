@@ -25,6 +25,7 @@ import { useOrderStore } from "@/store/use-order-store";
 import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportShot, useSupportThread } from "@/hooks/use-support";
 import { useLanguage } from "@/components/providers/language-provider";
 import { SupportHoursLine } from "@/components/support/support-hours-line";
+import { SupportCallBack } from "@/components/support/support-call-back";
 import { SupportVoiceButton, type RecordedVoice } from "@/components/support/support-voice-button";
 import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
@@ -258,6 +259,8 @@ export function SupportSheet() {
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
+
+                        {thread && <SupportCallBack thread={thread} />}
 
                         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
                             {isLoading ? (

@@ -425,7 +425,7 @@ export function formatAgo(at: string, now: number): string {
  * The first-week plan of a new shop (support_tasks), owned by the shop's
  * support person. Migration 20261116110606_support_account_owners.sql.
  */
-export const SUPPORT_TASK_KINDS = ["welcome_call", "store_check", "first_order", "trial_end"] as const;
+export const SUPPORT_TASK_KINDS = ["welcome_call", "store_check", "first_order", "trial_end", "call_back"] as const;
 export type SupportTaskKind = (typeof SUPPORT_TASK_KINDS)[number];
 
 export const SUPPORT_TASK_LABELS: Record<SupportTaskKind, { title: string; hint: string }> = {
@@ -433,6 +433,7 @@ export const SUPPORT_TASK_LABELS: Record<SupportTaskKind, { title: string; hint:
   store_check: { title: "Store check", hint: "Day 1. Run Check this shop and fix what is red with them." },
   first_order: { title: "First order", hint: "Day 3. Did an order come in? If not, help them get one." },
   trial_end: { title: "Before the trial ends", hint: "A day before. Answer questions about the plans." },
+  call_back: { title: "Call back", hint: "The merchant asked for a call from the Help chat. Call the number below." },
 };
 
 export const CALL_OUTCOMES = ["done", "no_answer", "later"] as const;
@@ -463,6 +464,10 @@ export const SupportTaskSchema = z.object({
   kind: z.enum(SUPPORT_TASK_KINDS),
   due_at: z.string(),
   attempts: z.number().int().min(0),
+  /** Only on call-backs: the number the merchant left, 07XXXXXXXXX. */
+  phone: z.string().nullable(),
+  /** Only on call-backs: who asked. */
+  requested_by: z.string().nullable(),
   tenant_id: z.string().uuid(),
   business_name: z.string(),
   display_id: z.number().int().nullable(),
@@ -487,12 +492,22 @@ export type TaskLogInput = z.input<typeof TaskLogSchema>;
 
 export const TakeShopSchema = z.object({ tenantId: z.string().uuid() });
 
-/** My tasks first, then the rest, each by when it was due. */
+/**
+ * A merchant waiting for a call comes first, whoever's shop it is; then my
+ * tasks, then the rest, each by when it was due.
+ */
 export function sortTasks(tasks: SupportTask[], adminId: string | null): SupportTask[] {
   return [...tasks].sort((a, b) => {
+    const asked = Number(b.kind === "call_back") - Number(a.kind === "call_back");
+    if (asked !== 0) return asked;
     const mine = Number(b.owner_id === adminId) - Number(a.owner_id === adminId);
     return mine !== 0 ? mine : Date.parse(a.due_at) - Date.parse(b.due_at);
   });
+}
+
+/** 07XXXXXXXXX as "0770 123 4567" and a tel: link with the country code. */
+export function callBackNumber(phone: string): { label: string; href: string } {
+  return { label: `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`, href: `tel:+964${phone.slice(1)}` };
 }
 
 /** "Late by 2 h", "Due in 40 min" or "Due now", for a task's due time. */

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, CheckCircle2, ExternalLink, Loader2, PackageCheck, UserRound } from "lucide-react";
+import { CalendarCheck, CheckCircle2, ExternalLink, Loader2, PackageCheck, PhoneCall, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
@@ -13,6 +13,7 @@ import {
   CALL_OUTCOMES,
   CALL_OUTCOME_LABELS,
   SUPPORT_TASK_LABELS,
+  callBackNumber,
   formatDue,
   sortTasks,
   type CallOutcome,
@@ -66,7 +67,7 @@ export function SupportToday() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-foreground-muted">
-        {list.length} call{list.length === 1 ? "" : "s"} for today, {mine} of them yours. New shops in their first week.
+        {list.length} call{list.length === 1 ? "" : "s"} for today, {mine} of them yours. Merchants who asked for a call come first, then new shops in their first week.
       </p>
       <ul className="space-y-3">
         {list.map((task) => (
@@ -109,7 +110,11 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-foreground">
-            <CalendarCheck className="h-3.5 w-3.5 self-center" />
+            {task.kind === "call_back" ? (
+              <PhoneCall className="h-3.5 w-3.5 self-center text-emerald-700" />
+            ) : (
+              <CalendarCheck className="h-3.5 w-3.5 self-center" />
+            )}
             {label.title}
             <span className={cn("text-xs font-medium", late ? "text-red-700" : "text-foreground-muted")}>
               {formatDue(task.due_at, now)}
@@ -121,6 +126,22 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
             )}
           </p>
           <p className="mt-0.5 text-xs text-foreground-muted">{label.hint}</p>
+          {task.phone && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm">
+              <a
+                href={callBackNumber(task.phone).href}
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-sm font-semibold tabular-nums text-white transition-opacity hover:opacity-90"
+              >
+                <PhoneCall className="h-3.5 w-3.5" />
+                <span dir="ltr">{callBackNumber(task.phone).label}</span>
+              </a>
+              {task.requested_by && (
+                <span className="text-xs text-foreground-muted">
+                  asked by <span dir="auto">{task.requested_by}</span>
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <Link
           href={`/merchants/${task.tenant_id}`}

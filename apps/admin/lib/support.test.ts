@@ -4,6 +4,7 @@ import {
   fillSavedReply,
   formatAgo,
   formatDue,
+  callBackNumber,
   sortTasks,
   TaskLogSchema,
   type SupportTask,
@@ -207,11 +208,13 @@ describe("formatAgo", () => {
 });
 
 describe("sortTasks", () => {
-  const task = (id: string, owner: string | null, due: string): SupportTask => ({
+  const task = (id: string, owner: string | null, due: string, kind: SupportTask["kind"] = "welcome_call"): SupportTask => ({
     id,
-    kind: "welcome_call",
+    kind,
     due_at: due,
     attempts: 0,
+    phone: kind === "call_back" ? "07701234567" : null,
+    requested_by: null,
     tenant_id: "t",
     business_name: "Shop",
     display_id: null,
@@ -232,6 +235,20 @@ describe("sortTasks", () => {
     ];
     expect(sortTasks(tasks, "me").map((t) => t.id)).toEqual(["d", "b", "c", "a"]);
     expect(tasks.map((t) => t.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("puts a merchant waiting for a call before everything, even someone else's", () => {
+    const tasks = [
+      task("mine-late", "me", "2026-11-16T07:00:00Z"),
+      task("asked", "other", "2026-11-16T12:00:00Z", "call_back"),
+    ];
+    expect(sortTasks(tasks, "me").map((t) => t.id)).toEqual(["asked", "mine-late"]);
+  });
+});
+
+describe("callBackNumber", () => {
+  it("groups the number for reading and dials it with the country code", () => {
+    expect(callBackNumber("07701234567")).toEqual({ label: "0770 123 4567", href: "tel:+9647701234567" });
   });
 });
 

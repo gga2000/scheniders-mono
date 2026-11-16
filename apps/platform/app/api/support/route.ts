@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-request-caller";
 import { withFailureReport } from "@/lib/job-monitor";
+import { normalizeIraqiMobile } from "@scheniders/shared";
 import {
     SUPPORT_SHOT_BUCKET,
     SUPPORT_VOICE_BUCKET,
     supportPostSchema,
     supportRefusal,
+    type SupportCallBack,
     type SupportCase,
     type SupportMessage,
     type SupportThread,
@@ -72,6 +74,35 @@ async function ownerName(db: ServiceDb, tenantId: string): Promise<string | null
     return name === "" ? null : name.slice(0, 60);
 }
 
+/** The call the shop asked for that staff have not made yet (one at most). */
+async function openCallBack(db: ServiceDb, tenantId: string): Promise<SupportCallBack | null> {
+    const { data, error } = await db
+        .from("support_tasks")
+        .select("phone, due_at")
+        .eq("tenant_id", tenantId)
+        .eq("kind", "call_back")
+        .is("done_at", null)
+        .maybeSingle();
+    if (error) throw new Error(`Support call-back read failed: ${error.message}`);
+    const row = data as { phone: string | null; due_at: string } | null;
+    return row?.phone ? { phone: row.phone, due_at: row.due_at } : null;
+}
+
+/** The shop's contact mobile in 07XXXXXXXXX form, when it has a valid one. */
+async function shopPhone(db: ServiceDb, tenantId: string): Promise<string | null> {
+    const { data, error } = await db.from("tenants").select("contact_phone").eq("id", tenantId).maybeSingle();
+    if (error) throw new Error(`Shop phone read failed: ${error.message}`);
+    return normalizeIraqiMobile((data as { contact_phone: string | null } | null)?.contact_phone);
+}
+
+/** What the chat shows about the shop, beside the conversation itself. */
+async function shopSide(db: ServiceDb, tenantId: string) {
+    const owner = await ownerName(db, tenantId);
+    const callBack = await openCallBack(db, tenantId);
+    const contactPhone = await shopPhone(db, tenantId);
+    return { owner, callBack, contactPhone };
+}
+
 /**
  * The signed-in member's own support thread in their active shop: their cases
  * (never a teammate's), newest first, and the messages inside them.
@@ -87,7 +118,7 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
     if (caseError) throw new Error(`Support cases read failed: ${caseError.message}`);
 
     const cases = (caseRows ?? []) as (SupportCase & { merchant_last_read_at: string })[];
-    if (cases.length === 0) return { case: null, messages: [], unread: 0, owner: await ownerName(db, caller.tenantId) };
+    if (cases.length === 0) return { case: null, messages: [], unread: 0, ...(await shopSide(db, caller.tenantId)) };
 
     const { data: messageRows, error: messageError } = await db
         .from("support_messages")
@@ -106,8 +137,7 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
     }).length;
 
     const { id, status, rating, solved_at, created_at } = cases[0];
-    const owner = await ownerName(db, caller.tenantId);
-    return { case: { id, status, rating, solved_at, created_at }, messages, unread, owner };
+    return { case: { id, status, rating, solved_at, created_at }, messages, unread, ...(await shopSide(db, caller.tenantId)) };
 }
 
 /** GET /api/support — my conversation with the support team. */
@@ -132,6 +162,7 @@ async function memberName(db: ServiceDb, caller: Caller): Promise<string> {
  *   {action:"send", body, context}  write to support (opens a case if none is open)
  *   {action:"rate", caseId, rating} answer "did this solve it?" on a solved case
  *   {action:"read"}                 mark staff replies as seen
+ *   {action:"callBack", phone}      ask staff to call this number (a task in their Today list)
  * The shop and the member come from the session; a body cannot name either.
  */
 async function handlePOST(request: NextRequest) {
@@ -139,7 +170,10 @@ async function handlePOST(request: NextRequest) {
     if (!caller.ok) return caller.response;
 
     const parsed = supportPostSchema.safeParse(await request.json().catch(() => null));
-    if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+    if (!parsed.success) {
+        const badPhone = parsed.error.issues.some((issue) => issue.message === "support_bad_phone");
+        return NextResponse.json({ success: false, error: badPhone ? "support_bad_phone" : "Invalid request" }, { status: 400 });
+    }
     const input = parsed.data;
 
     // A picture or voice note belongs to the shop that sent it: its path starts with the shop's id.
@@ -171,7 +205,14 @@ async function handlePOST(request: NextRequest) {
                   p_body: input.body,
                   p_context: input.context,
               })
-            : await db.rpc("support_merchant_rate", {
+            : input.action === "callBack"
+              ? await db.rpc("support_request_call_back", {
+                    p_tenant_id: caller.tenantId,
+                    p_user_id: caller.userId,
+                    p_user_name: await memberName(db, caller),
+                    p_phone: input.phone,
+                })
+              : await db.rpc("support_merchant_rate", {
                   p_tenant_id: caller.tenantId,
                   p_user_id: caller.userId,
                   p_case_id: input.caseId,
