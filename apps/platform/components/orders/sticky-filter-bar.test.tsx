@@ -146,3 +146,19 @@ describe("Prime queue chips slot", () => {
         expect(useOrderStore.getState().primeQueue).toBeNull();
     });
 });
+
+describe("status chip row at 1440", () => {
+    it("loads at «كل الطلبات» and a plain mouse wheel moves the chips sideways", () => {
+        renderBar();
+        const row = document.querySelector('[data-guide="order-status-tabs"]') as HTMLDivElement;
+        // scroll-pl-8 matches pl-8, so snapping does not start the row 30 px in.
+        expect(row.className).toContain("scroll-pl-8");
+        // jsdom has no layout: give the row the widths it has at 1440.
+        Object.defineProperty(row, "clientWidth", { value: 1240, configurable: true });
+        Object.defineProperty(row, "scrollWidth", { value: 3473, configurable: true });
+        const down = new WheelEvent("wheel", { deltaY: 120, bubbles: true, cancelable: true });
+        row.dispatchEvent(down);
+        expect(row.scrollLeft).toBe(120);
+        expect(down.defaultPrevented).toBe(true);
+    });
+});
