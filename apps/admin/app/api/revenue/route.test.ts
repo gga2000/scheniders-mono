@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { incomeStats, SHOP_A, SHOP_B, SHOP_C } from "@/lib/console-stats.test-data";
+import { SERVER_MAX_ROWS, supabaseStub } from "@/lib/supabase-stub.test-data";
 
 /*
  * /api/revenue summed every wallet charge it could fetch (at most 1,000 rows)
@@ -14,54 +15,33 @@ vi.mock("@/lib/api-auth", () => ({
   requireAdminFromRequest: async () => ({ user: { id: "a", email: "a@b.co" }, role: "super_admin" }),
 }));
 
-type Answer = { data: unknown; error: { message: string } | null };
-let income: Answer;
-let tenants: Answer;
-const tenantSelects: string[] = [];
-const tenantFilters: Array<[string, unknown]> = [];
-const rpc = vi.fn(async () => income);
-const from = vi.fn((_table: string) => ({
-  select: (cols: string) => {
-    tenantSelects.push(cols);
-    return {
-      eq: (column: string, value: unknown) => {
-        tenantFilters.push([column, value]);
-        return Promise.resolve(tenants);
-      },
-    };
-  },
-}));
-vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ rpc, from }) }));
+let stub: ReturnType<typeof supabaseStub>;
+vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => stub.client }));
 
 const { GET } = await import("./route");
 const call = () => GET(new NextRequest("http://admin.test/api/revenue"));
 
 beforeEach(() => {
-  rpc.mockClear();
-  from.mockClear();
-  tenantSelects.length = 0;
-  tenantFilters.length = 0;
+  stub = supabaseStub();
   vi.spyOn(console, "error").mockImplementation(() => {});
-  income = { data: incomeStats(), error: null };
-  tenants = {
-    data: [
-      { id: SHOP_A, business_name: "Kut Shop", created_at: "2026-04-01T09:00:00Z" },
-      { id: SHOP_B, business_name: "New Shop", created_at: "2026-11-02T09:00:00Z" },
-      { id: SHOP_C, business_name: "Quiet Shop", created_at: "2026-11-03T09:00:00Z" },
-    ],
-    error: null,
-  };
+  stub.state.functions.admin_income_stats = () => ({ data: incomeStats(), error: null });
+  stub.state.tables.tenants = [
+    { id: SHOP_A, is_demo: false, business_name: "Kut Shop", created_at: "2026-04-01T09:00:00Z" },
+    { id: SHOP_B, is_demo: false, business_name: "New Shop", created_at: "2026-11-02T09:00:00Z" },
+    { id: SHOP_C, is_demo: false, business_name: "Quiet Shop", created_at: "2026-11-03T09:00:00Z" },
+    { id: "demo", is_demo: true, business_name: "Fermi B13", created_at: "2026-11-10T09:00:00Z" },
+  ];
 });
 
 describe("GET /api/revenue", () => {
   it("reads fee totals from the database and only shop names from tables", async () => {
     await call();
 
-    expect(rpc).toHaveBeenCalledWith("admin_income_stats", {});
-    expect(from.mock.calls.map(([table]) => table)).toEqual(["tenants"]);
-    expect(tenantSelects.join(",")).not.toContain("wallets");
+    expect(stub.state.rpcCalls).toEqual([{ fn: "admin_income_stats", args: {} }]);
+    expect(stub.tablesRead()).toEqual(["tenants"]);
+    expect(stub.callsTo("tenants.select").flat().join(",")).not.toContain("wallet");
     // The demo store (Fermi B13) is in no platform number.
-    expect(tenantFilters).toEqual([["is_demo", false]]);
+    expect(stub.callsTo("tenants.eq")).toContainEqual(["is_demo", false]);
   });
 
   it("counts our fees as income and reports other charges apart", async () => {
@@ -96,13 +76,29 @@ describe("GET /api/revenue", () => {
     expect(body.cohorts.at(-1)).toEqual({ cohort: "2026-11", tenantCount: 2, months: [10_160, 0, 0, 0, 0, 0] });
   });
 
+  it("averages fees over every shop past the first 1,000 rows", async () => {
+    const quiet = Array.from({ length: SERVER_MAX_ROWS + 497 }, (_, i) => ({
+      id: `quiet-${String(i).padStart(5, "0")}`,
+      is_demo: false,
+      business_name: `Quiet ${i}`,
+      created_at: "2026-10-01T09:00:00Z",
+    }));
+    stub.state.tables.tenants = [...stub.state.tables.tenants, ...quiet];
+
+    const body = await (await call()).json();
+
+    // 1,500 shops: (31,960 + 9,000) / 1,500 = 27.3. One read of 1,000 rows said 40.
+    expect(body.avgLTV).toBe(27);
+    expect(body.ltvDistribution[0]).toEqual({ label: "0 IQD", count: 1_498 });
+  });
+
   it("returns 500 when a query fails instead of silently showing empty data", async () => {
-    tenants = { data: null, error: { message: "relation does not exist" } };
+    stub.state.failing.add("tenants");
     expect((await call()).status).toBe(500);
   });
 
   it("returns 500 when the fee totals cannot be read", async () => {
-    income = { data: null, error: { message: "permission denied" } };
+    stub.state.functions.admin_income_stats = () => ({ data: null, error: { message: "permission denied" } });
     expect((await call()).status).toBe(500);
   });
 });
