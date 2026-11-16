@@ -155,7 +155,7 @@ describe("get_finance_summary gate", () => {
     });
 
     it("scopes every table it reads to the shop", () => {
-        for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc", "delivery_imports di"]) {
+        for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "products pid", "prime_connections pc", "delivery_imports di"]) {
             const alias = table.split(" ")[1];
             expect(core, table).toMatch(new RegExp(`public\\.${table.replace(" ", " ")}[\\s\\S]{0,160}${alias}\\.tenant_id = _tenant_id`));
         }
