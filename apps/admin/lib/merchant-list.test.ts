@@ -75,4 +75,8 @@ describe("the list's tabs and sorts", () => {
     expect(tabFilters("paying")).toContainEqual(["plan", "neq", "internal"]);
     expect(tabFilters("trial")).toContainEqual(["plan", "neq", "internal"]);
   });
+
+  it("reads Locked from the database's own lock rule", () => {
+    expect(tabFilters("locked")).toEqual([["staff_locked", "is", "true"]]);
+  });
 });

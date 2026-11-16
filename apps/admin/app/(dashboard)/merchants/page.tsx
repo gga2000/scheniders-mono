@@ -20,6 +20,7 @@ import { Choice } from "@/components/merchants/detail/action-ui";
 import { ExportButton } from "@/components/shared/export-button";
 import { LoadError } from "@/components/shared/load-error";
 import { formatCount } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const SORT_WORDS: Record<ListSort, string> = {
   "created:desc": "Newest first.",
@@ -152,7 +153,9 @@ function MerchantsList() {
         </div>
       ) : (
         <>
-          <MerchantTable merchants={list.merchants} sort={sort} onSort={(next) => setParam("sort", next === DEFAULT_LIST_SORT ? null : next)} />
+          <div aria-busy={list.isPlaceholderData} className={cn("transition-opacity", list.isPlaceholderData && "opacity-60")}>
+            <MerchantTable merchants={list.merchants} sort={sort} onSort={(next) => setParam("sort", next === DEFAULT_LIST_SORT ? null : next)} />
+          </div>
           <div className="flex items-center gap-3">
             <p className="text-[13px] text-foreground/60">
               {formatCount(list.merchants.length)} of {formatCount(list.total)} shops shown.
