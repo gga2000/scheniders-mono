@@ -43,7 +43,7 @@ export function healthDotClass(score: number): string {
   return DOT[healthBand(score)];
 }
 
-/** Fewer orders than this in the newest usage month reads as "hardly selling". */
+/** Fewer real orders than this in 30 days reads as "hardly selling". */
 const FEW_ORDERS = 5;
 /** A trial ending within this many Baghdad days (or already ended) with no order yet is about to be lost. */
 const TRIAL_LAST_DAYS = 3;
@@ -52,8 +52,12 @@ export interface ChurnFacts {
   status: string;
   trialEndsAt: string | null;
   walletIqd: number;
-  /** Orders of the shop's newest usage month: the month the health score reads too. */
-  ordersNewestMonth: number;
+  /**
+   * The shop's real orders of the 30 Baghdad days that end today: the orders
+   * the health score's "orders" part counts too (staff_health_parts). Never the
+   * plan's usage counter, which misses store checkout orders.
+   */
+  orders30d: number;
 }
 
 /**
@@ -62,34 +66,22 @@ export interface ChurnFacts {
  */
 export function isChurnRisk(shop: ChurnFacts, now: number = Date.now()): boolean {
   if (shop.status === "suspended") return true;
-  if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.ordersNewestMonth < FEW_ORDERS) return true;
+  if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.orders30d < FEW_ORDERS) return true;
   if (shop.status === "trial" && shop.trialEndsAt) {
-    return trialClock(shop.trialEndsAt, now).days <= TRIAL_LAST_DAYS && shop.ordersNewestMonth === 0;
+    return trialClock(shop.trialEndsAt, now).days <= TRIAL_LAST_DAYS && shop.orders30d === 0;
   }
   return false;
 }
 
-/** The flame for a row of the Merchants list, whose `usage` is the newest usage month. */
+/** The flame for a row of the Merchants list, which carries the shop's real orders of 30 days. */
 export function listChurnRisk(shop: AdminTenant, now?: number): boolean {
   return isChurnRisk(
     {
       status: shop.status,
       trialEndsAt: shop.trial_ends_at,
       walletIqd: shop.wallet?.balance_iqd ?? 0,
-      ordersNewestMonth: shop.usage?.orders_count ?? 0,
+      orders30d: shop.orders_30d ?? 0,
     },
     now,
   );
-}
-
-/** Orders of the newest month among a shop's usage rows, in any order. 0 when it has none. */
-export function newestMonthOrders(
-  usage: ReadonlyArray<{ year: number; month: number; orders_count: number | null }>,
-): number {
-  const newest = usage.reduce<(typeof usage)[number] | null>(
-    (best, row) =>
-      best === null || row.year > best.year || (row.year === best.year && row.month > best.month) ? row : best,
-    null,
-  );
-  return newest?.orders_count ?? 0;
 }

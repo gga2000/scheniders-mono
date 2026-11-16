@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
-import { usageMonthNow } from "@/lib/usage-month";
 
 interface TenantRow {
   id: string;
@@ -12,17 +11,14 @@ interface TenantRow {
   status: string;
   city: string | null;
   created_at: string;
+  /** The health score's parts; `orders` is 0 only for a shop with no real order in 30 days. */
+  staff_health_parts: { orders: number };
 }
 
 interface WalletRow {
   tenant_id: string;
   balance_iqd: number;
   threshold_iqd: number;
-}
-
-interface UsageRow {
-  tenant_id: string;
-  orders_count: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -35,15 +31,14 @@ export async function GET(request: NextRequest) {
     const twentyFourHoursAgo = new Date(
       now.getTime() - 24 * 60 * 60 * 1000
     ).toISOString();
-    const usageMonth = usageMonthNow(now);
 
     // Every list is read to its last row and a failed read throws: a short or
     // empty list here would say "no shops at risk" when the truth is unknown.
-    const [tenants, wallets, ordersResult, usage] = await Promise.all([
+    const [tenants, wallets, ordersResult] = await Promise.all([
       everyRow<TenantRow>((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, city, created_at")
+          .select("id, business_name, plan, status, city, created_at, staff_health_parts")
           // The demo store (Fermi B13) is never a shop at risk.
           .eq("is_demo", false)
           .order("id")
@@ -63,15 +58,6 @@ export async function GET(request: NextRequest) {
         .from("admin_order_facts")
         .select("id", { count: "exact", head: true })
         .gte("created_at", twentyFourHoursAgo),
-      everyRow<UsageRow>((from, to) =>
-        supabase
-          .from("usage_tracking")
-          .select("tenant_id, orders_count")
-          .eq("year", usageMonth.year)
-          .eq("month", usageMonth.month)
-          .order("tenant_id")
-          .range(from, to)
-      ),
     ]);
 
     if (ordersResult.error) throw ordersResult.error;
@@ -80,7 +66,6 @@ export async function GET(request: NextRequest) {
     // Build lookup maps
     const tenantMap = new Map(tenants.map((t) => [t.id, t]));
     const walletMap = new Map(wallets.map((w) => [w.tenant_id, w]));
-    const usageMap = new Map(usage.map((u) => [u.tenant_id, u]));
 
     // ---------------------------------------------------------------------------
     // Platform Health
@@ -111,7 +96,6 @@ export async function GET(request: NextRequest) {
       const reasons: string[] = [];
 
       const wallet = walletMap.get(tenant.id);
-      const tenantUsage = usageMap.get(tenant.id);
 
       // +3 if balance < threshold (low balance)
       if (wallet && wallet.balance_iqd < wallet.threshold_iqd) {
@@ -119,10 +103,12 @@ export async function GET(request: NextRequest) {
         reasons.push("Low balance");
       }
 
-      // +2 if no orders this month
-      if (!tenantUsage || tenantUsage.orders_count === 0) {
+      // +2 if no real order in the 30 Baghdad days that end today: the orders
+      // the health score counts, never the plan's usage counter, which misses
+      // store checkout orders and keeps removed ones.
+      if (tenant.staff_health_parts.orders === 0) {
         riskScore += 2;
-        reasons.push("No orders this month");
+        reasons.push("No orders in 30 days");
       }
 
       // +2 if suspended

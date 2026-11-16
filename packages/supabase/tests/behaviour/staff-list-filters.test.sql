@@ -22,8 +22,10 @@
 --     * not a trial that ends soon, a low wallet, a paused or cancelled shop;
 --     * never our own (internal) shop, even with a trial date long gone.
 --   Health score:
---     * 50, plus or minus status, balance and the orders of the newest usage
---       month, also across a year change;
+--     * 50, plus or minus status, balance and the shop's real orders of the
+--       30 Baghdad days that end today (admin_order_facts): an order 30 days
+--       ago, a deleted, test or practice order, and the plan's usage counter
+--       never count;
 --     * every step of the balance and orders ladders, at its edges;
 --     * the three parts the console shows (status, wallet, orders) are the
 --       numbers the score is made of: 50 plus the parts, kept in 0 to 100, is
@@ -73,7 +75,7 @@ BEGIN
     END LOOP;
 END $$;
 
--- The shops. One row each: name, status, plan, trial end, wallet, newest usage orders.
+-- The shops. One row each: name, status, plan, trial end, wallet, real orders of the last 30 days.
 CREATE TEMP TABLE tt_shops (
     name text PRIMARY KEY,
     id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -81,7 +83,7 @@ CREATE TEMP TABLE tt_shops (
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     trial_ends_at timestamptz,
     balance numeric,          -- NULL: the shop has no wallet row
-    orders integer,           -- NULL: the shop has no usage row
+    orders integer,           -- NULL: the shop has no order at all
     want_attention boolean NOT NULL,
     want_locked boolean NOT NULL,
     want_score integer NOT NULL
@@ -118,11 +120,28 @@ SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at F
 INSERT INTO public.wallet (tenant_id, balance_iqd)
 SELECT s.id, s.balance FROM tt_shops s WHERE s.balance IS NOT NULL;
 
--- The newest month wins, also across a year change: December 2025 is older than January 2026.
+-- Each shop's real orders, spread over the 30 Baghdad days that end today
+-- (the oldest at noon on the first of them). Around them, rows that must
+-- never count: an order from the day before the window, a deleted, a test, a
+-- practice and a till-take order today, and a plan counter of 999.
+INSERT INTO public.orders (tenant_id, order_id, customer_name, phone, items, price, status, created_at)
+SELECT s.id, 'tt-' || s.id || '-' || n, 'c', '07700000000', '[]', 1000, 'pending',
+       (((now() AT TIME ZONE 'Asia/Baghdad')::date - (n % 30)) + time '12:00') AT TIME ZONE 'Asia/Baghdad'
+FROM tt_shops s CROSS JOIN LATERAL generate_series(0, s.orders - 1) AS n
+WHERE s.orders > 0;
+
+INSERT INTO public.orders (tenant_id, order_id, customer_name, phone, items, price, status, created_at, deleted_at, is_test, guide_practice, take_kind)
+SELECT s.id, 'tt-' || s.id || '-x' || k, 'c', '07700000000', '[]', 1000, 'pending',
+       CASE WHEN k = 1 THEN (((now() AT TIME ZONE 'Asia/Baghdad')::date - 30) + time '23:59') AT TIME ZONE 'Asia/Baghdad' ELSE now() END,
+       CASE WHEN k = 2 THEN now() END,
+       k = 3,
+       k = 4,
+       CASE WHEN k = 5 THEN 'take' END
+FROM tt_shops s CROSS JOIN generate_series(1, 5) AS k
+WHERE s.orders IS NOT NULL;
+
 INSERT INTO public.usage_tracking (tenant_id, year, month, orders_count)
-SELECT s.id, 2026, 1, s.orders FROM tt_shops s WHERE s.orders IS NOT NULL
-UNION ALL
-SELECT s.id, 2025, 12, 999 FROM tt_shops s WHERE s.orders IS NOT NULL;
+SELECT s.id, 2026, 1, 999 FROM tt_shops s WHERE s.orders IS NOT NULL;
 
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at)
 SELECT s.id, 'growth'::public.plan_tier, 'active'::public.subscription_status, now() - interval '70 days', now() - interval '40 days', now() - interval '70 days'
@@ -182,6 +201,7 @@ BEGIN
             ('trial, ends in 4 days',       '{"status": 5, "wallet": 5, "orders": 5}'::jsonb),
             ('paying, 10,001 IQD, 11 orders', '{"status": 15, "wallet": 5, "orders": 10}'::jsonb),
             ('paying, no wallet, no usage', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
+            ('paying, 4,999 IQD, 0 orders', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
             ('limited, full wallet',        '{"status": 0, "wallet": 15, "orders": 0}'::jsonb)
         ) AS w(name, want)
         JOIN tt_shops s ON s.name = w.name

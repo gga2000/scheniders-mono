@@ -27,14 +27,21 @@ const shop = (id: string, extra: Row = {}): Row => ({
   status: "active",
   city: "Baghdad",
   created_at: "2026-06-01T09:00:00Z",
+  // As the database works it out: 5 for a shop with real orders in 30 days, 0 for none.
+  staff_health_parts: { status: 15, wallet: 5, orders: 5 },
   ...extra,
 });
+const NO_ORDERS = { status: 15, wallet: -10, orders: 0 };
 
 beforeEach(() => {
   // Mon 16 Nov 2026, 12:00 in Baghdad.
   vi.useFakeTimers({ now: new Date("2026-11-16T09:00:00Z"), toFake: ["Date"] });
   stub = supabaseStub();
-  stub.state.tables.tenants = [shop("a"), shop("b", { status: "suspended" }), shop("c", { status: "trial" })];
+  stub.state.tables.tenants = [
+    shop("a"),
+    shop("b", { status: "suspended", staff_health_parts: NO_ORDERS }),
+    shop("c", { status: "trial", staff_health_parts: NO_ORDERS }),
+  ];
   stub.state.tables.wallet = [
     { tenant_id: "a", balance_iqd: 40_000, threshold_iqd: 5_000 },
     { tenant_id: "b", balance_iqd: 1_000, threshold_iqd: 5_000 },
@@ -48,9 +55,10 @@ beforeEach(() => {
   ];
   // Raw rows, the demo store's invented orders among them: never counted here.
   stub.state.tables.orders = [{ id: "o1" }, { id: "o2" }, { id: "demo-1" }, { id: "demo-2" }, { id: "demo-3" }];
+  // The plan's counter: c's 9 must not hide that c has no real order.
   stub.state.tables.usage_tracking = [
     { tenant_id: "a", year: 2026, month: 11, orders_count: 12, team_members_count: 2 },
-    { tenant_id: "c", year: 2026, month: 10, orders_count: 9, team_members_count: 1 },
+    { tenant_id: "c", year: 2026, month: 11, orders_count: 9, team_members_count: 1 },
   ];
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -74,18 +82,20 @@ describe("GET /api/health", () => {
     });
     expect(stub.tablesRead()).not.toContain("orders");
     expect(stub.callsTo("admin_order_facts.gte")).toEqual([["created_at", "2026-11-15T09:00:00.000Z"]]);
-    // b: low balance 3 + no orders this month 2 + suspended 2. c: low balance 3 + no orders 2.
+    // b: low balance 3 + no orders in 30 days 2 + suspended 2. c: low balance 3 + no orders 2.
     expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score])).toEqual([
       ["b", 7],
       ["c", 5],
     ]);
+    expect(body.riskIndicators[1].reasons).toEqual(["Low balance", "No orders in 30 days"]);
+    expect(stub.tablesRead()).not.toContain("usage_tracking");
     expect(body.lowBalanceWallets).toEqual([
       { tenant_id: "c", business_name: "Shop c", balance_iqd: 0, threshold_iqd: 5_000 },
       { tenant_id: "b", business_name: "Shop b", balance_iqd: 1_000, threshold_iqd: 5_000 },
     ]);
   });
 
-  it.each(["tenants", "wallet", "admin_order_facts", "usage_tracking"])(
+  it.each(["tenants", "wallet", "admin_order_facts"])(
     "answers 500, not zeros, when the %s read fails",
     async (table) => {
       stub.state.failing.add(table);
