@@ -4679,7 +4679,7 @@ export const ar: Record<string, string> = {
     "products.alerts.disableType": "تعطيل",
 
     "reports.title": "التقارير التشغيلية",
-    "reports.subtitle": "رؤى تقنية ومقاييس الأداء",
+    "reports.subtitle": "كيف سارت طلباتك. الطلب يُحسب في يوم إنشائه.",
     "reports.export": "تصدير",
     "reports.noData": "لا توجد بيانات",
     "reports.noDataDesc": "ابدأ بإضافة طلبات لعرض تقاريرك التشغيلية",

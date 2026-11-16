@@ -4644,7 +4644,7 @@ export const en: Record<string, string> = {
 
     // ── Reports ──
     "reports.title": "Operational Reports",
-    "reports.subtitle": "Technical insights & performance metrics",
+    "reports.subtitle": "How your orders went. An order counts on the day it was placed.",
     "reports.export": "Export",
     "reports.noData": "No Data Available",
     "reports.noDataDesc": "Start adding orders to see your operational reports",
