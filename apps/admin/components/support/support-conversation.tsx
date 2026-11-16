@@ -1,26 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileText, Loader2, MessageSquareText, Package, RotateCcw, Send, UserCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  MessageSquareText,
+  Package,
+  Pencil,
+  RotateCcw,
+  Send,
+  UserCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useSupportCaseAction } from "@/hooks/use-support-cases";
+import { useSavedReplies } from "@/hooks/use-saved-replies";
+import { SavedRepliesDialog } from "@/components/support/saved-replies-dialog";
 import {
   SUPPORT_REASONS,
   SUPPORT_REASON_LABELS,
   SUPPORT_STATUS_LABELS,
+  fillSavedReply,
+  latestOrderNumber,
   type SupportCaseRow,
   type SupportMessageRow,
   type SupportReason,
 } from "@/lib/support";
-
-/** Ready answers staff send most. Arabic, because merchants read Arabic. */
-const SAVED_REPLIES = [
-  { label: "Greeting", text: "أهلاً بك، معك فريق دعم شنايدر. كيف نقدر نساعدك؟" },
-  { label: "Checking", text: "وصلتنا رسالتك ونراجع المشكلة الآن، نرجع لك بعد قليل." },
-  { label: "Ask order number", text: "ممكن ترسل لنا رقم الطلب حتى نراجعه؟" },
-  { label: "Fixed", text: "تم حل المشكلة. جرّب مرة ثانية وخبرنا إذا بقى شيء." },
-] as const;
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
@@ -110,7 +117,9 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
   const [draft, setDraft] = useState("");
   const [solving, setSolving] = useState(false);
   const [reason, setReason] = useState<SupportReason | "">("");
+  const [editingReplies, setEditingReplies] = useState(false);
   const action = useSupportCaseAction(supportCase.id);
+  const savedReplies = useSavedReplies();
   const endRef = useRef<HTMLDivElement>(null);
   const isSolved = supportCase.status === "solved";
   const lastMessageId = messages.at(-1)?.id;
@@ -240,18 +249,36 @@ export function SupportConversation({ supportCase, messages }: SupportConversati
         </div>
       ) : (
         <div className="border-t border-[var(--card-border)] p-3">
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {SAVED_REPLIES.map((saved) => (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            {(savedReplies.data ?? []).map((saved) => (
               <button
-                key={saved.label}
+                key={saved.id}
                 type="button"
-                onClick={() => setDraft(saved.text)}
+                title={saved.body}
+                onClick={() =>
+                  setDraft(
+                    fillSavedReply(saved.body, {
+                      name: supportCase.opened_by_name,
+                      shop: supportCase.tenants?.business_name,
+                      order: latestOrderNumber(messages),
+                    }),
+                  )
+                }
                 className="rounded-full border border-[var(--card-border)] px-2.5 py-1 text-[11px] font-medium text-foreground/70 transition-colors hover:bg-foreground/5"
               >
-                {saved.label}
+                {saved.title}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setEditingReplies(true)}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground"
+            >
+              <Pencil className="h-3 w-3" />
+              Edit replies
+            </button>
           </div>
+          <SavedRepliesDialog open={editingReplies} onOpenChange={setEditingReplies} />
           <div className="flex items-end gap-2">
             <textarea
               dir="auto"
