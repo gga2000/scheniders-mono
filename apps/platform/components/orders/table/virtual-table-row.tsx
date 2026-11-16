@@ -11,7 +11,7 @@ import type { Order, OrderStatus } from '@/lib/supabase';
 import { MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
 import { AdChannelBadge } from '@/components/orders/ad-channel-badge';
-import { getOrderAge, getScheduledState, isScheduledToday, formatScheduledDate } from '@/lib/order-format-utils';
+import { getOrderAge, getScheduledState, isScheduledToday, formatScheduledDate, formatTime } from '@/lib/order-format-utils';
 import { OrderInlineEdit } from './order-inline-edit';
 import type { TableDensity } from './density-toggle';
 import { useLanguage } from '@/components/providers/language-provider';
@@ -343,7 +343,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                     order.source === "shop" && "bg-amber-100 text-amber-700",
                     (!order.source || order.source === "manual") && "bg-gray-100 text-gray-500",
                 )}>
-                    {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source === "shop" ? t("orders.source.shop") : (order.source || "—")}
+                    {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source ? t(`reports.source.name.${order.source}`, order.source) : "—"}
                 </span>
                 {/* The ad network the customer clicked, beside the system that sent it. */}
                 <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} iconOnly className="ms-1" />
@@ -356,7 +356,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                 <div className="flex flex-col items-start leading-tight">
                     <span className="text-[11px] text-muted font-medium">{getOrderAge(order.created_at, language)}</span>
                     <span className="text-xs text-gray-700 font-mono">{formatDateShort(order.created_at)}</span>
-                    <span className="text-[11px] text-gray-400">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
+                    <span className="text-[11px] text-gray-400">{formatTime(order.created_at)}</span>
                     {getScheduledState(order.scheduled_date) && (
                         <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">
                             <Calendar className="w-2.5 h-2.5" />

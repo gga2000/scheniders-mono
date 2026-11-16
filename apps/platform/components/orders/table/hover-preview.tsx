@@ -4,7 +4,7 @@ import { memo } from "react";
 import { cn, formatIQD } from "@/lib/utils";
 import { formatPhoneGrouped } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
-import { getStatusBadgeStyle } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { Phone, MapPin, FileText, Package, Clock } from "lucide-react";
 import { useStatusLabel } from "@/hooks/use-status-label";
@@ -64,7 +64,8 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-1.5 text-xs text-muted">
                     <Clock className="w-3 h-3" />
-                    <span>{new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    {/* Same Baghdad day and time as the order card, whatever the browser's zone. */}
+                    <span className="tabular-nums">{formatShortDate(order.created_at)} {formatTime(order.created_at)}</span>
                 </div>
                 <span className={cn("font-mono font-bold text-sm", order.is_return ? "text-red-600" : "text-emerald-600")}>
                     {order.is_return && "-"}{formatIQD(Math.abs(Number(order.price)))}
