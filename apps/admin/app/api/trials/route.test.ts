@@ -57,7 +57,7 @@ describe("GET /api/trials", () => {
     expect(stub.tablesRead()).toEqual(["tenants"]);
   });
 
-  it("counts days on the Baghdad calendar and leaves the demo store out", async () => {
+  it("counts days on the Baghdad calendar, soonest end first, and leaves the demo store out", async () => {
     stub.state.tables.tenants = [
       trial(1, "2026-11-17T03:21:00Z"), // 06:21 tomorrow: 1 day left
       trial(2, "2026-11-16T20:30:00Z"), // 23:30 tonight: ends today
@@ -68,9 +68,9 @@ describe("GET /api/trials", () => {
     const body = await (await call()).json();
 
     expect(body.trials.map((t: { days_remaining: number; is_expired: boolean; balance_iqd: number }) => [t.days_remaining, t.is_expired, t.balance_iqd])).toEqual([
-      [1, false, 4_000],
-      [0, false, 4_000],
       [0, true, 0],
+      [0, false, 4_000],
+      [1, false, 4_000],
     ]);
     expect(body.summary).toEqual({ total: 3, expiringSoon: 2, expired: 1, healthy: 0 });
     expect(body.trials[0]).not.toHaveProperty("wallet");

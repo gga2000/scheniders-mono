@@ -1,8 +1,10 @@
 /*
  * A stand-in for the Supabase client in route tests. It behaves like the API
  * where that matters for these routes: a read answers with at most 1,000 rows
- * and says nothing when it cut the list, eq() and in() filter, and a function
- * call goes to the handler registered for it.
+ * and says nothing when it cut the list; eq(), in(), gt(), gte(), lt() and
+ * lte() filter; order() sorts before range() cuts; and a function call goes
+ * to the handler registered for it. So a wrong date window or a wrong sort
+ * fails a test instead of passing unseen.
  */
 
 export type Row = Record<string, unknown>;
@@ -25,6 +27,7 @@ export function supabaseStub() {
     let rows = state.tables[table] ?? [];
     let window: [number, number] = [0, SERVER_MAX_ROWS - 1];
     let parseError: string | null = null;
+    const sorts: Sort[] = [];
     const note = (method: string, ...args: unknown[]) => {
       state.calls.push({ on: `${table}.${method}`, args });
       return builder;
@@ -35,10 +38,16 @@ export function supabaseStub() {
         if (!apiCanParse(filter)) parseError = `failed to parse logic tree ((${filter}))`;
         return note("or", filter);
       },
-      gte: (...args: unknown[]) => note("gte", ...args),
-      lte: (...args: unknown[]) => note("lte", ...args),
-      lt: (...args: unknown[]) => note("lt", ...args),
-      order: (...args: unknown[]) => note("order", ...args),
+      gt: (column: string, value: unknown) => compareFilter("gt", column, value),
+      gte: (column: string, value: unknown) => compareFilter("gte", column, value),
+      lt: (column: string, value: unknown) => compareFilter("lt", column, value),
+      lte: (column: string, value: unknown) => compareFilter("lte", column, value),
+      // The first order() is the main sort, as in the API; ascending puts empty values last.
+      order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => {
+        const ascending = options?.ascending ?? true;
+        sorts.push({ column, ascending, nullsFirst: options?.nullsFirst ?? !ascending });
+        return options ? note("order", column, options) : note("order", column);
+      },
       // "tenants.is_demo" filters on an embedded row, as an inner join does.
       eq: (column: string, value: unknown) => {
         rows = rows.filter((row) => fieldOf(row, column) === value);
@@ -74,16 +83,30 @@ export function supabaseStub() {
         }
         if (parseError) return resolve({ data: null, error: { message: parseError }, count: null });
         const last = Math.min(window[1], window[0] + SERVER_MAX_ROWS - 1);
-        return resolve({ data: rows.slice(window[0], last + 1), error: null, count: rows.length });
+        return resolve({ data: sorted().slice(window[0], last + 1), error: null, count: rows.length });
       },
     };
+    function compareFilter(operator: "gt" | "gte" | "lt" | "lte", column: string, value: unknown) {
+      rows = rows.filter((row) => matches(fieldOf(row, column), operator, value));
+      return note(operator, column, value);
+    }
+    function sorted(): Row[] {
+      if (sorts.length === 0) return rows;
+      return [...rows].sort((a, b) => {
+        for (const sort of sorts) {
+          const order = sortOrder(fieldOf(a, sort.column), fieldOf(b, sort.column), sort);
+          if (order !== 0) return order;
+        }
+        return 0;
+      });
+    }
     function one(exactlyOne: boolean): Answer {
       note(exactlyOne ? "single" : "maybeSingle");
       if (state.failing.has(table)) return { data: null, error: { message: "connection lost" } };
       if (rows.length > 1 || (exactlyOne && rows.length === 0)) {
         return { data: null, error: { code: "PGRST116", message: `JSON object requested, ${rows.length} rows returned` } };
       }
-      return { data: rows[0] ?? null, error: null };
+      return { data: sorted()[0] ?? null, error: null };
     }
     return builder;
   }
@@ -107,6 +130,37 @@ function fieldOf(row: Row, column: string): unknown {
   return rest.reduce<unknown>((value, key) => (value as Row | null | undefined)?.[key], row[first ?? ""]);
 }
 
+type Sort = { column: string; ascending: boolean; nullsFirst: boolean };
+
+/** One row before (-1) or after (1) another for one order() call. */
+function sortOrder(a: unknown, b: unknown, sort: Sort): number {
+  const aEmpty = a === null || a === undefined;
+  const bEmpty = b === null || b === undefined;
+  if (aEmpty || bEmpty) {
+    if (aEmpty && bEmpty) return 0;
+    return aEmpty === sort.nullsFirst ? -1 : 1;
+  }
+  const order = compareValues(a, b);
+  return sort.ascending ? order : -order;
+}
+
+/**
+ * Compare two values as Postgres would for these tests: numbers by size,
+ * timestamps by time (so "…Z" and "…+00:00" agree), other text and booleans
+ * as they sort. Two kinds that Postgres would not compare throw, so a test
+ * with the wrong kind of value fails loudly.
+ */
+function compareValues(a: unknown, b: unknown): number {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  if (typeof a === "boolean" && typeof b === "boolean") return Number(a) - Number(b);
+  if (typeof a === "string" && typeof b === "string") {
+    const time = /^\d{4}-\d{2}-\d{2}/;
+    if (time.test(a) && time.test(b)) return Date.parse(a) - Date.parse(b);
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+  throw new Error(`the stub cannot compare ${JSON.stringify(a)} with ${JSON.stringify(b)}`);
+}
+
 function matches(field: unknown, operator: string, value: unknown): boolean {
   if (operator === "eq") return field === value;
   if (operator === "neq") return field !== value;
@@ -116,11 +170,12 @@ function matches(field: unknown, operator: string, value: unknown): boolean {
   if (operator === "not.in" && typeof value === "string") return !value.slice(1, -1).split(",").includes(String(field));
   // Postgres ~*: a case-insensitive pattern.
   if (operator === "imatch" && typeof value === "string") return typeof field === "string" && new RegExp(value, "iu").test(field);
-  if (typeof field !== "number" || typeof value !== "number") return false;
-  if (operator === "lt") return field < value;
-  if (operator === "lte") return field <= value;
-  if (operator === "gt") return field > value;
-  if (operator === "gte") return field >= value;
+  // A comparison with an empty value is never true in SQL.
+  if (field === null || field === undefined) return false;
+  if (operator === "lt") return compareValues(field, value) < 0;
+  if (operator === "lte") return compareValues(field, value) <= 0;
+  if (operator === "gt") return compareValues(field, value) > 0;
+  if (operator === "gte") return compareValues(field, value) >= 0;
   throw new Error(`the stub has no "${operator}" filter`);
 }
 
