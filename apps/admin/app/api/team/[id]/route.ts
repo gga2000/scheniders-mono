@@ -24,22 +24,26 @@ export async function GET(
 
     const chartFrom = new Date(Date.now() - CHART_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-    const [userResult, adminResult, leadsResult, actionCount, recentActions, commissionsResult, achievementsResult] =
+    const [userResult, adminResult, userLeads, actionCount, recentActions, commissionsResult, achievementsResult] =
       await Promise.all([
         supabase
           .from("user_profiles")
           .select("id, email, display_name, avatar_url, last_login_at")
           .eq("id", id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from("admin_users")
           .select("admin_role, is_active")
           .eq("user_id", id)
           .maybeSingle(),
-        supabase
-          .from("leads")
-          .select("id, status, prospect_tenant_id")
-          .or(`created_by.eq.${id},assigned_to.eq.${id}`),
+        everyRow<{ id: string; status: string; prospect_tenant_id: string | null }>((from, to) =>
+          supabase
+            .from("leads")
+            .select("id, status, prospect_tenant_id")
+            .or(`created_by.eq.${id},assigned_to.eq.${id}`)
+            .order("id")
+            .range(from, to)
+        ),
         // What this person did, from the staff log: every step counted, and
         // every step of the chart's days for the chart (not the last 50).
         supabase
@@ -69,12 +73,17 @@ export async function GET(
           .eq("admin_user_id", id),
       ]);
 
-    if (userResult.error) {
+    // A failed read is an error, never "not found" or a zero: the page says
+    // it could not load instead of showing numbers that could be wrong.
+    for (const read of [userResult, adminResult, actionCount, commissionsResult, achievementsResult]) {
+      if (read.error) throw read.error;
+    }
+    if (!userResult.data) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     }
-    if (actionCount.error) throw actionCount.error;
 
-    const userLeads = leadsResult.data ?? [];
+    const commissions = commissionsResult.data ?? [];
+    const achievements = (achievementsResult.data ?? []).map((a) => a.achievement_key);
 
     return NextResponse.json({
       employee: {
@@ -87,15 +96,15 @@ export async function GET(
         total_actions: actionCount.count ?? 0,
         // As on the Team page (admin_team_counts): every commission is earned,
         // and the ones not paid yet (pending or approved) are waiting.
-        commission_earned: (commissionsResult.data ?? []).reduce((sum, c) => sum + c.amount_earned, 0),
-        commission_pending: (commissionsResult.data ?? [])
+        commission_earned: commissions.reduce((sum, c) => sum + c.amount_earned, 0),
+        commission_pending: commissions
           .filter((c) => c.status !== "paid")
           .reduce((sum, c) => sum + c.amount_earned, 0),
-        achievements: (achievementsResult.data ?? []).map((a) => a.achievement_key),
+        achievements,
       },
       recent_actions: recentActions.map(toStaffAction),
-      commissions: commissionsResult.data ?? [],
-      achievements: (achievementsResult.data ?? []).map((a) => a.achievement_key),
+      commissions,
+      achievements,
     });
   } catch (error) {
     console.error("Employee GET error:", error);

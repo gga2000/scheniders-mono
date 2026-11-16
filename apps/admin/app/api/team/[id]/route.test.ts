@@ -105,3 +105,42 @@ describe("GET /api/team/[id] actions", () => {
     expect(stub.callsTo("admin_activity_logs.limit")).toEqual([]);
   });
 });
+
+describe("GET /api/team/[id] failed reads", () => {
+  const STAFF = "44444444-4444-4444-8444-444444444444";
+
+  beforeEach(() => {
+    stub.state.tables.user_profiles = [{ id: STAFF, email: "karrar@example.com", display_name: "Karrar" }];
+    stub.state.tables.admin_users = [{ user_id: STAFF, admin_role: "support_staff", is_active: true }];
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("answers 404 only when the person does not exist", async () => {
+    stub.state.tables.user_profiles = [];
+    const res = await call(STAFF);
+    expect(res.status).toBe(404);
+  });
+
+  it.each(["user_profiles", "admin_users", "leads", "admin_employee_commissions", "admin_employee_achievements"])(
+    "answers 500, not a page of zeros or 'not found', when the %s read fails",
+    async (table) => {
+      stub.state.failing.add(table);
+      const res = await call(STAFF);
+      expect(res.status).toBe(500);
+    },
+  );
+
+  it("reads every lead of the person, past the 1,000-row cap", async () => {
+    stub.state.tables.leads = Array.from({ length: 1205 }, (_, i) => ({
+      id: `lead-${String(i).padStart(5, "0")}`,
+      status: i < 5 ? "converted" : "new",
+      prospect_tenant_id: i < 2 ? "shop" : null,
+    }));
+    const res = await call(STAFF);
+    expect(res.status).toBe(200);
+    const { employee } = await res.json();
+    expect(employee.leads_added).toBe(1205);
+    expect(employee.leads_converted).toBe(5);
+    expect(employee.stores_built).toBe(2);
+  });
+});
