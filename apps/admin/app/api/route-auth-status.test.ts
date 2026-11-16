@@ -185,6 +185,14 @@ describe("genuine errors behind a passed guard still surface as 500", () => {
     expect(consoleError).toHaveBeenCalled();
   });
 
+  it("GET /api/leads/no-owner — a database error is a 500, never a count of 0", async () => {
+    dbResult = { data: null, error: { code: "57014", message: "statement timeout" } };
+    const { GET } = await import("./leads/no-owner/route");
+    const res = await GET(req("/api/leads/no-owner", "GET", `Bearer ${TOKENS.valid}`));
+    expect(res.status).toBe(500);
+    expect(await res.json()).not.toHaveProperty("noOwner");
+  });
+
   it("GET /api/team — a database error is a 500, not an auth status", async () => {
     dbResult = { data: null, error: { code: "57014", message: "statement timeout" } };
     const { GET } = await import("./team/route");
