@@ -14,6 +14,8 @@ interface TopMoversProps {
 export function TopMovers({ data }: TopMoversProps) {
     const { t } = useLanguage();
     const { top_gainer_product, top_loser_product, top_gainer_channel, top_loser_channel } = data;
+    // Channels arrive as source keys ("storefront", "Lightfunnels"); name them like Reports does.
+    const channelName = (name: string) => t(`reports.source.name.${name.toLowerCase()}`, name);
 
     const items = [
         {
@@ -36,17 +38,17 @@ export function TopMovers({ data }: TopMoversProps) {
             id: "gain_ch",
             kind: "gain" as const,
             label: t("finances.overview.movers.chGain"),
-            entity: top_gainer_channel?.name || "—",
+            entity: top_gainer_channel ? channelName(top_gainer_channel.name) : "—",
             delta: top_gainer_channel?.delta || 0,
-            context: top_gainer_channel ? t("finances.overview.movers.chUp", { name: top_gainer_channel.name }) : t("finances.overview.movers.none"),
+            context: top_gainer_channel ? t("finances.overview.movers.chUp", { name: channelName(top_gainer_channel.name) }) : t("finances.overview.movers.none"),
         },
         {
             id: "lose_ch",
             kind: "lose" as const,
             label: t("finances.overview.movers.chDrop"),
-            entity: top_loser_channel?.name || "—",
+            entity: top_loser_channel ? channelName(top_loser_channel.name) : "—",
             delta: top_loser_channel?.delta || 0,
-            context: top_loser_channel ? t("finances.overview.movers.chDown", { name: top_loser_channel.name }) : t("finances.overview.movers.none"),
+            context: top_loser_channel ? t("finances.overview.movers.chDown", { name: channelName(top_loser_channel.name) }) : t("finances.overview.movers.none"),
         },
     ];
 

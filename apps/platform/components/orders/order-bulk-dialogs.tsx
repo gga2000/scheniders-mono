@@ -144,7 +144,7 @@ export function OrderBulkDialogs({
                             {t("orders.deleteConfirm.title")}
                         </DialogTitle>
                         <DialogDescription id="delete-confirm-desc">
-                            {t("orders.deleteConfirm.description").replace("{count}", String(selectedOrders.size))}
+                            {t("orders.deleteConfirm.description", { count: selectedOrders.size })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-2">
@@ -346,7 +346,7 @@ function RescheduleDialog({
                             canConfirm ? "bg-sky-600 text-white hover:bg-sky-700" : "bg-sky-100 text-sky-300 cursor-not-allowed",
                         )}
                     >
-                        {t("orders.bulk.reschedule.confirm").replace("{count}", String(reschedulable.length))}
+                        {t("orders.bulk.reschedule.confirm", { count: reschedulable.length })}
                     </button>
                 </DialogFooter>
             </DialogContent>

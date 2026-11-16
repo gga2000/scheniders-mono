@@ -2,8 +2,17 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { usePrimeStatements } from "@/hooks/use-prime-statements";
+import { formatIqdNumber } from "@scheniders/shared";
 
-const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+/** One money style for all three tiles: the amount, then a small «IQD». */
+function Money({ value, className }: { value: number | null; className: string }) {
+    return (
+        <b className={`text-[26px] leading-tight tabular-nums ${className}`}>
+            {value === null ? "…" : formatIqdNumber(value)}
+            {value !== null && <span className="ms-1 text-xs font-semibold text-muted">IQD</span>}
+        </b>
+    );
+}
 
 const tile = "flex min-w-0 flex-col gap-0.5 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3";
 
@@ -27,18 +36,21 @@ export function PrimeMoneyStrip({ onRoad, admin }: { onRoad: number; admin: bool
         <section aria-label={t("prime.page.moneyStrip")} className={admin ? "grid grid-cols-3 gap-3" : "grid grid-cols-1 gap-3"}>
             <div data-prime-money="on_road" className={tile}>
                 <span className="text-xs text-muted">{t("prime.page.moneyOnRoad")}</span>
-                <b className="text-[26px] leading-tight tabular-nums text-[#315EA8] dark:text-sky-300">{amount.format(onRoad)}</b>
+                <Money value={onRoad} className="text-[#315EA8] dark:text-sky-300" />
             </div>
             {admin && (
                 <>
                     <div data-prime-money="waiting" className={tile}>
                         <span className="text-xs text-muted">{t("prime.page.moneyWaiting")}</span>
-                        <b className="text-[26px] leading-tight tabular-nums text-foreground">{statements.isPending ? "…" : amount.format(waitingTotal)}</b>
-                        {waiting.length > 0 && <span className="text-xs text-muted">{t("prime.page.moneyWaitingCount", { count: waiting.length })}</span>}
+                        <Money value={statements.isPending ? null : waitingTotal} className="text-foreground" />
+                        {/* Always takes its line, so the strip does not grow when the statements answer. */}
+                        <span className="min-h-4 text-xs text-muted">
+                            {waiting.length > 0 && t("prime.page.moneyWaitingCount", { count: waiting.length })}
+                        </span>
                     </div>
                     <div data-prime-money="diff" className={tile}>
                         <span className="text-xs text-muted">{t("prime.page.moneyDiff")}</span>
-                        <b className="text-[26px] leading-tight tabular-nums text-foreground">{statements.isPending ? "…" : `${amount.format(diff)} IQD`}</b>
+                        <Money value={statements.isPending ? null : diff} className="text-foreground" />
                     </div>
                 </>
             )}

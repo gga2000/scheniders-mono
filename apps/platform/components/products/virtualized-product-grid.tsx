@@ -340,7 +340,7 @@ export function VirtualizedProductGrid({
                 </div>
                 <span className="font-semibold text-sm text-foreground">{row.categoryName}</span>
                 <span className="text-xs text-muted ml-1">
-                    {t("products.groupByCategory.productCount", { count: row.count.toString() })}
+                    {t("products.groupByCategory.productCount", { count: row.count })}
                 </span>
             </div>
         </div>

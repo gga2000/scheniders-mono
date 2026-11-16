@@ -15,7 +15,9 @@ import { cn } from "@/lib/utils";
 export function PrimeFailedNoticeSwitch() {
     const { t } = useLanguage();
     const notice = usePrimeFailedNotice();
-    if (!notice.loaded) return null;
+    // Drawn at full size before the setting answers (switch disabled, no state
+    // word), so the work list below it does not jump down 74 px when it does.
+    const loaded = notice.loaded;
     const change = async (enabled: boolean) => {
         try {
             await notice.setEnabled(enabled);
@@ -24,7 +26,7 @@ export function PrimeFailedNoticeSwitch() {
         }
     };
     return (
-        <label data-prime-failed-notice className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--background)] px-3.5 py-2.5">
+        <label data-prime-failed-notice aria-busy={!loaded} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--background)] px-3.5 py-2.5">
             <MessageCircleWarning className="h-4 w-4 shrink-0 text-muted" />
             <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium text-foreground">{t("prime.failedNotice.title")}</span>
@@ -35,11 +37,11 @@ export function PrimeFailedNoticeSwitch() {
                 data-prime-failed-notice-state={notice.enabled ? "on" : "off"}
                 className={cn("text-xs font-semibold", notice.enabled ? "text-[#165C39] dark:text-emerald-300" : "text-muted")}
             >
-                {t(notice.enabled ? "prime.failedNotice.on" : "prime.failedNotice.off")}
+                {loaded && t(notice.enabled ? "prime.failedNotice.on" : "prime.failedNotice.off")}
             </span>
             <Switch
-                checked={notice.enabled}
-                disabled={notice.saving}
+                checked={loaded && notice.enabled}
+                disabled={!loaded || notice.saving}
                 onCheckedChange={change}
                 aria-label={t("prime.failedNotice.title")}
                 className="data-[state=checked]:bg-[#1F8A50] data-[state=unchecked]:bg-[#A8A196] dark:data-[state=unchecked]:bg-white/30"

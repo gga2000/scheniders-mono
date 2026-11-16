@@ -7,7 +7,7 @@ import { FinancialValue } from "@/components/ui/financial-value";
 import { Activity } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
-import { formatTime } from "@/lib/order-format-utils";
+import { formatTime, getOrderAge } from "@/lib/order-format-utils";
 
 function useStatusStyles() {
     const { t } = useLanguage();
@@ -22,17 +22,6 @@ function useStatusStyles() {
         no_response:      { label: t('dashboard.recent.statusNoResponse'),bg: 'bg-orange-100',             text: 'text-orange-700' },
         return_pending:   { label: t('dashboard.recent.statusReturn'),     bg: 'bg-amber-100',              text: 'text-amber-700'  },
     } as Record<string, { label: string; bg: string; text: string }>;
-}
-
-function useTimeAgo() {
-    const { t } = useLanguage();
-    return (dateStr: string): string => {
-        const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-        if (diff < 60) return `${Math.floor(diff)}${t("dashboard.timeAgo.seconds")}`;
-        if (diff < 3600) return `${Math.floor(diff / 60)}${t("dashboard.timeAgo.minutes")}`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}${t("dashboard.timeAgo.hours")}`;
-        return `${Math.floor(diff / 86400)}${t("dashboard.timeAgo.days")}`;
-    };
 }
 
 interface RecentOrdersFeedProps {
@@ -54,7 +43,7 @@ interface RecentOrdersFeedProps {
 export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrdersFeedProps) {
     const { t, language } = useLanguage();
     const STATUS_STYLES = useStatusStyles();
-    const timeAgo = useTimeAgo();
+    const timeAgo = (dateStr: string) => getOrderAge(dateStr, language);
     // Re-render on a timer so the stamp ages visibly rather than freezing.
     const [, setTick] = useState(0);
     useEffect(() => {
@@ -71,13 +60,13 @@ export function RecentOrdersFeed({ orders, updatedAt, onOrderClick }: RecentOrde
                 </div>
                 <div>
                     <h3 className="text-sm font-bold text-foreground">{t("dashboard.recent.title")}</h3>
-                    <p className="text-xs text-muted">{t("dashboard.recent.lastOrders").replace('{count}', String(orders.length))}</p>
+                    <p className="text-xs text-muted">{t("dashboard.recent.lastOrders", { count: orders.length })}</p>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5" title={updatedAt ? `${formatBaghdadDate(new Date(updatedAt).toISOString(), language)} ${formatTime(new Date(updatedAt), language)}` : undefined}>
                     <span className="w-2 h-2 rounded-full bg-green-400" />
                     <span className="text-[10px] text-muted">
                         {freshness
-                            ? `${t("dashboard.recent.updated")} ${freshness}`
+                            ? t("dashboard.recent.updated", { ago: freshness })
                             : t("dashboard.recent.live")}
                     </span>
                 </div>

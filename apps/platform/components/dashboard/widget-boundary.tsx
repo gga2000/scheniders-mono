@@ -32,7 +32,7 @@ function WidgetErrorCard({ label }: { label: string }) {
             <AlertTriangle className="w-6 h-6 text-rose-500/70" />
             <p className="text-sm font-semibold text-foreground">{t("dashboard.widget.failed")}</p>
             <p className="text-xs text-muted">{t("dashboard.widget.failedDetail")}</p>
-            <p className="text-[10px] text-muted/60 font-mono">{label}</p>
+            <p className="text-[10px] text-muted-foreground/60 font-mono">{label}</p>
         </div>
     );
 }

@@ -13,8 +13,11 @@ const language = {
     language: "ar" as const,
     setLanguage: () => {},
     t: (key: string, fallback?: unknown, vars?: Record<string, string | number>) => {
-        const template = translations.ar[key] ?? (typeof fallback === "string" ? fallback : key);
         const values = typeof fallback === "object" && fallback !== null ? (fallback as Record<string, string | number>) : vars;
+        // The provider's plural pick: a numeric count uses <key>.one/.two/.few/.many when the dictionary has it.
+        const count = values?.count;
+        const form = typeof count !== "number" ? undefined : translations.ar[`${key}.${count === 0 ? "zero" : new Intl.PluralRules("ar").select(count)}`];
+        const template = form ?? translations.ar[key] ?? (typeof fallback === "string" ? fallback : key);
         return values ? template.replace(/\{(\w+)\}/g, (_, k: string) => String(values[k] ?? `{${k}}`)) : template;
     },
 };

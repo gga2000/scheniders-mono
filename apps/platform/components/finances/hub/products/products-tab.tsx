@@ -285,7 +285,7 @@ function UnitEconomicsTable({ rows }: { rows: SkuRow[] }) {
                                             {r.cogs > 0 ? (
                                                 <FinanceValue value={r.cogs} abbreviate className="text-muted" />
                                             ) : (
-                                                <span className="text-muted/60">—</span>
+                                                <span className="text-muted-foreground/60">—</span>
                                             )}
                                         </td>
                                         <td className="py-2 px-2 text-right tabular-nums">
@@ -297,7 +297,7 @@ function UnitEconomicsTable({ rows }: { rows: SkuRow[] }) {
                                         </td>
                                         <td className={cn(
                                             "py-2 px-2 text-right tabular-nums font-medium",
-                                            r.cogs === 0 ? "text-muted/60" :
+                                            r.cogs === 0 ? "text-muted-foreground/60" :
                                                 r.grossMarginPct >= 50 ? "text-emerald-600 dark:text-emerald-400" :
                                                     r.grossMarginPct >= 25 ? "text-foreground" :
                                                         r.grossMarginPct >= 0 ? "text-amber-600 dark:text-amber-400" :

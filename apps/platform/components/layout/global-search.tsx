@@ -21,6 +21,7 @@ import {
     LogOut,
     ChevronRight,
     Loader2,
+    RotateCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
@@ -344,9 +345,18 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                                     );
                                 })}
                             </div>
-                        ) : orderSearch.error ? (
+                        ) : orderSearch.failure ? (
                             <div className="py-8 text-center">
-                                <p className="text-rose-600 text-sm">{orderSearch.error.message}</p>
+                                <p className="text-rose-600 text-sm">
+                                    {t(orderSearch.failure === "network" ? "orders.ui.searchFailedOffline" : "orders.ui.searchFailedServer")}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={orderSearch.retry}
+                                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-foreground hover:bg-[var(--background)]"
+                                >
+                                    <RotateCw className="w-3.5 h-3.5" aria-hidden /> {t("orders.ui.tryAgain")}
+                                </button>
                             </div>
                         ) : orderSearch.pending || productSearch.pending || query !== debouncedQuery ? (
                             <div className="py-8 text-center" aria-busy="true">

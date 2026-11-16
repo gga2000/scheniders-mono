@@ -56,7 +56,7 @@ export function GuidePill({
     );
     const cls =
         "fixed bottom-6 z-[46] inline-flex h-11 items-center gap-2.5 rounded-full bg-neutral-900 px-4 text-sm text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]";
-    return onOpen ? (
+    const pill = onOpen ? (
         <button
             type="button"
             onClick={onOpen}
@@ -70,5 +70,13 @@ export function GuidePill({
         <div data-testid="merchant-guide-pill" style={{ left }} className={cls} role="status">
             {body}
         </div>
+    );
+    // The pill floats over the page's last 68 px. The in-flow spacer lets the
+    // last row scroll clear of it (it hid the Reports funnel's last label).
+    return (
+        <>
+            <div aria-hidden="true" className="h-20" />
+            {pill}
+        </>
     );
 }

@@ -28,7 +28,7 @@ function StarSelector({ value, onChange, label }: { value: number; onChange: (v:
                         <Star
                             className={cn(
                                 "w-7 h-7 transition-colors",
-                                star <= value ? "star-filled fill-amber-400 text-amber-400" : "star-empty text-muted/30"
+                                star <= value ? "star-filled fill-amber-400 text-amber-400" : "star-empty text-muted-foreground/30"
                             )}
                         />
                     </motion.button>

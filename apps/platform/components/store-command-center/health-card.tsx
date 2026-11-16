@@ -77,7 +77,7 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
             <circle
                 cx="40" cy="40" r={r} fill="none"
                 stroke="currentColor" strokeWidth="8"
-                className="text-muted/30"
+                className="text-muted-foreground/30"
             />
             <circle
                 cx="40" cy="40" r={r} fill="none"

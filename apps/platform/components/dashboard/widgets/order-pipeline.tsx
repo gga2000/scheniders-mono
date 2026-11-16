@@ -4,6 +4,9 @@ import { ChevronRight } from "lucide-react";
 import { PipelineStage } from "@/lib/analytics/dashboard-calculations";
 import { useLanguage } from "@/hooks/use-language";
 
+/** Below this share of the bar (about 40 px at 1440) a segment shows no count or label. */
+const MIN_LABELLED_PCT = 6;
+
 interface OrderPipelineProps {
     stages: PipelineStage[];
     onStageClick?: (status: string) => void;
@@ -46,13 +49,18 @@ export function OrderPipeline({ stages, onStageClick }: OrderPipelineProps) {
                     return (
                         <div
                             key={stage.status}
-                            className={`relative flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer hover:brightness-95 active:scale-95 ${i > 0 ? "border-l border-white/40" : ""}`}
+                            className={`relative flex flex-col items-center justify-center gap-0.5 overflow-hidden transition-all cursor-pointer hover:brightness-95 active:scale-95 ${i > 0 ? "border-l border-white/40" : ""}`}
                             style={{ flexBasis: `${width}%`, minWidth: '2px', background: stage.color }}
                             onClick={() => onStageClick?.(stage.status)}
                             title={`${getLabel(stage)}: ${stage.count} ${t("dashboard.pipeline.orders")}`}
                         >
-                            <span className="text-xs font-bold leading-none" style={{ color: stage.textColor }}>{stage.count}</span>
-                            <span className="text-[10px] font-semibold leading-none opacity-70 truncate px-1" style={{ color: stage.textColor }}>{getLabel(stage)}</span>
+                            {/* A sliver cannot hold its words: they spilled over the next segment. The legend below names it. */}
+                            {pct >= MIN_LABELLED_PCT && (
+                                <>
+                                    <span className="text-xs font-bold leading-none" style={{ color: stage.textColor }}>{stage.count}</span>
+                                    <span className="text-[10px] font-semibold leading-none opacity-70 truncate px-1 max-w-full" style={{ color: stage.textColor }}>{getLabel(stage)}</span>
+                                </>
+                            )}
                         </div>
                     );
                 })}

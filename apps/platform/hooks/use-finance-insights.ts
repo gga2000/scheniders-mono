@@ -112,7 +112,8 @@ export function buildFinanceInsights(data: FinanceOverviewResult, units: MoneyUn
     if (data.top_loser_product && data.top_loser_product.delta < -200_000) {
         out.push({
             id: "product_loser", severity: "warning", hasSuggestion: true,
-            vars: { name: data.top_loser_product.name, delta: iqd(data.top_loser_product.delta) },
+            // The copy already says «انخفض»; a signed amount read "dropped -4.1M".
+            vars: { name: data.top_loser_product.name, delta: iqd(Math.abs(data.top_loser_product.delta)) },
         });
     }
     if (data.top_gainer_product && data.top_gainer_product.delta > 200_000) {

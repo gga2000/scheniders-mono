@@ -28,7 +28,7 @@ export default function CustomersError({
 
             <h2 dir="auto" className="mb-2 text-xl font-bold text-foreground">{t("customers.loadFailed")}</h2>
 
-            <p dir="auto" className="mb-6 max-w-md text-muted-foreground">{t("customers.loadFailedHint")}</p>
+            <p dir="auto" className="mb-6 max-w-md text-muted-foreground">{t("common.loadFailedHint")}</p>
 
             <button
                 onClick={reset}

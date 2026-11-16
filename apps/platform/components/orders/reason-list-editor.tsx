@@ -124,7 +124,7 @@ export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: R
 
     return (
         <div className="space-y-2">
-            <p className="text-[11px] text-muted/80 flex items-center gap-1">
+            <p className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
                 <Check className="w-3 h-3" />
                 {t("orders.reasons.autoSaved")}
             </p>
@@ -243,7 +243,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
             <button
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing text-muted/60 hover:text-muted touch-none p-1"
+                className="cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-muted-foreground touch-none p-1"
                 aria-label={t("orders.reasons.reorder")}
             >
                 <GripVertical className="w-4 h-4" />
@@ -284,7 +284,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
             {reason.is_system ? (
                 <span
                     title={t("orders.reasons.coreLocked")}
-                    className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted/40"
+                    className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground/40"
                 >
                     <Lock className="w-3.5 h-3.5" />
                 </span>

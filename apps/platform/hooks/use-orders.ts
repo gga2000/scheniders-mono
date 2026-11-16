@@ -307,6 +307,8 @@ export function useOrders() {
             pending: orderSearch.pending,
             isFetching: orderSearch.isFetching,
             error: orderSearch.error,
+            failure: orderSearch.failure,
+            retry: orderSearch.retry,
         },
         loading,
         error,
@@ -412,6 +414,8 @@ export function useOrders() {
         orderSearch.pending,
         orderSearch.isFetching,
         orderSearch.error,
+        orderSearch.failure,
+        orderSearch.retry,
         listCovered,
         ordersAreComplete,
     ]);

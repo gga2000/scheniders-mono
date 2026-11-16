@@ -35,8 +35,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useCustomerTags } from "@/hooks/use-customer-management";
 import { cn } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/permissions";
-import { useNetworkStatus } from "@/hooks/use-network-status";
-import { loadFailureKind } from "@/lib/load-failure";
+import { useLoadFailureHint } from "@/hooks/use-load-failure-hint";
 import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
 import { useAppHeaderOffset } from "@/hooks/use-app-header-offset";
 
@@ -254,9 +253,7 @@ function CustomersPageContent() {
     // One line of store-wide figures that no saved view already counts. When the
     // list failed to load there is no "shown" count: say nothing rather than "0 of N".
     const listFailed = isError && !data;
-    const online = useNetworkStatus();
-    // Only a request that never reached the server is the connection's fault.
-    const failureHint = loadFailureKind(error, online) === "network" ? t("customers.loadFailedOfflineHint") : t("customers.loadFailedHint");
+    const failureHint = useLoadFailureHint();
     const subtitle = filtered && !listFailed
         ? t("customers.subtitleFiltered", {
             // The total picks the noun's form ("of 2 customers" is a dual in Arabic).
@@ -358,7 +355,7 @@ function CustomersPageContent() {
                         </div>
                         {/* dir="auto": an Arabic sentence ends with its own full stop, not one at its start. */}
                         <p dir="auto" className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
-                        <p dir="auto" className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failureHint}</p>
+                        <p dir="auto" className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failureHint(error)}</p>
                         <button
                             onClick={() => refetch()}
                             disabled={isRefetching}

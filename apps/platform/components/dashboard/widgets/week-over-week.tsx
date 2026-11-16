@@ -30,7 +30,7 @@ function DeltaPill({ delta, deltaPct, unit }: { delta: number | null; deltaPct: 
     const label = deltaPct !== null
         ? `${up ? '+' : ''}${deltaPct}%`
         : unit === '%'
-            ? `${up ? '+' : ''}${Math.abs(delta)}pp`
+            ? `${up ? '+' : ''}${t("dashboard.wow.points", { n: Math.abs(delta) })}`
             : `${up ? '+' : ''}${Math.abs(delta)}`;
     return (
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${up ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700'}`}>
@@ -64,8 +64,10 @@ export function WeekOverWeek({ metrics }: WeekOverWeekProps) {
                                     title={m.isFinancial ? t("dashboard.revenue.definition") : undefined}
                                 >
                                     {translatedLabel}
+                                    {/* A real space, not a margin: in an Arabic run the margin lands on the far side. */}
+                                    {m.isFinancial && " "}
                                     {m.isFinancial && (
-                                        <span className="ml-1 normal-case font-normal text-blue-900/40">
+                                        <span className="normal-case font-normal text-blue-900/40">
                                             {t("dashboard.revenue.short")}
                                         </span>
                                     )}

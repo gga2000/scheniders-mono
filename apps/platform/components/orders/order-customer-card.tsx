@@ -358,7 +358,7 @@ export function OrderCustomerCard({
                                         "ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal transition-colors",
                                         currentPhones.secondary_phone.trim()
                                             ? "text-foreground/70 hover:bg-[var(--background)] hover:text-foreground"
-                                            : "text-muted/50 cursor-not-allowed",
+                                            : "text-muted-foreground/50 cursor-not-allowed",
                                     )}
                                     title={t("orders.phone.swapTitle")}
                                 >

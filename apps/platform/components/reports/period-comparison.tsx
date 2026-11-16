@@ -1,6 +1,6 @@
 "use client";
 
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, Banknote, Clock } from "lucide-react";
@@ -15,6 +15,8 @@ interface PeriodComparisonProps {
 
 export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) {
     const { t, language } = useLanguage();
+    // An Arabic range inside an LTR row: without its own direction "18" slips outside the bracket.
+    const dir = useTextDir();
     const duration = currentRange.to.getTime() - currentRange.from.getTime();
     const days = Math.ceil(duration / (1000 * 60 * 60 * 24));
 
@@ -117,12 +119,12 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-indigo-500" />
                         <span className="font-medium text-foreground">{t("reports.period.current")}</span>
-                        <span className="text-muted">({formatDate(currentRange.from)} - {formatDate(currentRange.to)})</span>
+                        <span dir={dir} className="text-muted">({formatDate(currentRange.from)} - {formatDate(currentRange.to)})</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-gray-300" />
                         <span className="font-medium text-foreground">{t("reports.period.previous")}</span>
-                        <span className="text-muted">({formatDate(previousRange.from)} - {formatDate(previousRange.to)})</span>
+                        <span dir={dir} className="text-muted">({formatDate(previousRange.from)} - {formatDate(previousRange.to)})</span>
                     </div>
                 </div>
 
@@ -154,12 +156,12 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                 {/* Current vs Previous */}
                                 <div className="space-y-2">
                                     <div className="flex items-baseline justify-between gap-2">
-                                        <span className="text-2xl font-bold text-foreground tabular-nums">
+                                        <span className="text-2xl font-bold text-foreground tabular-nums whitespace-nowrap">
                                             {metric.format(metric.current)}
                                         </span>
                                         {showChip && change !== null && (
                                             <div className={cn(
-                                                "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold",
+                                                "flex shrink-0 items-center gap-0.5 whitespace-nowrap px-1.5 py-0.5 rounded text-xs font-bold",
                                                 isGood ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                             )}>
                                                 {isUp ? <ArrowUpRight className="w-3 h-3" aria-hidden /> : <ArrowDownRight className="w-3 h-3" aria-hidden />}
@@ -169,7 +171,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-muted">
                                         <span>{t("reports.period.vs")}</span>
-                                        <span className="font-medium tabular-nums">{metric.format(metric.previous)}</span>
+                                        <span className="font-medium tabular-nums whitespace-nowrap">{metric.format(metric.previous)}</span>
                                     </div>
                                 </div>
                             </motion.div>

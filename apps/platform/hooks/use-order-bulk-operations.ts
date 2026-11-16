@@ -78,7 +78,7 @@ export function useOrderBulkOperations() {
         bulkRunningRef.current = true;
         setIsBulkProcessing(true);
         const toastId = toast.loading(
-            t("orders.bulk.updating").replace("{count}", String(ids.length)),
+            t("orders.bulk.updating", { count: ids.length }),
             formatBulkProgress({ done: 0, total: ids.length, succeeded: 0, failed: 0 }, t),
         );
         try {
@@ -150,7 +150,7 @@ export function useOrderBulkOperations() {
         setIsBulkProcessing(true);
         setRescheduleOpen(false);
         const toastId = toast.loading(
-            t("orders.bulk.rescheduling").replace("{count}", String(ids.length)),
+            t("orders.bulk.rescheduling", { count: ids.length }),
             formatBulkProgress({ done: 0, total: ids.length, succeeded: 0, failed: 0 }, t),
         );
         try {
@@ -165,10 +165,9 @@ export function useOrderBulkOperations() {
 
             if (result.failures.length === 0) {
                 toast({
-                    title: (day
-                        ? t("orders.bulk.rescheduled").replace("{date}", formatScheduledDate(day))
-                        : t("orders.bulk.rescheduleCleared")
-                    ).replace("{count}", String(result.count)),
+                    title: day
+                        ? t("orders.bulk.rescheduled", { count: result.count, date: formatScheduledDate(day) })
+                        : t("orders.bulk.rescheduleCleared", { count: result.count }),
                     description: skippedNote,
                     variant: "success",
                 });
@@ -219,7 +218,7 @@ export function useOrderBulkOperations() {
         const ids = Array.from(selectedOrders);
         bulkRunningRef.current = true;
         setIsBulkProcessing(true);
-        const toastId = toast.loading(t("orders.bulk.archiving").replace("{count}", String(ids.length)));
+        const toastId = toast.loading(t("orders.bulk.archiving", { count: ids.length }));
         try {
             const result = await bulkArchive(ids);
             dismissToast(toastId);
@@ -227,7 +226,7 @@ export function useOrderBulkOperations() {
                 setSelectedOrders(new Set());
                 toast({
                     title: t("toast.ordersArchived"),
-                    description: t("toast.ordersArchivedDesc").replace("{count}", String(ids.length)),
+                    description: t("toast.ordersArchivedDesc", { count: ids.length }),
                     variant: "success",
                     action: {
                         label: t("toast.undo"),
@@ -324,7 +323,7 @@ export function useOrderBulkOperations() {
         const deletedIds = result.deletedIds ?? ids;
         toast({
             title: t("toast.ordersDeleted"),
-            description: t("toast.ordersDeletedDesc").replace("{count}", String(deletedCount)),
+            description: t("toast.ordersDeletedDesc", { count: deletedCount }),
             variant: "success",
             duration: 20000,
             action: {
@@ -338,7 +337,7 @@ export function useOrderBulkOperations() {
                     await refreshOrders();
                     toast.success(
                         t("toast.ordersRestored"),
-                        t("toast.ordersRestoredCountDesc").replace("{count}", String(res.restored)),
+                        t("toast.ordersRestoredCountDesc", { count: res.restored ?? 0 }),
                     );
                 },
             },
