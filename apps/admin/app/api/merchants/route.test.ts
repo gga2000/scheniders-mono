@@ -27,7 +27,7 @@ const shop = (n: number, extra: Row = {}): Row => ({
   status: "active",
   plan: "starter",
   trial_ends_at: null,
-  tags: null,
+  staff_shop_tags: null,
   wallet: { balance_iqd: 20000 },
   subscriptions: [],
   ...extra,
@@ -121,12 +121,23 @@ describe("GET /api/merchants", () => {
     const { merchants } = await (await call()).json();
 
     expect(stub.callsTo("tenants.select")[0]?.[0]).toBe(
-      "*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts",
+      "*, wallet(*), subscriptions(*), staff_shop_tags(tags), staff_health_score, staff_health_parts",
     );
     expect(merchants[0]).toMatchObject({
       staff_health_score: 75,
       staff_health_parts: { status: 15, wallet: 5, orders: 5 },
     });
+  });
+
+  it("sends the staff tags from staff_shop_tags, and none for a shop never tagged", async () => {
+    // The tags used to be read from tenants.tags, a column that never existed.
+    stub.state.tables.tenants = [shop(1, { staff_shop_tags: { tags: ["VIP", "At Risk"] } }), shop(2)];
+
+    const { merchants } = await (await call()).json();
+
+    expect(merchants[0].tags).toEqual(["VIP", "At Risk"]);
+    expect(merchants[1].tags).toEqual([]);
+    expect(merchants[0]).not.toHaveProperty("staff_shop_tags");
   });
 
   it("reports a locked shop as locked, though its status still reads trial", async () => {
