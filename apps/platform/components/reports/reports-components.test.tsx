@@ -56,6 +56,17 @@ describe("PeriodComparison", () => {
         expect(container.textContent).toContain(formatIQD(8_529_250, "ar"));
         expect(container.textContent).not.toMatch(/\d(\.\d)?[MK]\b/);
     });
+
+    it("lays the «مقابل» line out right to left in Arabic, so the word comes before its amount", () => {
+        const data = comparison({
+            current: { ...empty, totalOrders: 10, deliveredOrders: 8, rejectedOrders: 2, deliveryRate: 80, totalRevenue: 8_075_500 },
+            previous: { ...empty, totalOrders: 9, deliveredOrders: 7, rejectedOrders: 2, deliveryRate: 77.8, totalRevenue: 8_529_250 },
+        });
+        inLanguage("ar", <PeriodComparison data={data} currentRange={range} />);
+        const rows = Array.from(document.querySelectorAll("div")).filter((d) => d.firstElementChild?.textContent === "مقابل");
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) expect(row.getAttribute("dir")).toBe("rtl");
+    });
 });
 
 describe("CityPerformance", () => {
