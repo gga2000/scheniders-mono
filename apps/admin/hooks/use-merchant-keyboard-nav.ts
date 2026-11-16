@@ -17,7 +17,6 @@ export function useMerchantKeyboardNav({
   const {
     focusedIndex,
     setFocusedIndex,
-    setActiveDetailId,
     clearSelection,
     toggleMerchantSelection,
     toggleStar,
@@ -78,10 +77,9 @@ export function useMerchantKeyboardNav({
           break;
         }
 
-        // ── Escape — close panel/dialog, deselect all ──
+        // ── Escape — deselect all ──
         case "Escape": {
           e.preventDefault();
-          setActiveDetailId(null);
           clearSelection();
           break;
         }
@@ -119,7 +117,6 @@ export function useMerchantKeyboardNav({
       focusedIndex,
       merchants,
       setFocusedIndex,
-      setActiveDetailId,
       clearSelection,
       toggleMerchantSelection,
       toggleStar,

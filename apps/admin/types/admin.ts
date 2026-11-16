@@ -28,7 +28,6 @@ export interface TenantRestrictions {
 
 export type TableDensity = "compact" | "comfortable" | "spacious";
 export type ViewMode = "cards" | "table" | "sheet" | "map" | "kanban";
-export type DetailViewMode = "dialog" | "panel" | "full";
 
 export interface SortConfig {
   column: string;

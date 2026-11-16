@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
-  PanelRight,
   Star,
   ArrowUpRight,
   Wallet,
@@ -39,7 +38,6 @@ interface MerchantCardProps {
   onToggleSelect: (id: string) => void;
   onSelectWithShift?: (index: number, shiftKey: boolean) => void;
   onOpenDetail?: (id: string) => void;
-  onOpenPanel?: (id: string) => void;
   onToggleStar?: (id: string) => void;
 }
 
@@ -60,7 +58,6 @@ export function MerchantCard({
   index,
   lastActor,
   onOpenDetail,
-  onOpenPanel,
   onToggleSelect,
   onSelectWithShift,
   onToggleStar,
@@ -349,15 +346,6 @@ export function MerchantCard({
             Top Up
           </button>
           <QuickNotePopover merchantId={merchant.id} />
-          <button
-            type="button"
-            onClick={() => onOpenPanel?.(merchant.id)}
-            className="w-8 h-8 flex items-center justify-center rounded-xl text-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-colors"
-            title="Open in sidebar"
-            aria-label="Open in sidebar"
-          >
-            <PanelRight className="w-3.5 h-3.5" />
-          </button>
           <Link
             href={`/merchants/${merchant.id}`}
             onClick={(e) => e.stopPropagation()}

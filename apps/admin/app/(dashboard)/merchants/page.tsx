@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInfiniteMerchants } from "@/hooks/use-infinite-merchants";
 import { useAdminStore } from "@/store/use-admin-store";
@@ -16,8 +17,6 @@ import { MerchantSheetView } from "@/components/merchants/merchant-sheet-view";
 import { MerchantDensityToggle } from "@/components/merchants/merchant-density-toggle";
 import { MerchantColumnVisibility } from "@/components/merchants/merchant-column-visibility";
 import { AdvancedFilterBuilder } from "@/components/merchants/advanced-filter-builder";
-import { MerchantDetailDialog } from "@/components/merchants/merchant-detail-dialog";
-import { MerchantDetailPanel } from "@/components/merchants/merchant-detail-panel";
 import { SmartAlertRules } from "@/components/merchants/smart-alert-rules";
 import { MerchantsDigestBanner } from "@/components/merchants/merchants-digest-banner";
 import { MerchantsRollupStrip } from "@/components/merchants/merchants-rollup-strip";
@@ -101,10 +100,6 @@ export default function MerchantsPage() {
     toggleSort,
     starredMerchants,
     toggleStar,
-    detailViewMode,
-    activeDetailId,
-    setActiveDetailId,
-    setDetailViewMode,
     searchQuery,
     clearFilters,
     setSearchQuery,
@@ -179,22 +174,9 @@ export default function MerchantsPage() {
     [lastSelectedIndex, merchantIds, selectRange, toggleMerchantSelection, setLastSelectedIndex]
   );
 
-  // ── Open detail ──────────────────────────────────────────────────────
-  const handleOpenDetail = useCallback(
-    (id: string) => {
-      setDetailViewMode("dialog");
-      setActiveDetailId(id);
-    },
-    [setActiveDetailId, setDetailViewMode]
-  );
-
-  const handleOpenPanel = useCallback(
-    (id: string) => {
-      setDetailViewMode("panel");
-      setActiveDetailId(id);
-    },
-    [setActiveDetailId, setDetailViewMode]
-  );
+  // ── Open a shop: every view lands on the one shop page ───────────────
+  const router = useRouter();
+  const handleOpenDetail = useCallback((id: string) => router.push(`/merchants/${id}`), [router]);
 
   const handleToggleShortcuts = useCallback(() => {
     setShowShortcuts((v) => !v);
@@ -385,7 +367,6 @@ export default function MerchantsPage() {
                   onToggleSelect={toggleMerchantSelection}
                   onSelectWithShift={handleSelectWithShift}
                   onOpenDetail={handleOpenDetail}
-                  onOpenPanel={handleOpenPanel}
                   onToggleStar={toggleStar}
                 />
               </motion.div>
@@ -505,10 +486,6 @@ export default function MerchantsPage() {
           // Future: pass filters to API via query param
         }}
       />
-
-      {/* ── Detail Views ───────────────────────────────────────────── */}
-      {detailViewMode === "dialog" && <MerchantDetailDialog />}
-      <MerchantDetailPanel />
 
       {/* ── Keyboard Shortcuts Overlay ─────────────────────────────── */}
       <KeyboardShortcutsOverlay
