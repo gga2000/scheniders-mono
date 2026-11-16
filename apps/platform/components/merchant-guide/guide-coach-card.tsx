@@ -5,27 +5,35 @@ import { ArrowRight, Check, ChevronLeft, ChevronRight, Minus } from "lucide-reac
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import { GuideCaption } from "./guide-caption";
+import { useGuidePillBottom } from "./guide-setup-store";
 import { GuideSoundButton } from "./guide-sound-button";
 import type { GuideVoice } from "./use-guide-voice";
+import { GUIDE_PHONE_MAX_WIDTH, usePhoneTyping } from "./use-phone-typing";
 import type { TargetBox } from "./use-target-rect";
 
 const GAP = 18;
 const EDGE = 16;
-/** How far above the bottom edge the card rests when it has nothing to point at. */
-const DOCK_BOTTOM = 84;
+/** The pill's band under the card: the pill (44px) and a 16px gap. */
+const PILL_BAND = 60;
 
-/** Next to the element when there's room: below, else above, right, left. Always clear of the pill's band. */
-function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number): void {
+/**
+ * Next to the element when there's room: below, else above, right, left.
+ * Always clear of the pill's band. On a phone there is no room beside
+ * anything, so the card rests at the bottom above the pill and the light
+ * alone shows the element.
+ */
+function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number, pillBottom: number): void {
     const w = card.offsetWidth;
     const h = card.offsetHeight;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const dockBottom = pillBottom + PILL_BAND;
     let left: number;
     let top: number;
-    if (!box) {
+    if (!box || vw < GUIDE_PHONE_MAX_WIDTH) {
         left = dockLeft;
-        top = vh - DOCK_BOTTOM - h;
-    } else if (box.top + box.height + GAP + h <= vh - DOCK_BOTTOM) {
+        top = vh - dockBottom - h;
+    } else if (box.top + box.height + GAP + h <= vh - dockBottom) {
         top = box.top + box.height + GAP;
         left = box.left + box.width / 2 - w / 2;
     } else if (box.top - GAP - h >= EDGE) {
@@ -40,7 +48,7 @@ function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number): 
     }
     card.style.left = `${Math.max(EDGE, Math.min(vw - w - EDGE, left))}px`;
     // Never under the guide pill in the bottom corner.
-    card.style.top = `${Math.max(EDGE, Math.min(vh - h - DOCK_BOTTOM, top))}px`;
+    card.style.top = `${Math.max(EDGE, Math.min(vh - h - dockBottom, top))}px`;
 }
 
 export interface GuideCoachCardProps {
@@ -80,14 +88,16 @@ export function GuideCoachCard({
     const { t } = useLanguage();
     const dir = useTextDir();
     const ref = useRef<HTMLDivElement>(null);
+    const pillBottom = useGuidePillBottom();
+    const typing = usePhoneTyping();
 
     useLayoutEffect(() => {
         const card = ref.current;
-        if (!card) return;
-        placeCard(card, box, dockLeft);
+        if (!card || typing) return;
+        placeCard(card, box, dockLeft, pillBottom);
         // Glide only between places, never in from the corner on first show.
         card.dataset.placed = "true";
-        const onResize = (): void => placeCard(card, box, dockLeft);
+        const onResize = (): void => placeCard(card, box, dockLeft, pillBottom);
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
     });
@@ -99,7 +109,11 @@ export function GuideCoachCard({
             aria-live="polite"
             aria-label={heading}
             data-testid="merchant-guide-card"
-            className="merchant-guide-card fixed z-[46] grid w-[min(360px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]"
+            className={cn(
+                "merchant-guide-card fixed z-[46] grid w-[min(360px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]",
+                // Out of the keyboard's way while the merchant types on a phone.
+                typing && "hidden",
+            )}
         >
             <div className="flex items-center justify-between gap-2 text-xs text-neutral-400">
                 <span dir={dir}>{heading}</span>

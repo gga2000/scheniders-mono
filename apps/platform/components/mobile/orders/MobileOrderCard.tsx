@@ -10,7 +10,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { ALL_ORDER_STATUSES } from "@/lib/schemas";
 import { validatePhoneDetailed, formatPhoneGrouped } from "@/lib/order-utils";
 import { generateWhatsAppLink } from "@/lib/utils";
-import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, Calendar, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Sparkles, PhoneCall, CheckCircle, Truck, Ban, XCircle, RotateCcw, Clock, Calendar, AlertTriangle, Copy, ShieldAlert, Package, Bell, Gift, FlaskConical } from "lucide-react";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { cn, getStatusLabel } from "@/lib/utils";
 import { RiskBadge } from "@/components/orders/risk-badge";
@@ -235,6 +235,14 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         )}
                     </div>
 
+                    {/* A practice order: never counts for fees, the trial or stats. */}
+                    {order.is_test && (
+                        <span className="-rotate-3 inline-flex w-fit items-center gap-1 rounded border-2 border-dashed border-purple-500 px-1.5 text-[11px] font-bold text-purple-700 dark:border-purple-400 dark:text-purple-300">
+                            <FlaskConical className="h-3 w-3" aria-hidden="true" />
+                            {t("orders.card.practiceStamp")}
+                        </span>
+                    )}
+
                     {/* Refund identity: a refund order, or an original with a refund */}
                     {(isReturn || (order.refund_status && order.refund_status !== "none" && order.refund_status !== "failed")) && (
                         <div className="flex flex-wrap gap-1.5 items-center mt-1">
@@ -280,11 +288,15 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                         <div onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <div className={cn(
-                                        "cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none inline-flex items-center justify-center w-full px-3 py-1.5 text-[11px] font-bold rounded-lg tracking-wider text-center",
-                                        getStatusBadgeStyle(order.status),
-                                        isReturn && "bg-rose-100 text-rose-700"
-                                    )}>
+                                    <div
+                                        // The setup guide lights this on a practice order still to confirm.
+                                        data-guide={order.guide_practice && (order.status === "new" || order.status === "contacted") ? "practice-confirm" : undefined}
+                                        className={cn(
+                                            "cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none inline-flex items-center justify-center w-full px-3 py-1.5 text-[11px] font-bold rounded-lg tracking-wider text-center",
+                                            getStatusBadgeStyle(order.status),
+                                            isReturn && "bg-rose-100 text-rose-700"
+                                        )}
+                                    >
                                         {orderStatusLabel(order.status, order.is_return || false) || order.status.replace('_', ' ')}
                                     </div>
                                 </DropdownMenuTrigger>

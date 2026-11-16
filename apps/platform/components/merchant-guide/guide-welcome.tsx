@@ -51,7 +51,7 @@ export function GuideWelcome({
     });
 
     return (
-        <div className="fixed inset-0 z-[47] grid place-items-center bg-black/50 p-4" data-testid="merchant-guide-welcome">
+        <div className="fixed inset-0 z-[47] grid place-items-center-safe overflow-y-auto bg-black/50 p-4" data-testid="merchant-guide-welcome">
             <div
                 role="dialog"
                 aria-modal="true"

@@ -1596,16 +1596,42 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- the deep link applies once on mount
     }, []);
 
+    // The open settings screen, shared by the desktop canvas and the phone view.
+    const systemScreenView =
+        system_screen === null ? null : (
+            <SystemScreenRouter
+                screen={system_screen}
+                builder={builder}
+                tenantId={tenant.id}
+                trackingContact={tenant.tracking_contact ?? null}
+                onClose={handleCloseSystemScreen}
+                onBrandKitChange={handleBrandKitChange}
+                onSelectCustomPage={handleSelectCustomPage}
+                onI18nSelectPage={(page) => {
+                    set_system_screen(null);
+                    builder.set_active_page(page);
+                }}
+                onI18nSelectSection={(page, section_id) => {
+                    set_system_screen(null);
+                    builder.set_active_page(page);
+                    set_selected_section_id(section_id);
+                    set_editing_section_id(section_id);
+                }}
+            />
+        );
+
+    // The setup screens open on phones too, so a new shop can finish its
+    // basics there (shop name and logo, delivery prices). Both lay out in
+    // one column below 1024px.
+    const PHONE_SETTINGS: readonly SettingsSectionId[] = ["brand_kit", "shipping"];
     // Pages handled by desktop-only stubs on mobile (don't try to render
     // dense screens at 390px).
     const DESKTOP_ONLY_SETTINGS: readonly SettingsSectionId[] = [
-        "brand_kit",
         "experiments",
         "segments",
         "scheduled",
         "versions",
         "i18n",
-        "shipping",
         "discounts",
         "bundles",
         "cart_recovery",
@@ -1641,7 +1667,14 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         onDismiss={builder.dismiss_backup}
                     />
                 )}
-                {system_screen && DESKTOP_ONLY_SETTINGS.includes(system_screen) ? (
+                {system_screen && PHONE_SETTINGS.includes(system_screen) ? (
+                    <div
+                        data-testid="editor-shell-v2"
+                        className="flex h-full flex-col bg-background"
+                    >
+                        {systemScreenView}
+                    </div>
+                ) : system_screen && DESKTOP_ONLY_SETTINGS.includes(system_screen) ? (
                     <div
                         data-testid="editor-shell-v2"
                         className="flex h-full flex-col bg-background"
@@ -1929,26 +1962,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         system_screen !== null && "flex-col",
                     )}
                 >
-                    {system_screen !== null ? (
-                        <SystemScreenRouter
-                            screen={system_screen}
-                            builder={builder}
-                            tenantId={tenant.id}
-                            trackingContact={tenant.tracking_contact ?? null}
-                            onClose={handleCloseSystemScreen}
-                            onBrandKitChange={handleBrandKitChange}
-                            onSelectCustomPage={handleSelectCustomPage}
-                            onI18nSelectPage={(page) => {
-                                set_system_screen(null);
-                                builder.set_active_page(page);
-                            }}
-                            onI18nSelectSection={(page, section_id) => {
-                                set_system_screen(null);
-                                builder.set_active_page(page);
-                                set_selected_section_id(section_id);
-                                set_editing_section_id(section_id);
-                            }}
-                        />
+                    {systemScreenView !== null ? (
+                        systemScreenView
                     ) : (
                         <>
                             <div

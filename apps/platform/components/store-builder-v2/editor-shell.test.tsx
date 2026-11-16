@@ -845,4 +845,31 @@ describe("EditorShell", () => {
         // Desktop main grid is not rendered.
         expect(screen.queryByTestId("editor-shell-main")).toBeNull();
     });
+
+    it("opens the setup screens on a phone, and keeps the dense ones for a computer (Fermi B11)", async () => {
+        setViewportWidth(390);
+        const cases = [
+            { screen: "brand_kit", shows: "brand-kit-editor" },
+            { screen: "shipping", shows: "shipping-screen" },
+            { screen: "versions", shows: "mobile-desktop-only-stub" },
+        ] as const;
+        for (const c of cases) {
+            const { unmount } = render(
+                <EditorShell
+                    tenant={TENANT}
+                    initialConfig={emptyStoreConfigV2()}
+                    hasPublished
+                    builderOverride={makeBuilder()}
+                    storefrontUrlOverride="http://localhost:3001/s/test-store"
+                    initialSystemScreen={c.screen}
+                />,
+            );
+            await act(async () => {
+                await new Promise((r) => setTimeout(r, 30));
+            });
+            expect(screen.getByTestId(c.shows)).toBeTruthy();
+            expect(screen.queryByTestId("editor-shell-main")).toBeNull();
+            unmount();
+        }
+    });
 });

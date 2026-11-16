@@ -21,7 +21,7 @@
 // or live-preview-overlay (locked by the shipping policy).
 // =====================================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
     ChevronLeft,
@@ -62,6 +62,7 @@ import { PreviewAsControls, type PreviewAsState } from "./preview-as-controls";
 import { useEditorMode } from "@/lib/editor-mode-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
+import { useGuideSetup } from "@/components/merchant-guide/guide-setup-store";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -165,6 +166,14 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
 
     const [drawer, setDrawer] = useState<DrawerKind>(null);
     const [firstRunDismissed, setFirstRunDismissed] = useState<boolean>(false);
+
+    // The setup guide floats its pill and card above the bottom bar while it shows.
+    const bottomBarRef = useRef<HTMLElement>(null);
+    const setGuideBottomInset = useGuideSetup((s) => s.setBottomInset);
+    useLayoutEffect(() => {
+        setGuideBottomInset(bottomBarRef.current?.offsetHeight ?? 0);
+        return () => setGuideBottomInset(0);
+    }, [setGuideBottomInset]);
     // Simple ⇄ Advanced — provided by EditorShell's EditorModeProvider.
     const { mode: editorMode, setMode: setEditorMode } = useEditorMode();
 
@@ -324,6 +333,7 @@ export function MobileEditorShell(props: MobileEditorShellProps): React.ReactEle
 
             {/* ── Bottom bar ────────────────────────────────────── */}
             <nav
+                ref={bottomBarRef}
                 data-testid="mobile-editor-bottombar"
                 aria-label="Editor toolbar"
                 className="relative flex h-14 shrink-0 items-center justify-between gap-2 border-t border-(--card-border) bg-(--card-bg) px-4"
@@ -565,8 +575,8 @@ function MobilePageTree({
 /* ─────────────────────────────────────────────────────────────────── */
 
 /**
- * Some system screens (brand kit editor, version history, scheduled
- * changes, segments, experiments, i18n coverage, health checklist) are
+ * Some system screens (version history, scheduled changes, segments,
+ * experiments, i18n coverage, health checklist) are
  * dense desktop surfaces that we explicitly choose NOT to rebuild for
  * phones in this phase. When the merchant taps into them via the
  * mobile page tree, we hand back this friendly empty state instead of
@@ -583,13 +593,11 @@ export function MobileDesktopOnlyStub({
     // A few stub labels differ in wording from the page-tree entries;
     // everything else reuses the shared setting labels.
     const name =
-        settingId === "brand_kit"
-            ? t(STRINGS.mobile.stub_label_brand_kit, locale)
-            : settingId === "versions"
-              ? t(STRINGS.mobile.stub_label_versions, locale)
-              : settingId === "i18n"
-                ? t(STRINGS.mobile.stub_label_i18n, locale)
-                : getSettingLabel(settingId, locale);
+        settingId === "versions"
+            ? t(STRINGS.mobile.stub_label_versions, locale)
+            : settingId === "i18n"
+              ? t(STRINGS.mobile.stub_label_i18n, locale)
+              : getSettingLabel(settingId, locale);
     return (
         <div
             data-testid="mobile-desktop-only-stub"

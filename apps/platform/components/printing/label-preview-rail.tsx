@@ -34,7 +34,7 @@ export function LabelPreviewRail({ order, position, total, onStep, brand }: Labe
 
     if (!order) {
         return (
-            <aside className="sticky top-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 text-center text-sm text-muted">
+            <aside className="sticky top-6 hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 text-center text-sm text-muted md:block">
                 {t("printing.previewEmpty")}
             </aside>
         );
@@ -44,7 +44,7 @@ export function LabelPreviewRail({ order, position, total, onStep, brand }: Labe
     const ready = !afterSale || pickups.isSuccess || pickups.isError;
 
     return (
-        <aside className="sticky top-6 flex flex-col items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
+        <aside className="sticky top-6 hidden flex-col items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 md:flex">
             <div className="flex items-center gap-2 text-xs text-muted">
                 <button
                     type="button"
