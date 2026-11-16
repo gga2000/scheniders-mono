@@ -140,7 +140,7 @@ export function useOrderDetailsState({
                 setOrderLocal(prev => prev ? { ...prev, status: previousStatus } : null);
             }
         } else {
-            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(newStatus)));
+            toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", t(`orders.status.${newStatus}`)));
         }
 
         setIsUpdatingStatus(false);

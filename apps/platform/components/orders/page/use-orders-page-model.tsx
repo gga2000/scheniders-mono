@@ -699,7 +699,7 @@ export function useOrdersPageModel() {
             const result = await updateOrderStatus(orderId, status, reason, reasonId);
             if (result?.success || result === undefined) {
                 toast.success(t("toast.statusUpdated"), {
-                    description: t("toast.statusUpdatedDesc").replace("{status}", String(status)),
+                    description: t("toast.statusUpdatedDesc").replace("{status}", t(`orders.status.${status}`)),
                     action: previousStatus && previousStatus !== status
                         ? { label: t("toast.undo"), onClick: () => { void updateOrderStatus(orderId, previousStatus); } }
                         : undefined,

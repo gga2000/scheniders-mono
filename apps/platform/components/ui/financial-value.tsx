@@ -83,8 +83,8 @@ export function FinancialValue({
                 <button
                     type="button"
                     onClick={handleClick}
-                    aria-label={shown ? "Hide value" : "Show value"}
-                    title={shown ? "Hide" : "Show"}
+                    aria-label={language === "ar" ? (shown ? "إخفاء الرقم" : "إظهار الرقم") : (shown ? "Hide value" : "Show value")}
+                    title={language === "ar" ? (shown ? "إخفاء" : "إظهار") : (shown ? "Hide" : "Show")}
                     className={cn(
                         "inline-flex items-center justify-center text-foreground/55 hover:text-foreground transition-colors shrink-0",
                         iconClassName

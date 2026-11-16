@@ -7,6 +7,7 @@ import type { OrderItem } from "@/lib/supabase";
 import type { CreateOrderInput, CreateOrderResult, OrderSource, TakeKind } from "@/types/order";
 import { useAuth } from "@/components/auth/auth-provider";
 import { checkOrderLimitsAction } from "@/app/actions/orders";
+import { limitMessage } from "./limit-message";
 import { toast } from "@/hooks/use-toast";
 import { MessageCircle, Instagram, Store, MoreHorizontal } from "lucide-react";
 import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
@@ -115,10 +116,11 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             setLimitBlocked(null);
             // The action resolves the tenant from the session token itself.
             checkOrderLimitsAction(session.access_token).then((result) => {
+                const message = limitMessage(t, result.code, result.params);
                 if (!result.allowed) {
-                    setLimitBlocked(result.reason ?? "Order limit reached");
-                } else if (result.warning) {
-                    setLimitWarning(result.warning);
+                    setLimitBlocked(message ?? t("orders.create.errGeneric"));
+                } else if (message) {
+                    setLimitWarning(message);
                 }
             }).catch(() => { /* non-critical */ });
         }

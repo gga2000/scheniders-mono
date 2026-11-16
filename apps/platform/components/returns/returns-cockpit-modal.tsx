@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import { X, RotateCcw, Trash2, Layers, ChevronDown, ChevronRight } from "lucide-react";
+import { X, RotateCcw, Trash2, Layers, ChevronDown, ChevronRight, Smartphone } from "lucide-react";
 import QRCode from "qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -134,18 +134,18 @@ export function ReturnsCockpitModal({
                 <span style={{ width: 8, height: 8, borderRadius: 9999, background: DOT[i.result], flexShrink: 0 }} />
                 <div className="min-w-0 flex-1">
                     <div className="text-sm truncate font-medium">
-                        #{i.orderId}{i.order ? ` · ${i.order.customer_name}` : " · not found"}
+                        #{i.orderId} · {i.order ? i.order.customer_name : t("intake.cockpit.notFound")}
                     </div>
                     {i.order && (
                         <div className={cn("flex items-center gap-1.5 mt-0.5 text-[10px] flex-wrap", isSel ? "text-white/70" : "text-muted")}>
                             <span className={cn("px-1.5 py-0.5 rounded-full font-semibold", getStatusBadgeStyle(i.order.status))}>{orderStatusLabel(i.order.status, i.order.is_return)}</span>
-                            <span>{itemCount} item{itemCount === 1 ? "" : "s"}</span>
+                            <span>{t("intake.cockpit.items", { count: itemCount })}</span>
                             {i.order.city && <span>· {i.order.city}</span>}
                             <span>· {formatIQD(i.order.price || 0)}</span>
                         </div>
                     )}
                 </div>
-                <button type="button" title="Remove from list"
+                <button type="button" title={t("intake.cockpit.remove")}
                     onClick={(e) => { e.stopPropagation(); session.removeItem(i.key); if (session.selectedKey === i.key) session.setSelectedKey(null); }}
                     className={cn("p-1 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity", isSel ? "hover:bg-white/20" : "hover:bg-black/10")}>
                     <X className="w-3.5 h-3.5" />
@@ -222,30 +222,30 @@ export function ReturnsCockpitModal({
             <DialogContent className="md:max-w-7xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-3">
-                        <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent font-extrabold">↩︎ Returns</span>
+                        <span className="bg-gradient-to-r from-orange-500 to-rose-500 bg-clip-text text-transparent font-extrabold">{t("intake.cockpit.title")}</span>
                         <button
                             type="button"
                             onClick={() => setShowPair((s) => !s)}
-                            title="Show the pairing QR to connect or reconnect your phone"
+                            title={t("intake.cockpit.pairTip")}
                             className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${session.phoneConnected ? "bg-[var(--pastel-green)] text-green-700" : "bg-[var(--pastel-yellow)] text-amber-700"}`}>
-                            {session.phoneConnected ? "📱 connected · QR" : "📱 tap to pair"}
+                            <Smartphone className="w-3 h-3 inline -mt-0.5 me-1" />{session.phoneConnected ? t("intake.cockpit.phoneConnected") : t("intake.cockpit.tapToPair")}
                         </button>
-                        <span className="text-xs text-muted ml-auto">
-                            Scanned {session.counts.scanned} · Processed {session.counts.processed} · ⚠ {session.counts.anomalies}
+                        <span className="text-xs text-muted ml-auto me-8">
+                            {t("intake.cockpit.counts", { scanned: session.counts.scanned, processed: session.counts.processed, anomalies: session.counts.anomalies })}
                         </span>
                         {lastConfirm && (
                             <button type="button" onClick={handleUndo} disabled={undoReturn.isPending}
-                                title="Undo the last processed return"
+                                title={t("intake.cockpit.undoTip")}
                                 className="text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-[var(--card-border)] hover:bg-black/5 disabled:opacity-50">
-                                <RotateCcw className="w-3 h-3" /> Undo
+                                <RotateCcw className="w-3 h-3" /> {t("intake.cockpit.undo")}
                             </button>
                         )}
                         {session.items.length > 0 && (
                             <button type="button"
                                 onClick={() => { session.clearSession(); setSummary({ restock: 0, open_box: 0, write_off: 0 }); setLastConfirm(null); }}
-                                title="Clear the scanned list and start fresh"
+                                title={t("intake.cockpit.clearTip")}
                                 className="text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-[var(--card-border)] hover:bg-black/5">
-                                <Trash2 className="w-3 h-3" /> Clear
+                                <Trash2 className="w-3 h-3" /> {t("intake.cockpit.clear")}
                             </button>
                         )}
                     </DialogTitle>
@@ -311,30 +311,30 @@ export function ReturnsCockpitModal({
                     <input
                         value={manualId}
                         onChange={(e) => setManualId(e.target.value)}
-                        placeholder="No phone? Type or paste an order ID (or scanned QR) to add…"
+                        placeholder={t("intake.cockpit.manualPlaceholder")}
                         className="flex-1 text-sm border border-[var(--card-border)] rounded-lg px-3 py-2 bg-white"
                     />
-                    <button type="submit" className="px-3 py-2 rounded-lg text-sm font-semibold bg-[var(--ink)] text-white">Add</button>
+                    <button type="submit" className="px-3 py-2 rounded-lg text-sm font-semibold bg-[var(--ink)] text-white">{t("intake.cockpit.add")}</button>
                 </form>
 
                 {session.items.length > 0 && !showPair && (
                     <div className="flex flex-col gap-2 mb-3 text-sm">
                         <div className="flex items-center gap-2">
-                            <span className="text-muted whitespace-nowrap">Default reason:</span>
+                            <span className="text-muted whitespace-nowrap">{t("intake.cockpit.defaultReason")}</span>
                             <select value={defaultReason} onChange={(e) => setDefaultReason(e.target.value)}
                                 className="flex-1 border border-[var(--card-border)] rounded-lg px-2 py-1.5 bg-white text-sm">
-                                <option value="">— none (pick per order) —</option>
+                                <option value="">{t("intake.cockpit.noDefaultReason")}</option>
                                 {reasons.map((r) => <option key={r.id} value={r.label_ar}>{r.label_ar}{r.label_en ? ` · ${r.label_en}` : ""}</option>)}
                             </select>
                             <button type="button" onClick={bulkRestock} disabled={!defaultReason}
-                                title={defaultReason ? "Process all needs-action orders as restock with the default reason" : "Pick a default reason first"}
+                                title={defaultReason ? t("intake.cockpit.restockAllTip") : t("intake.cockpit.pickReasonFirst")}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--card-border)] disabled:opacity-50 hover:bg-black/5 whitespace-nowrap">
-                                <Layers className="w-3.5 h-3.5" /> Restock all
+                                <Layers className="w-3.5 h-3.5" /> {t("intake.cockpit.restockAll")}
                             </button>
                         </div>
                         {(summary.restock + summary.open_box + summary.write_off) > 0 && (
                             <div className="text-xs text-muted">
-                                This session: {summary.restock} restock · {summary.open_box} open-box · {summary.write_off} write-off
+                                {t("intake.cockpit.sessionSummary", { restock: summary.restock, openBox: summary.open_box, writeOff: summary.write_off })}
                             </div>
                         )}
                     </div>
@@ -343,17 +343,17 @@ export function ReturnsCockpitModal({
                 {(session.items.length === 0 || showPair) ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-3">
                         <p className="text-muted">
-                            {session.phoneConnected ? "Phone connected — scan this again to re-pair if needed" : "Scan this with your phone to start"}
+                            {session.phoneConnected ? t("intake.cockpit.rescanToPair") : t("intake.cockpit.scanToStart")}
                         </p>
                         {qr ? (
-                            <Image src={qr} alt="Pairing QR" width={220} height={220} unoptimized />
+                            <Image src={qr} alt={t("intake.cockpit.pairingQr")} width={220} height={220} unoptimized />
                         ) : (
                             <div className="w-[220px] h-[220px] bg-[var(--background)] rounded-xl" />
                         )}
                         <p className="text-xs text-muted break-all max-w-sm text-center">{session.pairingUrl}</p>
                         {session.items.length > 0 && (
                             <button onClick={() => setShowPair(false)} className="mt-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--ink)] text-white">
-                                ← Back to scanned list ({session.counts.scanned})
+                                {t("intake.cockpit.backToList", { count: session.counts.scanned })}
                             </button>
                         )}
                     </div>
@@ -361,12 +361,12 @@ export function ReturnsCockpitModal({
                     <div className="flex gap-4 min-h-[360px]">
                         <div className="w-1/3 border-r border-[var(--card-border)] pr-3 overflow-y-auto max-h-[60vh]">
                             <div className="flex items-center justify-between px-1 mb-1.5">
-                                <span className="text-xs font-bold uppercase tracking-wide text-muted">To handle ({pending.length})</span>
-                                <span className="text-[11px] font-semibold text-muted">{session.counts.scanned} scanned</span>
+                                <span className="text-xs font-bold uppercase tracking-wide text-muted">{t("intake.cockpit.toHandle", { count: pending.length })}</span>
+                                <span className="text-[11px] font-semibold text-muted">{t("intake.cockpit.scannedCount", { count: session.counts.scanned })}</span>
                             </div>
                             {pending.length === 0 && (
                                 <div className="text-xs text-muted px-1 py-4 text-center">
-                                    {handled.length > 0 ? "All scanned returns handled 🎉" : "Nothing scanned yet."}
+                                    {handled.length > 0 ? t("intake.cockpit.allHandled") : t("intake.cockpit.nothingScanned")}
                                 </div>
                             )}
                             {pending.map(renderRow)}
@@ -376,7 +376,7 @@ export function ReturnsCockpitModal({
                                     <button type="button" onClick={() => setHandledOpen((o) => !o)}
                                         className="w-full flex items-center gap-1.5 px-1 py-1 text-xs font-bold uppercase tracking-wide text-muted hover:text-foreground transition-colors">
                                         {handledOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                        Already handled ({handled.length})
+                                        {t("intake.cockpit.alreadyHandled", { count: handled.length })}
                                     </button>
                                     {handledOpen && <div className="mt-1">{handled.map(renderRow)}</div>}
                                 </div>
@@ -395,9 +395,9 @@ export function ReturnsCockpitModal({
                                     onSkip={() => { session.removeItem(selected.key); session.setSelectedKey(null); }}
                                 />
                             ) : selected ? (
-                                <div className="text-sm text-rose-600">#{selected.orderId} not found. Check the label or search manually.</div>
+                                <div className="text-sm text-rose-600">{t("intake.cockpit.orderNotFound", { id: selected.orderId })}</div>
                             ) : (
-                                <div className="text-sm text-muted">Select a scanned return on the left.</div>
+                                <div className="text-sm text-muted">{t("intake.cockpit.selectOne")}</div>
                             )}
                         </div>
                     </div>
