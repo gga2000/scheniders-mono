@@ -357,9 +357,20 @@ SELECT pg_temp.check(
   (SELECT details->>'reason' = 'customer asked' AND (details->>'orders_left_before')::int = 1 AND actor_email = 'staff@example.test' AND admin_label IS NULL
      FROM public.admin_activity_logs WHERE tenant_id = '20000000-0000-4000-8000-000000000010' AND action = 'add_lock_orders'),
   'add_lock_orders is logged with its reason and the counter before');
+-- Y did not pay its month: support staff (no flag) are refused and nothing
+-- moves; a super admin (the console sets the flag) may grant.
 SELECT pg_temp.check(
-  (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000011', 2, 'courier delay'))->>'orders_left' = '5',
+  (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000011', 1000, 'keeps selling'))->>'error' = 'unpaid_lock'
+  AND pg_temp.left_('20000000-0000-4000-8000-000000000011') IS NULL
+  AND pg_temp.logs('20000000-0000-4000-8000-000000000011', 'add_lock_orders') = 0,
+  'an unpaid month gets no orders without a super admin, and nothing is logged');
+SELECT pg_temp.check(
+  (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000011', 2, 'courier delay', _may_grant_unpaid => true))->>'orders_left' = '5',
   'a lock whose counter has not started gets the allowance plus the grant');
+SELECT pg_temp.check(
+  (SELECT details->>'lock_reason' FROM public.admin_activity_logs
+    WHERE tenant_id = '20000000-0000-4000-8000-000000000011' AND action = 'add_lock_orders') = 'unpaid',
+  'the grant log names the lock it was given on');
 SELECT pg_temp.check(
   (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000012', 5, 'customer asked'))->>'error' = 'not_locked'
   AND pg_temp.left_('20000000-0000-4000-8000-000000000012') IS NULL

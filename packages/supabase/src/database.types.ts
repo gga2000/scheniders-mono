@@ -9294,6 +9294,7 @@ export type Database = {
           _admin_id: string
           _amount?: number
           _approve: boolean
+          _may_add_more?: boolean
           _reason?: string
           _request_id: string
         }

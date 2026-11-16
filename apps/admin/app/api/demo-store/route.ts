@@ -36,16 +36,26 @@ async function findDemoStore(supabase: Admin) {
     .maybeSingle();
 }
 
-/** The store's owner: its first active admin, as create_demo_store made it. */
+/**
+ * The store's owner: the demo account create_demo_store made, and only while
+ * it is still an active admin of the store. Never "whoever is admin now": a
+ * person given the store for a video could add their own account and remove
+ * the demo one, and "open" would then sign staff in as that person.
+ */
 async function findOwner(supabase: Admin, tenantId: string) {
+  const { data: profile, error } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("email", DEMO_OWNER_EMAIL)
+    .maybeSingle();
+  if (error || !profile) return { data: null, error };
   return supabase
     .from("tenant_members")
     .select("user_id")
     .eq("tenant_id", tenantId)
+    .eq("user_id", profile.id)
     .eq("role", "admin")
     .eq("status", "active")
-    .order("joined_at", { ascending: true })
-    .limit(1)
     .maybeSingle();
 }
 
@@ -150,7 +160,12 @@ export async function POST(request: NextRequest) {
     console.error("[demo-store] owner read failed:", ownerError.message);
     return NextResponse.json({ error: "Could not read the demo store's owner" }, { status: 500 });
   }
-  if (!owner) return NextResponse.json({ error: "The demo store has no owner" }, { status: 409 });
+  if (!owner) {
+    return NextResponse.json(
+      { error: `The demo store's owner is no longer ${DEMO_OWNER_EMAIL}` },
+      { status: 409 },
+    );
+  }
 
   if (action === "reset") {
     const { data, error } = await supabase.rpc("seed_demo_store", {
@@ -171,17 +186,12 @@ export async function POST(request: NextRequest) {
   if (!env.PLATFORM_URL) {
     return NextResponse.json({ error: "PLATFORM_URL is not set for the staff console" }, { status: 500 });
   }
-  const { data: profile, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("email")
-    .eq("id", owner.user_id)
-    .maybeSingle();
-  if (profileError || !profile?.email) {
-    console.error("[demo-store] owner email read failed:", profileError?.message ?? "no profile");
-    return NextResponse.json({ error: "Could not read the demo store's owner" }, { status: 500 });
-  }
-  const link = await supabase.auth.admin.generateLink({ type: "magiclink", email: profile.email });
+  const link = await supabase.auth.admin.generateLink({ type: "magiclink", email: DEMO_OWNER_EMAIL });
   const hashedToken = link.data.properties?.hashed_token;
+  if (hashedToken && link.data.user?.id !== owner.user_id) {
+    // The address belongs to another sign-in than the store's owner row.
+    return NextResponse.json({ error: `The demo store's owner is no longer ${DEMO_OWNER_EMAIL}` }, { status: 409 });
+  }
   if (!hashedToken) {
     console.error("[demo-store] sign-in link failed:", link.error?.message);
     return NextResponse.json({ error: "Could not make the sign-in link" }, { status: 500 });

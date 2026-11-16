@@ -44,7 +44,18 @@ describe("BillingLockCard", () => {
   it("offers the free unlock to super admins only", () => {
     expect(render(true)).toContain("Unlock for 30 days");
     expect(render(false)).not.toContain("Unlock for");
-    expect(render(false)).toContain("Give more store orders");
+  });
+
+  it("lets support staff give orders at the end of a trial, but not to a store that did not pay its month", () => {
+    const trial = render(false, { ...LOCK, reason: "trial_ended" });
+    expect(trial).toContain("Give more store orders");
+    expect(trial).not.toContain("from a super admin");
+
+    const unpaid = render(false);
+    expect(unpaid).not.toContain("Give more store orders");
+    expect(unpaid).toContain("gets more orders or a free unlock from a super admin");
+
+    expect(render(true)).toContain("Give more store orders");
   });
 
   it("keeps every tool off until a reason is written", () => {
