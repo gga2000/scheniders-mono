@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { containsAny } from "@/lib/search-filter";
+import { DEFAULT_LEAD_SORT, readLeadSort } from "@/lib/lead-sort";
 
 /** The leads search box looks in these: name, page owner, handle, phone and city. */
 const LEAD_SEARCH_COLUMNS = ["merchant_name", "management_name", "handle", "page_phone", "city"] as const;
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
     const scoreMin = searchParams.get("score_min");
     const scoreMax = searchParams.get("score_max");
     const search = searchParams.get("search");
-    const sortParam = searchParams.get("sort") ?? "created_at:desc";
+    const sort = readLeadSort(searchParams.get("sort") || DEFAULT_LEAD_SORT);
+    if ("error" in sort) return NextResponse.json({ error: sort.error }, { status: 400 });
 
     const supabase = createAdminClient();
 
@@ -51,13 +53,8 @@ export async function GET(request: NextRequest) {
 
     if (search?.trim()) query = query.or(containsAny(LEAD_SEARCH_COLUMNS, search));
 
-    // Sort
-    const sortParts = sortParam.split(",").filter(Boolean);
-    for (const part of sortParts) {
-      const [col, dir] = part.split(":");
-      if (col) {
-        query = query.order(col, { ascending: dir === "asc" });
-      }
+    for (const { column, ascending } of sort) {
+      query = query.order(column, { ascending, nullsFirst: false });
     }
 
     query = query.range(offset, offset + limit - 1);
