@@ -162,6 +162,8 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_task_not_found: { status: 404, error: "This task no longer exists." },
   support_task_already_done: { status: 409, error: "Someone already finished this task." },
   support_bad_outcome: { status: 400, error: "Pick done, no answer or later." },
+  support_notice_bad_body: { status: 400, error: "A notice needs a text of up to 300 letters." },
+  support_notice_bad_hours: { status: 400, error: "A notice runs for 1 to 72 hours." },
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null):
@@ -516,3 +518,34 @@ export function formatDue(dueAt: string, now: number): string {
   if (Math.abs(seconds) < 60) return "Due now";
   return seconds < 0 ? `Late by ${formatDuration(-seconds)}` : `Due in ${formatDuration(seconds)}`;
 }
+
+/**
+ * A notice at the top of every merchant's Help chat ("Prime is slow today").
+ * One is live at a time; posting a new one ends the old one.
+ */
+export const NoticeSchema = z.object({
+  id: z.string().uuid(),
+  body: z.string(),
+  created_by_name: z.string(),
+  created_at: z.string(),
+  ends_at: z.string(),
+});
+
+export type SupportNotice = z.infer<typeof NoticeSchema>;
+
+export const SUPPORT_NOTICE_COLUMNS = "id, body, created_by_name, created_at, ends_at";
+
+/** How long a notice can run, as staff pick it. */
+export const NOTICE_DURATIONS = [
+  { hours: 2, label: "2 hours" },
+  { hours: 6, label: "6 hours" },
+  { hours: 24, label: "1 day" },
+  { hours: 72, label: "3 days" },
+] as const;
+
+export const NoticePostSchema = z.object({
+  body: z.string().trim().min(1).max(300),
+  hours: z.number().int().min(1).max(72),
+});
+
+export type NoticePostInput = z.infer<typeof NoticePostSchema>;

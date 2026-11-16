@@ -12,6 +12,7 @@ import { SupportAlertsToggle } from "@/components/support/support-alerts-toggle"
 import { SupportScoreboardView } from "@/components/support/support-scoreboard";
 import { SupportNeedsUs } from "@/components/support/support-needs-us";
 import { SupportToday } from "@/components/support/support-today";
+import { SupportNoticeBar } from "@/components/support/support-notice-bar";
 import type { ScoreboardDays } from "@/lib/support";
 
 type View = "open" | "solved" | "needs" | "today" | "scoreboard";
@@ -105,6 +106,8 @@ function SupportInbox() {
         </div>
       </div>
 
+      <SupportNoticeBar />
+
       {view === "scoreboard" ? (
         <SupportScoreboardView days={boardDays} onDaysChange={setBoardDays} />
       ) : view === "today" ? (
@@ -121,7 +124,7 @@ function SupportInbox() {
           Could not load support conversations. {list.error.message}
         </div>
       ) : (
-        <div className="grid h-[calc(100vh-13rem)] min-h-[520px] grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)_300px]">
+        <div className="grid h-[calc(100vh-16.5rem)] min-h-[520px] grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)_300px]">
           <div className={cn(PANE, "overflow-y-auto")}>
             <SupportCaseList
               cases={cases}

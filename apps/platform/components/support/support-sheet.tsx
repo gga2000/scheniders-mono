@@ -26,6 +26,7 @@ import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportSh
 import { useLanguage } from "@/components/providers/language-provider";
 import { SupportHoursLine } from "@/components/support/support-hours-line";
 import { SupportCallBack } from "@/components/support/support-call-back";
+import { SupportNoticeStrip } from "@/components/support/support-notice-strip";
 import { SupportQuickAnswers } from "@/components/support/support-quick-answers";
 import { QUICK_ANSWERS, matchQuickAnswers } from "@/lib/support/quick-answers";
 import { SupportVoiceButton, type RecordedVoice } from "@/components/support/support-voice-button";
@@ -263,6 +264,7 @@ export function SupportSheet() {
                             </button>
                         </div>
 
+                        {thread?.notice && <SupportNoticeStrip notice={thread.notice} />}
                         {thread && <SupportCallBack thread={thread} />}
 
                         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">

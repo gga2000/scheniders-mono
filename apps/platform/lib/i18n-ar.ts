@@ -7815,6 +7815,7 @@ export const ar: Record<string, string> = {
     "support.quick.common": "أسئلة شائعة",
     "support.quick.mayHelp": "يمكن هذا يجاوبك",
     "support.quick.open": "افتح الصفحة",
+    "support.notice.label": "تنبيه من فريق الدعم",
     "support.callBack.offer": "تفضّل الكلام؟ نتصل بك نحن.",
     "support.callBack.button": "اتصلوا بي",
     "support.callBack.label": "على أي رقم نتصل بك؟",

@@ -148,3 +148,15 @@ A new merchant message pings support staff on their phone or computer.
 - An empty chat lists ten common questions (top up, wallet charges, add a product, add staff, Prime, labels, order status, store look, blacklist, expenses). Each has a two-line answer and an "Open the page" button that closes the chat on that page.
 - While the merchant types, up to three matching answers show above the input ("This may answer it"). Arabic spellings are folded (alef forms, taa marbuta, tashkeel) so «اضافة» and «إضافة» meet.
 - The answers live in `apps/platform/lib/support/quick-answers.ts` and follow the app's own screen words, so changing a screen means changing its answer there. No money amounts are quoted; money answers point to Billing.
+
+## Wave 5, part 2: notices
+
+When something hits many shops at once (Prime is slow, a payment method is down), staff tell every merchant once instead of answering the same question twenty times.
+
+- Staff write a short notice (up to 300 letters, Arabic) on the Support page and pick how long it shows: 2 hours, 6 hours, 1 day or 3 days. They can replace it or end it early.
+- Merchants see it at the top of their Help chat, labelled "تنبيه من فريق الدعم", until it ends.
+- One notice is live at a time; posting a new one ends the old one (`support_notice_post`, advisory lock plus a unique index on the open row). Ending is `support_notice_end`. Both are service-role only and logged in the staff activity log.
+- `support_notices` is server-only (RLS on, no policies) and keeps every notice on record: no role can delete one.
+- Behaviour suite `support-notices` covers access, refusals, replacement, early end and notices that ran out.
+
+Found on the way: the view-as lock's event trigger saw a new table with a foreign key twice and failed the migration. Fixed in `support_view_lock_once` (one pass per table); the `support-view` suite now creates such a table.

@@ -7309,6 +7309,7 @@ export const en: Record<string, string> = {
     "support.quick.common": "Common questions",
     "support.quick.mayHelp": "This may answer it",
     "support.quick.open": "Open the page",
+    "support.notice.label": "From the support team",
     "support.callBack.offer": "Rather talk? We can call you.",
     "support.callBack.button": "Call me",
     "support.callBack.label": "Which number should we call?",
