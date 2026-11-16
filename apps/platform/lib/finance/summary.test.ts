@@ -12,6 +12,7 @@ import {
     lensChange,
     perOrder,
     productRows,
+    bulkDates,
     bulkDays,
     wholePercents,
     profitBars,
@@ -308,6 +309,12 @@ describe("bulkDays", () => {
         expect(bulkDays([14, 12, 15, 13, 16].map((orders) => ({ orders })))).toBeNull();
         expect(bulkDays([3, 1, 0, 2].map((orders) => ({ orders })))).toBeNull();
         expect(bulkDays([])).toBeNull();
+    });
+
+    it("gives the dates of those days, so the chart can say its big days were bulk marking", () => {
+        const daily = [206, 1, 5, 138, 17].map((orders, i) => ({ day: `2026-10-${String(18 + i)}`, orders }));
+        expect([...bulkDates(daily)]).toEqual(["2026-10-18", "2026-10-21"]);
+        expect(bulkDates([14, 12, 15].map((orders, i) => ({ day: `2026-11-0${i + 1}`, orders }))).size).toBe(0);
     });
 });
 

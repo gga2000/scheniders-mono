@@ -147,7 +147,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                         <span className="ml-1.5 text-[0.5em] font-medium tracking-normal opacity-60" dir={dir}>{t("fin.ads.unit")}</span>
                     </span>
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
-                        {t("fin.ads.say")} {t("fin.ads.spent", { spent: money(spent) })}
+                        {t("fin.ads.say", { sales: formatWhole(brought) })} {t("fin.ads.spent", { spent: money(spent) })}
                     </p>
                 </div>
             )}
