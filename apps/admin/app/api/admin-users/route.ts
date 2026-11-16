@@ -120,6 +120,15 @@ export async function POST(request: NextRequest) {
     if (!userId) userId = await findAuthUserIdByEmail(supabase, email);
     const existingAccount = userId !== null;
 
+    // Your own role and password are not changed from here: another super
+    // admin does it, so nobody demotes themselves by mistake.
+    if (userId === auth.user.id) {
+      return NextResponse.json(
+        { error: "You cannot change your own access. Ask another super admin." },
+        { status: 400 },
+      );
+    }
+
     // 2. Brand-new person → create the auth user (needs a password).
     if (!userId) {
       if (!password) {
@@ -232,7 +241,7 @@ export async function POST(request: NextRequest) {
 /**
  * Revoke a person's admin-console access (super_admin only). Removes only the
  * `admin_users` row — their auth account and main-app access are untouched.
- * Guards against self-removal and removing the last active super admin.
+ * Guards against self-removal here; the database keeps one active super admin.
  */
 export async function DELETE(request: NextRequest) {
   const auth = await requireAdminPermission(request, "manage_admins");
@@ -260,20 +269,8 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Not an admin user" }, { status: 404 });
   }
 
-  if (target.admin_role === "super_admin") {
-    const { count } = await supabase
-      .from("admin_users")
-      .select("user_id", { count: "exact", head: true })
-      .eq("admin_role", "super_admin")
-      .eq("is_active", true);
-    if ((count ?? 0) <= 1) {
-      return NextResponse.json(
-        { error: "Cannot remove the last super admin" },
-        { status: 400 },
-      );
-    }
-  }
-
+  // The last active super admin cannot go: the table refuses it
+  // (admin_users_keep_a_super_admin), even when two removals run at once.
   const { error } = await supabase.from("admin_users").delete().eq("user_id", userId);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
