@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOpenWhileLocked } from "./lock-routes";
+import { BILLING_PAY_PATH, BILLING_SETTINGS_PATH, billingNotificationPath, isOpenWhileLocked } from "./lock-routes";
 
 describe("isOpenWhileLocked", () => {
     it("keeps orders, shipping, labels, export, returns and Prime open", () => {
@@ -19,5 +19,27 @@ describe("isOpenWhileLocked", () => {
             expect(isOpenWhileLocked(path, null), path).toBe(false);
         }
         expect(isOpenWhileLocked(null, null)).toBe(false);
+    });
+});
+
+describe("billingNotificationPath", () => {
+    const line = (type: string, payload: Record<string, unknown> = {}) => billingNotificationPath({ type, payload });
+
+    it("opens the pay form for a line that asks for money", () => {
+        expect(line("finance.wallet_low", { days: 2 })).toBe(BILLING_PAY_PATH);
+        expect(line("finance.wallet_empty")).toBe(BILLING_PAY_PATH);
+        expect(line("wallet.auto_refill_failed")).toBe(BILLING_PAY_PATH);
+        expect(line("billing.renewal_soon", { short: 6000 })).toBe(BILLING_PAY_PATH);
+    });
+
+    it("opens the billing page for a renewal the wallet covers and for receipts", () => {
+        expect(line("billing.renewal_soon", { short: 0 })).toBe(BILLING_SETTINGS_PATH);
+        expect(line("wallet.topup_approved")).toBe(BILLING_SETTINGS_PATH);
+        expect(line("wallet.topup_rejected", { reason: "x" })).toBe(BILLING_SETTINGS_PATH);
+    });
+
+    it("leaves every other line alone", () => {
+        expect(line("order.created")).toBeNull();
+        expect(line("prime.payment")).toBeNull();
     });
 });

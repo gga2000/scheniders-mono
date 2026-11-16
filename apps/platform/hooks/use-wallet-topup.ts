@@ -81,14 +81,33 @@ export async function receiptSha256(file: Blob): Promise<string> {
     return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Days of spend a suggested top-up covers on top of the plan. */
+export const SUGGESTED_SPEND_DAYS = 30;
+
 /**
- * What a locked shop (or one in its trial) still needs to send so the next
- * payment is covered: the plan price minus the wallet, in whole thousands and
- * never under the smallest top-up. Null when the wallet already covers it.
+ * What the pay form suggests (Fermi B3): `plan` covers the next plan payment;
+ * `month` covers it and a month of delivered-order fees and WhatsApp messages
+ * at the shop's last 7 days.
  */
-export function suggestedTopup(priceIqd: number | null, balanceIqd: number): number | null {
-    if (priceIqd === null || priceIqd <= balanceIqd) return null;
-    return Math.min(TOPUP_MAX_IQD, Math.max(TOPUP_MIN_IQD, Math.ceil((priceIqd - balanceIqd) / 1000) * 1000));
+export interface TopupSuggestion {
+    amount: number;
+    covers: "plan" | "month";
+}
+
+/**
+ * The next plan payment plus SUGGESTED_SPEND_DAYS of the shop's daily spend,
+ * minus the wallet, in whole thousands and never under the smallest top-up.
+ * Null when the wallet already covers it (or the price is not known yet).
+ */
+export function suggestedTopup(priceIqd: number | null, balanceIqd: number, dailySpendIqd: number | null = null): TopupSuggestion | null {
+    if (priceIqd === null) return null;
+    const daily = dailySpendIqd !== null && dailySpendIqd > 0 ? dailySpendIqd : 0;
+    const need = priceIqd + SUGGESTED_SPEND_DAYS * daily - balanceIqd;
+    if (need <= 0) return null;
+    return {
+        amount: Math.min(TOPUP_MAX_IQD, Math.max(TOPUP_MIN_IQD, Math.ceil(need / 1000) * 1000)),
+        covers: daily > 0 ? "month" : "plan",
+    };
 }
 
 /** Whether the shop may send another request, given its recent ones. */

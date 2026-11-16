@@ -85,3 +85,42 @@ describe("Top-up lines in the feed", () => {
         expect(screen.getByText(/^رُفض شحن IQD\s10,000\. تأكد من الوصل وأرسله مرة أخرى$/)).toBeTruthy();
     });
 });
+
+// The wallet and the renewal (Fermi B3 part 2): calm lines that say how long
+// the wallet lasts, and what the next month takes.
+describe("Wallet and renewal lines in the feed", () => {
+    it("says about how many days of the shop's own spend the wallet holds", () => {
+        show([notice("finance.wallet_low", { balance: 1800, daily: 900, days: 2 })]);
+        expect(screen.getByText("رصيدك يكفي تقريباً يومين")).toBeTruthy();
+        cleanup();
+        show([notice("finance.wallet_low", { balance: 500, daily: 900, days: 0 })]);
+        expect(screen.getByText("رصيدك يكفي أقل من يوم")).toBeTruthy();
+    });
+
+    it("keeps a plain line for a low-wallet row from before the days were known", () => {
+        show([notice("finance.wallet_low", { balance: 4000, threshold: 5000 })]);
+        expect(screen.getByText("رصيد المحفظة قليل")).toBeTruthy();
+    });
+
+    it("an empty wallet says WhatsApp messages wait, not that orders stop", () => {
+        show([notice("finance.wallet_empty", { balance: 0, daily: 900, days: 0 })]);
+        expect(screen.getByText("نفد رصيد المحفظة. رسائل واتساب تنتظر حتى تشحن")).toBeTruthy();
+        expect(screen.queryByText(/ستتوقف الطلبات/)).toBeNull();
+    });
+
+    it("a renewal the wallet cannot cover says the date, the price and what to top up", () => {
+        show([notice("billing.renewal_soon", { due_at: "2026-11-19T12:00:00Z", plan: "starter", price: 9000, balance: 3000, short: 6000 })]);
+        expect(screen.getByText(/^باقتك تتجدد 19 .+ 2026 وسعرها IQD\s9,000\. اشحن IQD\s6,000 حتى يبقى متجرك شغّال$/)).toBeTruthy();
+    });
+
+    it("a renewal the wallet covers says what will be taken from it", () => {
+        show([notice("billing.renewal_soon", { due_at: "2026-11-19T12:00:00Z", plan: "starter", price: 9000, balance: 20000, short: 0 })]);
+        expect(screen.getByText(/^باقتك تتجدد 19 .+ 2026، وينخصم IQD\s9,000 من محفظتك$/)).toBeTruthy();
+    });
+
+    it("hides the amounts while money is hidden", () => {
+        visibility.revealed = false;
+        show([notice("billing.renewal_soon", { due_at: "2026-11-19T12:00:00Z", price: 9000, balance: 3000, short: 6000 })]);
+        expect(screen.queryByText(/9,000|6,000/)).toBeNull();
+    });
+});

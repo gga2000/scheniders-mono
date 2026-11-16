@@ -18,11 +18,27 @@ describe("receiptSha256", () => {
 
 describe("suggestedTopup", () => {
     it("suggests what the plan still needs, in whole thousands, never below the smallest top-up", () => {
-        expect(suggestedTopup(9000, 0)).toBe(9000);
-        expect(suggestedTopup(9000, 1200)).toBe(8000);
-        expect(suggestedTopup(9000, 8500)).toBe(1000);
+        expect(suggestedTopup(9000, 0)).toEqual({ amount: 9000, covers: "plan" });
+        expect(suggestedTopup(9000, 1200)).toEqual({ amount: 8000, covers: "plan" });
+        expect(suggestedTopup(9000, 8500)).toEqual({ amount: 1000, covers: "plan" });
         expect(suggestedTopup(9000, 9000)).toBeNull();
         expect(suggestedTopup(9000, 12_000)).toBeNull();
         expect(suggestedTopup(null, 0)).toBeNull();
+    });
+
+    it("adds a month of the shop's spend from its last 7 days", () => {
+        // 9,000 plan + 30 x 900 a day - 5,000 in the wallet = 31,000.
+        expect(suggestedTopup(9000, 5000, 900)).toEqual({ amount: 31_000, covers: "month" });
+        // Rounded up to the next thousand.
+        expect(suggestedTopup(9000, 0, 1186)).toEqual({ amount: 45_000, covers: "month" });
+        // A wallet that already holds the plan and a month of spend needs nothing.
+        expect(suggestedTopup(9000, 40_000, 1000)).toBeNull();
+        // No spend (a trial, a new shop) is the plan alone.
+        expect(suggestedTopup(9000, 0, 0)).toEqual({ amount: 9000, covers: "plan" });
+        expect(suggestedTopup(9000, 0, null)).toEqual({ amount: 9000, covers: "plan" });
+    });
+
+    it("never suggests more than one top-up may carry", () => {
+        expect(suggestedTopup(9000, 0, 1_000_000)).toEqual({ amount: 10_000_000, covers: "month" });
     });
 });

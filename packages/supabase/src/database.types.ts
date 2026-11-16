@@ -9953,6 +9953,7 @@ export type Database = {
         Returns: Json
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
+      send_renewal_reminders: { Args: never; Returns: number }
       settle_qi_payment: {
         Args: {
           _amount: number
@@ -10129,6 +10130,7 @@ export type Database = {
       void_payroll: { Args: { p_record_id: string }; Returns: undefined }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
+      wallet_daily_spend_iqd: { Args: { _tenant_id: string }; Returns: number }
       whatsapp_message_price: {
         Args: { _marketing: boolean; _tenant_id: string }
         Returns: number

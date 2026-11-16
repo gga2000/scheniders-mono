@@ -33,7 +33,7 @@ const { useSupportStore } = await import("@/store/use-support-store");
 
 const LOCKED = {
     locked: true, reason: "trial_ended", since: "2026-11-15T18:36:20Z", orders_left: 50, allowance: 50,
-    plan: "starter", price_iqd: 9000, balance_iqd: 0, can_pay: true,
+    plan: "starter", price_iqd: 9000, balance_iqd: 0, daily_spend_iqd: null, can_pay: true,
 };
 
 const show = () => render(<BillingLockGate><p>page</p></BillingLockGate>);

@@ -47,8 +47,9 @@ vi.mock("@/store/use-order-store", () => ({ useOrderStore: () => ({ openOrderDet
 vi.mock("@/lib/repositories/order-repository", () => ({ orderRepository: { findById: vi.fn() } }));
 vi.mock("@/hooks/use-toast", () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 vi.mock("./notification-settings-dialog", () => ({ NotificationSettingsDialog: () => null }));
+const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: vi.fn() }),
+    useRouter: () => router,
     usePathname: () => "/orders",
 }));
 const language = {
@@ -107,6 +108,7 @@ beforeEach(() => {
     feedState.pendingCount = 0;
     feedState.unreadCount = 0;
     feedState.refresh = vi.fn();
+    router.push.mockReset();
 });
 
 describe("NotificationsDropdown", () => {
@@ -220,5 +222,26 @@ describe("NotificationsDropdown", () => {
         render(<NotificationsDropdown />);
 
         expect(screen.queryByText(/Show \d+ new/)).toBeNull();
+    });
+});
+
+// Fermi B3 part 2: a wallet or renewal line leads to the billing page, and
+// straight to the pay form when it asks for money.
+describe("NotificationsDropdown billing lines", () => {
+    const money = (over: Partial<FeedNotification> & { id: string }) =>
+        note({ created_at: hoursAgo(1), category: "finance", actor_name: "Automation", actor_avatar: null, entity_type: "wallet", entity_id: "w1", entity_label: null, ...over });
+
+    it("a low wallet opens the pay form", () => {
+        feedState.notifications = [money({ id: "low", type: "finance.wallet_low", payload: { days: 2, daily: 900 } })];
+        render(<NotificationsDropdown />);
+        fireEvent.click(screen.getByText("billing.runway.low"));
+        expect(router.push).toHaveBeenCalledWith("/settings?section=billing&pay=1");
+    });
+
+    it("a renewal the wallet covers opens the billing page", () => {
+        feedState.notifications = [money({ id: "renew", type: "billing.renewal_soon", entity_type: "subscription", payload: { due_at: hoursAgo(-48), price: 9000, short: 0 } })];
+        render(<NotificationsDropdown />);
+        fireEvent.click(screen.getByText("notifications.billing.renewalSoon"));
+        expect(router.push).toHaveBeenCalledWith("/settings?section=billing");
     });
 });
