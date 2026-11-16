@@ -115,3 +115,10 @@ A new merchant message pings support staff on their phone or computer.
 
 - Pictures of the screen and voice notes are kept for 30 days. Every day at 4:40 AM Baghdad time, `/api/cron/support-files-cleanup` asks `support_old_files()` (migration `20261116105026_support_old_files.sql`) for up to 500 files older than that. It removes them through the Storage API, one bucket at a time. A full batch carries on in the next run.
 - The messages themselves stay. The staff console says "no longer stored" in place of the file, and the merchant chat just shows the text.
+
+## Wave 4, part 1: a named person and a first-week plan
+
+- **Named support person.** `support_shop_owners` gives every real shop one support person (never the demo store, prospects or closed shops). `support_onboard_shops()` runs every 5 minutes from pg_cron. It gives each shop without an active person the support staff member with the fewest shops; super admins are used only when there is no support staff. The merchant's Help chat header shows «مسؤول حسابك: name». Staff can press "Take this shop" on the shop card or in Today.
+- **First-week plan.** `support_tasks` gives every shop opened in the last 7 days four calls: welcome (day 0), store check (day 1), first order (day 3), and before the trial ends (a day before `trial_ends_at`, else day 6). The staff console tab **Today** lists the calls due by the end of the Baghdad day. Mine come first; the badge counts mine.
+- **Call log.** Each call is recorded with Done, No answer (back in 3 hours) or Later (back tomorrow) and a one-line note in `support_calls`. The last 3 calls show on the task and on the shop card, so the next person knows what was said.
+- Server-only tables (RLS on, no policies), service-role functions, behaviour suite `support-owners`.

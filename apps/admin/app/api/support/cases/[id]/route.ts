@@ -33,9 +33,14 @@ async function signPaths(supabase: AdminDb, bucket: string, paths: string[]): Pr
   return links;
 }
 
-async function loadShopCard(supabase: AdminDb, tenantId: string, caseId: string): Promise<SupportShopCard> {
+async function loadShopCard(
+  supabase: AdminDb,
+  tenantId: string,
+  caseId: string,
+  adminId: string,
+): Promise<SupportShopCard> {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier] = await Promise.all([
+  const [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier, owner, calls] = await Promise.all([
     supabase
       .from("tenants")
       .select("id, business_name, display_id, plan, status, city, contact_phone, trial_ends_at, created_at")
@@ -68,13 +73,21 @@ async function loadShopCard(supabase: AdminDb, tenantId: string, caseId: string)
       .neq("id", caseId)
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase.from("support_shop_owners").select("admin_id, admin_users(display_name)").eq("tenant_id", tenantId).maybeSingle(),
+    supabase
+      .from("support_calls")
+      .select("admin_name, outcome, note, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(3),
   ]);
 
-  for (const result of [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier]) {
+  for (const result of [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier, owner, calls]) {
     if (result.error) throw result.error;
   }
 
   const balance = (wallet.data as { balance_iqd: number | string } | null)?.balance_iqd;
+  const ownerRow = owner.data as { admin_id: string; admin_users: { display_name: string | null } | null } | null;
   return {
     tenant: tenant.data as SupportShopCard["tenant"],
     walletBalanceIqd: balance === undefined || balance === null ? null : Number(balance),
@@ -85,6 +98,10 @@ async function loadShopCard(supabase: AdminDb, tenantId: string, caseId: string)
     teamSize: team.count ?? 0,
     pinnedNotes: (notes.data ?? []) as SupportShopCard["pinnedNotes"],
     earlierCases: (earlier.data ?? []) as SupportShopCard["earlierCases"],
+    owner: ownerRow
+      ? { name: ownerRow.admin_users?.display_name?.trim() || "Support", isMe: ownerRow.admin_id === adminId }
+      : null,
+    calls: (calls.data ?? []) as SupportShopCard["calls"],
   };
 }
 
@@ -115,7 +132,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .eq("case_id", id)
         .order("created_at", { ascending: true })
         .limit(500),
-      loadShopCard(supabase, supportCase.tenant_id, id),
+      loadShopCard(supabase, supportCase.tenant_id, id, auth.user.id),
     ]);
     if (messages.error) throw messages.error;
 

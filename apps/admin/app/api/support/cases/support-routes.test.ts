@@ -543,3 +543,129 @@ describe("support needs us", () => {
     expect((await start("support", { tenantId: TENANT, body: "hi" })).status).toBe(status);
   });
 });
+
+describe("support first-week calls", () => {
+  const TASK_ID = "66666666-6666-4666-8666-666666666666";
+  const TASK = {
+    id: TASK_ID,
+    kind: "welcome_call",
+    due_at: "2026-11-16T09:00:00+00:00",
+    attempts: 0,
+    tenant_id: TENANT,
+    business_name: "Amal",
+    display_id: 100120,
+    trial_ends_at: "2026-11-23T09:00:00+00:00",
+    shop_status: "trial",
+    orders: 0,
+    owner_id: SUPPORT_ID,
+    owner_name: "Noor",
+    calls: [],
+  };
+
+  async function list(token: string | null): Promise<Response> {
+    const { GET } = await import("../tasks/route");
+    return GET(req("/api/support/tasks", "GET", token));
+  }
+
+  async function log(token: string | null, body: unknown): Promise<Response> {
+    const { POST } = await import("../tasks/route");
+    return POST(req("/api/support/tasks", "POST", token, body));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await list(null)).status).toBe(401);
+    expect((await log(null, { taskId: TASK_ID, outcome: "done" })).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("passes on today's tasks with who is asking", async () => {
+    dbResult = { data: [TASK], error: null };
+    const res = await list("support");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ tasks: [TASK], me: SUPPORT_ID });
+    expect(rpcCall()?.args).toEqual(["support_tasks_due"]);
+  });
+
+  it("says it failed when a task has a kind it does not know", async () => {
+    dbResult = { data: [{ ...TASK, kind: "party" }], error: null };
+    expect((await list("support")).status).toBe(500);
+  });
+
+  it.each([
+    ["no task", { outcome: "done" }],
+    ["a task id that is not an id", { taskId: "1", outcome: "done" }],
+    ["a made-up outcome", { taskId: TASK_ID, outcome: "maybe" }],
+    ["a note over 500 characters", { taskId: TASK_ID, outcome: "later", note: "x".repeat(501) }],
+  ])("refuses %s", async (_label, body) => {
+    expect((await log("support", body)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("records the call as the signed-in admin, whatever the body claims, and logs it", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { task_id: TASK_ID, tenant_id: TENANT }, error: null },
+    );
+    const res = await log("support", { taskId: TASK_ID, outcome: "no_answer", note: "  رن ولا جواب ", p_admin_id: "x" });
+    expect(res.status).toBe(200);
+    expect(rpcCall()?.args).toEqual([
+      "support_task_log",
+      { p_task_id: TASK_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_outcome: "no_answer", p_note: "رن ولا جواب" },
+    ]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      tenant_id: TENANT,
+      action: "support_task_logged",
+      details: { task_id: TASK_ID, outcome: "no_answer" },
+    });
+  });
+
+  it.each([
+    ["support_task_not_found", 404],
+    ["support_task_already_done", 409],
+    ["support_bad_outcome", 400],
+  ])("maps the database refusal %s to %i", async (message, status) => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: null, error: { code: "P0001", message } },
+    );
+    expect((await log("support", { taskId: TASK_ID, outcome: "done" })).status).toBe(status);
+  });
+});
+
+describe("support take a shop", () => {
+  async function take(token: string | null, body: unknown): Promise<Response> {
+    const { POST } = await import("../owner/route");
+    return POST(req("/api/support/owner", "POST", token, body));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await take(null, { tenantId: TENANT })).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("refuses a shop id that is not an id", async () => {
+    expect((await take("support", { tenantId: "1" })).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("answers 404 for a shop that does not exist", async () => {
+    dbQueue.push({ data: null, error: null });
+    expect((await take("support", { tenantId: TENANT })).status).toBe(404);
+    expect(dbCalls.some((c) => c.method === "upsert")).toBe(false);
+  });
+
+  it("makes the signed-in admin the shop's person, whatever the body claims, and logs it", async () => {
+    dbQueue.push({ data: { id: TENANT }, error: null }, { data: null, error: null });
+    const res = await take("support", { tenantId: TENANT, adminId: "11111111-1111-4111-8111-111111111111" });
+    expect(res.status).toBe(200);
+    const upsert = dbCalls.find((c) => c.method === "upsert");
+    expect(upsert?.args[0]).toMatchObject({ tenant_id: TENANT, admin_id: SUPPORT_ID, assigned_by: SUPPORT_ID });
+    expect(upsert?.args[1]).toEqual({ onConflict: "tenant_id" });
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      tenant_id: TENANT,
+      action: "support_shop_taken",
+    });
+  });
+});

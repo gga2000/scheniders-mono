@@ -7284,6 +7284,7 @@ export const en: Record<string, string> = {
     "support.hours.open": "Online now · we reply within 5 minutes",
     "support.hours.closed": "Closed now · we reply from 9 AM",
     "support.hours.days": "Every day, 9 AM to 12 AM, Baghdad time",
+    "support.owner": "Your support person: {name}",
     "support.close": "Close",
     "support.empty.title": "How can we help?",
     "support.empty.body": "Write your problem or question. We send the page you are on with your message so we understand it fast.",

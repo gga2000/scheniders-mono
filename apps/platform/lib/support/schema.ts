@@ -90,6 +90,8 @@ export interface SupportThread {
     messages: SupportMessage[];
     /** Staff replies they have not opened yet. */
     unread: number;
+    /** The first name of the shop's support person, once one is given. */
+    owner: string | null;
 }
 
 /**

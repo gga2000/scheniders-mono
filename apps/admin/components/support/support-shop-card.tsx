@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Pin } from "lucide-react";
+import { ExternalLink, Loader2, Phone, Pin, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { SupportShopCheck } from "@/components/support/support-shop-check";
+import { SupportCallList } from "@/components/support/support-call-list";
+import { useLiveTick } from "@/hooks/use-live-tick";
+import { useSupportTakeShop } from "@/hooks/use-support-cases";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
 import { formatIQD } from "@/lib/format";
 
@@ -29,6 +33,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: string }) {
   const { tenant } = shop;
   const planLabel = isPlanTier(tenant.plan) ? PLAN_LABELS[tenant.plan] : tenant.plan;
+  const now = useLiveTick(60_000);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -48,6 +53,8 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
           Open merchant page
         </Link>
       </div>
+
+      <ShopOwner tenantId={tenant.id} owner={shop.owner} />
 
       <div className="border-b border-[var(--card-border)] p-4">
         <SupportShopCheck key={caseId} caseId={caseId} />
@@ -87,6 +94,16 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
         </div>
       )}
 
+      {shop.calls.length > 0 && (
+        <div className="border-t border-[var(--card-border)] p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/50">
+            <Phone className="h-3.5 w-3.5" />
+            Last calls
+          </p>
+          <SupportCallList calls={shop.calls} now={now} />
+        </div>
+      )}
+
       <div className="border-t border-[var(--card-border)] p-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground/50">
           Earlier conversations
@@ -106,6 +123,39 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The shop's named support person, the one its Help chat shows. */
+function ShopOwner({ tenantId, owner }: { tenantId: string; owner: ShopCard["owner"] }) {
+  const take = useSupportTakeShop();
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--card-border)] px-4 py-3">
+      <div className="min-w-0">
+        <p className="text-xs text-foreground-muted">Support person</p>
+        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground">
+          <UserRound className="h-3.5 w-3.5 shrink-0" />
+          {owner === null ? "Nobody yet" : owner.isMe ? "You" : <span dir="auto">{owner.name}</span>}
+        </p>
+      </div>
+      {!owner?.isMe && (
+        <button
+          type="button"
+          disabled={take.isPending}
+          onClick={() =>
+            take.mutate(tenantId, {
+              onSuccess: () => toast.success("This shop is yours now. Its Help chat shows your name."),
+              onError: (error) => toast.error(error.message),
+            })
+          }
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--card-border)] px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-foreground/5 disabled:opacity-50"
+        >
+          {take.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Take this shop
+        </button>
+      )}
     </div>
   );
 }
