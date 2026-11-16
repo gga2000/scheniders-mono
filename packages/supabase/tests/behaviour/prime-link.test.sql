@@ -1,4 +1,4 @@
--- Prime self-serve link (Fermi A3, 20261116034500).
+-- Prime self-serve link (Fermi A3, 20261116034713).
 -- AA: a store already linked to Prime account 07779703832 (shop 48522).
 -- S, T, V, W, X: stores asking to link. U: the store admin. Z: our staff.
 

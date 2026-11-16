@@ -1,6 +1,6 @@
 -- Throwaway Postgres 16 database shaped like the live objects the Prime
 -- self-serve link touches (Fermi A3): tenants, prime_connections,
--- prime_link_requests and notifications as they were before 20261116034500
+-- prime_link_requests and notifications as they were before 20261116034713
 -- (columns copied from the live project, 2026-11-16). auth.role() and
 -- auth.uid() are stubs set per test.
 -- NEVER run this against Supabase: it creates roles and an auth stub.
