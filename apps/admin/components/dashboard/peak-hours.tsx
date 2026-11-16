@@ -77,67 +77,65 @@ export function PeakHours({ cells }: PeakHoursProps) {
       {!cells ? (
         <Skeleton />
       ) : (
-        <div className="overflow-x-auto -mx-2 px-2">
-          <div className="min-w-[480px] relative">
-            {/* Hour labels */}
-            <div className="flex ml-9 mb-1">
-              {Array.from({ length: 24 }).map((_, h) => (
+        // One grid of a day label and 24 hours, so the whole day fits the
+        // tile at any width: no sideways scroll hiding the evening.
+        <div className="relative grid grid-cols-[2rem_repeat(24,minmax(0,1fr))] gap-[2px]">
+          <span aria-hidden />
+          {Array.from({ length: 24 }).map((_, h) => (
+            <span
+              key={h}
+              className="text-center text-xs text-foreground/70 font-medium leading-5"
+            >
+              {HOUR_LABELS.includes(h) ? h : ""}
+            </span>
+          ))}
+
+          {DAY_REORDER.map((dow, rowIdx) => [
+            <span
+              key={`label-${dow}`}
+              className="self-center text-xs text-foreground/70 font-medium text-right pr-1"
+            >
+              {DAY_LABELS[rowIdx]}
+            </span>,
+            ...Array.from({ length: 24 }).map((_, h) => {
+              const cell = lookup.get(`${dow}-${h}`);
+              const intensity = cell?.intensity ?? 0;
+              const count = cell?.count ?? 0;
+              return (
                 <div
-                  key={h}
-                  className="flex-1 text-center text-xs text-foreground/70 font-medium"
-                >
-                  {HOUR_LABELS.includes(h) ? h : ""}
-                </div>
-              ))}
+                  key={`${dow}-${h}`}
+                  className="aspect-square rounded-[3px] cursor-pointer transition-transform hover:scale-125 hover:z-10 relative"
+                  style={{ backgroundColor: getCellColor(intensity) }}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTooltip({
+                      day: dow,
+                      hour: h,
+                      count,
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                />
+              );
+            }),
+          ])}
+
+          {/* Tooltip */}
+          {tooltip && (
+            <div
+              className="fixed z-50 pointer-events-none bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg px-3 py-1.5 text-xs font-medium text-foreground"
+              style={{
+                left: tooltip.x,
+                top: tooltip.y - 36,
+                transform: "translateX(-50%)",
+              }}
+            >
+              {DAY_FULL_NAMES[tooltip.day]} {tooltip.hour}:00,{" "}
+              {tooltip.count} {tooltip.count === 1 ? "order" : "orders"}
             </div>
-
-            {/* Grid rows */}
-            {DAY_REORDER.map((dow, rowIdx) => (
-              <div key={dow} className="flex items-center gap-1 mb-[2px]">
-                <span className="w-8 text-xs text-foreground/70 font-medium text-right pr-1 flex-shrink-0">
-                  {DAY_LABELS[rowIdx]}
-                </span>
-                {Array.from({ length: 24 }).map((_, h) => {
-                  const cell = lookup.get(`${dow}-${h}`);
-                  const intensity = cell?.intensity ?? 0;
-                  const count = cell?.count ?? 0;
-                  return (
-                    <div
-                      key={h}
-                      className="flex-1 aspect-square rounded-[3px] cursor-pointer transition-transform hover:scale-125 hover:z-10 relative"
-                      style={{ backgroundColor: getCellColor(intensity) }}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setTooltip({
-                          day: dow,
-                          hour: h,
-                          count,
-                          x: rect.left + rect.width / 2,
-                          y: rect.top,
-                        });
-                      }}
-                      onMouseLeave={() => setTooltip(null)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-
-            {/* Tooltip */}
-            {tooltip && (
-              <div
-                className="fixed z-50 pointer-events-none bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg px-3 py-1.5 text-xs font-medium text-foreground"
-                style={{
-                  left: tooltip.x,
-                  top: tooltip.y - 36,
-                  transform: "translateX(-50%)",
-                }}
-              >
-                {DAY_FULL_NAMES[tooltip.day]} {tooltip.hour}:00 &mdash;{" "}
-                {tooltip.count} orders
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>

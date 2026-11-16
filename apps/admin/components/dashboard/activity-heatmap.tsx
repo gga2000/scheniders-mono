@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import type { ActivityDay } from "@/types/dashboard";
 
@@ -16,6 +16,7 @@ interface TooltipState {
 }
 
 const CELL_SIZE = 12;
+const MIN_WIDTH = 640;
 const GAP = 2;
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 const MONTH_NAMES = [
@@ -54,14 +55,17 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       countMap.set(d.date, d.count);
     }
 
-    // Sort dates and figure out range
+    // Sort dates and figure out range. Every date is a calendar day, so all
+    // the math runs in UTC: read at local midnight, toISOString() gave the
+    // day before in Baghdad, so each cell showed yesterday's count and
+    // today's was never drawn.
     const sortedDates = [...days].sort((a, b) => a.date.localeCompare(b.date));
-    const startDate = new Date(sortedDates[0].date + "T00:00:00");
-    const endDate = new Date(sortedDates[sortedDates.length - 1].date + "T00:00:00");
+    const startDate = new Date(sortedDates[0].date + "T00:00:00Z");
+    const endDate = new Date(sortedDates[sortedDates.length - 1].date + "T00:00:00Z");
 
     // Align start to Sunday
     const alignedStart = new Date(startDate);
-    alignedStart.setDate(alignedStart.getDate() - alignedStart.getDay());
+    alignedStart.setUTCDate(alignedStart.getUTCDate() - alignedStart.getUTCDay());
 
     // Build grid cells
     const cells: Array<{
@@ -78,7 +82,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
 
     while (current <= endDate) {
       const dateStr = current.toISOString().slice(0, 10);
-      const dayOfWeek = current.getDay(); // row
+      const dayOfWeek = current.getUTCDay(); // row
       const diffDays = Math.floor(
         (current.getTime() - alignedStart.getTime()) / (1000 * 60 * 60 * 24)
       );
@@ -88,14 +92,14 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       if (count > mMax) mMax = count;
 
       // Track month boundaries
-      const month = current.getMonth();
+      const month = current.getUTCMonth();
       if (month !== lastMonth) {
         mLabels.push({ label: MONTH_NAMES[month], col });
         lastMonth = month;
       }
 
       cells.push({ date: dateStr, count, col, row: dayOfWeek });
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     const totalWeeks = cells.length > 0 ? cells[cells.length - 1].col + 1 : 0;
@@ -107,6 +111,14 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       monthLabels: mLabels,
     };
   }, [days]);
+
+  // The year scales to the tile's width; below MIN_WIDTH it scrolls, and it
+  // opens on the newest week rather than hiding it off the right edge.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [weeks]);
 
   const labelWidth = 34;
   const headerHeight = 20;
@@ -151,12 +163,12 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
           No activity data yet.
         </p>
       ) : (
-        <div className="overflow-x-auto -mx-2 px-2 relative">
+        <div ref={scrollRef} className="overflow-x-auto -mx-2 px-2 relative">
           <svg
-            width={svgWidth}
-            height={svgHeight}
+            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+            width="100%"
             className="block"
-            style={{ minWidth: svgWidth }}
+            style={{ minWidth: MIN_WIDTH }}
           >
             {/* Month labels */}
             {monthLabels.map((m, i) => (
