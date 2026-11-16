@@ -36,7 +36,7 @@ vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => fak
 import { GET } from "./route";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
-const admin: RequestCaller = { ok: true, userId: "u", email: "owner@shop.test", tenantId: TENANT, role: "admin", platformAdmin: false };
+const admin: RequestCaller = { ok: true, userId: "u", email: "owner@shop.test", tenantId: TENANT, role: "admin", platformAdmin: false, readOnly: false };
 const request = (url = "http://x/api/support/visits") => new NextRequest(url, { headers: { Authorization: "Bearer t" } });
 
 beforeEach(() => {

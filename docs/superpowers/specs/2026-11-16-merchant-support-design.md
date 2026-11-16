@@ -127,3 +127,11 @@ A new merchant message pings support staff on their phone or computer.
 
 - Merchant Settings now has a **Support activity** section (shop admins only). It lists every step our staff took on the shop that the merchant should know about: opening the store page, look-only views, trial, plan and pause changes, wallet top-ups, WhatsApp pause, writing first, and becoming the shop's person. Each line has the staff member's display name (never an email) and the time.
 - `support_staff_visits(tenant)` reads `admin_activity_logs` with an allow-list. Internal steps such as notes, tags, priority, inbox moves and the call log stay off. The function is service-role only. `GET /api/support/visits` always uses the caller's own shop.
+
+## Wave 4, part 3: look-only view as merchant
+
+- Staff press **View as merchant** on the shop card. The console makes (once) a viewer login for that staff member, starts a 30-minute session in `support_view_sessions`, and gives a one-time link into the merchant app. Open it in a private window, because it replaces the platform login in that browser.
+- The merchant app shows a red bar with the time left and an End button. When time runs out the screen closes over with "Session ended".
+- **Locked in the database, not only in the app.** A statement trigger on every public table and on `storage.objects` refuses any insert, update or delete while `is_support_viewer()` is true, even inside definer functions. An event trigger locks each new table. `support_view_start` refuses while any table is unlocked (`support_view_unguarded_tables()`), so a missed table fails closed.
+- The viewer sees the shop as a 'viewer' member plus money and settings pages. The app's request gate refuses every non-GET call for a look-only caller, and the order, MCP and courier callers refuse it outright.
+- Each start is logged as `support_view`, so the merchant sees it under Support activity. Behaviour suite `support-view`.

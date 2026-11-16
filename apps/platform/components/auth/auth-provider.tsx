@@ -4,14 +4,19 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { activityLogger } from "@/lib/activity-logger";
-import type { UserProfile, AuthContextType } from "@/types/auth";
+import type { UserProfile, AuthContextType, SupportViewState } from "@/types/auth";
 import { diag } from "@/lib/diag";
 import { perfTrace } from "@/lib/perf-trace";
 import { clearPersistedBooks } from "@/lib/orders/persisted-book";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { sentryIdentityFor } from "@/lib/sentry-identity";
 import { setReportIdentity } from "@/lib/report-error";
-import { applyPermissionOverrides, resolveEffectiveRole, type UserRole } from "@/lib/permissions";
+import {
+    applyPermissionOverrides,
+    resolveEffectiveRole,
+    SUPPORT_VIEW_PERMISSIONS,
+    type UserRole,
+} from "@/lib/permissions";
 import { revokeDevicePush } from "@/lib/chat/revoke-device-push";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,6 +66,28 @@ async function signOutDevice(): Promise<void> {
     }
 }
 
+/**
+ * The look-only support session of this sign-in, or null when the sign-in is
+ * not a support viewer (the token's app_metadata says, set only by the staff
+ * console). A viewer with no live session on this shop gets expiresAt null.
+ */
+async function readSupportView(tenantId: string | null): Promise<SupportViewState | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user.app_metadata?.support_viewer !== true) return null;
+    if (!tenantId) return { expiresAt: null };
+    const { data, error } = await supabase
+        .from('support_view_sessions')
+        .select('expires_at')
+        .eq('tenant_id', tenantId)
+        .is('ended_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    if (error) throw new Error(`Support view read failed: ${error.message}`);
+    return { expiresAt: (data as { expires_at: string } | null)?.expires_at ?? null };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
@@ -74,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // True once we've confirmed the signed-in user has NO user_profiles row —
     // e.g. a brand-new Google sign-in that hasn't been invited/provisioned.
     const [profileMissing, setProfileMissing] = useState(false);
+    const [supportView, setSupportView] = useState<SupportViewState | null>(null);
 
     const currentUserIdRef = useRef<string | null>(null);
     const profileLoadedRef = useRef(false);
@@ -158,15 +186,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         .eq('user_id', userId)
                     : Promise.resolve({ data: null }),
             ]);
-            const effectiveRole = resolveEffectiveRole(profileData.role, membershipResult.data?.role);
+            const memberRole = resolveEffectiveRole(profileData.role, membershipResult.data?.role);
             perfTrace.mark('auth:membership');
 
-            const perms = effectiveRole
+            // A support look-only sign-in has no membership: it reads as a
+            // viewer while its 30-minute session on this shop is live.
+            const look = memberRole ? null : await readSupportView(currentTenantId);
+            setSupportView(look);
+            const effectiveRole: UserRole | null = memberRole ?? (look?.expiresAt ? 'viewer' : null);
+
+            const perms = memberRole
                 ? applyPermissionOverrides(
-                    (rolePermsResult.data ?? []).filter(p => p.role === effectiveRole).map(p => p.permission),
+                    (rolePermsResult.data ?? []).filter(p => p.role === memberRole).map(p => p.permission),
                     userOverridesResult.data ?? [],
                 )
-                : [];
+                : effectiveRole ? [...SUPPORT_VIEW_PERMISSIONS] : [];
 
             setProfileMissing(false);
             setRole(effectiveRole);
@@ -259,6 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setUser(null);
                         setRole(null);
                         setProfile(null);
+                        setSupportView(null);
                         setPermissions([]);
                         tenantIdRef.current = null;
                         setTenantId(null);
@@ -301,8 +336,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // Fetch profile in background
                     const profileTenant = fetchProfile(currentSession.user.id);
 
-                    // Activity logging on sign-in
-                    if (event === 'SIGNED_IN') {
+                    // Activity logging on sign-in. A support look-only sign-in
+                    // writes nothing (the database refuses it), so it logs nothing.
+                    if (event === 'SIGNED_IN' && currentSession.user.app_metadata?.support_viewer !== true) {
                         supabase.from('user_profiles').update({
                             last_login_at: new Date().toISOString()
                         }).eq('id', currentSession.user.id).then();
@@ -325,6 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setSession(null);
                     setRole(null);
                     setProfile(null);
+                    setSupportView(null);
                     setPermissions([]);
                     tenantIdRef.current = null;
                     setTenantId(null);
@@ -472,6 +509,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 googleLinked,
                 refreshProfile,
                 retryAuth,
+                supportView,
             }}
         >
             {children}

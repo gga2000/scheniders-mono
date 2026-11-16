@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { verifyAccessToken } from "@/lib/supabase-server";
-import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { resolveActiveTenant, SUPPORT_VIEW_READ_ONLY } from "@/lib/auth/resolve-active-tenant";
 import type { UserRole } from "@/lib/permissions";
 
 /**
@@ -45,6 +45,10 @@ export async function authorizeWaseetCaller(request: NextRequest, roles: readonl
     const active = await resolveActiveTenant(user.id);
     if (!active.ok) {
         return { ok: false, response: NextResponse.json({ success: false, error: active.error }, { status: active.status }) };
+    }
+    // Waseet calls reach the courier; a look-only support view never does.
+    if (active.readOnly) {
+        return { ok: false, response: NextResponse.json({ success: false, error: SUPPORT_VIEW_READ_ONLY }, { status: 403 }) };
     }
     if (!roles.includes(active.role)) {
         return { ok: false, response: NextResponse.json({ success: false, error: "You do not have permission for this" }, { status: 403 }) };

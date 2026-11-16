@@ -33,6 +33,13 @@ export function isPlatformAdminRole(role: UserRole | string | undefined | null):
 /** The per-store roles stored in `tenant_members.role` (and `team_invites.role`). */
 export type TenantRole = Exclude<UserRole, "super_admin">;
 
+/**
+ * A support staff member's look-only view acts as a `viewer` that may also
+ * read money and the settings page; the database grants the same two
+ * (member_has_permission) and refuses every write.
+ */
+export const SUPPORT_VIEW_PERMISSIONS = ["system.financials.view", "system.settings.access"] as const;
+
 export const TENANT_ROLES: readonly TenantRole[] = ["admin", "employee", "viewer"];
 
 export function isTenantRole(role: string | null | undefined): role is TenantRole {

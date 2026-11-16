@@ -1,5 +1,5 @@
 import { verifyAccessToken } from "@/lib/supabase-server";
-import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { resolveActiveTenant, SUPPORT_VIEW_READ_ONLY } from "@/lib/auth/resolve-active-tenant";
 
 /**
  * Server actions are public POST endpoints — anyone who can read the client
@@ -24,6 +24,8 @@ export async function resolveCaller(
     // they are an active member of it (resolveActiveTenant).
     const active = await resolveActiveTenant(user.id);
     if (!active.ok) return { error: active.error };
+    // Order actions write; a look-only support view never does.
+    if (active.readOnly) return { error: SUPPORT_VIEW_READ_ONLY };
 
     return { caller: { userId: user.id, tenantId: active.tenantId, role: active.role } };
 }

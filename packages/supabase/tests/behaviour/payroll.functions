@@ -1,1 +1,2 @@
+support_view_tenant
 get_current_tenant_id get_user_tenant_ids require_current_tenant is_tenant_admin run_payroll void_payroll

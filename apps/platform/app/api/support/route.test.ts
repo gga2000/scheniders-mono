@@ -48,7 +48,7 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
 const CASE = "33333333-3333-4333-8333-333333333333";
 
-const member: RequestCaller = { ok: true, userId: USER, email: "owner@shop.test", tenantId: TENANT, role: "admin", platformAdmin: false };
+const member: RequestCaller = { ok: true, userId: USER, email: "owner@shop.test", tenantId: TENANT, role: "admin", platformAdmin: false, readOnly: false };
 
 const request = (method: "GET" | "POST", body?: unknown) =>
     new NextRequest("http://x/api/support", {

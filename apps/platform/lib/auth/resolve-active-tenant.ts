@@ -6,9 +6,17 @@ import { isPlatformAdminRole, resolveEffectiveRole, type UserRole } from "@/lib/
  * `tenant_members.role`, or `super_admin` for platform staff (the only thing
  * the global `user_profiles.role` still decides). `platformAdmin` marks the
  * latter, who may act in a tenant they do not belong to.
+ *
+ * `readOnly` marks a support staff member's look-only "view as merchant"
+ * sign-in (support_view_sessions, 30 minutes). It reads as a `viewer` and must
+ * never write: the database refuses its own writes, and every server path that
+ * writes with the service role refuses it here.
  */
+/** The refusal a look-only support view gets for anything but a read. */
+export const SUPPORT_VIEW_READ_ONLY = "support_view_read_only";
+
 export type ActiveTenant =
-    | { ok: true; tenantId: string; role: UserRole; platformAdmin: boolean }
+    | { ok: true; tenantId: string; role: UserRole; platformAdmin: boolean; readOnly: boolean }
     | { ok: false; error: string; status: 400 | 403 };
 
 /**
@@ -47,7 +55,25 @@ export async function resolveActiveTenant(userId: string): Promise<ActiveTenant>
     // Deny by default: no active membership (or an unknown role value) is no role.
     const platformRole = profile?.role as string | undefined;
     const role = resolveEffectiveRole(platformRole, (membership as { role: string } | null)?.role);
-    if (!role) return { ok: false, error: "You are not a member of this account.", status: 403 };
+    if (role) return { ok: true, tenantId, role, platformAdmin: isPlatformAdminRole(platformRole), readOnly: false };
 
-    return { ok: true, tenantId, role, platformAdmin: isPlatformAdminRole(platformRole) };
+    if (await hasLiveSupportView(userId, tenantId)) {
+        return { ok: true, tenantId, role: "viewer", platformAdmin: false, readOnly: true };
+    }
+    return { ok: false, error: "You are not a member of this account.", status: 403 };
+}
+
+/** A live look-only support session of this sign-in on this shop (not ended, not expired). */
+async function hasLiveSupportView(userId: string, tenantId: string): Promise<boolean> {
+    const { data, error } = await createSupabaseServiceClient()
+        .from("support_view_sessions")
+        .select("id")
+        .eq("viewer_user_id", userId)
+        .eq("tenant_id", tenantId)
+        .is("ended_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .limit(1)
+        .maybeSingle();
+    if (error) throw new Error(`Support view read failed: ${error.message}`);
+    return data !== null;
 }

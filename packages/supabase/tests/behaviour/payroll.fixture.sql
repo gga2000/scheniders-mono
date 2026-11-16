@@ -92,3 +92,13 @@ CREATE TABLE public.performance_bonuses (
     tenant_id uuid,
     carried_from_payroll_id uuid
 );
+
+-- get_user_tenant_ids() also reads live look-only support sessions
+-- (20261116112543_support_view_as); none exist here.
+CREATE TABLE public.support_view_sessions (
+    viewer_user_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    started_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL,
+    ended_at timestamptz
+);

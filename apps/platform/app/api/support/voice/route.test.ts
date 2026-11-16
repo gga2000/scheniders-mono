@@ -41,7 +41,7 @@ vi.mock("@/lib/supabase-server", () => ({
 import { POST } from "./route";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
-const member: RequestCaller = { ok: true, userId: "u", email: "a@b.c", tenantId: TENANT, role: "admin", platformAdmin: false };
+const member: RequestCaller = { ok: true, userId: "u", email: "a@b.c", tenantId: TENANT, role: "admin", platformAdmin: false, readOnly: false };
 const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 const MP4 = new Uint8Array([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41, 0x20, 0]);
 

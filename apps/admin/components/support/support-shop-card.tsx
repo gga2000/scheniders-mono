@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { SupportShopCheck } from "@/components/support/support-shop-check";
 import { SupportCallList } from "@/components/support/support-call-list";
+import { SupportViewButton } from "@/components/support/support-view-button";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportTakeShop } from "@/hooks/use-support-cases";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
@@ -47,6 +48,9 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
           <ExternalLink className="h-3.5 w-3.5" />
           Open merchant page
         </Link>
+        <div className="mt-2">
+          <SupportViewButton tenantId={tenant.id} />
+        </div>
       </div>
 
       <ShopOwner tenantId={tenant.id} owner={shop.owner} />

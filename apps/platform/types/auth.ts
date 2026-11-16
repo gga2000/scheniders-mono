@@ -44,4 +44,14 @@ export interface AuthContextType {
     googleLinked: boolean;
     refreshProfile: () => Promise<void>;
     retryAuth: () => Promise<{ error: unknown }>;
+    /**
+     * A support staff member's look-only "view as merchant" sign-in: null for
+     * everyone else. `expiresAt` is when the 30-minute look ends; null once it
+     * has ended (the app then shows only the ended screen).
+     */
+    supportView: SupportViewState | null;
+}
+
+export interface SupportViewState {
+    expiresAt: string | null;
 }
