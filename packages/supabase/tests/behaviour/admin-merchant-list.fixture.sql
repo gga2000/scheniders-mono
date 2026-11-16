@@ -84,9 +84,9 @@ CREATE TABLE public.admin_activity_logs (
     admin_user_id uuid,
     admin_label text,
     actor_email text,
-    tenant_id uuid,
+    tenant_id uuid REFERENCES public.tenants (id) ON DELETE SET NULL,
     action text NOT NULL,
-    details jsonb DEFAULT '{}'::jsonb,
+    details jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
