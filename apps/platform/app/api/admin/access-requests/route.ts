@@ -2,6 +2,7 @@ import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-s
 import { NextResponse } from "next/server";
 import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
 import { withFailureReport } from "@/lib/job-monitor";
+import { isTeamLimitError, teamLimitResponse } from "@/lib/team-invites";
 
 type Admin = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -67,6 +68,8 @@ async function handlePOST(request: Request) {
         { tenant_id: tenantId, user_id: req.user_id, role: tenantMemberRoleFor(role), status: "active", joined_at: now, invited_by: userId },
         { onConflict: "tenant_id,user_id" },
     );
+    // The store's plan has no free seat (team_seat_guard).
+    if (isTeamLimitError(memberErr)) return teamLimitResponse();
     if (memberErr) return NextResponse.json({ error: memberErr.message }, { status: 400 });
 
     await admin.from("access_requests")

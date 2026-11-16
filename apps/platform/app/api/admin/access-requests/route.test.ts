@@ -47,3 +47,17 @@ describe("POST /api/admin/access-requests — membership role", () => {
         expect(profile).toMatchObject({ role: profileRole });
     });
 });
+
+describe("POST /api/admin/access-requests — team seats (Fermi A2)", () => {
+    it("a store with no free seat answers 402 and leaves the request pending", async () => {
+        fake = fakeServiceClient((call) =>
+            call.table === "tenant_members" && call.op === "upsert"
+                ? { error: { message: "team is full", code: "PT402", hint: "TEAM_LIMIT" } }
+                : respond(call),
+        );
+        const res = await POST(approve("employee"));
+        expect(res.status).toBe(402);
+        expect(await res.json()).toMatchObject({ code: "team_limit" });
+        expect(fake.calls.some((c) => c.table === "access_requests" && c.op === "update")).toBe(false);
+    });
+});

@@ -9,6 +9,8 @@ import {
 } from "@/lib/restrictions";
 import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
 import { withFailureReport } from "@/lib/job-monitor";
+import { billingLockRefusal } from "@/lib/billing/lock-refusal";
+import { isTeamLimitError, teamLimitResponse } from "@/lib/team-invites";
 
 const createUserSchema = z.object({
     email: z.string().trim().toLowerCase().email().max(254),
@@ -81,6 +83,21 @@ async function handlePOST(request: Request) {
             throw err;
         }
 
+        const locked = await billingLockRefusal(resolvedTenantId);
+        if (locked) return locked;
+
+        // The seat cap is enforced by the database when the membership is
+        // written (team_seat_guard). Checked first too, so a full team never
+        // creates a login only to delete it again.
+        const { data: seats, error: seatsError } = await supabaseAdmin.rpc("team_seats", {
+            _tenant_id: resolvedTenantId,
+        });
+        if (seatsError) throw new Error(`team_seats failed: ${seatsError.message}`);
+        const seatCount = seats as { limit: number | null; used: number } | null;
+        if (seatCount && seatCount.limit !== null && seatCount.used >= seatCount.limit) {
+            return teamLimitResponse();
+        }
+
         const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({
             email: normalizedEmail,
             password,
@@ -144,6 +161,7 @@ async function handlePOST(request: Request) {
             if (rollbackError) {
                 console.error("[create-user] rollback failed:", rollbackError.message);
             }
+            if (isTeamLimitError(memberError)) return teamLimitResponse();
             return NextResponse.json({ error: "تعذر إنشاء المستخدم. حاول مرة أخرى." }, { status: 500 });
         }
 

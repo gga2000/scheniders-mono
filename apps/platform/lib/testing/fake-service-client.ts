@@ -7,7 +7,7 @@
 
 export interface FakeResult {
     data?: unknown;
-    error?: { message: string; code?: string } | null;
+    error?: { message: string; code?: string; hint?: string } | null;
 }
 
 export interface FakeCall {
@@ -15,6 +15,8 @@ export interface FakeCall {
     /** The write method on the chain, or "select" for a read. */
     op: "select" | "insert" | "upsert" | "update" | "delete";
     payload: unknown;
+    /** Every other method on the chain, in order (eq, gt, order, select…). */
+    filters: { method: string; args: unknown[] }[];
 }
 
 const WRITES = new Set(["insert", "upsert", "update", "delete"]);
@@ -24,6 +26,10 @@ export interface FakeAuthOptions {
     inviteError?: { message: string; code?: string } | null;
     /** Error signInWithOtp answers with. */
     otpError?: { message: string; code?: string } | null;
+    /** Error admin.createUser answers with (e.g. `{ code: "email_exists" }`). */
+    createUserError?: { message: string; code?: string } | null;
+    /** Answer for `rpc(name, args)`; unanswered calls resolve to no data. */
+    rpc?: (name: string, args: unknown) => FakeResult;
 }
 
 export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authOptions: FakeAuthOptions = {}) {
@@ -32,9 +38,10 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authO
     const otps: { email: string; options?: { shouldCreateUser?: boolean } }[] = [];
     const created: { email?: string }[] = [];
     const deletedUsers: string[] = [];
+    const rpcCalls: { name: string; args: unknown }[] = [];
 
     function from(table: string) {
-        const call: FakeCall = { table, op: "select", payload: undefined };
+        const call: FakeCall = { table, op: "select", payload: undefined, filters: [] };
         const chain: object = new Proxy({}, {
             get(_target, prop: string | symbol) {
                 if (prop === "then") {
@@ -46,6 +53,8 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authO
                     if (typeof prop === "string" && WRITES.has(prop)) {
                         call.op = prop as FakeCall["op"];
                         call.payload = args[0];
+                    } else if (typeof prop === "string") {
+                        call.filters.push({ method: prop, args });
                     }
                     return chain;
                 };
@@ -56,6 +65,10 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authO
 
     const client = {
         from,
+        rpc: async (name: string, args: unknown) => {
+            rpcCalls.push({ name, args });
+            return { data: null, error: null, ...authOptions.rpc?.(name, args) };
+        },
         auth: {
             signInWithOtp: async (input: { email: string; options?: { shouldCreateUser?: boolean } }) => {
                 otps.push(input);
@@ -68,6 +81,7 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authO
                 },
                 createUser: async (input: { email?: string }) => {
                     created.push(input);
+                    if (authOptions.createUserError) return { data: { user: null }, error: authOptions.createUserError };
                     return { data: { user: { id: "new-user-id" } }, error: null };
                 },
                 deleteUser: async (id: string) => {
@@ -78,5 +92,5 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult, authO
         },
     };
 
-    return { client, calls, created, deletedUsers, invited, otps };
+    return { client, calls, created, deletedUsers, invited, otps, rpcCalls };
 }

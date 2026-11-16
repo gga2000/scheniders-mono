@@ -97,6 +97,7 @@ export function guideHiddenOn(pathname: string): boolean {
     return (
         pathname.startsWith("/login") ||
         pathname.startsWith("/signup") ||
+        pathname.startsWith("/join/") ||
         pathname.startsWith("/forgot-password") ||
         pathname.startsWith("/reset-password") ||
         pathname.startsWith("/landing") ||

@@ -145,3 +145,48 @@ describe("POST /api/auth/create-user — membership role", () => {
         expect(membershipInsert()).toBeUndefined();
     });
 });
+
+describe("POST /api/auth/create-user — team seats (Fermi A2)", () => {
+    it("a full team is refused before any login is created", async () => {
+        fake = fakeServiceClient((call) => respond(call), {
+            rpc: (name) => (name === "team_seats" ? { data: { limit: 2, used: 2, members: 2, pending: 0 } } : {}),
+        });
+        const res = await POST(request({}));
+        expect(res.status).toBe(402);
+        expect(await res.json()).toMatchObject({ code: "team_limit" });
+        expect(fake.created).toEqual([]);
+    });
+
+    it("a seat taken meanwhile (database refusal) undoes the login and answers 402", async () => {
+        respond = (call) =>
+            call.table === "tenant_members" && call.op === "insert"
+                ? { error: { message: "team is full", code: "PT402", hint: "TEAM_LIMIT" } }
+                : defaultRespond(call);
+        fake = fakeServiceClient((call) => respond(call), {
+            rpc: (name) => (name === "team_seats" ? { data: { limit: 2, used: 1, members: 1, pending: 0 } } : {}),
+        });
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const res = await POST(request({}));
+        expect(res.status).toBe(402);
+        expect(fake.deletedUsers).toEqual(["new-user-id"]);
+    });
+
+    it("no cap (Business) creates the member", async () => {
+        fake = fakeServiceClient((call) => respond(call), {
+            rpc: (name) => (name === "team_seats" ? { data: { limit: null, used: 30, members: 30, pending: 0 } } : {}),
+        });
+        const res = await POST(request({}));
+        expect(res.status).toBe(200);
+        expect(membershipInsert()).toMatchObject({ tenant_id: TENANT, user_id: "new-user-id" });
+    });
+
+    it("a locked store cannot add members", async () => {
+        fake = fakeServiceClient((call) => respond(call), {
+            rpc: (name) => (name === "billing_lock_snapshot" ? { data: { locked: true, reason: "unpaid" } } : {}),
+        });
+        const res = await POST(request({}));
+        expect(res.status).toBe(402);
+        expect(await res.json()).toMatchObject({ code: "billing_locked" });
+        expect(fake.created).toEqual([]);
+    });
+});
