@@ -42,10 +42,19 @@ export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
   solved: "Solved",
 };
 
+/** The longest staff note, and the longest note that goes with a hand-over. */
+export const NOTE_MAX_LENGTH = 2000;
+
 export const CaseActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reply"), body: z.string().trim().min(1).max(4000) }),
   z.object({ action: z.literal("solve"), reason: z.enum(SUPPORT_REASONS) }),
   z.object({ action: z.literal("assign") }),
+  z.object({ action: z.literal("note"), body: z.string().trim().min(1).max(NOTE_MAX_LENGTH) }),
+  z.object({
+    action: z.literal("hand_over"),
+    toAdminId: z.string().uuid(),
+    note: z.string().trim().max(NOTE_MAX_LENGTH).optional(),
+  }),
 ]);
 
 export type CaseAction = z.infer<typeof CaseActionSchema>;
@@ -113,6 +122,46 @@ export interface SupportMessageRow {
   voice_url: string | null;
 }
 
+/**
+ * A line only staff see inside a conversation (`support_case_notes`): a note,
+ * or a hand-over to a teammate with an optional note. The merchant's Help chat
+ * never reads this table.
+ */
+export interface SupportCaseNote {
+  id: string;
+  kind: "note" | "handover";
+  admin_name: string;
+  body: string | null;
+  to_name: string | null;
+  created_at: string;
+}
+
+export const SUPPORT_CASE_NOTE_COLUMNS = "id, kind, admin_name, body, to_name, created_at";
+
+/** A teammate a conversation can be handed to. */
+export interface SupportTeammate {
+  id: string;
+  name: string;
+  isMe: boolean;
+}
+
+/** One timeline for the conversation: messages and staff notes, oldest first. */
+export type SupportTimelineItem =
+  | { type: "message"; at: string; message: SupportMessageRow }
+  | { type: "note"; at: string; note: SupportCaseNote };
+
+export function supportTimeline(messages: SupportMessageRow[], notes: SupportCaseNote[]): SupportTimelineItem[] {
+  const items: SupportTimelineItem[] = [
+    ...messages.map((message): SupportTimelineItem => ({ type: "message", at: message.created_at, message })),
+    ...notes.map((note): SupportTimelineItem => ({ type: "note", at: note.created_at, note })),
+  ];
+  // Stable: a message and a note at the same moment keep messages first.
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => Date.parse(a.item.at) - Date.parse(b.item.at) || a.index - b.index)
+    .map(({ item }) => item);
+}
+
 export interface SupportShopCard {
   tenant: {
     id: string;
@@ -146,6 +195,7 @@ export interface SupportCasesResponse {
 export interface SupportCaseDetailResponse {
   case: SupportCaseRow;
   messages: SupportMessageRow[];
+  notes: SupportCaseNote[];
   shop: SupportShopCard;
 }
 
@@ -164,6 +214,9 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_bad_outcome: { status: 400, error: "Pick done, no answer or later." },
   support_notice_bad_body: { status: 400, error: "A notice needs a text of up to 300 letters." },
   support_notice_bad_hours: { status: 400, error: "A notice runs for 1 to 72 hours." },
+  support_note_bad_body: { status: 400, error: "A note needs a text of up to 2,000 letters." },
+  support_handover_bad_target: { status: 400, error: "Pick a teammate who answers support." },
+  support_handover_same_owner: { status: 409, error: "This teammate already owns the conversation." },
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null):

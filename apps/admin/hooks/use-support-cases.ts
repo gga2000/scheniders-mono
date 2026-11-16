@@ -12,6 +12,7 @@ import type {
   SupportNotice,
   SupportScoreboard,
   SupportTask,
+  SupportTeammate,
   TaskLogInput,
 } from "@/lib/support";
 import type { ShopCheck } from "@/lib/support-shop-check";
@@ -69,6 +70,15 @@ export function useSupportCaseAction(caseId: string) {
         }),
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+  });
+}
+
+/** Everyone a conversation can be handed to. Rarely changes. */
+export function useSupportTeam() {
+  return useQuery<SupportTeammate[]>({
+    queryKey: ["admin", "support", "team"],
+    queryFn: async () => (await readJson<{ team: SupportTeammate[] }>(await fetch("/api/support/team"))).team,
+    staleTime: 5 * 60_000,
   });
 }
 

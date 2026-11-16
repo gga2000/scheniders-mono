@@ -223,6 +223,107 @@ describe("support case actions", () => {
   });
 });
 
+describe("support staff notes and hand-over", () => {
+  const MATE = "44444444-4444-4444-8444-444444444444";
+
+  it.each([
+    ["an empty note", { action: "note", body: "  " }],
+    ["a note over 2000 characters", { action: "note", body: "x".repeat(2001) }],
+    ["a hand-over without a teammate", { action: "hand_over" }],
+    ["a hand-over to something that is not an id", { action: "hand_over", toAdminId: "karrar" }],
+    ["a hand-over note over 2000 characters", { action: "hand_over", toAdminId: MATE, note: "x".repeat(2001) }],
+  ])("refuses %s", async (_name, body) => {
+    const res = await post("support", body);
+    expect(res.status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("writes a note as the signed-in admin, whatever the body claims", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { id: "n1", tenant_id: TENANT }, error: null },
+    );
+    const res = await post("support", { action: "note", body: "  asked Prime  ", p_admin_id: MATE });
+    expect(res.status).toBe(200);
+    expect(rpcCall()?.args).toEqual([
+      "support_case_add_note",
+      { p_case_id: CASE_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "asked Prime" },
+    ]);
+    // A note is its own record; nothing goes to the activity log.
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("hands over with the note and records it in the activity log", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { tenant_id: TENANT, to_name: "Karrar" }, error: null },
+    );
+    const res = await post("support", { action: "hand_over", toAdminId: MATE, note: " needs a refund " });
+    expect(res.status).toBe(200);
+    expect(rpcCall()?.args).toEqual([
+      "support_case_hand_over",
+      { p_case_id: CASE_ID, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_to_admin_id: MATE, p_note: "needs a refund" },
+    ]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      tenant_id: TENANT,
+      action: "support_case_handed_over",
+      details: { case_id: CASE_ID, to_admin_id: MATE, to_name: "Karrar" },
+    });
+  });
+
+  it("hands over without a note", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { tenant_id: TENANT, to_name: "Karrar" }, error: null },
+    );
+    await post("support", { action: "hand_over", toAdminId: MATE });
+    expect(rpcCall()?.args[1]).toMatchObject({ p_note: null });
+  });
+
+  it.each([
+    ["support_handover_bad_target", 400],
+    ["support_handover_same_owner", 409],
+    ["support_case_solved", 409],
+    ["support_note_bad_body", 400],
+  ])("maps the database refusal %s to %i and logs nothing", async (message, status) => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: null, error: { code: "P0001", message } },
+    );
+    const res = await post("support", { action: "hand_over", toAdminId: MATE });
+    expect(res.status).toBe(status);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("lists active support teammates by name and marks the caller", async () => {
+    dbResult = {
+      data: [
+        { user_id: MATE, display_name: "Karrar", email: "k@example.com" },
+        { user_id: SUPPORT_ID, display_name: null, email: "agent@example.com" },
+      ],
+      error: null,
+    };
+    const { GET } = await import("../team/route");
+    const res = await GET(req("/api/support/team", "GET", "support"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      team: [
+        { id: SUPPORT_ID, name: "agent@example.com", isMe: true },
+        { id: MATE, name: "Karrar", isMe: false },
+      ],
+    });
+    expect(dbCalls).toContainEqual({ method: "eq", args: ["is_active", true] });
+    expect(dbCalls).toContainEqual({ method: "in", args: ["admin_role", ["super_admin", "support_staff"]] });
+  });
+
+  it("turns away a team list request with no session", async () => {
+    const { GET } = await import("../team/route");
+    const res = await GET(req("/api/support/team", "GET", null));
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("support phone alerts", () => {
   const SUB = {
     endpoint: "https://fcm.googleapis.com/fcm/send/abc",

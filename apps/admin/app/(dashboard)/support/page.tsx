@@ -147,6 +147,7 @@ function SupportInbox() {
                 key={detail.data.case.id}
                 supportCase={detail.data.case}
                 messages={detail.data.messages}
+                notes={detail.data.notes}
               />
             ) : (
               <div className="flex h-full items-center justify-center">

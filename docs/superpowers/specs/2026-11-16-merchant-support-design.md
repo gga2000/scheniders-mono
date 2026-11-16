@@ -160,3 +160,12 @@ When something hits many shops at once (Prime is slow, a payment method is down)
 - Behaviour suite `support-notices` covers access, refusals, replacement, early end and notices that ran out.
 
 Found on the way: the view-as lock's event trigger saw a new table with a foreign key twice and failed the migration. Fixed in `support_view_lock_once` (one pass per table); the `support-view` suite now creates such a table.
+
+## Wave 6, part 1: staff notes and hand-over
+
+A second person picking up a conversation should not have to read the whole chat to know what was already checked.
+
+- **Staff note.** Under a conversation, staff switch the box from Reply to Staff note. The note sits in the timeline in a dashed amber box marked "the merchant does not see this", with who wrote it and when. Solved conversations take notes too ("Add a staff note").
+- **Hand over.** In the conversation header, Hand over → pick an active teammate (super admin or support staff) → optional note → the teammate becomes the owner. The timeline shows "Noor handed this to Karrar", with the note under it. The merchant is not told. Each hand-over is in the staff activity log (`support_case_handed_over`).
+- Notes live in `support_case_notes`, a table of their own, so nothing the merchant's Help chat reads (`support_messages`) can carry one. Server-only (RLS on, no policies); the service role only reads it and writes through `support_case_add_note` and `support_case_hand_over`. Nobody updates or deletes a note. The new owner's name comes from `admin_users`, never from the caller.
+- Migration `20261116191003_support_case_notes.sql`. Behaviour suite `support-notes`.

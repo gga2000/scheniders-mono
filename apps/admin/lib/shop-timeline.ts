@@ -148,7 +148,9 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
     case "support_case_solved":
       return "Support question solved";
     case "support_case_assigned":
-      return "Support question given to a colleague";
+      return "Took a support question";
+    case "support_case_handed_over":
+      return "Support question handed to a colleague";
     case "support_reached_out":
       return "Reached out to the shop";
     case "support_shop_taken":

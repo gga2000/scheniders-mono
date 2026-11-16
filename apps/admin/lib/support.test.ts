@@ -17,6 +17,8 @@ import {
   filePaths,
   sortInbox,
   supportRefusal,
+  supportTimeline,
+  type SupportCaseNote,
   type SupportCaseRow,
   type SupportMessageRow,
 } from "./support";
@@ -268,5 +270,49 @@ describe("TaskLogSchema", () => {
     const id = "66666666-6666-4666-8666-666666666666";
     expect(TaskLogSchema.parse({ taskId: id, outcome: "done" })).toEqual({ taskId: id, outcome: "done", note: "" });
     expect(TaskLogSchema.parse({ taskId: id, outcome: "later", note: "  call at 6 " }).note).toBe("call at 6");
+  });
+});
+
+describe("supportTimeline", () => {
+  const message = (id: string, at: string): SupportMessageRow => ({
+    id,
+    case_id: "c",
+    sender_kind: "merchant",
+    sender_name: "Ali",
+    body: "hi",
+    context: {},
+    created_at: at,
+    screenshot_url: null,
+    voice_url: null,
+  });
+  const note = (id: string, at: string): SupportCaseNote => ({
+    id,
+    kind: "note",
+    admin_name: "Noor",
+    body: "asked Prime",
+    to_name: null,
+    created_at: at,
+  });
+
+  it("puts staff notes between messages by time", () => {
+    const items = supportTimeline(
+      [message("m1", "2026-11-16T19:00:00Z"), message("m2", "2026-11-16T19:10:00Z")],
+      [note("n1", "2026-11-16T19:05:00Z")],
+    );
+    expect(items.map((i) => (i.type === "message" ? i.message.id : i.note.id))).toEqual(["m1", "n1", "m2"]);
+  });
+
+  it("keeps the message first when a note has the same time", () => {
+    const at = "2026-11-16T19:00:00Z";
+    const items = supportTimeline([message("m1", at)], [note("n1", at)]);
+    expect(items.map((i) => i.type)).toEqual(["message", "note"]);
+  });
+
+  it("reads timestamps with different offsets as the same clock", () => {
+    const items = supportTimeline(
+      [message("m1", "2026-11-16T22:00:00+03:00")],
+      [note("n1", "2026-11-16T18:59:00.123456+00:00")],
+    );
+    expect(items.map((i) => i.type)).toEqual(["note", "message"]);
   });
 });
