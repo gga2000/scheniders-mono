@@ -245,16 +245,16 @@ export default function MerchantDetailPage() {
         <div className="pastel-card p-4 bg-blue-50/50">
           <div className="flex items-center gap-2 text-blue-700 mb-1">
             <ShoppingBag className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Orders</span>
+            <span className="text-xs font-semibold">Orders, all time</span>
           </div>
           <p className="text-lg font-bold text-foreground">{fmt(orderCount)}</p>
         </div>
         <div className="pastel-card p-4 bg-purple-50/50">
           <div className="flex items-center gap-2 text-purple-700 mb-1">
             <Users className="w-4 h-4" />
-            <span className="text-xs font-semibold">Team Members</span>
+            <span className="text-xs font-semibold">Team now</span>
           </div>
-          <p className="text-lg font-bold text-foreground">{team.length}</p>
+          <p className="text-lg font-bold text-foreground">{team.filter((member) => member.status === "active").length}</p>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ export default function MerchantDetailPage() {
         <BillingTab wallet={wallet} transactions={transactions} />
       )}
       {activeTab === "Usage" && <UsageTab usage={usage} />}
-      {activeTab === "Team" && <TeamTab team={team} merchantId={tenant.id} />}
+      {activeTab === "Team" && <TeamTab team={team} />}
       {activeTab === "Notes" && (
         <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
       )}

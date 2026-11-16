@@ -1,13 +1,12 @@
 "use client";
 
-import { Users, UserPlus, Mail, Crown, ShieldCheck, Briefcase, User } from "lucide-react";
+import { Users, Crown, ShieldCheck, Briefcase, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { CopyableText } from "@/components/shared/copyable-text";
 
 interface TeamTabProps {
   team: MerchantDetail["team"];
-  merchantId: string;
 }
 
 type RoleKey = "owner" | "admin" | "manager" | "staff" | "other";
@@ -64,7 +63,8 @@ function roleKey(role: string): RoleKey {
   if (r === "owner") return "owner";
   if (r === "admin") return "admin";
   if (r === "manager") return "manager";
-  if (r === "staff" || r === "member") return "staff";
+  // The merchant app's word for a staff member is "employee".
+  if (r === "staff" || r === "member" || r === "employee") return "staff";
   return "other";
 }
 
@@ -83,6 +83,11 @@ function relativeTime(iso: string): string {
   return `${Math.floor(day / 365)}y ago`;
 }
 
+/** When the member joined; for one who has not signed in to the shop yet, when they were added. */
+function memberSince(member: { joined_at: string | null; invited_at: string | null }): string | null {
+  return member.joined_at ?? member.invited_at;
+}
+
 function initialFor(name: string | null, email: string | null): string {
   if (name) {
     const parts = name.trim().split(/\s+/);
@@ -93,44 +98,21 @@ function initialFor(name: string | null, email: string | null): string {
   return "?";
 }
 
-function TeamEmptyState({ merchantId }: { merchantId: string }) {
+function TeamEmptyState() {
   return (
-    <div className="relative overflow-hidden flex flex-col items-center text-center py-10 px-6 rounded-2xl bg-gradient-to-br from-violet-50 via-fuchsia-50 to-pink-50 dark:from-violet-400/10 dark:via-fuchsia-400/10 dark:to-pink-400/5 border border-violet-200 dark:border-violet-400/20">
-      <div
-        aria-hidden
-        className="absolute -top-12 -right-12 w-44 h-44 rounded-full blur-3xl opacity-40 bg-violet-300"
-      />
-      <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md shadow-violet-500/30 ring-1 ring-white/30 mb-4">
-        <Users className="w-5 h-5 text-white" />
-      </div>
-      <h3 className="relative text-base font-bold text-foreground">No team members yet</h3>
-      <p className="relative text-xs text-foreground/55 mt-1 max-w-[280px] leading-relaxed">
-        This merchant is operating solo. Invite the first teammate or send a quick walkthrough so
-        they can collaborate on orders and the storefront.
+    <div className="pastel-card flex flex-col items-center text-center py-10 px-6">
+      <Users className="w-6 h-6 text-foreground/40 mb-2" />
+      <h3 className="text-sm font-bold text-foreground">This shop has no members</h3>
+      <p className="text-xs text-foreground/55 mt-1 max-w-[320px] leading-relaxed">
+        Every shop should have at least its owner. Nobody can sign in to this one.
       </p>
-      <div className="relative flex items-center gap-2 mt-4">
-        <a
-          href={`/team?invite=${merchantId}`}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-xs font-bold shadow-sm shadow-violet-500/30 ring-1 ring-white/20 hover:scale-105 active:scale-95 transition-all"
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          Invite first teammate
-        </a>
-        <a
-          href={`/outreach-templates?context=team-onboarding&tenant=${merchantId}`}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/80 dark:bg-white/10 text-foreground text-xs font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all"
-        >
-          <Mail className="w-3.5 h-3.5" />
-          Send walkthrough
-        </a>
-      </div>
     </div>
   );
 }
 
-export function TeamTab({ team, merchantId }: TeamTabProps) {
+export function TeamTab({ team }: TeamTabProps) {
   if (team.length === 0) {
-    return <TeamEmptyState merchantId={merchantId} />;
+    return <TeamEmptyState />;
   }
 
   const sorted = [...team].sort((a, b) => {
@@ -138,7 +120,7 @@ export function TeamTab({ team, merchantId }: TeamTabProps) {
     const ra = order[a.role.toLowerCase()] ?? 4;
     const rb = order[b.role.toLowerCase()] ?? 4;
     if (ra !== rb) return ra - rb;
-    return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+    return new Date(memberSince(a) ?? 0).getTime() - new Date(memberSince(b) ?? 0).getTime();
   });
 
   const activeCount = team.filter((m) => m.status === "active").length;
@@ -165,7 +147,7 @@ export function TeamTab({ team, merchantId }: TeamTabProps) {
       <div className="space-y-1.5">
         {sorted.map((member) => {
           const profile = member.user_profiles;
-          const name = profile?.full_name || profile?.email?.split("@")[0] || "Unnamed";
+          const name = profile?.display_name || profile?.email?.split("@")[0] || "Unnamed";
           const email = profile?.email ?? null;
           const isActive = member.status === "active";
           const role = roleKey(member.role);
@@ -173,7 +155,8 @@ export function TeamTab({ team, merchantId }: TeamTabProps) {
           const RoleIcon = meta.icon;
           const seed = profile?.email || member.id;
           const gradient = gradientFor(seed);
-          const initial = initialFor(profile?.full_name ?? null, email);
+          const initial = initialFor(profile?.display_name ?? null, email);
+          const since = memberSince(member);
 
           return (
             <div
@@ -253,10 +236,10 @@ export function TeamTab({ team, merchantId }: TeamTabProps) {
 
               <div className="text-right shrink-0">
                 <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
-                  Joined
+                  {member.joined_at ? "Joined" : "Added"}
                 </p>
                 <p className="text-[11px] font-bold text-foreground/70 tabular-nums mt-0.5">
-                  {relativeTime(member.joined_at)}
+                  {since ? relativeTime(since) : "\u2014"}
                 </p>
               </div>
             </div>

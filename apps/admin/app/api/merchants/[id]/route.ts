@@ -17,6 +17,13 @@ const patchSchema = z
     message: "At least one field required",
   });
 
+/**
+ * A member row with the member's own profile. `tenant_members` has two keys to
+ * `user_profiles` (the member and whoever invited them), so the embed names one.
+ */
+const TEAM_COLUMNS =
+  "id, user_id, role, status, invited_at, joined_at, user_profiles!tenant_members_user_id_fkey(email, display_name, avatar_url)";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -43,8 +50,9 @@ export async function GET(
     ] = await Promise.all([
       // The health score and its parts, as the list shows them.
       supabase.from("tenants").select("*, staff_health_score, staff_health_parts").eq("id", id).single(),
-      supabase.from("wallet").select("*").eq("tenant_id", id).single(),
-      supabase.from("subscriptions").select("*").eq("tenant_id", id).single(),
+      // A shop built from a lead may have no wallet or subscription yet: no row is not an error.
+      supabase.from("wallet").select("*").eq("tenant_id", id).maybeSingle(),
+      supabase.from("subscriptions").select("*").eq("tenant_id", id).maybeSingle(),
       supabase
         .from("wallet_transactions")
         .select("*")
@@ -58,18 +66,21 @@ export async function GET(
         .order("year", { ascending: false })
         .order("month", { ascending: false })
         .limit(6),
+      // tenant_members points at user_profiles twice (user_id and invited_by), so the
+      // member's own profile is named by its key. Only what the Team tab shows is read.
       supabase
         .from("tenant_members")
-        .select("*, user_profiles(*)")
+        .select(TEAM_COLUMNS)
         .eq("tenant_id", id),
       supabase
         .from("admin_notes")
         .select("*")
         .eq("tenant_id", id)
         .order("created_at", { ascending: false }),
+      // Real orders, by the console's one rule: no deleted, draft or test rows.
       supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
+        .from("admin_order_facts")
+        .select("tenant_id", { count: "exact", head: true })
         .eq("tenant_id", id),
       supabase.from("plan_limits").select("*"),
       // The lock the shop sees (Fermi A1), for the staff tools card.
@@ -81,6 +92,21 @@ export async function GET(
         return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
       }
       throw tenantResult.error;
+    }
+
+    // A part of the record that could not be read fails the record. Sent as an
+    // empty list it read as "no team", "no notes", "0 IQD".
+    for (const result of [
+      walletResult,
+      subscriptionResult,
+      transactionsResult,
+      usageResult,
+      teamResult,
+      notesResult,
+      orderCountResult,
+      planLimitsResult,
+    ]) {
+      if (result.error) throw result.error;
     }
 
     const tenant = tenantResult.data;

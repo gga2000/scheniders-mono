@@ -490,7 +490,7 @@ function DialogBody({
           <BillingTab wallet={wallet} transactions={transactions} />
         )}
         {activeTab === "Usage" && <UsageTab usage={usage} />}
-        {activeTab === "Team" && <TeamTab team={team} merchantId={merchantId} />}
+        {activeTab === "Team" && <TeamTab team={team} />}
         {activeTab === "Notes" && (
           <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
         )}
