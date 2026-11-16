@@ -88,10 +88,24 @@ async function failureDetail(response: Response): Promise<string> {
     return text.slice(0, 500);
 }
 
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+/**
+ * The kind of failure a detail describes: its first line with ids and numbers
+ * blanked. "order 4261107005 not found" and "order 4261102017 not found" are
+ * one kind; "db down" in the same job is another, so it opens its own issue
+ * and alerts even when an older issue of that job was archived.
+ */
+export function failureKind(detail: string): string {
+    const firstLine = detail.split("\n", 1)[0] ?? "";
+    const kind = firstLine.replace(UUID, "<id>").replace(/\d+/g, "#").trim().slice(0, 120);
+    return kind === "" ? "no detail" : kind;
+}
+
 /**
  * Report a job run that ended in a 5xx or a throw as a Sentry issue, grouped
- * per job so one broken job is one issue, not one per run.
- * Returns whether the run counts as failed.
+ * per job and failure kind, so one broken job is one issue per cause, not one
+ * per run. Returns whether the run counts as failed.
  */
 async function reportRun(job: string, response: Response): Promise<boolean> {
     if (response.status < 500) return false;
@@ -99,7 +113,7 @@ async function reportRun(job: string, response: Response): Promise<boolean> {
     Sentry.captureMessage(`Job ${job} failed (HTTP ${response.status}): ${detail}`, {
         level: "error",
         tags: { job },
-        fingerprint: ["job-failed", job],
+        fingerprint: ["job-failed", job, String(response.status), failureKind(detail)],
     });
     return true;
 }

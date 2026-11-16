@@ -95,7 +95,9 @@ export function usePrimeConnection(): PrimeConnectionState {
     const token = session?.access_token ?? "";
     const connection = useQuery({
         queryKey: ["prime-link", "connection", tenantId],
-        enabled: token !== "",
+        // Keyed by tenant, so asking before the tenant is known only fetched the
+        // same answer twice (once under an empty key) during the first load.
+        enabled: token !== "" && !!tenantId,
         staleTime: 5 * 60_000,
         queryFn: async (): Promise<PrimeConnectionState> => {
             const res = await authedFetch("/api/prime/connection", { });

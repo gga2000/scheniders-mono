@@ -17,6 +17,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { useWebPush } from "@/hooks/chat/use-web-push";
 import { diag } from "@/lib/diag";
 
@@ -53,10 +54,11 @@ export function useNotificationPush(): NotificationPushState {
 
     const key = ["notification-push-pref", user?.id, tenantId] as const;
     const identified = !!user?.id && !!tenantId;
+    const held = useSideReadsHeld();
 
     const { data: prefEnabled = true, isLoading } = useQuery({
         queryKey: key,
-        enabled: identified,
+        enabled: identified && !held,
         staleTime: 60_000,
         queryFn: async (): Promise<boolean> => {
             if (!user?.id || !tenantId) return true;

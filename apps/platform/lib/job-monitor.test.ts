@@ -10,7 +10,7 @@ const sentry = vi.hoisted(() => ({
 }));
 vi.mock("@sentry/nextjs", () => sentry);
 
-import { CRON_MONITORS, VERCEL_CRON_PATHS, withCronMonitor, withFailureReport } from "./job-monitor";
+import { CRON_MONITORS, VERCEL_CRON_PATHS, failureKind, withCronMonitor, withFailureReport } from "./job-monitor";
 
 const appDir = join(__dirname, "..");
 const vercel = JSON.parse(readFileSync(join(appDir, "vercel.json"), "utf8")) as {
@@ -79,7 +79,7 @@ describe("withCronMonitor", () => {
         );
         expect(sentry.captureMessage).toHaveBeenCalledWith(
             "Job trial-suspend failed (HTTP 500): db down",
-            expect.objectContaining({ fingerprint: ["job-failed", "trial-suspend"], tags: { job: "trial-suspend" } }),
+            expect.objectContaining({ fingerprint: ["job-failed", "trial-suspend", "500", "db down"], tags: { job: "trial-suspend" } }),
         );
     });
 
@@ -107,6 +107,19 @@ describe("withCronMonitor", () => {
         const handler = withCronMonitor(CRON_MONITORS.backup, async () => json(503, { error: "Endpoint is not configured." }));
         await handler(request);
         expect(sentry.captureCheckIn).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }), expect.anything());
+    });
+});
+
+describe("failureKind", () => {
+    it("groups runs that fail the same way, whatever the ids", () => {
+        expect(failureKind("order 4261107005 not found")).toBe(failureKind("order 4261102017 not found"));
+        expect(failureKind("tenant 322f03b9-ea9f-45bc-be98-e206d2ef3366 has no wallet")).toBe("tenant <id> has no wallet");
+    });
+
+    it("keeps a different cause apart, reading only the first line", () => {
+        expect(failureKind("db down")).not.toBe(failureKind("order 1 not found"));
+        expect(failureKind("timeout\n    at fetch (node:internal)")).toBe("timeout");
+        expect(failureKind("")).toBe("no detail");
     });
 });
 

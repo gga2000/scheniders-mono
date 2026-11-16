@@ -3,6 +3,7 @@
 import { useState, useMemo, useDeferredValue, useRef, useLayoutEffect, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { toast } from "@/hooks/use-toast";
 import type { Order, OrderFilters, FilterPreset } from "@/lib/supabase";
@@ -104,9 +105,12 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
     });
 
     const { tenantId } = useAuth();
+    // Saved views paint from localStorage; the server copy can wait for the
+    // first orders list (lib/first-load-hold.ts).
+    const held = useSideReadsHeld();
 
     useEffect(() => {
-        if (!tenantId) return;
+        if (!tenantId || held) return;
         let cancelled = false;
 
         (async () => {
@@ -157,7 +161,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
         })();
 
         return () => { cancelled = true; };
-    }, [tenantId]);
+    }, [tenantId, held]);
 
     // The rows, the window they were loaded for and the preview are deferred
     // TOGETHER, so no render pairs one window's rows with another's coverage,
