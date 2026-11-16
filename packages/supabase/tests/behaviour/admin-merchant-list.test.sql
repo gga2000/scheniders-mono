@@ -298,9 +298,14 @@ BEGIN
         -- Someone who is no longer staff.
         ('converted', _gone, _gone, _shop, false);
 
-    INSERT INTO public.admin_employee_tracking (admin_user_id, action)
-    SELECT _sara, 'tt action' FROM generate_series(1, 1500);
-    INSERT INTO public.admin_employee_tracking (admin_user_id, action) VALUES (_omar, 'tt action'), (_gone, 'tt action');
+    -- The staff log: 1,500 steps by Sara, one by Omar, one by someone gone.
+    INSERT INTO public.admin_activity_logs (admin_user_id, action)
+    SELECT _sara, 'extend_trial' FROM generate_series(1, 1500);
+    INSERT INTO public.admin_activity_logs (admin_user_id, action) VALUES (_omar, 'top_up_wallet'), (_gone, 'top_up_wallet');
+    -- Not Sara's own steps: a note that names her, and the end of a visit already counted.
+    INSERT INTO public.admin_activity_logs (admin_user_id, action) VALUES (_sara, 'mention_in_note'), (_sara, 'support_view_end');
+    -- The old table nothing writes is not read any more.
+    INSERT INTO public.admin_employee_tracking (admin_user_id, action) VALUES (_new, 'tt action');
 
     INSERT INTO public.admin_employee_commissions (admin_user_id, period_start, period_end, amount_earned, status) VALUES
         (_omar, '2026-10-01', '2026-10-31', 25000, 'paid'),
@@ -313,7 +318,7 @@ BEGIN
     PERFORM pg_temp.check('team: Sara added 3, converted 1, built 2, got '
             || _r.leads_added || '/' || _r.leads_converted || '/' || _r.stores_built,
         _r.leads_added = 3 AND _r.leads_converted = 1 AND _r.stores_built = 2);
-    PERFORM pg_temp.check('team: Sara has 1,500 actions, got ' || _r.total_actions, _r.total_actions = 1500);
+    PERFORM pg_temp.check('team: Sara has 1,500 actions from the staff log, got ' || _r.total_actions, _r.total_actions = 1500);
     PERFORM pg_temp.check('team: Sara has no commission', _r.commission_earned = 0 AND _r.commission_pending = 0);
 
     SELECT * INTO _r FROM public.admin_team_counts() c WHERE c.user_id = _omar;

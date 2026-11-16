@@ -25,13 +25,4 @@ CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
     SELECT coalesce(nullif(current_setting('test.role', true), ''), 'service_role')
 $$;
 
-CREATE TABLE public.admin_activity_logs (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    admin_user_id uuid,
-    admin_label text,
-    actor_email text,
-    tenant_id uuid REFERENCES public.tenants (id) ON DELETE SET NULL,
-    action text NOT NULL,
-    details jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now()
-);
+-- public.admin_activity_logs (the staff log) comes from admin-merchant-list.fixture.sql.

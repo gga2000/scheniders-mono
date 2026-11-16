@@ -79,7 +79,8 @@ export default function TeamMemberDetailPage() {
   };
 
   const totalPages = actionsData ? Math.ceil(actionsData.total / 50) : 1;
-  const paginatedActions = actionsData?.actions ?? recent_actions;
+  // Until page 1 loads, the newest of the chart's steps stand in for it.
+  const paginatedActions = actionsData?.actions ?? recent_actions.slice(0, 50);
 
   return (
     <div className="p-4 md:p-6 space-y-5">
