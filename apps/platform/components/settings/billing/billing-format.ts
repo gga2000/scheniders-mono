@@ -13,3 +13,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export function daysUntil(iso: string, now: number = Date.now()): number {
     return Math.max(0, Math.ceil((new Date(iso).getTime() - now) / DAY_MS));
 }
+
+/** Whether `iso` is already past. */
+export function hasPassed(iso: string, now: number = Date.now()): boolean {
+    return new Date(iso).getTime() <= now;
+}
