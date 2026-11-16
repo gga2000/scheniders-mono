@@ -20,7 +20,8 @@ function formatCompactIQD(amount: number): string {
 }
 
 export function MerchantsRollupStrip() {
-  const { data, isLoading } = useMerchantsStats();
+  // No numbers until they are read: a zero here would pass for a real total.
+  const { data } = useMerchantsStats();
 
   const totalWallet = data?.total_wallet_iqd ?? 0;
   const mrr = data?.subscription_mrr_iqd ?? 0;
@@ -41,7 +42,7 @@ export function MerchantsRollupStrip() {
     {
       label: "Total Wallet",
       sublabel: "active + trial only",
-      value: isLoading ? "—" : formatCompactIQD(totalWallet),
+      value: !data ? "—" : formatCompactIQD(totalWallet),
       suffix: "IQD",
       icon: Wallet,
       accent: "text-emerald-700 dark:text-emerald-300",
@@ -51,7 +52,7 @@ export function MerchantsRollupStrip() {
     {
       label: "MRR",
       sublabel: "active subscriptions",
-      value: isLoading ? "—" : formatCompactIQD(mrr),
+      value: !data ? "—" : formatCompactIQD(mrr),
       suffix: "IQD/mo",
       icon: Repeat,
       accent: "text-violet-700 dark:text-violet-300",
@@ -61,7 +62,7 @@ export function MerchantsRollupStrip() {
     {
       label: "ARR",
       sublabel: "MRR × 12",
-      value: isLoading ? "—" : formatCompactIQD(arr),
+      value: !data ? "—" : formatCompactIQD(arr),
       suffix: "IQD/yr",
       icon: Sparkles,
       accent: "text-amber-700 dark:text-amber-300",
@@ -71,7 +72,7 @@ export function MerchantsRollupStrip() {
     {
       label: "Usage Charges",
       sublabel: "last 30d",
-      value: isLoading ? "—" : formatCompactIQD(usage30d),
+      value: !data ? "—" : formatCompactIQD(usage30d),
       suffix: "IQD",
       icon: ShoppingBag,
       accent: "text-rose-700 dark:text-rose-300",
@@ -81,8 +82,8 @@ export function MerchantsRollupStrip() {
     {
       label: "Active",
       sublabel: undefined,
-      value: isLoading ? "—" : String(activeCount),
-      suffix: `of ${total}`,
+      value: !data ? "—" : String(activeCount),
+      suffix: data ? `of ${total}` : undefined,
       icon: CheckCircle2,
       accent: "text-sky-700 dark:text-sky-300",
       iconWrap:

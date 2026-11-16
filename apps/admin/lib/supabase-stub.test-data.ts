@@ -24,13 +24,17 @@ export function supabaseStub() {
   function from(table: string) {
     let rows = state.tables[table] ?? [];
     let window: [number, number] = [0, SERVER_MAX_ROWS - 1];
+    let parseError: string | null = null;
     const note = (method: string, ...args: unknown[]) => {
       state.calls.push({ on: `${table}.${method}`, args });
       return builder;
     };
     const builder = {
       select: (...args: unknown[]) => note("select", ...args),
-      or: (...args: unknown[]) => note("or", ...args),
+      or: (filter: string) => {
+        if (!apiCanParse(filter)) parseError = `failed to parse logic tree ((${filter}))`;
+        return note("or", filter);
+      },
       gte: (...args: unknown[]) => note("gte", ...args),
       lte: (...args: unknown[]) => note("lte", ...args),
       order: (...args: unknown[]) => note("order", ...args),
@@ -50,6 +54,7 @@ export function supabaseStub() {
         if (state.failing.has(table)) {
           return resolve({ data: null, error: { message: "connection lost" }, count: null });
         }
+        if (parseError) return resolve({ data: null, error: { message: parseError }, count: null });
         const last = Math.min(window[1], window[0] + SERVER_MAX_ROWS - 1);
         return resolve({ data: rows.slice(window[0], last + 1), error: null, count: rows.length });
       },
@@ -69,6 +74,42 @@ export function supabaseStub() {
   const callsTo = (on: string) => state.calls.filter((call) => call.on === on).map((call) => call.args);
 
   return { state, client: { from, rpc }, tablesRead, callsTo };
+}
+
+/**
+ * Whether the API can read an "or" filter. Every part must be a plain column
+ * name, an operator and a value, or and(...) of such parts: the live API
+ * answers a cast like "display_id::text.ilike.1%" with a parse error.
+ */
+function apiCanParse(filter: string): boolean {
+  const parts: string[] = [];
+  let depth = 0;
+  let inQuotes = false;
+  let afterBackslash = false;
+  let part = "";
+  for (const ch of filter) {
+    if (afterBackslash || (inQuotes && ch === "\\")) {
+      afterBackslash = !afterBackslash;
+      part += ch;
+      continue;
+    }
+    if (ch === '"') inQuotes = !inQuotes;
+    if (!inQuotes && ch === "(") depth++;
+    if (!inQuotes && ch === ")") depth--;
+    if (!inQuotes && depth === 0 && ch === ",") {
+      parts.push(part);
+      part = "";
+      continue;
+    }
+    part += ch;
+  }
+  parts.push(part);
+  if (inQuotes || depth !== 0) return false;
+  return parts.every((one) => {
+    const group = /^(?:and|or)\((.*)\)$/.exec(one);
+    if (group) return apiCanParse(group[1] ?? "");
+    return /^[a-z_][a-z0-9_]*\.(?:not\.)?(?:eq|neq|gt|gte|lt|lte|like|ilike|is|in)\..+$/.test(one);
+  });
 }
 
 /** One row of admin_merchant_list_stats for a shop with nothing. */

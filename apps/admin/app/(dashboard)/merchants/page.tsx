@@ -28,6 +28,7 @@ import { MerchantEmptyState } from "@/components/merchants/merchant-empty-state"
 import { MerchantCardGridSkeleton } from "@/components/merchants/merchant-card-skeleton";
 import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortcuts-overlay";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { LoadError } from "@/components/shared/load-error";
 import { useRealtimePulse } from "@/store/use-realtime-pulse";
 import {
   EASE_CROSSFADE,
@@ -67,6 +68,9 @@ export default function MerchantsPage() {
     merchants,
     total,
     isLoading,
+    isError,
+    isFetching,
+    refetch,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
@@ -240,7 +244,7 @@ export default function MerchantsPage() {
             <div className="flex flex-col leading-none">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-black text-foreground dark:text-white">
-                  {isLoading ? "—" : total}
+                  {isLoading || isError ? "—" : total}
                 </span>
                 <span className="text-xs font-semibold text-foreground-muted uppercase tracking-wide">
                   {total === 1 ? "Merchant" : "Merchants"}
@@ -340,6 +344,8 @@ export default function MerchantsPage() {
           >
             <MerchantCardGridSkeleton count={8} />
           </motion.div>
+        ) : isError && merchants.length === 0 ? (
+          <LoadError what="the merchants" onRetry={() => refetch()} retrying={isFetching} />
         ) : merchants.length === 0 ? (
           <MerchantEmptyState
             hasFilters={hasActiveFilters}

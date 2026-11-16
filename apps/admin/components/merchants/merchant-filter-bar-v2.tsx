@@ -276,7 +276,8 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
   ].filter(Boolean).length;
 
   // ── Status counts (server-aggregated; ignore current status filter
-  // so all pills show their counts regardless of which one is active). ──
+  // so all pills show their counts regardless of which one is active).
+  // Until they are read the pills show a dash: a 0 would pass for a count. ──
   const { data: stats } = useMerchantsStats({ ignoreStatusFilter: true });
   const statusCounts: Record<string, number> = {
     "": stats?.total ?? 0,
@@ -344,7 +345,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
                     active ? "bg-black/10 dark:bg-white/15" : "bg-current/15"
                   )}
                 >
-                  {count}
+                  {stats ? count : "—"}
                 </span>
               </button>
             );
