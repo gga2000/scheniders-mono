@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { storeAddress } from "@scheniders/shared/store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
+import { shopFormHref } from "@/lib/shop-actions";
 
 interface ContextMenuItem {
   label: string;
@@ -44,12 +45,12 @@ export function MerchantContextMenu({
     {
       label: "Top Up Wallet",
       icon: <Wallet className="w-3.5 h-3.5" />,
-      action: () => router.push(`/billing?topup=${merchantId}`),
+      action: () => router.push(shopFormHref(merchantId, "money")),
     },
     {
       label: "Extend Trial",
       icon: <Clock className="w-3.5 h-3.5" />,
-      action: () => router.push(`/merchants/${merchantId}?action=extend-trial`),
+      action: () => router.push(shopFormHref(merchantId, "days")),
     },
     {
       label: "Copy Slug",

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { hasPermission } from "@/lib/admin-permissions";
-import { endAfterDays, freeDaysKind, isSubscriptionRunning, moreActions, typedAmount, type ShopFacts } from "./shop-actions";
+import {
+  endAfterDays,
+  freeDaysKind,
+  isSubscriptionRunning,
+  moreActions,
+  shopFormFrom,
+  shopFormHref,
+  typedAmount,
+  type ShopFacts,
+} from "./shop-actions";
 import type { AdminRole } from "@/types/admin";
 
 const as = (role: AdminRole) => (action: Parameters<typeof hasPermission>[1]) => hasPermission(role, action);
@@ -77,5 +86,28 @@ describe("small readers", () => {
     expect(["trialing", "active", "past_due"].every(isSubscriptionRunning)).toBe(true);
     expect(isSubscriptionRunning("cancelled")).toBe(false);
     expect(isSubscriptionRunning(undefined)).toBe(false);
+  });
+});
+
+describe("links that open a shop page form", () => {
+  it("open the shop's own page, with the form named in the link", () => {
+    expect(shopFormHref("t1", "money")).toBe("/merchants/t1?action=add-money");
+    expect(shopFormHref("t1", "days")).toBe("/merchants/t1?action=free-days");
+  });
+
+  it("read back the form each link names", () => {
+    for (const form of ["money", "days"] as const) {
+      const action = new URL(shopFormHref("t1", form), "https://admin.test").searchParams.get("action");
+      expect(shopFormFrom(action)).toBe(form);
+    }
+  });
+
+  it("still open free days from the menu's old extend-trial link", () => {
+    expect(shopFormFrom("extend-trial")).toBe("days");
+  });
+
+  it("open nothing for no action or a word it does not know", () => {
+    expect(shopFormFrom(null)).toBeNull();
+    expect(shopFormFrom("delete-shop")).toBeNull();
   });
 });
