@@ -201,22 +201,10 @@ export default function ReportsPage() {
         );
     }
 
-    if (current.length === 0 && returns.length === 0) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-                <div className="text-center pastel-card p-12 space-y-6">
-                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-6">
-                        <FileBarChart className="w-10 h-10 text-indigo-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">{t("reports.noData")}</h2>
-                    <p className="text-muted">{t("reports.noDataDesc")}</p>
-                    <div className="flex justify-center">
-                        <CustomDatePicker dateRange={dateRange} onChange={setDateRange} presets={datePresets} />
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // A period with no orders keeps the page (header, picker, export) and says
+    // so in place, rather than replacing everything with a "start adding orders"
+    // screen a store with thousands of orders does not need.
+    const periodIsEmpty = current.length === 0 && returns.length === 0;
 
     return (
         <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
@@ -280,68 +268,78 @@ export default function ReportsPage() {
                     </div>
                 </motion.div>
 
-                {/* Attention Flags (if any) */}
-                {metrics.attentionFlags.length > 0 && (
-                    <AttentionFlagsSummary data={metrics.attentionFlags} />
+                {periodIsEmpty ? (
+                    <div className="pastel-card p-12 text-center" data-reports-empty>
+                        <FileBarChart className="w-10 h-10 text-indigo-600 mx-auto mb-4" aria-hidden />
+                        <h2 className="text-xl font-bold text-foreground">{t("reports.noData")}</h2>
+                        <p className="text-muted mt-2">{t("reports.noDataDesc")}</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Attention Flags (if any) */}
+                        {metrics.attentionFlags.length > 0 && (
+                            <AttentionFlagsSummary data={metrics.attentionFlags} />
+                        )}
+
+                        {/* KPI Cards Row */}
+                        <KPICards metrics={metrics.kpis} returnsCount={returns.length} />
+
+                        {/* Status Flow */}
+                        <StatusFlowDiagram data={metrics.statusFlow} />
+
+                        {/* Three Column Layout */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-1">
+                                <ContactHeatmap data={metrics.contactAttempts} />
+                            </div>
+                            <div className="lg:col-span-1">
+                                <TimeAnalysis data={metrics.timeAnalysis} />
+                            </div>
+                            <div className="lg:col-span-1">
+                                <RejectionBreakdown data={metrics.rejectionReasons} />
+                            </div>
+                        </div>
+
+                        {/* Returns & Rejections Analysis */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <ReturnBreakdown data={returnAnalytics} />
+                        </div>
+
+                        {/* City Performance (Full Width) */}
+                        <CityPerformance data={metrics.cityPerformance} />
+
+                        {/* Period Comparison */}
+                        <PeriodComparison data={periodComparison} currentRange={dateRange} />
+
+                        {/* Two Column Layout: True Employee Performance + Source Performance */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <TrueEmployeePerformance
+                                data={realEmployeeMetrics}
+                                loading={employeeLoading}
+                                error={employeeError}
+                                onRefresh={refreshEmployeeMetrics}
+                            />
+                            <SourcePerformance data={sourceMetrics} />
+                        </div>
+
+                        {/* Ad-Channel Performance (Full Width) */}
+                        <ChannelPerformance
+                            data={channelPerformance.data}
+                            loading={channelPerformance.isPending}
+                            error={channelPerformance.error}
+                            onRetry={() => { void channelPerformance.refetch(); }}
+                        />
+
+                        {/* Batch Analytics (Full Width) */}
+                        <BatchAnalytics
+                            batches={batchData}
+                            summary={batchSummary}
+                            loading={batchLoading}
+                            error={batchError}
+                            onRefresh={refreshBatchAnalytics}
+                        />
+                    </>
                 )}
-
-                {/* KPI Cards Row */}
-                <KPICards metrics={metrics.kpis} />
-
-                {/* Status Flow */}
-                <StatusFlowDiagram data={metrics.statusFlow} />
-
-                {/* Three Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1">
-                        <ContactHeatmap data={metrics.contactAttempts} />
-                    </div>
-                    <div className="lg:col-span-1">
-                        <TimeAnalysis data={metrics.timeAnalysis} />
-                    </div>
-                    <div className="lg:col-span-1">
-                        <RejectionBreakdown data={metrics.rejectionReasons} />
-                    </div>
-                </div>
-
-                {/* Returns & Rejections Analysis */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ReturnBreakdown data={returnAnalytics} />
-                </div>
-
-                {/* City Performance (Full Width) */}
-                <CityPerformance data={metrics.cityPerformance} />
-
-                {/* Period Comparison */}
-                <PeriodComparison data={periodComparison} currentRange={dateRange} />
-
-                {/* Two Column Layout: True Employee Performance + Source Performance */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <TrueEmployeePerformance
-                        data={realEmployeeMetrics}
-                        loading={employeeLoading}
-                        error={employeeError}
-                        onRefresh={refreshEmployeeMetrics}
-                    />
-                    <SourcePerformance data={sourceMetrics} />
-                </div>
-
-                {/* Ad-Channel Performance (Full Width) */}
-                <ChannelPerformance
-                    data={channelPerformance.data}
-                    loading={channelPerformance.isPending}
-                    error={channelPerformance.error}
-                    onRetry={() => { void channelPerformance.refetch(); }}
-                />
-
-                {/* Batch Analytics (Full Width) */}
-                <BatchAnalytics
-                    batches={batchData}
-                    summary={batchSummary}
-                    loading={batchLoading}
-                    error={batchError}
-                    onRefresh={refreshBatchAnalytics}
-                />
 
             </div>
         </div>

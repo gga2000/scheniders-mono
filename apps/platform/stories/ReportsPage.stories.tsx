@@ -29,7 +29,7 @@ function Reports({ rows: source = rows }: { rows?: typeof rows } = {}) {
         <LanguageProvider>
             <div className="p-8 space-y-8 bg-[var(--background)]" style={{ width: 1440 }}>
                 <AttentionFlagsSummary data={calculateAttentionFlags(current)} />
-                <KPICards metrics={calculateKPIs(current, previous)} />
+                <KPICards metrics={calculateKPIs(current, previous)} returnsCount={returns.length} />
                 <StatusFlowDiagram data={calculateStatusFlow(current)} />
                 <div className="grid grid-cols-3 gap-6">
                     <ContactHeatmap data={calculateContactAttempts(current)} />

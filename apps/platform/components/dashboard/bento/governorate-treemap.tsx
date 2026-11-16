@@ -63,8 +63,12 @@ export function GovernorateTreemap({ tiles, label, describe, onTip, onTipEnd }: 
                 let fontSize = Math.min(30, (w - 24 - 52) / (digits * 0.62));
                 let showShare = true;
                 if (fontSize < 17) { showShare = false; fontSize = Math.min(30, (w - 24) / (digits * 0.62)); }
+                // The name comes first: a bare number on a tile says nothing about
+                // where the orders went. The count shrinks to fit beneath it, and
+                // the tooltip still has both when neither fits.
+                const showName = h >= 40 && w >= 72;
+                if (showName) fontSize = Math.min(fontSize, (h - 24 - 16) / 0.9);
                 const showValue = fontSize >= 12 && h >= 54 && w >= 56;
-                const showName = h >= 78 && w >= 92;
                 return (
                     <div
                         key={r.key}

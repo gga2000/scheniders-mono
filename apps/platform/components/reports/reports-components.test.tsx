@@ -1,12 +1,16 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { PeriodComparison } from "./period-comparison";
 import { CityPerformance } from "./city-performance";
+import { KPICards } from "./kpi-cards";
+import { ReturnBreakdown } from "./return-breakdown";
 import type { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
-import type { CityPerformanceMetrics } from "@/lib/analytics/reports-calculations";
+import { NO_RETURN_REASON, type CityPerformanceMetrics, type KPIMetrics, type ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 
 afterEach(cleanup);
+// The returns donut sizes itself with a ResizeObserver, which jsdom lacks.
+vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
 function inLanguage(language: "en" | "ar", ui: React.ReactElement) {
     localStorage.setItem("schneiders_language", language);
@@ -44,7 +48,7 @@ describe("PeriodComparison", () => {
 
 describe("CityPerformance", () => {
     const city = (name: string, orders: number, days: number): CityPerformanceMetrics => ({
-        city: name, governorateCode: "BG", totalOrders: orders, delivered: orders - 1, rejected: 1,
+        city: name, totalOrders: orders, delivered: orders - 1, rejected: 1,
         deliveryRate: 90, avgDeliveryDays: days, noResponse: 0, trend: "stable",
     });
 
@@ -55,5 +59,55 @@ describe("CityPerformance", () => {
         expect(podium).toEqual(["Basra", "Najaf", "Erbil"]);
         expect(container.textContent).toContain("3.0 يوم");
         expect(container.textContent).not.toMatch(/\dd\b/);
+    });
+});
+
+const kpis: KPIMetrics = {
+    totalOrders: 8, totalOrdersChange: 0, deliveryRate: 50, deliveryRateChange: 0, contactSuccessRate: 60, contactSuccessChange: 0,
+    rejectionRate: 10, rejectionRateChange: 0, noResponseRate: 14.3, noResponseChange: 0, avgProcessingTime: 5, avgProcessingTimeChange: 0,
+};
+
+describe("KPICards", () => {
+    it("says on the sales card how it adds up to the Orders page's count when the period has returns", () => {
+        const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={1} />);
+        expect(container.querySelector("[data-kpi-note]")?.textContent).toBe("+ مرتجع واحد = 9 في صفحة الطلبات");
+        // The note is on the card, not hidden in a hover.
+        expect(container.querySelector("[title]")?.getAttribute("title")).not.toMatch(/المرتجعات/);
+    });
+
+    it("adds no note when there are no returns, because the two counts already agree", () => {
+        const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={0} />);
+        expect(container.querySelector("[data-kpi-note]")).toBeNull();
+    });
+});
+
+function returnsData(over: Partial<ReturnAnalyticsMetrics>): ReturnAnalyticsMetrics {
+    return {
+        totalReturns: 9, totalReturnValue: 342000, returnRate: 4.7, avgReturnValue: 38000,
+        returnsByReason: [{ reason: NO_RETURN_REASON, count: 9, percentage: 100, totalAmount: 342000, avgAmount: 38000, topCity: "بغداد" }],
+        returnsByCity: [{ city: "بغداد", count: 9, totalAmount: 342000 }],
+        returnTrend: "stable",
+        ...over,
+    };
+}
+
+describe("ReturnBreakdown", () => {
+    it("labels the return rate and never ranks a missing reason as the top reason", () => {
+        const { container } = inLanguage("ar", <ReturnBreakdown data={returnsData({})} />);
+        expect(container.querySelector("[data-return-rate]")?.textContent).toBe("4.7% من المُسلَّمة");
+        expect(container.querySelector("[data-return-insight]")?.textContent).toBe("لم يُسجَّل سبب لأي مرتجع في هذه الفترة");
+        expect(container.textContent).toContain("بلا سبب مسجَّل");
+        expect(container.textContent).not.toContain("غير محدد");
+    });
+
+    it("names the most common recorded reason even when unrecorded ones outnumber it", () => {
+        const data = returnsData({
+            returnsByReason: [
+                { reason: NO_RETURN_REASON, count: 6, percentage: 66.7, totalAmount: 1, avgAmount: 1, topCity: "بغداد" },
+                { reason: "المقاس صغير", count: 3, percentage: 33.3, totalAmount: 1, avgAmount: 1, topCity: "البصرة" },
+            ],
+        });
+        const { container } = inLanguage("ar", <ReturnBreakdown data={data} />);
+        expect(container.querySelector("[data-return-insight]")?.textContent).toBe("أكثر سبب للمرتجعات: المقاس صغير");
     });
 });
