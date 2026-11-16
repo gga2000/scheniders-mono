@@ -80,7 +80,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
           <label htmlFor="shop-note" className="text-[13px] font-semibold text-foreground">
             Add a note
           </label>
-          <div className="mt-2 rounded-lg border border-[var(--card-border)] focus-within:border-foreground/40">
+          <div className="mt-2">
             <MentionTextarea
               value={note}
               onChange={setNote}
@@ -88,7 +88,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
               autoFocus={focusNote}
               rows={2}
               placeholder="What should colleagues know before they call? Use @ to name someone."
-              className="w-full resize-none bg-transparent px-3 py-2.5 text-[15px] text-foreground placeholder:text-foreground/45 focus:outline-none"
+              className="bg-transparent px-3 py-2.5 text-[15px] placeholder:text-foreground/45 focus:border-foreground/40 focus:ring-0"
             />
           </div>
           <div className="mt-2 flex items-center justify-between gap-3">
@@ -183,7 +183,9 @@ function Row({ entry }: { entry: TimelineEntry }) {
           </p>
         )}
       </div>
-      {entry.amount !== null ? (
+      {entry.amount === 0 ? (
+        <p className="text-right text-[13px] text-foreground/55">No fee</p>
+      ) : entry.amount !== null ? (
         <div className="text-right">
           <p
             className={cn(

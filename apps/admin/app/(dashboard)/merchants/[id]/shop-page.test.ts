@@ -1,7 +1,7 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoadFailure } from "@/lib/load-failure";
 
 /*
@@ -164,5 +164,52 @@ describe("the shop page's one timeline (board m5)", () => {
     expect(html).toContain("wallet 945");
     expect(html).not.toContain(">Order fee<");
     expect(html).not.toContain("Show older");
+  });
+});
+
+describe("the Usage and Team tabs, in plain words", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-16T09:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts this month's orders against what the plan allows, and never calls a count money", () => {
+    search = new URLSearchParams("tab=Usage");
+    query = {
+      ...query,
+      data: {
+        ...shop,
+        planLimits: { plan: "starter", max_orders_per_month: 500, max_team_members: 3, base_price_iqd: 9000, order_price_iqd: 55, overage_price_iqd: 0, features: {} },
+      },
+    };
+    const html = render();
+    expect(html).toContain("Orders counted this month");
+    expect(html).toContain(" of 500 the plan allows");
+    expect(html).toContain("328");
+    expect(html).toContain("Oct 2026");
+    expect(html).not.toContain("billed");
+    expect(html).not.toMatch(/Charged/);
+  });
+
+  it("lists the team owner first, with the role and since when in words", () => {
+    search = new URLSearchParams("tab=Team");
+    const member = (id: string, role: string, name: string, joined: string | null) => ({
+      id, user_id: id, role, status: "active", invited_at: "2026-11-01T09:00:00Z", joined_at: joined,
+      user_profiles: { email: `${id}@shop.iq`, display_name: name, avatar_url: null },
+    });
+    query = {
+      ...query,
+      data: { ...shop, team: [member("e1", "employee", "Sara Ali", null), member("o1", "owner", "Karim", "2026-11-02T09:00:00Z")] },
+    };
+    const html = render();
+    expect(html).toContain("2 active members");
+    expect(html.indexOf("Karim")).toBeLessThan(html.indexOf("Sara Ali"));
+    expect(html).toContain("Owner");
+    expect(html).toContain("Staff");
+    expect(html).toContain("Joined Mon 2 Nov");
+    expect(html).toContain("Added Sun 1 Nov, not signed in yet");
   });
 });

@@ -1,175 +1,82 @@
 "use client";
 
-import { useMemo } from "react";
-import { BarChart3, ShoppingBag, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { usageMonthNow } from "@/lib/usage-month";
-import { formatCount, formatIQD } from "@/lib/format";
-
-const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
+import { formatCount } from "@/lib/format";
 
 interface UsageTabProps {
   usage: MerchantDetail["usage"];
+  planLimits: MerchantDetail["planLimits"];
 }
 
-export function UsageTab({ usage }: UsageTabProps) {
-  const { sorted, totals, peakOrders } = useMemo(() => {
-    const sorted = [...usage].sort(
-      (a, b) => b.year - a.year || b.month - a.month
-    );
-    const totals = usage.reduce(
-      (acc, u) => ({
-        orders: acc.orders + (u.orders_count ?? 0),
-        charged: acc.charged + (u.orders_charged ?? 0),
-      }),
-      { orders: 0, charged: 0 }
-    );
-    const peakOrders = Math.max(1, ...usage.map((u) => u.orders_count ?? 0));
-    return { sorted, totals, peakOrders };
-  }, [usage]);
+const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
 
-  const current = usageMonthNow();
-
-  if (usage.length === 0) {
-    return (
-      <div className="pastel-card p-5 md:p-6">
-        <h2 className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1.5 mb-4">
-          <BarChart3 className="w-3 h-3" />
-          Monthly usage
-        </h2>
-        <div className="flex flex-col items-center justify-center py-10 text-foreground/40">
-          <div className="w-12 h-12 rounded-2xl bg-foreground/5 flex items-center justify-center mb-3">
-            <BarChart3 className="w-5 h-5" />
-          </div>
-          <p className="text-sm font-medium">No usage data yet</p>
-          <p className="text-xs text-foreground/35 mt-1">
-            Monthly orders and charges will appear here.
-          </p>
-        </div>
-      </div>
-    );
-  }
+/**
+ * The orders that count toward the plan, this month against what the plan
+ * allows, then month by month. The database counts each order once in
+ * `orders_count` and starts the count again at each renewal. `orders_charged`
+ * always holds the same number and `team_members_count` is set once at sign-up, so
+ * neither is shown: the Team tab counts the team.
+ */
+export function UsageTab({ usage, planLimits }: UsageTabProps) {
+  const sorted = [...usage].sort((a, b) => b.year - a.year || b.month - a.month);
+  const now = usageMonthNow();
+  const current = sorted.find((row) => row.year === now.year && row.month === now.month);
+  const used = current?.orders_count ?? 0;
+  const allowed = planLimits && planLimits.max_orders_per_month > 0 ? planLimits.max_orders_per_month : null;
+  const share = allowed ? Math.min(1, used / allowed) : 0;
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-2xl p-5 border bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-50 dark:from-sky-400/10 dark:via-cyan-400/10 dark:to-blue-400/10 border-sky-200 dark:border-sky-400/30">
-        <div
-          aria-hidden
-          className="absolute -top-12 -right-12 w-44 h-44 rounded-full blur-3xl opacity-30 bg-sky-300"
-        />
-        <p className="relative text-[10px] uppercase tracking-[0.1em] font-black text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
-          <BarChart3 className="w-3 h-3" />
-          {sorted.length === 1 ? "Usage, newest month" : `Usage, newest ${sorted.length} months`}
+      <section className="pastel-card p-5" aria-label="Orders this month">
+        <p className="text-[13px] text-foreground/60">Orders counted this month</p>
+        <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">
+          {formatCount(used)}
+          {allowed !== null && (
+            <span className="text-[15px] font-normal text-foreground/60"> of {formatCount(allowed)} the plan allows</span>
+          )}
         </p>
-        <div className="relative grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
-              <ShoppingBag className="w-2.5 h-2.5" />
-              Orders
-            </p>
-            <p className="text-2xl font-black tabular-nums leading-none mt-1.5 text-sky-900 dark:text-sky-200 tracking-tight">
-              {formatCount(totals.orders)}
-            </p>
+        {allowed !== null && (
+          <div className="mt-3 h-1.5 rounded-full bg-foreground/[0.08]" aria-hidden>
+            <div
+              className={cn(
+                "h-1.5 rounded-full",
+                share >= 1 ? "bg-rose-600" : share >= 0.8 ? "bg-amber-500" : "bg-foreground/50",
+              )}
+              style={{ width: `${Math.max(share > 0 ? 2 : 0, share * 100)}%` }}
+            />
           </div>
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
-              <Coins className="w-2.5 h-2.5" />
-              Charged
-            </p>
-            <p className="text-2xl font-black tabular-nums leading-none mt-1.5 text-amber-700 dark:text-amber-300 tracking-tight">
-              {formatIQD(totals.charged)}
-            </p>
-          </div>
-        </div>
-      </div>
+        )}
+        <p className="mt-2 text-[13px] text-foreground/55">The count starts again at each renewal.</p>
+      </section>
 
-      <div className="pastel-card p-5 md:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1.5">
-            <BarChart3 className="w-3 h-3" />
-            Monthly breakdown
-          </h2>
-          <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 tabular-nums">
-            {sorted.length} {sorted.length === 1 ? "month" : "months"}
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          {sorted.map((u) => {
-            const monthDate = new Date(u.year, u.month - 1);
-            const monthLabel = monthDate.toLocaleDateString("en-US", {
-              month: "short",
-              year: "numeric",
-            });
-            const isCurrent = u.year === current.year && u.month === current.month;
-            const orderRatio = (u.orders_count ?? 0) / peakOrders;
-            const chargeRatio =
-              u.orders_count > 0 ? u.orders_charged / u.orders_count : 0;
-
-            return (
-              <div
-                key={`${u.year}-${u.month}`}
-                className={cn(
-                  "rounded-2xl border p-4 transition-colors",
-                  isCurrent
-                    ? "bg-gradient-to-br from-violet-50 via-fuchsia-50 to-pink-50 dark:from-violet-400/10 dark:via-fuchsia-400/10 dark:to-pink-400/10 border-violet-200 dark:border-violet-400/30"
-                    : "border-foreground/[0.06] bg-foreground/[0.025] hover:bg-foreground/[0.04]"
-                )}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-black text-foreground tracking-tight">
-                      {monthLabel}
-                    </p>
-                    {isCurrent && (
-                      <span className="px-2 py-0.5 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-[9px] font-black uppercase tracking-wider shadow-sm shadow-violet-500/30 ring-1 ring-white/20">
-                        Current
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 tabular-nums">
-                    {Math.round(chargeRatio * 100)}% billed
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
-                      <ShoppingBag className="w-2.5 h-2.5" />
-                      Orders
-                    </p>
-                    <p className="text-lg font-black tabular-nums mt-1 text-foreground">
-                      {fmt(u.orders_count ?? 0)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45 flex items-center gap-1">
-                      <Coins className="w-2.5 h-2.5" />
-                      Charged
-                    </p>
-                    <p className="text-lg font-black tabular-nums mt-1 text-amber-700 dark:text-amber-300">
-                      {fmt(u.orders_charged ?? 0)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="relative h-1 rounded-full bg-foreground/[0.06] overflow-hidden mt-3">
-                  <div
-                    className={cn(
-                      "absolute left-0 top-0 bottom-0 rounded-full transition-all duration-500",
-                      isCurrent
-                        ? "bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                        : "bg-gradient-to-r from-sky-400 to-cyan-500"
-                    )}
-                    style={{ width: `${Math.max(2, orderRatio * 100)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <section className="pastel-card p-5" aria-label="Month by month">
+        <h2 className="mb-2 text-[13px] font-semibold text-foreground/60">Month by month</h2>
+        {sorted.length === 0 ? (
+          <p className="py-4 text-[13px] text-foreground/60">No orders counted yet.</p>
+        ) : (
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[13px] text-foreground/55">
+                <th className="py-2 font-medium">Month</th>
+                <th className="py-2 text-right font-medium">Orders counted</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--card-border)]">
+              {sorted.map((row) => (
+                <tr key={`${row.year}-${row.month}`} className="text-[15px] tabular-nums text-foreground">
+                  <td className="py-2.5">
+                    {MONTH.format(Date.UTC(row.year, row.month - 1, 1))}
+                    {row === current && <span className="text-[13px] text-foreground/55"> · now</span>}
+                  </td>
+                  <td className="py-2.5 text-right">{formatCount(row.orders_count ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }
