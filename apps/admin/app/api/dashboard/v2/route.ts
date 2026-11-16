@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { fetchDashboardStats, fetchIncomeStats, fetchUsageStats } from "@/lib/console-stats";
+import { everyRow } from "@/lib/every-row";
 import {
   calculatePlatformPipeline,
   calculateTopMerchants,
@@ -32,33 +33,48 @@ export async function GET(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Orders and the wallet ledger are counted in the database, never fetched
-    // as rows: the API returns at most 1,000 of them.
-    const [stats, usage, income, tenantsResult, subscriptionsResult, activityResult, membersResult] =
-      await Promise.all([
-        fetchDashboardStats(supabase),
-        fetchUsageStats(supabase, null),
-        fetchIncomeStats(supabase),
+    // as rows: the API returns at most 1,000 of them. Shops, subscriptions and
+    // team members are read a page at a time for the same reason. A failed
+    // read is an error for the whole page: empty lists drew zeros that read
+    // like a quiet day.
+    const [stats, usage, income, shopRows, subscriptionRows, activityResult, memberRows] = await Promise.all([
+      fetchDashboardStats(supabase),
+      fetchUsageStats(supabase, null),
+      fetchIncomeStats(supabase),
+      everyRow((from, to) =>
         supabase
           .from("tenants")
           .select("id, business_name, plan, status, created_at, branding, config_version, wallet(balance_iqd, total_topped_up_iqd)")
           // The demo store (Fermi B13) is in no platform number.
-          .eq("is_demo", false),
-        supabase.from("subscriptions").select("tenant_id, plan, status, pending_plan"),
-        supabase.from("admin_activity_logs").select("*").order("created_at", { ascending: false }).limit(20),
-        supabase.from("tenant_members").select("tenant_id").eq("status", "active"),
-      ]);
-
-    // A failed query is an error for the whole page. Answering with empty
-    // lists drew zeros that read like a quiet day.
-    const failed = [tenantsResult, subscriptionsResult, activityResult, membersResult].find((r) => r.error);
-    if (failed?.error) throw new Error(failed.error.message);
+          .eq("is_demo", false)
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      everyRow((from, to) =>
+        supabase
+          .from("subscriptions")
+          .select("tenant_id, plan, status, pending_plan")
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      supabase.from("admin_activity_logs").select("*").order("created_at", { ascending: false }).limit(20),
+      everyRow((from, to) =>
+        supabase
+          .from("tenant_members")
+          .select("tenant_id")
+          .eq("status", "active")
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+    ]);
+    if (activityResult.error) throw new Error(activityResult.error.message);
 
     const memberCountByTenant: Record<string, number> = {};
-    for (const m of membersResult.data ?? []) {
+    for (const m of memberRows) {
       memberCountByTenant[m.tenant_id] = (memberCountByTenant[m.tenant_id] || 0) + 1;
     }
 
-    const tenants: DashboardTenant[] = (tenantsResult.data ?? []).map((t) => {
+    const tenants: DashboardTenant[] = shopRows.map((t) => {
       const wallet = Array.isArray(t.wallet) ? t.wallet[0] : t.wallet;
       const branding = t.branding as { logo_url?: string; primary_color?: string } | null;
       const toppedUp = Number(wallet?.total_topped_up_iqd) || 0;
@@ -79,7 +95,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const subChanges = (subscriptionsResult.data ?? [])
+    const subChanges = subscriptionRows
       .filter((s) => s.pending_plan || s.status === "cancelled")
       .map((s) => ({
         tenant_id: s.tenant_id,

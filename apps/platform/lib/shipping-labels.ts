@@ -13,11 +13,13 @@ export type LabelPickups = Record<string, AfterSalePickup>;
 
 /**
  * What a shop's own labels carry beyond the order: the Prime mark only when it
- * ships through Prime, the glass tape and perfume warning only when it sells perfume.
+ * ships through Prime, the "handle with care" tape when its goods can break,
+ * the sealed-perfume line when it sells perfume.
  */
 export interface LabelBrand {
     primeLogo: boolean;
     fragileWarning: boolean;
+    perfumeWarning: boolean;
 }
 
 const LABEL_FONT_LINK = `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?${DISPATCH_LABEL_FONTS}&display=swap" rel="stylesheet">`;
@@ -38,6 +40,7 @@ export function shippingLabelHTML(order: Order, brand: LabelBrand, pickups: Labe
         pickup: pickups[order.id],
         courierLogo: { show: brand.primeLogo },
         fragileWarning: brand.fragileWarning,
+        perfumeWarning: brand.perfumeWarning,
     });
 }
 

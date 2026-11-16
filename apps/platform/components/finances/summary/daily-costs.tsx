@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { adReturn, breakEven, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { adReturn, breakEven, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
-import { Money, useMoneyText } from "./money";
+import { formatWhole, useMoneyText } from "./money";
 import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 
 interface DailyCostsProps {
@@ -22,7 +22,8 @@ function rate(value: number): string {
 
 /**
  * The costs that run every day whatever is sold, in one card. First the ads:
- * the sales each 1,000 IQD of ads brought. Then how many delivered orders a
+ * the sales each 1,000 IQD of ads brought, shown as a rate ("per 1,000"),
+ * never with the currency sign, so it is not read as money in hand. Then how many delivered orders a
  * day pay the daily bill (ads, salaries, other costs), against how many the
  * shop delivers, as one bar drawn to scale with a name on each part.
  */
@@ -32,7 +33,6 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
     const money = useMoneyText();
     const spent = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
     const brought = adReturn(statement);
-    const each = perOrder(spent, statement.orders);
     const even = breakEven(summary, statement);
     const quiet = "text-left text-[13.5px] leading-relaxed text-muted";
     const label = "flex min-w-0 items-center gap-1.5";
@@ -119,12 +119,12 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                 <p className={quiet} dir={dir} data-testid="ad-return-none">{t("fin.ads.none")}</p>
             ) : (
                 <div data-testid="ad-return">
-                    <Money value={brought} className={CARD_FIGURE} />
+                    <span className={`${CARD_FIGURE} whitespace-nowrap tabular-nums`} dir="ltr" data-testid="ad-return-figure">
+                        {formatWhole(brought)}
+                        <span className="ml-1.5 text-[0.5em] font-medium tracking-normal opacity-60" dir={dir}>{t("fin.ads.unit")}</span>
+                    </span>
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
-                        {t("fin.ads.say")}{" "}
-                        {each === null
-                            ? t("fin.ads.spent", { spent: money(spent) })
-                            : t("fin.ads.spentEach", { spent: money(spent), each: money(each) })}
+                        {t("fin.ads.say")} {t("fin.ads.spent", { spent: money(spent) })}
                     </p>
                 </div>
             )}

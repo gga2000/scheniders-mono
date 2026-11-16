@@ -94,7 +94,7 @@ describe("SummaryView", () => {
         expect(line("refunds")?.textContent).toContain("−40,000");
         expect(line("other")?.textContent).toContain("−5,000");
         expect(line("salaries")).toBeNull();
-        expect(byTestId("statement-quiet")?.textContent).toContain("رواتب مدفوعة");
+        expect(byTestId("statement-quiet")?.textContent).toContain("الرواتب");
         expect(line("net")?.textContent).toContain("115,000");
         // the total says its share of sales and what stays of each 1,000, in one line under the label
         expect(byTestId("statement-plain")?.textContent).toContain("29%");
@@ -127,7 +127,7 @@ describe("SummaryView", () => {
         expect(byTestId("profit-path-end")?.textContent).toContain("95,000");
         const toggle = line("delivery")?.querySelector("button");
         if (toggle) fireEvent.click(toggle);
-        expect(line("delivery")?.textContent).toContain("أجرة المندوب في كشوف الدفع عن 4 طلبات");
+        expect(line("delivery")?.textContent).toContain("أجرة المندوب في كشوف التوصيل عن 4 طلبات");
         expect(line("delivery")?.textContent).toContain("20,000");
         // no courier bill is typed: nothing can be counted twice
         expect(document.querySelector('[data-alert="delivery_twice"]')).toBeNull();
@@ -152,7 +152,7 @@ describe("SummaryView", () => {
         if (add) fireEvent.click(add);
         expect(onOpenTab).toHaveBeenCalledWith("expenses");
         // the empty lines are named, and so is what that means for the profit under them
-        expect(byTestId("statement-quiet")?.textContent).toContain("لا يشملها");
+        expect(byTestId("statement-quiet")?.textContent).toContain("أعلى من الحقيقي");
     });
 
     it("opens a cost line to show what is inside, and its link opens the tab", () => {
@@ -214,7 +214,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
         // the road is not a sale yet: it sits under the line, apart from the three parts
         expect(byTestId("money-road")?.textContent).toContain("160,000");
-        expect(byTestId("money-road")?.textContent).toContain("ليست مبيعات بعد");
+        expect(byTestId("money-road")?.textContent).toContain("لم تُحسب مبيعات بعد");
         cleanup();
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached: 370_000, reached_orders: 10, unpaid: 0, unpaid_orders: 0, unpaid_prime: 0 } } })));
@@ -248,13 +248,14 @@ describe("SummaryView", () => {
 
     it("names the courier payments dated in the period in one quiet line under the card", () => {
         renderView(query(summary()));
-        expect(byTestId("money-payments")?.textContent).toContain("2");
+        expect(byTestId("money-payments")?.textContent).toContain("دفعتين");
         expect(byTestId("money-payments")?.textContent).toContain("300,000");
-        expect(byTestId("money-payments")?.textContent).toContain("قبل هذه الفترة");
+        // Says why "reached you" differs from the dated payments: Prime, and statements of any date.
+        expect(byTestId("money-payments")?.textContent).toContain("من برايم أو من كشف بأي تاريخ");
         cleanup();
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
-        expect(byTestId("money-payments")?.textContent).toContain("لا توجد دفعة");
+        expect(byTestId("money-payments")?.textContent).toContain("لم تستلم من المندوب أي دفعة");
     });
 
     it("names the parcels on their way back beside the road", () => {
@@ -284,8 +285,8 @@ describe("SummaryView", () => {
         expect(byTestId("failed-cost")?.textContent).toContain("طلبان مرفوضان");
         expect(byTestId("failed-cost")?.textContent).toContain("80,000");
         // the hundred squares are named: 17 came back, 83 were accepted
-        expect(byTestId("returned-parcels")?.textContent).toContain("17 رجعت");
-        expect(byTestId("returned-parcels")?.textContent).toContain("83 استلمها الزبون");
+        expect(byTestId("returned-parcels")?.textContent).toContain("رُفض: 17 من 100");
+        expect(byTestId("returned-parcels")?.textContent).toContain("استلمه الزبون: 83 من 100");
         expect(byTestId("failed-fee")).toBeNull();
         cleanup();
         const s = summary();
@@ -324,14 +325,17 @@ describe("SummaryView", () => {
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
     });
 
-    it("says what each 1,000 IQD of ads brought, or that nothing was spent", () => {
+    it("says what each 1,000 IQD of ads brought as a rate, not as money, or that nothing was spent", () => {
         renderView(query(summary()));
         // 400,000 of sales on 60,000 of ads.
-        expect(byTestId("ad-return")?.textContent).toContain("6,667");
-        expect(byTestId("ad-return")?.textContent).toContain("مبيعات لكل 1,000 دينار تصرفها على الإعلان");
-        // 60,000 spent, 6,000 an order
-        expect(byTestId("ad-return")?.textContent).toContain("60,000");
-        expect(byTestId("ad-return")?.textContent).toContain("6,000");
+        const figure = byTestId("ad-return-figure")?.textContent ?? "";
+        expect(figure).toContain("6,667");
+        expect(figure).toContain("لكل ألف");
+        expect(figure).not.toContain("د.ع");
+        expect(byTestId("ad-return")?.textContent).toContain("مبيعاتك مقابل كل 1,000 دينار صرفته على الإعلانات");
+        expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
+        // the cost per order stays in the dark strip only
+        expect(byTestId("ad-return")?.textContent).not.toContain("6,000");
         cleanup();
         renderView(query(summary({ expenses: [] })));
         expect(byTestId("ad-return")).toBeNull();
@@ -420,9 +424,9 @@ describe("SummaryView", () => {
         const rings = document.querySelectorAll("[data-jump]");
         expect(rings).toHaveLength(1);
         expect(rings[0]?.textContent).toBe("");
-        expect(byTestId("profit-path-big")?.textContent).toContain("أكبر يوم");
+        expect(byTestId("profit-path-big")?.textContent).toContain("أعلى يوم ربحاً");
         expect(byTestId("profit-path-big")?.textContent).toContain("6 طلبات");
-        expect(byTestId("profit-path-big")?.textContent).toContain("+95,000");
+        expect(byTestId("profit-path-big")?.textContent).toContain("ربح 95,000 د.ع");
     });
 
     it("puts the money card before the chart", () => {
@@ -462,11 +466,11 @@ describe("SummaryView", () => {
         expect(document.querySelector("[data-change]")).toBeNull();
         expect(byTestId("profit-statement")?.textContent).not.toContain("الأسهم تقارن");
         // and the statement says why no arrow shows
-        expect(byTestId("profit-statement")?.textContent).toContain("لا أسهم مقارنة");
+        expect(byTestId("profit-statement")?.textContent).toContain("لا مقارنة");
         cleanup();
         renderView(query(summary()));
         expect(change("sales")).toBeNull();
-        expect(byTestId("profit-statement")?.textContent).not.toContain("لا أسهم مقارنة");
+        expect(byTestId("profit-statement")?.textContent).not.toContain("لا مقارنة");
     });
 
     it("says how many delivered orders a day cover the costs, and what happens when none are needed or none can", () => {
@@ -476,15 +480,15 @@ describe("SummaryView", () => {
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
         expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
-        expect(bar?.textContent).toContain("الباقي ربح: 3 من 5 في اليوم");
+        expect(bar?.textContent).toContain("الباقي ربح: 3 من 5 يومياً");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         cleanup();
         // four times the ads: 122,500 a day asks for 7 orders, and the shop delivers 5
         renderView(query(summary({ expenses: [{ category: "marketing", amount: 240_000 }, { category: "packaging", amount: 5_000 }] })));
         expect(byTestId("break-even-bar")?.getAttribute("data-state")).toBe("below");
-        expect(byTestId("break-even-bar")?.textContent).toContain("معدّلك 5 في اليوم");
-        expect(byTestId("break-even-bar")?.textContent).toContain("تحتاج 7");
+        expect(byTestId("break-even-bar")?.textContent).toContain("معدّل طلباتك اليومية: 5");
+        expect(byTestId("break-even-bar")?.textContent).toContain("الطلبات التي تغطي مصروفات اليوم: 7");
         cleanup();
         renderView(query(summary({ expenses: [] })));
         expect(byTestId("break-even-free")).not.toBeNull();

@@ -9,22 +9,28 @@ import {
     REPORT_ORDER_COLUMNS,
     previousPeriod,
     reportOrderSchema,
+    reportWindow,
     type ReportOrder,
     type ReportRange,
 } from "@/lib/analytics/report-order-facts";
 
 /**
- * Every order the report needs: created in the range or in the equal period
- * before it (for the comparisons). Tenant-scoped (RLS enforces the same), not
- * archived, not deleted, not an unfinished checkout, every page. Returns are
+ * Every order the report needs: arrived in the range or the equal period
+ * before it (for the comparisons), or scheduled for one of their days, the
+ * rule Orders and the dashboard use (splitReportOrders sorts them).
+ * Tenant-scoped (RLS enforces the same), not archived, not deleted, not an unfinished checkout, every page. Returns are
  * kept — the return card reads them — and split out by `splitReportOrders`.
  *
  * The reports route is admin-only, so `price` is always selected.
  */
 export function useReportOrders(range: ReportRange) {
     const { session, clientReady, tenantId } = useAuth();
-    const from = previousPeriod(range).from.toISOString();
-    const to = range.to.toISOString();
+    const prior = reportWindow(previousPeriod(range));
+    const current = reportWindow(range);
+    const from = new Date(prior.fromInstant).toISOString();
+    const to = new Date(current.toInstant).toISOString();
+    // Arrived in the two periods, or scheduled for one of their days.
+    const inDays = `and(created_at.gte.${from},created_at.lte.${to}),and(scheduled_date.gte.${prior.fromDay},scheduled_date.lte.${current.toDay})`;
 
     return useQuery<ReportOrder[]>({
         queryKey: ["reports", "orders", tenantId, from, to],
@@ -43,8 +49,7 @@ export function useReportOrders(range: ReportRange) {
                     // Stock taken in person is not a sale: Orders and the dashboard leave it out too.
                     .is("take_kind", null)
                     .neq("status", "pending_checkout")
-                    .gte("created_at", from)
-                    .lte("created_at", to)
+                    .or(inDays)
                     // A stable order is what makes offset paging complete.
                     .order("id", { ascending: true })
                     .range(start, end);

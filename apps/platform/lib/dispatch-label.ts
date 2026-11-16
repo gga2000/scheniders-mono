@@ -103,8 +103,10 @@ export interface DispatchLabelOptions {
     pickup?: AfterSalePickup;
     /** Courier logo beside the order number; a custom URL replaces the built-in Prime mark. */
     courierLogo?: { show: boolean; url?: string };
-    /** The glass tape and the sealed-perfume warning: only a shop that ships perfume prints them. */
+    /** The "handle with care" tape: any shop whose goods can break switches it on. */
     fragileWarning?: boolean;
+    /** The sealed-perfume line (and "glass" on the tape): only a shop that ships perfume with a tester. */
+    perfumeWarning?: boolean;
 }
 
 const itemList = (items: { name: string; qty: number }[]): string =>
@@ -127,7 +129,8 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
     return `<div class="dl-as">${lines}</div>`;
 }
 
-const GLASS_TAPE = `<div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>زجاج · قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>`;
+const fragileTape = (glass: boolean): string =>
+    `<div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>${glass ? "زجاج · " : ""}قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>`;
 
 /** Every parcel going out to a customer: the perfume stays sealed; the sample in the box is the tester. */
 const PERFUME_WARNING = `<div class="dl-perf">${NO_OPEN_SIGN}<div class="dl-perf-t"><b>يمنع فتح العطر منعاً باتاً</b><span>يتم الاختبار حصراً من خلال العينة المرفقة</span></div></div>`;
@@ -191,8 +194,8 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         <div class="dl-qr">${qrSvg(id, { moduleSteps: 3, maxSizeMm: 21 })}</div>
     </div>
     <div class="dl-dest${slot && kindPill ? " dl-dest-tight" : ""}"><b>${e(order.city) || "—"}</b>${slotPill}${kindPill}</div>
-    ${options.fragileWarning ? GLASS_TAPE : ""}
-    ${options.fragileWarning && !order.is_return ? PERFUME_WARNING : ""}
+    ${options.fragileWarning ? fragileTape(Boolean(options.perfumeWarning)) : ""}
+    ${options.perfumeWarning && !order.is_return ? PERFUME_WARNING : ""}
     ${afterSale ? afterSaleLines(order, items, options.pickup) : ""}
     <div class="dl-cust">
         <div class="dl-who">

@@ -322,7 +322,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     </thead>
                     <tbody className="divide-y divide-(--card-border)">
                         {profile.orders.length === 0 ? (
-                            <tr>
+                            <tr data-testid="customer-history-empty">
                                 <td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
                                     {t("customers.orders.noOrders")}
                                 </td>
@@ -336,6 +336,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                     // The whole row opens the order; the order number is a real link for a new tab.
                                     <tr
                                         key={order.id}
+                                        data-testid="customer-history-row"
                                         onClick={() => router.push(href)}
                                         className="cursor-pointer hover:bg-muted/20 transition-colors"
                                     >

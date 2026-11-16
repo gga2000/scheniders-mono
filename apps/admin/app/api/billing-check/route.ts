@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { everyRow } from "@/lib/every-row";
 
 /**
- * The daily billing jobs run once a day (renewals 03:00, trial pause 06:00
- * UTC), so anything more than 26 hours past its date was missed by a job.
+ * The renewal job runs once a day (03:00 UTC), so a paid month or a trial
+ * more than 26 hours past its end was missed by it.
  */
 const MISSED_AFTER_MS = 26 * 60 * 60 * 1000;
 
-/** Ali's own store is never billed or paused. */
+/** Ali's own store is never billed. */
 const EXEMPT_PLAN = "internal";
 
 interface Missed {
@@ -18,10 +19,16 @@ interface Missed {
 }
 
 /**
- * GET /api/billing-check — shops the daily billing jobs should have handled
- * and did not: a trial that ended but the shop is still open, or a paid month
- * that ended without being renewed or marked unpaid. Empty lists mean billing
- * is running as it should. The admin bell shows a red row when either is not.
+ * GET /api/billing-check: shops the daily renewal job should have handled and
+ * did not. The job takes every subscription whose period has ended, on a shop
+ * that is open (trial or active) and not on the internal plan, and either
+ * bills the next month or marks it past_due, which locks the shop. So a
+ * subscription still `trialing` or `active` more than 26 hours after its end
+ * is one the job never reached. Empty lists mean billing is running.
+ *
+ * An unpaid ended trial is not on this list: it is locked by rule (handoff
+ * A1) and keeps status "trial". This route used to call every one of them a
+ * missed job, so the bell's red row would have stayed on for good.
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -31,47 +38,29 @@ export async function GET(request: NextRequest) {
     const supabase = createAdminClient();
     const cutoff = new Date(Date.now() - MISSED_AFTER_MS).toISOString();
 
-    const [trials, lapsed] = await Promise.all([
-      supabase
-        .from("tenants")
-        .select("id, business_name, trial_ends_at")
-        .eq("status", "trial")
-        .neq("plan", EXEMPT_PLAN)
-        .lt("trial_ends_at", cutoff)
-        .limit(50),
+    // Every overdue subscription with its shop, a page at a time.
+    const overdue = await everyRow((from, to) =>
       supabase
         .from("subscriptions")
-        .select("tenant_id, current_period_end")
-        .eq("status", "active")
+        .select("id, tenant_id, status, current_period_end, tenants!inner(business_name, status, plan)")
+        .in("status", ["trialing", "active"])
+        .neq("plan", EXEMPT_PLAN)
         .lt("current_period_end", cutoff)
-        .limit(200),
-    ]);
-    if (trials.error) throw trials.error;
-    if (lapsed.error) throw lapsed.error;
+        .in("tenants.status", ["trial", "active"])
+        .neq("tenants.plan", EXEMPT_PLAN)
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
 
-    // A lapsed month only counts while the shop is still open on a billed plan.
-    const lapsedRows = lapsed.data ?? [];
-    let renewalsMissed: Missed[] = [];
-    if (lapsedRows.length > 0) {
-      const { data: open, error } = await supabase
-        .from("tenants")
-        .select("id, business_name")
-        .in("id", lapsedRows.map((s) => s.tenant_id))
-        .eq("status", "active")
-        .neq("plan", EXEMPT_PLAN);
-      if (error) throw error;
-      const nameById = new Map((open ?? []).map((t) => [t.id, t.business_name]));
-      renewalsMissed = lapsedRows
-        .filter((s) => nameById.has(s.tenant_id))
-        .map((s) => ({ tenant_id: s.tenant_id, business_name: nameById.get(s.tenant_id) ?? null, due: s.current_period_end }));
-    }
+    const missed = (status: string): Missed[] =>
+      overdue
+        .filter((s) => s.status === status)
+        .map((s) => {
+          const shop = Array.isArray(s.tenants) ? s.tenants[0] : s.tenants;
+          return { tenant_id: s.tenant_id, business_name: shop?.business_name ?? null, due: s.current_period_end };
+        });
 
-    const trialsNotPaused: Missed[] = (trials.data ?? []).map((t) => ({
-      tenant_id: t.id,
-      business_name: t.business_name,
-      due: t.trial_ends_at ?? "",
-    }));
-    return NextResponse.json({ trialsNotPaused, renewalsMissed });
+    return NextResponse.json({ trialsNotBilled: missed("trialing"), renewalsMissed: missed("active") });
   } catch (error) {
     console.error("Billing check API error:", error);
     return NextResponse.json({ error: "Failed to check billing" }, { status: 500 });

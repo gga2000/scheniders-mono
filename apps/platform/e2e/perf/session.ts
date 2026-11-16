@@ -39,7 +39,14 @@ function required(name: string): string {
     return v;
 }
 
-export async function mintSessionCookies(email: string, baseUrl: string): Promise<{ cookies: PerfCookie[]; userId: string }> {
+/** A signed-in user's cookies for the app, their id, and the same session's token for reading as them from Node. */
+export interface MintedSession {
+    cookies: PerfCookie[];
+    userId: string;
+    accessToken: string;
+}
+
+export async function mintSessionCookies(email: string, baseUrl: string): Promise<MintedSession> {
     loadEnvFile(path.resolve(__dirname, "../../.env.local"));
     const url = required("NEXT_PUBLIC_SUPABASE_URL");
     const anonKey = required("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -73,6 +80,7 @@ export async function mintSessionCookies(email: string, baseUrl: string): Promis
     const expires = Math.floor(Date.now() / 1000) + 3600;
     return {
         userId: verified.session.user.id,
+        accessToken: verified.session.access_token,
         cookies: captured
             .filter((c) => c.value !== "")
             .map((c) => ({

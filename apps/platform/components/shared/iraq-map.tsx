@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@scheniders/ui/dialog";
-import { cn, formatCount } from "@/lib/utils";
+import { cn, formatCount, formatShare } from "@/lib/utils";
 
 // Statuses to show in expanded breakdown
 const DISPLAY_STATUSES: { key: keyof GovernorateStats; i18nKey: string; color: string }[] = [
@@ -132,16 +132,19 @@ export function IraqMap({ orders, className }: IraqMapProps) {
   }, [isRTL]);
 
   const totalOrders = useMemo(() => metrics.reduce((s, m) => s + m.total, 0), [metrics]);
+  // Shares are of every order in the period, those without a governorate
+  // included, as on the dashboard's governorate card: Baghdad read 50% here
+  // and 33.3% there for the same orders (round 13).
+  const allOrders = totalOrders + unknownCount;
 
   // #8 — Compact card insight
   const cardInsight = useMemo(() => {
     const sorted = [...metrics].sort((a, b) => b.total - a.total);
     const top = sorted[0];
     if (!top || top.total === 0) return null;
-    const pct = totalOrders > 0 ? Math.round((top.total / totalOrders) * 100) : 0;
     const zeroCount = metrics.filter(m => m.total === 0).length;
-    return { topName: isRTL ? top.nameAr : top.nameEn, topPct: pct, zeroCount };
-  }, [metrics, totalOrders, isRTL]);
+    return { topName: isRTL ? top.nameAr : top.nameEn, topShare: formatShare(top.total, allOrders), zeroCount };
+  }, [metrics, allOrders, isRTL]);
 
   // Tooltip state
   const [tooltip, setTooltip] = useState<{ x: number; y: number; stats: GovernorateStats } | null>(null);
@@ -304,7 +307,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
         <div className="mt-2 space-y-1">
           {cardInsight && (
             <p className="text-[10px] text-muted text-center">
-              {t("map.topGov")}: <span className="font-semibold text-foreground">{cardInsight.topName} ({cardInsight.topPct}%)</span>
+              {t("map.topGov")}: <span className="font-semibold text-foreground">{cardInsight.topName} ({cardInsight.topShare})</span>
               {cardInsight.zeroCount > 0 && (
                 <span className="text-orange-500"> · {cardInsight.zeroCount} {t("map.emptyGovs")}</span>
               )}
@@ -408,9 +411,9 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                       <div>
                         <h4 className="font-bold text-lg text-foreground">{govName(selectedStats)}</h4>
                         {/* #2 — Percentage badge */}
-                        {totalOrders > 0 && (
+                        {allOrders > 0 && (
                           <span className="text-[10px] text-muted">
-                            {((selectedStats.total / totalOrders) * 100).toFixed(1)}% {t("map.ofTotal")}
+                            {formatShare(selectedStats.total, allOrders)} {t("map.ofTotal")}
                           </span>
                         )}
                       </div>

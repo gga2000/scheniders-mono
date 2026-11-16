@@ -26,6 +26,7 @@ import { TenantTimeline } from "./tenant-timeline";
 import { OnboardingChecklist } from "./onboarding-checklist";
 import { MerchantActionBar } from "./detail/merchant-action-bar";
 import { CopyableText } from "@/components/shared/copyable-text";
+import { LoadError } from "@/components/shared/load-error";
 import type { TenantStatus, PlanTier } from "@/types/admin";
 import Link from "next/link";
 
@@ -90,7 +91,7 @@ function PanelSkeleton() {
 
 export function MerchantDetailPanel() {
   const { activeDetailId, detailViewMode, setActiveDetailId } = useAdminStore();
-  const { data, isLoading } = useMerchantDetail(activeDetailId ?? "");
+  const { data, isError, error, refetch, isFetching } = useMerchantDetail(activeDetailId ?? "");
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [noteText, setNoteText] = useState("");
   const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
@@ -147,8 +148,6 @@ export function MerchantDetailPanel() {
     handleClose();
   }
 
-  const merchantId = activeDetailId;
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -184,13 +183,27 @@ export function MerchantDetailPanel() {
             </div>
 
             <div className="shrink-0 px-4 pt-4 pb-3 border-b border-[var(--card-border)] bg-[var(--card-bg)]">
-              {isLoading || !data ? (
+              {!data ? (
+                // Loading or failed: the panel can still be closed from here.
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-foreground/10 animate-pulse" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-4 w-36 bg-foreground/10 animate-pulse rounded" />
-                    <div className="h-3 w-24 bg-foreground/10 animate-pulse rounded" />
-                  </div>
+                  {isError ? (
+                    <p className="flex-1 text-sm font-bold text-foreground">Shop</p>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 rounded-2xl bg-foreground/10 animate-pulse" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-4 w-36 bg-foreground/10 animate-pulse rounded" />
+                        <div className="h-3 w-24 bg-foreground/10 animate-pulse rounded" />
+                      </div>
+                    </>
+                  )}
+                  <button
+                    onClick={handleClose}
+                    className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all shrink-0"
+                    aria-label="Close panel"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               ) : (
                 <div className="flex items-start gap-3">
@@ -230,7 +243,7 @@ export function MerchantDetailPanel() {
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <Link
-                      href={`/merchants/${merchantId}`}
+                      href={`/merchants/${data.tenant.id}`}
                       onClick={handleOpenFullscreen}
                       className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all"
                       title="Open fullscreen"
@@ -251,17 +264,20 @@ export function MerchantDetailPanel() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {isLoading || !data ? (
-                <PanelSkeleton />
-              ) : (
+              {data ? (
                 <PanelBody
                   data={data}
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   noteText={noteText}
                   setNoteText={setNoteText}
-                  merchantId={merchantId!}
+                  merchantId={data.tenant.id}
                 />
+              ) : isError ? (
+                // A failed read says so; the skeleton stayed up for good, as if still loading.
+                <LoadError compact what="this shop" error={error} onRetry={() => refetch()} retrying={isFetching} />
+              ) : (
+                <PanelSkeleton />
               )}
             </div>
           </motion.div>

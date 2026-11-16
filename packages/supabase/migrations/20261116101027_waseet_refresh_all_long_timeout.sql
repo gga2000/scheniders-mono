@@ -1,0 +1,15 @@
+-- B8: the weekly Al-Waseet area sync builds districts, postal codes and the
+-- rest in one call that may run for minutes.
+--
+-- On 16 Nov the sync fetched all 18 cities and 6,326 areas, then stopped at
+-- "canceling statement due to statement timeout": the Supabase API ends any
+-- statement after 8 seconds, and the cron called each refresh step on its own
+-- (districts alone take about 22 seconds, run twice; municipalities 17; the
+-- review queue 7). It also skipped waseet_apply_overrides, so a manual fix to
+-- an area would have been undone by the next sync.
+--
+-- The cron now calls waseet_refresh_all, which runs every step in order and
+-- ends with the manual overrides. The API applies a function's own
+-- statement_timeout before calling it, so that one call gets 4 minutes
+-- (the cron route may run for 5).
+ALTER FUNCTION public.waseet_refresh_all() SET statement_timeout TO '240s';

@@ -3,7 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { StatusFlowMetrics } from "@/lib/analytics/reports-calculations";
-import { ArrowDown, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 
 interface StatusFlowDiagramProps {
     data: StatusFlowMetrics[];
@@ -62,7 +62,8 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
                             </div>
                             {t("reports.pipeline.title")}
                         </h3>
-                        <p className="text-sm text-muted mt-1">{t("reports.pipeline.subtitle")}</p>
+                        {/* Isolated, so the closing full stop is drawn at the sentence's end, not its start. */}
+                        <p className="text-sm text-muted mt-1"><bdi>{t("reports.pipeline.subtitle")}</bdi></p>
                     </div>
 
                     {/* Conversion rate badge */}

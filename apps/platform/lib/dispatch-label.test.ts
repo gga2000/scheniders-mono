@@ -79,7 +79,7 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).toContain("a &amp; b");
     });
     it("shows the fragile tape, grouped phones and the barcode", () => {
-        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true });
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true, perfumeWarning: true });
         expect(html).toContain("زجاج · قابل للكسر · يُحمل بعناية");
         expect(html).toContain("0782 700 8326");
         expect(html).toContain("0782 700 8306");
@@ -143,7 +143,7 @@ describe("perfume warning", () => {
     const WARNING = "يمنع فتح العطر منعاً باتاً";
 
     const GLASS = "زجاج · قابل للكسر";
-    const perfumeShop = { showBarcode: true, fragileWarning: true };
+    const perfumeShop = { showBarcode: true, fragileWarning: true, perfumeWarning: true };
 
     it("is on every parcel a perfume shop sends to a customer, replacements included", () => {
         expect(generateDispatchLabelHTML(order(), perfumeShop)).toContain(WARNING);
@@ -160,6 +160,14 @@ describe("perfume warning", () => {
         expect(html).not.toContain(WARNING);
         expect(html).not.toContain(GLASS);
         expect(generateDispatchLabelHTML(order(), perfumeShop)).toContain(GLASS);
+    });
+
+    // Ali 2026-11-16: "handle with care" is for any shop with goods that break, not only perfume.
+    it("is separate from the handle-with-care tape any shop can switch on", () => {
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true });
+        expect(html).toContain("قابل للكسر · يُحمل بعناية");
+        expect(html).not.toContain("زجاج");
+        expect(html).not.toContain(WARNING);
     });
 });
 

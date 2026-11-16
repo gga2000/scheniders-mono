@@ -39,8 +39,9 @@ export function supabaseStub() {
       lte: (...args: unknown[]) => note("lte", ...args),
       lt: (...args: unknown[]) => note("lt", ...args),
       order: (...args: unknown[]) => note("order", ...args),
+      // "tenants.is_demo" filters on an embedded row, as an inner join does.
       eq: (column: string, value: unknown) => {
-        rows = rows.filter((row) => row[column] === value);
+        rows = rows.filter((row) => fieldOf(row, column) === value);
         return note("eq", column, value);
       },
       // A computed column (a database function over the row) is a plain field of the stub's rows.
@@ -49,12 +50,20 @@ export function supabaseStub() {
         return note("filter", column, operator, value);
       },
       in: (column: string, values: unknown[]) => {
-        rows = rows.filter((row) => values.includes(row[column]));
+        rows = rows.filter((row) => values.includes(fieldOf(row, column)));
         return note("in", column, values);
+      },
+      neq: (column: string, value: unknown) => {
+        rows = rows.filter((row) => fieldOf(row, column) !== value);
+        return note("neq", column, value);
       },
       range: (first: number, last: number) => {
         window = [first, last];
         return note("range", first, last);
+      },
+      limit: (count: number) => {
+        window = [window[0], window[0] + count - 1];
+        return note("limit", count);
       },
       then: (resolve: (answer: Answer & { count: number | null }) => void) => {
         if (state.failing.has(table)) {
@@ -80,6 +89,11 @@ export function supabaseStub() {
   const callsTo = (on: string) => state.calls.filter((call) => call.on === on).map((call) => call.args);
 
   return { state, client: { from, rpc }, tablesRead, callsTo };
+}
+
+function fieldOf(row: Row, column: string): unknown {
+  const [first, ...rest] = column.split(".");
+  return rest.reduce<unknown>((value, key) => (value as Row | null | undefined)?.[key], row[first ?? ""]);
 }
 
 function matches(field: unknown, operator: string, value: unknown): boolean {

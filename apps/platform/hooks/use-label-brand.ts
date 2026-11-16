@@ -6,14 +6,16 @@ import type { LabelBrand } from "@/lib/shipping-labels";
 
 /**
  * This shop's label marks: the Prime mark when its parcels go through the
- * Prime API, the glass tape and sealed-perfume warning when it switched them
- * on in print settings. A shop that sells neither prints a plain label.
+ * Prime API, the "handle with care" tape and the sealed-perfume line when it
+ * switched them on in print settings. Otherwise the label is plain.
  */
 export function useLabelBrand(): LabelBrand {
     const prime = usePrimeConnection();
     const { settings } = useSettings();
+    const print = readSetting(settings, "print_settings");
     return {
         primeLogo: prime.connected,
-        fragileWarning: readSetting(settings, "print_settings").fragile_warning === true,
+        fragileWarning: print.fragile_warning === true,
+        perfumeWarning: print.perfume_warning === true,
     };
 }

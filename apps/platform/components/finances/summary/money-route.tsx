@@ -106,7 +106,7 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
             ? t("fin.money.payments.none")
             : payments.payments === 1
               ? t("fin.money.payments.one", { amount: money(payments.amount) })
-              : t("fin.money.payments", { n: formatWhole(payments.payments), amount: money(payments.amount) });
+              : t("fin.money.payments", { n: formatWhole(payments.payments), count: payments.payments, amount: money(payments.amount) });
 
     return (
         <SummaryCard

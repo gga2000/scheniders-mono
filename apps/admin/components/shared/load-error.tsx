@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Lock, LogIn, RotateCw } from "lucide-react";
+import { AlertTriangle, Lock, LogIn, RotateCw, SearchX } from "lucide-react";
 import { loadFailureKind } from "@/lib/load-failure";
 
 interface LoadErrorProps {
@@ -15,6 +15,8 @@ interface LoadErrorProps {
    * asking again gives the same answer.
    */
   error?: unknown;
+  /** Inside a pop-up or side panel: the size of its content, not of a page. */
+  compact?: boolean;
 }
 
 const BUTTON =
@@ -24,42 +26,53 @@ const BUTTON =
  * Shown in place of a page whose numbers could not be loaded. A page that
  * keeps its spinner, or draws zeros, tells staff nothing is wrong.
  */
-export function LoadError({ what, onRetry, retrying = false, error }: LoadErrorProps) {
+export function LoadError({ what, onRetry, retrying = false, error, compact = false }: LoadErrorProps) {
   const kind = loadFailureKind(error);
   const refused = kind === "forbidden";
   const signedOut = kind === "signed_out";
-  const quiet = refused || signedOut;
+  const missing = kind === "missing";
+  const quiet = refused || signedOut || missing;
+  const icon = compact ? "w-6 h-6" : "w-8 h-8";
 
   return (
-    <div role="alert" className="p-4 md:p-6 flex items-center justify-center min-h-[60vh]">
+    <div
+      role="alert"
+      className={`flex items-center justify-center ${compact ? "px-4 py-12" : "p-4 md:p-6 min-h-[60vh]"}`}
+    >
       <div className="text-center space-y-4 max-w-md">
         <div
-          className={`w-16 h-16 rounded-2xl border flex items-center justify-center mx-auto ${
+          className={`${compact ? "w-12 h-12" : "w-16 h-16"} rounded-2xl border flex items-center justify-center mx-auto ${
             quiet ? "bg-foreground/5 border-[var(--card-border)]" : "bg-red-50 border-red-200"
           }`}
         >
           {refused ? (
-            <Lock className="w-8 h-8 text-foreground/50" />
+            <Lock className={`${icon} text-foreground/50`} />
           ) : signedOut ? (
-            <LogIn className="w-8 h-8 text-foreground/50" />
+            <LogIn className={`${icon} text-foreground/50`} />
+          ) : missing ? (
+            <SearchX className={`${icon} text-foreground/50`} />
           ) : (
-            <AlertTriangle className="w-8 h-8 text-red-500" />
+            <AlertTriangle className={`${icon} text-red-500`} />
           )}
         </div>
         <div>
-          <h2 className="text-xl font-bold text-foreground">
+          <h2 className={`${compact ? "text-base" : "text-xl"} font-bold text-foreground`}>
             {refused
               ? `Your login cannot open ${what}`
               : signedOut
                 ? "Your sign-in has ended"
-                : `Could not load ${what}`}
+                : missing
+                  ? `Could not find ${what}`
+                  : `Could not load ${what}`}
           </h2>
           <p className="text-sm text-foreground-muted mt-2">
             {refused
               ? "Ask a super admin if you need something from it."
               : signedOut
                 ? `Sign in again to see ${what}.`
-                : "No numbers are shown, because they could be wrong. Check your connection and try again."}
+                : missing
+                  ? "It may have been removed, or the link is wrong."
+                  : "No numbers are shown, because they could be wrong. Check your connection and try again."}
           </p>
         </div>
         {signedOut ? (
@@ -67,7 +80,7 @@ export function LoadError({ what, onRetry, retrying = false, error }: LoadErrorP
             <LogIn className="w-4 h-4" />
             Sign in
           </Link>
-        ) : refused ? null : (
+        ) : refused || missing ? null : (
           <button type="button" onClick={onRetry} disabled={retrying} className={BUTTON}>
             <RotateCw className={`w-4 h-4 ${retrying ? "animate-spin" : ""}`} />
             {retrying ? "Loading" : "Try again"}

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { feesOf, fetchIncomeStats, monthLabel } from "@/lib/console-stats";
 import { calculateMerchantLTV } from "@/lib/dashboard-calculations";
+import { everyRow } from "@/lib/every-row";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,20 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createAdminClient();
-    const [income, tenantsRes] = await Promise.all([
+    const [income, shops] = await Promise.all([
       fetchIncomeStats(supabase),
-      // The demo store (Fermi B13) is in no platform number.
-      supabase.from("tenants").select("id, business_name, created_at").eq("is_demo", false),
+      // Every shop, a page at a time: one read stops at 1,000 rows and the
+      // average lifetime value would quietly leave the rest out.
+      everyRow((from, to) =>
+        supabase
+          .from("tenants")
+          .select("id, business_name, created_at")
+          // The demo store (Fermi B13) is in no platform number.
+          .eq("is_demo", false)
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
     ]);
-    if (tenantsRes.error) throw new Error(tenantsRes.error.message);
 
     // Income is the fees we charge (monthly plan, delivered orders, paid
     // messages), summed in the database by Baghdad month. Any other wallet
@@ -30,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const cohorts = income.cohorts.map((c) => ({ cohort: c.cohort, tenantCount: c.tenants, months: c.months }));
 
-    const ltv = calculateMerchantLTV(tenantsRes.data ?? [], income.byTenant, income.today, 10);
+    const ltv = calculateMerchantLTV(shops, income.byTenant, income.today, 10);
 
     const monthIndex = new Map(months.map((m, i) => [m.month, i]));
     const planFees = new Map<string, number[]>();

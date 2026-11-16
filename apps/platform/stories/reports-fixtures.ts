@@ -28,6 +28,7 @@ export function buildReportFixtures(end: Date, days: number, count: number, seed
         const isReturn = i % 29 === 0;
         return {
             created_at: created.toISOString(),
+            scheduled_date: null,
             status,
             delivered_at: delivered ? new Date(created.getTime() + (1 + r() * 5) * 86400000).toISOString() : null,
             contact_count: Math.floor(r() * 4),

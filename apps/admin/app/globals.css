@@ -36,34 +36,34 @@ body {
 .dark .text-blue-800 { color: #93c5fd; }
 .dark .text-purple-800 { color: #d8b4fe; }
 
-/* Pastel card text overrides for dark mode */
+/*
+ * Pastel cards (the number tiles on Home, Billing, Health and Trials) keep
+ * their light fill in dark mode: packages/ui keeps the pastels light so the
+ * dark ink on them reads. The ink stays dark too. These rules used to turn
+ * that ink near-white, so every number on a tile vanished in dark mode
+ * (contrast about 1:1). The -950, -900/70 and -800/70 shades are used only on
+ * the tiles and keep their light-mode colour; the -700 and -800 shades, which
+ * badges on dark surfaces lighten, are put back on the tiles here.
+ */
+.dark [class*="pastel-card-"] .text-blue-700 { color: #1d4ed8; }
+.dark [class*="pastel-card-"] .text-green-700 { color: #15803d; }
+.dark [class*="pastel-card-"] .text-amber-700 { color: #b45309; }
+.dark [class*="pastel-card-"] .text-rose-700 { color: #be123c; }
+.dark [class*="pastel-card-"] .text-purple-700 { color: #7e22ce; }
+.dark [class*="pastel-card-"] .text-teal-700 { color: #0f766e; }
+.dark [class*="pastel-card-"] .text-red-700 { color: #b91c1c; }
+.dark [class*="pastel-card-"] .text-blue-800 { color: #1e40af; }
+.dark [class*="pastel-card-"] .text-green-800 { color: #166534; }
+.dark [class*="pastel-card-"] .text-amber-800 { color: #92400e; }
+.dark [class*="pastel-card-"] .text-red-800 { color: #991b1b; }
+.dark [class*="pastel-card-"] .text-purple-800 { color: #6b21a8; }
+
+/* -700 ink elsewhere in dark mode sits on dark surfaces. */
 .dark .text-blue-700 { color: #93c5fd; }
 .dark .text-green-700 { color: #86efac; }
-.dark .text-amber-700 { color: #fcd34d; }
 .dark .text-rose-700 { color: #fda4af; }
 .dark .text-purple-700 { color: #d8b4fe; }
 .dark .text-teal-700 { color: #5eead4; }
-
-.dark .text-blue-900\/70 { color: rgba(147, 197, 253, 0.7); }
-.dark .text-green-900\/70 { color: rgba(134, 239, 172, 0.7); }
-.dark .text-amber-900\/70 { color: rgba(252, 211, 77, 0.7); }
-.dark .text-rose-900\/70 { color: rgba(253, 164, 175, 0.7); }
-.dark .text-purple-900\/70 { color: rgba(216, 180, 254, 0.7); }
-.dark .text-teal-900\/70 { color: rgba(94, 234, 212, 0.7); }
-
-.dark .text-blue-950 { color: #bfdbfe; }
-.dark .text-green-950 { color: #bbf7d0; }
-.dark .text-amber-950 { color: #fef3c7; }
-.dark .text-rose-950 { color: #ffe4e6; }
-.dark .text-purple-950 { color: #e9d5ff; }
-.dark .text-teal-950 { color: #ccfbf1; }
-
-.dark .text-blue-800\/70 { color: rgba(147, 197, 253, 0.7); }
-.dark .text-green-800\/70 { color: rgba(134, 239, 172, 0.7); }
-.dark .text-amber-800\/70 { color: rgba(252, 211, 77, 0.7); }
-.dark .text-rose-800\/70 { color: rgba(253, 164, 175, 0.7); }
-.dark .text-purple-800\/70 { color: rgba(216, 180, 254, 0.7); }
-.dark .text-teal-800\/70 { color: rgba(94, 234, 212, 0.7); }
 
 /* Trial countdown in dark mode */
 .dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.1); }
