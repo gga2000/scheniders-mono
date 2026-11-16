@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { readBillingLock } from "@/lib/billing-lock-tools";
+import { updateShop } from "@/lib/shop-update";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 
@@ -141,8 +141,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Mutating plan/status/billing on a merchant maps to `change_plan` /
-  // `suspend_tenant` — both super_admin permissions.
+  // Status, plan and auto-renew of a shop: `change_plan`, a super_admin
+  // permission (as `suspend_tenant` and `reactivate_tenant` are).
   const auth = await requireAdminPermission(request, "change_plan");
   if (auth instanceof NextResponse) return auth;
 
@@ -158,69 +158,14 @@ export async function PATCH(
       );
     }
 
-    const supabase = createAdminClient();
-    const tenantUpdates: Record<string, string> = {};
-
-    if (parsed.data.status) tenantUpdates.status = parsed.data.status;
-    if (parsed.data.plan) tenantUpdates.plan = parsed.data.plan;
-
-    let tenantData: { id: string; status: string; plan: string } | null = null;
-    if (Object.keys(tenantUpdates).length > 0) {
-      const { data, error } = await supabase
-        .from("tenants")
-        .update(tenantUpdates)
-        .eq("id", id)
-        .select("id, status, plan")
-        .single();
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
-        }
-        throw error;
-      }
-      tenantData = data;
+    // The database checks the change, writes the shop, its subscription and
+    // the staff log rows in one transaction, and says why when it refuses.
+    const result = await updateShop(createAdminClient(), id, parsed.data, auth.user);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    // If plan or auto_renew changed, also update subscription
-    const subUpdates: Record<string, unknown> = {};
-    if (parsed.data.plan) subUpdates.plan = parsed.data.plan;
-    if (typeof parsed.data.auto_renew === "boolean") {
-      subUpdates.auto_renew = parsed.data.auto_renew;
-    }
-    if (Object.keys(subUpdates).length > 0) {
-      await supabase.from("subscriptions").update(subUpdates).eq("tenant_id", id);
-    }
-
-    if (parsed.data.status) {
-      await logAdminActivity({
-        adminUserId: auth.user.id,
-        actorEmail: auth.user.email ?? null,
-        tenantId: id,
-        action: "status_change",
-        details: { status: parsed.data.status },
-      });
-    }
-    if (parsed.data.plan) {
-      await logAdminActivity({
-        adminUserId: auth.user.id,
-        actorEmail: auth.user.email ?? null,
-        tenantId: id,
-        action: "plan_change",
-        details: { plan: parsed.data.plan },
-      });
-    }
-    if (typeof parsed.data.auto_renew === "boolean") {
-      await logAdminActivity({
-        adminUserId: auth.user.id,
-        actorEmail: auth.user.email ?? null,
-        tenantId: id,
-        action: "auto_renew_toggle",
-        details: { auto_renew: parsed.data.auto_renew },
-      });
-    }
-
-    return NextResponse.json(tenantData ?? { id, ...subUpdates });
+    return NextResponse.json(result.shop);
   } catch (error) {
     console.error("Merchant PATCH error:", error);
     return NextResponse.json(

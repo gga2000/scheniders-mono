@@ -4,6 +4,7 @@ import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
 import { useState, useRef, useEffect, memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PLAN_LABELS, type PlanTier } from "@/types/admin";
 
@@ -52,12 +53,19 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: newPlan }),
       });
-      if (!res.ok) throw new Error("Failed to update plan");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to update plan");
+      }
       return res.json();
     },
     onMutate: async (newPlan) => {
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
       patchMerchantInCache(queryClient, merchantId, { plan: newPlan });
+    },
+    // onSettled reads the list again, which puts the real plan back.
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });

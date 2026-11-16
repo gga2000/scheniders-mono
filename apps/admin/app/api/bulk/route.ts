@@ -8,8 +8,54 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { staffReasonSchema } from "@/lib/staff-reason";
+import { updateShop, type ShopChange, type ShopUpdateActor } from "@/lib/shop-update";
 
 const bulkTopupAmountSchema = topupAmountSchema.min(1000);
+
+/**
+ * One change for every picked shop, one database call per shop: the call
+ * checks the change, writes the shop and its subscription, and writes that
+ * shop's staff log row, all together. A shop the database refuses (paused, on
+ * trial, the demo store) is reported with the reason, never counted as done.
+ */
+async function changeShops(
+  supabase: ReturnType<typeof createAdminClient>,
+  tenantIds: string[],
+  change: ShopChange,
+  actor: ShopUpdateActor,
+) {
+  const changed: { tenant_id: string; status: string; plan: string }[] = [];
+  const notChanged: { tenant_id: string; error: string }[] = [];
+  let crashed = false;
+  for (const tid of tenantIds) {
+    try {
+      const result = await updateShop(supabase, tid, change, actor, "bulk");
+      if (result.ok) changed.push({ tenant_id: tid, status: result.shop.status, plan: result.shop.plan });
+      else notChanged.push({ tenant_id: tid, error: result.error });
+    } catch (error) {
+      crashed = true;
+      console.error(`[bulk] change failed for tenant ${tid}:`, error);
+      notChanged.push({ tenant_id: tid, error: "Failed to change this shop" });
+    }
+  }
+
+  if (notChanged.length > 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Not changed for ${notChanged.length} of ${tenantIds.length} merchant(s)${
+          changed.length > 0 ? `; ${changed.length} were changed` : ""
+        }`,
+        succeeded: changed,
+        failed: notChanged,
+      },
+      // A refusal is the shop's state, not a server fault.
+      { status: crashed ? 500 : 409 }
+    );
+  }
+
+  return NextResponse.json({ success: true, affected: changed.length, succeeded: changed });
+}
 
 const BulkActionSchema = z.object({
   action: z.enum([
@@ -46,11 +92,8 @@ export async function POST(request: NextRequest) {
       // 1. Change Plan
       // -----------------------------------------------------------------
       case "change_plan": {
-        const plan = params?.plan;
-        if (
-          !plan ||
-          !(PLAN_TIERS as readonly unknown[]).includes(plan)
-        ) {
+        const plan = z.enum(PLAN_TIERS).safeParse(params?.plan);
+        if (!plan.success) {
           return NextResponse.json(
             {
               error:
@@ -59,48 +102,21 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-
-        const { error: tenantError } = await supabase
-          .from("tenants")
-          .update({ plan: plan as string })
-          .in("id", tenant_ids);
-
-        if (tenantError) throw tenantError;
-
-        const { error: subError } = await supabase
-          .from("subscriptions")
-          .update({ plan: plan as string })
-          .in("tenant_id", tenant_ids);
-
-        if (subError) throw subError;
-        break;
+        return await changeShops(supabase, tenant_ids, { plan: plan.data }, auth.user);
       }
 
       // -----------------------------------------------------------------
       // 2. Suspend
       // -----------------------------------------------------------------
-      case "suspend": {
-        const { error } = await supabase
-          .from("tenants")
-          .update({ status: "suspended" })
-          .in("id", tenant_ids);
-
-        if (error) throw error;
-        break;
-      }
+      case "suspend":
+        return await changeShops(supabase, tenant_ids, { status: "suspended" }, auth.user);
 
       // -----------------------------------------------------------------
-      // 3. Reactivate
+      // 3. Reactivate. A shop whose trial was never converted comes back on
+      // trial; a shop on trial or a paused shop is refused and reported.
       // -----------------------------------------------------------------
-      case "reactivate": {
-        const { error } = await supabase
-          .from("tenants")
-          .update({ status: "active" })
-          .in("id", tenant_ids);
-
-        if (error) throw error;
-        break;
-      }
+      case "reactivate":
+        return await changeShops(supabase, tenant_ids, { status: "active" }, auth.user);
 
       // -----------------------------------------------------------------
       // 4. Extend Trial
@@ -245,22 +261,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, affected: succeeded.length, succeeded });
       }
     }
-
-    // -----------------------------------------------------------------
-    // Log all bulk actions to admin_activity_logs
-    // -----------------------------------------------------------------
-    await logAdminActivityBatch({
-      adminUserId: auth.user.id,
-      actorEmail: auth.user.email ?? null,
-      tenantIds: tenant_ids,
-      action: `bulk_${action}`,
-      details: { tenant_ids, params },
-    });
-
-    return NextResponse.json({
-      success: true,
-      affected: tenant_ids.length,
-    });
   } catch (error) {
     console.error("Bulk action error:", error);
     return NextResponse.json(

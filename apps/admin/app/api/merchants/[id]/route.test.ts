@@ -14,6 +14,10 @@ import type { AdminRole } from "@/types/admin";
  * Every part of the record is a read that can be refused. The team read was:
  * tenant_members has two keys to user_profiles, the embed did not say which,
  * and the route sent the refusal on as "no members" for every shop.
+ *
+ * PATCH (status, plan, auto-renew) wrote tenants, then subscriptions without
+ * reading the error, then the log, and let any status go over any status.
+ * It is one database call now (admin_update_shop), which also refuses.
  */
 
 const state: { role: AdminRole } = { role: "super_admin" };
@@ -46,6 +50,8 @@ const ORIGINAL = { ...TABLES };
 
 /** What each table was asked for: [table, columns]. */
 const selects: Array<[string, unknown]> = [];
+/** Tables a handler wrote to from the route. PATCH must leave this empty. */
+const writes: string[] = [];
 
 /** Every builder method chains; awaiting it answers for the table it started on. */
 function table(name: string): unknown {
@@ -55,6 +61,7 @@ function table(name: string): unknown {
       if (prop === "then") return (resolve: (value: Answer) => void) => resolve(answer);
       return (...args: unknown[]) => {
         if (prop === "select") selects.push([name, args[0]]);
+        if (prop === "update" || prop === "insert" || prop === "upsert" || prop === "delete") writes.push(name);
         return chain;
       };
     },
@@ -67,7 +74,7 @@ vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({ from: (name: string) => table(name), rpc }),
 }));
 
-const { GET } = await import("./route");
+const { GET, PATCH } = await import("./route");
 
 const call = () =>
   GET(new NextRequest(`http://admin.test/api/merchants/${TENANT}`), { params: Promise.resolve({ id: TENANT }) });
@@ -85,6 +92,7 @@ const LOCKED = {
 beforeEach(() => {
   state.role = "super_admin";
   selects.length = 0;
+  writes.length = 0;
   rpc.mockReset();
   for (const name of Object.keys(TABLES)) delete TABLES[name];
   Object.assign(TABLES, ORIGINAL);
@@ -178,5 +186,84 @@ describe("GET /api/merchants/[id] parts of the record", () => {
     TABLES[name] = { data: null, error: { code: "PGRST201", message: "more than one relationship was found" } };
 
     expect((await call()).status).toBe(500);
+  });
+});
+
+describe("PATCH /api/merchants/[id]", () => {
+  const patch = (body: unknown) =>
+    PATCH(
+      new NextRequest(`http://admin.test/api/merchants/${TENANT}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id: TENANT }) },
+    );
+
+  const changed = (over: Record<string, unknown>) => ({
+    data: { success: true, tenant_id: TENANT, status: "trial", plan: "starter", auto_renew: true, pending_plan: null, changed: [], ...over },
+    error: null,
+  });
+
+  it("changes status, plan and auto-renew in one database call, with the acting admin, and writes no table itself", async () => {
+    rpc.mockResolvedValue(changed({ status: "suspended", auto_renew: false, changed: ["status_change", "auto_renew_toggle"] }));
+    const res = await patch({ status: "suspended", plan: "starter", auto_renew: false });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      id: TENANT,
+      status: "suspended",
+      plan: "starter",
+      auto_renew: false,
+      pending_plan: null,
+      changed: ["status_change", "auto_renew_toggle"],
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("admin_update_shop", {
+      _tenant_id: TENANT,
+      _status: "suspended",
+      _plan: "starter",
+      _auto_renew: false,
+      _admin_user_id: "admin-1",
+      _actor_email: "a@b.co",
+      _source: "single",
+    });
+    // The shop, its subscription and the log rows are the database call's.
+    expect(writes).toEqual([]);
+  });
+
+  it("answers with the status the shop really has: a suspended trial comes back on trial", async () => {
+    rpc.mockResolvedValue(changed({ status: "trial", changed: ["status_change"] }));
+    const res = await patch({ status: "active" });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("trial");
+  });
+
+  it.each([
+    ["still_trial", 409, "This shop is on trial. Use Convert to paid to make it a paying shop."],
+    ["paused", 409, "This shop is paused. Resume it first."],
+    ["use_pause", 409, "Use Pause to limit a shop: it sets what is blocked and for how long."],
+    ["demo_store", 409, "This is the demo store. Its status does not change."],
+    ["not_found", 404, "Merchant not found"],
+  ])("a refusal %s is sent on with its reason, not as a server fault", async (code, status, error) => {
+    rpc.mockResolvedValue({ data: { success: false, error: code }, error: null });
+    const res = await patch({ status: "active" });
+
+    expect(res.status).toBe(status);
+    expect(await res.json()).toEqual({ error });
+  });
+
+  it("a database error answers 500", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "deadlock detected" } });
+
+    expect((await patch({ plan: "starter" })).status).toBe(500);
+  });
+
+  it.each([{}, { status: "frozen" }, { plan: "gold" }, { auto_renew: "yes" }])("refuses the body %j before the database", async (body) => {
+    const res = await patch(body);
+
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

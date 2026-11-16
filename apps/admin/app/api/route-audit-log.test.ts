@@ -27,6 +27,7 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "trials/extend/route.ts POST": "admin_extend_trial",
   "merchants/[id]/lock-orders/route.ts POST": "admin_add_lock_orders",
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
+  "merchants/[id]/route.ts PATCH": "admin_update_shop",
 };
 
 /** Handlers that write no staff log row, each with why. */
