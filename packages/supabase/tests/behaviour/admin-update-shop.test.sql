@@ -24,7 +24,12 @@
 --       row names the plan before and a change waiting for the renewal, and
 --       that waiting change is left as it is;
 --     * a shop and a subscription that disagree are brought together;
---     * a shop with no subscription: the shop's plan only.
+--     * THE MONEY CASE: a paid plan is refused on a shop whose subscription
+--       renewal never bills (none, 'cancelled', 'incomplete'). The old
+--       function set it, and the shop sat on a paid plan with no bill;
+--     * a shop behind on payment ('past_due') can change plan: its next
+--       top-up pays at that plan;
+--     * the house tier ('internal', never billed) can be set on any shop.
 --   Auto-renew:
 --     * written to the newest subscription, logged once, a repeat is nothing;
 --     * refused for a shop with no subscription.
@@ -94,7 +99,11 @@ INSERT INTO tt_shops (name, status, is_demo, sub) VALUES
 INSERT INTO tt_shops (name, status, sub, pending) VALUES
     ('change waiting',             'active',    'active',                  'professional');
 INSERT INTO tt_shops (name, status, plan, sub, sub_plan) VALUES
-    ('shop and subscription differ', 'active',  'growth',  'active',       'starter');
+    ('shop and subscription differ', 'active',  'growth',  'active',       'starter'),
+    ('house, renewal ended',     'active',    'internal', 'cancelled',    'internal'),
+    ('renewal ended',            'active',    'starter',  'cancelled',    'starter'),
+    ('never paid',               'active',    'starter',  'incomplete',   'starter'),
+    ('behind',                   'active',    'starter',  'past_due',     'starter');
 
 INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, is_demo)
 SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at, s.is_demo FROM tt_shops s;
@@ -193,8 +202,11 @@ BEGIN
     _res := public.admin_update_shop(_id, NULL, NULL, false, _admin, 'ops@example.com');
     PERFORM pg_temp.check('no subscription: auto-renew was not refused: ' || _res::text, _res ->> 'error' = 'no_subscription');
     _res := public.admin_update_shop(_id, NULL, 'growth', NULL, _admin, 'ops@example.com');
-    PERFORM pg_temp.check('no subscription: the plan was not set on the shop: ' || _res::text,
-        (_res ->> 'success')::boolean AND EXISTS (SELECT 1 FROM public.tenants t WHERE t.id = _id AND t.plan = 'growth'));
+    PERFORM pg_temp.check('no subscription: a paid plan was not refused: ' || _res::text,
+        _res = '{"success": false, "error": "no_subscription"}'::jsonb);
+    _res := public.admin_update_shop(_id, NULL, 'internal', NULL, _admin, 'ops@example.com');
+    PERFORM pg_temp.check('no subscription: the house tier was not set on the shop: ' || _res::text,
+        (_res ->> 'success')::boolean AND EXISTS (SELECT 1 FROM public.tenants t WHERE t.id = _id AND t.plan = 'internal'));
 
     -- A paused shop ---------------------------------------------------------------
     SELECT id INTO _id FROM tt_shops WHERE name = 'paused';
@@ -251,6 +263,38 @@ BEGIN
     PERFORM pg_temp.check('plan, differ: the subscription was not brought to the shop''s plan',
         EXISTS (SELECT 1 FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id
                  WHERE t.id = _id AND t.plan = 'growth' AND s.plan = 'growth'));
+
+    -- THE MONEY CASE: a paid plan on a subscription renewal never bills.
+    FOR _row IN
+        SELECT s.id, s.name, s.plan, s.sub_plan,
+               public.admin_update_shop(s.id, NULL, 'starter', NULL, _admin, 'ops@example.com') AS starter,
+               public.admin_update_shop(s.id, NULL, 'growth', NULL, _admin, 'ops@example.com') AS growth
+          FROM tt_shops s
+         WHERE s.name IN ('house, renewal ended', 'renewal ended', 'never paid')
+    LOOP
+        PERFORM pg_temp.check(format('%s: growth was not refused: %s', _row.name, _row.growth),
+            _row.growth = '{"success": false, "error": "subscription_ended"}'::jsonb);
+        -- The plan it already has is not a change, so it is not refused.
+        PERFORM pg_temp.check(format('%s: starter answered %s', _row.name, _row.starter),
+            CASE WHEN _row.plan = 'starter'
+                 THEN (_row.starter ->> 'success')::boolean AND _row.starter -> 'changed' = '[]'::jsonb
+                 ELSE _row.starter ->> 'error' = 'subscription_ended' END);
+        PERFORM pg_temp.check(format('%s: a refusal changed the plan', _row.name),
+            EXISTS (SELECT 1 FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id
+                     WHERE t.id = _row.id AND t.plan = _row.plan AND s.plan = _row.sub_plan));
+        PERFORM pg_temp.check(format('%s: a refusal was logged', _row.name),
+            NOT EXISTS (SELECT 1 FROM public.admin_activity_logs l WHERE l.tenant_id = _row.id));
+    END LOOP;
+    -- The house tier is never billed: it can be set on a shop whose renewal ended.
+    SELECT id INTO _id FROM tt_shops WHERE name = 'renewal ended';
+    _res := public.admin_update_shop(_id, NULL, 'internal', NULL, _admin, 'ops@example.com');
+    PERFORM pg_temp.check('renewal ended: the house tier was refused: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res -> 'changed' = '["plan_change"]'::jsonb);
+    -- Behind on payment: the next top-up pays at the new plan.
+    SELECT id INTO _id FROM tt_shops WHERE name = 'behind';
+    _res := public.admin_update_shop(_id, NULL, 'growth', NULL, _admin, 'ops@example.com');
+    PERFORM pg_temp.check('behind: a plan change was refused: ' || _res::text,
+        (_res ->> 'success')::boolean AND EXISTS (SELECT 1 FROM public.subscriptions s WHERE s.tenant_id = _id AND s.plan = 'growth'));
 
     -- Only the newest subscription is written.
     SELECT id INTO _id FROM tt_shops WHERE name = 'paying';
