@@ -1,7 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isCredentialRejection } from "@/lib/admin-auth-error";
 
 const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
+
+/** Staff whose access could not be checked: the database or auth server did not answer. */
+const CHECK_FAILED = "Could not check your access. Try again in a moment.";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -38,59 +42,90 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // A refreshed session arrives as cookies on supabaseResponse; every other
+  // answer must carry them too, or the browser keeps a spent refresh token.
+  const withSession = (response: NextResponse) => {
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+    return response;
+  };
+  const toLogin = (error?: "forbidden") => {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    if (error) url.searchParams.set("error", error);
+    return withSession(NextResponse.redirect(url));
+  };
+  // The check itself failed: say so and keep the staff member signed in,
+  // instead of reading an outage as "signed out" or "forbidden".
+  const checkFailed = () => {
+    if (isLoginPage) return supabaseResponse;
+    const headers = { "retry-after": "5", "cache-control": "no-store" };
+    if (isApi) return withSession(NextResponse.json({ error: CHECK_FAILED }, { status: 503, headers }));
+    return withSession(
+      new NextResponse(checkFailedPage(request.nextUrl.pathname + request.nextUrl.search), {
+        status: 503,
+        headers: { ...headers, "content-type": "text/html; charset=utf-8" },
+      })
+    );
+  };
+
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
   // Unauthenticated:
   //  - APIs → 401 JSON (so fetch/XHR sees the error, not an HTML redirect).
   //  - Pages → redirect to /login (except /login itself).
   if (!user) {
+    if (!isCredentialRejection(userError)) return checkFailed();
     if (isApi) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
     }
     if (isLoginPage) {
       return supabaseResponse;
     }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return toLogin();
   }
 
   // Authenticated — verify admin-console access via the dedicated `admin_users`
   // table (decoupled from the main app's user_profiles.role). The
   // `admin_users_read_own` RLS policy lets the user read their own row via the
-  // anon-authed client.
-  const { data: adminRow } = await supabase
+  // anon-authed client. No row is "no access"; a failed read is not.
+  const { data: adminRow, error: adminError } = await supabase
     .from("admin_users")
     .select("admin_role, is_active")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
+
+  if (adminError) return checkFailed();
 
   const isAdmin =
     !!adminRow?.admin_role && adminRow.is_active === true && ALLOWED_ROLES.has(adminRow.admin_role);
 
   if (!isAdmin) {
     if (isApi) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return withSession(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
     }
     if (isLoginPage) {
       return supabaseResponse;
     }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("error", "forbidden");
-    return NextResponse.redirect(url);
+    return toLogin("forbidden");
   }
 
   // Signed-in admin landing on /login — bounce to dashboard.
   if (isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
-    return NextResponse.redirect(url);
+    return withSession(NextResponse.redirect(url));
   }
 
   return supabaseResponse;
+}
+
+/** A plain page for a failed access check, with a link back to the page asked for. */
+function checkFailedPage(retryPath: string): string {
+  const href = retryPath.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Try again</title></head><body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F7F7F5;color:#1E1E1E;font-family:system-ui,sans-serif"><main style="max-width:420px;padding:32px;text-align:center"><h1 style="font-size:20px;margin:0 0 8px">Could not check your access</h1><p style="font-size:14px;color:#6B6B6B;margin:0 0 20px">The server did not answer in time. Nothing was changed and you were not signed out.</p><a href="${href}" style="display:inline-block;padding:10px 18px;border-radius:12px;background:#1E1E1E;color:#fff;text-decoration:none;font-size:14px">Try again</a></main></body></html>`;
 }
 
 export const config = {

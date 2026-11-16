@@ -1,0 +1,113 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
+
+/**
+ * The middleware decides who reaches the console. A database or auth-server
+ * blip used to read as "no access": staff were sent to /login?error=forbidden
+ * and API calls got 403. Now a failed check answers 503 and keeps the session.
+ */
+
+type GetUser = { data: { user: { id: string } | null }; error: unknown };
+type AdminRead = { data: { admin_role: string; is_active: boolean } | null; error: { message: string } | null };
+
+let getUser: GetUser;
+let adminRead: AdminRead;
+/** Cookies the Supabase client sets, as when it refreshes the session. */
+let refreshedCookies: Array<{ name: string; value: string; options: object }>;
+
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: (
+    _url: string,
+    _key: string,
+    { cookies }: { cookies: { setAll: (list: typeof refreshedCookies) => void } },
+  ) => ({
+    auth: {
+      getUser: async () => {
+        if (refreshedCookies.length > 0) cookies.setAll(refreshedCookies);
+        return getUser;
+      },
+    },
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => adminRead,
+      };
+      return query;
+    },
+  }),
+}));
+
+const { middleware } = await import("./middleware");
+
+const STAFF = { id: "11111111-1111-4111-8111-111111111111" };
+const call = (path: string) => middleware(new NextRequest(`https://console.test${path}`));
+
+beforeEach(() => {
+  getUser = { data: { user: STAFF }, error: null };
+  adminRead = { data: { admin_role: "super_admin", is_active: true }, error: null };
+  refreshedCookies = [];
+});
+
+describe("middleware access check", () => {
+  it("lets an active admin through", async () => {
+    const response = await call("/merchants");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("sends a signed-out visitor to the login page, and answers 401 on the API", async () => {
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+    expect((await call("/api/leads")).status).toBe(401);
+  });
+
+  it("treats a token the auth server rejects as signed out", async () => {
+    getUser = { data: { user: null }, error: new AuthApiError("invalid JWT", 401, "bad_jwt") };
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+  });
+
+  it("sends a signed-in non-admin to the login page with forbidden, and answers 403 on the API", async () => {
+    adminRead = { data: null, error: null };
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=forbidden");
+    expect((await call("/api/leads")).status).toBe(403);
+    adminRead = { data: { admin_role: "super_admin", is_active: false }, error: null };
+    expect((await call("/api/leads")).status).toBe(403);
+  });
+
+  it("answers 503, not forbidden, when the admin_users read fails", async () => {
+    adminRead = { data: null, error: { message: "connection lost" } };
+    const page = await call("/merchants?tab=all");
+    expect(page.status).toBe(503);
+    expect(page.headers.get("location")).toBeNull();
+    const html = await page.text();
+    expect(html).toContain("Could not check your access");
+    expect(html).toContain('href="/merchants?tab=all"');
+
+    const api = await call("/api/leads");
+    expect(api.status).toBe(503);
+    expect(await api.json()).toEqual({ error: "Could not check your access. Try again in a moment." });
+  });
+
+  it("answers 503, not signed out, when the auth server does not answer", async () => {
+    getUser = { data: { user: null }, error: new AuthRetryableFetchError("fetch failed", 0) };
+    expect((await call("/merchants")).status).toBe(503);
+    expect((await call("/api/leads")).status).toBe(503);
+    getUser = { data: { user: null }, error: new AuthApiError("server error", 500, "unexpected_failure") };
+    expect((await call("/api/leads")).status).toBe(503);
+  });
+
+  it("still shows the login page during an outage", async () => {
+    adminRead = { data: null, error: { message: "connection lost" } };
+    expect((await call("/login")).status).toBe(200);
+  });
+
+  it("keeps a refreshed session on every answer it builds", async () => {
+    refreshedCookies = [{ name: "sb-session", value: "fresh", options: { path: "/" } }];
+    adminRead = { data: null, error: { message: "connection lost" } };
+    expect((await call("/api/leads")).cookies.get("sb-session")?.value).toBe("fresh");
+    adminRead = { data: null, error: null };
+    expect((await call("/merchants")).cookies.get("sb-session")?.value).toBe("fresh");
+  });
+});
