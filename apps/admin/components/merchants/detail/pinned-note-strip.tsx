@@ -10,44 +10,34 @@ interface PinnedNoteStripProps {
   onOpenNotes: () => void;
 }
 
+/** The newest pinned note, on top of the shop page: what every colleague must know before calling. */
 export function PinnedNoteStrip({ notes, onOpenNotes }: PinnedNoteStripProps) {
-  const pinned = useMemo(() => {
-    return notes
-      .filter((n) => n.is_pinned)
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  }, [notes]);
+  const pinned = useMemo(
+    () =>
+      notes
+        .filter((n) => n.is_pinned)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [notes],
+  );
 
-  if (pinned.length === 0) return null;
-  const top = pinned[0]!;
+  const [top] = pinned;
+  if (!top) return null;
   const extra = pinned.length - 1;
 
   return (
     <button
       type="button"
       onClick={onOpenNotes}
-      className="group relative w-full flex items-start gap-2.5 px-3 py-2 rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-400/10 dark:to-yellow-400/5 border border-amber-200/60 dark:border-amber-400/20 text-left hover:from-amber-100 hover:to-yellow-100 dark:hover:from-amber-400/15 transition-colors"
+      className="pastel-card flex w-full items-start gap-3 border-l-4 border-l-amber-400 p-4 text-left transition-colors hover:bg-foreground/[0.02]"
     >
-      <div className="w-6 h-6 rounded-lg bg-amber-200/70 dark:bg-amber-400/25 flex items-center justify-center shrink-0 mt-0.5">
-        <Pin className="w-3 h-3 text-amber-700 dark:text-amber-300 -rotate-45" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
-            Pinned note
-          </span>
-          <span className="text-[10px] text-amber-700/60 dark:text-amber-300/60 font-medium">
-            · {formatWhen(top.updated_at)}
-          </span>
-          {extra > 0 && (
-            <span className="ml-auto text-[10px] font-bold text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded-full bg-amber-200/50 dark:bg-amber-400/15">
-              +{extra} more
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-amber-900 dark:text-amber-100 font-medium mt-0.5 line-clamp-2 leading-snug">
-          {top.content}
-        </p>
-      </div>
+      <Pin className="mt-0.5 h-4 w-4 shrink-0 -rotate-45 text-amber-700 dark:text-amber-300" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 text-[15px] text-foreground">{top.content}</span>
+        <span className="mt-1 block text-[13px] text-foreground/60">
+          Pinned note, {formatWhen(top.updated_at)}
+          {extra > 0 && ` · ${extra} more pinned`}
+        </span>
+      </span>
     </button>
   );
 }

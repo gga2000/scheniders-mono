@@ -1,28 +1,37 @@
 "use client";
 
-import { ShoppingBag, Loader2, Inbox } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useMerchantRecentOrders } from "@/hooks/use-merchant-detail";
 import { cn } from "@/lib/utils";
-import { formatCount, formatWhen } from "@/lib/format";
+import { formatIQD, formatWhen } from "@/lib/format";
 
 interface RecentOrdersSectionProps {
   merchantId: string;
   limit?: number;
 }
 
-const STATUS_TONE: Record<string, string> = {
-  new: "bg-sky-100 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
-  contacted: "bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
-  confirmed: "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
-  in_transit: "bg-indigo-100 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300",
-  delivered: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
-  completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
-  cancelled: "bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
-  rejected: "bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
-  no_response: "bg-foreground/[0.06] text-foreground/60",
-  return_pending: "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
-  pending_checkout: "bg-foreground/[0.06] text-foreground/60",
-  suspended: "bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
+type Tone = "neutral" | "moving" | "done" | "lost";
+
+/** Each order status in words, with one of four tones. */
+const STATUS: Record<string, { word: string; tone: Tone }> = {
+  new: { word: "New", tone: "neutral" },
+  contacted: { word: "Contacted", tone: "neutral" },
+  no_response: { word: "No answer", tone: "neutral" },
+  pending_checkout: { word: "Checkout not finished", tone: "neutral" },
+  confirmed: { word: "Confirmed", tone: "moving" },
+  in_transit: { word: "On the way", tone: "moving" },
+  return_pending: { word: "Coming back", tone: "moving" },
+  delivered: { word: "Delivered", tone: "done" },
+  completed: { word: "Completed", tone: "done" },
+  cancelled: { word: "Cancelled", tone: "lost" },
+  rejected: { word: "Rejected", tone: "lost" },
+};
+
+const TONE: Record<Tone, string> = {
+  neutral: "bg-foreground/[0.06] text-foreground/70",
+  moving: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
+  done: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
+  lost: "bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
 };
 
 export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSectionProps) {
@@ -30,54 +39,41 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
   const orders = data?.orders ?? [];
 
   return (
-    <div className="pastel-card p-4">
-      <h3 className="mb-3 text-[10px] font-black uppercase tracking-wider text-foreground/50 flex items-center gap-1.5">
-        <ShoppingBag className="w-3 h-3" />
-        Recent orders
-      </h3>
-
+    <section className="pastel-card p-5" aria-label="Latest orders">
+      <h2 className="mb-3 text-[15px] font-semibold text-foreground">Latest orders</h2>
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/40">
-          <Loader2 className="w-4 h-4 animate-spin" />
+        <div className="flex justify-center py-6 text-foreground/40">
+          <Loader2 className="h-4 w-4 animate-spin" aria-label="Loading orders" />
         </div>
       ) : orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-6 text-foreground/40">
-          <Inbox className="w-6 h-6 mb-1.5" />
-          <p className="text-xs">No orders yet</p>
-        </div>
+        <p className="py-4 text-[13px] text-foreground/60">No orders yet.</p>
       ) : (
-        <div className="divide-y divide-[var(--card-border)]">
-          {orders.map((o) => (
-            <div key={o.id} className="py-2 flex items-center gap-3 group">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-foreground truncate">
-                  {o.customer_name ?? "Unnamed customer"}
-                  <span className="text-foreground/40 font-medium ml-1.5">
-                    · #{o.id.slice(0, 6)}
-                  </span>
+        <ul className="divide-y divide-[var(--card-border)]">
+          {orders.map((o) => {
+            const status = STATUS[o.status] ?? { word: o.status.replace(/_/g, " "), tone: "neutral" as const };
+            return (
+              <li key={o.id} className="flex items-center gap-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium text-foreground">
+                    {o.customer_name ?? "No name"}
+                  </p>
+                  <p className="truncate text-[13px] text-foreground/60">
+                    {formatWhen(o.created_at)}
+                    {o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : ""}
+                    {o.customer_phone ? ` · ${o.customer_phone}` : ""}
+                  </p>
+                </div>
+                <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-[13px] font-medium", TONE[status.tone])}>
+                  {status.word}
+                </span>
+                <p className="w-28 shrink-0 text-right text-[15px] font-semibold tabular-nums text-foreground">
+                  {formatIQD(o.total_iqd)}
                 </p>
-                <p className="text-[10px] text-foreground/50 truncate">
-                  {formatWhen(o.created_at)}
-                  {o.items_count ? ` · ${o.items_count} item${o.items_count === 1 ? "" : "s"}` : ""}
-                  {o.customer_phone ? ` · ${o.customer_phone}` : ""}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0",
-                  STATUS_TONE[o.status] ?? "bg-foreground/[0.06] text-foreground/60"
-                )}
-              >
-                {o.status.replace(/_/g, " ")}
-              </span>
-              <p className="text-xs font-bold tabular-nums text-foreground shrink-0 min-w-[70px] text-right">
-                {formatCount(o.total_iqd)}
-                <span className="text-[9px] font-normal text-foreground/50 ml-0.5">IQD</span>
-              </p>
-            </div>
-          ))}
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }

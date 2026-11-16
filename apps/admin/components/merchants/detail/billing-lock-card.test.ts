@@ -62,7 +62,7 @@ describe("BillingLockCard", () => {
     const html = render(true);
     // The order presets (+10, +25, +50), the custom grant and the unlock.
     const tools = (html.match(/<button[^>]*>(?:(?!<\/button>).)*<\/button>/g) ?? []).filter(
-      (b) => /<\/svg>(10|25|50)<\/button>$/.test(b) || b.includes("Give these store orders") || b.includes("Unlock for"),
+      (b) => />\+ (10|25|50)<\/button>$/.test(b) || b.includes("Give these store orders") || b.includes("Unlock for"),
     );
     expect(tools).toHaveLength(5);
     for (const button of tools) expect(button).toMatch(/disabled=""/);

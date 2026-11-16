@@ -14,6 +14,8 @@ interface OverviewTabProps {
   canForceUnlock: boolean;
 }
 
+const LOCALE_LABEL = { currency: "Currency", language: "Language", timezone: "Time zone" } as const;
+
 export function OverviewTab({
   merchantId,
   tenant,
@@ -21,27 +23,18 @@ export function OverviewTab({
   billingLock,
   canForceUnlock,
 }: OverviewTabProps) {
-  const infoRows: Array<{
-    label: string;
-    value: string | null | undefined;
-    copyable?: boolean;
-  }> = [
-    { label: "Contact Email", value: tenant.contact_email, copyable: true },
-    { label: "Contact Phone", value: tenant.contact_phone, copyable: true },
+  const settings = tenant.settings ?? {};
+  const locale = (["currency", "language", "timezone"] as const)
+    .map((key) => ({ key, value: settings[key] }))
+    .filter((row): row is { key: "currency" | "language" | "timezone"; value: string } => typeof row.value === "string");
+  // The trial, the month and the plan are in the status line and the card above.
+  const details: Array<{ label: string; value: string | null | undefined; copyable?: boolean }> = [
+    { label: "Email", value: tenant.contact_email, copyable: true },
+    { label: "Phone", value: tenant.contact_phone, copyable: true },
     { label: "Address", value: tenant.address, copyable: true },
     { label: "City", value: tenant.city, copyable: true },
-    { label: "Created", value: tenant.created_at ? formatDay(tenant.created_at) : null },
-    { label: "Trial Ends", value: tenant.trial_ends_at ? formatDay(tenant.trial_ends_at) : null },
-    {
-      label: "Subscription Status",
-      value: subscription ? `${subscription.status} (${subscription.plan})` : null,
-    },
-    {
-      label: "Current Period",
-      value: subscription
-        ? `${formatDay(subscription.current_period_start)} to ${formatDay(subscription.current_period_end)}`
-        : null,
-    },
+    { label: "Opened", value: tenant.created_at ? formatDay(tenant.created_at) : null },
+    ...locale.map((row) => ({ label: LOCALE_LABEL[row.key], value: row.value })),
   ];
 
   return (
@@ -50,58 +43,21 @@ export function OverviewTab({
         <BillingLockCard merchantId={merchantId} lock={billingLock} canForceUnlock={canForceUnlock} />
       )}
 
-      <SubscriptionCard
-        merchantId={merchantId}
-        tenant={tenant}
-        subscription={subscription}
-      />
+      <SubscriptionCard merchantId={merchantId} tenant={tenant} subscription={subscription} />
 
-      <div className="pastel-card p-5 md:p-6">
-      <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
-        Tenant Information
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-        {infoRows.map((row) => (
-          <div key={row.label} className="flex flex-col py-1.5 group/row">
-            <span className="text-xs text-foreground/50 font-medium">{row.label}</span>
-            {row.copyable && row.value ? (
-              <CopyableText
-                value={row.value}
-                className="text-sm font-semibold text-foreground mt-0.5"
-              />
-            ) : (
-              <span className="text-sm font-semibold text-foreground mt-0.5">
-                {row.value || "\u2014"}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {tenant.settings && Object.keys(tenant.settings).length > 0 && (
-        <div className="mt-6 pt-4 border-t border-[var(--card-border)]">
-          <h3 className="text-xs font-semibold text-foreground/60 uppercase tracking-wider mb-3">
-            Locale
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
-            {(["currency", "language", "timezone"] as const).map((key) => {
-              const value = (tenant.settings as Record<string, unknown> | null)?.[key];
-              if (typeof value !== "string") return null;
-              return (
-                <div key={key} className="flex flex-col py-1.5">
-                  <span className="text-xs text-foreground/50 font-medium capitalize">
-                    {key}
-                  </span>
-                  <span className="text-sm font-semibold text-foreground mt-0.5">
-                    {value}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      </div>
+      <section className="pastel-card p-5" aria-label="Shop details">
+        <h2 className="mb-4 text-[15px] font-semibold text-foreground">Shop details</h2>
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-3">
+          {details.map((row) => (
+            <div key={row.label}>
+              <dt className="text-[13px] text-foreground/60">{row.label}</dt>
+              <dd className="mt-1 text-[15px] font-medium text-foreground">
+                {row.copyable && row.value ? <CopyableText value={row.value} /> : row.value || "None"}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 }

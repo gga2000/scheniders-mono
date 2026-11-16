@@ -72,3 +72,18 @@ export function formatWhen(value: string | number | Date, now: Date = new Date()
   if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`;
   return `${Math.floor(elapsed / HOUR)} h ago`;
 }
+
+const DAY_MS = 24 * HOUR;
+
+/**
+ * How long until something: "in 40 min", "in 15 h", "in 3 days"; "ended" once
+ * it has passed. Whole units, rounded down, so "in 1 day" never means 47 hours.
+ */
+export function formatUntil(value: string | number | Date, now: Date = new Date()): string {
+  const left = asDate(value).getTime() - now.getTime();
+  if (left <= 0) return "ended";
+  if (left < HOUR) return `in ${Math.max(1, Math.floor(left / MINUTE))} min`;
+  if (left < DAY_MS) return `in ${Math.floor(left / HOUR)} h`;
+  const days = Math.floor(left / DAY_MS);
+  return days === 1 ? "in 1 day" : `in ${days} days`;
+}
