@@ -70,7 +70,7 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                                     <div className="flex min-w-0 items-baseline gap-2">
                                         <Link
                                             href={`/orders?order=${order.id}`}
-                                            className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
+                                            className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                                             aria-label={t("fin.money.unpaid.row.open", { code })}
                                             dir="ltr"
                                         >

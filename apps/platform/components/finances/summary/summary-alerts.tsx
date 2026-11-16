@@ -2,9 +2,10 @@
 
 import { STUCK_ORDERS_HREF } from "@/lib/orders/stuck-in-transit";
 import Link from "next/link";
-import { ArrowUpRight, Clock, CopyCheck, Tag, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Clock, CopyCheck, Tag, Undo2, type LucideIcon } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { deliveryOverlap, type FinanceSummary } from "@/lib/finance/summary";
+import { COURIER_PAYMENTS_ID } from "./courier-payments";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
 
@@ -28,7 +29,8 @@ const BANNER =
 /**
  * The things worth a merchant's attention before reading the numbers: parcels
  * stuck on the road, delivered goods with no cost on file (which make the
- * profit read too high), and a courier fee that may be counted twice (in the
+ * profit read too high), refunds the courier paid that the shop has not
+ * marked (profit reads too high until it does), and a courier fee that may be counted twice (in the
  * payment files and again as a typed courier bill, which makes it read too
  * low). Nothing shows when none applies.
  */
@@ -53,6 +55,16 @@ export function SummaryAlerts({ summary, onOpenTab }: SummaryAlertsProps) {
             text: t("fin.alert.noCost", { n: formatWhole(summary.sales.missing_cost_units), count: summary.sales.missing_cost_units }),
             target: { href: "/products" },
             action: t("fin.alert.noCost.open"),
+        });
+    }
+    const refundsOpen = summary.cash.statement.returns_open_orders;
+    if (refundsOpen > 0) {
+        alerts.push({
+            key: "refunds_open",
+            icon: Undo2,
+            text: t("fin.alert.refundsOpen", { n: formatWhole(refundsOpen), count: refundsOpen, amount: money(-summary.cash.statement.returns_open) }),
+            target: { href: `#${COURIER_PAYMENTS_ID}` },
+            action: t("fin.alert.refundsOpen.open"),
         });
     }
     const overlap = deliveryOverlap(summary);
