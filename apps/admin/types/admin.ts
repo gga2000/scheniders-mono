@@ -117,6 +117,8 @@ export interface AdminTenant {
   monthly_revenue: number;
   daily_revenue: number;
   orders_30d?: number;
+  /** People who can sign in to the shop today. Sent by the Merchants list. */
+  team_members?: number;
   order_sparkline: number[];
   /** 0 to 100, worked out by the database: the number the health filter uses. */
   staff_health_score: number;

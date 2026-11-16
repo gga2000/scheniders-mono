@@ -323,7 +323,7 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="w-16 shrink-0 px-2 flex items-center justify-end font-bold tabular-nums text-foreground/70 border-r border-[var(--card-border)]/30">
-                  {m.usage?.team_members_count ?? 0}
+                  {m.team_members ?? "\u2014"}
                 </div>
 
                 <div className="w-24 shrink-0 px-2 flex items-center justify-center border-r border-[var(--card-border)]/30">

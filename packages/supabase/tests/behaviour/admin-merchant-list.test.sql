@@ -18,6 +18,10 @@
 --       with no reference is not a fee; fees today follow the Baghdad day;
 --     * the last wallet line is the newest of any kind, top-ups included;
 --     * usage is the newest month's row, also across a year change;
+--     * the team is the shop's active members today: an invitation not yet
+--       accepted and a suspended member are not counted, another shop's
+--       members are not counted, and the usage row's old team number (written
+--       once at sign-up) changes nothing;
 --     * a shop whose trial ended unpaid, or whose month is unpaid, is reported
 --       locked with the reason; a paying shop and an internal shop are not;
 --     * a shop with no rows at all still gets a row of zeros and blanks;
@@ -149,6 +153,17 @@ BEGIN
         (_unpaid, 2025, 12, 90, 80, 1),
         (_unpaid, 2026, 1, 7, 5, 4);
 
+    -- The busy shop: 7 people who can sign in, one invited, one suspended. Its
+    -- usage row above still says 3.
+    INSERT INTO public.tenant_members (tenant_id, user_id, role, status)
+    SELECT _busy, gen_random_uuid(), CASE WHEN g = 1 THEN 'admin' ELSE 'employee' END, 'active'
+    FROM generate_series(1, 7) AS g;
+    INSERT INTO public.tenant_members (tenant_id, user_id, status) VALUES
+        (_busy, gen_random_uuid(), 'pending'),
+        (_busy, gen_random_uuid(), 'suspended'),
+        (_other, gen_random_uuid(), 'active'),
+        (_other, gen_random_uuid(), 'active');
+
     -- Asked for twice, and in a different order than the rows were made.
     SELECT count(*) INTO _n
     FROM public.admin_merchant_list_stats(ARRAY[_internal, _busy, _quiet, _busy, _trial, _unpaid], _now);
@@ -184,6 +199,8 @@ BEGIN
         _r.last_wallet_at = '2026-11-16 08:30:00+03');
     PERFORM pg_temp.check('busy: usage is November''s row',
         _r.usage_orders_count = 1203 AND _r.usage_orders_charged = 1100 AND _r.usage_team_members_count = 3);
+    PERFORM pg_temp.check('busy: the team is its 7 active members, not the usage row''s 3, got ' || _r.team_members,
+        _r.team_members = 7);
     PERFORM pg_temp.check('busy: a paying shop is not locked', _r.lock_reason IS NULL AND _r.lock_since IS NULL);
 
     -- One hour before midnight in Baghdad the day before, "today" is still Sunday.
@@ -201,6 +218,7 @@ BEGIN
         _r.orders_30d = 0 AND _r.order_sparkline = array_fill(0, ARRAY[30])
         AND _r.last_order_at IS NULL AND _r.fees_30d = 0 AND _r.fees_today = 0
         AND _r.last_wallet_at IS NULL AND _r.usage_orders_count IS NULL
+        AND _r.team_members = 0
         AND _r.lock_reason IS NULL);
 
     -- Locks -----------------------------------------------------------------------

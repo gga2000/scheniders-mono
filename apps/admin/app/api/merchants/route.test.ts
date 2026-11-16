@@ -59,6 +59,7 @@ describe("GET /api/merchants", () => {
         usage_orders_count: 1203,
         usage_orders_charged: 1100,
         usage_team_members_count: 3,
+        team_members: 7,
       }),
     ]);
 
@@ -76,6 +77,8 @@ describe("GET /api/merchants", () => {
       daily_revenue: 55,
       last_active_at: "2026-11-16T05:30:00+00:00",
       usage: { orders_count: 1203, orders_charged: 1100, team_members_count: 3 },
+      // The team is the shop's active members today, not the usage row's number from sign-up.
+      team_members: 7,
       billing_lock: null,
       tags: [],
     });
@@ -176,6 +179,40 @@ describe("GET /api/merchants", () => {
     expect(merchants[0].pinned_note).toEqual({ content: "Pays in cash", updated_at: "2026-11-16T08:00:00Z", admin_label: "Zainab" });
     expect(merchants[1].pinned_note).toBeNull();
     expect(stub.callsTo("admin_notes.order")).toEqual([["updated_at", { ascending: false }]]);
+  });
+
+  describe("ids", () => {
+    const A = "11111111-1111-4111-8111-111111111111";
+    const B = "22222222-2222-4222-8222-222222222222";
+    const C = "33333333-3333-4333-8333-333333333333";
+
+    it("sends only the shops asked for, with the list's own numbers", async () => {
+      stub.state.tables.tenants = [shop(1, { id: A }), shop(2, { id: B }), shop(3, { id: C })];
+      answerStats([listStatsRow(C, { orders_30d: 12, fees_30d: 660, team_members: 2 })]);
+
+      const { merchants } = await (await call(`ids=${C},${A}`)).json();
+
+      expect(stub.callsTo("tenants.in")).toEqual([["id", [C, A]]]);
+      expect(merchants.map((m: { id: string }) => m.id).sort()).toEqual([A, C]);
+      expect(merchants.find((m: { id: string }) => m.id === C)).toMatchObject({
+        orders_30d: 12,
+        monthly_revenue: 660,
+        team_members: 2,
+      });
+    });
+
+    it("refuses a value that is not a shop id, and reads nothing", async () => {
+      const response = await call("ids=1 or true");
+
+      expect(response.status).toBe(400);
+      expect(stub.tablesRead()).toEqual([]);
+    });
+
+    it("adds no filter when ids is not asked for", async () => {
+      await call();
+
+      expect(stub.callsTo("tenants.in")).toEqual([]);
+    });
   });
 
   it("keeps shops made in the same instant in a fixed order between pages", async () => {

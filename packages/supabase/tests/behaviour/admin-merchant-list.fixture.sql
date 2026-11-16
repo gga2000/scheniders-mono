@@ -17,6 +17,7 @@
 CREATE TYPE public.subscription_status AS ENUM ('trialing', 'active', 'past_due', 'cancelled', 'incomplete');
 CREATE TYPE public.lead_status AS ENUM ('new', 'contacted', 'interested', 'store_built', 'converted', 'lost');
 CREATE TYPE public.commission_status AS ENUM ('pending', 'approved', 'paid');
+CREATE TYPE public.member_status AS ENUM ('pending', 'active', 'suspended');
 
 ALTER TABLE public.tenants ADD COLUMN trial_ends_at timestamptz;
 
@@ -43,6 +44,14 @@ CREATE TABLE public.usage_tracking (
     orders_charged integer NOT NULL DEFAULT 0,
     team_members_count integer NOT NULL DEFAULT 0,
     UNIQUE (tenant_id, year, month)
+);
+
+CREATE TABLE public.tenant_members (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES public.tenants (id) ON DELETE CASCADE,
+    user_id uuid NOT NULL,
+    role text NOT NULL DEFAULT 'employee',
+    status public.member_status NOT NULL DEFAULT 'active'
 );
 
 CREATE TABLE public.admin_users (
