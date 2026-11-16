@@ -59,6 +59,19 @@ async function signFiles(db: ServiceDb, rows: MessageRow[]): Promise<SupportMess
     });
 }
 
+/** The name of the shop's support person (support_shop_owners), as staff set it. */
+async function ownerName(db: ServiceDb, tenantId: string): Promise<string | null> {
+    const { data, error } = await db
+        .from("support_shop_owners")
+        .select("admin_users(display_name)")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+    if (error) throw new Error(`Support owner read failed: ${error.message}`);
+    const admin = (data as { admin_users: { display_name: string | null } | null } | null)?.admin_users;
+    const name = admin?.display_name?.trim() ?? "";
+    return name === "" ? null : name.slice(0, 60);
+}
+
 /**
  * The signed-in member's own support thread in their active shop: their cases
  * (never a teammate's), newest first, and the messages inside them.
@@ -74,7 +87,7 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
     if (caseError) throw new Error(`Support cases read failed: ${caseError.message}`);
 
     const cases = (caseRows ?? []) as (SupportCase & { merchant_last_read_at: string })[];
-    if (cases.length === 0) return { case: null, messages: [], unread: 0 };
+    if (cases.length === 0) return { case: null, messages: [], unread: 0, owner: await ownerName(db, caller.tenantId) };
 
     const { data: messageRows, error: messageError } = await db
         .from("support_messages")
@@ -93,7 +106,8 @@ async function loadThread(db: ServiceDb, caller: Caller): Promise<SupportThread>
     }).length;
 
     const { id, status, rating, solved_at, created_at } = cases[0];
-    return { case: { id, status, rating, solved_at, created_at }, messages, unread };
+    const owner = await ownerName(db, caller.tenantId);
+    return { case: { id, status, rating, solved_at, created_at }, messages, unread, owner };
 }
 
 /** GET /api/support — my conversation with the support team. */

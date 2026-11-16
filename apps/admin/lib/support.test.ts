@@ -3,6 +3,10 @@ import {
   CaseActionSchema,
   fillSavedReply,
   formatAgo,
+  formatDue,
+  sortTasks,
+  TaskLogSchema,
+  type SupportTask,
   formatDuration,
   leadProblem,
   problemDetail,
@@ -199,5 +203,53 @@ describe("formatAgo", () => {
     expect(formatAgo("2026-11-16T11:59:30Z", now)).toBe("just now");
     expect(formatAgo("2026-11-16T09:00:00Z", now)).toBe("3 h ago");
     expect(formatAgo("2026-11-14T08:00:00Z", now)).toBe("2 d 4 h ago");
+  });
+});
+
+describe("sortTasks", () => {
+  const task = (id: string, owner: string | null, due: string): SupportTask => ({
+    id,
+    kind: "welcome_call",
+    due_at: due,
+    attempts: 0,
+    tenant_id: "t",
+    business_name: "Shop",
+    display_id: null,
+    trial_ends_at: null,
+    shop_status: "trial",
+    orders: 0,
+    owner_id: owner,
+    owner_name: null,
+    calls: [],
+  });
+
+  it("puts my tasks first, then each group by due time", () => {
+    const tasks = [
+      task("a", "other", "2026-11-16T08:00:00Z"),
+      task("b", "me", "2026-11-16T12:00:00Z"),
+      task("c", null, "2026-11-16T07:00:00Z"),
+      task("d", "me", "2026-11-16T09:00:00Z"),
+    ];
+    expect(sortTasks(tasks, "me").map((t) => t.id)).toEqual(["d", "b", "c", "a"]);
+    expect(tasks.map((t) => t.id)).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
+describe("formatDue", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  it.each([
+    ["2026-11-16T12:00:30Z", "Due now"],
+    ["2026-11-16T12:40:00Z", "Due in 40 min"],
+    ["2026-11-16T10:00:00Z", "Late by 2 h"],
+  ])("%s reads %s", (due, expected) => {
+    expect(formatDue(due, now)).toBe(expected);
+  });
+});
+
+describe("TaskLogSchema", () => {
+  it("trims the note and gives an empty one when none is sent", () => {
+    const id = "66666666-6666-4666-8666-666666666666";
+    expect(TaskLogSchema.parse({ taskId: id, outcome: "done" })).toEqual({ taskId: id, outcome: "done", note: "" });
+    expect(TaskLogSchema.parse({ taskId: id, outcome: "later", note: "  call at 6 " }).note).toBe("call at 6");
   });
 });

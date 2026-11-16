@@ -4,21 +4,23 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Headset, Loader2, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSupportCase, useSupportCases, useSupportNeedsUs } from "@/hooks/use-support-cases";
+import { useSupportCase, useSupportCases, useSupportNeedsUs, useSupportTasks } from "@/hooks/use-support-cases";
 import { SupportCaseList } from "@/components/support/support-case-list";
 import { SupportConversation } from "@/components/support/support-conversation";
 import { SupportShopCard } from "@/components/support/support-shop-card";
 import { SupportAlertsToggle } from "@/components/support/support-alerts-toggle";
 import { SupportScoreboardView } from "@/components/support/support-scoreboard";
 import { SupportNeedsUs } from "@/components/support/support-needs-us";
+import { SupportToday } from "@/components/support/support-today";
 import type { ScoreboardDays } from "@/lib/support";
 
-type View = "open" | "solved" | "needs" | "scoreboard";
+type View = "open" | "solved" | "needs" | "today" | "scoreboard";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "open", label: "Open" },
   { id: "solved", label: "Solved" },
   { id: "needs", label: "Needs us" },
+  { id: "today", label: "Today" },
   { id: "scoreboard", label: "Scoreboard" },
 ];
 
@@ -51,6 +53,8 @@ function SupportInbox() {
   const detail = useSupportCase(activeId);
   const waiting = list.data?.waitingOnUs ?? 0;
   const needsUs = useSupportNeedsUs().data?.length ?? 0;
+  const tasks = useSupportTasks().data;
+  const myCalls = tasks ? tasks.tasks.filter((t) => t.owner_id === tasks.me).length : 0;
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -90,6 +94,11 @@ function SupportInbox() {
                     {needsUs}
                   </span>
                 )}
+                {v.id === "today" && myCalls > 0 && (
+                  <span className="ml-1.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-900">
+                    {myCalls}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -98,6 +107,8 @@ function SupportInbox() {
 
       {view === "scoreboard" ? (
         <SupportScoreboardView days={boardDays} onDaysChange={setBoardDays} />
+      ) : view === "today" ? (
+        <SupportToday />
       ) : view === "needs" ? (
         <SupportNeedsUs
           onOpenCase={(caseId) => {

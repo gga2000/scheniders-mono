@@ -87,8 +87,17 @@ describe("GET /api/support", () => {
     it("reads only the caller's own cases in the caller's own shop", async () => {
         state.queue.push({ data: [], error: null });
         const res = await GET(request("GET"));
-        expect(await res.json()).toEqual({ success: true, data: { case: null, messages: [], unread: 0 } });
-        expect(eqCalls()).toEqual([["tenant_id", TENANT], ["opened_by", USER]]);
+        expect(await res.json()).toEqual({ success: true, data: { case: null, messages: [], unread: 0, owner: null } });
+        expect(eqCalls()).toEqual([["tenant_id", TENANT], ["opened_by", USER], ["tenant_id", TENANT]]);
+    });
+
+    it("names the shop's support person from the shop, not from the caller", async () => {
+        state.queue.push({ data: [], error: null }, { data: { admin_users: { display_name: "  Noor " } }, error: null });
+        const res = await GET(request("GET"));
+        expect((await res.json()).data.owner).toBe("Noor");
+        const owner = state.calls.findIndex((c) => c.method === "from" && c.args[0] === "support_shop_owners");
+        expect(owner).toBeGreaterThan(-1);
+        expect(state.calls.slice(owner).find((c) => c.method === "eq")?.args).toEqual(["tenant_id", TENANT]);
     });
 
     it("returns the thread oldest first and counts staff replies the merchant has not opened", async () => {

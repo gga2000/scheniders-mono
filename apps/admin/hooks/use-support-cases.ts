@@ -9,6 +9,8 @@ import type {
   SupportCaseDetailResponse,
   SupportCasesResponse,
   SupportScoreboard,
+  SupportTask,
+  TaskLogInput,
 } from "@/lib/support";
 import type { ShopCheck } from "@/lib/support-shop-check";
 
@@ -107,6 +109,47 @@ export function useSupportStartConversation() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+  });
+}
+
+/** The first-week plan tasks due today, with who I am so mine sort first. */
+export function useSupportTasks() {
+  return useQuery<{ tasks: SupportTask[]; me: string }>({
+    queryKey: ["admin", "support", "tasks"],
+    queryFn: async () => readJson<{ tasks: SupportTask[]; me: string }>(await fetch("/api/support/tasks")),
+    refetchInterval: 60_000,
+  });
+}
+
+/** Record a call on a first-week task. */
+export function useSupportLogTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: TaskLogInput) =>
+      readJson<{ success: true }>(
+        await fetch("/api/support/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
+  });
+}
+
+/** "Take this shop": become its named support person. */
+export function useSupportTakeShop() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (tenantId: string) =>
+      readJson<{ success: true }>(
+        await fetch("/api/support/owner", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId }),
         }),
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),

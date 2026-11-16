@@ -132,6 +132,10 @@ export interface SupportShopCard {
   teamSize: number;
   pinnedNotes: { id: string; content: string; created_at: string }[];
   earlierCases: { id: string; status: SupportStatus; reason: SupportReason | null; created_at: string }[];
+  /** The shop's named support person; null until the 5-minute job gives one. */
+  owner: { name: string; isMe: boolean } | null;
+  /** The last calls on this shop, newest first. */
+  calls: SupportCall[];
 }
 
 export interface SupportCasesResponse {
@@ -155,6 +159,9 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_case_solved: { status: 409, error: "This conversation is already solved." },
   support_shop_not_found: { status: 404, error: "This shop no longer exists." },
   support_shop_has_nobody: { status: 409, error: "This shop has no active member to write to." },
+  support_task_not_found: { status: 404, error: "This task no longer exists." },
+  support_task_already_done: { status: 409, error: "Someone already finished this task." },
+  support_bad_outcome: { status: 400, error: "Pick done, no answer or later." },
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null):
@@ -412,4 +419,85 @@ export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblemCode 
 export function formatAgo(at: string, now: number): string {
   const seconds = Math.max(0, (now - Date.parse(at)) / 1000);
   return seconds < 60 ? "just now" : `${formatDuration(seconds)} ago`;
+}
+
+/**
+ * The first-week plan of a new shop (support_tasks), owned by the shop's
+ * support person. Migration 20261116110606_support_account_owners.sql.
+ */
+export const SUPPORT_TASK_KINDS = ["welcome_call", "store_check", "first_order", "trial_end"] as const;
+export type SupportTaskKind = (typeof SUPPORT_TASK_KINDS)[number];
+
+export const SUPPORT_TASK_LABELS: Record<SupportTaskKind, { title: string; hint: string }> = {
+  welcome_call: { title: "Welcome call", hint: "Day 0. Say hello, give your name, ask what they sell." },
+  store_check: { title: "Store check", hint: "Day 1. Run Check this shop and fix what is red with them." },
+  first_order: { title: "First order", hint: "Day 3. Did an order come in? If not, help them get one." },
+  trial_end: { title: "Before the trial ends", hint: "A day before. Answer questions about the plans." },
+};
+
+export const CALL_OUTCOMES = ["done", "no_answer", "later"] as const;
+export type CallOutcome = (typeof CALL_OUTCOMES)[number];
+
+export const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
+  done: "Done",
+  no_answer: "No answer",
+  later: "Later",
+};
+
+export interface SupportCall {
+  admin_name: string;
+  outcome: CallOutcome;
+  note: string;
+  created_at: string;
+}
+
+const callSchema = z.object({
+  admin_name: z.string(),
+  outcome: z.enum(CALL_OUTCOMES),
+  note: z.string(),
+  created_at: z.string(),
+});
+
+export const SupportTaskSchema = z.object({
+  id: z.string().uuid(),
+  kind: z.enum(SUPPORT_TASK_KINDS),
+  due_at: z.string(),
+  attempts: z.number().int().min(0),
+  tenant_id: z.string().uuid(),
+  business_name: z.string(),
+  display_id: z.number().int().nullable(),
+  trial_ends_at: z.string().nullable(),
+  shop_status: z.string(),
+  orders: z.number().int().min(0),
+  owner_id: z.string().uuid().nullable(),
+  owner_name: z.string().nullable(),
+  calls: z.array(callSchema),
+});
+
+export const SupportTasksSchema = z.array(SupportTaskSchema);
+export type SupportTask = z.infer<typeof SupportTaskSchema>;
+
+export const TaskLogSchema = z.object({
+  taskId: z.string().uuid(),
+  outcome: z.enum(CALL_OUTCOMES),
+  note: z.string().trim().max(500).default(""),
+});
+
+export type TaskLogInput = z.input<typeof TaskLogSchema>;
+
+export const TakeShopSchema = z.object({ tenantId: z.string().uuid() });
+
+/** My tasks first, then the rest, each by when it was due. */
+export function sortTasks(tasks: SupportTask[], adminId: string | null): SupportTask[] {
+  return [...tasks].sort((a, b) => {
+    const mine = Number(b.owner_id === adminId) - Number(a.owner_id === adminId);
+    return mine !== 0 ? mine : Date.parse(a.due_at) - Date.parse(b.due_at);
+  });
+}
+
+/** "Late by 2 h", "Due in 40 min" or "Due now", for a task's due time. */
+export function formatDue(dueAt: string, now: number): string {
+  const seconds = (Date.parse(dueAt) - now) / 1000;
+  if (Math.abs(seconds) < 60) return "Due now";
+  return seconds < 0 ? `Late by ${formatDuration(-seconds)}` : `Due in ${formatDuration(seconds)}`;
 }

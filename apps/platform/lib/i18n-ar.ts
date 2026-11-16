@@ -7787,6 +7787,7 @@ export const ar: Record<string, string> = {
     "support.hours.open": "متصلون الآن · نرد خلال 5 دقائق",
     "support.hours.closed": "مغلق الآن · نرد عليك من الساعة 9 صباحاً",
     "support.hours.days": "كل يوم من 9 صباحاً إلى 12 ليلاً، بتوقيت بغداد",
+    "support.owner": "مسؤول حسابك: {name}",
     "support.close": "إغلاق",
     "support.empty.title": "كيف نساعدك؟",
     "support.empty.body": "اكتب مشكلتك أو سؤالك. نرسل مع رسالتك الصفحة التي أنت فيها حتى نفهم المشكلة بسرعة.",

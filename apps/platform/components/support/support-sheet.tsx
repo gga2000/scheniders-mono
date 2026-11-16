@@ -243,6 +243,11 @@ export function SupportSheet() {
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-foreground">{t("support.title")}</p>
                                 <SupportHoursLine />
+                                {thread?.owner && (
+                                    <p dir="auto" className="truncate text-xs text-muted">
+                                        {t("support.owner", { name: thread.owner })}
+                                    </p>
+                                )}
                             </div>
                             <button
                                 type="button"
