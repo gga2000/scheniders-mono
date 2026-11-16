@@ -300,7 +300,7 @@ export default function HealthPage() {
                   >
                     {ri.business_name}
                   </Link>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize bg-foreground/5 text-foreground/60 mt-1 inline-block">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/60 mt-1 inline-block">
                     {ri.plan}
                   </span>
                 </div>
@@ -333,7 +333,7 @@ export default function HealthPage() {
                   {ri.reasons.map((reason) => (
                     <span
                       key={reason}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700"
+                      className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"
                     >
                       {reason}
                     </span>

@@ -75,7 +75,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
               />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 10, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
@@ -83,7 +83,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
                 dy={6}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "var(--foreground)" }}
+                tick={{ fontSize: 13, fill: "var(--foreground)" }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}

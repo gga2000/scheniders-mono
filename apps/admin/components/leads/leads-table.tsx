@@ -279,7 +279,7 @@ export function LeadsTable({
         onDrop={isEditing && reorder ? (e) => handleDrop(e, col.id) : undefined}
         onDragEnd={isEditing && reorder ? handleDragEnd : undefined}
         className={cn(
-          "relative py-2.5 px-4 text-left text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider select-none",
+          "relative py-2.5 px-4 text-left text-xs font-bold text-[var(--muted)] uppercase tracking-wider select-none",
           isEditing && reorder && "cursor-grab active:cursor-grabbing",
           draggingId === col.id && "opacity-40",
         )}

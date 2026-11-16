@@ -141,7 +141,7 @@ function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; on
           return (
             <li
               key={p.code}
-              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900"
             >
               <AlertTriangle className="h-3 w-3" />
               {SHOP_PROBLEM_LABELS[p.code]}

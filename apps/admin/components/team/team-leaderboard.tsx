@@ -114,10 +114,10 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                   </p>
 
                   {/* Stats */}
-                  <p className="text-[10px] text-foreground/50 mt-0.5">
+                  <p className="text-xs text-foreground/50 mt-0.5">
                     {emp.leads_converted} conversions
                   </p>
-                  <p className="text-[10px] font-semibold text-green-600 mt-0.5">
+                  <p className="text-xs font-semibold text-green-600 mt-0.5">
                     {fmt(emp.commission_earned)} IQD
                   </p>
 
@@ -252,7 +252,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                             <p className="text-sm font-semibold text-foreground truncate">
                               {emp.display_name ?? emp.email.split("@")[0]}
                             </p>
-                            <p className="text-[10px] text-foreground/40 truncate">
+                            <p className="text-xs text-foreground/40 truncate">
                               {emp.email}
                             </p>
                           </div>

@@ -233,7 +233,7 @@ export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelin
                       ) : null}
 
                     {/* Footer: time + user */}
-                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--muted)]">
+                    <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
                       <span>{formatWhen(activity.created_at)}</span>
                       {activity.created_by_user && (
                         <>

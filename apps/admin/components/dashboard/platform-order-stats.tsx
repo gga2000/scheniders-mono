@@ -12,7 +12,7 @@ function DeltaBadge({ deltaPct }: { deltaPct: number | null }) {
   const isPositive = deltaPct >= 0;
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold ${
         isPositive
           ? "bg-green-100 text-green-700"
           : "bg-red-100 text-red-700"
@@ -56,7 +56,7 @@ export function PlatformOrderStats({ stats }: PlatformOrderStatsProps) {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {stats.map((stat, i) => (
         <div key={stat.label} className={`pastel-card p-4 ${cardStyles[i] || ""}`}>
-          <p className="text-[11px] font-semibold text-foreground/50 uppercase tracking-wider mb-1">
+          <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-1">
             {stat.label}
           </p>
           <div className="flex items-baseline gap-2">
@@ -67,7 +67,7 @@ export function PlatformOrderStats({ stats }: PlatformOrderStatsProps) {
             <DeltaBadge deltaPct={stat.deltaPct} />
           </div>
           {stat.previousLabel && (
-            <p className="text-[10px] text-foreground/40 mt-0.5">
+            <p className="text-xs text-foreground/40 mt-0.5">
               {stat.previousLabel}: {new Intl.NumberFormat("en-IQ").format(stat.previousValue)}
             </p>
           )}

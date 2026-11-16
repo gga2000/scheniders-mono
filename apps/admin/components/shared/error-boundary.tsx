@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <p className="text-xs text-foreground/40 mt-1 max-w-xs">The error was reported.</p>
           <button
             onClick={this.handleRetry}
-            className="mt-3 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-foreground/60 hover:text-foreground border border-[var(--card-border)] hover:border-foreground/30 transition-all flex items-center gap-1"
+            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground/60 hover:text-foreground border border-[var(--card-border)] hover:border-foreground/30 transition-all flex items-center gap-1"
           >
             <RefreshCw className="w-3 h-3" />
             Retry

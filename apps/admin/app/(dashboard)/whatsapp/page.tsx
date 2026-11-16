@@ -65,11 +65,11 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
   });
 
   const status = shop.paused ? (
-    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">
+    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
       Paused · {shop.pause_reason === "failures" ? "failures" : "by staff"}
     </span>
   ) : (
-    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">Sending</span>
+    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">Sending</span>
   );
   if (!canPause) return status;
 
@@ -77,18 +77,18 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
   return (
     <div className="flex items-center justify-end gap-2">
       {status}
-      {change.isError && <span className="text-[10px] text-rose-700">Failed, try again</span>}
+      {change.isError && <span className="text-xs text-rose-700">Failed, try again</span>}
       {confirming ? (
         <>
           <button
             type="button"
             onClick={() => change.mutate(!shop.paused)}
             disabled={change.isPending}
-            className="rounded-lg bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background disabled:opacity-50"
+            className="rounded-lg bg-foreground px-2.5 py-1 text-xs font-semibold text-background disabled:opacity-50"
           >
             {change.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : `Yes, ${label.toLowerCase()}`}
           </button>
-          <button type="button" onClick={() => setConfirming(false)} className="text-[11px] text-foreground/50 hover:text-foreground">
+          <button type="button" onClick={() => setConfirming(false)} className="text-xs text-foreground/50 hover:text-foreground">
             Cancel
           </button>
         </>
@@ -96,7 +96,7 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-foreground/5"
+          className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-foreground/5"
         >
           {label}
         </button>
@@ -193,7 +193,7 @@ export default function WhatsAppPage() {
                   <span className="text-xs font-semibold">{k.label}</span>
                 </div>
                 <p className="text-lg font-bold text-foreground tabular-nums">{k.value}</p>
-                {k.note && <p className="text-[11px] text-foreground/50 tabular-nums">{k.note}</p>}
+                {k.note && <p className="text-xs text-foreground/50 tabular-nums">{k.note}</p>}
               </div>
             ))}
           </div>
@@ -245,14 +245,14 @@ export default function WhatsAppPage() {
                           <td className="p-3 text-right tabular-nums">
                             <span className="font-medium">{number(s.messages)}</span>
                             {s.messages > 0 && (
-                              <span className="block text-[11px] text-foreground/40">
+                              <span className="block text-xs text-foreground/40">
                                 {number(s.utility)} utility · {number(s.marketing)} marketing
                               </span>
                             )}
                           </td>
                           <td className="p-3 text-right font-medium tabular-nums">
                             {s.plan === "internal" ? <span className="text-foreground/40">Our store</span> : iqd(s.shop_paid_iqd)}
-                            {s.unpaid > 0 && <span className="block text-[11px] text-rose-700">{number(s.unpaid)} not paid</span>}
+                            {s.unpaid > 0 && <span className="block text-xs text-rose-700">{number(s.unpaid)} not paid</span>}
                           </td>
                           <td className="p-3 text-right tabular-nums">
                             {trial === 0 ? (
@@ -260,7 +260,7 @@ export default function WhatsAppPage() {
                             ) : (
                               <>
                                 <span className="font-medium">{number(trial)}</span>
-                                <span className="block text-[11px] text-foreground/40">about {iqd(trialCostIqd(s))}</span>
+                                <span className="block text-xs text-foreground/40">about {iqd(trialCostIqd(s))}</span>
                               </>
                             )}
                           </td>
@@ -289,7 +289,7 @@ export default function WhatsAppPage() {
             )}
           </div>
 
-          <p className="text-[11px] text-foreground/40">
+          <p className="text-xs text-foreground/40">
             Trial cost is an estimate at Interakt&apos;s price: about {INTERAKT_COST_IQD.utility} IQD a utility message and{" "}
             {INTERAKT_COST_IQD.marketing} IQD a marketing one. &quot;Failed&quot; counts messages Meta could not deliver
             and numbers Interakt called invalid; a shop is paused when half or more of 20+ messages fail in 24 hours.

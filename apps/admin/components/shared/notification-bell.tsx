@@ -100,7 +100,7 @@ export function NotificationBell() {
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold tabular-nums text-white"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
           </motion.span>
@@ -123,7 +123,7 @@ export function NotificationBell() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="text-[10px] text-foreground/40 hover:text-foreground transition-colors"
+                  className="text-xs text-foreground/40 hover:text-foreground transition-colors"
                 >
                   Mark all read
                 </button>
@@ -169,13 +169,13 @@ export function NotificationBell() {
                           {config.label}
                         </p>
                         {notif.details && (
-                          <p className="text-[11px] text-foreground/50 truncate mt-0.5">
+                          <p className="text-xs text-foreground/50 truncate mt-0.5">
                             {typeof notif.details === "object"
                               ? Object.values(notif.details).filter(Boolean).join(" · ")
                               : String(notif.details)}
                           </p>
                         )}
-                        <p className="text-[10px] text-foreground/30 mt-1">
+                        <p className="text-xs text-foreground/30 mt-1">
                           {formatWhen(notif.created_at)}
                         </p>
                       </div>

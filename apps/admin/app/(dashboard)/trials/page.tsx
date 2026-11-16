@@ -159,7 +159,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
         <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/40" />
       )}
       {mutation.isError && (
-        <span className="text-[10px] text-red-600 font-medium">
+        <span className="text-xs text-red-600 font-medium">
           {mutation.error.message}
         </span>
       )}
@@ -221,7 +221,7 @@ export default function TrialsPage() {
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
               <Timer className="h-5 w-5 md:h-6 md:w-6 text-amber-700" />
             </div>
-            <span className="px-2.5 md:px-3 py-1 rounded-full bg-amber-600/20 text-amber-800 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+            <span className="px-2.5 md:px-3 py-1 rounded-full bg-amber-600/20 text-amber-800 text-xs font-bold uppercase tracking-wider">
               Active
             </span>
           </div>
@@ -248,7 +248,7 @@ export default function TrialsPage() {
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
               <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-rose-700" />
             </div>
-            <span className="px-2.5 md:px-3 py-1 rounded-full bg-rose-600/20 text-rose-800 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+            <span className="px-2.5 md:px-3 py-1 rounded-full bg-rose-600/20 text-rose-800 text-xs font-bold uppercase tracking-wider">
               Urgent
             </span>
           </div>
@@ -278,7 +278,7 @@ export default function TrialsPage() {
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-foreground/5 flex items-center justify-center shadow-sm">
               <Calendar className="h-5 w-5 md:h-6 md:w-6 text-foreground/50" />
             </div>
-            <span className="px-2.5 md:px-3 py-1 rounded-full bg-foreground/5 text-foreground/60 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+            <span className="px-2.5 md:px-3 py-1 rounded-full bg-foreground/5 text-foreground/60 text-xs font-bold uppercase tracking-wider">
               Expired
             </span>
           </div>
@@ -331,7 +331,7 @@ export default function TrialsPage() {
                     <p className="font-semibold text-foreground truncate">
                       {trial.business_name}
                     </p>
-                    <p className="text-[11px] text-foreground/50 truncate">
+                    <p className="text-xs text-foreground/50 truncate">
                       {trial.slug}
                       {trial.city ? ` \u00b7 ${trial.city}` : ""}
                     </p>
@@ -367,7 +367,7 @@ export default function TrialsPage() {
                       >
                         {trialDayLabel(trial)}
                       </p>
-                      <p className="text-[10px] text-foreground/40">
+                      <p className="text-xs text-foreground/40">
                         {formatDayTime(trial.trial_ends_at)}
                       </p>
                     </div>

@@ -276,7 +276,7 @@ export function LeadsDesktopView() {
                     <>
                       <CountUp value={kpi.raw} format={kpi.format} />
                       {kpi.suffix && (
-                        <span className="text-[10px] font-medium text-[var(--muted)] ml-1">
+                        <span className="text-xs font-medium text-[var(--muted)] ml-1">
                           {kpi.suffix}
                         </span>
                       )}
@@ -284,12 +284,12 @@ export function LeadsDesktopView() {
                   )}
                 </div>
                 {!kpiLoading && kpi.trend != null && kpi.trend > 0 && (
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                     ↑{kpi.trend}
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-[var(--muted)] truncate">{kpi.label}</div>
+              <div className="text-xs text-[var(--muted)] truncate">{kpi.label}</div>
             </div>
           </motion.div>
         ))}

@@ -141,7 +141,7 @@ export default function UsagePage() {
               return labels.map((l) => (
                 <span
                   key={`${l.label}-${l.offset}`}
-                  className="text-[9px] text-foreground/30 absolute"
+                  className="text-xs text-foreground/30 absolute"
                   style={{ left: `${l.offset * 14 + 32}px` }}
                 >
                   {l.label}
@@ -157,7 +157,7 @@ export default function UsagePage() {
               {DAY_LABELS.map((label, i) => (
                 <div key={label} className="h-[12px] flex items-center">
                   {i % 2 === 1 && (
-                    <span className="text-[9px] text-foreground/30 w-6 text-right pr-1">{label}</span>
+                    <span className="text-xs text-foreground/30 w-6 text-right pr-1">{label}</span>
                   )}
                 </div>
               ))}
@@ -186,7 +186,7 @@ export default function UsagePage() {
 
           {/* Legend */}
           <div className="flex items-center gap-1 mt-3 ml-8">
-            <span className="text-[9px] text-foreground/30">Less</span>
+            <span className="text-xs text-foreground/30">Less</span>
             {[0, 0.15, 0.3, 0.5, 0.7, 0.85, 1].map((ratio) => (
               <div
                 key={ratio}
@@ -196,7 +196,7 @@ export default function UsagePage() {
                 )}
               />
             ))}
-            <span className="text-[9px] text-foreground/30">More</span>
+            <span className="text-xs text-foreground/30">More</span>
           </div>
         </div>
       </div>
@@ -212,8 +212,8 @@ export default function UsagePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.hourlyCounts.map((count, hour) => ({ hour: `${hour}:00`, count }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={2} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="hour" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={2} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#fcd34d" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -231,8 +231,8 @@ export default function UsagePage() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.weeklyTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="week" tick={{ fontSize: 9, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={7} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="week" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={7} />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
                 <Tooltip />
                 <Line type="monotone" dataKey="count" stroke="#86efac" strokeWidth={2} dot={false} />
               </LineChart>

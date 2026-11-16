@@ -180,7 +180,7 @@ export function LeadCard({
 
             {/* Draft badge — takes precedence visually over tier */}
             {lead.is_draft && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400">
                 <Pencil className="w-3 h-3" />
                 Draft
               </span>
@@ -212,12 +212,12 @@ export function LeadCard({
 
             {/* Staleness indicator */}
             {stalenessClass === "stale" && (
-              <div className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-500">
+              <div className="px-1.5 py-0.5 rounded text-xs font-bold bg-red-500/15 text-red-500">
                 STALE
               </div>
             )}
             {stalenessClass === "cold" && (
-              <div className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-500">
+              <div className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-500/15 text-amber-500">
                 COLD
               </div>
             )}
@@ -250,7 +250,7 @@ export function LeadCard({
         {/* Key Metrics Row */}
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg px-2.5 py-1.5">
-            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Followers</div>
+            <div className="text-xs text-[var(--muted)] uppercase tracking-wider">Followers</div>
             <div className="text-sm font-bold text-[var(--foreground)]">
               {lead.follower_count >= 1000
                 ? `${(lead.follower_count / 1000).toFixed(lead.follower_count >= 10000 ? 0 : 1)}K`
@@ -258,7 +258,7 @@ export function LeadCard({
             </div>
           </div>
           <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg px-2.5 py-1.5">
-            <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Engagement</div>
+            <div className="text-xs text-[var(--muted)] uppercase tracking-wider">Engagement</div>
             <div className="text-sm font-bold text-[var(--foreground)]">{engagementRate}%</div>
           </div>
         </div>
@@ -276,7 +276,7 @@ export function LeadCard({
         {/* Score bar */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Score</span>
+            <span className="text-xs text-[var(--muted)] uppercase tracking-wider">Score</span>
             <span className="text-xs font-bold text-[var(--foreground)]">{lead.lead_score}</span>
           </div>
           <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
@@ -322,7 +322,7 @@ export function LeadCard({
               <MapPin className="w-3 h-3" />
               {lead.city || `${lead.branches.length} branch${lead.branches.length > 1 ? "es" : ""}`}
               {lead.city && lead.branches?.length > 0 && (
-                <span className="text-[10px] text-[var(--muted)]/70">
+                <span className="text-xs text-[var(--muted)]/70">
                   +{lead.branches.length}
                 </span>
               )}
@@ -339,7 +339,7 @@ export function LeadCard({
 
         {/* Last contacted */}
         {lead.last_contacted_at && (
-          <div className="flex items-center gap-1 text-[10px] text-[var(--muted)] mb-3">
+          <div className="flex items-center gap-1 text-xs text-[var(--muted)] mb-3">
             <Clock className="w-3 h-3" />
             Last contacted {daysSinceContact}d ago
           </div>

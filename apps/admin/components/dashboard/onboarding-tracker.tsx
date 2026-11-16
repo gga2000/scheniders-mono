@@ -88,24 +88,24 @@ export function OnboardingTracker({ tenants }: OnboardingTrackerProps) {
         <>
           {/* Table header */}
           <div className="hidden sm:grid grid-cols-[1fr_auto_100px_50px] gap-2 px-3 mb-2">
-            <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-foreground/40 uppercase tracking-wider">
               Business
             </span>
             <div className="flex gap-3">
               {STEPS.map((s) => (
                 <span
                   key={s.key}
-                  className="w-7 text-center text-[9px] font-semibold text-foreground/40 uppercase"
+                  className="w-7 text-center text-xs font-semibold text-foreground/40 uppercase"
                   title={s.label}
                 >
                   {s.label.slice(0, 3)}
                 </span>
               ))}
             </div>
-            <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider text-right">
+            <span className="text-xs font-semibold text-foreground/40 uppercase tracking-wider text-right">
               Progress
             </span>
-            <span className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider text-right">
+            <span className="text-xs font-semibold text-foreground/40 uppercase tracking-wider text-right">
               %
             </span>
           </div>

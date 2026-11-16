@@ -118,7 +118,7 @@ export default function TeamMemberDetailPage() {
           </div>
           <span
             className={cn(
-              "px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize shrink-0",
+              "px-2.5 py-1 rounded-full text-xs font-semibold capitalize shrink-0",
               roleStyles[employee.role] ?? "bg-gray-100 text-gray-600"
             )}
           >
@@ -276,7 +276,7 @@ export default function TeamMemberDetailPage() {
                       <td className="px-4 py-3 text-center">
                         <span
                           className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
+                            "px-2 py-0.5 rounded-full text-xs font-semibold capitalize",
                             commissionStatusStyles[c.status]
                           )}
                         >
@@ -332,7 +332,7 @@ export default function TeamMemberDetailPage() {
                   )}
                 </div>
                 <p className="text-xs font-bold text-foreground">{ach.name}</p>
-                <p className="text-[10px] text-foreground/50 mt-0.5">
+                <p className="text-xs text-foreground/50 mt-0.5">
                   {ach.description}
                 </p>
               </div>

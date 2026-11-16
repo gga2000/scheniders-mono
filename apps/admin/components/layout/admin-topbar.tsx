@@ -158,7 +158,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
               {pageTitle}
             </h1>
             {pageHeaderSubtitle && (
-              <p className="hidden sm:flex items-center gap-1.5 text-[11px] text-foreground-muted leading-tight mt-0.5">
+              <p className="hidden sm:flex items-center gap-1.5 text-xs text-foreground-muted leading-tight mt-0.5">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -192,7 +192,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           {!query && (
             <button
               onClick={onOpenCommandPalette}
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-foreground/30 hover:text-foreground/50 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
             >
               <kbd className="bg-foreground/5 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
             </button>
@@ -225,7 +225,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
 
                     {/* Plan badge */}
                     <span
-                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}
                     >
                       {merchant.plan}
                     </span>
@@ -269,7 +269,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                   {user.full_name || user.email?.split("@")[0]}
                 </span>
                 {(ROLE_LABELS[user.role] || user.role) && (
-                  <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-[var(--primary)]">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)]">
                     <Shield className="w-2.5 h-2.5" strokeWidth={2.5} />
                     {ROLE_LABELS[user.role] ?? "Admin"}
                   </span>

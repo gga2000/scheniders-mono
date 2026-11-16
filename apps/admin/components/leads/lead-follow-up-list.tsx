@@ -250,7 +250,7 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
             <Clock className="w-3.5 h-3.5" />
             Upcoming
             <span
-              className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+              className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold"
               style={{
                 background: "var(--card-border)",
                 color: "var(--foreground)",
@@ -288,7 +288,7 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
             <CheckCircle2 className="w-3.5 h-3.5" />
             Completed
             <span
-              className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+              className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold"
               style={{
                 background: "var(--card-border)",
                 color: "var(--foreground)",
@@ -404,7 +404,7 @@ function FollowUpCard({
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           <span
             className={cn(
-              "text-[11px] font-medium",
+              "text-xs font-medium",
               overdue && "text-red-500",
               today && "text-amber-600 dark:text-amber-400"
             )}
@@ -416,7 +416,7 @@ function FollowUpCard({
           </span>
           {followUp.assigned_user?.display_name && (
             <span
-              className="text-[11px] px-1.5 py-0.5 rounded-md"
+              className="text-xs px-1.5 py-0.5 rounded-md"
               style={{
                 background: "var(--card-border)",
                 color: "var(--muted)",

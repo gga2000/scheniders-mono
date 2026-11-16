@@ -133,7 +133,7 @@ export function TeamPerformanceChart({
             {[...yTicks].reverse().map((tick) => (
               <span
                 key={tick}
-                className="text-[10px] text-foreground/40 text-right tabular-nums leading-none"
+                className="text-xs text-foreground/40 text-right tabular-nums leading-none"
               >
                 {tick}
               </span>
@@ -162,7 +162,7 @@ export function TeamPerformanceChart({
                   >
                     {/* Tooltip */}
                     {isHovered && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-[var(--card-bg)] px-2 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap z-10 shadow-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-[var(--card-bg)] px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap z-10 shadow-lg">
                         {day.count} action{day.count !== 1 ? "s" : ""}
                       </div>
                     )}
@@ -192,7 +192,7 @@ export function TeamPerformanceChart({
                 <div key={i} className="flex-1 text-center">
                   <span
                     className={cn(
-                      "text-[8px] sm:text-[10px] leading-none",
+                      "text-xs leading-none",
                       i === chartData.length - 1
                         ? "font-semibold text-foreground/70"
                         : "text-foreground/30"

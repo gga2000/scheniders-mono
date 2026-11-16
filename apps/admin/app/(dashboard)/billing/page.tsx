@@ -283,7 +283,7 @@ export default function BillingPage() {
                   key={preset}
                   type="button"
                   onClick={() => setTopupAmount(preset)}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold border transition-all ${
+                  className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
                     topupAmount === preset
                       ? "bg-foreground text-background border-foreground"
                       : "bg-[var(--card-bg)] text-foreground/60 border-[var(--card-border)] hover:border-foreground/30"
@@ -418,11 +418,11 @@ export default function BillingPage() {
                         </td>
                         <td className="p-3 text-center">
                           {isLow ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
                               Low
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                               OK
                             </span>
                           )}
@@ -460,7 +460,7 @@ export default function BillingPage() {
                 >
                   {/* Type badge */}
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize shrink-0 ${
+                    className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize shrink-0 ${
                       TYPE_STYLES[tx.type] ?? "bg-gray-100 text-gray-800"
                     }`}
                   >
@@ -485,7 +485,7 @@ export default function BillingPage() {
                   </span>
 
                   {/* Time ago */}
-                  <span className="text-[11px] text-foreground/40 shrink-0">
+                  <span className="text-xs text-foreground/40 shrink-0">
                     {formatWhen(tx.created_at)}
                   </span>
                 </div>

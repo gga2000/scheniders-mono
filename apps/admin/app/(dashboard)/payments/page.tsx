@@ -48,7 +48,7 @@ function billingLine(row: TopupQueueItem): string {
 
 function Receipt({ row }: { row: TopupQueueItem }) {
   if (!row.receipt_url) {
-    return <div className="flex h-36 w-28 items-center justify-center rounded-xl bg-foreground/5 text-[11px] text-foreground/40">No file</div>;
+    return <div className="flex h-36 w-28 items-center justify-center rounded-xl bg-foreground/5 text-xs text-foreground/40">No file</div>;
   }
   if (row.receipt_kind === "pdf") {
     return (
@@ -56,7 +56,7 @@ function Receipt({ row }: { row: TopupQueueItem }) {
         href={row.receipt_url}
         target="_blank"
         rel="noreferrer"
-        className="flex h-36 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--card-border)] text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
+        className="flex h-36 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-blue-700 hover:bg-blue-50"
       >
         <FileText className="w-6 h-6" />
         Open PDF
@@ -74,7 +74,7 @@ function Receipt({ row }: { row: TopupQueueItem }) {
         sizes="112px"
         className="object-cover"
       />
-      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 py-1 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 py-1 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
         <ExternalLink className="w-3 h-3" />
         Full size
       </span>
@@ -111,7 +111,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
     },
   });
 
-  if (!canDecide) return <p className="text-[11px] text-foreground/50">Your login can see receipts but not decide them.</p>;
+  if (!canDecide) return <p className="text-xs text-foreground/50">Your login can see receipts but not decide them.</p>;
 
   const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
   const reasonOk = reason.trim().length >= REJECT_REASON_MIN && reason.trim().length <= REJECT_REASON_MAX;
@@ -125,22 +125,22 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
         <p className="text-xs font-semibold text-foreground">
           {approve ? `Add ${iqd(amount)} to ${row.business_name ?? "this shop"}'s wallet?` : "Refuse this receipt?"}
         </p>
-        {!approve && <p className="max-w-[16rem] text-[11px] text-foreground/60">The shop will read: “{reason.trim()}”</p>}
+        {!approve && <p className="max-w-[16rem] text-xs text-foreground/60">The shop will read: “{reason.trim()}”</p>}
         <div className="flex gap-1.5">
-          <button type="button" onClick={() => setConfirming(null)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-[11px]">
+          <button type="button" onClick={() => setConfirming(null)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-xs">
             Back
           </button>
           <button
             type="button"
             disabled={decide.isPending}
             onClick={() => decide.mutate(approve ? { approve: true, amount } : { approve: false, reason: reason.trim() })}
-            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50 ${approve ? "bg-green-600" : "bg-red-600"}`}
+            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50 ${approve ? "bg-green-600" : "bg-red-600"}`}
           >
             {decide.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
             {approve ? "Yes, add it" : "Yes, refuse"}
           </button>
         </div>
-        {decide.isError && <p className="text-[11px] text-red-600">{decide.error.message}</p>}
+        {decide.isError && <p className="text-xs text-red-600">{decide.error.message}</p>}
       </div>
     );
   }
@@ -150,14 +150,14 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
       <div className="flex w-64 flex-col gap-2">
         <StaffReasonInput value={reason} onChange={setReason} placeholder="Why? The shop will read this" />
         <div className="flex justify-end gap-1.5">
-          <button type="button" onClick={() => setRefusing(false)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-[11px]">
+          <button type="button" onClick={() => setRefusing(false)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-xs">
             Back
           </button>
           <button
             type="button"
             disabled={!reasonOk}
             onClick={() => setConfirming("refuse")}
-            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-40"
           >
             <X className="w-3 h-3" />
             Refuse
@@ -169,7 +169,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
 
   return (
     <div className="flex w-64 flex-col gap-2">
-      <label className="text-[10px] font-semibold uppercase tracking-wide text-foreground/45" htmlFor={`amount-${row.id}`}>
+      <label className="text-xs font-semibold uppercase tracking-wide text-foreground/45" htmlFor={`amount-${row.id}`}>
         Amount that arrived
       </label>
       <input
@@ -184,16 +184,16 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
         className="w-full rounded-xl bg-white/80 px-3 py-1.5 text-sm font-semibold tabular-nums ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 dark:bg-white/10"
       />
       {overAsked ? (
-        <p className="text-[10px] text-red-600">The shop said {iqd(row.amount_iqd)}. More than that needs a super admin.</p>
+        <p className="text-xs text-red-600">The shop said {iqd(row.amount_iqd)}. More than that needs a super admin.</p>
       ) : (
-        differs && <p className="text-[10px] text-amber-700">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>
+        differs && <p className="text-xs text-amber-700">The shop said {iqd(row.amount_iqd)}. The shop will see what you add.</p>
       )}
-      {!amountOk && <p className="text-[10px] text-red-600">Between 1,000 and 10,000,000 IQD.</p>}
+      {!amountOk && <p className="text-xs text-red-600">Between 1,000 and 10,000,000 IQD.</p>}
       <div className="flex justify-end gap-1.5">
         <button
           type="button"
           onClick={() => setRefusing(true)}
-          className="inline-flex items-center gap-1 rounded-lg border border-[var(--card-border)] px-2.5 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-[var(--card-border)] px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
         >
           <X className="w-3 h-3" />
           Refuse
@@ -202,7 +202,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
           type="button"
           disabled={!amountOk || overAsked}
           onClick={() => setConfirming("approve")}
-          className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-semibold text-background hover:opacity-90 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-40"
           data-testid="payment-approve"
         >
           <Check className="w-3 h-3" />
@@ -232,14 +232,14 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
         </p>
         <p className="text-xs text-foreground/60">{billingLine(row)}</p>
         {row.billing?.locked && (
-          <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+          <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
             <Lock className="w-3 h-3" />
             {row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended"}
             {owed > 0 ? ` · needs ${iqd(owed)} to open` : " · this payment opens it"}
           </p>
         )}
         {warnings.map((w) => (
-          <p key={w} className="flex items-center gap-1 text-[11px] font-medium text-rose-700">
+          <p key={w} className="flex items-center gap-1 text-xs font-medium text-rose-700">
             <AlertTriangle className="w-3 h-3 shrink-0" />
             {w}
           </p>

@@ -43,7 +43,7 @@ export function HandledToday({ rows }: { rows: HandledRow[] }) {
         </thead>
         <tbody className="divide-y divide-[var(--card-border)]">
           {shown.map((row, index) => (
-            <tr key={`${row.kind}-${row.tenant_id}-${row.at}-${index}`} className="align-top">
+            <tr key={`${row.kind}-${row.tenant_id}-${row.at}-${index}`} className="align-baseline">
               <td className="w-20 whitespace-nowrap py-2.5 pl-5 pr-4 text-[13px] tabular-nums text-foreground/60">
                 {formatTime(row.at)}
               </td>

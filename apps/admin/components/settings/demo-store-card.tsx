@@ -174,7 +174,7 @@ export function DemoStoreCard() {
               </button>
             )}
           </div>
-          <p className="text-[11px] text-foreground/45">
+          <p className="text-xs text-foreground/45">
             Reset puts back the same store with dates moved to today; anything recorded in it is lost. Open signs this
             browser in to the merchant app as the demo owner, so use a private window if you are signed in to a real
             store there.

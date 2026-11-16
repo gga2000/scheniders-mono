@@ -36,7 +36,7 @@ export function WhatsAppPausedAlert({ count, onOpen }: { count: number; onOpen?:
         <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
           WhatsApp paused for {count} {count === 1 ? "shop" : "shops"}
         </p>
-        <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+        <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
           Most of their recent messages did not reach customers, or staff paused them. Orders still come in.
         </p>
       </div>
@@ -51,10 +51,10 @@ export function WhatsAppHealthAlert({ since }: { since: string | null }) {
       <span className="mt-0.5 text-red-600"><MessageCircleWarning className="w-3.5 h-3.5" /></span>
       <div className="min-w-0">
         <p className="text-xs font-semibold text-red-700 dark:text-red-300">Interakt balance is empty</p>
-        <p className="text-[11px] text-red-700/80 dark:text-red-300/80 mt-0.5">
+        <p className="text-xs text-red-700/80 dark:text-red-300/80 mt-0.5">
           WhatsApp messages to every shop&apos;s customers are not being sent. Top up Interakt.
         </p>
-        {since && <p className="text-[10px] text-red-700/60 mt-1">Since {formatDayTime(since)}</p>}
+        {since && <p className="text-xs text-red-700/60 mt-1">Since {formatDayTime(since)}</p>}
       </div>
     </div>
   );

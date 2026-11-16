@@ -106,7 +106,7 @@ function DeltaBadge({ deltaPct }: { deltaPct: number | null }) {
   const isPositive = deltaPct >= 0;
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold ${
         isPositive
           ? "bg-green-100 text-green-700"
           : "bg-red-100 text-red-700"
@@ -143,7 +143,7 @@ export function KpiGridV2({ kpis }: KpiGridV2Props) {
               <div className="w-8 h-8 rounded-xl bg-white/60 backdrop-blur-sm flex items-center justify-center shadow-sm">
                 <Icon className={`h-4 w-4 ${cfg.iconColor}`} />
               </div>
-              <span className={`text-[11px] font-semibold uppercase tracking-wider ${cfg.deltaColor}`}>
+              <span className={`text-xs font-semibold uppercase tracking-wider ${cfg.deltaColor}`}>
                 {kpi.label}
               </span>
             </div>

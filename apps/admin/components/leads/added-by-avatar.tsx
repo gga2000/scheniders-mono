@@ -36,7 +36,7 @@ export function AddedByAvatar({
   const [open, setOpen] = useState(false);
 
   const dimensions = size === "xs" ? "w-6 h-6" : "w-7 h-7";
-  const text = size === "xs" ? "text-[10px]" : "text-[11px]";
+  const text = size === "xs" ? "text-xs" : "text-xs";
 
   // Legacy leads added before attribution existed: show a muted placeholder.
   if (!user) {
@@ -44,7 +44,7 @@ export function AddedByAvatar({
       <span
         className={cn(
           dimensions,
-          "inline-flex items-center justify-center rounded-full border border-dashed border-[var(--card-border)] text-[var(--muted)] text-[10px] shrink-0",
+          "inline-flex items-center justify-center rounded-full border border-dashed border-[var(--card-border)] text-[var(--muted)] text-xs shrink-0",
           className
         )}
         title="No employee on record"
@@ -101,22 +101,22 @@ export function AddedByAvatar({
                 className="w-7 h-7 rounded-full object-cover shrink-0"
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-[10px] font-black shrink-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-black shrink-0">
                 {initial}
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[11px] font-bold text-[var(--foreground)] truncate leading-tight">
+              <p className="text-xs font-bold text-[var(--foreground)] truncate leading-tight">
                 {name}
               </p>
               {user.display_name && (
-                <p className="text-[10px] text-[var(--muted)] truncate leading-tight">
+                <p className="text-xs text-[var(--muted)] truncate leading-tight">
                   {user.email}
                 </p>
               )}
             </div>
           </div>
-          <p className="text-[10px] text-[var(--muted)] mt-1.5 leading-snug">
+          <p className="text-xs text-[var(--muted)] mt-1.5 leading-snug">
             Added this lead{addedAt ? ` · ${formatDay(addedAt)}` : ""}
           </p>
         </div>

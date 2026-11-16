@@ -101,7 +101,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
         </button>
         {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/40" />}
       </div>
-      {mutation.isError && <p className="text-[11px] text-red-600 font-medium">{mutation.error.message}</p>}
+      {mutation.isError && <p className="text-xs text-red-600 font-medium">{mutation.error.message}</p>}
     </div>
   );
 }
@@ -114,14 +114,14 @@ function CheckRow({ check }: { check: TrialCheck }) {
       <div className="md:w-1/4 min-w-0 space-y-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+            className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
               check.verdict === "no_trial" ? "bg-rose-600/15 text-rose-800" : "bg-amber-600/15 text-amber-800"
             }`}
           >
             {check.verdict === "no_trial" ? "No trial" : "Review"}
           </span>
           {check.needs_look && check.decided_at && (
-            <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-foreground/70 text-[10px] font-bold uppercase tracking-wider">
+            <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-foreground/70 text-xs font-bold uppercase tracking-wider">
               New match
             </span>
           )}
@@ -129,12 +129,12 @@ function CheckRow({ check }: { check: TrialCheck }) {
         <p dir="auto" className="font-semibold text-foreground truncate">
           {storeName(check.store)}
         </p>
-        <p className="text-[11px] text-foreground/50">{trialState(check)}</p>
+        <p className="text-xs text-foreground/50">{trialState(check)}</p>
         <div className="flex items-center gap-3">
           {check.store && (
             <Link
               href={`/merchants/${check.tenant_id}`}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/60 hover:text-foreground"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/60 hover:text-foreground"
             >
               <ExternalLink className="w-3 h-3" />
               Merchant page
@@ -145,7 +145,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
               href={`https://wa.me/${phone}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/60 hover:text-foreground"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/60 hover:text-foreground"
             >
               <MessageCircle className="w-3 h-3" />
               WhatsApp
@@ -171,7 +171,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
           </p>
         ))}
         {check.staff_decision && check.decided_at && (
-          <p className="text-[11px] text-foreground/50 pt-1">
+          <p className="text-xs text-foreground/50 pt-1">
             {DECISION_LABEL[check.staff_decision]}
             {check.decided_by_email ? ` by ${check.decided_by_email}` : ""}, {formatDayTime(check.decided_at)}
             {check.staff_reason ? `: ${check.staff_reason}` : ""}

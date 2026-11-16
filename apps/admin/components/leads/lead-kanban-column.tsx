@@ -65,7 +65,7 @@ function KanbanCard({
       {/* Platform + Tier dot row */}
       <div className="flex items-center gap-2 mb-2">
         <span
-          className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+          className="px-1.5 py-0.5 rounded text-xs font-medium"
           style={{
             backgroundColor: `${platformConfig.color}15`,
             color: platformConfig.color,
@@ -79,7 +79,7 @@ function KanbanCard({
             style={{ backgroundColor: tierConfig.color }}
             title={tierConfig.label}
           />
-          <span className="text-[10px] text-[var(--muted)]">{tierConfig.label}</span>
+          <span className="text-xs text-[var(--muted)]">{tierConfig.label}</span>
         </div>
       </div>
 
@@ -93,11 +93,11 @@ function KanbanCard({
       {/* Score bar (thin) */}
       <div className="mb-1.5">
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-[9px] text-[var(--muted)] uppercase tracking-wider">
+          <span className="text-xs text-[var(--muted)] uppercase tracking-wider">
             Score
           </span>
           <span
-            className="text-[10px] font-bold"
+            className="text-xs font-bold"
             style={{ color: tierConfig.color }}
           >
             {lead.lead_score}
@@ -120,7 +120,7 @@ function KanbanCard({
           className="w-2 h-2 rounded-full flex-shrink-0"
           style={{ backgroundColor: priorityConfig.color }}
         />
-        <span className="text-[10px] text-[var(--muted)]">
+        <span className="text-xs text-[var(--muted)]">
           {priorityConfig.label} priority
         </span>
       </div>
@@ -185,7 +185,7 @@ export function LeadKanbanColumn({
           {config.label}
         </span>
         <span
-          className="ml-auto flex-shrink-0 min-w-[22px] h-[22px] flex items-center justify-center rounded-full text-[11px] font-bold"
+          className="ml-auto flex-shrink-0 min-w-[22px] h-[22px] flex items-center justify-center rounded-full text-xs font-bold"
           style={{ backgroundColor: ui.soft, color: ui.solid }}
         >
           {leads.length}

@@ -172,14 +172,14 @@ export function MentionTextarea({
                   : "hover:bg-foreground/[0.04]"
               )}
             >
-              <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold text-foreground/60 shrink-0">
+              <div className="w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center text-xs font-bold text-foreground/60 shrink-0">
                 {user.display_name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-foreground truncate">
                   {user.display_name}
                 </p>
-                <p className="text-[10px] text-foreground/40 truncate">
+                <p className="text-xs text-foreground/40 truncate">
                   {user.role === "super_admin" ? "Admin" : "Support"}
                 </p>
               </div>
