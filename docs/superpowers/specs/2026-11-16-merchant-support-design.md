@@ -122,3 +122,8 @@ A new merchant message pings support staff on their phone or computer.
 - **First-week plan.** `support_tasks` gives every shop opened in the last 7 days four calls: welcome (day 0), store check (day 1), first order (day 3), and before the trial ends (a day before `trial_ends_at`, else day 6). The staff console tab **Today** lists the calls due by the end of the Baghdad day. Mine come first; the badge counts mine.
 - **Call log.** Each call is recorded with Done, No answer (back in 3 hours) or Later (back tomorrow) and a one-line note in `support_calls`. The last 3 calls show on the task and on the shop card, so the next person knows what was said.
 - Server-only tables (RLS on, no policies), service-role functions, behaviour suite `support-owners`.
+
+## Wave 4, part 2: the merchant sees what staff did
+
+- Merchant Settings now has a **Support activity** section (shop admins only). It lists every step our staff took on the shop that the merchant should know about: opening the store page, look-only views, trial, plan and pause changes, wallet top-ups, WhatsApp pause, writing first, and becoming the shop's person. Each line has the staff member's display name (never an email) and the time.
+- `support_staff_visits(tenant)` reads `admin_activity_logs` with an allow-list. Internal steps such as notes, tags, priority, inbox moves and the call log stay off. The function is service-role only. `GET /api/support/visits` always uses the caller's own shop.

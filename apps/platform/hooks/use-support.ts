@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { authedFetch, readApiJson, type ApiReply } from "@/lib/authed-fetch";
-import type { SupportPost, SupportThread } from "@/lib/support/schema";
+import type { StaffVisit, SupportPost, SupportThread } from "@/lib/support/schema";
 
 /** A refusal from /api/support; `code` is what the chat translates. */
 export class SupportRequestError extends Error {
@@ -108,5 +108,20 @@ export function useSupportVoice() {
             if (!reply.success) throw new SupportRequestError(reply.error ?? "failed");
             return reply.data.path;
         },
+    });
+}
+
+/** What our support staff did on my shop, for Settings. Shop admins only. */
+export function useStaffVisits(enabled: boolean) {
+    const { tenantId } = useAuth();
+    return useQuery<StaffVisit[]>({
+        queryKey: ["support", "visits", tenantId],
+        queryFn: async () => {
+            const reply = await readApiJson<ApiReply<StaffVisit[]>>(await authedFetch("/api/support/visits"));
+            if (!reply.success) throw new SupportRequestError(reply.error ?? "failed");
+            return reply.data;
+        },
+        enabled: enabled && Boolean(tenantId),
+        staleTime: 60_000,
     });
 }
