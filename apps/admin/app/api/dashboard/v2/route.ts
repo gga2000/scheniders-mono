@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       everyRow((from, to) =>
         supabase
           .from("subscriptions")
-          .select("tenant_id, plan, status, pending_plan")
+          .select("tenant_id, plan, status, pending_plan, cancelled_at")
           .order("id", { ascending: true })
           .range(from, to),
       ),
@@ -92,16 +92,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const subChanges = subscriptionRows
-      .filter((s) => s.pending_plan || s.status === "cancelled")
-      .map((s) => ({
-        tenant_id: s.tenant_id,
-        from_plan: s.plan,
-        to_plan: s.status === "cancelled" ? null : s.pending_plan,
-        changed_at: new Date().toISOString(),
-        type: s.status === "cancelled" ? "cancellation" : "plan_change",
-      }));
-
     const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
 
     return NextResponse.json({
@@ -116,7 +106,7 @@ export async function GET(request: NextRequest) {
       walletHealth: calculateWalletHealth(tenants, income.topups.daily7),
       activityHeatmap: calculateActivityHeatmap(usage),
       revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, geo, stats.sources90),
-      planMovements: calculatePlanMovements(subChanges),
+      planMovements: calculatePlanMovements(subscriptionRows, new Set(tenants.map((t) => t.id)), new Date()),
       topUpPatterns: calculateTopUpPatterns(income.topups.byDow),
       merchantLTV: calculateMerchantLTV(tenants, income.byTenant, stats.today),
       timeToFirstOrder: calculateTimeToFirstOrder(tenants, stats.shops),

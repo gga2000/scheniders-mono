@@ -44,12 +44,13 @@ export interface DashboardTenant {
   setup: Pick<OnboardingFacts, "branding" | "storePublishes" | "toppedUpIqd">;
 }
 
-interface RawSubscriptionChange {
+/** A shop's subscription as Home reads it for Plan Movements. */
+export interface SubscriptionRow {
   tenant_id: string;
-  from_plan: string | null;
-  to_plan: string | null;
-  changed_at: string;
-  type: string; // 'plan_change' | 'new' | 'cancellation'
+  plan: string;
+  status: string;
+  pending_plan: string | null;
+  cancelled_at: string | null;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -364,24 +365,38 @@ const PLAN_RANK: Record<string, number> = {
   starter: 1, growth: 2, professional: 3, enterprise: 4,
 };
 
-export function calculatePlanMovements(changes: RawSubscriptionChange[]): PlanMovement[] {
-  return changes.map((c) => {
-    let type: PlanMovement["type"] = "new";
-    if (c.type === "cancellation") {
-      type = "cancellation";
-    } else if (c.from_plan && c.to_plan) {
-      type = (PLAN_RANK[c.to_plan] || 0) > (PLAN_RANK[c.from_plan] || 0)
-        ? "upgrade"
-        : "downgrade";
+/**
+ * The "Plan Movements (30d)" card. No table keeps a plan's history, so the
+ * card shows only what the subscriptions prove: a cancellation dated in the
+ * last 30 days, and a plan change still waiting for the next payment. A
+ * cancellation older than that, or with no date, is not a move of the last 30
+ * days. Only shops in `shopIds` count, so the demo store stays out.
+ */
+export function calculatePlanMovements(
+  rows: SubscriptionRow[],
+  shopIds: ReadonlySet<string>,
+  now: Date,
+): PlanMovement[] {
+  const since = now.getTime() - 30 * DAY_MS;
+  const moves: PlanMovement[] = [];
+  for (const s of rows) {
+    if (!shopIds.has(s.tenant_id)) continue;
+    const from = s.plan as PlanMovement["fromPlan"];
+    if (s.status === "cancelled") {
+      if (s.cancelled_at && Date.parse(s.cancelled_at) >= since) {
+        moves.push({ fromPlan: from, toPlan: "cancelled", count: 1, type: "cancellation" });
+      }
+    } else if (s.pending_plan && s.pending_plan !== s.plan) {
+      const up = (PLAN_RANK[s.pending_plan] || 0) > (PLAN_RANK[s.plan] || 0);
+      moves.push({
+        fromPlan: from,
+        toPlan: s.pending_plan as PlanMovement["toPlan"],
+        count: 1,
+        type: up ? "upgrade" : "downgrade",
+      });
     }
-
-    return {
-      fromPlan: (c.from_plan || "new") as PlanMovement["fromPlan"],
-      toPlan: (c.to_plan || "cancelled") as PlanMovement["toPlan"],
-      count: 1,
-      type,
-    };
-  });
+  }
+  return moves;
 }
 
 // ─── Top-Up Patterns ────────────────────────────────────────────────────────
