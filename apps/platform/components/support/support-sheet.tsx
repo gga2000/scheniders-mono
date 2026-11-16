@@ -26,6 +26,8 @@ import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportSh
 import { useLanguage } from "@/components/providers/language-provider";
 import { SupportHoursLine } from "@/components/support/support-hours-line";
 import { SupportCallBack } from "@/components/support/support-call-back";
+import { SupportQuickAnswers } from "@/components/support/support-quick-answers";
+import { QUICK_ANSWERS, matchQuickAnswers } from "@/lib/support/quick-answers";
 import { SupportVoiceButton, type RecordedVoice } from "@/components/support/support-voice-button";
 import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
@@ -120,6 +122,7 @@ export function SupportSheet() {
     const unread = thread?.unread ?? 0;
     const current = thread?.case ?? null;
     const awaitingRating = current?.status === "solved" && current.rating === null;
+    const suggestions = matchQuickAnswers(draft);
 
     useEffect(() => {
         if (isOpen) inputRef.current?.focus();
@@ -270,13 +273,16 @@ export function SupportSheet() {
                             ) : isError ? (
                                 <p dir="auto" className="py-8 text-center text-sm text-muted">{t("support.error.loadFailed")}</p>
                             ) : messages.length === 0 ? (
-                                <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-                                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground/5 text-foreground">
-                                        <LifeBuoy className="h-6 w-6" />
-                                    </span>
-                                    <p className="text-base font-bold text-foreground">{t("support.empty.title")}</p>
-                                    <p dir="auto" className="text-sm leading-relaxed text-muted">{t("support.empty.body")}</p>
-                                    <p dir="auto" className="text-xs text-muted">{t("support.hours.days")}</p>
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex flex-col items-center gap-3 px-6 pt-4 text-center">
+                                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground/5 text-foreground">
+                                            <LifeBuoy className="h-6 w-6" />
+                                        </span>
+                                        <p className="text-base font-bold text-foreground">{t("support.empty.title")}</p>
+                                        <p dir="auto" className="text-sm leading-relaxed text-muted">{t("support.empty.body")}</p>
+                                        <p dir="auto" className="text-xs text-muted">{t("support.hours.days")}</p>
+                                    </div>
+                                    <SupportQuickAnswers title={t("support.quick.common")} answers={QUICK_ANSWERS} onOpenPage={close} />
                                 </div>
                             ) : (
                                 messages.map((message) => <MessageLine key={message.id} message={message} />)
@@ -311,6 +317,14 @@ export function SupportSheet() {
                         </div>
 
                         <div className="shrink-0 border-t border-[var(--card-border)] bg-[var(--card-bg)] p-3">
+                            {suggestions.length > 0 && (
+                                <SupportQuickAnswers
+                                    title={t("support.quick.mayHelp")}
+                                    answers={suggestions}
+                                    onOpenPage={close}
+                                    className="mb-2 bg-[var(--background)]"
+                                />
+                            )}
                             <div className="mb-2 flex flex-wrap items-center gap-1.5">
                                 <span className="text-xs text-muted">{t("support.attached")}</span>
                                 <span className={CHIP}>
