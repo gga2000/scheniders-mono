@@ -102,7 +102,11 @@ describe("sticky_cta_bar primary kinds", () => {
 describe("countdown_announcement reads hours → minutes → seconds in LTR", () => {
   it("emits the unit labels in reading order", () => {
     const html = renderPage([
-      section("cd", "countdown_announcement", countdown_announcement.defaultProps),
+      // A clock draws only for a real end time (helpers/countdown.ts).
+      section("cd", "countdown_announcement", {
+        ...countdown_announcement.defaultProps,
+        ends_at: "2026-06-01T00:00:00Z",
+      }),
     ]);
     expect(html.indexOf("Hours")).toBeGreaterThan(-1);
     expect(html.indexOf("Hours")).toBeLessThan(html.indexOf("Mins"));

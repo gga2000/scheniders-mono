@@ -10,6 +10,7 @@ import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import {
   countdownCycleMs,
+  countdownDraws,
   countdownRemainingMs,
   splitCountdown,
 } from "../helpers/countdown";
@@ -44,10 +45,16 @@ export const OfferClock = memo(function OfferClock({
    *  partner colour. */
   colorLock?: boolean;
 }) {
+  // A loop stored on this section keeps drawing (the editor no longer
+  // offers one and the database refuses a new one); a midnight reset or a
+  // fixed end without a date draws nothing.
+  const draws = countdownDraws(clock.mode, clock.ends_at, true);
+
   // null until mounted: server and hydrating client both render "--".
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!draws) return;
     const update = () =>
       setRemaining(
         countdownRemainingMs(
@@ -55,6 +62,7 @@ export const OfferClock = memo(function OfferClock({
           clock.ends_at,
           clock.duration_minutes,
           new Date(),
+          true,
         ),
       );
     update();
@@ -74,9 +82,10 @@ export const OfferClock = memo(function OfferClock({
       if (id !== null) clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [clock.mode, clock.ends_at, clock.duration_minutes]);
+  }, [draws, clock.mode, clock.ends_at, clock.duration_minutes]);
 
   const label = resolveI18n(clock.label_i18n, locale);
+  if (!draws) return null;
   // A fixed end that has passed is over — no frozen 00:00:00.
   if (clock.mode === "fixed_end" && remaining === 0) return null;
 

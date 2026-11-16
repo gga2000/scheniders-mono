@@ -44,6 +44,7 @@ import {
 } from "@/lib/section-field-meta";
 import { I18nStringInput } from "./i18n-string-input";
 import { isFieldRelevant } from "@/lib/section-field-visibility";
+import { offeredEnumOptions } from "@/lib/section-retired-options";
 import { resolveFieldWidget } from "@/lib/section-field-widgets";
 import {
     AttributePickerField,
@@ -324,7 +325,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                 <EnumControl
                     label={label}
                     value={(value as string | undefined) ?? ""}
-                    options={field.options}
+                    options={offeredEnumOptions(field.options, value)}
                     onChange={onChange}
                     optional={optional}
                     onClear={optional ? () => onChange(undefined) : undefined}
@@ -408,7 +409,7 @@ export function defaultValueForField(field: FieldShape): unknown {
         case "boolean":
             return false;
         case "enum":
-            return field.options[0] ?? "";
+            return offeredEnumOptions(field.options, undefined)[0] ?? "";
         case "array":
             return [];
         case "object":

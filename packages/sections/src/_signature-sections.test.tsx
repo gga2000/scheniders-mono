@@ -154,10 +154,11 @@ describe("product_reviews — zero-review state", () => {
 
 describe("countdown_announcement — hydration-safe placeholder", () => {
   it("renders -- for every unit on the server, never 00", () => {
-    const html = render(
-      countdown_announcement,
-      countdown_announcement.defaultProps,
-    );
+    const html = render(countdown_announcement, {
+      ...countdown_announcement.defaultProps,
+      // A clock draws only for a real end time (helpers/countdown.ts).
+      ends_at: "2026-10-01T00:00:00Z",
+    });
     expect(html.match(/>--</g)).toHaveLength(3);
     expect(html).not.toContain(">00<");
     expect(html).toContain("text-[11px]");

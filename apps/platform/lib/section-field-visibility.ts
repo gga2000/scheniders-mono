@@ -83,6 +83,17 @@ const RULE_SETS: readonly RuleSet[] = [
             heading_style: (s) => hasProductFaq(s) || s.compact === true,
         },
     },
+    {
+        // Offer clocks (countdown_announcement, the express offer clock): the
+        // end time belongs to a fixed end; the loop length and its opt-in
+        // only to a stored loop.
+        switchKey: "mode",
+        rules: {
+            ends_at: (s) => s.mode === "fixed_end",
+            duration_minutes: (s) => s.mode === "evergreen_minutes",
+            evergreen_clock: (s) => s.mode === "evergreen_minutes",
+        },
+    },
 ];
 
 /** Whether `fieldKey` affects the page given its sibling values. */

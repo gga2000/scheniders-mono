@@ -56,6 +56,30 @@ describe("countdown_announcement honesty", () => {
     expect(html).toContain("ساعات");
   });
 
+  it("draws no clock for a midnight reset — midnight is not the end of an offer", () => {
+    const html = render({ mode: "daily_reset", label_i18n: { ar: "ينتهي عرض الخصم خلال:" } });
+    expect(html).toContain("ينتهي عرض الخصم خلال:");
+    expect(html).not.toContain('aria-live="off"');
+  });
+
+  it("a new bar has no clock until the merchant sets the offer's end time", () => {
+    expect(countdown_announcement.defaultProps.mode).toBe("fixed_end");
+    expect(countdown_announcement.defaultProps.ends_at).toBeUndefined();
+    const html = render({});
+    expect(html).not.toContain('aria-live="off"');
+    expect(html).not.toContain("ساعات");
+  });
+
+  it("is gone once the offer's end time has passed — no frozen 00:00:00", () => {
+    // ctx.runtime.now is 2026-09-10.
+    expect(render({ mode: "fixed_end", ends_at: "2026-09-01T20:00:00Z" })).toBe("");
+  });
+
+  it("an unreadable end date draws no clock instead of a made-up one", () => {
+    const html = render({ mode: "fixed_end", ends_at: "not a date" });
+    expect(html).not.toContain('aria-live="off"');
+  });
+
   it("degrades a malformed evergreen_clock to the honest default instead of dropping the bar", () => {
     const parsed = countdown_announcement.schema.safeParse({
       ...countdown_announcement.defaultProps,
