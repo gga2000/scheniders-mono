@@ -204,7 +204,7 @@ describe("heading, form and missing data", () => {
 
   it("0 reviews: the honest line, no summary, no buttons", () => {
     const html = render(HIGHLIGHTS, { ...wayferProduct, review_count: 0, avg_rating: 0, reviews: [] });
-    expect(html).toContain("بعد ماكو تقييمات على هذا العطر");
+    expect(html).toContain("بعد ماكو تقييمات على هذا المنتج");
     expect(html).not.toContain("reviews-summary");
     expect(html).not.toContain("data-theme-word");
   });
