@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { okOrLoadFailure } from "@/lib/load-failure";
 import type { TenantRestrictions } from "@/types/admin";
 import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
 
@@ -113,8 +114,7 @@ export function useMerchantDetail(id: string) {
   return useQuery<MerchantDetail>({
     queryKey: ["admin", "merchant", id],
     queryFn: async () => {
-      const res = await fetch(`/api/merchants/${id}`);
-      if (!res.ok) throw new Error("Failed to fetch merchant");
+      const res = okOrLoadFailure(await fetch(`/api/merchants/${id}`), "this shop");
       return res.json();
     },
     staleTime: 30_000,

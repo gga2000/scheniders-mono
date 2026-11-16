@@ -23,6 +23,8 @@ import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
 import { NotesTab } from "@/components/merchants/detail/notes-tab";
 import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
+import { LoadError } from "@/components/shared/load-error";
+import { loadFailureKind } from "@/lib/load-failure";
 
 const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
@@ -53,7 +55,7 @@ export default function MerchantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, isLoading } = useMerchantDetail(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
   const initialTab = isTab(searchParams.get("tab")) ? (searchParams.get("tab") as Tab) : "Overview";
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [noteText, setNoteText] = useState("");
@@ -77,6 +79,12 @@ export default function MerchantDetailPage() {
         <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
       </div>
     );
+  }
+
+  // "Not found" is one answer among several: a failed read or a login that may
+  // not open the shop must not tell staff the shop does not exist.
+  if (isError && !data && loadFailureKind(error) !== "missing") {
+    return <LoadError what="this shop" error={error} onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   if (!data) {
