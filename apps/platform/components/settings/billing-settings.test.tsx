@@ -162,6 +162,15 @@ describe("BillingSettings", () => {
         expect(screen.queryByTestId("low-balance-warning")).toBeNull();
     });
 
+    it("an ended, unpaid trial says it ended instead of 'ends today'", () => {
+        state.tenant = tenant("trial", new Date(Date.now() - 86_400_000).toISOString());
+        show();
+        const card = screen.getByTestId("billing-plan-card").textContent ?? "";
+        expect(card).toContain("التجربة خلصت");
+        expect(card).toContain("خلصت");
+        expect(card).not.toContain("تنتهي اليوم");
+    });
+
     it("after the trial: low balance is warned and the next renewal is shown", () => {
         state.balance = 3000;
         show();

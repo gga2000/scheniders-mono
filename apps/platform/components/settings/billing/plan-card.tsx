@@ -4,10 +4,11 @@ import { AlertTriangle, CalendarClock, Crown, ShoppingBag } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PlanLimitsData, SubscriptionData } from "@/hooks/use-billing";
-import { daysUntil, formatBillingDate } from "./billing-format";
+import { daysUntil, formatBillingDate, hasPassed } from "./billing-format";
 
 const STATUS_STYLE: Record<string, string> = {
     trial: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+    trial_ended: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
     active: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
     past_due: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
     suspended: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
@@ -28,7 +29,9 @@ export function PlanCard({
 }) {
     const { t, language } = useLanguage();
     const inTrial = tenantStatus === "trial";
-    const status = inTrial ? "trial" : subscription?.status === "past_due" ? "past_due" : tenantStatus;
+    // An ended trial stays status 'trial' until it is paid (handoff A1 lock).
+    const trialEnded = inTrial && !!trialEndsAt && hasPassed(trialEndsAt);
+    const status = trialEnded ? "trial_ended" : inTrial ? "trial" : subscription?.status === "past_due" ? "past_due" : tenantStatus;
     const base = plan?.base_price_iqd ?? 0;
     const perOrder = plan?.order_price_iqd ?? 0;
     const trialDays = plan?.trial_days ?? 7;
@@ -67,8 +70,8 @@ export function PlanCard({
                         <TrialMeter
                             icon={<CalendarClock className="w-3.5 h-3.5" />}
                             label={t("billing.trial.days")}
-                            value={daysLeft === null ? "-" : t("billing.trial.daysLeft", { count: daysLeft })}
-                            percent={daysLeft === null ? 0 : ((trialDays - daysLeft) / trialDays) * 100}
+                            value={trialEnded ? t("billing.trial.ended") : daysLeft === null ? "-" : t("billing.trial.daysLeft", { count: daysLeft })}
+                            percent={trialEnded ? 100 : daysLeft === null ? 0 : ((trialDays - daysLeft) / trialDays) * 100}
                         />
                         {trialCap > 0 && (
                             <TrialMeter

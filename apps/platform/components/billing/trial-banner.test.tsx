@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
     cap: undefined as number | null | undefined,
     lock: undefined as undefined | Record<string, unknown>,
     pathname: "/orders",
+    section: null as string | null,
 }));
 
 vi.mock("@/hooks/use-language", () => ({
@@ -21,6 +22,7 @@ vi.mock("@/hooks/use-language", () => ({
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: vi.fn() }),
     usePathname: () => state.pathname,
+    useSearchParams: () => new URLSearchParams(state.section ? { section: state.section } : {}),
 }));
 vi.mock("@/hooks/use-tenant", () => ({ useTenant: () => ({ data: state.tenant }) }));
 vi.mock("@/hooks/use-billing", () => ({
@@ -43,6 +45,7 @@ beforeEach(() => {
     state.cap = 50;
     state.lock = { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9000, balance_iqd: 0, can_pay: true };
     state.pathname = "/orders";
+    state.section = null;
 });
 
 const locked = (over: Record<string, unknown> = {}) => ({
@@ -94,6 +97,19 @@ describe("TrialBanner", () => {
         state.tenant = { status: "trial", plan: "starter", trial_ends_at: inDays(-1) };
         state.lock = locked();
         state.pathname = "/products";
+        const { container } = render(<TrialBanner />);
+        expect(container.innerHTML).toBe("");
+    });
+
+    it("shows on the billing section of settings, where the shop pays, and not on other sections", () => {
+        state.tenant = { status: "trial", plan: "starter", trial_ends_at: inDays(-1) };
+        state.lock = locked();
+        state.pathname = "/settings";
+        state.section = "billing";
+        render(<TrialBanner />);
+        expect(screen.getByTestId("billing-lock-banner")).toBeTruthy();
+        cleanup();
+        state.section = "team";
         const { container } = render(<TrialBanner />);
         expect(container.innerHTML).toBe("");
     });

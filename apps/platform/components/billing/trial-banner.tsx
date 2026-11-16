@@ -1,7 +1,8 @@
 "use client";
 
 import { useTenant } from "@/hooks/use-tenant";
-import { useRouter, usePathname } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Clock, Lock, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -37,7 +38,31 @@ export function TrialBanner() {
     // This is the overlay that locked the operator out of their own dashboard.
     if (isBillingExempt(tenant.plan)) return null;
 
-    // Don't show on settings/billing page (they're already there)
+    // Locked (handoff A1): the trial ended or the month is unpaid. On the
+    // pages that stay open this line says so, the billing section included
+    // (it is how many store orders are left); every other page shows the
+    // lock screen (BillingLockGate) with the same words.
+    if (lock?.locked) {
+        const { title, body } = billingLockMessage(t, lock);
+        const line = (
+            <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm" data-testid="billing-lock-banner">
+                <Lock className="w-4 h-4 shrink-0" />
+                <span className="font-medium">{title}. {body}</span>
+                <BillingLockPay lock={lock} compact />
+            </div>
+        );
+        // Settings is open only on its billing section, where the shop pays.
+        if (pathname === "/settings") {
+            return (
+                <Suspense fallback={null}>
+                    <OnBillingSection>{line}</OnBillingSection>
+                </Suspense>
+            );
+        }
+        return isOpenWhileLocked(pathname, null) ? line : null;
+    }
+
+    // The other lines stay off settings: the billing section is where they point.
     if (pathname?.includes("/settings")) return null;
 
     const daysLeft = computeDaysLeft(tenant.trial_ends_at);
@@ -82,21 +107,6 @@ export function TrialBanner() {
         );
     }
 
-    // Locked (handoff A1): the trial ended or the month is unpaid. On the
-    // pages that stay open this line says so; every other page shows the lock
-    // screen (BillingLockGate) with the same words.
-    if (lock?.locked) {
-        if (!isOpenWhileLocked(pathname, null)) return null;
-        const { title, body } = billingLockMessage(t, lock);
-        return (
-            <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm" data-testid="billing-lock-banner">
-                <Lock className="w-4 h-4 shrink-0" />
-                <span className="font-medium">{title}. {body}</span>
-                <BillingLockPay lock={lock} compact />
-            </div>
-        );
-    }
-
     // The trial date has passed but the lock is not read yet: say nothing
     // rather than flash a message the lock line replaces a moment later.
     if (isTrialExpired) return null;
@@ -134,4 +144,10 @@ export function TrialBanner() {
     }
 
     return null;
+}
+
+/** Its children on the billing section of settings only (read for a locked shop on /settings only). */
+function OnBillingSection({ children }: { children: React.ReactNode }) {
+    const section = useSearchParams().get("section");
+    return isOpenWhileLocked("/settings", section) ? <>{children}</> : null;
 }
