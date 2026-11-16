@@ -74,7 +74,8 @@ interface StickyFilterBarProps {
     riskCountHidden?: boolean;
 }
 
-import { Fragment, memo, useState, type ReactNode } from "react";
+import { Fragment, memo, useRef, useState, type ReactNode } from "react";
+import { useWheelScrollsSideways } from "@/hooks/use-wheel-scrolls-sideways";
 
 export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
@@ -106,6 +107,10 @@ export const StickyFilterBar = memo(function StickyFilterBar({
 }: StickyFilterBarProps) {
     const { t } = useLanguage();
     const [useStatusColors, setUseStatusColors] = useState(true);
+    // The status chips run past the right edge at 1440: a plain mouse wheel over
+    // them moves them sideways, so «ملغي» and «مرفوض» are reachable without a trackpad.
+    const statusRowRef = useRef<HTMLDivElement>(null);
+    useWheelScrollsSideways(statusRowRef);
     // A Prime queue chip («معالجة» / «راجع») replaces the status chips while on.
     const primeQueue = useOrderStore((s) => s.primeQueue);
     const setPrimeQueue = useOrderStore((s) => s.setPrimeQueue);
@@ -153,8 +158,9 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 className
             )}
         >
-            <div data-guide="order-status-tabs" className={cn(
-                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x py-6 pl-8 pr-6",
+            {/* scroll-pl-8 matches pl-8, so the row loads at «كل الطلبات» instead of snapping 30 px in */}
+            <div ref={statusRowRef} data-guide="order-status-tabs" className={cn(
+                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x scroll-pl-8 py-6 pl-8 pr-6",
                 // Mobile adjustments for touch targets
                 isMobile ? "min-h-[50px]" : ""
             )}>
