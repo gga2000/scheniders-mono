@@ -32,6 +32,8 @@ export interface MerchantDetail {
     } | null;
     settings: Record<string, unknown> | null;
     store_config: Record<string, unknown> | null;
+    /** 2 once the merchant has published the store builder. */
+    config_version: number | null;
     contact_email: string | null;
     contact_phone: string | null;
     address: string | null;

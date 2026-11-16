@@ -25,7 +25,7 @@ import type {
 } from "@/types/dashboard";
 import { addDays } from "./baghdad-day";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
-import { ONBOARDING_STEPS, type OnboardingStepKey } from "./onboarding-steps";
+import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────
 
@@ -38,9 +38,8 @@ export interface DashboardTenant {
   branding: { primary_color: string } | null;
   wallet_balance: number;
   team_members_count: number;
-  has_branding: boolean;
-  has_storefront: boolean;
-  wallet_funded: boolean;
+  /** What the onboarding steps read besides orders and the team (lib/onboarding-steps). */
+  setup: Pick<OnboardingFacts, "branding" | "configVersion" | "toppedUpIqd">;
 }
 
 interface RawSubscriptionChange {
@@ -448,16 +447,14 @@ export function calculateOnboardingProgress(
   tenants: DashboardTenant[],
   shops: DashboardStats["shops"],
 ): TenantOnboarding[] {
-  const tenantsWithOrders = new Set(shops.filter((s) => s.ordersAll > 0).map((s) => s.tenantId));
+  const ordersByTenant = new Map(shops.map((s) => [s.tenantId, s.ordersAll]));
 
   return tenants.map((t) => {
-    const done: Record<OnboardingStepKey, boolean> = {
-      has_orders: tenantsWithOrders.has(t.id),
-      has_team: t.team_members_count > 1,
-      has_branding: t.has_branding,
-      has_storefront: t.has_storefront,
-      wallet_funded: t.wallet_funded,
-    };
+    const done = onboardingDone({
+      orders: ordersByTenant.get(t.id) ?? 0,
+      activeMembers: t.team_members_count,
+      ...t.setup,
+    });
     const completed = ONBOARDING_STEPS.map((step) => step.key).filter((key) => done[key]);
 
     return {

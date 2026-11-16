@@ -88,10 +88,7 @@ export async function GET(request: NextRequest) {
         branding: { primary_color: branding?.primary_color || DEFAULT_BRAND_COLOR },
         wallet_balance: Number(wallet?.balance_iqd) || 0,
         team_members_count: memberCountByTenant[t.id] || 0,
-        has_branding: !!(branding?.logo_url || (branding?.primary_color && branding.primary_color !== DEFAULT_BRAND_COLOR)),
-        // Publishing the store builder sets config_version 2.
-        has_storefront: t.config_version === 2,
-        wallet_funded: toppedUp > 0,
+        setup: { branding, configVersion: t.config_version, toppedUpIqd: toppedUp },
       };
     });
 
