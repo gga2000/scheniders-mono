@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWholeNumber } from "./utils";
+import { formatCount, formatSigned, parseWholeNumber } from "./utils";
 
 describe("parseWholeNumber", () => {
     it("reads Latin, Arabic-Indic and Persian digits", () => {
@@ -23,5 +23,16 @@ describe("parseWholeNumber", () => {
         expect(parseWholeNumber("-3")).toBeNull();
         expect(parseWholeNumber("-3", { allowNegative: true })).toBe(-3);
         expect(parseWholeNumber("−٣", { allowNegative: true })).toBe(-3);
+    });
+});
+
+describe("formatCount and formatSigned", () => {
+    it("write every count and change the same way: separators, a true minus, the sign on rises too", () => {
+        expect(formatCount(5431)).toBe("5,431");
+        expect(formatSigned(-96, "%")).toBe("\u221296%");
+        expect(formatSigned(12)).toBe("+12");
+        expect(formatSigned(-5944924)).toBe("\u22125,944,924");
+        expect(formatSigned(2.5)).toBe("+2.5");
+        expect(formatSigned(0, "%")).toBe("0%");
     });
 });

@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
@@ -61,6 +62,7 @@ export function BottomSheet({
     footer,
     className,
 }: BottomSheetProps): React.ReactElement {
+    const { t } = useLanguage();
     const clampedInitial = Math.min(0.95, Math.max(0.3, initialHeight));
     const [heightFraction, setHeightFraction] = useState<number>(clampedInitial);
     const dragStartY = useRef<number | null>(null);
@@ -177,7 +179,7 @@ export function BottomSheet({
                                 <button
                                     type="button"
                                     data-testid={`${testId}-close`}
-                                    aria-label="Close"
+                                    aria-label={t("common.close")}
                                     className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                                 >
                                     <X className="h-5 w-5" aria-hidden="true" />

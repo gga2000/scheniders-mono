@@ -230,8 +230,9 @@ export function ShipExportConfirmationDialog({
                                         ? "They will be shipped today, ahead of their scheduled day."
                                         : "They will be left out of this export and stay in the list for their day."}
                                     {" "}
+                                    {/* English, like the rest of this line; the export flow's wording stays as it is. */}
                                     <span className="text-blue-700/80">
-                                        ({scheduledLater.slice(0, 5).map(o => `#${getBaseOrderId(o.order_id)} → ${formatScheduledDate(o.scheduled_date)}`).join(", ")}
+                                        ({scheduledLater.slice(0, 5).map(o => `#${getBaseOrderId(o.order_id)} → ${formatScheduledDate(o.scheduled_date, "en")}`).join(", ")}
                                         {scheduledLater.length > 5 ? ", …" : ""})
                                     </span>
                                 </p>

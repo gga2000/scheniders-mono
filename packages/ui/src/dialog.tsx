@@ -3,13 +3,25 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@scheniders/shared";
-import { forwardRef, ComponentPropsWithoutRef, ElementRef, useState, useRef, useEffect } from "react";
+import { createContext, forwardRef, ComponentPropsWithoutRef, ElementRef, useContext, useState, useRef, useEffect } from "react";
 import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from "framer-motion";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
+
+/**
+ * The word a screen reader says for the close (X) button. An app supplies its
+ * own language's word once, around its tree: `<DialogCloseLabel value={t("common.close")}>`.
+ * Without it the button says "Close".
+ */
+const DialogCloseLabelContext = createContext("Close");
+const DialogCloseLabel = DialogCloseLabelContext.Provider;
+
+function CloseButtonLabel() {
+    return <span className="sr-only">{useContext(DialogCloseLabelContext)}</span>;
+}
 
 const DialogOverlay = forwardRef<
     ElementRef<typeof DialogPrimitive.Overlay>,
@@ -87,7 +99,7 @@ const DialogContent = forwardRef<
             {!hideCloseButton && (
                 <DialogPrimitive.Close className="absolute right-3 top-3 md:right-4 md:top-4 rounded-xl p-2.5 md:p-2 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none touch-target">
                     <X className="h-5 w-5 md:h-5 md:w-5" />
-                    <span className="sr-only">Close</span>
+                    <CloseButtonLabel />
                 </DialogPrimitive.Close>
             )}
         </DialogPrimitive.Content>
@@ -203,7 +215,7 @@ const BottomSheetContent = forwardRef<
                     {!hideCloseButton && (
                         <DialogPrimitive.Close className="absolute right-3 top-3 rounded-xl p-2.5 text-[var(--foreground-muted)] transition-all hover:text-foreground hover:bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] disabled:pointer-events-none z-10">
                             <X className="h-5 w-5" />
-                            <span className="sr-only">Close</span>
+                            <CloseButtonLabel />
                         </DialogPrimitive.Close>
                     )}
 
@@ -330,6 +342,7 @@ DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {
     Dialog,
+    DialogCloseLabel,
     DialogPortal,
     DialogOverlay,
     DialogClose,

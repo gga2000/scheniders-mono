@@ -1,10 +1,11 @@
 import { z } from "zod";
 import {
-    rangeCutoff,
+    periodOrderWindow,
     trendWindowStart,
     type DateRangeKey,
     type TrendDays,
 } from "@/lib/analytics/dashboard-calculations";
+import { baghdadDayKey } from "@/lib/order-window";
 
 /**
  * Per-order facts for the dashboard widgets `get_dashboard_metrics` does not
@@ -23,8 +24,12 @@ import {
 // numeric arrives as a JSON number; null on legacy rows; absent when not selected.
 const price = z.number().nullable().optional();
 
+/** The day an order was postponed to; it also belongs to that day's lists. */
+const scheduledDate = z.string().nullable();
+
 export const trendFactSchema = z.object({
     created_at: z.string(),
+    scheduled_date: scheduledDate,
     status: z.string(),
     delivered_at: z.string().nullable(),
     completed_at: z.string().nullable(),
@@ -49,7 +54,7 @@ export type OrderFactsWindow =
     | { kind: "trend"; days: TrendDays }
     | { kind: "geo"; range: DateRangeKey };
 
-const TREND_COLUMNS = "created_at,status,delivered_at,completed_at,source,governorate_code,validated_governorate_code";
+const TREND_COLUMNS = "created_at,scheduled_date,status,delivered_at,completed_at,source,governorate_code,validated_governorate_code";
 const GEO_COLUMNS = "status,governorate_code,validated_governorate_code";
 
 export function factColumns(kind: OrderFactsWindow["kind"], includePrice: boolean): string {
@@ -58,30 +63,37 @@ export function factColumns(kind: OrderFactsWindow["kind"], includePrice: boolea
 }
 
 /**
- * The PostgREST filter for a window: an `or` union, a created_at floor, or none.
+ * The PostgREST filter for a window: an `or` union, or none.
  *
- * - trend: orders CREATED in the window (the bars) and orders REALIZED in it (the
- *   revenue line, COR-D1). A delivery today of an order created last month belongs
- *   to today's revenue, so a created_at filter alone would undercount it.
- * - geo: orders created since the dashboard range's cutoff, the same cutoff
- *   `get_dashboard_metrics(p_range)` applies, so the map agrees with the ranged
- *   widgets beside it. `all` has no floor.
+ * - trend: orders CREATED in the window (the bars), orders SCHEDULED for one of
+ *   its days (the Orders list holds them on that day too), and orders REALIZED
+ *   in it (the revenue line, COR-D1). A delivery today of an order created last
+ *   month belongs to today's revenue, so a created_at filter alone would
+ *   undercount it.
+ * - geo: the orders `get_dashboard_metrics(p_range)` and the Orders list count for
+ *   the range: arrived since its first day, or scheduled for one of its days. `all`
+ *   has no floor.
  */
 export type FactFilter =
     | { type: "or"; expression: string }
-    | { type: "createdSince"; since: string }
     | { type: "none" };
 
 export function factFilter(window: OrderFactsWindow, now: Date = new Date()): FactFilter {
+    const today = baghdadDayKey(now);
     if (window.kind === "trend") {
-        const since = trendWindowStart(window.days, now).toISOString();
+        const start = trendWindowStart(window.days, now);
+        const since = start.toISOString();
         return {
             type: "or",
-            expression: `created_at.gte.${since},delivered_at.gte.${since},completed_at.gte.${since}`,
+            expression: `created_at.gte.${since},and(scheduled_date.gte.${baghdadDayKey(start)},scheduled_date.lte.${today}),delivered_at.gte.${since},completed_at.gte.${since}`,
         };
     }
-    const cutoff = rangeCutoff(window.range, now);
-    return cutoff ? { type: "createdSince", since: cutoff.toISOString() } : { type: "none" };
+    const period = periodOrderWindow(window.range, now);
+    if (!period) return { type: "none" };
+    return {
+        type: "or",
+        expression: `created_at.gte.${new Date(period.fromInstant).toISOString()},and(scheduled_date.gte.${period.fromDay},scheduled_date.lte.${period.toDay})`,
+    };
 }
 
 /** Rows per request. Supabase caps a response at 1,000 rows. */

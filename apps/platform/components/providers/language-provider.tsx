@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { DialogCloseLabel } from "@scheniders/ui/dialog";
 import { reportError } from "@/lib/report-error";
 import type { Locale } from "@/lib/i18n";
 // Arabic is the default and the language every page renders first, so it ships
@@ -162,7 +163,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <LanguageContext.Provider value={value}>
-            {children}
+            {/* Every shared dialog's close (X) button is read out in the page's language. */}
+            <DialogCloseLabel value={value.t("common.close")}>{children}</DialogCloseLabel>
         </LanguageContext.Provider>
     );
 }

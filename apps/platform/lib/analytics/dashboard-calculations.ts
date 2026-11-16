@@ -9,7 +9,7 @@
  * does not return — the daily trend — computed from a bounded server query.
  */
 
-import { addDaysToDayKey, baghdadDayKey } from "@/lib/order-window";
+import { addDaysToDayKey, baghdadDayKey, orderInDateWindow, windowFromDateFilter, type OrderWindow } from "@/lib/order-window";
 
 // =============================================
 // Baghdad calendar boundaries (TMP-D1)
@@ -128,43 +128,42 @@ export type DateRangeKey = 'today' | '7d' | '30d' | 'all';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The calendar days in each dashboard period. */
-const PERIOD_DAYS: Record<Exclude<DateRangeKey, 'all'>, number> = { today: 1, '7d': 7, '30d': 30 };
-
-export interface PeriodWindow {
-    /** First instant of the period: the start of a Baghdad day. It ends now. */
-    start: Date;
-    /** The same stretch of time one period earlier: [previousStart, previousEnd). */
-    previousStart: Date;
-    previousEnd: Date;
-}
+export const PERIOD_DAYS: Record<Exclude<DateRangeKey, 'all'>, number> = { today: 1, '7d': 7, '30d': 30 };
 
 /**
- * One rule for every dashboard period, the same as `get_dashboard_metrics`:
- * "last N days" is N Baghdad calendar days ending today, today so far included.
- * The Orders date picker, Reports and Finances count "last 7 days" the same way,
- * so a dashboard number and the list it opens agree. (7d and 30d used to be
- * rolling 24-hour days: at 09:30 on 16 Nov «آخر 7 أيام» also took two orders
- * from the afternoon of 9 Nov, 9 against 7 on the orders card and in Orders.)
+ * One rule for every dashboard period, the same as `get_dashboard_metrics` and
+ * the Orders list it opens: "last N days" is N Baghdad calendar days ending
+ * today, today so far included (the Orders picker, Reports and Finances count
+ * them the same way), and an order belongs to them if it arrived inside them or
+ * is scheduled for one of them (`orderInDateWindow`).
+ * - 7d and 30d used to be rolling 24-hour days: at 09:30 on 16 Nov «آخر 7 أيام»
+ *   also took two orders from the afternoon of 9 Nov.
+ * - Counted by arrival alone, «آخر 7 أيام» said 7 while the Orders list it opens
+ *   held 9: two orders from earlier days were scheduled for 12 Nov.
  *
- * The comparison is the same stretch of time one period earlier, so today's
- * first hours are never set against a whole day.
+ * `back` steps whole periods back for comparisons: the same stretch of time,
+ * ending at `now` minus the steps rather than at midnight, so today's first
+ * hours are never set against a whole day.
  */
-export function periodWindow(range: Exclude<DateRangeKey, 'all'>, now: Date = new Date()): PeriodWindow {
-    const span = PERIOD_DAYS[range] * DAY_MS;
-    const start = new Date(baghdadDayStart(now).getTime() - span + DAY_MS);
+export function daysOrderWindow(days: number, now: Date = new Date(), back = 0): NonNullable<OrderWindow> {
+    const to = baghdadDayKey(now);
+    const from = addDaysToDayKey(to, 1 - days);
+    const current = windowFromDateFilter(from, to);
+    if (!current) throw new Error("daysOrderWindow: an empty day range");
+    if (back === 0) return current;
+    const shift = back * days * DAY_MS;
     return {
-        start,
-        previousStart: new Date(start.getTime() - span),
-        previousEnd: new Date(now.getTime() - span),
+        fromInstant: current.fromInstant - shift,
+        // Inclusive bound: up to, not including, `now` that many periods ago.
+        toInstant: now.getTime() - shift - 1,
+        fromDay: addDaysToDayKey(from, -back * days),
+        toDay: addDaysToDayKey(to, -back * days),
     };
 }
 
-/**
- * The instant a dashboard range starts (see periodWindow), or null for `all`.
- * Any client query that must agree with the RPC's ranged numbers windows on this.
- */
-export function rangeCutoff(range: DateRangeKey, now: Date = new Date()): Date | null {
-    return range === 'all' ? null : periodWindow(range, now).start;
+/** A dashboard period as an Orders window (see daysOrderWindow), or null for `all`. */
+export function periodOrderWindow(range: DateRangeKey, now: Date = new Date(), back = 0): OrderWindow {
+    return range === 'all' ? null : daysOrderWindow(PERIOD_DAYS[range], now, back);
 }
 
 /** The Orders date picker preset (packages/ui DateRangePicker) covering each dashboard period. */
@@ -209,6 +208,8 @@ export interface RealizableOrder {
     /** Absent when the viewer is not entitled to money (SEC-D2). */
     price?: number | null;
     created_at: string;
+    /** The Baghdad day an order was postponed to ("YYYY-MM-DD"). */
+    scheduled_date?: string | null;
     delivered_at?: string | null;
     completed_at?: string | null;
     is_test?: boolean | null;
@@ -310,22 +311,45 @@ export function trendWindowStart(days: TrendDays, now: Date = new Date()): Date 
 }
 
 /**
- * One point per Baghdad day: orders CREATED that day, and revenue REALIZED that day
- * (COR-D1). `orders` must contain every order created or realized inside the
- * window — not a page of the orders list.
+ * The Baghdad day an order is counted on: the day it arrived, unless `period`
+ * is given and the order belongs to that period only by its scheduled day
+ * (`orderInDateWindow`); then that day. So the days of a period add up to the
+ * Orders list for it, each order once.
  */
-export function calculateRevenueTrend(orders: RealizableOrder[], days: TrendDays, locale: ChartLocale = "en", now: Date = new Date()): RevenueTrendPoint[] {
+export function orderCountDay(o: Pick<RealizableOrder, "created_at" | "scheduled_date">, period?: NonNullable<OrderWindow>): string | null {
+    const at = Date.parse(o.created_at);
+    if (Number.isNaN(at)) return null;
+    const arrived = baghdadDayKey(at);
+    if (!period || (at >= period.fromInstant && at <= period.toInstant)) return arrived;
+    const scheduled = o.scheduled_date?.slice(0, 10);
+    return scheduled && orderInDateWindow(o, period) ? scheduled : arrived;
+}
+
+/**
+ * One point per Baghdad day: orders counted that day (orderCountDay), and revenue
+ * REALIZED that day (COR-D1). `orders` must contain every order created, scheduled
+ * or realized inside the window — not a page of the orders list.
+ */
+export function calculateRevenueTrend(
+    orders: RealizableOrder[],
+    days: TrendDays,
+    locale: ChartLocale = "en",
+    now: Date = new Date(),
+    period?: NonNullable<OrderWindow>,
+): RevenueTrendPoint[] {
     const points: RevenueTrendPoint[] = [];
+
+    const perDay = new Map<string, number>();
+    for (const o of orders) {
+        const day = orderCountDay(o, period);
+        if (day) perDay.set(day, (perDay.get(day) ?? 0) + 1);
+    }
 
     const todayStart = baghdadDayStart(now);
     for (let i = days - 1; i >= 0; i--) {
         const day = new Date(todayStart.getTime() - i * DAY_MS);
         const next = new Date(day.getTime() + DAY_MS);
-
-        const dayOrders = orders.filter(o => {
-            const d = new Date(o.created_at);
-            return d >= day && d < next;
-        });
+        const dayOrders = perDay.get(baghdadDayKey(day)) ?? 0;
 
         const revenue = realizedRevenueBetween(orders, day, next);   // COR-D1
 
@@ -336,7 +360,7 @@ export function calculateRevenueTrend(orders: RealizableOrder[], days: TrendDays
             label = formatChartDayMonth(day, locale);
         }
 
-        points.push({ date: label, orders: dayOrders.length, revenue });
+        points.push({ date: label, orders: dayOrders, revenue });
     }
 
     return points;

@@ -11,23 +11,29 @@ import {
 const now = new Date("2026-10-13T06:30:00.000Z");
 
 describe("factFilter — the trend and map read exactly their window", () => {
-    it("trend: created OR realized since the first plotted Baghdad midnight", () => {
+    it("trend: created, scheduled or realized since the first plotted Baghdad midnight", () => {
         // A delivery today of an order created last month is today's revenue; a
-        // created_at floor alone would drop it from the chart.
+        // created_at floor alone would drop it from the chart. An order scheduled
+        // for one of the days is in the Orders list for them, so it is read too.
         expect(factFilter({ kind: "trend", days: 7 }, now)).toEqual({
             type: "or",
             expression:
                 "created_at.gte.2026-10-06T21:00:00.000Z," +
+                "and(scheduled_date.gte.2026-10-07,scheduled_date.lte.2026-10-13)," +
                 "delivered_at.gte.2026-10-06T21:00:00.000Z," +
                 "completed_at.gte.2026-10-06T21:00:00.000Z",
         });
     });
 
-    it("geo: the same created_at cutoff get_dashboard_metrics applies for the range", () => {
-        expect(factFilter({ kind: "geo", range: "today" }, now))
-            .toEqual({ type: "createdSince", since: "2026-10-12T21:00:00.000Z" });
-        expect(factFilter({ kind: "geo", range: "7d" }, now))
-            .toEqual({ type: "createdSince", since: "2026-10-06T21:00:00.000Z" });
+    it("geo: the orders get_dashboard_metrics and the Orders list count for the range", () => {
+        expect(factFilter({ kind: "geo", range: "today" }, now)).toEqual({
+            type: "or",
+            expression: "created_at.gte.2026-10-12T21:00:00.000Z,and(scheduled_date.gte.2026-10-13,scheduled_date.lte.2026-10-13)",
+        });
+        expect(factFilter({ kind: "geo", range: "7d" }, now)).toEqual({
+            type: "or",
+            expression: "created_at.gte.2026-10-06T21:00:00.000Z,and(scheduled_date.gte.2026-10-07,scheduled_date.lte.2026-10-13)",
+        });
         expect(factFilter({ kind: "geo", range: "all" }, now)).toEqual({ type: "none" });
     });
 });
@@ -44,7 +50,7 @@ describe("factColumns — money is only requested for viewers entitled to it (SE
     });
 
     it("selects only what each widget reads", () => {
-        expect(factColumns("trend", false)).toBe("created_at,status,delivered_at,completed_at,source,governorate_code,validated_governorate_code");
+        expect(factColumns("trend", false)).toBe("created_at,scheduled_date,status,delivered_at,completed_at,source,governorate_code,validated_governorate_code");
         expect(factColumns("geo", false)).toBe("status,governorate_code,validated_governorate_code");
     });
 });
@@ -52,7 +58,7 @@ describe("factColumns — money is only requested for viewers entitled to it (SE
 describe("fact row contracts", () => {
     it("accepts a live-shaped trend row without price (employee) and with numeric price (admin)", () => {
         const row = {
-            created_at: "2026-10-12T22:08:07.599627+00:00", status: "in_transit",
+            created_at: "2026-10-12T22:08:07.599627+00:00", scheduled_date: null, status: "in_transit",
             delivered_at: null, completed_at: null,
             source: "lightfunnels", governorate_code: "BGD", validated_governorate_code: null,
         };

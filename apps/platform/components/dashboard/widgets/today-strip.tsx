@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Minus, ShoppingBag, DollarSign } from "lucide
 import { TodayStripMetrics } from "@/lib/analytics/dashboard-calculations";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
+import { formatSigned } from "@/lib/utils";
 
 interface DeltaBadgeProps {
     /** null when the viewer is not entitled to the underlying figure (SEC-D2). */
@@ -32,10 +33,10 @@ function DeltaBadge({ delta, pct, isFinancial }: DeltaBadgeProps) {
         }`}>
             {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {pct !== null
-                ? `${pct > 0 ? '+' : ''}${pct}%`
+                ? formatSigned(pct, "%")
                 : isFinancial
                     ? t("dashboard.today.noComparison")
-                    : `${isUp ? '+' : ''}${delta}`}
+                    : formatSigned(delta)}
         </span>
     );
 }

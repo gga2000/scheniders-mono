@@ -110,8 +110,8 @@ export function RevenueCard() {
                             </>
                         ) : (
                             <>
-                                <span className="font-medium text-foreground/80">{whole(fig.total / days)}</span>{" "}
-                                {t("dashboard.bento.perDay", { count: Math.round(fig.total / days) })}
+                                {/* One phrase, so the noun agrees with its number: «طلب واحد يومياً», «12 طلباً يومياً». */}
+                                <span className="font-medium text-foreground/80">{t("dashboard.bento.perDay", { count: Math.round(fig.total / days) })}</span>
                             </>
                         )}
                         {fig.deltaPct !== null && <>{" · "}{t("dashboard.bento.vsPrevious", { count: days })}</>}

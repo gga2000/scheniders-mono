@@ -43,9 +43,10 @@ function useOrderFacts<T>(window: OrderFactsWindow, schema: z.ZodType<T>) {
                     .eq("tenant_id", tenantId)
                     .eq("is_archived", false)
                     .is("deleted_at", null)
+                    // Stock taken in person is not a sale: Orders and get_dashboard_metrics leave it out too.
+                    .is("take_kind", null)
                     .neq("status", "pending_checkout");
                 if (filter.type === "or") query = query.or(filter.expression);
-                if (filter.type === "createdSince") query = query.gte("created_at", filter.since);
                 // A stable order is what makes offset paging complete.
                 const { data, error } = await query.order("id", { ascending: true }).range(from, to);
                 if (error) throw error;
@@ -61,12 +62,12 @@ function useOrderFacts<T>(window: OrderFactsWindow, schema: z.ZodType<T>) {
     });
 }
 
-/** Orders created or realized in the last `days` Baghdad days. */
+/** Orders created, scheduled or realized in the last `days` Baghdad days. */
 export function useTrendFacts(days: TrendDays) {
     return useOrderFacts<TrendFact>({ kind: "trend", days }, trendFactSchema);
 }
 
-/** Orders created inside the dashboard range, by governorate. */
+/** The dashboard range's orders (arrived or scheduled in it), by governorate. */
 export function useGeoFacts(range: DateRangeKey) {
     return useOrderFacts<GeoFact>({ kind: "geo", range }, geoFactSchema);
 }

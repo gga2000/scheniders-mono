@@ -16,7 +16,8 @@ function order(over: Partial<ReportOrder> = {}): ReportOrder {
         created_at: "2026-10-15T10:00:00.000Z", status: "delivered", delivered_at: null,
         contact_count: 1, city: "Baghdad", governorate_code: "BG", validated_governorate_code: null,
         rejection_reason: null, phone: "07701234567", needs_attention: false, attention_reasons: null,
-        source: "manual", is_return: false, notes: null, price: 10000, ...over,
+        source: "manual", is_return: false, notes: null, price: 10000,
+        refund_status: null, is_replacement: null, order_id: null, ...over,
     };
 }
 
@@ -67,6 +68,25 @@ describe("calculateStatusFlow", () => {
         const flow = calculateStatusFlow([order({ status: "new" }), order({ status: "new" }), order()]);
         expect(flow.map((f) => f.status)).toEqual(["new", "delivered"]);
         expect(flow[0]?.percentage).toBeCloseTo(200 / 3);
+    });
+
+    it("counts «مكتمل» and «مؤكد» by the Orders chips' rules (round 13)", () => {
+        const flow = calculateStatusFlow([
+            order({ status: "completed" }),
+            order({ status: "completed", refund_status: "refunded" }),
+            order({ status: "completed", refund_status: "pending" }),
+            order({ status: "completed", is_replacement: true }),
+            order({ status: "return_pending" }),
+            order({ status: "confirmed" }),
+        ]);
+        const count = (s: string) => flow.find((f) => f.status === s)?.count ?? 0;
+        // Orders' «مكتمل» chip leaves refunds and replacements out: so does Reports.
+        expect(count("completed")).toBe(1);
+        expect(count("refund_or_replacement")).toBe(3);
+        // A return waiting for pickup sits on the «مؤكد» chip.
+        expect(count("confirmed")).toBe(2);
+        expect(count("return_pending")).toBe(0);
+        expect(flow.reduce((s, f) => s + f.count, 0)).toBe(6);
     });
 });
 

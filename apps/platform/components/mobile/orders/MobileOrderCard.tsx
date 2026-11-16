@@ -340,7 +340,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                 <Calendar className="w-3 h-3" />
                                 {isScheduledToday(order.scheduled_date)
                                     ? t("orderDetail.scheduledToday")
-                                    : formatScheduledDate(order.scheduled_date)}
+                                    : formatScheduledDate(order.scheduled_date, language)}
                             </span>
                         )}
                     </div>

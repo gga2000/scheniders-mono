@@ -23,6 +23,10 @@ export const reportOrderSchema = z.object({
     attention_reasons: z.array(z.string()).nullable(),
     source: z.string().nullable(),
     is_return: z.boolean().nullable(),
+    // The Orders chip rules read these three (lib/orders/order-chips.ts).
+    refund_status: z.string().nullable(),
+    is_replacement: z.boolean().nullable(),
+    order_id: z.string().nullable(),
     notes: z.string().nullable(),
     // numeric arrives as a JSON number; null on legacy rows.
     price: z.number().nullable(),
@@ -31,7 +35,7 @@ export type ReportOrder = z.infer<typeof reportOrderSchema>;
 
 export const REPORT_ORDER_COLUMNS =
     "created_at,status,delivered_at,contact_count,city,governorate_code,validated_governorate_code," +
-    "rejection_reason,phone,needs_attention,attention_reasons,source,is_return,notes,price";
+    "rejection_reason,phone,needs_attention,attention_reasons,source,is_return,refund_status,is_replacement,order_id,notes,price";
 
 export interface ReportRange {
     from: Date;

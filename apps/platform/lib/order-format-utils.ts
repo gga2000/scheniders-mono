@@ -243,13 +243,17 @@ export const scheduleDayFromToday = (days: number, now: number = Date.now()) =>
 
 // The day key is already a calendar day; format it in UTC so the label cannot
 // shift to the neighbouring day in any viewer's zone.
-const scheduledDayLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const scheduledDayLabel: Record<Locale, Intl.DateTimeFormat> = {
+    en: new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
+    // Iraq's month names and Western digits, as on the order card's date: «8 أيلول».
+    ar: new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { day: "numeric", month: "short", timeZone: "UTC" }),
+};
 
-/** "8 Sept" — the label for the scheduled-date badge. */
-export const formatScheduledDate = (scheduledDate: string | null | undefined) => {
+/** "8 Sept" / «8 أيلول»: the label for the scheduled-date badge. */
+export const formatScheduledDate = (scheduledDate: string | null | undefined, language: Locale) => {
     const key = toBaghdadDayKey(scheduledDate);
     if (!key) return "";
-    return scheduledDayLabel.format(new Date(`${key}T00:00:00.000Z`));
+    return scheduledDayLabel[language].format(new Date(`${key}T00:00:00.000Z`));
 };
 
 /**
@@ -332,6 +336,15 @@ export const cleanSystemNotes = (text?: string | null) => {
 export const getActualNotes = (notes?: string | null) => {
     return cleanSystemNotes(notes);
 };
+
+/**
+ * «Reorder from #123», the marker the order dialog writes into a reorder's note.
+ * The stored note keeps it in English: it travels to the courier and the import
+ * reads it back (lib/delivery-import/pdf-parser.ts). On screen it reads in the
+ * merchant's language.
+ */
+export const showReorderNote = (notes: string, label: (orderId: string) => string) =>
+    notes.replace(/Reorder from #(\S+)/, (_, orderId: string) => label(orderId));
 
 export const getOrderReasonInfo = (order: Partial<Order>, isReturn: boolean = false) => {
     const hasReason = order.rejection_reason;

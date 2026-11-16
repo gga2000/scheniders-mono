@@ -21,6 +21,7 @@ const ago = (ms: number) => new Date(NOW.getTime() - ms).toISOString();
 function fact(over: Partial<TrendFact> = {}): TrendFact {
     return {
         created_at: ago(HOUR),
+        scheduled_date: null,
         status: "new",
         delivered_at: null,
         completed_at: null,
@@ -160,6 +161,35 @@ describe("last 7 days on every card (round 12)", () => {
         // 24 Oct 14:00 is before 15:00, the hour it is now a week on: last week.
         // 24 Oct 17:00 is after it: in neither stretch.
         const lastWeek = [fact({ created_at: ago(7 * DAY + HOUR) }), eveningOf24];
+        expect(revenueCardFigures(lastWeek, 7, "orders", "en", NOW).previousTotal).toBe(1);
+        expect(hourlyWaves(lastWeek, NOW).lastWeek).toBe(1);
+        expect(governoratePeriods(lastWeek, NOW)["7d"].previousTotal).toBe(1);
+    });
+});
+
+describe("an order scheduled into the days counts there, as in the Orders list (round 13)", () => {
+    // 16 Nov: the dashboard said 7 for «آخر 7 أيام» and the Orders list it opened
+    // held 9. Two orders that arrived earlier were scheduled for 12 Nov.
+    const arrivedEarlierScheduledIn = fact({ created_at: ago(20 * DAY), scheduled_date: "2026-10-28", governorate_code: "BAS" });
+    const arrivedIn = fact({ created_at: ago(2 * DAY), governorate_code: "BGD" });
+    const scheduledTomorrow = fact({ created_at: ago(20 * DAY), scheduled_date: "2026-11-01" });
+    const facts = [arrivedEarlierScheduledIn, arrivedIn, scheduledTomorrow];
+
+    it("counts the same orders on the orders, hourly and governorate cards", () => {
+        expect(revenueCardFigures(facts, 7, "orders", "en", NOW).total).toBe(2);
+        expect(hourlyWaves(facts, NOW).thisWeek).toBe(2);
+        expect(governoratePeriods(facts, NOW)["7d"].total).toBe(2);
+        expect(governoratePeriods(facts, NOW)["7d"].counts.get("BAS")).toBe(1);
+    });
+
+    it("puts the scheduled order on the orders card's 28 Oct, not on the day it arrived", () => {
+        const series = revenueCardFigures(facts, 7, "orders", "en", NOW).series.map((p) => p.value);
+        // 25 … 31 Oct: the 28th is index 3, the 29th (two days ago) index 4.
+        expect(series).toEqual([0, 0, 0, 1, 1, 0, 0]);
+    });
+
+    it("an order scheduled for a day of last week's stretch counts there", () => {
+        const lastWeek = [fact({ created_at: ago(20 * DAY), scheduled_date: "2026-10-20" })];
         expect(revenueCardFigures(lastWeek, 7, "orders", "en", NOW).previousTotal).toBe(1);
         expect(hourlyWaves(lastWeek, NOW).lastWeek).toBe(1);
         expect(governoratePeriods(lastWeek, NOW)["7d"].previousTotal).toBe(1);

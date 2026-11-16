@@ -66,8 +66,9 @@ describe("scheduled state", () => {
 
     it("labels the scheduled day without shifting it", () => {
         // ICU renders the short month as "Sep" or "Sept" depending on the CLDR build.
-        expect(formatScheduledDate("2026-09-08")).toMatch(/^8 Sept?$/);
-        expect(formatScheduledDate(null)).toBe("");
+        expect(formatScheduledDate("2026-09-08", "en")).toMatch(/^8 Sept?$/);
+        expect(formatScheduledDate("2026-09-08", "ar")).toBe("8 أيلول");
+        expect(formatScheduledDate(null, "ar")).toBe("");
     });
 });
 
