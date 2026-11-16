@@ -79,7 +79,7 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).toContain("a &amp; b");
     });
     it("shows the fragile tape, grouped phones and the barcode", () => {
-        const html = generateDispatchLabelHTML(order(), { showBarcode: true });
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true, fragileWarning: true });
         expect(html).toContain("زجاج · قابل للكسر · يُحمل بعناية");
         expect(html).toContain("0782 700 8326");
         expect(html).toContain("0782 700 8306");
@@ -142,13 +142,24 @@ describe("refund and replacement labels", () => {
 describe("perfume warning", () => {
     const WARNING = "يمنع فتح العطر منعاً باتاً";
 
-    it("is on every parcel going out to a customer, replacements included", () => {
-        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).toContain(WARNING);
-        expect(generateDispatchLabelHTML(order({ is_replacement: true }), { showBarcode: true })).toContain(WARNING);
+    const GLASS = "زجاج · قابل للكسر";
+    const perfumeShop = { showBarcode: true, fragileWarning: true };
+
+    it("is on every parcel a perfume shop sends to a customer, replacements included", () => {
+        expect(generateDispatchLabelHTML(order(), perfumeShop)).toContain(WARNING);
+        expect(generateDispatchLabelHTML(order({ is_replacement: true }), perfumeShop)).toContain(WARNING);
     });
 
     it("is left off refund pickups, where nothing is handed to the customer", () => {
-        expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), { showBarcode: true })).not.toContain(WARNING);
+        expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), perfumeShop)).not.toContain(WARNING);
+    });
+
+    // Store walkthrough 2026-11-16: a shop selling no perfume got the perfume and glass warnings.
+    it("and the glass tape stay off a shop that has not switched them on", () => {
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true });
+        expect(html).not.toContain(WARNING);
+        expect(html).not.toContain(GLASS);
+        expect(generateDispatchLabelHTML(order(), perfumeShop)).toContain(GLASS);
     });
 });
 

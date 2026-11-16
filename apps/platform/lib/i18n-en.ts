@@ -5478,6 +5478,8 @@ export const en: Record<string, string> = {
     "settings.print.a4": "A4 (several per page)",
     "settings.print.showPrice": "Show price on label",
     "settings.print.showPhone": "Show customer phone",
+    "settings.print.fragileWarning": "Perfume and glass warning on the label",
+    "settings.print.fragileWarningHint": "The \"Glass, fragile\" tape and the \"Do not open the perfume\" line. Turn on if you sell perfume.",
     "settings.print.batching": "Batch defaults",
     "settings.print.grouping": "Default batch grouping",
     "settings.print.groupingHint": "How orders are grouped when creating a new print batch.",
