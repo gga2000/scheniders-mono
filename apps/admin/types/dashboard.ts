@@ -38,6 +38,13 @@ export interface GeoStats {
   revenue: number;
 }
 
+/** Last 90 days: orders made and shop sales earned, by the governorate they went to. */
+export interface GeoDistribution {
+  governorates: GeoStats[];
+  /** Orders whose place the console cannot tell: no governorate code, and a city it cannot read. */
+  unknown: { orderCount: number; revenue: number };
+}
+
 // ─── Peak Hours Heatmap ─────────────────────────────────────────────────────
 export interface HeatmapCell {
   dayOfWeek: number; // 0=Sun
@@ -174,7 +181,7 @@ export interface DashboardV2Stats {
   // Widgets
   pipeline: PipelineStage[];
   topMerchants: LeaderboardEntry[];
-  geoStats: GeoStats[];
+  geoStats: GeoDistribution;
   peakHours: HeatmapCell[];
   funnel: FunnelStep[];
   growth: GrowthMetric[];

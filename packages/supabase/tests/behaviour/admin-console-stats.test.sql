@@ -104,12 +104,12 @@ DECLARE
     _gov1 text := 'TT1-' || left(gen_random_uuid()::text, 8);
     _gov2 text := 'TT2-' || left(gen_random_uuid()::text, 8);
     _city text := 'tt-city-' || left(gen_random_uuid()::text, 8);
+    _place text := 'tt-place-' || left(gen_random_uuid()::text, 8);
     _src text := 'tt-src-' || left(gen_random_uuid()::text, 8);
     _d0 jsonb; _d1 jsonb;
     _u0 jsonb; _u1 jsonb; _ua jsonb;
     _i0 jsonb; _i1 jsonb;
     _shop jsonb;
-    _city_row jsonb;
     _n integer := 0;
 BEGIN
     INSERT INTO tt_ids VALUES ('a', _a), ('b', _b), ('c', _c);
@@ -136,8 +136,8 @@ BEGIN
         (_a, 'TT-' || _a || '-3', 'tt', '0', '[]', 20000, 'delivered', '2026-10-31 21:30:00+00', '2026-11-03 12:00:00+03', NULL, NULL, _gov1, _city, _src),
         -- a4: made in October, completed 01:00 Baghdad on 1 November, no delivered_at.
         (_a, 'TT-' || _a || '-4', 'tt', '0', '[]', 30000, 'completed', '2026-10-20 10:00:00+03', NULL, '2026-10-31 22:00:00+00', NULL, _gov2, NULL, NULL),
-        -- a5: delivered 23:00 Baghdad on 31 October.
-        (_a, 'TT-' || _a || '-5', 'tt', '0', '[]', 5000, 'delivered', '2026-10-25 10:00:00+03', '2026-10-31 23:00:00+03', NULL, NULL, NULL, NULL, NULL),
+        -- a5: delivered 23:00 Baghdad on 31 October; an empty governorate code and a typed city.
+        (_a, 'TT-' || _a || '-5', 'tt', '0', '[]', 5000, 'delivered', '2026-10-25 10:00:00+03', '2026-10-31 23:00:00+03', NULL, NULL, '', ' ' || _place || ' ', NULL),
         -- a6: a delivered return: an order, never money.
         (_a, 'TT-' || _a || '-6', 'tt', '0', '[]', 9000, 'delivered', '2026-11-10 12:00:00+03', '2026-11-11 12:00:00+03', NULL, true, NULL, NULL, NULL),
         -- a7: completed with no date: in no day or month.
@@ -263,11 +263,14 @@ BEGIN
         pg_temp.pick(_d1->'governorates90', 'code', _gov1) @> '{"orders": 1, "sales": 20000}'::jsonb);
     PERFORM pg_temp.check('governorate 2: order made earlier, money earned inside 90 days',
         pg_temp.pick(_d1->'governorates90', 'code', _gov2) @> '{"orders": 1, "sales": 30000}'::jsonb);
-    _city_row := pg_temp.pick(_d1->'cities90', 'city', _city);
-    PERFORM pg_temp.check('cities: top ten by sales',
-        (_city_row->>'sales')::numeric = 20000
-        OR (jsonb_array_length(_d1->'cities90') = 10
-            AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(_d1->'cities90') AS e WHERE (e->>'sales')::numeric < 20000)));
+    PERFORM pg_temp.check('governorates: an empty code is no governorate',
+        NOT EXISTS (SELECT 1 FROM jsonb_array_elements(_d1->'governorates90') AS e WHERE e->>'code' = ''));
+    PERFORM pg_temp.check('places without a code: by the city typed, trimmed',
+        pg_temp.pick(_d1->'uncodedPlaces90', 'city', _place) @> '{"orders": 1, "sales": 5000}'::jsonb);
+    PERFORM pg_temp.check('cities90 is gone: the console places orders itself', NOT (_d1 ? 'cities90'));
+    PERFORM pg_temp.check('places without a code: an order with no city is under ""',
+        coalesce((pg_temp.pick(_d1->'uncodedPlaces90', 'city', '')->>'orders')::int, 0)
+        - coalesce((pg_temp.pick(_d0->'uncodedPlaces90', 'city', '')->>'orders')::int, 0) = 8);
     PERFORM pg_temp.check('sources: named source', (pg_temp.pick(_d1->'sources90', 'source', _src)->>'sales')::numeric = 20000);
     PERFORM pg_temp.check('sources: no source reads as direct',
         coalesce((pg_temp.pick(_d1->'sources90', 'source', 'direct')->>'sales')::numeric, 0)

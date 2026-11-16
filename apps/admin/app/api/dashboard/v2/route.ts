@@ -102,18 +102,20 @@ export async function GET(request: NextRequest) {
         type: s.status === "cancelled" ? "cancellation" : "plan_change",
       }));
 
+    const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
+
     return NextResponse.json({
       kpis: calculateKpis(stats, income, tenants),
       platformStats: calculatePlatformOrderStats(stats.orders),
       pipeline: calculatePlatformPipeline(stats.statuses90),
       topMerchants: calculateTopMerchants(stats.shops, tenants),
-      geoStats: calculateGeoStats(stats.governorates90),
+      geoStats: geo,
       peakHours: calculatePeakHours(stats.hours90),
       funnel: calculateFulfillmentFunnel(stats.statuses90),
       growth: calculateGrowthMetrics(stats, tenants),
       walletHealth: calculateWalletHealth(tenants, income.topups.daily7),
       activityHeatmap: calculateActivityHeatmap(usage),
-      revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, stats.cities90, stats.sources90),
+      revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, geo, stats.sources90),
       planMovements: calculatePlanMovements(subChanges),
       topUpPatterns: calculateTopUpPatterns(income.topups.byDow),
       merchantLTV: calculateMerchantLTV(tenants, income.byTenant, stats.today),

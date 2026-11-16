@@ -7,6 +7,7 @@
 import type {
   PipelineStage,
   LeaderboardEntry,
+  GeoDistribution,
   GeoStats,
   HeatmapCell,
   FunnelStep,
@@ -26,6 +27,7 @@ import type {
 import { addDays } from "./baghdad-day";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
+import { SHOP_GOVERNORATES, shopGovernorate } from "./shop-city";
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────
 
@@ -125,12 +127,40 @@ export function calculateTopMerchants(
 
 // ─── Geographic Stats ───────────────────────────────────────────────────────
 
-export function calculateGeoStats(governorates90: DashboardStats["governorates90"]): GeoStats[] {
-  return governorates90.map((g) => ({
-    governorateCode: g.code,
-    orderCount: g.orders,
-    revenue: g.sales,
-  }));
+/**
+ * Orders and shop sales by governorate, last 90 days. An order with no
+ * governorate code is placed by the city typed on it, with the console's one
+ * city rule (the Merchants map's), so "بغداد" counts for Baghdad; what that
+ * rule cannot read is "unknown", never left out.
+ */
+export function calculateGeoStats(
+  governorates90: DashboardStats["governorates90"],
+  uncodedPlaces90: DashboardStats["uncodedPlaces90"],
+): GeoDistribution {
+  const byCode = new Map<string, GeoStats>();
+  const add = (code: string, orders: number, sales: number) => {
+    const row = byCode.get(code) ?? { governorateCode: code, orderCount: 0, revenue: 0 };
+    row.orderCount += orders;
+    row.revenue += sales;
+    byCode.set(code, row);
+  };
+  for (const g of governorates90) add(g.code, g.orders, g.sales);
+
+  const unknown = { orderCount: 0, revenue: 0 };
+  for (const place of uncodedPlaces90) {
+    const governorate = shopGovernorate(place.city);
+    if (governorate) {
+      add(governorate.code, place.orders, place.sales);
+    } else {
+      unknown.orderCount += place.orders;
+      unknown.revenue += place.sales;
+    }
+  }
+
+  const governorates = [...byCode.values()].sort(
+    (a, b) => b.orderCount - a.orderCount || a.governorateCode.localeCompare(b.governorateCode),
+  );
+  return { governorates, unknown };
 }
 
 // ─── Peak Hours Heatmap ─────────────────────────────────────────────────────
@@ -286,21 +316,38 @@ const SLICE_COLORS = [
   "var(--pastel-pink)", "var(--pastel-purple)", "var(--pastel-mint)",
 ];
 
-/** Last 90 days. By plan is the fees we collected; by city and by source are the merchants' sales. */
+/** The most places the "by city" bars show. */
+const CITY_SLICES = 10;
+
+/**
+ * Last 90 days. By plan is the fees we collected; by city and by source are
+ * the merchants' sales. By city reads the map's numbers, so both say the same
+ * for Baghdad, and "Unknown city" is a bar of its own.
+ */
 export function calculateRevenueBreakdown(
   byPlan90: IncomeStats["byPlan90"],
-  cities90: DashboardStats["cities90"],
+  geo: GeoDistribution,
   sources90: DashboardStats["sources90"],
 ): RevenueBreakdown {
+  const places = [
+    ...geo.governorates.map((g) => ({
+      label: SHOP_GOVERNORATES.find((s) => s.code === g.governorateCode)?.name ?? g.governorateCode,
+      value: g.revenue,
+    })),
+    { label: "Unknown city", value: geo.unknown.revenue },
+  ]
+    .filter((place) => place.value > 0)
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .slice(0, CITY_SLICES);
+
   return {
     byPlan: byPlan90.map((p) => ({
       label: titleCase(p.plan),
       value: p.amount,
       color: PLAN_COLORS[p.plan] || "var(--pastel-mint)",
     })),
-    byCity: cities90.map((c, i) => ({
-      label: c.city,
-      value: c.sales,
+    byCity: places.map((place, i) => ({
+      ...place,
       color: SLICE_COLORS[i % SLICE_COLORS.length],
     })),
     bySource: sources90.map((s, i) => ({
