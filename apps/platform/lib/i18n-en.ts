@@ -1723,6 +1723,8 @@ export const en: Record<string, string> = {
     "orderDetail.notes": "Notes",
     "orderDetail.addNote": "Add a note...",
     "orderDetail.close": "Close",
+    "orderDetail.nextStep": "Next: {status}",
+    "orderDetail.changeStatus": "Change status",
     "orderDetail.openWhatsApp": "Open WhatsApp",
     "orderDetail.saveChanges": "Save Changes",
     "orderDetail.saving": "Saving...",

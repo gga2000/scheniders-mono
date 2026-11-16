@@ -1922,6 +1922,8 @@ export const ar: Record<string, string> = {
     "orderDetail.notes": "الملاحظات",
     "orderDetail.addNote": "أضف ملاحظة...",
     "orderDetail.close": "إغلاق",
+    "orderDetail.nextStep": "التالي: {status}",
+    "orderDetail.changeStatus": "تغيير الحالة",
     "orderDetail.openWhatsApp": "فتح واتساب",
     "orderDetail.saveChanges": "حفظ التعديلات",
     "orderDetail.saving": "جاري الحفظ...",

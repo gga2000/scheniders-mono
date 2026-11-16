@@ -280,3 +280,23 @@ describe("OrderCustomerCard source", () => {
         expect(select.selectedOptions[0]?.textContent).toBe("المتجر");
     });
 });
+
+describe("OrderCustomerCard plain view", () => {
+    it("reads as text, without the governorate code or an empty second number", () => {
+        renderCard({ governorate_code: "BGD", secondary_phone: undefined });
+        expect(screen.queryByText("BGD")).toBeNull();
+        expect(screen.queryByText("الرقم الثانوي")).toBeNull();
+        expect(document.querySelector("input, select, textarea")).toBeNull();
+    });
+
+    it("shows a second number when there is one", () => {
+        renderCard({ secondary_phone: "07811262261" });
+        expect(screen.getByText("الرقم الثانوي")).toBeTruthy();
+    });
+
+    it("brings the code and the second number back for editing", () => {
+        renderCard({ governorate_code: "BGD", secondary_phone: undefined }, { isEditing: true });
+        expect(screen.getByText("كود المحافظة")).toBeTruthy();
+        expect(screen.getByText("الرقم الثانوي")).toBeTruthy();
+    });
+});
