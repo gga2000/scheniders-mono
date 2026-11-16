@@ -7,7 +7,8 @@
 -- scores, new flags and every step, for every store asking, including the
 -- network gate (2+ other stores with 40+ deliveries), each store's cap, the
 -- pattern step, holds, the demo store, the burst guard and a missing pepper.
--- The old code is kept below, verbatim, as the reference.
+-- The old code is kept below, verbatim, as the reference. When Shield's
+-- scoring changes on purpose, change the reference with it in the same PR.
 
 \set ON_ERROR_STOP 1
 
