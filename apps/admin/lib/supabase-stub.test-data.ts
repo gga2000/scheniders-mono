@@ -113,6 +113,8 @@ function matches(field: unknown, operator: string, value: unknown): boolean {
   if (operator === "is") return String(field) === String(value);
   // PostgREST writes a list as "(a,b)".
   if (operator === "in" && typeof value === "string") return value.slice(1, -1).split(",").includes(String(field));
+  // Postgres ~*: a case-insensitive pattern.
+  if (operator === "imatch" && typeof value === "string") return typeof field === "string" && new RegExp(value, "iu").test(field);
   if (typeof field !== "number" || typeof value !== "number") return false;
   if (operator === "lt") return field < value;
   if (operator === "lte") return field <= value;

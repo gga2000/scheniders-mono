@@ -10,37 +10,8 @@ import {
 } from "@scheniders/shared/iraq-map-paths";
 import { useAdminStore } from "@/store/use-admin-store";
 import { cn } from "@/lib/utils";
+import { SHOP_GOVERNORATES, shopGovernorate } from "@/lib/shop-city";
 import type { AdminTenant } from "@/types/admin";
-
-// City names (lowercase) → governorate codes
-const CITY_TO_CODE: Record<string, string> = {
-  baghdad: "BGD",
-  basra: "BAS",
-  erbil: "ARB",
-  sulaymaniyah: "SMH",
-  najaf: "NJF",
-  karbala: "KRB",
-  duhok: "DOH",
-  kirkuk: "KRK",
-  mosul: "MOS",
-  diyala: "DYL",
-  wasit: "KOT",
-  maysan: "AMA",
-  muthanna: "SAM",
-  "dhi qar": "NAS",
-  anbar: "ANB",
-  babil: "BBL",
-  saladin: "SAH",
-  qadisiyyah: "DWN",
-};
-
-// Reverse lookup for display names
-const CODE_TO_NAME: Record<string, string> = Object.entries(
-  CITY_TO_CODE
-).reduce((acc, [city, code]) => {
-  acc[code] = city.charAt(0).toUpperCase() + city.slice(1);
-  return acc;
-}, {} as Record<string, string>);
 
 const HEAT_SCALE = [
   "#f1f5f9",
@@ -105,17 +76,18 @@ export function MerchantsMapView({
     let unknownCount = 0;
 
     for (const m of merchants) {
-      const cityKey = (m.city ?? "").toLowerCase().trim();
-      const code = CITY_TO_CODE[cityKey];
-      if (!code) {
+      // However the merchant typed the city: "بغداد" and "Baghdad" are one governorate.
+      const governorate = shopGovernorate(m.city);
+      if (!governorate) {
         unknownCount++;
         continue;
       }
+      const { code } = governorate;
       const existing =
         map.get(code) ??
         ({
           code,
-          name: CODE_TO_NAME[code] ?? code,
+          name: governorate.name,
           count: 0,
           totalBalance: 0,
           fees30d: 0,
@@ -150,7 +122,7 @@ export function MerchantsMapView({
 
   const handlePathClick = useCallback(
     (code: string) => {
-      const cityName = CODE_TO_NAME[code]?.toLowerCase();
+      const cityName = SHOP_GOVERNORATES.find((g) => g.code === code)?.name.toLowerCase();
       if (!cityName) return;
       // Toggle: clicking again clears
       if (cityFilter === cityName) {
