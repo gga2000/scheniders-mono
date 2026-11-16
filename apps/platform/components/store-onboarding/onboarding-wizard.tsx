@@ -11,6 +11,7 @@
 //   2. Pick a starter template (recommended one highlighted).
 //   3. Business basics — name, WhatsApp, brand colour.
 //   → "Create my store" seeds `store_config_v2_draft` and opens the editor.
+// Under every step: «تريد نساعدك بالإعداد؟», our team calls and sets it up.
 // =====================================================================
 
 import { useCallback, useMemo, useState } from "react";
@@ -55,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { authedFetch } from "@/lib/authed-fetch";
 import { attributeTemplatesFor, industryIdFor, mergeAttributeSets, packIdFor } from "@/lib/business-types";
+import { SetupHelpOffer } from "./setup-help-offer";
 
 interface OnboardingWizardProps {
     tenantId: string;
@@ -316,6 +318,8 @@ export function OnboardingWizard({
                     </div>
                 )}
             </div>
+
+            <SetupHelpOffer defaultPhone={defaultWhatsapp ?? ""} />
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
                 {t("wizard.footer")}

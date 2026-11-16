@@ -6,6 +6,7 @@ import {
   formatDue,
   callBackNumber,
   sortTasks,
+  taskLabel,
   TaskLogSchema,
   type SupportTask,
   formatDuration,
@@ -214,6 +215,7 @@ describe("sortTasks", () => {
   const task = (id: string, owner: string | null, due: string, kind: SupportTask["kind"] = "welcome_call"): SupportTask => ({
     id,
     kind,
+    topic: null,
     due_at: due,
     attempts: 0,
     phone: kind === "call_back" ? "07701234567" : null,
@@ -246,6 +248,14 @@ describe("sortTasks", () => {
       task("asked", "other", "2026-11-16T12:00:00Z", "call_back"),
     ];
     expect(sortTasks(tasks, "me").map((t) => t.id)).toEqual(["asked", "mine-late"]);
+  });
+});
+
+describe("taskLabel", () => {
+  it("names a setup-help call as its own kind and keeps the plain call-back label", () => {
+    expect(taskLabel({ kind: "call_back", topic: "setup" }).title).toBe("Setup help");
+    expect(taskLabel({ kind: "call_back", topic: null }).title).toBe("Call back");
+    expect(taskLabel({ kind: "store_check", topic: null }).title).toBe("Store check");
   });
 });
 

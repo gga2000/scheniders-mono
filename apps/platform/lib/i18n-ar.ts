@@ -8418,6 +8418,10 @@ export const ar: Record<string, string> = {
     "wizard.nav.create": "إنشاء متجري",
     "wizard.nav.creating": "جاري الإنشاء…",
     "wizard.footer": "يمكنك تغيير كل شيء لاحقاً في المحرر.",
+    "wizard.help.title": "تريد نساعدك بالإعداد؟",
+    "wizard.help.body": "مجاناً. واحد من فريقنا يتصل بك ويجهّز المتجر وياك.",
+    "wizard.help.yes": "نعم، اتصلوا بي",
+    "wizard.help.asked": "وصل طلبك. سنتصل بك على {phone}",
     "wizard.error.create": "تعذّر إنشاء متجرك. حاول مرة أخرى.",
     "wizard.error.network": "خطأ في الشبكة. تحقق من اتصالك وحاول مرة أخرى.",
     // ── Signup (UX2-14) ──

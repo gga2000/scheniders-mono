@@ -12,10 +12,10 @@ import { SupportCallList } from "@/components/support/support-call-list";
 import {
   CALL_OUTCOMES,
   CALL_OUTCOME_LABELS,
-  SUPPORT_TASK_LABELS,
   callBackNumber,
   formatDue,
   sortTasks,
+  taskLabel,
   type CallOutcome,
   type SupportTask,
 } from "@/lib/support";
@@ -82,7 +82,7 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
   const log = useSupportLogTask();
   const take = useSupportTakeShop();
   const [note, setNote] = useState("");
-  const label = SUPPORT_TASK_LABELS[task.kind];
+  const label = taskLabel(task);
   const late = Date.parse(task.due_at) < now;
 
   const record = (outcome: CallOutcome) => {
