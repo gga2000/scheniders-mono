@@ -617,7 +617,7 @@ function BulkPayAllDialog({
                                                 : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:text-foreground"
                                         )}
                                     >
-                                        <span className="text-base">{m.icon}</span>
+                                        <m.icon className="h-4 w-4" aria-hidden />
                                         {t(m.labelKey)}
                                     </button>
                                 ))}

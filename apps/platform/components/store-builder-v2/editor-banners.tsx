@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useEffect, useState } from "react";
-import { ExternalLink, PartyPopper, Sparkles } from "lucide-react";
+import { Clock, ExternalLink, PartyPopper, Sparkles } from "lucide-react";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
@@ -368,9 +368,7 @@ export function DraftRecoveryBanner({
             data-testid="editor-shell-recovery-banner"
             className="fixed inset-x-0 top-2 z-50 mx-auto flex w-fit max-w-[92vw] items-center gap-3 rounded-xl border border-amber-400/50 bg-amber-50/95 px-4 py-2.5 text-sm shadow-[0_10px_30px_-12px_rgba(0,0,0,0.35)] backdrop-blur"
         >
-            <span aria-hidden="true" className="text-base">
-                ⏱️
-            </span>
+            <Clock aria-hidden="true" className="h-4 w-4 shrink-0 text-amber-700" />
             <p className="flex-1 text-amber-900">
                 {tFormat(STRINGS.recovery.message, locale, {
                     time: relativeTimeFrom(backup.saved_at, locale),

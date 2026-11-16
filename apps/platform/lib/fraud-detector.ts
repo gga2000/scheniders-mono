@@ -225,31 +225,6 @@ class TrustEngine {
         return normalized;
     }
 
-    // Backward-compat helper methods
-    getRiskBadgeColor(level: RiskLevel): string {
-        const map: Record<RiskLevel, string> = {
-            low: 'bg-green-100 text-green-700 border-green-200',
-            medium: 'bg-amber-100 text-amber-700 border-amber-200',
-            high: 'bg-red-100 text-red-700 border-red-200',
-            blocked: 'bg-red-200 text-red-900 border-red-300',
-        };
-        return map[level] || map.low;
-    }
-
-    getRiskLevelLabel(level: RiskLevel): string {
-        const map: Record<RiskLevel, string> = {
-            low: 'Low Risk', medium: 'Medium Risk', high: 'High Risk', blocked: 'Blocked',
-        };
-        return map[level] || 'Unknown';
-    }
-
-    getRiskLevelIcon(level: RiskLevel): string {
-        const map: Record<RiskLevel, string> = {
-            low: '✅', medium: '⚠️', high: '🚨', blocked: '🚫',
-        };
-        return map[level] || '❓';
-    }
-
     private getDefaultAssessment(): TrustAssessment {
         return {
             score: 100,

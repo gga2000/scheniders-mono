@@ -10,6 +10,7 @@ import { usePrimeQueueHandledIds, usePrimeQueuePending } from "@/hooks/use-prime
 import { useMemo } from "react";
 import { EASE_CHROME } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
+import { CopyPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { AbandonedCartRecoveryStrip } from "@/components/orders/page/lazy";
@@ -56,13 +57,15 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                     {filterDuplicatesOnly && (
                         <div className="flex items-center gap-2 px-2">
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700">
-                                <span className="text-xs font-semibold">🔄 {t("orders.dupOnly")}</span>
+                                <CopyPlus className="h-3.5 w-3.5" aria-hidden />
+                                <span className="text-xs font-semibold">{t("orders.dupOnly")}</span>
                                 <button
                                     onClick={() => setFilterDuplicatesOnly(false)}
-                                    className="text-orange-500 hover:text-orange-700 font-bold text-xs"
+                                    className="text-orange-500 hover:text-orange-700"
                                     title={t("orders.removeFilter")}
+                                    aria-label={t("orders.removeFilter")}
                                 >
-                                    ✕
+                                    <X className="h-3.5 w-3.5" />
                                 </button>
                             </div>
                         </div>

@@ -7,7 +7,7 @@ import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { formatShortDate, formatTime, getStatusBadgeStyle, getDisplayOrderId, isSystemActor } from "@/lib/order-format-utils";
-import { XCircle, Truck, Sparkles, FlaskConical, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Bot, Cog, ExternalLink } from "lucide-react";
+import { Check, XCircle, Truck, Sparkles, FlaskConical, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Bot, Cog, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { PriorityBadge } from "./priority-badge";
 import { SourceBadge } from "./source-badge";
@@ -167,7 +167,8 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                                         className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[11px] font-semibold flex items-center gap-1"
                                         title={t("orders.card.courierNumber")}
                                     >
-                                        🚚 {order.delivery_order_id}
+                                        <Truck className="h-3 w-3" aria-hidden />
+                                        {order.delivery_order_id}
                                     </span>
                                 )}
                                 {/* Original Order Reference in Header - REMOVED: consolidated into tags row */}
@@ -361,19 +362,22 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                         if (daysLeft > 5) {
                             return (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-green-100 text-green-700">
-                                    ✓ {t("orders.card.guaranteeDays", { count: daysLeft })}
+                                    <Check className="h-3 w-3" aria-hidden />
+                                    {t("orders.card.guaranteeDays", { count: daysLeft })}
                                 </span>
                             );
                         } else if (daysLeft > 2) {
                             return (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-yellow-100 text-yellow-700">
-                                    ⏱ {t("orders.card.guaranteeDays", { count: daysLeft })}
+                                    <Clock className="h-3 w-3" aria-hidden />
+                                    {t("orders.card.guaranteeDays", { count: daysLeft })}
                                 </span>
                             );
                         } else if (daysLeft > 0) {
                             return (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
-                                    ⚠ {daysLeft === 1 ? t("orders.card.lastDay") : t("orders.card.daysLeft", { count: daysLeft })}
+                                    <AlertTriangle className="h-3 w-3" aria-hidden />
+                                    {daysLeft === 1 ? t("orders.card.lastDay") : t("orders.card.daysLeft", { count: daysLeft })}
                                 </span>
                             );
                         } else {
