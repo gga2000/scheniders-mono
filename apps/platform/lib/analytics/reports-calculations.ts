@@ -45,7 +45,6 @@ export interface ContactAttemptMetrics {
 
 export interface CityPerformanceMetrics {
     city: string;
-    governorateCode: string;
     totalOrders: number;
     delivered: number;
     rejected: number;
@@ -241,14 +240,12 @@ export function calculateCityPerformance(orders: ReportOrder[]): CityPerformance
         delivered: number;
         rejected: number;
         noResponse: number;
-        governorateCode: string;
         totalDeliveryDays: number;
         deliveredCount: number;
     }> = {};
 
     orders.forEach(order => {
         const city = order.city || order.governorate_code || "Unknown";
-        const govCode = order.governorate_code || order.validated_governorate_code || "";
 
         if (!cityData[city]) {
             cityData[city] = {
@@ -256,7 +253,6 @@ export function calculateCityPerformance(orders: ReportOrder[]): CityPerformance
                 delivered: 0,
                 rejected: 0,
                 noResponse: 0,
-                governorateCode: govCode,
                 totalDeliveryDays: 0,
                 deliveredCount: 0,
             };
@@ -285,7 +281,6 @@ export function calculateCityPerformance(orders: ReportOrder[]): CityPerformance
             const shipped = data.delivered + data.rejected;
             return {
                 city,
-                governorateCode: data.governorateCode,
                 totalOrders: data.total,
                 delivered: data.delivered,
                 rejected: data.rejected,
@@ -436,6 +431,9 @@ export interface ReturnReasonMetrics {
     topCity?: string;
 }
 
+/** The reason of a return whose notes record none; the screen names it in the page's language. */
+export const NO_RETURN_REASON = "";
+
 export interface ReturnAnalyticsMetrics {
     totalReturns: number;
     totalReturnValue: number;
@@ -484,7 +482,7 @@ export function calculateReturnAnalytics(
 
     returnOrders.forEach(order => {
         // Extract reason from notes (format: "استرجاع: REASON | ...")
-        let reason = "غير محدد"; // Default: "Unspecified"
+        let reason = NO_RETURN_REASON;
         if (order.notes) {
             const match = order.notes.match(/استرجاع:\s*([^|]+)/);
             if (match && match[1]) {

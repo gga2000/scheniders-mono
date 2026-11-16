@@ -370,7 +370,7 @@ export default function Home() {
                 )}</WidgetBoundary>
               </div>
               <div className="xl:col-span-5">
-                <WidgetBoundary label="bento-governorates"><GovernorateCard /></WidgetBoundary>
+                <WidgetBoundary label="bento-governorates"><GovernorateCard range={dateRange} /></WidgetBoundary>
               </div>
             </div>
           </>

@@ -2,10 +2,10 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
-import { ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
+import { NO_RETURN_REASON, ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
-import { RotateCcw, MapPin, TrendingDown, CheckCircle2, Banknote } from "lucide-react";
+import { RotateCcw, MapPin, CheckCircle2, Banknote } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
 
 interface ReturnBreakdownProps {
@@ -36,8 +36,24 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
         );
     }
 
+    // Returns whose notes record no reason are named as such, never ranked as if
+    // "unspecified" were a reason customers gave.
+    const named = returnsByReason.map(r => r.reason === NO_RETURN_REASON ? { ...r, reason: t("reports.returns.noReason") } : r);
+    const topRecorded = returnsByReason.find(r => r.reason !== NO_RETURN_REASON);
+    const insight = topRecorded
+        ? {
+            title: t("reports.returns.topReason", { reason: topRecorded.reason }),
+            detail: topRecorded.topCity
+                ? t("reports.returns.topReasonCity", { pct: topRecorded.percentage.toFixed(0), city: topRecorded.topCity })
+                : t("reports.returns.topReasonDesc", { pct: topRecorded.percentage.toFixed(0) }),
+        }
+        : {
+            title: t("reports.returns.noReasonsTitle"),
+            detail: returnsByReason[0]?.topCity ? t("reports.returns.noReasonsCity", { city: returnsByReason[0].topCity }) : null,
+        };
+
     // Top five reasons plus one neutral "Other": the donut and the list show the same rows.
-    const rows = foldTail(returnsByReason, 5, tail => ({
+    const rows = foldTail(named, 5, tail => ({
         reason: t("reports.common.other"),
         count: tail.reduce((sum, r) => sum + r.count, 0),
         percentage: tail.reduce((sum, r) => sum + r.percentage, 0),
@@ -45,7 +61,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
         avgAmount: 0,
         topCity: undefined,
     }));
-    const hasOther = rows.length !== returnsByReason.length;
+    const hasOther = rows.length !== named.length;
     const pieData = rows.map((d, i) => ({
         name: d.reason,
         value: d.count,
@@ -77,9 +93,8 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                     </div>
 
                     {/* Return rate badge */}
-                    <div className="px-3 py-1.5 bg-orange-100 dark:bg-orange-500/20 rounded-full flex items-center gap-1.5">
-                        <TrendingDown className="w-3 h-3 text-orange-700 dark:text-orange-300" />
-                        <span className="text-sm font-bold text-orange-700 dark:text-orange-300">{returnRate.toFixed(1)}%</span>
+                    <div className="px-3 py-1.5 bg-orange-100 dark:bg-orange-500/20 rounded-full" title={t("reports.returns.rateHint")}>
+                        <span className="text-sm font-bold text-orange-700 dark:text-orange-300" data-return-rate><bdi>{t("reports.returns.rate", { pct: returnRate.toFixed(1) })}</bdi></span>
                     </div>
                 </div>
 
@@ -109,7 +124,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                             return (
                                                 <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                     <p className="font-bold mb-1">{d.name}</p>
-                                                    <p>العدد: {d.value} ({d.percentage.toFixed(1)}%)</p>
+                                                    <p><bdi>{t("reports.returns.tooltipCount", { count: d.value, pct: d.percentage.toFixed(1) })}</bdi></p>
                                                     <p className="flex items-center gap-1">
                                                         <Banknote className="w-3 h-3" />
                                                         {formatIQD(d.totalAmount)}
@@ -181,14 +196,12 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                 <RotateCcw className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-orange-900 dark:text-orange-300">
-                                    {t("reports.returns.topReason", { reason: returnsByReason[0]?.reason ?? "" })}
+                                <p className="text-sm font-semibold text-orange-900 dark:text-orange-300" data-return-insight>
+                                    <bdi>{insight.title}</bdi>
                                 </p>
-                                <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
-                                    <bdi>{returnsByReason[0]?.topCity
-                                        ? t("reports.returns.topReasonCity", { pct: returnsByReason[0].percentage.toFixed(0), city: returnsByReason[0].topCity })
-                                        : t("reports.returns.topReasonDesc", { pct: returnsByReason[0]?.percentage.toFixed(0) ?? "0" })}</bdi>
-                                </p>
+                                {insight.detail && (
+                                    <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5"><bdi>{insight.detail}</bdi></p>
+                                )}
                             </div>
                         </div>
                     </motion.div>

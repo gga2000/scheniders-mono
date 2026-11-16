@@ -274,13 +274,14 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                         {actualNotes && (
                             <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-amber-200">
                                 <FileText className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate" title={actualNotes}>{actualNotes}</span>
+                                {/* dir="auto": an Arabic note (and the reorder chip) reads right to left inside the LTR page. */}
+                                <span className="truncate" dir="auto" title={actualNotes}>{actualNotes}</span>
                             </div>
                         )}
                         {actualInternalNotes && (
                             <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1 max-w-full overflow-hidden border border-blue-200">
                                 <FileText className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate" title={actualInternalNotes}>{actualInternalNotes}</span>
+                                <span className="truncate" dir="auto" title={actualInternalNotes}>{actualInternalNotes}</span>
                             </div>
                         )}
                     </div>

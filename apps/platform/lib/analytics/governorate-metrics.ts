@@ -29,7 +29,8 @@ const STATUS_KEYS: OrderStatus[] = [
 function emptyStats(gov: Governorate): GovernorateStats {
   return {
     code: gov.code,
-    nameAr: gov.alternativeName || gov.nameAr,
+    // The governorate's own name («واسط», not its capital «الكوت»), as Orders, Reports and the couriers write it.
+    nameAr: gov.nameAr,
     nameEn: gov.nameEn,
     total: 0,
     new: 0,
