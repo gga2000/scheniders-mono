@@ -14,3 +14,33 @@ export const ONBOARDING_STEPS = [
 ] as const;
 
 export type OnboardingStepKey = (typeof ONBOARDING_STEPS)[number]["key"];
+
+/**
+ * What a shop has done so far. Home and the shop page both tick the steps from
+ * these facts with `onboardingDone`, so one shop never shows two progresses.
+ */
+export interface OnboardingFacts {
+  /** Real orders, all time (admin_order_facts). */
+  orders: number;
+  /** Team members whose status is "active", the owner included. */
+  activeMembers: number;
+  /**
+   * Every shop starts with the same colours (#3b82f6), so only an uploaded
+   * logo shows the merchant has set up their brand.
+   */
+  branding: { logo_url?: string | null } | null | undefined;
+  /** 2 once the merchant has published the store builder. */
+  configVersion: number | null | undefined;
+  /** All money ever added to the wallet, so spending it does not undo the step. */
+  toppedUpIqd: number;
+}
+
+export function onboardingDone(facts: OnboardingFacts): Record<OnboardingStepKey, boolean> {
+  return {
+    has_orders: facts.orders > 0,
+    has_team: facts.activeMembers > 1,
+    has_branding: Boolean(facts.branding?.logo_url),
+    has_storefront: facts.configVersion === 2,
+    wallet_funded: facts.toppedUpIqd > 0,
+  };
+}

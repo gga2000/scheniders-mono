@@ -280,11 +280,14 @@ export default function MerchantDetailPage() {
       {activeTab === "Team" && <TeamTab team={team} />}
       {activeTab === "Onboarding" && (
         <OnboardingChecklist
-          tenant={tenant}
-          orderCount={orderCount}
-          teamCount={team.length}
+          facts={{
+            orders: orderCount,
+            activeMembers: team.filter((member) => member.status === "active").length,
+            branding: tenant.branding,
+            configVersion: tenant.config_version,
+            toppedUpIqd: wallet?.total_topped_up_iqd ?? 0,
+          }}
           walletBalance={wallet?.balance_iqd ?? 0}
-          hasStorefront={!!(tenant.store_config && Object.keys(tenant.store_config).length > 0)}
         />
       )}
     </div>

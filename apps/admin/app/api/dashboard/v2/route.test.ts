@@ -46,7 +46,7 @@ beforeEach(() => {
       plan: "growth",
       status: "active",
       created_at: "2026-04-01T09:00:00Z",
-      branding: { primary_color: "#0A7" },
+      branding: { primary_color: "#0A7", logo_url: "https://cdn.example/kut.png" },
       config_version: 2,
       wallet: [{ balance_iqd: "60000", total_topped_up_iqd: "100000" }],
     },
@@ -57,7 +57,7 @@ beforeEach(() => {
       plan: "starter",
       status: "trial",
       created_at: "2026-11-12T09:00:00Z",
-      branding: null,
+      branding: { logo_url: null, primary_color: "#3b82f6", secondary_color: "#8b5cf6" },
       config_version: 1,
       wallet: null,
     },
@@ -103,6 +103,9 @@ describe("GET /api/dashboard/v2", () => {
     expect(body.topMerchants[0]).toMatchObject({ tenantId: SHOP_A, businessName: "Kut Shop", orderCount: 800 });
     const kut = body.onboarding.find((t: { tenantId: string }) => t.tenantId === SHOP_A);
     expect(kut.completedSteps).toEqual(["has_orders", "has_team", "has_branding", "has_storefront", "wallet_funded"]);
+    // Every shop starts with the same colours, so a colour without a logo is not branding.
+    const fresh = body.onboarding.find((t: { tenantId: string }) => t.tenantId === SHOP_B);
+    expect(fresh.completedSteps).not.toContain("has_branding");
     expect(body.walletHealth).toMatchObject({ healthy: 1, critical: 1 });
   });
 
