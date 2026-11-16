@@ -35,22 +35,3 @@ export function useUpdateCommissionConfig() {
     },
   });
 }
-
-export function useCalculateCommissions() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: { period_start: string; period_end: string }) => {
-      const res = await adminFetch("/api/team/commissions/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to calculate commissions");
-      return res.json();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-team"] });
-      qc.invalidateQueries({ queryKey: ["commission-configs"] });
-    },
-  });
-}
