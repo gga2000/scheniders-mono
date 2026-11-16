@@ -45,8 +45,8 @@ export function LeadsMobileView() {
   const clearPageHeader = usePageHeader((s) => s.clearHeader);
   useEffect(() => {
     setPageHeader({
-      title: "Prospects",
-      subtitle: `${total.toLocaleString()} ${total === 1 ? "prospect" : "prospects"} in pipeline`,
+      title: "Leads",
+      subtitle: `${total.toLocaleString()} ${total === 1 ? "lead" : "leads"} in the pipeline`,
     });
     return () => clearPageHeader();
   }, [total, setPageHeader, clearPageHeader]);
@@ -100,7 +100,7 @@ export function LeadsMobileView() {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search merchants…"
+            placeholder="Search leads…"
             className="w-full h-11 pl-10 pr-9 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-shadow"
           />
           {searchQuery && (
