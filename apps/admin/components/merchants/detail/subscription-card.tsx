@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { hasPermission } from "@/lib/admin-permissions";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatUntil } from "@/lib/format";
 import { postJson } from "./action-ui";
@@ -21,10 +23,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * renews, and the renewal switch. The status line at the top says what that
  * means for money; this card gives the dates. Free days are under Give free
  * days at the top of the page.
+ *
+ * Only a super admin may turn renewal on or off (change_plan); everyone else
+ * reads whether it is on, with no switch that would only answer "Forbidden".
  */
 export function SubscriptionCard({ merchantId, tenant, subscription }: SubscriptionCardProps) {
   const queryClient = useQueryClient();
   const now = new Date(useLiveTick(60_000));
+  const { role } = useAdminAuth();
+  const canSwitch = role ? hasPermission(role, "change_plan") : false;
 
   const autoRenew = subscription?.auto_renew ?? true;
   const renew = useMutation({
@@ -69,25 +76,27 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
         {subscription && (
           <Fact label="Renewal">
             <span className="flex items-center gap-3">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={autoRenew}
-                aria-label="Renew each month"
-                onClick={() => renew.mutate(!autoRenew)}
-                disabled={renew.isPending}
-                className={cn(
-                  "relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50",
-                  autoRenew ? "bg-emerald-700" : "bg-foreground/20",
-                )}
-              >
-                <span
+              {canSwitch && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoRenew}
+                  aria-label="Renew each month"
+                  onClick={() => renew.mutate(!autoRenew)}
+                  disabled={renew.isPending}
                   className={cn(
-                    "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
-                    autoRenew && "translate-x-4",
+                    "relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50",
+                    autoRenew ? "bg-emerald-700" : "bg-foreground/20",
                   )}
-                />
-              </button>
+                >
+                  <span
+                    className={cn(
+                      "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
+                      autoRenew && "translate-x-4",
+                    )}
+                  />
+                </button>
+              )}
               {autoRenew ? "On: charges the wallet each month" : "Off: the month ends and is not renewed"}
             </span>
             {renew.error && (
