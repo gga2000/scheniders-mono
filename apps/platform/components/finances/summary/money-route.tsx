@@ -70,7 +70,9 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, returning, split } = summary.cash;
+    const { in_transit: road, returning, split, reached: payments, statement } = summary.cash;
+    const cashForNow =
+        payments.payments > 0 ? split.reached_now + statement.returns + statement.prepaid_gap + statement.price_gap : split.reached_now;
     const { orders, revenue } = summary.sales;
     // The note counts every unpaid order, so paid + unpaid adds up to the period's orders; the
     // list under it names those that still owe money, and a line there counts the ones that owe nothing.
@@ -110,7 +112,15 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
         ? [
-              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now, href: `#${COURIER_PAYMENTS_ID}` },
+              {
+                  key: "now",
+                  label: t("fin.money.from.now"),
+                  // The statements' price of these orders is not the cash: the refunds, prepaid fees and price
+                  // differences on the same statements come off it (the payments card lists each one).
+                  note: cashForNow !== split.reached_now ? t("fin.money.from.nowNote", { paid: money(cashForNow) }) : null,
+                  amount: split.reached_now,
+                  href: `#${COURIER_PAYMENTS_ID}`,
+              },
               { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before, href: null },
               {
                   key: "prepaid",

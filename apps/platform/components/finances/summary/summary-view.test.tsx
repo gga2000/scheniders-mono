@@ -256,7 +256,7 @@ describe("SummaryView", () => {
         expect(list?.textContent).toContain("عند شركة التوصيل");
         expect(list?.textContent).toContain("عند برايم، بعد أجرتها");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
-        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا تنتظر عنه مالاً: مجاني، أو سعره لا يزيد على أجرة التوصيل.");
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا تنتظر عنه مالاً: مجاني، أو سعره لا يزيد على أجرة برايم.");
         cleanup();
         const s = summary();
         const full = Array.from({ length: 20 }, (_, i) => ({ ...s.cash.unpaid_list[0], id: `id-${i}`, code: `${i}` }));
@@ -294,7 +294,7 @@ describe("SummaryView", () => {
         // 30,000 on delivered parcels here, 45,000 in the statement
         expect(byTestId("money-fee")?.textContent).toContain("30,000");
         expect(byTestId("money-fee-statement")?.textContent).toContain("45,000");
-        expect(byTestId("money-fee-statement")?.textContent).toContain("15,000 د.ع أجرة الطرود الراجعة");
+        expect(byTestId("money-fee-statement")?.textContent).toContain("15,000 د.ع أجرة برايم عن الطرود المرفوضة");
     });
 
     it("shows what the courier paid out in the period, taken apart so the lines add up to it", () => {
@@ -372,6 +372,10 @@ describe("SummaryView", () => {
         expect(parts).toContain("طلبات دُفع ثمنها لك سابقاً، وسجّلتها «مُسلَّمة» متأخراً في هذه الفترة200,000");
         expect(parts).toContain("دفعها الزبون لك مسبقاً (طلبان)20,000");
         expect(parts).toContain("من كشوف مؤرَّخة بعد هذه الفترة10,000");
+        cleanup();
+        // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 }, statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1 } } })));
+        expect(byTestId("money-reached-parts")?.textContent).toContain("وصلك منها فعلاً 80,000 د.ع بعد المبالغ المستردة والفروق في الكشوف.");
         cleanup();
         renderView(query(summary()));
         expect(byTestId("money-reached-parts")).toBeNull();
@@ -638,7 +642,7 @@ describe("SummaryView", () => {
         renderView(query(s), query(before));
         const ads = document.querySelector('[data-change="ads"]');
         expect(ads?.hasAttribute("data-new-cost")).toBe(true);
-        expect(ads?.textContent).toBe("شبه لا شيء قبلها");
+        expect(ads?.textContent).toBe("شبه صفر في الفترة السابقة");
         expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب هذا الانخفاض من «الإعلانات»: 60,000 د.ع في هذه الفترة، وشبه لا شيء في الفترة السابقة.");
         cleanup();
         // the same ads both times: no words, no cause
