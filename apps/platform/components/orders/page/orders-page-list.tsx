@@ -26,7 +26,7 @@ import { OrderRowsSkeleton } from "./order-rows-skeleton";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageList({ m }: { m: OrdersPageModel }) {
-    const { recordContact, isRefreshing, ordersPending, listIsCurrent, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
+    const { recordContact, isRefreshing, ordersPending, listIsCurrent, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateFiltered, emptyStatePeriodOnly, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
     const primeQueue = useOrderStore((s) => s.primeQueue);
     const primeQueuePending = usePrimeQueuePending(primeQueue);
     // In a «معالجة» / «راجع» list the handled orders leave the cards and
@@ -150,7 +150,8 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                         <EmptyState
                                             type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
                                             searchQuery={filters.searchQuery}
-                                            hasFilters={emptyStateHasFilters}
+                                            hasFilters={emptyStateFiltered}
+                                            periodOnly={emptyStatePeriodOnly}
                                         />
                                     ) : compactView >= 1 && compactGrid ? (
                                         /* PERF-2: the compact grid used to render every filtered

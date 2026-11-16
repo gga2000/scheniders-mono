@@ -208,8 +208,11 @@ export const StickyFilterBar = memo(function StickyFilterBar({
             )}
         >
             <div className="relative">
+            {/* scroll-pl-8 matches pl-8: the snap port starts after the padding, so the
+                first chip snaps to scroll 0 and the row loads unscrolled (round 16 critic:
+                it snapped to 29 px and the back arrow covered «كل الطلبات»). */}
             <div ref={rowRef} data-guide="order-status-tabs" data-chip-row className={cn(
-                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x py-6 pl-8 pr-6",
+                "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x scroll-pl-8 py-6 pl-8 pr-6",
                 // Mobile adjustments for touch targets
                 isMobile ? "min-h-[50px]" : "",
                 edgeFadeClass(rowEdges)

@@ -261,7 +261,7 @@ export function OrderCustomerCard({
                             </div>
                         )}
                     </div>
-                    {/* Governorate Code: the name above already says where; the code is for fixing it */}
+                    {/* The governorate the courier routes to (stored as its code), named, for fixing a mismatch with the one above */}
                     {isEditing && (
                         <div>
                             <span className="text-xs text-muted uppercase tracking-wider block mb-1">{t("orderDetail.provinceCode")}</span>
@@ -271,12 +271,14 @@ export function OrderCustomerCard({
                                     onChange={(e) => {
                                         updateFormData("governorate_code", e.target.value);
                                     }}
-                                    className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-mono font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
+                                    className="w-full h-[38px] px-3 pr-8 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-foreground font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--card-border)]"
                                 >
                                     <option value="">{t("orderDetail.noCode")}</option>
                                     {governorates.map((gov) => (
+                                        // The governorate by its own name; the courier code stays the stored value only
+                                        // (round 16 critic: «KOT - واسط» in an Arabic window).
                                         <option key={gov.code} value={gov.code}>
-                                            {gov.code} - {gov.nameAr}
+                                            {language === "ar" ? gov.nameAr : gov.nameEn}
                                         </option>
                                     ))}
                                 </select>
@@ -566,7 +568,8 @@ export function OrderCustomerCard({
                                             ? "text-amber-900 font-semibold"
                                             : "text-foreground"
                                     )}>
-                                        {formatOrderNamedDateTime(order.created_at, language)}
+                                        {/* Isolated in the page's direction, so an Arabic date reads day first: «14 تشرين الثاني · 07:01 ص» */}
+                                        <bdi dir={dir}>{formatOrderNamedDateTime(order.created_at, language)}</bdi>
                                     </span>
                                     {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                         <span
@@ -575,7 +578,7 @@ export function OrderCustomerCard({
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
                                             <span className="text-amber-500 mr-0.5">{t("orders.ui.wasLower")}</span>
-                                            {formatOrderNamedDateTime(order.original_created_at, language)}
+                                            <bdi dir={dir}>{formatOrderNamedDateTime(order.original_created_at, language)}</bdi>
                                         </span>
                                     )}
                                 </div>

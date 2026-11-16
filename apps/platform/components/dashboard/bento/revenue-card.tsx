@@ -8,9 +8,10 @@ import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-qu
 import {
     BENTO_FACT_DAYS,
     revenueCardFigures,
-    revenueWindowFor,
+    revenueWindowShown,
     type RevenueMeasure,
     type RevenueWindow,
+    type RevenueWindowPick,
 } from "@/lib/analytics/dashboard-bento";
 import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { formatIQD } from "@/lib/utils";
@@ -33,17 +34,17 @@ const whole = (n: number) => Math.round(n).toLocaleString("en-US");
  * only while money is revealed; otherwise the card shows orders, which every role
  * may see. Revenue is realized revenue (COR-D1), dated by delivery.
  */
-export function RevenueCard({ range }: { range: DateRangeKey }) {
+export function RevenueCard({ range, pick, onPick }: { range: DateRangeKey; pick: RevenueWindowPick; onPick: (pick: RevenueWindowPick) => void }) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const { revealed, canReveal } = useFinancialVisibility();
     const facts = useTrendFacts(BENTO_FACT_DAYS);
     const tip = useChartTooltip();
     // Opens on the header's period (7 days for today and 7 days, 30 for 30 days and all);
-    // a window picked here holds until the header's period changes.
-    const [own, setOwn] = useState<{ range: DateRangeKey; days: RevenueWindow } | null>(null);
-    const days: RevenueWindow = own && own.range === range ? own.days : revenueWindowFor(range);
-    const setDays = (next: RevenueWindow) => setOwn({ range, days: next });
+    // a window picked here holds until the header's period changes. The page keeps the
+    // pick, so it survives a tab switch that unmounts the card (round 16 critic).
+    const days = revenueWindowShown(range, pick);
+    const setDays = (next: RevenueWindow) => onPick({ range, days: next });
     const [picked, setPicked] = useState<RevenueMeasure>("revenue");
     const moneyOn = revealed && canReveal;
     const measure: RevenueMeasure = moneyOn ? picked : "orders";

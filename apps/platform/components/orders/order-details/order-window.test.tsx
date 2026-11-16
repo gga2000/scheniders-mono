@@ -9,6 +9,7 @@ import type { Order } from "@/lib/supabase";
 import { OrderDetailsStatusSection } from "./order-details-status-section";
 import { OrderDetailsFooterSection } from "./order-details-footer-section";
 import type { OrderDetailsView } from "./use-order-details-model";
+import { formatIQD } from "@/lib/utils";
 
 afterEach(cleanup);
 
@@ -102,5 +103,23 @@ describe("order window footer", () => {
         renderPart("footer", { status: "confirmed" });
         expect(screen.queryByText("إرسال قالب التأكيد")).toBeNull();
         expect(screen.getByText("فتح واتساب")).toBeTruthy();
+    });
+
+    it("shows a refund as what the customer receives, the same amount as its banner and card", () => {
+        // A refund stores price −44,750 (the items) and delivery_fee 5,000 (the pickup fee kept).
+        renderPart("footer", { status: "return_pending", is_return: true, price: -44750, delivery_fee: 5000 });
+        const total = document.querySelector("[data-order-total]")?.textContent ?? "";
+        expect(total).toContain("يستلم الزبون");
+        expect(total).toContain(formatIQD(-39750, "ar"));
+        expect(total).not.toContain("44,750");
+        expect(document.querySelector("[data-order-total-note]")?.textContent).toContain("بعد خصم رسوم الاستلام");
+        expect(document.querySelector("[data-order-total-note]")?.textContent).toContain("5,000 د.ع");
+    });
+
+    it("keeps the total in view while editing, following the edited price", () => {
+        renderPart("footer", { status: "confirmed" }, { isEditing: true, formData: { price: 52000 }, handleCancel: vi.fn(), primeEdit: { review: null, requestSave: vi.fn() } });
+        const total = document.querySelector("[data-order-total]")?.textContent ?? "";
+        expect(total).toContain("المجموع الكلي");
+        expect(total).toContain("52,000 د.ع");
     });
 });

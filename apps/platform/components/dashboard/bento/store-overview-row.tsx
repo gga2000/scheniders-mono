@@ -85,8 +85,9 @@ function MetricCard({ metric, order, moneyOn, range, period }: { metric: Overvie
     return (
         <BentoCard label={label} order={order} className={`flex flex-col justify-between gap-3 !p-5 ${CARD_HEIGHT}`}>
             {/* Each card names what it counts (the storefront's own log, not every order)
-                and the period: the header's, or for «الكل» the day the log began. */}
-            <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]" title={t("dashboard.overview.fromSiteHint")}>
+                and the period: the header's, or for «الكل» the day the log began. Its
+                hover says, in plain Arabic, what this one card counts. */}
+            <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]" title={t(`dashboard.overview.hint.${metric.key}`)}>
                 {label} <span className="opacity-70">· <bdi>{period}</bdi></span>
             </h3>
             <div className="flex items-end justify-between gap-3">

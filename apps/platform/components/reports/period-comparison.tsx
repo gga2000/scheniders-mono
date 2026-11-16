@@ -4,9 +4,8 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, Banknote, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { DateRange } from "@/hooks/use-reports-metrics";
-import { formatIqdCompact } from "@scheniders/shared";
 
 interface PeriodComparisonProps {
     data: PeriodComparisonMetrics;
@@ -77,7 +76,9 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             current: data.current.totalRevenue,
             previous: data.previous.totalRevenue,
             change: relative(data.current.totalRevenue, data.previous.totalRevenue),
-            format: (v: number) => formatIqdCompact(v),
+            // The one money format, as every other amount on the page (round 16 critic: «8.1M»).
+            format: (v: number) => formatIQD(v),
+            money: true,
             goodWhenPositive: true,
         },
         {
@@ -155,8 +156,8 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
 
                                 {/* Current vs Previous */}
                                 <div className="space-y-2">
-                                    <div className="flex items-baseline justify-between gap-2">
-                                        <span className="text-2xl font-bold text-foreground tabular-nums whitespace-nowrap">
+                                    <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                                        <span className={cn("font-bold text-foreground tabular-nums whitespace-nowrap", metric.money ? "text-lg" : "text-2xl")}>
                                             <bdi>{metric.format(metric.current)}</bdi>
                                         </span>
                                         {showChip && change !== null && (

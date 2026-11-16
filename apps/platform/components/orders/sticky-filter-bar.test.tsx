@@ -231,4 +231,15 @@ describe("chip row edge cue", () => {
         expect(document.querySelector("[data-chip-row-scroll]")).toBeNull();
         expect(document.querySelector("[data-chip-row]")?.className).not.toContain("mask-image");
     });
+
+    it("starts its snap port after its left padding, so the row loads unscrolled", () => {
+        // jsdom has no layout. In Chromium a snapping row with pl-8 and no matching
+        // scroll padding snapped its first chip to scroll 30 px, and the back arrow
+        // covered «كل الطلبات» on every load (round 16 critic); with scroll-pl-8 it is 0.
+        renderBar();
+        const classes = (document.querySelector("[data-chip-row]")?.className ?? "").split(/\s+/);
+        expect(classes).toContain("snap-x");
+        expect(classes).toContain("pl-8");
+        expect(classes).toContain("scroll-pl-8");
+    });
 });

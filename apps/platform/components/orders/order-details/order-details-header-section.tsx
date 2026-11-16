@@ -16,11 +16,12 @@ import { ReplacementBanner } from "../replacement-banner";
 import { AfterSaleLossChip } from "../after-sale-loss-chip";
 import { CardStatusMenu } from "../card/status-menu";
 import type { OrderDetailsView } from "./use-order-details-model";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 
 /** One section of OrderDetailsModal. */
 export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
     const { language } = useLanguage();
+    const dir = useTextDir();
     const { onClose, onUpdate, onStatusUpdate, order, setOrder, t, orderStatusLabel, isEditing, handleEdit, isEditingId, tempOrderId, idError, isCheckingId, showIdWarning, setShowIdWarning, idCountdown, isSavingId, startIdEdit, cancelIdEdit, handleIdChange, initiateIdSave, confirmIdSave, isBlacklisted, canUnblock, canBlock, startOrderConv, setBlacklistDialogOpen, setBlacklistDialogMode, activeTab, setActiveTab, handleStatusChange, handleReorder, handleDiscuss, getStatusBadgeStyle } = m;
     const statusBadge = (
         <span
@@ -95,7 +96,7 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                     {/* Arrival day in Baghdad, its month named like every other date in the app */}
                     <span className="flex items-center gap-1.5 text-xs text-muted tabular-nums">
                         <Calendar className="h-3 w-3" />
-                        {formatBaghdadShortDate(order.created_at, language)}
+                        <bdi dir={dir}>{formatBaghdadShortDate(order.created_at, language)}</bdi>
                     </span>
                     <RefundBanner order={order} />
                     <ReplacementBanner order={order} />

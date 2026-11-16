@@ -6,6 +6,7 @@ import { CityPerformance } from "./city-performance";
 import { KPICards } from "./kpi-cards";
 import { ReturnBreakdown } from "./return-breakdown";
 import type { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
+import { formatIQD } from "@/lib/utils";
 import { NO_RETURN_REASON, type CityPerformanceMetrics, type KPIMetrics, type ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 
 afterEach(cleanup);
@@ -43,6 +44,17 @@ describe("PeriodComparison", () => {
         });
         inLanguage("en", <PeriodComparison data={data} currentRange={range} />);
         expect(screen.getByText(/20\.0\s*pp/)).toBeTruthy();
+    });
+
+    it("writes revenue in the one money format, never «8.1M»", () => {
+        const data = comparison({
+            current: { ...empty, totalOrders: 10, deliveredOrders: 8, rejectedOrders: 2, deliveryRate: 80, totalRevenue: 8_075_500 },
+            previous: { ...empty, totalOrders: 9, deliveredOrders: 7, rejectedOrders: 2, deliveryRate: 77.8, totalRevenue: 8_529_250 },
+        });
+        const { container } = inLanguage("ar", <PeriodComparison data={data} currentRange={range} />);
+        expect(container.textContent).toContain(formatIQD(8_075_500, "ar"));
+        expect(container.textContent).toContain(formatIQD(8_529_250, "ar"));
+        expect(container.textContent).not.toMatch(/\d(\.\d)?[MK]\b/);
     });
 });
 

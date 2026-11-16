@@ -294,9 +294,17 @@ describe("OrderCustomerCard plain view", () => {
         expect(screen.getByText("الرقم الثانوي")).toBeTruthy();
     });
 
-    it("brings the code and the second number back for editing", () => {
+    it("brings the delivery governorate and the second number back for editing", () => {
         renderCard({ governorate_code: "BGD", secondary_phone: undefined }, { isEditing: true });
-        expect(screen.getByText("كود المحافظة")).toBeTruthy();
+        expect(screen.getByText("محافظة التوصيل")).toBeTruthy();
         expect(screen.getByText("الرقم الثانوي")).toBeTruthy();
+    });
+
+    it("names governorates in the edit fields, without the courier's Latin codes", () => {
+        // Round 16 critic: «KOT - واسط» and «BGD - بغداد» in an Arabic window.
+        renderCard({ governorate_code: "KOT" }, { isEditing: true });
+        const options = Array.from(document.querySelectorAll("option")).map((o) => o.textContent ?? "");
+        expect(options).toContain("واسط");
+        expect(options.some((label) => /\b[A-Z]{3}\b/.test(label))).toBe(false);
     });
 });

@@ -99,7 +99,9 @@ export function PrimeParcelList({
                                         </span>
                                     )}
                                     {chip.canResend ? (
-                                        <button type="button" onClick={() => toggle(orderId, "resend")} className={cn(button, "border-[#B42318] bg-[#B42318] text-white hover:bg-[#8F1D13] dark:border-rose-500 dark:bg-rose-500/80")}>
+                                        // The row's own action, like «اسأل برايم»: resending is routine, not a danger,
+                                        // so it is not a red block on every returning row (round 16 critic: 13 of 14).
+                                        <button type="button" onClick={() => toggle(orderId, "resend")} className={button}>
                                             <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
                                             {t("prime.page.newAttempt")}
                                         </button>

@@ -21,6 +21,7 @@ import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filte
 import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
 import { StoreOverviewRow } from "@/components/dashboard/bento/store-overview-row";
 import { useDashboardRange } from "@/hooks/use-dashboard-range";
+import type { RevenueWindowPick } from "@/lib/analytics/dashboard-bento";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
@@ -79,6 +80,8 @@ export default function Home() {
   const track = useTrackEvent();
 
   const [dateRange, setDateRange] = useDashboardRange();
+  // The revenue card's own window, held here so a tab switch does not drop it.
+  const [revenuePick, setRevenuePick] = useState<RevenueWindowPick>(null);
   const [tab, setTab] = useDashboardTab();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -321,7 +324,7 @@ export default function Home() {
                 Both cards carry their own window and read one shared 60-day facts query. */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               <div className="xl:col-span-5 min-h-[400px]">
-                <WidgetBoundary label="bento-revenue"><RevenueCard range={dateRange} /></WidgetBoundary>
+                <WidgetBoundary label="bento-revenue"><RevenueCard range={dateRange} pick={revenuePick} onPick={setRevenuePick} /></WidgetBoundary>
               </div>
               <div className="xl:col-span-7 min-h-[400px]">
                 <WidgetBoundary label="bento-order-waves"><OrderWavesCard /></WidgetBoundary>
