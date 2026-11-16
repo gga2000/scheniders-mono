@@ -16,6 +16,8 @@ export interface TenantRestrictions {
   paused_at?: string | null;
   paused_by?: string | null;
   reason?: string | null;
+  /** The status the pause replaced, kept by the database so lifting the pause can give it back. */
+  status_before?: string | null;
   blocks?: {
     new_orders?: boolean;
     new_products?: boolean;

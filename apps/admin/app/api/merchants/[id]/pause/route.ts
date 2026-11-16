@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { pausedShop } from "@/lib/tenant-pause";
 
 const PauseSchema = z.object({
   duration_days: z.number().int().positive().max(365).optional(),
@@ -65,18 +66,18 @@ export async function POST(
       },
     };
 
-    const { data, error } = await supabase
-      .from("tenants")
-      .update({ status: "limited", restrictions })
-      .eq("id", id)
-      .select("id, status, restrictions")
-      .single();
+    // The database sets "limited" and, in the same statement, keeps the status
+    // the pause replaces (restrictions.status_before), so lifting the pause can
+    // give it back. A trial shop must come back as a trial, not as a paying shop.
+    const { data: rows, error } = await supabase.rpc("pause_tenant", {
+      _tenant_id: id,
+      _restrictions: restrictions,
+    });
+    if (error) throw error;
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
-      }
-      throw error;
+    const data = pausedShop(rows);
+    if (!data) {
+      return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
     }
 
     await logAdminActivity({
@@ -84,7 +85,7 @@ export async function POST(
       actorEmail: auth.user.email ?? null,
       tenantId: id,
       action: "pause_tenant",
-      details: { restrictions, duration_days: parsed.data.duration_days ?? null },
+      details: { restrictions: data.restrictions, duration_days: parsed.data.duration_days ?? null },
     });
 
     return NextResponse.json(data);
