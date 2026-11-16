@@ -19,7 +19,7 @@ function consolePages(dir = join(__dirname, "..", "app", "(dashboard)"), base = 
 
 describe("the console menu", () => {
   it("has six places named in words, and Settings at the foot", () => {
-    expect(MENU.map((s) => s.label)).toEqual(["Today", "Merchants", "Leads", "Support", "Money", "Numbers"]);
+    expect(MENU.map((s) => s.label)).toEqual(["Dashboard", "Merchants", "Leads", "Support", "Money", "Numbers"]);
     expect(SETTINGS_SECTION.label).toBe("Settings");
   });
 
@@ -41,7 +41,7 @@ describe("the console menu", () => {
   });
 
   it("knows which place and page a path is on", () => {
-    expect(activeSection("/")?.label).toBe("Today");
+    expect(activeSection("/")?.label).toBe("Dashboard");
     expect(activeSection("/merchants/0b6f")?.label).toBe("Merchants");
     expect(activeSection("/trials")?.label).toBe("Merchants");
     expect(activeLink("/leads/analytics")).toBe("/leads/analytics");
@@ -52,7 +52,7 @@ describe("the console menu", () => {
   });
 
   it("names each page in the menu's words", () => {
-    expect(pageTitle("/")).toBe("Today");
+    expect(pageTitle("/")).toBe("Dashboard");
     expect(pageTitle("/merchants")).toBe("Merchants");
     expect(pageTitle("/merchants/0b6f")).toBe("Merchants");
     expect(pageTitle("/billing")).toBe("Wallets");

@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 const API_DIR = path.resolve(__dirname);
 const MIGRATIONS_DIR = path.resolve(__dirname, "../../../../packages/supabase/migrations");
 const CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const LOGS = /\b(logAdminAction|logAdminActivity)\(/;
+const LOGS = /\b(logAdminAction|logAdminActivity|logAdminActivityBatch)\(/;
 
 /** Reads that are logged all the same: they carry shop data out of the console. */
 const LOGGED_READS = new Set(["export/route.ts GET"]);
@@ -34,7 +34,10 @@ const LOGGED_IN_SQL: Record<string, string> = {
 
 /** Handlers that write no staff log row, each with why. */
 const NO_STAFF_LOG: Record<string, string> = {
+  "admin/last-actors/route.ts POST": "reads the log; POST only carries the list of shop ids",
   "admin/leads-table-layout/route.ts PUT": "the column layout of the leads table: no shop, money or access changes",
+  "admin/watchlist/route.ts POST": "a person's own watch list",
+  "admin/watchlist/[tenantId]/route.ts DELETE": "a person's own watch list",
   "support/push/route.ts POST": "a person's own device for support alerts; the row names its owner",
   "support/push/route.ts DELETE": "a person's own device for support alerts",
   "merchants/[id]/notes/route.ts POST": "the note row is the record: it names its author and the shop",
