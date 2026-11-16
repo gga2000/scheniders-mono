@@ -562,6 +562,8 @@ describe("support first-week calls", () => {
     kind: "welcome_call",
     due_at: "2026-11-16T09:00:00+00:00",
     attempts: 0,
+    phone: null,
+    requested_by: null,
     tenant_id: TENANT,
     business_name: "Amal",
     display_id: 100120,

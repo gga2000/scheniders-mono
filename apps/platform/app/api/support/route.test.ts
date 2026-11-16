@@ -87,8 +87,37 @@ describe("GET /api/support", () => {
     it("reads only the caller's own cases in the caller's own shop", async () => {
         state.queue.push({ data: [], error: null });
         const res = await GET(request("GET"));
-        expect(await res.json()).toEqual({ success: true, data: { case: null, messages: [], unread: 0, owner: null } });
-        expect(eqCalls()).toEqual([["tenant_id", TENANT], ["opened_by", USER], ["tenant_id", TENANT]]);
+        expect(await res.json()).toEqual({
+            success: true,
+            data: { case: null, messages: [], unread: 0, owner: null, callBack: null, contactPhone: null },
+        });
+        expect(eqCalls()).toEqual([
+            ["tenant_id", TENANT],
+            ["opened_by", USER],
+            ["tenant_id", TENANT],
+            ["tenant_id", TENANT],
+            ["kind", "call_back"],
+            ["id", TENANT],
+        ]);
+    });
+
+    it("shows the shop's open call-back and its own mobile, read from the session's shop", async () => {
+        state.queue.push(
+            { data: [], error: null },
+            { data: null, error: null },
+            { data: { phone: "07701234567", due_at: "2026-11-16T12:00:00Z" }, error: null },
+            { data: { contact_phone: "+964 780 111 2222" }, error: null },
+        );
+        const body = await (await GET(request("GET"))).json();
+        expect(body.data.callBack).toEqual({ phone: "07701234567", due_at: "2026-11-16T12:00:00Z" });
+        expect(body.data.contactPhone).toBe("07801112222");
+        const tasks = state.calls.findIndex((c) => c.method === "from" && c.args[0] === "support_tasks");
+        expect(state.calls.slice(tasks).find((c) => c.method === "is")?.args).toEqual(["done_at", null]);
+    });
+
+    it("offers no number when the shop's contact phone is not an Iraqi mobile", async () => {
+        state.queue.push({ data: [], error: null }, { data: null, error: null }, { data: null, error: null }, { data: { contact_phone: "07" }, error: null });
+        expect((await (await GET(request("GET"))).json()).data.contactPhone).toBeNull();
     });
 
     it("names the shop's support person from the shop, not from the caller", async () => {
@@ -299,6 +328,36 @@ describe("POST /api/support", () => {
     it("lets a real database failure surface instead of calling it a refusal", async () => {
         state.queue.push({ data: null, error: { code: "57014", message: "statement timeout" } });
         await expect(POST(request("POST", { action: "rate", caseId: CASE, rating: "yes" }))).rejects.toThrow(/statement timeout/);
+    });
+
+    it("asks for a call as the session's shop and member, with the number in 07 form", async () => {
+        state.queue.push(
+            { data: { display_name: "Huda" }, error: null },
+            { data: { task_id: "t1", phone: "07701234567", due_at: "2026-11-16T12:00:00Z" }, error: null },
+            { data: [], error: null },
+        );
+        const res = await POST(
+            request("POST", { action: "callBack", phone: "+964 770 123 4567", tenantId: "99999999-9999-4999-8999-999999999999" }),
+        );
+        expect(res.status).toBe(200);
+        expect(rpcCall()?.args).toEqual([
+            "support_request_call_back",
+            { p_tenant_id: TENANT, p_user_id: USER, p_user_name: "Huda", p_phone: "07701234567" },
+        ]);
+    });
+
+    it("refuses a number that is not an Iraqi mobile with its own code, before touching the database", async () => {
+        const res = await POST(request("POST", { action: "callBack", phone: "123" }));
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ success: false, error: "support_bad_phone" });
+        expect(state.calls).toHaveLength(0);
+    });
+
+    it("answers the demo store's call-back refusal with 409", async () => {
+        state.queue.push({ data: { display_name: "Huda" }, error: null }, { data: null, error: { code: "P0001", message: "support_call_back_unavailable" } });
+        const res = await POST(request("POST", { action: "callBack", phone: "07701234567" }));
+        expect(res.status).toBe(409);
+        expect(await res.json()).toEqual({ success: false, error: "support_call_back_unavailable" });
     });
 
     it("marks only the caller's own cases as read", async () => {

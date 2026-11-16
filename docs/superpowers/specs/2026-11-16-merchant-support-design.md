@@ -135,3 +135,10 @@ A new merchant message pings support staff on their phone or computer.
 - **Locked in the database, not only in the app.** A statement trigger on every public table and on `storage.objects` refuses any insert, update or delete while `is_support_viewer()` is true, even inside definer functions. An event trigger locks each new table. `support_view_start` refuses while any table is unlocked (`support_view_unguarded_tables()`), so a missed table fails closed.
 - The viewer sees the shop as a 'viewer' member plus money and settings pages. The app's request gate refuses every non-GET call for a look-only caller, and the order, MCP and courier callers refuse it outright.
 - Each start is logged as `support_view`, so the merchant sees it under Support activity. Behaviour suite `support-view`.
+
+## Wave 4, part 4: the same support on every plan, and "call me back"
+
+- **Same on every plan.** Nothing in the Help chat, the call plan, view as merchant or the alerts reads the plan. The old `priority_support` plan flag gates nothing, and one-plan billing sets it to true for every shop.
+- **Call me back.** Under the chat header the merchant can press "Call me" and leave a number, filled in from the shop's contact mobile. `support_request_call_back` makes a `call_back` task, due now or at 9 AM Baghdad when asked at night. It also writes «اتصلوا بي على 07…» into the chat, so the inbox, the phone alerts and the 5-minute late alert treat it like any merchant message. Each shop has one open call-back: asking again with the same number changes nothing, and a new number updates the task. Once the call is logged as done, a new request makes a new task. The demo store is refused.
+- In the staff console's **Today** tab, call-backs come first, whoever owns the shop. Each shows the number as a tap-to-call button and who asked. Done, No answer and Later work as on any call.
+- Migration `20261116115400_support_call_back.sql`. The first-week kinds stay one per shop, and a call-back never stops a new shop's plan. Behaviour suite `support-owners`.

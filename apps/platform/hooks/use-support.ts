@@ -37,11 +37,11 @@ export function useSupportThread(live: boolean) {
     });
 }
 
-/** Send a message, or answer "did this solve it?". The reply is the fresh thread. */
+/** Send a message, answer "did this solve it?", or ask for a call. The reply is the fresh thread. */
 export function useSupportAction() {
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
-    return useMutation<SupportThread, Error, Extract<SupportPost, { action: "send" | "rate" }>>({
+    return useMutation<SupportThread, Error, Extract<SupportPost, { action: "send" | "rate" | "callBack" }>>({
         mutationFn: async (body) =>
             readThread(
                 await authedFetch("/api/support", {

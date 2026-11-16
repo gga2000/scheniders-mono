@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeIraqiMobile } from "@scheniders/shared";
 
 /**
  * Merchant support: the shapes the Help chat sends to and gets from
@@ -55,6 +56,21 @@ export const supportPostSchema = z.discriminatedUnion("action", [
     }),
     z.object({ action: z.literal("rate"), caseId: z.string().uuid(), rating: z.enum(["yes", "no"]) }),
     z.object({ action: z.literal("read") }),
+    z.object({
+        action: z.literal("callBack"),
+        /** Any way an Iraqi mobile is typed; stored as 07XXXXXXXXX. */
+        phone: z
+            .string()
+            .max(40)
+            .transform((raw, ctx) => {
+                const phone = normalizeIraqiMobile(raw);
+                if (phone === null) {
+                    ctx.addIssue({ code: "custom", message: "support_bad_phone" });
+                    return z.NEVER;
+                }
+                return phone;
+            }),
+    }),
 ]);
 
 export type SupportPost = z.input<typeof supportPostSchema>;
@@ -92,6 +108,17 @@ export interface SupportThread {
     unread: number;
     /** The first name of the shop's support person, once one is given. */
     owner: string | null;
+    /** The call the merchant asked for and staff have not made yet. */
+    callBack: SupportCallBack | null;
+    /** The shop's own mobile, to fill the call-back form. */
+    contactPhone: string | null;
+}
+
+export interface SupportCallBack {
+    /** 07XXXXXXXXX */
+    phone: string;
+    /** When staff are due to call: now, or 9 AM Baghdad when asked overnight. */
+    due_at: string;
 }
 
 /**
@@ -104,6 +131,8 @@ const REFUSALS: Record<string, number> = {
     support_case_not_found: 404,
     support_case_not_solved: 409,
     support_already_rated: 409,
+    support_bad_phone: 400,
+    support_call_back_unavailable: 409,
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null): { status: number; code: string } | null {
