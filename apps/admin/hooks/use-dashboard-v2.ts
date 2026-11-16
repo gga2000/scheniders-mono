@@ -3,12 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { DashboardV2Stats } from "@/types/dashboard";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 async function fetchDashboardV2(): Promise<DashboardV2Stats> {
   const res = await fetch("/api/dashboard/v2");
-  if (!res.ok) {
-    throw new Error("Failed to fetch dashboard V2 stats");
-  }
+  okOrLoadFailure(res, "dashboard V2 stats");
   return res.json();
 }
 
