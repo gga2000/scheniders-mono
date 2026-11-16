@@ -13,8 +13,9 @@ import type { Order } from "@/types/order";
 
 vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
+    SHOP_TRIAL_CAP_REACHED: "Store used all free trial WhatsApp messages",
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
-    shopCanPayForWhatsApp: vi.fn(async () => true),
+    whatsappSendRefusal: vi.fn(async () => null),
     takeDailySendSlot: vi.fn(async () => true),
 }));
 

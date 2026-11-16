@@ -9,6 +9,7 @@ import { tillTranslations } from "@/lib/i18n-till";
 import { guideTranslations } from "@/lib/i18n-guide";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
 import { planTranslations } from "@/lib/i18n-plans";
+import { whatsappTranslations } from "@/lib/i18n-whatsapp";
 
 export const en: Record<string, string> = {
     ...orderStatusTranslations("en"),
@@ -19,6 +20,7 @@ export const en: Record<string, string> = {
     ...guideTranslations("en"),
     ...financeSummaryTranslations("en"),
     ...planTranslations("en"),
+    ...whatsappTranslations("en"),
     // ── Navigation ──
     "nav.dashboard": "Dashboard",
     "nav.orders": "Orders",
@@ -5661,7 +5663,7 @@ export const en: Record<string, string> = {
     "billing.period.nextNote": "{amount} is taken from your wallet on {date}",
     "billing.wallet.title": "Wallet",
     "billing.wallet.balance": "Balance",
-    "billing.wallet.pays": "Your wallet pays the monthly plan, {amount} for each delivered order, and for each delivered WhatsApp message: {wa} for a confirmation or delivery update, {waOffer} for a reminder or offer.",
+    "billing.wallet.pays": "Your wallet pays the monthly plan, {amount} for each delivered order, and for each delivered WhatsApp message: {wa} for a confirmation, reminder or delivery update, {waOffer} for a discount offer.",
     "billing.wallet.low": "Low balance",
     "billing.wallet.lowBody": "Top up so your store is not paused at the next renewal.",
     "billing.wallet.topUp": "Top up wallet",

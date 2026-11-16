@@ -10,6 +10,7 @@
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { env } from "@/lib/env";
 import { sendNamedTemplate } from "@/lib/interakt";
+import { WHATSAPP_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 import { PRIME_RESENDABLE_STEPS } from "@/lib/prime/chip-state";
 import { primeFailedNoticeSendable, primeFailedStatus, type PrimeFailedNoticeTarget } from "@/lib/prime/failed-notice-message";
 
@@ -17,8 +18,7 @@ type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
 export const PRIME_FAILED_NOTICE_KEY = "prime_failed_whatsapp";
 /** The Utility copy Meta approved (the first, prime_delivery_failed, was moved to Marketing). */
-export const PRIME_FAILED_NOTICE_TEMPLATE = "copy_of_delivery_update";
-const TEMPLATE_LANGUAGE = "ar";
+const TEMPLATE = WHATSAPP_TEMPLATES.deliveryUpdate;
 /** Baghdad hours the message may go out: from 10:00, until before 20:00. */
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 20;
@@ -138,8 +138,7 @@ async function deliver(db: ServiceDb, tenantId: string, raw: Row, image: string,
     const result = await sendNamedTemplate({
         tenantId,
         phone: order.phone,
-        name: PRIME_FAILED_NOTICE_TEMPLATE,
-        languageCode: TEMPLATE_LANGUAGE,
+        template: TEMPLATE,
         headerValues: [image],
         // The approved template: {{1}} order number, {{2}} the driver's status.
         bodyValues: [order.order_id, primeFailedStatus(raw)],
@@ -151,7 +150,7 @@ async function deliver(db: ServiceDb, tenantId: string, raw: Row, image: string,
         order_uuid: order.id,
         tenant_id: tenantId,
         phone: order.phone,
-        template_name: PRIME_FAILED_NOTICE_TEMPLATE,
+        template_name: TEMPLATE.name,
         direction: "outbound",
         status: result.success ? "sent" : "failed",
         interakt_message_id: result.messageId ?? null,

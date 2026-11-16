@@ -48,6 +48,8 @@ export interface CountContext {
     paymentUnchecked?: boolean;
     /** The came-in-while-locked toggle (deferred). Optional: mobile has no such list filter. */
     lockTime?: boolean;
+    /** The WhatsApp-not-sent toggle (deferred). Optional: mobile has no such list filter. */
+    whatsappUnsent?: boolean;
     /** A Prime row filter in transit (deferred). Optional: mobile has no such list filter. */
     primeBucket?: boolean;
     /** A Prime queue is open (deferred). Optional: mobile has no queue chips. */
@@ -68,7 +70,7 @@ export interface CountVisibility {
 export function countVisibility(c: CountContext): CountVisibility {
     const base = c.facts.ready && !c.archived;
     const refined = ({ exceptDue = false, exceptRisk = false } = {}) =>
-        c.columnFilter || c.duplicatesOnly || !!c.stuckTransit || !!c.scheduledLater || !!c.paymentUnchecked || !!c.lockTime || !!c.primeBucket || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
+        c.columnFilter || c.duplicatesOnly || !!c.stuckTransit || !!c.scheduledLater || !!c.paymentUnchecked || !!c.lockTime || !!c.whatsappUnsent || !!c.primeBucket || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
     return {
         chips: base && !refined(),
         transitChip: base && !refined() && c.facts.transitReady,

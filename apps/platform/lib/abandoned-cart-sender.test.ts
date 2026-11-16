@@ -12,9 +12,11 @@ vi.mock("./env", async (importOriginal) => {
     };
 });
 const daySlot = vi.hoisted(() => ({ allowed: true }));
+const sendRefusal = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock("./whatsapp-wallet", () => ({
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     takeDailySendSlot: vi.fn(async () => daySlot.allowed),
+    whatsappSendRefusal: vi.fn(async () => sendRefusal.value),
 }));
 import {
     buildCartRecoveryBody,
@@ -79,5 +81,29 @@ describe("sendCartRecoveryMessage", () => {
         vi.unstubAllGlobals();
         envState.INTERAKT_API_KEY = undefined;
         daySlot.allowed = true;
+    });
+
+    it("refuses a shop whose wallet cannot pay, before taking a daily send", async () => {
+        envState.INTERAKT_SENDER_TENANT_IDS = cart.tenant_id;
+        envState.INTERAKT_API_KEY = "k";
+        sendRefusal.value = "Shop wallet cannot pay for WhatsApp";
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const r = await sendCartRecoveryMessage(cart);
+        expect(r).toEqual({ success: false, error: "Shop wallet cannot pay for WhatsApp", delivery: "not_sent" });
+        expect(fetchMock).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+        envState.INTERAKT_API_KEY = undefined;
+        sendRefusal.value = null;
+    });
+
+    it("returns Interakt's message id, so the delivery receipt can charge it", async () => {
+        envState.INTERAKT_SENDER_TENANT_IDS = cart.tenant_id;
+        envState.INTERAKT_API_KEY = "k";
+        vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ result: true, id: "wa-1" }) })));
+        const r = await sendCartRecoveryMessage(cart);
+        expect(r).toEqual({ success: true, messageId: "wa-1" });
+        vi.unstubAllGlobals();
+        envState.INTERAKT_API_KEY = undefined;
     });
 });

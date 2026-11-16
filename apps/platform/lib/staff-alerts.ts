@@ -8,10 +8,13 @@
  * tenant-scoped: the alert allowlist for the order's tenant is fetched and
  * each registered number is sent the `new_order_alert_staff` Interakt
  * template. Failures are logged but do not affect the order creation result.
+ * Every send is logged in whatsapp_logs like a customer message: the shop
+ * pays it when it is delivered, and a trial counts it.
  */
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { sendStaffAlertMessage } from "@/lib/interakt";
+import { WHATSAPP_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 import type { Order } from "@/types/order";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 
@@ -104,6 +107,18 @@ export async function sendNewOrderAlertToStaff(
         targets.map(async (phone) => {
             try {
                 const r = await sendStaffAlertMessage(order, phone);
+                const { error: logError } = await createSupabaseServiceClient().from("whatsapp_logs").insert({
+                    order_id: order.order_id,
+                    tenant_id: tenantId,
+                    phone,
+                    template_name: WHATSAPP_TEMPLATES.staffAlert.name,
+                    direction: "outbound",
+                    status: r.success ? "sent" : "failed",
+                    interakt_message_id: r.messageId ?? null,
+                    recipient_type: "staff",
+                    payload: { source: "staff-alert", error: r.error, response: r.raw, statusCode: r.statusCode },
+                });
+                if (logError) console.warn(`[staff-alerts] could not log the send to ${phone}:`, logError.message);
                 if (r.success) result.succeeded++;
                 else {
                     result.failed++;

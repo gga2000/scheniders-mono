@@ -9,15 +9,17 @@
 
 import { env, providerBaseUrls } from "./env";
 import { formatPhoneForInterakt, sharedSenderAllows, type SendTemplateResult } from "./interakt";
-import { SHOP_DAILY_CAP_REACHED, takeDailySendSlot } from "./whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, takeDailySendSlot, whatsappSendRefusal } from "./whatsapp-wallet";
 import { cartItemsSubtotal, type AbandonedCartItem } from "@scheniders/shared";
+import { WHATSAPP_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 
 const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
-/** Interakt dashboard template name (create + approve there before going live). */
-export const CART_RECOVERY_TEMPLATE = "abandoned_cart_recovery";
+/** Interakt dashboard template (create + approve there before going live). */
+const TEMPLATE = WHATSAPP_TEMPLATES.cartRecovery;
+export const CART_RECOVERY_TEMPLATE = TEMPLATE.name;
 
 export interface RecoverableCart {
   id: string;
@@ -61,8 +63,8 @@ export function buildCartRecoveryBody(cart: RecoverableCart): InteraktBody {
     callbackData: cart.id,
     type: "Template",
     template: {
-      name: CART_RECOVERY_TEMPLATE,
-      languageCode: "ar",
+      name: TEMPLATE.name,
+      languageCode: TEMPLATE.language,
       bodyValues: [
         "عميلنا العزيز", // {{1}} — customer name (not captured for carts)
         itemsList(cart.items), // {{2}} — products
@@ -92,6 +94,11 @@ export async function sendCartRecoveryMessage(
   if (!apiKey) {
     return { success: false, error: "Interakt API key not configured" };
   }
+  // Paid from the shop's wallet like every message (a trial counts it).
+  const refusal = await whatsappSendRefusal(cart.tenant_id, TEMPLATE.category);
+  if (refusal) {
+    return { success: false, error: refusal, delivery: "not_sent" };
+  }
   if (!(await takeDailySendSlot(cart.tenant_id))) {
     return { success: false, error: SHOP_DAILY_CAP_REACHED, delivery: "not_sent" };
   }
@@ -118,7 +125,8 @@ export async function sendCartRecoveryMessage(
       const data = (await response.json().catch(() => null)) as {
         result?: boolean;
         message?: string;
-        data?: { message_id?: string };
+        /** The message id, at the top level (see InteraktAPIResponse in lib/interakt). */
+        id?: string;
       } | null;
 
       if (!response.ok || !data) {
@@ -131,7 +139,7 @@ export async function sendCartRecoveryMessage(
         };
       }
       if (data.result) {
-        return { success: true, messageId: data.data?.message_id };
+        return { success: true, messageId: typeof data.id === "string" ? data.id : undefined };
       }
       return {
         success: false,

@@ -8,6 +8,7 @@ vi.mock("@/lib/supabase-server", () => ({
 // relying on the check disabling itself when no secret was set.
 vi.mock("@/lib/env", () => ({ env: { CRON_SECRET: "test-cron-secret" } }));
 vi.mock("@/lib/abandoned-cart-sender", () => ({
+    CART_RECOVERY_TEMPLATE: "abandoned_cart_recovery",
     sendCartRecoveryMessage: vi.fn(),
 }));
 // Every test store may send on the shared number except "t-blocked".
@@ -89,14 +90,19 @@ function makeClient(
             return Promise.resolve({ data: enabled, error: null });
         },
     };
+    // Every send is logged, so its delivery receipt can charge the shop.
+    const logged: Array<Record<string, unknown>> = [];
+    const logs = { insert: vi.fn(async (row: Record<string, unknown>) => { logged.push(row); return { error: null }; }) };
     const client = {
         rpc,
         from: (table: string) =>
             table === "tenants"
                 ? { select: () => tenantsChain }
-                : { select: () => cartsChain, update: () => ({ eq: updateEq }) },
+                : table === "whatsapp_logs"
+                  ? logs
+                  : { select: () => cartsChain, update: () => ({ eq: updateEq }) },
     };
-    return { client, updateEq, rpc, claimed };
+    return { client, updateEq, rpc, claimed, logged };
 }
 
 // Past any delay (24 h at most) and inside the 48 h window the sweep still nudges.
@@ -128,10 +134,11 @@ beforeEach(() => {
 
 describe("GET /api/cron/abandoned-cart-recovery", () => {
     it("nudges + marks reminded for a consented cart of an opted-in tenant past its delay", async () => {
-        const { client, updateEq } = makeClient([cart()], [optedIn]);
+        const { client, updateEq, logged } = makeClient([cart()], [optedIn]);
         (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
         (sendCartRecoveryMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
             success: true,
+            messageId: "wa-1",
         });
 
         const res = await GET(authedRequest());
@@ -140,6 +147,10 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         expect(json.skipped).toBe(0);
         expect(sendCartRecoveryMessage).toHaveBeenCalledTimes(1);
         expect(updateEq).toHaveBeenCalledTimes(1);
+        // Logged for the shop, so Interakt's receipt charges it (or a trial counts it).
+        expect(logged).toEqual([expect.objectContaining({
+            tenant_id: "t1", template_name: "abandoned_cart_recovery", direction: "outbound", status: "sent", interakt_message_id: "wa-1",
+        })]);
     });
 
     it("claims a cart before sending, so a cart another run already claimed is never sent twice", async () => {

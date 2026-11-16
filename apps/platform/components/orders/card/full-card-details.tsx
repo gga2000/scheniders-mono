@@ -9,10 +9,11 @@ import { cn } from "@/lib/utils";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { MessageCircle, MapPin, Phone, Package, AlertTriangle, FileText, ClipboardCopy } from "lucide-react";
 import type { OrderCardModel } from "./use-order-card-model";
+import { WhatsAppUnsentFlag } from "./whatsapp-unsent-flag";
 
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
 export function FullCardDetails({ m }: { m: OrderCardModel }) {
-    const { failedImageUrls, actualInternalNotes, actualNotes, compact, editable, fullAddress, governorateCode, hasDuplicates, isNew, isVerifiedCustomer, items, localSearchQuery, markImageFailed, order, orderReasonInfo, primaryIsWhatsApp, riskLevel, secondaryIsWhatsApp, t, thumbnailUrl } = m;
+    const { failedImageUrls, actualInternalNotes, actualNotes, compact, confirmByHand, editable, fullAddress, governorateCode, hasDuplicates, isNew, isVerifiedCustomer, items, localSearchQuery, markImageFailed, order, orderReasonInfo, primaryIsWhatsApp, riskLevel, secondaryIsWhatsApp, t, thumbnailUrl } = m;
     const attention = order.needs_attention ? (order.attention_reasons ?? []) : [];
     return (
         <>
@@ -165,19 +166,8 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                     needsAttention={order.needs_attention}
                                     attentionReasons={order.attention_reasons}
                                 />
-                                {/* WhatsApp Attention Flag - shows when message sending failed */}
-                                {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('whatsapp_')) && (
-                                    <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" title={order.delivery_note || t("orders.card.attn.whatsappSendFailed")}>
-                                        <AlertTriangle className="w-3.5 h-3.5" />
-                                        {order.attention_reasons!.includes('whatsapp_shop_wallet_empty') ? t("orders.card.attn.whatsapp_shop_wallet_empty") :
-                                            order.attention_reasons!.includes('whatsapp_wallet_empty') ? t("orders.card.attn.whatsapp_wallet_empty") :
-                                            order.attention_reasons!.includes('whatsapp_invalid_number') ? t("orders.card.attn.whatsapp_invalid_number") :
-                                            order.attention_reasons!.includes('whatsapp_rate_limited') ? t("orders.card.attn.whatsapp_rate_limited") :
-                                                order.attention_reasons!.includes('whatsapp_network_error') ? t("orders.card.attn.whatsapp_network_error") :
-                                                    order.attention_reasons!.includes('whatsapp_config_error') ? t("orders.card.attn.whatsapp_config_error") :
-                                                        t("orders.card.attn.whatsappFailed")}
-                                    </span>
-                                )}
+                                {/* The automatic WhatsApp did not go out: why, and confirm by hand */}
+                                <WhatsAppUnsentFlag order={order} t={t} onConfirmByHand={confirmByHand} />
                             </div>
                         ) : (
                             <span className="text-sm text-muted">{t("orders.card.noProducts")}</span>

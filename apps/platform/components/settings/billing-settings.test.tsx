@@ -10,6 +10,7 @@ import type { QiSavedCard } from "@/hooks/use-qi-topup";
 import { hasRoomForTopup, receiptProblem } from "@/hooks/use-wallet-topup";
 import type { BillingLock } from "@/hooks/use-billing-lock";
 import type { AddonChangeResult, AddonKind, PlanChangeResult } from "@/hooks/use-plan-change";
+import type { WhatsAppUsage } from "@/hooks/use-whatsapp-usage";
 
 const state: {
     tenant: TenantSummary;
@@ -26,6 +27,7 @@ const state: {
     addons: Record<AddonKind, number>;
     planQuote: PlanChangeResult | undefined;
     addonQuote: AddonChangeResult | undefined;
+    whatsapp: WhatsAppUsage | undefined;
 } = {} as never;
 
 const SAVED_CARD: QiSavedCard = {
@@ -142,6 +144,10 @@ vi.mock("@/hooks/use-plan-change", async (importOriginal) => {
     };
 });
 
+vi.mock("@/hooks/use-whatsapp-usage", () => ({
+    useWhatsAppUsage: () => ({ data: state.whatsapp }),
+}));
+
 vi.mock("@/hooks/use-wallet-topup", async (importOriginal) => {
     const real = await importOriginal<typeof import("@/hooks/use-wallet-topup")>();
     return {
@@ -218,6 +224,7 @@ beforeEach(() => {
     state.addons = { extra_member: 0, pos_branch: 0 };
     state.planQuote = undefined;
     state.addonQuote = undefined;
+    state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, month_start: "2026-10-31T21:00:00Z", month: [] };
     quotedPlans.length = 0;
     applyPlan.mockReset();
     applyAddon.mockReset();
@@ -509,6 +516,51 @@ describe("BillingSettings plans (Fermi B1)", () => {
         expect(screen.getByText("رجعنا رسم الطلب #4370")).toBeTruthy();
         expect(screen.getByText("ترقية إلى الفريق (باقي الشهر)")).toBeTruthy();
         expect(screen.getByText("أعضاء إضافيين بالفريق +2 (باقي الشهر)")).toBeTruthy();
+    });
+});
+
+describe("BillingSettings WhatsApp messages (Fermi B2)", () => {
+    it("a trial shows how many of its free messages are used", () => {
+        state.tenant = tenant("trial", new Date(Date.now() + 3 * 86_400_000).toISOString());
+        state.balance = 0;
+        state.whatsapp = { trial: true, trial_sent: 143, trial_cap: 200, month_start: "2026-10-31T21:00:00Z",
+            month: [{ template_name: "cod_order_confirm_v3", category: "utility", count: 120, charged_iqd: 0 }] };
+        show();
+        const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
+        expect(screen.getByTestId("whatsapp-trial-counter").textContent).toBe("رسائل التجربة: 143 من 200");
+        expect(card).toContain("مجانية خلال التجربة");
+        expect(screen.getByTestId("whatsapp-month-total").textContent).toBe("هالشهر: 120 رسالة");
+        expect(card).not.toContain("خلصت رسائل التجربة");
+    });
+
+    it("at the cap the trial says messages stopped and that paying turns them back on", () => {
+        state.tenant = tenant("trial", new Date(Date.now() + 3 * 86_400_000).toISOString());
+        state.whatsapp = { trial: true, trial_sent: 200, trial_cap: 200, month_start: "2026-10-31T21:00:00Z", month: [] };
+        show();
+        const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
+        expect(card).toContain("خلصت رسائل التجربة المجانية، فوقفت الرسائل التلقائية");
+        expect(card).toContain("اختر باقة واشحن المحفظة");
+    });
+
+    it("a paying shop sees this month's messages and what they cost, by kind", () => {
+        state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, month_start: "2026-10-31T21:00:00Z", month: [
+            { template_name: "cod_order_confirm_v3", category: "utility", count: 300, charged_iqd: 9000 },
+            { template_name: "order_reminder_v3", category: "utility", count: 12, charged_iqd: 360 },
+        ] };
+        show();
+        expect(screen.getByTestId("whatsapp-month-total").textContent).toMatch(/^هالشهر: 312 رسالة = IQD\s9,360$/);
+        const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
+        expect(card).toContain("تأكيد الطلب");
+        expect(card).toContain("تذكير");
+        expect(card).toContain("كل رسالة تنقص من محفظتك لما توصل للزبون");
+        expect(screen.queryByTestId("whatsapp-trial-counter")).toBeNull();
+        expect(card).not.toContain("رصيدك ما يكفي لرسالة");
+    });
+
+    it("a paying shop whose wallet cannot pay a message is told messages are paused", () => {
+        state.balance = 0;
+        show();
+        expect(screen.getByTestId("whatsapp-usage-card").textContent).toContain("رصيدك ما يكفي لرسالة، فوقفت الرسائل التلقائية");
     });
 });
 

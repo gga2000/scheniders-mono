@@ -80,6 +80,8 @@ interface FilterUISlice {
   filterPaymentUnchecked: boolean;
   /** Show only orders that came in while the shop was billing-locked (lib/billing/lock-orders.ts). */
   filterLockTime: boolean;
+  /** Show only orders waiting for the customer whose automatic WhatsApp did not go out (lib/orders/whatsapp-unsent.ts). */
+  filterWhatsAppUnsent: boolean;
   /** In transit: show only Prime parcels in this bucket, or stuck 3+ days (lib/prime/track.ts). */
   filterPrimeBucket: PrimeRowFilter | null;
   /** In transit: show only orders that arrived today instead of every in-transit order. Not persisted. */
@@ -107,6 +109,7 @@ interface FilterUISlice {
   setFilterScheduledLater: (val: boolean) => void;
   setFilterPaymentUnchecked: (val: boolean) => void;
   setFilterLockTime: (val: boolean) => void;
+  setFilterWhatsAppUnsent: (val: boolean) => void;
   setFilterPrimeBucket: (val: PrimeRowFilter | null) => void;
   setInTransitTodayOnly: (val: boolean) => void;
   setPrimeQueue: (val: PrimeQueueId | null) => void;
@@ -274,6 +277,7 @@ export const useOrderStore = create<OrderStore>()(
       filterScheduledLater: false,
       filterPaymentUnchecked: false,
       filterLockTime: false,
+      filterWhatsAppUnsent: false,
       filterPrimeBucket: null,
       inTransitTodayOnly: false,
       primeQueue: null,
@@ -297,6 +301,7 @@ export const useOrderStore = create<OrderStore>()(
       setFilterScheduledLater: (val) => set({ filterScheduledLater: val }),
       setFilterPaymentUnchecked: (val) => set({ filterPaymentUnchecked: val }),
       setFilterLockTime: (val) => set({ filterLockTime: val }),
+      setFilterWhatsAppUnsent: (val) => set({ filterWhatsAppUnsent: val }),
       setFilterPrimeBucket: (val) => set({ filterPrimeBucket: val }),
       setInTransitTodayOnly: (val) => set({ inTransitTodayOnly: val }),
       setPrimeQueue: (val) => set({ primeQueue: val }),
