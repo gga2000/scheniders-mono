@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrendFacts } from "@/hooks/use-dashboard-order-facts";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
@@ -53,18 +54,24 @@ const whole = (n: number) => Math.round(n).toLocaleString("en-US");
  * Counts only, never money: every role may see it, and order volume is the
  * question a merchant asks of a region.
  */
-export function GovernorateCard() {
+export function GovernorateCard({ range }: { range: DateRangeKey }) {
     const { t, language } = useLanguage();
     const facts = useTrendFacts(BENTO_FACT_DAYS);
     const tip = useChartTooltip();
-    const [period, setPeriod] = useState<GovPeriod>("7d");
+    // The open period follows the dashboard's chip (All shows the longest, 30
+    // days); a tab picked here holds until the chip changes again.
+    const chipPeriod: GovPeriod = range === "all" ? "30d" : range;
+    const [picked, setPicked] = useState<{ range: DateRangeKey; period: GovPeriod } | null>(null);
+    const period = picked?.range === range ? picked.period : chipPeriod;
+    const setPeriod = (p: GovPeriod) => setPicked({ range, period: p });
     const periods = useMemo(() => (facts.data ? governoratePeriods(facts.data) : null), [facts.data]);
 
     const nameOf = useCallback((code: string) => {
         if (code === UNKNOWN_GOVERNORATE) return t("dashboard.bento.unknownGov");
         const g = getGovernorateByCode(code);
         if (!g) return code;
-        return language === "ar" ? g.alternativeName || g.nameAr : g.nameEn;
+        // The governorate's own name, as the map, Orders and Reports write it.
+        return language === "ar" ? g.nameAr : g.nameEn;
     }, [language, t]);
 
     const tiles: TreemapTile[] = useMemo(() => {

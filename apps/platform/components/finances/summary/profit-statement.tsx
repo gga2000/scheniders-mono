@@ -196,7 +196,6 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                 <div className="min-w-0">
                     <div className="text-left text-[17px] font-bold text-foreground" dir={dir}>{t("fin.line.net")}</div>
                     <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-plain">
-                        {statement.margin !== null && `${t("fin.line.ofSales", { pct: pct(statement.margin) })}. `}
                         {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
                     </p>
                 </div>

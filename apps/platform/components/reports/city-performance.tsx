@@ -168,14 +168,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                         className="border-t border-border hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
                                     >
                                         <td className="py-3 px-4">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium text-foreground">{city.city}</span>
-                                                {city.governorateCode && (
-                                                    <span className="text-[10px] text-muted bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
-                                                        {city.governorateCode}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <span className="font-medium text-foreground">{city.city}</span>
                                         </td>
                                         <td className="py-3 px-4 font-bold text-foreground">
                                             {city.totalOrders.toLocaleString("en-US")}

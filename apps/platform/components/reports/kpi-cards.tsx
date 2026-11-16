@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 
 interface KPICardsProps {
     metrics: KPIMetrics;
+    /** Returns in the period: Orders' «كل الطلبات» counts them, this page shows them in their own section. */
+    returnsCount: number;
 }
 
 const container = {
@@ -32,7 +34,7 @@ const item = {
     show: { y: 0, opacity: 1 }
 };
 
-export function KPICards({ metrics }: KPICardsProps) {
+export function KPICards({ metrics, returnsCount }: KPICardsProps) {
     const { t } = useLanguage();
     const kpiData = [
         {
@@ -40,8 +42,11 @@ export function KPICards({ metrics }: KPICardsProps) {
             value: metrics.totalOrders,
             change: metrics.totalOrdersChange,
             icon: Package,
-            // Orders' «كل الطلبات» counts returns too; this card does not.
-            hint: t("reports.kpi.totalHint"),
+            // Orders' «كل الطلبات» counts returns too; this card does not, and
+            // says so on the card rather than in a hover nobody finds.
+            note: returnsCount > 0
+                ? t("reports.kpi.plusReturns", { count: returnsCount, total: metrics.totalOrders + returnsCount })
+                : undefined,
         },
         {
             title: t("reports.kpi.delivery"),
@@ -123,6 +128,9 @@ export function KPICards({ metrics }: KPICardsProps) {
 
                         <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground tabular-nums"><bdi>{kpi.value}</bdi></h3>
                         <p className="text-sm font-medium mt-1 text-muted">{kpi.title}</p>
+                        {"note" in kpi && kpi.note && (
+                            <p className="text-xs mt-1 text-muted tabular-nums" data-kpi-note><bdi>{kpi.note}</bdi></p>
+                        )}
                     </motion.div>
                 );
             })}

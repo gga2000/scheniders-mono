@@ -233,3 +233,13 @@ UPDATE public.subscriptions SET current_period_end = now() + interval '1 day'
 SELECT pg_temp.check(public.send_renewal_reminders() = 1
                      AND pg_temp.notes('40000000-0000-4000-8000-0000000000a6', 'billing.renewal_soon') = 2,
   'a new month is reminded again');
+
+-- 5. Never the demo store (B13, 20261116114258): its month renews at no charge.
+INSERT INTO public.tenants (id, plan, status, trial_ends_at, is_demo) VALUES
+  ('40000000-0000-4000-8000-0000000000ad', 'growth', 'active', now() - interval '60 days', true);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, pending_plan, created_at) VALUES
+  ('40000000-0000-4000-8000-0000000000ad', 'growth', 'active', now() - interval '28 days', now() + interval '2 days', NULL, now() - interval '60 days');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('40000000-0000-4000-8000-0000000000ad', 0);
+SELECT pg_temp.check(public.send_renewal_reminders() = 0
+                     AND pg_temp.notes('40000000-0000-4000-8000-0000000000ad', 'billing.renewal_soon') = 0,
+  'the demo store is never reminded, even with an empty wallet');

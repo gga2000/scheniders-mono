@@ -45,6 +45,13 @@ export function formatDay(value: string | number | Date, now: Date = new Date())
   return (sameYear ? DAY : DAY_YEAR).format(date).replace(",", "");
 }
 
+const DAY_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: BAGHDAD, year: "numeric", month: "2-digit", day: "2-digit" });
+
+/** "2026-11-15": the Baghdad calendar day, for grouping by day. */
+export function formatDayKey(value: string | number | Date): string {
+  return DAY_KEY.format(asDate(value));
+}
+
 /** "14:05" in Baghdad time. */
 export function formatTime(value: string | number | Date): string {
   return TIME.format(asDate(value));
@@ -71,4 +78,19 @@ export function formatWhen(value: string | number | Date, now: Date = new Date()
   if (elapsed < MINUTE) return "just now";
   if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`;
   return `${Math.floor(elapsed / HOUR)} h ago`;
+}
+
+const DAY_MS = 24 * HOUR;
+
+/**
+ * How long until something: "in 40 min", "in 15 h", "in 3 days"; "ended" once
+ * it has passed. Whole units, rounded down, so "in 1 day" never means 47 hours.
+ */
+export function formatUntil(value: string | number | Date, now: Date = new Date()): string {
+  const left = asDate(value).getTime() - now.getTime();
+  if (left <= 0) return "ended";
+  if (left < HOUR) return `in ${Math.max(1, Math.floor(left / MINUTE))} min`;
+  if (left < DAY_MS) return `in ${Math.floor(left / HOUR)} h`;
+  const days = Math.floor(left / DAY_MS);
+  return days === 1 ? "in 1 day" : `in ${days} days`;
 }

@@ -44,7 +44,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
-            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_prime: 0, reached_before: 0 },
+            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1, reached_before: 0, reached_now: 0, reached_other: 0 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 0, prime_returned_fee: 0 },
         daily: [
@@ -97,9 +97,9 @@ describe("SummaryView", () => {
         expect(line("salaries")).toBeNull();
         expect(byTestId("statement-quiet")?.textContent).toContain("الرواتب");
         expect(line("net")?.textContent).toContain("115,000");
-        // the total says its share of sales and what stays of each 1,000, in one line under the label
-        expect(byTestId("statement-plain")?.textContent).toContain("29%");
+        // the total says what stays of each 1,000 under the label, once (no second "% of sales" for the same thing)
         expect(byTestId("statement-plain")?.textContent).toContain("288");
+        expect(byTestId("statement-plain")?.textContent).not.toContain("%");
     });
 
     it("re-reads the statement per order, and offers no other view", () => {
@@ -259,11 +259,19 @@ describe("SummaryView", () => {
         expect(byTestId("money-payments")?.textContent).toContain("لم تستلم من المندوب أي دفعة");
         cleanup();
         // when the server says where "paid to you" came from, the line names each part instead
-        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_before: 200_000, reached_prime: 50_000 } } })));
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000, reached_other: 30_000 } } })));
         const why = byTestId("money-payments")?.textContent ?? "";
-        expect(why).toContain("«دُفع لك» أعلاه يشمل 200,000 د.ع دُفعت بكشوف مؤرَّخة قبل هذه الفترة");
-        expect(why).toContain("، و50,000 د.ع دفعتها برايم.");
+        expect(why).toContain("«دُفع لك» أعلاه 330,000 د.ع: 100,000 د.ع بكشوف هذه الفترة، و200,000 د.ع بكشوف مؤرَّخة قبل هذه الفترة");
+        expect(why).toContain("، و30,000 د.ع بكشوف مؤرَّخة بعد هذه الفترة.");
         expect(why).not.toContain("أيّاً كان تاريخ الدفعة");
+        cleanup();
+        // the period's payments differ from the part they paid: the line says by how much and why
+        const paid = s.cash.reached.amount;
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: paid + 25_000, reached_before: 1_000 } } })));
+        expect(byTestId("money-payments")?.textContent).toContain(`أقل من ${(paid + 25_000).toLocaleString("en-US")} د.ع بـ25,000 د.ع، لأن المندوب خصم منه`);
+        cleanup();
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: paid - 5_000 } } })));
+        expect(byTestId("money-payments")?.textContent).toContain("لأنه يشمل أيضاً طلبات من فترات أخرى");
     });
 
     it("names the parcels on their way back beside the road", () => {
@@ -294,7 +302,7 @@ describe("SummaryView", () => {
         expect(byTestId("failed-cost")?.textContent).toContain("80,000");
         // the hundred squares are named: 17 came back, 83 were accepted
         expect(byTestId("returned-parcels")?.textContent).toContain("رُفض: 17 من 100");
-        expect(byTestId("returned-parcels")?.textContent).toContain("استلمه الزبون: 83 من 100");
+        expect(byTestId("returned-parcels")?.textContent).toContain("سُلِّم للزبون: 83 من 100");
         // every refused order, whatever date filter the merchant left on Orders
         expect(byTestId("returned-parcels")?.querySelector("a")?.getAttribute("href")).toBe("/orders?status=rejected&dates=all");
         expect(byTestId("failed-fee")).toBeNull();
@@ -329,7 +337,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("منها 13 طلباً رجعت عبر برايم");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة عودة 13 طلباً رجعت عبر برايم");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
@@ -440,6 +448,8 @@ describe("SummaryView", () => {
         expect(byTestId("profit-path-big")?.textContent).toContain("أكبر يوم");
         expect(byTestId("profit-path-big")?.textContent).toContain("6 طلبات");
         expect(byTestId("profit-path-big")?.textContent).toContain("ربح 95,000 د.ع");
+        // and what the other days did together, so the named days and the rest add up to the period's profit
+        expect(byTestId("profit-path-big")?.textContent).toContain("وباقي الأيام معاً ربح 20,000 د.ع.");
     });
 
     it("puts the money card before the chart", () => {
@@ -493,7 +503,7 @@ describe("SummaryView", () => {
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
         expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
-        expect(bar?.textContent).toContain("الباقي ربح: 3 من 5 طلبات يومياً");
+        expect(bar?.textContent).toContain("و3 من 5 طلبات يومياً ربح لك");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         // and what each order leaves after the daily costs: the strip's profit per order

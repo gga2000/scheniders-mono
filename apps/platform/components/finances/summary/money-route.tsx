@@ -107,17 +107,28 @@ export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps)
             : payments.payments === 1
               ? t("fin.money.payments.one", { amount: money(payments.amount) })
               : t("fin.money.payments", { n: formatWhole(payments.payments), count: payments.payments, amount: money(payments.amount) });
-    // Where "paid to you" came from when it is not the courier payments of the period.
+    // "Paid to you" by the date of the statement that paid it, so its parts add up to it; then
+    // why the period's payments differ from the part they paid (deductions, or other periods' orders).
+    const fromElsewhere = split.reached_before > 0 || split.reached_other > 0;
     const sources = [
+        split.reached_now > 0 ? t("fin.money.payments.part.now", { amount: money(split.reached_now) }) : null,
         split.reached_before > 0 ? t("fin.money.payments.part.before", { amount: money(split.reached_before) }) : null,
-        split.reached_prime > 0 ? t("fin.money.payments.part.prime", { amount: money(split.reached_prime) }) : null,
+        split.reached_other > 0 ? t("fin.money.payments.part.other", { amount: money(split.reached_other) }) : null,
     ].filter((part): part is string => part !== null);
-    const paymentsWhy =
-        sources.length > 0
-            ? t("fin.money.payments.parts", { parts: sources.join(t("fin.money.payments.and")) })
-            : payments.payments > 0
-              ? t("fin.money.payments.why")
-              : null;
+    const gap = payments.amount - split.reached_now;
+    const gapLine =
+        payments.payments > 0 && split.reached_now > 0 && gap !== 0
+            ? t(gap < 0 ? "fin.money.payments.less" : "fin.money.payments.more", { gap: money(Math.abs(gap)), now: money(split.reached_now) })
+            : null;
+    const paymentsWhy = fromElsewhere
+        ? [t("fin.money.payments.parts", { total: money(split.reached), parts: sources.join(t("fin.money.payments.and")) }), gapLine]
+              .filter(Boolean)
+              .join(" ")
+        : split.reached_now > 0
+          ? gapLine
+          : payments.payments > 0
+            ? t("fin.money.payments.why")
+            : null;
 
     return (
         <SummaryCard

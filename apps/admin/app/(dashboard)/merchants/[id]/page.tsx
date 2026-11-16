@@ -7,28 +7,21 @@ import { getMerchantCode } from "@scheniders/shared";
 import { useMerchantDetail } from "@/hooks/use-merchant-detail";
 import {
   ArrowLeft,
-  Wallet,
-  CreditCard,
-  ShoppingBag,
-  Users,
   UserCircle,
   Loader2,
 } from "lucide-react";
 import { ImpersonateButton } from "@/components/merchants/impersonate-button";
-import { TenantTimeline } from "@/components/merchants/tenant-timeline";
 import { OnboardingChecklist } from "@/components/merchants/onboarding-checklist";
 import { TenantComparison } from "@/components/merchants/tenant-comparison";
 import { OverviewTab } from "@/components/merchants/detail/overview-tab";
-import { BillingTab } from "@/components/merchants/detail/billing-tab";
 import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
-import { NotesTab } from "@/components/merchants/detail/notes-tab";
-import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
+import { TimelineTab } from "@/components/merchants/detail/timeline-tab";
 import { ShopActions } from "@/components/merchants/detail/shop-actions";
 import { LimitedBanner } from "@/components/merchants/detail/limited-banner";
 import { PinnedNoteStrip } from "@/components/merchants/detail/pinned-note-strip";
 import { RecentOrdersSection } from "@/components/merchants/detail/recent-orders-section";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatIQD } from "@/lib/format";
 import { shopStatusLine } from "@/lib/shop-status";
 import { ShopStatus } from "@/components/merchants/detail/shop-status";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
@@ -45,11 +38,15 @@ function planLabel(plan: string): string {
   return `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`;
 }
 
-const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
+const tabs = ["Overview", "Timeline", "Usage", "Team", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
 
-function isTab(value: string | null): value is Tab {
-  return !!value && (tabs as readonly string[]).includes(value);
+/** Billing, Notes and Audit became the one Timeline (board m5); old links still land there. */
+const FOLDED_INTO_TIMELINE = new Set(["Billing", "Notes", "Audit"]);
+
+function tabFrom(value: string | null): Tab {
+  if (value && (tabs as readonly string[]).includes(value)) return value as Tab;
+  return value && FOLDED_INTO_TIMELINE.has(value) ? "Timeline" : "Overview";
 }
 
 
@@ -58,9 +55,9 @@ export default function MerchantDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
-  const initialTab = isTab(searchParams.get("tab")) ? (searchParams.get("tab") as Tab) : "Overview";
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
-  const [noteText, setNoteText] = useState("");
+  const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
+  // "Add a note" opens the Timeline with the note box ready to type in.
+  const [focusNote, setFocusNote] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
 
   // The browser tab names the shop, so ten open shops can be told apart.
@@ -115,7 +112,7 @@ export default function MerchantDetailPage() {
     );
   }
 
-  const { tenant, wallet, subscription, transactions, usage, team, notes, orderCount } = data;
+  const { tenant, wallet, subscription, usage, team, notes, orderCount } = data;
   const primaryColor = tenant.branding?.primary_color || "#1E1E1E";
 
   return (
@@ -138,14 +135,14 @@ export default function MerchantDetailPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">This is a pre-built prospect store</p>
-              <p className="text-xs text-amber-600 dark:text-amber-400/70">Created for a potential merchant. Not yet converted.</p>
+              <p className="text-[13px] text-amber-700 dark:text-amber-300">Created for a potential merchant. Not yet converted.</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {tenant.prospect_lead_id && (
               <Link
                 href={`/leads/${tenant.prospect_lead_id}`}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-amber-300 text-amber-700 bg-amber-100 hover:bg-amber-200 dark:border-amber-400/30 dark:text-amber-300 dark:bg-amber-400/15 dark:hover:bg-amber-400/25 transition-all"
+                className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-[13px] font-semibold text-amber-800 transition-colors hover:bg-amber-200 dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-200 dark:hover:bg-amber-400/25"
               >
                 View Lead Details
               </Link>
@@ -217,60 +214,49 @@ export default function MerchantDetailPage() {
               ?.scrollIntoView({ behavior: "smooth", block: "center" }),
           );
         }}
-        onAddNote={() => setActiveTab("Notes")}
+        onAddNote={() => {
+          setFocusNote(true);
+          setActiveTab("Timeline");
+        }}
       />
 
       {tenant.status === "limited" && (
         <LimitedBanner merchantId={tenant.id} restrictions={(tenant.restrictions ?? null) as TenantRestrictions | null} />
       )}
 
-      <PinnedNoteStrip notes={notes} onOpenNotes={() => setActiveTab("Notes")} />
+      <PinnedNoteStrip notes={notes} onOpenNotes={() => setActiveTab("Timeline")} />
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <Wallet className="w-4 h-4" />
-            <span className="text-xs font-semibold">Wallet Balance</span>
+      {/* The shop's numbers, all on one plain surface. */}
+      <dl className="pastel-card grid grid-cols-2 divide-x divide-[var(--card-border)] md:grid-cols-4">
+        {[
+          { label: "Wallet, now", value: formatIQD(wallet?.balance_iqd ?? 0) },
+          {
+            label: "Wallet charges, all time",
+            value: formatIQD(wallet?.total_charged_iqd ?? 0),
+            title: "Everything the wallet has paid: plan, order and message fees, and any other charge",
+          },
+          { label: "Orders, all time", value: formatCount(orderCount) },
+          { label: "Team now", value: formatCount(team.filter((member) => member.status === "active").length) },
+        ].map((tile) => (
+          <div key={tile.label} className="px-5 py-4" title={tile.title}>
+            <dt className="text-[13px] text-foreground/60">{tile.label}</dt>
+            <dd className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">{tile.value}</dd>
           </div>
-          <p className="text-lg font-bold text-foreground">
-            {formatCount(wallet?.balance_iqd ?? 0)} <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-amber-50/50">
-          <div className="flex items-center gap-2 text-amber-700 mb-1">
-            <CreditCard className="w-4 h-4" />
-            <span className="text-xs font-semibold" title="Everything the wallet has paid: plan, order and message fees, and any other charge">Wallet charges</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {formatCount(wallet?.total_charged_iqd ?? 0)} <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <ShoppingBag className="w-4 h-4" />
-            <span className="text-xs font-semibold">Orders, all time</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">{formatCount(orderCount)}</p>
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-semibold">Team now</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">{team.filter((member) => member.status === "active").length}</p>
-        </div>
-      </div>
+        ))}
+      </dl>
 
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-[var(--card-border)] mb-6">
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setFocusNote(false);
+              setActiveTab(tab);
+            }}
             className={`px-4 py-2.5 text-sm font-semibold transition-colors ${
               activeTab === tab
-                ? "text-foreground border-b-2 border-[#1E1E1E]"
+                ? "text-foreground border-b-2 border-foreground"
                 : "text-foreground/50 hover:text-foreground/70"
             }`}
           >
@@ -290,23 +276,9 @@ export default function MerchantDetailPage() {
         />
       )}
       {activeTab === "Overview" && <RecentOrdersSection merchantId={tenant.id} limit={5} />}
-      {activeTab === "Billing" && (
-        <BillingTab wallet={wallet} transactions={transactions} />
-      )}
+      {activeTab === "Timeline" && <TimelineTab merchantId={tenant.id} focusNote={focusNote} />}
       {activeTab === "Usage" && <UsageTab usage={usage} />}
       {activeTab === "Team" && <TeamTab team={team} />}
-      {activeTab === "Notes" && (
-        <NotesTab notes={notes} noteText={noteText} setNoteText={setNoteText} />
-      )}
-      {activeTab === "Timeline" && (
-        <TenantTimeline
-          transactions={transactions}
-          notes={notes}
-          orderCount={orderCount}
-          tenant={tenant}
-        />
-      )}
-      {activeTab === "Audit" && <AuditLogTab merchantId={tenant.id} />}
       {activeTab === "Onboarding" && (
         <OnboardingChecklist
           tenant={tenant}

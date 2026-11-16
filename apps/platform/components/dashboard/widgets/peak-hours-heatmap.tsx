@@ -4,6 +4,7 @@ import { HeatmapCell } from "@/lib/analytics/dashboard-calculations";
 import { useState } from "react";
 import { Flame } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { PeriodTag } from "@/components/dashboard/period-tag";
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // Whole day names without «ال»: cutting them to three letters gave «خمي».
@@ -19,9 +20,11 @@ const HOUR_LABELS_AR = hourLabels(true);
 
 interface PeakHoursHeatmapProps {
     data: HeatmapCell[];
+    /** The header period the cells count. */
+    periodLabel?: string;
 }
 
-export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
+export function PeakHoursHeatmap({ data, periodLabel }: PeakHoursHeatmapProps) {
     const [tooltip, setTooltip] = useState<{ day: number; hour: number; count: number } | null>(null);
     const { t, language } = useLanguage();
     const isAr = language === 'ar';
@@ -41,7 +44,7 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
                         <Flame className="w-4 h-4 text-purple-700" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-foreground">{t("dashboard.heatmap.title")}</h3>
+                        <h3 className="text-sm font-bold text-foreground">{t("dashboard.heatmap.title")}<PeriodTag label={periodLabel} /></h3>
                         <p className="text-xs text-muted">
                             {t("dashboard.heatmap.busiest")} {peakCell && peakCell.count > 0 ? `${dayLabels[peakCell.dayOfWeek]} ${HOUR_LABELS[peakCell.hour]} (${peakCell.count})` : '—'}
                         </p>

@@ -120,7 +120,7 @@ export function BatchAnalytics({
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-foreground">{t("reports.batch.title")}</h3>
-                            <p className="text-sm text-muted"><bdi>{t("reports.batch.shipped", { n: summary.totalBatches })}</bdi></p>
+                            <p className="text-sm text-muted"><bdi>{t("reports.batch.shipped", { count: summary.totalBatches })}</bdi></p>
                         </div>
                     </div>
 

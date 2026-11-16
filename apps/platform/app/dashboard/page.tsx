@@ -9,6 +9,7 @@ import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { Plus, Download } from "lucide-react";
 import { baghdadHour, ordersDrillQuery, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { DashboardTabs, useDashboardTab } from "@/components/dashboard/dashboard-tabs";
 import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
 import { useGeoFacts } from "@/hooks/use-dashboard-order-facts";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
@@ -77,6 +78,7 @@ export default function Home() {
   const track = useTrackEvent();
 
   const [dateRange, setDateRange] = useState<DateRangeKey>('7d');
+  const [tab, setTab] = useDashboardTab();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -114,6 +116,12 @@ export default function Home() {
   const workQueue = useMemo(
     () => aggregatesQuery.data ? workQueueFromStatusCounts(aggregatesQuery.data.status_counts) : undefined,
     [aggregatesQuery.data],
+  );
+  // Refused at the door in the header's period: the same orders the Orders list
+  // opens on «مرفوض» for those days (geo facts carry every order of the period).
+  const rejectedInPeriod = useMemo(
+    () => geoFacts.data ? geoFacts.data.filter((o) => o.status === 'rejected').length : null,
+    [geoFacts.data],
   );
 
   if (isMounted && isMobile) {
@@ -159,10 +167,14 @@ export default function Home() {
     ? <WidgetLoadError onRetry={() => void rangeQuery.refetch()} />
     : <WidgetPending />;
 
+  // The two work queues count every date, so they open Orders on every date; the
+  // rejected card counts the header's period and opens those days. Without the
+  // days, Orders kept its own date filter and listed other numbers.
   const handleStatCardClick = (status: 'new' | 'confirmed' | 'rejected') => {
     track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'stats-grid', status });
-    router.push(`/orders?status=${status}`);
+    router.push(`/orders?${ordersDrillQuery(status, status === 'rejected' ? dateRange : 'all')}`);
   };
+  const periodLabel = t(`dashboard.pipeline.period.${dateRange}`);
 
   const handlePipelineStageClick = (status: string) => {
     track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: 'order-pipeline', status });
@@ -191,7 +203,11 @@ export default function Home() {
     // Record WHICH widget drove the click, not the customer or city itself — a city
     // name is business data, and events stay free of record content (OBS-D1).
     track(DASHBOARD_EVENTS.drilldownClicked, { source_widget: sourceWidget, filters: Object.keys(params).join('+') });
-    router.push(`/orders?${new URLSearchParams(params).toString()}`);
+    // The city and product rows count the header's period, so Orders opens on
+    // those days too, not on whatever date filter it last had.
+    const query = new URLSearchParams(ordersDrillQuery(params.status ?? 'all', dateRange));
+    for (const [key, value] of Object.entries(params)) query.set(key, value);
+    router.push(`/orders?${query.toString()}`);
   };
 
   return (
@@ -257,8 +273,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Store overview: today vs yesterday from the first-party storefront log, above everything else */}
-        <WidgetBoundary label="store-overview"><StoreOverviewRow /></WidgetBoundary>
+        {/* Store overview: the header's period from the first-party storefront log, above everything else */}
+        <WidgetBoundary label="store-overview"><StoreOverviewRow range={dateRange} /></WidgetBoundary>
 
         {/* S3-02c: store-less tenants get one visible route to the builder */}
         <BuildStoreBanner />
@@ -266,10 +282,10 @@ export default function Home() {
         {/* Today at a Glance */}
         <WidgetBoundary label="today-strip"><TodayStrip metrics={dashboardMetrics.todayStrip} /></WidgetBoundary>
 
-        {/* Stats Grid */}
+        {/* Stats Grid: the two work queues now, refused at the door in the period */}
         <WidgetBoundary label="stats-grid">
           {workQueue ? (
-            <StatsGrid stats={workQueue} onCardClick={handleStatCardClick} />
+            <StatsGrid stats={workQueue} rejectedInPeriod={rejectedInPeriod} periodLabel={periodLabel} onCardClick={handleStatCardClick} />
           ) : aggregatesQuery.isError ? (
             <WidgetLoadError onRetry={() => void aggregatesQuery.refetch()} className="min-h-[140px]" />
           ) : (
@@ -277,131 +293,148 @@ export default function Home() {
           )}
         </WidgetBoundary>
 
-        {/* Prime: what Prime holds, its delivery rate, where the parcels are (stores with the Prime link only) */}
-        <WidgetBoundary label="prime-home"><PrimeHomeRow /></WidgetBoundary>
+        {/* D1: one screen of overview; delivery, team and products in their own tabs.
+            Only the open tab mounts, so the others read nothing until opened. */}
+        <DashboardTabs value={tab} onChange={setTab} />
 
-        {/* Shops now: today's sales, cash taken and who is on the till in each shop (managers, stores with a shop) */}
-        <WidgetBoundary label="shops-live"><ShopsLiveRow /></WidgetBoundary>
+        <div role="tabpanel" id={`dashboard-panel-${tab}`} aria-labelledby={`dashboard-tab-${tab}`} className="space-y-6">
+        {tab === 'overview' && (
+          <>
+            {/* Prime: what Prime holds, its delivery rate, where the parcels are (stores with the Prime link only) */}
+            <WidgetBoundary label="prime-home"><PrimeHomeRow /></WidgetBoundary>
 
-        {/* Shield: open orders to call first, and what Shield stopped in the last 30 days */}
-        <WidgetBoundary label="shield-home"><ShieldHomeRow /></WidgetBoundary>
+            {/* Shops now: today's sales, cash taken and who is on the till in each shop (managers, stores with a shop) */}
+            <WidgetBoundary label="shops-live"><ShopsLiveRow /></WidgetBoundary>
 
-        {/* Order Pipeline */}
-        <WidgetBoundary label="order-pipeline">
-          {rangeScoped ? (
-            <OrderPipeline stages={rangeScoped.pipeline} period={dateRange} onStageClick={handlePipelineStageClick} />
-          ) : rangePlaceholder}
-        </WidgetBoundary>
+            {/* Shield: open orders to call first, and what Shield stopped in the last 30 days */}
+            <WidgetBoundary label="shield-home"><ShieldHomeRow /></WidgetBoundary>
 
-        {/* Bento Row: how much (revenue / orders over time) | when (orders by hour).
-            Both cards carry their own window and read one shared 60-day facts query. */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-5 min-h-[400px]">
-            <WidgetBoundary label="bento-revenue"><RevenueCard /></WidgetBoundary>
-          </div>
-          <div className="xl:col-span-7 min-h-[400px]">
-            <WidgetBoundary label="bento-order-waves"><OrderWavesCard /></WidgetBoundary>
-          </div>
-        </div>
+            {/* Order Pipeline */}
+            <WidgetBoundary label="order-pipeline">
+              {rangeScoped ? (
+                <OrderPipeline stages={rangeScoped.pipeline} period={dateRange} onStageClick={handlePipelineStageClick} />
+              ) : rangePlaceholder}
+            </WidgetBoundary>
 
-        {/* Timing Row: Peak Hours (8col) | Delivery Rate over Avg Time Per Stage (4col) */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-8 min-h-[280px]">
-            <WidgetBoundary label="peak-heatmap">{rangeScoped ? <PeakHoursHeatmap data={rangeScoped.peakHeatmap} /> : rangePlaceholder}</WidgetBoundary>
-          </div>
-          <div className="xl:col-span-4 flex flex-col gap-6">
-            <WidgetBoundary label="delivery-rate"><DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} /></WidgetBoundary>
-            <div className="flex-1 min-h-[280px]">
-              <WidgetBoundary label="avg-time-per-stage">{rangeScoped ? <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} /> : rangePlaceholder}</WidgetBoundary>
+            {/* Bento Row: how much (revenue / orders over time) | when (orders by hour).
+                Both cards carry their own window and read one shared 60-day facts query. */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              <div className="xl:col-span-5 min-h-[400px]">
+                <WidgetBoundary label="bento-revenue"><RevenueCard /></WidgetBoundary>
+              </div>
+              <div className="xl:col-span-7 min-h-[400px]">
+                <WidgetBoundary label="bento-order-waves"><OrderWavesCard /></WidgetBoundary>
+              </div>
+            </div>
+
+            {/* This week against the last, and where the month is heading */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="min-h-[240px]">
+                <WidgetBoundary label="week-over-week"><WeekOverWeek metrics={dashboardMetrics.weekOverWeek} /></WidgetBoundary>
+              </div>
+              <div className="min-h-[240px]">
+                <WidgetBoundary label="month-forecast"><MonthForecast forecast={dashboardMetrics.monthForecast} /></WidgetBoundary>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === 'delivery' && (
+          <>
+            {/* How parcels go: delivery rate | time per stage | where they are refused */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <WidgetBoundary label="delivery-rate"><DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} /></WidgetBoundary>
+              <div className="min-h-[280px]">
+                <WidgetBoundary label="avg-time-per-stage">{rangeScoped ? <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} periodLabel={periodLabel} /> : rangePlaceholder}</WidgetBoundary>
+              </div>
+              <div className="min-h-[280px]">
+                <WidgetBoundary label="rejection-breakdown">{rangeScoped ? (
+                  <RejectionBreakdown
+                    cityRejectionStats={rangeScoped.urgency.cityRejectionStats}
+                    periodLabel={periodLabel}
+                    onCityClick={(city) => goToOrders({ status: 'rejected', city }, 'rejection-breakdown')}
+                  />
+                ) : rangePlaceholder}</WidgetBoundary>
+              </div>
+            </div>
+
+            {/* Where orders go: the map (header period) | governorates over time */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              <div className="xl:col-span-7 h-[400px] xl:h-[460px]">
+                <WidgetBoundary label="iraq-map">{geoFacts.data ? (
+                  <IraqMap orders={geoFacts.data} periodLabel={periodLabel} />
+                ) : geoFacts.isError ? (
+                  <WidgetLoadError onRetry={() => void geoFacts.refetch()} />
+                ) : (
+                  <WidgetPending />
+                )}</WidgetBoundary>
+              </div>
+              <div className="xl:col-span-5">
+                <WidgetBoundary label="bento-governorates"><GovernorateCard range={dateRange} /></WidgetBoundary>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === 'team' && (
+          <>
+            {/* When orders arrive, so the team is on when they do */}
+            <div className="min-h-[280px]">
+              <WidgetBoundary label="peak-heatmap">{rangeScoped ? <PeakHoursHeatmap data={rangeScoped.peakHeatmap} periodLabel={periodLabel} /> : rangePlaceholder}</WidgetBoundary>
+            </div>
+
+            {/* Recent Orders | Staff Leaderboard (admin) | Announcements */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              <div className="xl:col-span-5 h-[440px]">
+                <WidgetBoundary label="recent-orders-feed">
+                  <RecentOrdersFeed
+                    orders={dashboardMetrics.recentOrders}
+                    updatedAt={metricsQuery.dataUpdatedAt}
+                  />
+                </WidgetBoundary>
+              </div>
+
+              {/* Staff Leaderboard — admin only */}
+              {isAdmin ? (
+                <div className="xl:col-span-4 h-[440px]">
+                  <WidgetBoundary label="staff-leaderboard"><StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} /></WidgetBoundary>
+                </div>
+              ) : null}
+
+              {/* Team Announcements: wider for non-admins */}
+              <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} h-[440px]`}>
+                <WidgetBoundary label="team-announcements">
+                  <TeamAnnouncements
+                    announcements={announcements}
+                    isAdmin={isAdmin}
+                    loading={announcementsLoading}
+                    error={announcementsError}
+                    onCreate={createAnnouncement}
+                    onTogglePin={togglePin}
+                    onDelete={deleteAnnouncement}
+                  />
+                </WidgetBoundary>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === 'products' && (
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-7 xl:h-[460px]">
+              <WidgetBoundary label="product-leaderboard">{rangeScoped ? (
+                <ProductLeaderboard
+                  products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}
+                  periodLabel={periodLabel}
+                  onProductClick={(product) => goToOrders({ product }, 'product-leaderboard')}
+                />
+              ) : rangePlaceholder}</WidgetBoundary>
+            </div>
+            <div className="xl:col-span-5">
+              <WidgetBoundary label="bento-seasonality"><SeasonalityCard /></WidgetBoundary>
             </div>
           </div>
-        </div>
-
-        {/* Intelligence Row: WoW | Forecast | Rejection */}
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-12 gap-6">
-          <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WidgetBoundary label="week-over-week"><WeekOverWeek metrics={dashboardMetrics.weekOverWeek} /></WidgetBoundary>
-          </div>
-          <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WidgetBoundary label="month-forecast"><MonthForecast forecast={dashboardMetrics.monthForecast} /></WidgetBoundary>
-          </div>
-          <div className="md:col-span-1 xl:col-span-4 min-h-[240px]">
-            <WidgetBoundary label="rejection-breakdown">{rangeScoped ? (
-              <RejectionBreakdown
-                cityRejectionStats={rangeScoped.urgency.cityRejectionStats}
-                onCityClick={(city) => goToOrders({ status: 'rejected', city }, 'rejection-breakdown')}
-              />
-            ) : rangePlaceholder}</WidgetBoundary>
-          </div>
-        </div>
-
-        {/* Bento Row: where orders come from (governorates) | the shape of the year */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-7">
-            <WidgetBoundary label="bento-governorates"><GovernorateCard /></WidgetBoundary>
-          </div>
-          <div className="xl:col-span-5">
-            <WidgetBoundary label="bento-seasonality"><SeasonalityCard /></WidgetBoundary>
-          </div>
-        </div>
-
-        {/* Map (header range) | Top Products */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-7 h-[400px] xl:h-[460px]">
-            <WidgetBoundary label="iraq-map">{geoFacts.data ? (
-              <IraqMap orders={geoFacts.data} />
-            ) : geoFacts.isError ? (
-              <WidgetLoadError onRetry={() => void geoFacts.refetch()} />
-            ) : (
-              <WidgetPending />
-            )}</WidgetBoundary>
-          </div>
-          <div className="xl:col-span-5 xl:h-[460px]">
-            <WidgetBoundary label="product-leaderboard">{rangeScoped ? (
-              <ProductLeaderboard
-                products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}
-                onProductClick={(product) => goToOrders({ product }, 'product-leaderboard')}
-              />
-            ) : rangePlaceholder}</WidgetBoundary>
-          </div>
-        </div>
-
-        {/* Operational Row: Recent Orders | Staff Leaderboard (admin) | Announcements */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Recent Orders Feed */}
-          <div className={`xl:col-span-5 h-[440px]`}>
-            <WidgetBoundary label="recent-orders-feed">
-              <RecentOrdersFeed
-              orders={dashboardMetrics.recentOrders}
-              updatedAt={metricsQuery.dataUpdatedAt}
-            />
-            </WidgetBoundary>
-          </div>
-
-          {/* Staff Leaderboard — admin only */}
-          {isAdmin ? (
-            <div className="xl:col-span-4 h-[440px]">
-              <WidgetBoundary label="staff-leaderboard"><StaffLeaderboard staff={dashboardMetrics.staffLeaderboard} /></WidgetBoundary>
-            </div>
-          ) : (
-            /* Non-admins: announcements takes more space */
-            null
-          )}
-
-          {/* Team Announcements */}
-          <div className={`${isAdmin ? 'xl:col-span-3' : 'xl:col-span-7'} h-[440px]`}>
-            <WidgetBoundary label="team-announcements">
-              <TeamAnnouncements
-              announcements={announcements}
-              isAdmin={isAdmin}
-              loading={announcementsLoading}
-              error={announcementsError}
-              onCreate={createAnnouncement}
-              onTogglePin={togglePin}
-              onDelete={deleteAnnouncement}
-            />
-            </WidgetBoundary>
-          </div>
+        )}
         </div>
 
         <CreateOrderModal

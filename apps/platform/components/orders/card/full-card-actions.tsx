@@ -60,12 +60,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
 
                     const getTitle = () => {
                         if (!isValidPhone) return language === "ar" ? validatePhoneDetailed(order.phone).errorMessageAr : validatePhoneDetailed(order.phone).errorMessage;
-                        switch (contactCount) {
-                            case 0: return t("orders.card.wa0");
-                            case 1: return t("orders.card.wa1");
-                            case 2: return t("orders.card.wa2");
-                            default: return t("orders.card.waN", { count: contactCount });
-                        }
+                        return t("orders.card.waN", { count: contactCount });
                     };
 
                     return (

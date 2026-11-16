@@ -40,7 +40,6 @@ export async function GET(
       tenantResult,
       walletResult,
       subscriptionResult,
-      transactionsResult,
       usageResult,
       teamResult,
       notesResult,
@@ -53,12 +52,6 @@ export async function GET(
       // A shop built from a lead may have no wallet or subscription yet: no row is not an error.
       supabase.from("wallet").select("*").eq("tenant_id", id).maybeSingle(),
       supabase.from("subscriptions").select("*").eq("tenant_id", id).maybeSingle(),
-      supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("tenant_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
       supabase
         .from("usage_tracking")
         .select("*")
@@ -99,7 +92,6 @@ export async function GET(
     for (const result of [
       walletResult,
       subscriptionResult,
-      transactionsResult,
       usageResult,
       teamResult,
       notesResult,
@@ -118,7 +110,6 @@ export async function GET(
       tenant,
       wallet: walletResult.data ?? null,
       subscription: subscriptionResult.data ?? null,
-      transactions: transactionsResult.data ?? [],
       usage: usageResult.data ?? [],
       team: teamResult.data ?? [],
       notes: notesResult.data ?? [],

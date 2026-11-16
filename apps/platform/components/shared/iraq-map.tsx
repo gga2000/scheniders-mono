@@ -15,6 +15,7 @@ import {
   DialogDescription,
 } from "@scheniders/ui/dialog";
 import { cn, formatCount, formatShare } from "@/lib/utils";
+import { PeriodTag } from "@/components/dashboard/period-tag";
 
 // Statuses to show in expanded breakdown
 const DISPLAY_STATUSES: { key: keyof GovernorateStats; i18nKey: string; color: string }[] = [
@@ -83,9 +84,11 @@ function deliverySuccessRate(stats: GovernorateStats): number | null {
 interface IraqMapProps {
   orders: GovernorateOrder[];
   className?: string;
+  /** The dashboard period the orders cover; Orders passes none (its list is the window). */
+  periodLabel?: string;
 }
 
-export function IraqMap({ orders, className }: IraqMapProps) {
+export function IraqMap({ orders, className, periodLabel }: IraqMapProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedGov, setSelectedGov] = useState<string | null>(null);
   const [hoveredGov, setHoveredGov] = useState<string | null>(null);
@@ -270,7 +273,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-rose-500" />
             <h3 className="text-sm font-semibold text-foreground">
-              {t("map.title")}
+              {t("map.title")}<PeriodTag label={periodLabel} />
             </h3>
           </div>
           <div className="flex items-center gap-2">

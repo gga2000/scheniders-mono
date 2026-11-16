@@ -5,22 +5,28 @@ import {
     Clock,
     Package,
     AlertTriangle,
-    TrendingUp,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatCount } from "@/lib/utils";
 
 interface StatsGridProps {
     /** Server counts across the whole book (get_orders_aggregates), not the loaded window. */
     stats: WorkQueueCounts;
+    /**
+     * Orders refused at the door in the dashboard's period, by the Orders list's
+     * day rule; null while they load. The two work queues are «now», every date.
+     */
+    rejectedInPeriod: number | null;
+    /** The header period in words («آخر 7 أيام»), printed on the rejected card. */
+    periodLabel: string;
     onCardClick?: (status: 'new' | 'confirmed' | 'rejected') => void;
 }
 
-export function StatsGrid({ stats, onCardClick }: StatsGridProps) {
+export function StatsGrid({ stats, rejectedInPeriod, periodLabel, onCardClick }: StatsGridProps) {
     const { t } = useLanguage();
     // Calculate action-driven metrics
     const pendingReview = stats.newOrders + stats.contactedOrders;
     const toBePacked = stats.confirmedOrders;
-    const flaggedFake = stats.rejectedOrders;
 
     return (
         <div className="grid gap-3 md:gap-6 grid-cols-1 sm:grid-cols-3">
@@ -37,10 +43,10 @@ export function StatsGrid({ stats, onCardClick }: StatsGridProps) {
 
                 <div className="space-y-1 md:space-y-2">
                     <h3 className="text-xs md:text-sm font-semibold text-amber-900/70 uppercase tracking-wider">
-                        {t("dashboard.stats.pendingReview")}
+                        {t("dashboard.stats.pendingReview")} <span className="opacity-70">· {t("dashboard.stats.now")}</span>
                     </h3>
-                    <p className="text-3xl md:text-5xl font-bold text-amber-950 tracking-tight">
-                        {pendingReview}
+                    <p className="text-3xl md:text-5xl font-bold text-amber-950 tracking-tight tabular-nums">
+                        {formatCount(pendingReview)}
                     </p>
                     <p className="text-xs md:text-sm text-amber-800/70 font-medium flex items-center gap-2">
                         <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-amber-600 animate-pulse-soft"></span>
@@ -68,10 +74,10 @@ export function StatsGrid({ stats, onCardClick }: StatsGridProps) {
 
                 <div className="space-y-1 md:space-y-2">
                     <h3 className="text-xs md:text-sm font-semibold text-green-900/70 uppercase tracking-wider">
-                        {t("dashboard.stats.toBePacked")}
+                        {t("dashboard.stats.toBePacked")} <span className="opacity-70">· {t("dashboard.stats.now")}</span>
                     </h3>
-                    <p className="text-3xl md:text-5xl font-bold text-green-950 tracking-tight">
-                        {toBePacked}
+                    <p className="text-3xl md:text-5xl font-bold text-green-950 tracking-tight tabular-nums">
+                        {formatCount(toBePacked)}
                     </p>
                     <p className="text-xs md:text-sm text-green-800/70 font-medium flex items-center gap-2">
                         <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-600"></span>
@@ -99,11 +105,16 @@ export function StatsGrid({ stats, onCardClick }: StatsGridProps) {
 
                 <div className="space-y-1 md:space-y-2">
                     <h3 className="text-xs md:text-sm font-semibold text-rose-900/70 uppercase tracking-wider">
-                        {t("dashboard.stats.flaggedFake")}
+                        {t("dashboard.stats.flaggedFake")} <span className="opacity-70">· <bdi>{periodLabel}</bdi></span>
                     </h3>
-                    <p className="text-3xl md:text-5xl font-bold text-rose-950 tracking-tight">
-                        {flaggedFake}
-                    </p>
+                    {rejectedInPeriod === null ? (
+                        // The period's count is still loading: hold its place, never a number from another period.
+                        <p aria-busy="true" className="h-9 md:h-12 w-20 rounded-xl bg-rose-900/10 animate-pulse" />
+                    ) : (
+                        <p className="text-3xl md:text-5xl font-bold text-rose-950 tracking-tight tabular-nums" data-stat="rejected">
+                            {formatCount(rejectedInPeriod)}
+                        </p>
+                    )}
                     <p className="text-xs md:text-sm text-rose-800/70 font-medium flex items-center gap-2">
                         <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-rose-600"></span>
                         <span className="hidden sm:inline">{t("dashboard.stats.reviewBeforeBlocking")}</span>

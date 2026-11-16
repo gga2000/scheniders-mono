@@ -77,12 +77,25 @@ describe("t() singular forms", () => {
         localStorage.setItem("schneiders_language", "ar");
         const { result } = renderHook(() => useLanguage(), { wrapper });
         const t = result.current.t;
-        expect(t("reports.returns.summary", { n: 9, count: 9, amount: "IQD 342,000" })).toBe("9 استرجاعات | IQD 342,000");
+        expect(t("reports.returns.summary", { n: 9, count: 9, amount: "IQD 342,000" })).toBe("9 مرتجعات | IQD 342,000");
         expect(t("reports.period.subtitle", { n: 30, count: 30 })).toBe("مقارنة 30 يوماً");
         expect(t("dashboard.forecast.basis", { count: 16 })).toBe("توقع خطي بناءً على 16 يوماً من البيانات");
         expect(t("dashboard.wow.points", { n: "+4", count: 4 })).toBe("+4 نقاط");
         expect(t("map.orders", { count: 6 })).toBe("طلبات");
         expect(t("shield.home.impactTitle", { days: 30, count: 30 })).toBe("الدرع · آخر 30 يوماً");
+    });
+
+    it("agrees round 15's count words with their numbers", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        const t = result.current.t;
+        expect(t("reports.batch.shipped", { count: 2 })).toBe("دفعتان مشحونتان");
+        expect(t("reports.batch.shipped", { count: 5 })).toBe("5 دفعات مشحونة");
+        expect(t("reports.batch.shipped", { count: 25 })).toBe("25 دفعة مشحونة");
+        expect(t("reports.kpi.plusReturns", { count: 1, total: 9 })).toBe("+ مرتجع واحد = 9 في صفحة الطلبات");
+        expect(t("reports.kpi.plusReturns", { count: 9, total: 328 })).toBe("+ 9 مرتجعات = 328 في صفحة الطلبات");
+        expect(t("orders.card.waN", { count: 0 })).toBe("واتساب · لم تُرسل رسالة بعد");
+        expect(t("orders.card.waN", { count: 2 })).toBe("واتساب · أُرسلت رسالتان");
     });
 
     it("uses the .zero entry for a count of 0 in both languages", async () => {
