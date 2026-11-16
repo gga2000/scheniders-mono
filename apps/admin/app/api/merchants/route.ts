@@ -46,7 +46,10 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("tenants")
       // The health score and its parts are the database's: the browser shows them and works nothing out.
-      .select("*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts", { count: "exact" })
+      // Staff tags live in staff_shop_tags, which merchants cannot read.
+      .select("*, wallet(*), subscriptions(*), staff_shop_tags(tags), staff_health_score, staff_health_parts", {
+        count: "exact",
+      })
       // The demo store (Fermi B13) has its own card, not a row among customers.
       .eq("is_demo", false);
 
@@ -121,13 +124,14 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Assemble enriched merchants ────────────────────────────────────
-    const merchants = tenants.map((tenant) => {
+    const merchants = tenants.map(({ staff_shop_tags: staffTags, ...tenant }) => {
       const row = stats.get(tenant.id);
       if (!row) throw new Error(`No list numbers for shop ${tenant.id}`);
 
       return {
         ...tenant,
-        tags: tenant.tags ?? [],
+        // One row per shop, so the API gives an object, or null for a shop never tagged.
+        tags: staffTags?.tags ?? [],
         // The later of the last wallet line and the last real order.
         last_active_at: laterOf(row.last_wallet_at, row.last_order_at),
         // Our fees (monthly fee, delivered orders, messages), not every wallet charge.

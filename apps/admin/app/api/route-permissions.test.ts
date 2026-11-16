@@ -384,13 +384,6 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
-    name: "GET /api/merchants/[id]/tags",
-    call: async (t) => {
-      const { GET } = await import("./merchants/[id]/tags/route");
-      return GET(req(`/api/merchants/${TENANT}/tags`, "GET", t), idParams);
-    },
-  },
-  {
     name: "GET /api/merchants/[id]/orders",
     call: async (t) => {
       const { GET } = await import("./merchants/[id]/orders/route");
