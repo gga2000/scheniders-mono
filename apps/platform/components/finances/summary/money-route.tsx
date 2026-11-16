@@ -132,7 +132,6 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
             sub={t("fin.money.sub")}
             textDir={dir}
             testId="money-route"
-            className="h-full"
             action={
                 sold && (
                     <div className="text-right" data-testid="money-sold">
