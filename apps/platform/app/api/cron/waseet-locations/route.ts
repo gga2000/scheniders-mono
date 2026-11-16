@@ -21,16 +21,18 @@ async function runScheduled(request: NextRequest) {
     const result = await syncLocationCatalog("cron");
 
     if (!result.success) {
-        console.error("[Waseet] Location sync failed:", result.error);
-        return NextResponse.json({ success: false, error: result.error }, { status: 502 });
+        // A warning in the log; the 502 is what raises it, once, through the
+        // job monitor (a console.error would open a second Sentry issue).
+        console.warn("[Waseet] Location sync failed:", result.error);
+        return NextResponse.json({ success: false, error: result.error, data: result.data }, { status: 502 });
     }
 
+    const d = result.data;
     console.log(
-        `[Waseet] Location sync: ${result.data?.cities} cities, ${result.data?.districts} districts, ` +
-        `${result.data?.regions} regions, ${result.data?.duplicates} duplicate names grouped, ` +
-        `${result.data?.splitNames} run-together names split, ` +
-        `${result.data?.reviewPairs} pairs flagged for review` +
-        (result.data?.failedCities.length ? `, failed cities: ${result.data.failedCities.join(",")}` : "")
+        `[Waseet] Location sync: ${d?.cities} cities, ${d?.regions} regions, ${d?.districts} districts, ` +
+        `${d?.duplicates} duplicate names grouped, ${d?.splitNames} run-together names split, ` +
+        `${d?.municipalities} municipalities, ${d?.postalCodes} postal codes, ${d?.overrides} overrides kept, ` +
+        `${d?.reviewPairs} pairs flagged for review`
     );
 
     return NextResponse.json({ success: true, data: result.data });
