@@ -6,6 +6,7 @@ import "./globals.css";
 import "@/lib/env";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
+import { SupportViewBanner } from "@/components/support/support-view-banner";
 import { SupportSheet } from "@/components/support/support-sheet";
 import { MerchantGuide } from "@/components/merchant-guide/merchant-guide";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
@@ -104,6 +105,7 @@ export default function RootLayout({
                   <RoleProvider>
                     <FinancialVisibilityProvider>
                       <LanguageProvider>
+                        <SupportViewBanner />
                         <DashboardLayout>
                           {children}
                           <ChatRuntime />

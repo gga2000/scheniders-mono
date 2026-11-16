@@ -31,6 +31,8 @@ function fakeQuery(): unknown {
       if (prop === "then") {
         return (resolve: (value: DbResult) => void) => resolve(dbQueue.shift() ?? dbResult);
       }
+      // `db.auth.admin` are properties, not calls.
+      if (prop === "auth" || prop === "admin") return fakeQuery();
       return (...args: unknown[]) => {
         dbCalls.push({ method: String(prop), args });
         return fakeQuery();
@@ -47,6 +49,15 @@ vi.mock("@/lib/admin-supabase", () => ({
     return identity;
   }),
   resolveAdminRole: vi.fn(),
+}));
+
+vi.mock("@/lib/admin-env", () => ({
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: "https://db.test",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon",
+    SUPABASE_SERVICE_ROLE_KEY: "service",
+    PLATFORM_URL: "https://app.test",
+  },
 }));
 
 vi.mock("next/headers", () => ({
@@ -666,6 +677,121 @@ describe("support take a shop", () => {
       admin_user_id: SUPPORT_ID,
       tenant_id: TENANT,
       action: "support_shop_taken",
+    });
+  });
+});
+
+describe("support view as merchant", () => {
+  const VIEWER = "77777777-7777-4777-8777-777777777777";
+  const EXPIRES = "2026-11-16T12:00:00+00:00";
+
+  async function start(token: string | null, body: unknown): Promise<Response> {
+    const { POST } = await import("../view/route");
+    return POST(req("/api/support/view", "POST", token, body));
+  }
+
+  async function stop(token: string | null): Promise<Response> {
+    const { DELETE } = await import("../view/route");
+    return DELETE(req("/api/support/view", "DELETE", token));
+  }
+
+  const link = { data: { properties: { hashed_token: "hash-1" }, user: { id: VIEWER } }, error: null };
+
+  it("turns away a caller with no session", async () => {
+    expect((await start(null, { tenantId: TENANT })).status).toBe(401);
+    expect((await stop(null)).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("refuses a shop id that is not an id", async () => {
+    expect((await start("support", { tenantId: "1" })).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("opens the shop with my own viewer, logs the visit the merchant sees, and answers a one-time link", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { user_id: VIEWER }, error: null },
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
+      link as unknown as DbResult,
+    );
+    const res = await start("support", { tenantId: TENANT, adminId: "11111111-1111-4111-8111-111111111111" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string; expiresAt: string };
+    expect(body.expiresAt).toBe(EXPIRES);
+    const url = new URL(body.url);
+    expect(url.origin + url.pathname).toBe("https://app.test/api/auth/confirm");
+    expect(url.searchParams.get("token_hash")).toBe("hash-1");
+    expect(url.searchParams.get("type")).toBe("magiclink");
+    expect(url.searchParams.get("next")).toBe("/orders");
+    expect(rpcCall()?.args).toEqual([
+      "support_view_start",
+      { p_admin_id: SUPPORT_ID, p_viewer_user_id: VIEWER, p_tenant_id: TENANT },
+    ]);
+    expect(dbCalls.find((c) => c.method === "generateLink")?.args[0]).toEqual({
+      type: "magiclink",
+      email: `support-viewer-${SUPPORT_ID}@usefermi.com`,
+    });
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      tenant_id: TENANT,
+      action: "support_view",
+    });
+    expect(dbCalls.some((c) => c.method === "createUser")).toBe(false);
+  });
+
+  it("makes my viewer sign-in once, flagged look-only", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: null, error: null },
+      { data: { user: { id: VIEWER } }, error: null } as unknown as DbResult,
+      { data: null, error: null },
+      { data: null, error: null },
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
+      link as unknown as DbResult,
+    );
+    expect((await start("support", { tenantId: TENANT })).status).toBe(200);
+    expect(dbCalls.find((c) => c.method === "createUser")?.args[0]).toMatchObject({
+      email: `support-viewer-${SUPPORT_ID}@usefermi.com`,
+      email_confirm: true,
+      app_metadata: { support_viewer: true },
+    });
+    expect(dbCalls.find((c) => c.method === "upsert")?.args[0]).toMatchObject({ id: VIEWER, role: "viewer" });
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toEqual({ user_id: VIEWER, admin_id: SUPPORT_ID });
+  });
+
+  it("never answers a link made for another sign-in", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { user_id: VIEWER }, error: null },
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
+      { data: { properties: { hashed_token: "hash-1" }, user: { id: "someone-else" } }, error: null } as unknown as DbResult,
+    );
+    expect((await start("support", { tenantId: TENANT })).status).toBe(500);
+  });
+
+  it.each([
+    ["support_view_unguarded", 503],
+    ["support_view_not_your_viewer", 409],
+    ["support_shop_not_found", 404],
+  ])("maps the database refusal %s to %i", async (message, status) => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { user_id: VIEWER }, error: null },
+      { data: null, error: { code: "P0001", message } },
+    );
+    expect((await start("support", { tenantId: TENANT })).status).toBe(status);
+    expect(dbCalls.some((c) => c.method === "generateLink")).toBe(false);
+  });
+
+  it("ends my own look", async () => {
+    dbResult = { data: 1, error: null };
+    expect((await stop("support")).status).toBe(200);
+    expect(rpcCall()?.args).toEqual(["support_view_end", { p_admin_id: SUPPORT_ID }]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      action: "support_view_end",
+      details: { ended: 1 },
     });
   });
 });

@@ -155,3 +155,24 @@ export function useSupportTakeShop() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support"] }),
   });
 }
+
+/** Start a 30-minute look-only view of a shop; answers a one-time sign-in link. */
+export function useSupportViewStart() {
+  return useMutation({
+    mutationFn: async (tenantId: string) =>
+      readJson<{ url: string; expiresAt: string }>(
+        await fetch("/api/support/view", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenantId }),
+        }),
+      ),
+  });
+}
+
+/** End my look-only view now. */
+export function useSupportViewEnd() {
+  return useMutation({
+    mutationFn: async () => readJson<{ success: true }>(await fetch("/api/support/view", { method: "DELETE" })),
+  });
+}

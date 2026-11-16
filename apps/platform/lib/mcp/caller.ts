@@ -6,7 +6,7 @@ import {
     createSupabaseServiceClient,
     verifyAccessToken,
 } from "@/lib/supabase-server";
-import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { resolveActiveTenant, SUPPORT_VIEW_READ_ONLY } from "@/lib/auth/resolve-active-tenant";
 import { readServerBillingLock } from "@/lib/billing/lock-refusal";
 import type { UserRole } from "@/lib/permissions";
 
@@ -122,6 +122,8 @@ export async function resolveMcpCaller(authInfo: AuthInfo | undefined): Promise<
 
     const active = await resolveActiveTenant(extra.data.userId);
     if (!active.ok) return { ok: false, error: active.error };
+    // The merchant MCP reads and writes; a look-only support view has no place in it.
+    if (active.readOnly) return { ok: false, error: SUPPORT_VIEW_READ_ONLY };
 
     const lock = await readServerBillingLock(active.tenantId);
     const db = createSupabaseServerClientWithToken(authInfo.token, { allowOAuthClient: true });

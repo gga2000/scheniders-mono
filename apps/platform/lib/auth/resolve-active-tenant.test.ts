@@ -19,6 +19,15 @@ function fakeClient(tables: Record<string, Row[]>) {
                     filters.push((r) => r[col] === val);
                     return chain;
                 },
+                is: (col: string, val: null) => {
+                    filters.push((r) => r[col] === val);
+                    return chain;
+                },
+                gt: (col: string, val: string) => {
+                    filters.push((r) => typeof r[col] === "string" && Date.parse(r[col] as string) > Date.parse(val));
+                    return chain;
+                },
+                limit: () => chain,
                 maybeSingle: () =>
                     Promise.resolve({
                         data: (tables[table] ?? []).find((r) => filters.every((f) => f(r))) ?? null,
@@ -30,7 +39,16 @@ function fakeClient(tables: Record<string, Row[]>) {
     };
 }
 
+const LATER = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+const EARLIER = new Date(Date.now() - 60 * 1000).toISOString();
+
 const tables: Record<string, Row[]> = {
+    support_view_sessions: [
+        { viewer_user_id: "viewer-live", tenant_id: "tenant-a", ended_at: null, expires_at: LATER },
+        { viewer_user_id: "viewer-ended", tenant_id: "tenant-a", ended_at: EARLIER, expires_at: LATER },
+        { viewer_user_id: "viewer-expired", tenant_id: "tenant-a", ended_at: null, expires_at: EARLIER },
+        { viewer_user_id: "viewer-elsewhere", tenant_id: "tenant-b", ended_at: null, expires_at: LATER },
+    ],
     user_profiles: [
         { id: "member", current_tenant_id: "tenant-a", role: "employee", is_active: true },
         { id: "tamperer", current_tenant_id: "tenant-a", role: "admin", is_active: true },
@@ -42,6 +60,11 @@ const tables: Record<string, Row[]> = {
         // Global role says admin (every signup), but in tenant-a they are a viewer.
         { id: "signup-viewer", current_tenant_id: "tenant-a", role: "admin", is_active: true },
         { id: "suspended", current_tenant_id: "tenant-a", role: "admin", is_active: true },
+        // Support look-only sign-ins: no membership anywhere.
+        { id: "viewer-live", current_tenant_id: "tenant-a", role: "viewer", is_active: true },
+        { id: "viewer-ended", current_tenant_id: "tenant-a", role: "viewer", is_active: true },
+        { id: "viewer-expired", current_tenant_id: "tenant-a", role: "viewer", is_active: true },
+        { id: "viewer-elsewhere", current_tenant_id: "tenant-a", role: "viewer", is_active: true },
     ],
     tenant_members: [
         { user_id: "member", tenant_id: "tenant-a", role: "employee", status: "active" },
@@ -66,6 +89,7 @@ describe("resolveActiveTenant", () => {
             tenantId: "tenant-a",
             role: "employee",
             platformAdmin: false,
+            readOnly: false,
         });
     });
 
@@ -96,6 +120,28 @@ describe("resolveActiveTenant", () => {
             tenantId: "tenant-b",
             role: "super_admin",
             platformAdmin: true,
+            readOnly: false,
         });
+    });
+
+    it("reads a live look-only support session as a read-only viewer", async () => {
+        expect(await resolveActiveTenant("viewer-live")).toEqual({
+            ok: true,
+            tenantId: "tenant-a",
+            role: "viewer",
+            platformAdmin: false,
+            readOnly: true,
+        });
+    });
+
+    it.each(["viewer-ended", "viewer-expired", "viewer-elsewhere"])(
+        "rejects a support sign-in whose session is not live on this shop (%s)",
+        async (id) => {
+            expect(await resolveActiveTenant(id)).toMatchObject({ ok: false, status: 403 });
+        },
+    );
+
+    it("never marks a member read-only", async () => {
+        expect(await resolveActiveTenant("promoted")).toMatchObject({ readOnly: false });
     });
 });

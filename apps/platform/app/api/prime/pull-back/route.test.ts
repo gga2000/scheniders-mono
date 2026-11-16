@@ -29,7 +29,7 @@ function request() {
 beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireRequestCaller).mockResolvedValue({
-        ok: true, userId: "u1", tenantId: TENANT, role: "employee", platformAdmin: false,
+        ok: true, userId: "u1", tenantId: TENANT, role: "employee", platformAdmin: false, readOnly: false,
     });
 });
 

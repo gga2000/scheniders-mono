@@ -49,7 +49,7 @@ const admin: CallerResult = {
     userId: "u1",
     tenantId: "tenant-a",
     role: "admin",
-    platformAdmin: false,
+    platformAdmin: false, readOnly: false,
 };
 
 const patch = (body: unknown) =>

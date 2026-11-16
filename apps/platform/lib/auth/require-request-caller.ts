@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/supabase-server";
 import { isAdminRole, type UserRole } from "@/lib/permissions";
-import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { resolveActiveTenant, SUPPORT_VIEW_READ_ONLY } from "@/lib/auth/resolve-active-tenant";
 import { billingLockRefusal } from "@/lib/billing/lock-refusal";
 
 export type RequestCaller =
     /** `role` is the caller's effective role in `tenantId` (see resolveActiveTenant). */
-    | { ok: true; userId: string; email?: string; tenantId: string; role: UserRole; platformAdmin: boolean }
+    | { ok: true; userId: string; email?: string; tenantId: string; role: UserRole; platformAdmin: boolean; readOnly: boolean }
     | { ok: false; response: NextResponse };
+
+const READ_METHODS = new Set(["GET", "HEAD"]);
 
 type Requirement = "member" | "tenant-admin" | "platform-admin";
 
@@ -45,6 +47,11 @@ export async function requireRequestCaller(
     const active = await resolveActiveTenant(user.id);
     if (!active.ok) return deny(active.status, active.error);
 
+    // A look-only support view reads and never writes, whatever the route.
+    if (active.readOnly && !READ_METHODS.has(request.method.toUpperCase())) {
+        return deny(403, SUPPORT_VIEW_READ_ONLY);
+    }
+
     if (requirement === "platform-admin" && !active.platformAdmin) {
         return deny(403, "This action requires a platform administrator.");
     }
@@ -58,5 +65,13 @@ export async function requireRequestCaller(
         if (refusal) return { ok: false, response: refusal };
     }
 
-    return { ok: true, userId: user.id, email: user.email, tenantId: active.tenantId, role: active.role, platformAdmin: active.platformAdmin };
+    return {
+        ok: true,
+        userId: user.id,
+        email: user.email,
+        tenantId: active.tenantId,
+        role: active.role,
+        platformAdmin: active.platformAdmin,
+        readOnly: active.readOnly,
+    };
 }

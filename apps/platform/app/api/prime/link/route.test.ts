@@ -66,7 +66,7 @@ const openRow = (fields: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
-    state.caller = { ok: true, userId: "owner-1", tenantId: TENANT, role: "admin", platformAdmin: false };
+    state.caller = { ok: true, userId: "owner-1", tenantId: TENANT, role: "admin", platformAdmin: false, readOnly: false };
     state.requirements = [];
     state.allowed = true;
     state.connected = false;

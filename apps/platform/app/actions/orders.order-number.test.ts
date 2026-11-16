@@ -59,7 +59,7 @@ function serviceClient(result: { data: unknown; error: unknown }) {
 
 function signedInAs(role: UserRole) {
     vi.mocked(verifyAccessToken).mockResolvedValue({ user: { id: "u1" }, error: null } as unknown as Awaited<ReturnType<typeof verifyAccessToken>>);
-    vi.mocked(resolveActiveTenant).mockResolvedValue({ ok: true, tenantId: TENANT, role, platformAdmin: false });
+    vi.mocked(resolveActiveTenant).mockResolvedValue({ ok: true, tenantId: TENANT, role, platformAdmin: false, readOnly: false });
 }
 
 beforeEach(() => {

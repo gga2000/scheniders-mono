@@ -41,7 +41,7 @@ vi.mock("@/lib/supabase-server", () => ({
 import { POST } from "./route";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
-const member: RequestCaller = { ok: true, userId: "u", email: "a@b.c", tenantId: TENANT, role: "admin", platformAdmin: false };
+const member: RequestCaller = { ok: true, userId: "u", email: "a@b.c", tenantId: TENANT, role: "admin", platformAdmin: false, readOnly: false };
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
 
 const request = (bytes: Uint8Array<ArrayBuffer>) =>
