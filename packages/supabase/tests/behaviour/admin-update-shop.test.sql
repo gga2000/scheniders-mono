@@ -307,6 +307,96 @@ BEGIN
     PERFORM pg_temp.check('authenticated: ran admin_update_shop', _n = 0);
 END $$;
 
+-- Extend a paid subscription (admin_extend_subscription) -----------------------
+-- Only an active shop gets paid days; its status is kept; anything else is
+-- refused and changes nothing.
+INSERT INTO tt_shops (name, status, sub) VALUES
+    ('extend: paying',      'active',    'active'),
+    ('extend: behind',      'active',    'past_due'),
+    ('extend: renewal off', 'active',    'cancelled'),
+    ('extend: paused',      'limited',   'active'),
+    ('extend: suspended',   'suspended', 'active'),
+    ('extend: cancelled',   'cancelled', 'cancelled'),
+    ('extend: trial',       'trial',     'trialing');
+INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, is_demo)
+SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at, s.is_demo FROM tt_shops s WHERE s.name LIKE 'extend:%';
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end)
+SELECT s.id, s.sub_plan, s.sub, now() - interval '5 days', now() + interval '25 days' FROM tt_shops s WHERE s.name LIKE 'extend:%';
+
+DO $$
+DECLARE
+    _admin constant uuid := 'aaaaaaaa-1111-4222-8333-444444444444';
+    _id uuid;
+    _res jsonb;
+    _end timestamptz;
+    _n integer;
+    _shop record;
+BEGIN
+    SET LOCAL ROLE service_role;
+
+    SELECT id INTO _id FROM tt_shops WHERE name = 'extend: paying';
+    SELECT current_period_end INTO _end FROM public.subscriptions WHERE tenant_id = _id;
+    _res := public.admin_extend_subscription(_id, 30, _admin, 'boss@example.com');
+    PERFORM pg_temp.check('extend: an active shop was refused: ' || _res::text, (_res ->> 'success')::boolean);
+    PERFORM pg_temp.check('extend: the period end did not move 30 days',
+        (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = _id) = _end + interval '30 days');
+    PERFORM pg_temp.check('extend: the shop or its subscription changed status',
+        (SELECT t.status = 'active' AND s.status = 'active' FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id WHERE t.id = _id));
+    SELECT count(*) INTO _n FROM public.admin_activity_logs l
+     WHERE l.tenant_id = _id AND l.action = 'extend_subscription' AND l.admin_user_id = _admin AND l.actor_email = 'boss@example.com'
+       AND (l.details ->> 'days')::int = 30 AND (l.details ->> 'previous_period_end')::timestamptz = _end;
+    PERFORM pg_temp.check('extend: wanted one log row with the days and the old end, got ' || _n, _n = 1);
+
+    SELECT id INTO _id FROM tt_shops WHERE name = 'extend: behind';
+    _res := public.admin_extend_subscription(_id, 7, _admin, 'boss@example.com');
+    PERFORM pg_temp.check('extend: a shop behind on payment is not paid through the new end',
+        (_res ->> 'success')::boolean AND (SELECT status FROM public.subscriptions WHERE tenant_id = _id) = 'active');
+
+    SELECT id INTO _id FROM tt_shops WHERE name = 'extend: renewal off';
+    _res := public.admin_extend_subscription(_id, 7, _admin, 'boss@example.com');
+    PERFORM pg_temp.check('extend: a cancelled renewal was switched back on',
+        (_res ->> 'success')::boolean AND (SELECT status FROM public.subscriptions WHERE tenant_id = _id) = 'cancelled');
+
+    FOR _shop IN
+        SELECT s.id, s.name, x.error
+          FROM tt_shops s
+          JOIN (VALUES ('extend: paused', 'paused'), ('extend: suspended', 'not_active'),
+                       ('extend: cancelled', 'not_active'), ('extend: trial', 'still_trial'),
+                       ('demo store', 'demo_store')) AS x(name, error) ON x.name = s.name
+    LOOP
+        SELECT current_period_end INTO _end FROM public.subscriptions WHERE tenant_id = _shop.id ORDER BY created_at DESC LIMIT 1;
+        _res := public.admin_extend_subscription(_shop.id, 30, _admin, 'boss@example.com');
+        PERFORM pg_temp.check(_shop.name || ': wanted ' || _shop.error || ', got ' || _res::text,
+            NOT (_res ->> 'success')::boolean AND _res ->> 'error' = _shop.error);
+        PERFORM pg_temp.check(_shop.name || ': a refusal moved the period end',
+            (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = _shop.id ORDER BY created_at DESC LIMIT 1) = _end);
+        PERFORM pg_temp.check(_shop.name || ': a refusal was logged',
+            NOT EXISTS (SELECT 1 FROM public.admin_activity_logs l WHERE l.tenant_id = _shop.id AND l.action = 'extend_subscription'));
+    END LOOP;
+
+    _res := public.admin_extend_subscription(gen_random_uuid(), 30, _admin, 'boss@example.com');
+    PERFORM pg_temp.check('extend: an unknown shop was not refused as not found: ' || _res::text, _res ->> 'error' = 'not_found');
+
+    BEGIN
+        PERFORM public.admin_extend_subscription(_id, 366, _admin, 'boss@example.com');
+        _n := 1;
+    EXCEPTION WHEN invalid_parameter_value THEN
+        _n := 0;
+    END;
+    PERFORM pg_temp.check('extend: 366 days did not raise', _n = 0);
+    RESET ROLE;
+
+    PERFORM set_config('test.role', 'authenticated', true);
+    BEGIN
+        PERFORM public.admin_extend_subscription(_id, 30, _admin, 'boss@example.com');
+        _n := 1;
+    EXCEPTION WHEN insufficient_privilege THEN
+        _n := 0;
+    END;
+    PERFORM set_config('test.role', '', true);
+    PERFORM pg_temp.check('extend: a merchant ran it', _n = 0);
+END $$;
+
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1
 -- (and with it run.sh) fails and names all of them at once.
 DO $$

@@ -4,7 +4,8 @@
 --
 -- Rules under test:
 --   staff credit what really arrived (which may differ from what the shop
---   typed), between 1,000 and 10,000,000 IQD, once per request;
+--   typed), between 1,000 and 10,000,000 IQD, once per request; more than
+--   the shop typed only with the super-admin flag;
 --   a refusal needs a reason of 3 to 300 characters, which the shop is told;
 --   every approval gets the next receipt number; older approvals were numbered
 --   in the order they were approved;
@@ -181,6 +182,12 @@ BEGIN
     IF res->>'error' IS DISTINCT FROM 'bad_amount' THEN RAISE EXCEPTION 'FAIL 10,000,001 accepted: %', res; END IF;
     res := public.decide_wallet_topup_request(req, true, NULL, 9000, NULL);
     IF res->>'error' IS DISTINCT FROM 'admin_required' THEN RAISE EXCEPTION 'FAIL no staff accepted: %', res; END IF;
+    -- More than the shop said it sent (10,000) is a plain top-up: only with
+    -- the flag the console sets for super admins.
+    res := public.decide_wallet_topup_request(req, true, staff, 10001, NULL);
+    IF res->>'error' IS DISTINCT FROM 'over_asked' THEN RAISE EXCEPTION 'FAIL over the shop''s figure accepted: %', res; END IF;
+    res := public.decide_wallet_topup_request(req, true, staff, 10000000, NULL, false);
+    IF res->>'error' IS DISTINCT FROM 'over_asked' THEN RAISE EXCEPTION 'FAIL 10,000,000 accepted from support: %', res; END IF;
     IF (SELECT balance_iqd FROM public.wallet WHERE tenant_id = '30000000-0000-4000-8000-00000000000a') <> 0
        OR (SELECT decided_at FROM public.wallet_topup_requests WHERE id = req) IS NOT NULL THEN
         RAISE EXCEPTION 'FAIL a refused approval changed something';
@@ -354,8 +361,8 @@ RESET ROLE;
 -- 8. Grants: the staff functions are the service role's only.
 DO $t$
 BEGIN
-    IF has_function_privilege('authenticated', 'public.decide_wallet_topup_request(uuid, boolean, uuid, integer, text)', 'EXECUTE')
-       OR has_function_privilege('anon', 'public.decide_wallet_topup_request(uuid, boolean, uuid, integer, text)', 'EXECUTE')
+    IF has_function_privilege('authenticated', 'public.decide_wallet_topup_request(uuid, boolean, uuid, integer, text, boolean)', 'EXECUTE')
+       OR has_function_privilege('anon', 'public.decide_wallet_topup_request(uuid, boolean, uuid, integer, text, boolean)', 'EXECUTE')
        OR has_function_privilege('authenticated', 'public.admin_topup_queue()', 'EXECUTE')
        OR NOT has_function_privilege('service_role', 'public.admin_topup_queue()', 'EXECUTE') THEN
         RAISE EXCEPTION 'FAIL staff function grants';

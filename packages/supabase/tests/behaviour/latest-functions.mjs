@@ -7,6 +7,9 @@
 // Migrations apply in file-name order (timestamp prefix); the last
 // CREATE [OR REPLACE] FUNCTION public.<name>( wins. A name that no migration
 // defines is an error, so a rename cannot silently leave a test empty.
+// It comes out as CREATE OR REPLACE: a migration that changed the arguments
+// drops the old signature and uses plain CREATE, and a suite that loads that
+// migration whole (for its grants) already holds the function.
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,6 +47,7 @@ export function latestDefinition(name, dir = MIGRATIONS) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     for (const name of process.argv.slice(2)) {
         const { file, sql } = latestDefinition(name);
-        process.stdout.write(`-- public.${name} from ${file}\n${sql}\n\n`);
+        const replacing = sql.replace(/^CREATE\s+FUNCTION/i, "CREATE OR REPLACE FUNCTION");
+        process.stdout.write(`-- public.${name} from ${file}\n${replacing}\n\n`);
     }
 }
