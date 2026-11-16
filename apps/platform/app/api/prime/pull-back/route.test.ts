@@ -7,13 +7,12 @@ vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServerClientWithToken: vi.fn(() => ({ rpc })),
 }));
 vi.mock("@/lib/auth/require-request-caller", () => ({ requireRequestCaller: vi.fn() }));
-vi.mock("@/lib/prime/client", () => ({ getPrimeClient: vi.fn() }));
-vi.mock("@/lib/prime/connection", () => ({ loadPrimeMerchant: vi.fn() }));
+vi.mock("@/lib/prime/connection", () => ({ loadPrimeLink: vi.fn() }));
 vi.mock("@/lib/prime/pull-back", () => ({ pullBackPrimeShipment: vi.fn() }));
 
 import { POST } from "./route";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { getPrimeClient } from "@/lib/prime/client";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { pullBackPrimeShipment } from "@/lib/prime/pull-back";
 
 const TENANT = "22222222-2222-4222-8222-222222222222";
@@ -40,7 +39,7 @@ describe("POST /api/prime/pull-back", () => {
         const res = await POST(request());
         expect(res.status).toBe(403);
         expect(rpc).toHaveBeenCalledWith("has_tenant_permission", { p_tenant_id: TENANT, p_permission: "orders.edit" });
-        expect(getPrimeClient).not.toHaveBeenCalled();
+        expect(loadPrimeLink).not.toHaveBeenCalled();
         expect(pullBackPrimeShipment).not.toHaveBeenCalled();
     });
 });

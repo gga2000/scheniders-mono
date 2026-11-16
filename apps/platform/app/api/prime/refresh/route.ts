@@ -3,8 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { getPrimeClient } from "@/lib/prime/client";
-import { loadPrimeConnection } from "@/lib/prime/connection";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { syncPrimeTenant } from "@/lib/prime/sync";
 import { withFailureReport } from "@/lib/job-monitor";
 
@@ -33,10 +32,10 @@ async function handlePOST(request: NextRequest) {
         );
     }
 
-    const client = getPrimeClient();
     const db = createSupabaseServiceClient();
-    const connection = client ? await loadPrimeConnection(db, caller.tenantId) : null;
-    if (!client || !connection) return NextResponse.json({ success: true, connected: false });
+    const link = await loadPrimeLink(db, caller.tenantId);
+    if (!link) return NextResponse.json({ success: true, connected: false });
+    const { client } = link;
 
     // Step names only label the stored step; a failed read must not stop the status read.
     let stepNames = new Map<string, string>();

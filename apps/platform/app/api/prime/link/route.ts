@@ -4,7 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getPrimeClient } from "@/lib/prime/client";
-import { loadPrimeConnection } from "@/lib/prime/connection";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { normalizeIraqiPhone } from "@/lib/order-utils";
 import { withFailureReport } from "@/lib/job-monitor";
 import { checkPrimeLinkRequest, linkPrimeRequest, type PrimeShopChoice } from "@/lib/prime/self-link";
@@ -59,7 +59,7 @@ async function openRequest(db: ServiceDb, tenantId: string): Promise<OpenRequest
 }
 
 async function stateOf(db: ServiceDb, tenantId: string): Promise<LinkState> {
-    if (await loadPrimeConnection(db, tenantId)) return { success: true, connected: true, request: null };
+    if (await loadPrimeLink(db, tenantId)) return { success: true, connected: true, request: null };
     const open = await openRequest(db, tenantId);
     if (!open) return { success: true, connected: false, request: null };
     // The shops of an account are shown only while the store is choosing one of its own.
@@ -127,7 +127,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const db = createSupabaseServiceClient();
-    if (await loadPrimeConnection(db, caller.tenantId)) return NextResponse.json(await stateOf(db, caller.tenantId));
+    if (await loadPrimeLink(db, caller.tenantId)) return NextResponse.json(await stateOf(db, caller.tenantId));
     let open = await openRequest(db, caller.tenantId);
 
     if ("shopId" in body) {

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { getPrimeClient, isPrimeUnreachable, PrimeApiError } from "@/lib/prime/client";
-import { loadPrimeConnection } from "@/lib/prime/connection";
+import { isPrimeUnreachable, PrimeApiError } from "@/lib/prime/client";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { acceptPrimePrice, approvePrimePayment, loadPrimeApprovals, loadPrimePayment, loadPrimePaymentChecks } from "@/lib/prime/payment-check";
 import { primeStatementEntry, PRIME_STATEMENTS_PAGE } from "@/lib/prime/statement-load";
 import { withFailureReport } from "@/lib/job-monitor";
@@ -24,10 +24,9 @@ function primeFailure(err: unknown) {
 }
 
 async function primeLink(tenantId: string) {
-    const client = getPrimeClient();
     const db = createSupabaseServiceClient();
-    const connection = client ? await loadPrimeConnection(db, tenantId) : null;
-    return client && connection ? { client, db, connection } : null;
+    const link = await loadPrimeLink(db, tenantId);
+    return link ? { ...link, db } : null;
 }
 
 /**

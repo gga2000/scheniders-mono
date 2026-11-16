@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { primeConfigFromEnv } from "@/lib/prime/client";
-import { loadPrimeConnection } from "@/lib/prime/connection";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { withFailureReport } from "@/lib/job-monitor";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +15,8 @@ async function handleGET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
-    if (!primeConfigFromEnv()) return NextResponse.json({ success: true, connected: false, branchName: null });
-    const connection = await loadPrimeConnection(createSupabaseServiceClient(), caller.tenantId);
-    return NextResponse.json({ success: true, connected: connection !== null, branchName: connection?.branchName ?? null });
+    const link = await loadPrimeLink(createSupabaseServiceClient(), caller.tenantId);
+    return NextResponse.json({ success: true, connected: link !== null, branchName: link?.connection.branchName ?? null });
 }
 
 export const GET = withFailureReport("api/prime/connection GET", handleGET);

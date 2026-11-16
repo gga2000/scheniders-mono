@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { getPrimeClient } from "@/lib/prime/client";
-import { loadPrimeConnection } from "@/lib/prime/connection";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { loadPrimeJourney } from "@/lib/prime/journey";
 import { withFailureReport } from "@/lib/job-monitor";
 
@@ -23,10 +22,10 @@ async function handleGET(request: NextRequest) {
     const parsed = querySchema.safeParse({ orderId: request.nextUrl.searchParams.get("orderId") });
     if (!parsed.success) return NextResponse.json({ success: false, error: "Invalid order id" }, { status: 400 });
 
-    const client = getPrimeClient();
     const db = createSupabaseServiceClient();
-    const connection = client ? await loadPrimeConnection(db, caller.tenantId) : null;
-    if (!client || !connection) return NextResponse.json({ success: true, ok: false, reason: "not_connected" });
+    const link = await loadPrimeLink(db, caller.tenantId);
+    if (!link) return NextResponse.json({ success: true, ok: false, reason: "not_connected" });
+    const { client } = link;
 
     const journey = await loadPrimeJourney(db, client, caller.tenantId, parsed.data.orderId);
     return NextResponse.json({ success: true, ...journey });

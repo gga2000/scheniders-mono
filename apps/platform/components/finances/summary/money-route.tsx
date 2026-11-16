@@ -114,7 +114,8 @@ export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
                             </p>
                         )}
                     </Stop>
-                    {primeLinked && (
+                    {/* Shown with a Prime link, and whenever Prime holds the shop's money (the demo store has no link row). */}
+                    {(primeLinked || held.parcels > 0) && (
                         <Stop
                             icon={HandCoins}
                             label={t("fin.money.prime")}
