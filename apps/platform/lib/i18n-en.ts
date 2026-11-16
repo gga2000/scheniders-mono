@@ -1475,6 +1475,8 @@ export const en: Record<string, string> = {
     "orders.payment.checkedTip": "Payment checked",
     "orders.filter.paymentUnchecked": "Money not confirmed yet",
     "orders.filter.paymentUncheckedTip": "Delivered or completed in the last {days} days, and nobody has confirmed the courier paid us yet",
+    "orders.filter.lockTime": "Came in while locked",
+    "orders.filter.lockTimeTip": "Orders your store took while the shop was locked, in the last {days} days",
     "orders.filter.risk": "Risky customers",
     "orders.filter.riskTip": "Orders from risky customers in the days you picked",
     "orders.gift.label": "Gift",

@@ -5,12 +5,14 @@ import { Lock, PackageCheck } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { BillingLock } from "@/hooks/use-billing-lock";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
 
 /**
  * What a billing-locked shop sees on a page it cannot use (handoff A1). The
- * sidebar stays, so orders, shipping and paying are one click away; nothing
- * the shop owns is hidden or deleted.
+ * sidebar stays, so orders, shipping and paying are one click away, and the
+ * support chat opens with the lock attached; nothing the shop owns is hidden
+ * or deleted.
  */
 export function BillingLockScreen({ lock }: { lock: BillingLock }) {
     const { t } = useLanguage();
@@ -35,6 +37,11 @@ export function BillingLockScreen({ lock }: { lock: BillingLock }) {
                     <PackageCheck className="h-4 w-4" />
                     {t("billing.lock.goToOrders")}
                 </Link>
+                <ContactSupportButton
+                    className="mt-3 w-full justify-center rounded-xl py-3"
+                    errorCode={lock.reason === "unpaid" ? "billing.lock.titleUnpaid" : "billing.lock.titleTrial"}
+                    errorMessage={`${title} ${body}`}
+                />
                 <p className="mt-4 text-xs text-muted-foreground">{t("billing.lock.stillOpen")}</p>
             </div>
         </div>

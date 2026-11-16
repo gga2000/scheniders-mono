@@ -78,6 +78,8 @@ interface FilterUISlice {
   filterScheduledLater: boolean;
   /** Show only delivered/completed orders of the last 30 days whose payment is not checked (lib/orders/payment-check.ts). */
   filterPaymentUnchecked: boolean;
+  /** Show only orders that came in while the shop was billing-locked (lib/billing/lock-orders.ts). */
+  filterLockTime: boolean;
   /** In transit: show only Prime parcels in this bucket, or stuck 3+ days (lib/prime/track.ts). */
   filterPrimeBucket: PrimeRowFilter | null;
   /** In transit: show only orders that arrived today instead of every in-transit order. Not persisted. */
@@ -104,6 +106,7 @@ interface FilterUISlice {
   setFilterStuckTransit: (val: boolean) => void;
   setFilterScheduledLater: (val: boolean) => void;
   setFilterPaymentUnchecked: (val: boolean) => void;
+  setFilterLockTime: (val: boolean) => void;
   setFilterPrimeBucket: (val: PrimeRowFilter | null) => void;
   setInTransitTodayOnly: (val: boolean) => void;
   setPrimeQueue: (val: PrimeQueueId | null) => void;
@@ -270,6 +273,7 @@ export const useOrderStore = create<OrderStore>()(
       filterStuckTransit: false,
       filterScheduledLater: false,
       filterPaymentUnchecked: false,
+      filterLockTime: false,
       filterPrimeBucket: null,
       inTransitTodayOnly: false,
       primeQueue: null,
@@ -292,6 +296,7 @@ export const useOrderStore = create<OrderStore>()(
       setFilterStuckTransit: (val) => set({ filterStuckTransit: val }),
       setFilterScheduledLater: (val) => set({ filterScheduledLater: val }),
       setFilterPaymentUnchecked: (val) => set({ filterPaymentUnchecked: val }),
+      setFilterLockTime: (val) => set({ filterLockTime: val }),
       setFilterPrimeBucket: (val) => set({ filterPrimeBucket: val }),
       setInTransitTodayOnly: (val) => set({ inTransitTodayOnly: val }),
       setPrimeQueue: (val) => set({ primeQueue: val }),
