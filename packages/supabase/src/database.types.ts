@@ -8141,6 +8141,7 @@ export type Database = {
           address: string | null
           branding: Json
           business_name: string
+          business_types: string[]
           city: string | null
           config_version: number
           contact_email: string | null
@@ -8169,6 +8170,7 @@ export type Database = {
           address?: string | null
           branding?: Json
           business_name: string
+          business_types?: string[]
           city?: string | null
           config_version?: number
           contact_email?: string | null
@@ -8197,6 +8199,7 @@ export type Database = {
           address?: string | null
           branding?: Json
           business_name?: string
+          business_types?: string[]
           city?: string | null
           config_version?: number
           contact_email?: string | null

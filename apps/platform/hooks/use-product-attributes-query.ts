@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { parseProductAttributeDefs, type ProductAttributeDef } from "@scheniders/shared";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
+import type { PackAttribute } from "@/lib/store-templates/content-packs";
 
 export const attributeKeys = {
     all: ["product-attributes"] as const,
@@ -160,6 +161,34 @@ export function useDeleteAttributeDefMutation() {
             if (error) throw error;
             // RLS filters a denied delete to zero rows, not an error.
             if (!data || data.length === 0) throw new Error("Attribute was not deleted: no permission or already gone");
+        },
+        onSuccess: invalidate,
+    });
+}
+
+/**
+ * Add a ready set (B10 category template). Only keys the store does not have
+ * yet are written — the table is unique on (tenant, key) and a row the
+ * merchant already shaped is never overwritten — placed after the store's
+ * own rows. Resolves to how many were added.
+ */
+export function useAddAttributeTemplateMutation() {
+    const { tenantId } = useAuth();
+    const invalidate = useInvalidateAttributes();
+    return useMutation({
+        mutationFn: async ({ attributes, after }: { attributes: PackAttribute[]; after: number }): Promise<number> => {
+            if (!tenantId) throw new Error("No tenant in session");
+            const rows = attributes.map((attribute, i) => ({
+                ...attribute,
+                display_order: after + i + 1,
+                tenant_id: tenantId,
+            }));
+            const { data, error } = await supabase
+                .from("product_attribute_defs")
+                .upsert(rows, { onConflict: "tenant_id,key", ignoreDuplicates: true })
+                .select("id");
+            if (error) throw error;
+            return data?.length ?? 0;
         },
         onSuccess: invalidate,
     });

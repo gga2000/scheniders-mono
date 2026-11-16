@@ -14,22 +14,60 @@ import {
     Building2,
     Phone,
     MapPin,
+    Shirt,
+    SprayCan,
+    Sparkles,
+    Smartphone,
+    Sofa,
+    Car,
+    Baby,
+    BookOpen,
+    Watch,
+    UtensilsCrossed,
+    Package,
+    type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { resolveI18n } from "@scheniders/shared";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { BUSINESS_TYPES, isBusinessTypeId, type BusinessTypeId } from "@/lib/business-types";
 import { supabase } from "@/lib/supabase";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 
+const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
+    Shirt,
+    SprayCan,
+    Sparkles,
+    Smartphone,
+    Sofa,
+    Car,
+    Baby,
+    BookOpen,
+    Watch,
+    UtensilsCrossed,
+    Package,
+};
+
+/** `?sells=clothing,perfume` from a marketing page ticks those answers first. */
+function sellsFromLink(raw: string | null): BusinessTypeId[] {
+    const ids = (raw ?? "").split(",").map((id) => id.trim());
+    return [...new Set(ids.filter(isBusinessTypeId))];
+}
+
 function SignupForm() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
+    const searchParams = useSearchParams();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [businessName, setBusinessName] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [city, setCity] = useState("");
+    // «شنو تبيع؟», in the order ticked: the first picks the store's content pack.
+    const [sells, setSells] = useState<BusinessTypeId[]>(() => sellsFromLink(searchParams.get("sells")));
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -65,7 +103,11 @@ function SignupForm() {
         else setError(t("signup.confirmSendFailed"));
     };
 
+    const toggleSells = (id: BusinessTypeId) =>
+        setSells((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
     const isFormValid =
+        sells.length > 0 &&
         email.length > 0 &&
         password.length >= 8 &&
         businessName.trim().length > 0;
@@ -84,6 +126,7 @@ function SignupForm() {
                     email: email.trim(),
                     password,
                     business_name: businessName.trim(),
+                    business_types: sells,
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
                     captcha_token: captcha.token,
@@ -197,6 +240,35 @@ function SignupForm() {
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {/* What do you sell (B10) */}
+                    <motion.fieldset initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+                        <legend className="block text-[13px] font-medium text-[#1E1E1E]">{t("signup.sells")}</legend>
+                        <p dir={dir} className="mt-1 mb-2.5 text-left text-xs text-[#8A847A]">{t("signup.sellsHint")}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {BUSINESS_TYPES.map((type) => {
+                                const Icon = BUSINESS_TYPE_ICONS[type.icon] ?? Package;
+                                const picked = sells.includes(type.id);
+                                return (
+                                    <button
+                                        key={type.id}
+                                        type="button"
+                                        aria-pressed={picked}
+                                        data-testid={`signup-sells-${type.id}`}
+                                        onClick={() => toggleSells(type.id)}
+                                        className={`flex min-h-11 items-center gap-2 rounded-2xl border px-3 py-2 text-left text-[13px] font-medium transition-colors ${
+                                            picked
+                                                ? "border-[#1E1E1E] bg-[#1E1E1E] text-white"
+                                                : "border-[#ECE8DD] bg-[#FAF8F3] text-[#1E1E1E] hover:border-[#1E1E1E]"
+                                        }`}
+                                    >
+                                        <Icon className={`h-4 w-4 flex-shrink-0 ${picked ? "text-[#EFFF00]" : "text-[#A8A196]"}`} />
+                                        <span dir={dir}>{resolveI18n(type.label_i18n, language)}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </motion.fieldset>
 
                     {/* Business Name */}
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}>

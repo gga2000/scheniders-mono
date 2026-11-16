@@ -34,7 +34,10 @@ import {
     AlertTriangle,
     Info,
 } from "lucide-react";
+import { resolveI18n } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { useBusinessTypes } from "@/hooks/use-tenant";
+import { variantPresetsFor, type VariantPreset } from "@/lib/business-types";
 import type { VariantOptionType, OptionValueMetadata } from "@/types/product";
 
 // ---------------------------------------------------------------------------
@@ -87,6 +90,17 @@ function computeCombinations(options: ProductOptionFormData[]): number {
 
 function generateStableId(prefix: string, index: number): string {
     return `${prefix}-${index}`;
+}
+
+/** A preset as the option group it adds, in the merchant's language. */
+export function presetToOption(preset: VariantPreset, locale: "ar" | "en"): ProductOptionFormData {
+    const values = preset.values.map((v) => resolveI18n(v.label_i18n, locale));
+    return {
+        name: resolveI18n(preset.name_i18n, locale),
+        values,
+        option_type: preset.option_type,
+        values_metadata: preset.values.map((v, i) => ({ label: values[i], ...(v.hex ? { hex: v.hex } : {}) })),
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -544,8 +558,25 @@ export function VariantOptionsBuilder({
     onChange,
     disabled,
 }: VariantOptionsBuilderProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [valueInputs, setValueInputs] = useState<Record<number, string>>({});
+    // Sizes and colours ready for what the store sells (B10): a clothing shop
+    // gets S–XXL, shoe sizes and colours; a perfume shop gets 30/50/100 ml.
+    const businessTypes = useBusinessTypes();
+    const presets = useMemo(() => {
+        // One group per name: a product has one «اللون», so a second colour
+        // set (gold/silver beside black/white) waits until the first is gone.
+        const taken = new Set(options.map((o) => o.name.trim().toLowerCase()));
+        const offered: ProductOptionFormData[] = [];
+        for (const preset of variantPresetsFor(businessTypes)) {
+            const option = presetToOption(preset, language);
+            const name = option.name.toLowerCase();
+            if (taken.has(name)) continue;
+            taken.add(name);
+            offered.push(option);
+        }
+        return offered;
+    }, [businessTypes, language, options]);
 
     const dndId = useId();
 
@@ -567,6 +598,14 @@ export function VariantOptionsBuilder({
     const atMaxGroups = options.length >= MAX_OPTION_GROUPS;
 
     // --- Group-level handlers ---
+
+    const addPreset = useCallback(
+        (preset: ProductOptionFormData) => {
+            if (atMaxGroups) return;
+            onChange([...options, preset]);
+        },
+        [options, onChange, atMaxGroups]
+    );
 
     const addOption = useCallback(() => {
         if (atMaxGroups) return;
@@ -760,6 +799,31 @@ export function VariantOptionsBuilder({
                     </div>
                 )}
             </div>
+
+            {/* Ready sizes and colours for what the store sells */}
+            {!disabled && !atMaxGroups && presets.length > 0 && (
+                <div data-testid="variant-presets" className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-muted" title={t("products.variants.presetHint")}>
+                        {t("products.variants.presets")}
+                    </span>
+                    {presets.map((preset) => (
+                        <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => addPreset(preset)}
+                            title={preset.values.join("، ")}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2.5 py-1 text-sm text-foreground transition-colors hover:border-foreground"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span dir="auto">{preset.name}</span>
+                            <span dir="auto" className="text-xs text-muted">
+                                {preset.values.slice(0, 3).join(" · ")}
+                                {preset.values.length > 3 ? " …" : ""}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* Combination warning */}
             {showCombinationWarning && (

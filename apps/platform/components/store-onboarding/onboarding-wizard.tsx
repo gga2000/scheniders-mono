@@ -54,12 +54,15 @@ import type { StoreTemplate } from "@/lib/store-templates";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { authedFetch } from "@/lib/authed-fetch";
+import { attributeTemplatesFor, industryIdFor, mergeAttributeSets, packIdFor } from "@/lib/business-types";
 
 interface OnboardingWizardProps {
     tenantId: string;
     defaultBusinessName: string;
     defaultWhatsapp?: string;
     industries: WizardIndustry[];
+    /** What the store sells, ticked at signup (B10); empty for older stores. */
+    businessTypes: string[];
 }
 
 /** Curated brand-colour presets — covers the common storefront palettes. */
@@ -96,13 +99,17 @@ export function OnboardingWizard({
     defaultBusinessName,
     defaultWhatsapp,
     industries,
+    businessTypes,
 }: OnboardingWizardProps) {
     const router = useRouter();
     const { t, language } = useLanguage();
     const isAr = language === "ar";
 
     const [step, setStep] = useState<Step>(0);
-    const [vertical, setVertical] = useState<string | null>(null);
+    // The trade picked at signup is already ticked here; keeping it keeps the
+    // pack that fits it exactly (perfume, not the wider beauty row).
+    const signupIndustryId = industryIdFor(businessTypes, industries);
+    const [vertical, setVertical] = useState<string | null>(signupIndustryId);
     // Tracks the recommended template from the chosen industry (shown as badge).
     const [recommendedId, setRecommendedId] = useState<string | null>(null);
     const [templateId, setTemplateId] = useState<string>(
@@ -146,8 +153,15 @@ export function OnboardingWizard({
             : undefined;
         // Niche → content pack: the words, the starter categories and the
         // attributes; the template is only the look.
-        const pack = resolveContentPack(industryName);
+        const signupPackId = vertical && vertical === signupIndustryId ? packIdFor(businessTypes) : undefined;
+        const pack = resolveContentPack(signupPackId ?? industryName);
         const taxonomy = starterTaxonomy(pack.id);
+        // The pack's attributes, then the ready sets for what the store sells
+        // (a key both name is written once).
+        const attributeDefs = mergeAttributeSets(
+            taxonomy.attribute_defs,
+            ...attributeTemplatesFor(businessTypes).map((template) => template.attributes),
+        );
         const config = buildStarterStoreConfigV2({
             templateId,
             packId: pack.id,
@@ -166,7 +180,7 @@ export function OnboardingWizard({
                     tenant_id: tenantId,
                     config,
                     categories: taxonomy.categories,
-                    attribute_defs: taxonomy.attribute_defs,
+                    attribute_defs: attributeDefs,
                 }),
             });
             if (!res.ok) {

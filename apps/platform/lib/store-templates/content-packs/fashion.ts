@@ -364,120 +364,10 @@ export const fashionPack: ContentPack = {
             },
         },
     ],
+    // Size and colour are what the shopper picks, so they live on the product
+    // as sizes and colours (variants, each with its own stock), never as
+    // filters here: the product form offers them as ready presets (B10).
     attributes: [
-        {
-            key: "size",
-            name_i18n: {
-                ar: "المقاس",
-                en: "Size",
-            },
-            kind: "enum",
-            display_order: 1,
-            options: [
-                {
-                    value: "xs",
-                    label_i18n: {
-                        ar: "XS",
-                        en: "XS",
-                    },
-                },
-                {
-                    value: "s",
-                    label_i18n: {
-                        ar: "S",
-                        en: "S",
-                    },
-                },
-                {
-                    value: "m",
-                    label_i18n: {
-                        ar: "M",
-                        en: "M",
-                    },
-                },
-                {
-                    value: "l",
-                    label_i18n: {
-                        ar: "L",
-                        en: "L",
-                    },
-                },
-                {
-                    value: "xl",
-                    label_i18n: {
-                        ar: "XL",
-                        en: "XL",
-                    },
-                },
-                {
-                    value: "xxl",
-                    label_i18n: {
-                        ar: "2XL",
-                        en: "2XL",
-                    },
-                },
-            ],
-        },
-        {
-            key: "color",
-            name_i18n: {
-                ar: "اللون",
-                en: "Colour",
-            },
-            kind: "enum",
-            display_order: 2,
-            options: [
-                {
-                    value: "black",
-                    label_i18n: {
-                        ar: "أسود",
-                        en: "Black",
-                    },
-                },
-                {
-                    value: "white",
-                    label_i18n: {
-                        ar: "أبيض",
-                        en: "White",
-                    },
-                },
-                {
-                    value: "beige",
-                    label_i18n: {
-                        ar: "بيج",
-                        en: "Beige",
-                    },
-                },
-                {
-                    value: "blue",
-                    label_i18n: {
-                        ar: "أزرق",
-                        en: "Blue",
-                    },
-                },
-                {
-                    value: "brown",
-                    label_i18n: {
-                        ar: "بني",
-                        en: "Brown",
-                    },
-                },
-                {
-                    value: "green",
-                    label_i18n: {
-                        ar: "أخضر",
-                        en: "Green",
-                    },
-                },
-                {
-                    value: "red",
-                    label_i18n: {
-                        ar: "أحمر",
-                        en: "Red",
-                    },
-                },
-            ],
-        },
         {
             key: "material",
             name_i18n: {
@@ -485,7 +375,7 @@ export const fashionPack: ContentPack = {
                 en: "Material",
             },
             kind: "enum",
-            display_order: 3,
+            display_order: 1,
             options: [
                 {
                     value: "cotton",
@@ -531,7 +421,7 @@ export const fashionPack: ContentPack = {
                 en: "Fit",
             },
             kind: "enum",
-            display_order: 4,
+            display_order: 2,
             options: [
                 {
                     value: "slim",
@@ -563,7 +453,7 @@ export const fashionPack: ContentPack = {
                 en: "Season",
             },
             kind: "enum",
-            display_order: 5,
+            display_order: 3,
             options: [
                 {
                     value: "summer",
