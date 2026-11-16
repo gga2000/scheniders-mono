@@ -53,18 +53,12 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {growth.map((metric, i) => {
+          {growth.map((metric) => {
             const isPositive = metric.delta >= 0;
-            const gradients = [
-              "bg-gradient-to-br from-blue-50/80 to-blue-100/40 dark:from-blue-950/20 dark:to-blue-900/10",
-              "bg-gradient-to-br from-green-50/80 to-green-100/40 dark:from-green-950/20 dark:to-green-900/10",
-              "bg-gradient-to-br from-purple-50/80 to-purple-100/40 dark:from-purple-950/20 dark:to-purple-900/10",
-              "bg-gradient-to-br from-amber-50/80 to-amber-100/40 dark:from-amber-950/20 dark:to-amber-900/10",
-            ];
             return (
               <div
                 key={metric.label}
-                className={`rounded-2xl border border-[var(--card-border)] p-4 ${gradients[i] || gradients[0]}`}
+                className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4"
               >
                 <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                   {metric.label}

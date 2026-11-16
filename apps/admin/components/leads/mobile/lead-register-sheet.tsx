@@ -150,8 +150,8 @@ export function LeadRegisterSheet({
         onClick={() => submit(false)}
         disabled={submitting}
         className={cn(
-          "flex flex-1 items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-sm",
-          "bg-gradient-to-r from-[#FF8899] to-[#A78BFA] hover:brightness-105",
+          "flex flex-1 items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm",
+          "bg-foreground text-background hover:opacity-90",
           submitting && "opacity-70 cursor-not-allowed",
         )}
       >
@@ -208,8 +208,8 @@ export function LeadRegisterSheet({
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || !analyzeHandle.trim()}
                 className={cn(
-                  "flex items-center gap-2 px-4 h-11 rounded-xl text-sm font-bold transition-all whitespace-nowrap text-white",
-                  "bg-gradient-to-r from-[#FF8899] to-[#A78BFA] hover:brightness-105",
+                  "flex items-center gap-2 px-4 h-11 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                  "bg-foreground text-background hover:opacity-90",
                   (isAnalyzing || !analyzeHandle.trim()) && "opacity-50 cursor-not-allowed",
                 )}
               >

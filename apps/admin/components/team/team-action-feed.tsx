@@ -116,7 +116,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
                       className="w-7 h-7 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                    <div className="w-7 h-7 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold">
                       {userInitial}
                     </div>
                   )

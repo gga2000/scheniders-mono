@@ -21,11 +21,7 @@ const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 const podiumOrder = [1, 0, 2] as const;
 const podiumHeights = ["h-28", "h-36", "h-24"] as const;
-const podiumColors = [
-  "from-gray-300 to-gray-400",
-  "from-yellow-300 to-amber-400",
-  "from-orange-300 to-orange-400",
-] as const;
+const podiumColors = ["bg-zinc-400", "bg-amber-500", "bg-orange-400"] as const;
 const podiumLabels = ["2nd", "1st", "3rd"] as const;
 const podiumRingColors = [
   "ring-gray-300",
@@ -124,7 +120,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                   {/* Podium bar */}
                   <div
                     className={cn(
-                      "w-20 md:w-24 rounded-t-xl mt-3 flex items-start justify-center pt-2 bg-gradient-to-b",
+                      "w-20 md:w-24 rounded-t-xl mt-3 flex items-start justify-center pt-2",
                       podiumHeights[visualIdx],
                       podiumColors[visualIdx]
                     )}
@@ -244,7 +240,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                               className="w-8 h-8 rounded-lg object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold shrink-0">
                               {initial}
                             </div>
                           )}

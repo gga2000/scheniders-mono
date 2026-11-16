@@ -46,7 +46,7 @@ export function QuickNoteSheet({ leadId, leadName, onClose }: QuickNoteSheetProp
       type="button"
       onClick={save}
       disabled={!text.trim() || createActivity.isPending}
-      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] py-3.5 font-bold text-white disabled:opacity-50"
+      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground py-3.5 font-bold text-background disabled:opacity-50"
     >
       {createActivity.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
       Add {TYPES.find((t) => t.type === type)?.label}

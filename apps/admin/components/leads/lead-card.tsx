@@ -28,6 +28,25 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+/**
+ * Board v6: no gradients, glows or sparkles. A lead's tier shows in the card's
+ * border and its score bar, one flat colour each.
+ */
+const TIER_BORDER: Record<Lead["tier"], string> = {
+  bronze: "border-[var(--card-border)]",
+  silver: "border-zinc-400 dark:border-zinc-500",
+  gold: "border-amber-500",
+  diamond: "border-teal-600 dark:border-teal-400",
+  legendary: "border-2 border-[#E4B5D1]",
+};
+const TIER_BAR: Record<Lead["tier"], string> = {
+  bronze: "bg-zinc-400",
+  silver: "bg-zinc-500",
+  gold: "bg-amber-500",
+  diamond: "bg-teal-600",
+  legendary: "bg-[#D48FB8]",
+};
+
 const TIER_ICONS = { bronze: Circle, silver: Award, gold: Star, diamond: Diamond, legendary: Crown };
 
 interface LeadCardProps {
@@ -82,7 +101,6 @@ export function LeadCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      whileHover={tier === "legendary" ? { y: -4 } : tier === "diamond" ? { y: -2 } : {}}
       onClick={onClick}
       className={cn(
         "lead-card relative rounded-2xl p-5 cursor-pointer transition-all duration-300 overflow-hidden group",
@@ -94,65 +112,8 @@ export function LeadCard({
           "outline-2 outline-dashed outline-amber-400/70 -outline-offset-2"
       )}
     >
-      {/* ── Tier Visual Layers ───────────────────────────── */}
-
-      {/* Bronze: simple flat bg */}
-      {tier === "bronze" && (
-        <div className="absolute inset-0 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl" />
-      )}
-
-      {/* Silver: gradient border shimmer */}
-      {tier === "silver" && (
-        <>
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-zinc-200 via-zinc-300 to-zinc-200 dark:from-zinc-600 dark:via-zinc-500 dark:to-zinc-600 p-[1px]">
-            <div className="absolute inset-[1px] bg-[var(--card-bg)] rounded-[15px]" />
-          </div>
-          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[linear-gradient(110deg,transparent_25%,rgba(192,192,192,0.12)_50%,transparent_75%)] bg-[length:250%_100%] group-hover:animate-shimmer" />
-        </>
-      )}
-
-      {/* Gold: warm gradient border + glow */}
-      {tier === "gold" && (
-        <>
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-300 dark:from-amber-500 dark:via-yellow-500 dark:to-amber-500 p-[1.5px]">
-            <div className="absolute inset-[1.5px] bg-[var(--card-bg)] rounded-[14.5px]" />
-          </div>
-          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 shadow-[0_0_30px_rgba(255,215,0,0.15)]" />
-          <div className="absolute inset-0 rounded-2xl opacity-30 group-hover:opacity-60 transition-opacity duration-700 bg-[linear-gradient(110deg,transparent_20%,rgba(255,215,0,0.08)_45%,rgba(255,215,0,0.15)_55%,transparent_80%)] bg-[length:300%_100%] animate-shimmer" />
-          {/* Gold star particles */}
-          <div className="absolute top-3 right-3 w-1.5 h-1.5 bg-amber-400/40 rounded-full group-hover:animate-pulse" />
-          <div className="absolute top-6 right-8 w-1 h-1 bg-yellow-400/30 rounded-full group-hover:animate-pulse delay-300" />
-        </>
-      )}
-
-      {/* Diamond: prismatic border + glass */}
-      {tier === "diamond" && (
-        <>
-          <div className="absolute inset-0 rounded-2xl p-[2px] bg-[conic-gradient(from_var(--diamond-angle,0deg),#60a5fa,#a78bfa,#06b6d4,#60a5fa)] animate-border-rotate">
-            <div className="absolute inset-[2px] bg-[var(--card-bg)] rounded-[14px] backdrop-blur-sm" />
-          </div>
-          <div className="absolute inset-0 rounded-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 bg-[radial-gradient(ellipse_at_top,rgba(96,165,250,0.2),transparent_60%)]" />
-          {/* Sparkle dots */}
-          <div className="absolute top-4 right-4 w-2 h-2 bg-blue-400/50 rounded-full animate-sparkle" />
-          <div className="absolute bottom-6 left-6 w-1.5 h-1.5 bg-purple-400/40 rounded-full animate-sparkle delay-500" />
-          <div className="absolute top-1/2 right-8 w-1 h-1 bg-cyan-400/50 rounded-full animate-sparkle delay-1000" />
-        </>
-      )}
-
-      {/* Legendary: refined pink → violet border + soft glow */}
-      {tier === "legendary" && (
-        <>
-          {/* Gradient border */}
-          <div className="absolute inset-0 rounded-2xl p-[1.5px] bg-gradient-to-br from-[#FF6EFF] via-[#A78BFA] to-[#FF8899]">
-            <div className="absolute inset-[1.5px] bg-[var(--card-bg)] rounded-[14.5px]" />
-          </div>
-          {/* Soft glow on hover */}
-          <div className="absolute -inset-1 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(ellipse_at_top,rgba(255,110,255,0.18),transparent_65%)] blur-lg" />
-          {/* Two understated sparkles */}
-          <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-[#FF6EFF]/40 group-hover:animate-pulse" />
-          <div className="absolute bottom-5 left-5 w-1 h-1 rounded-full bg-[#A78BFA]/40 group-hover:animate-pulse delay-300" />
-        </>
-      )}
+      {/* One flat surface; the border names the tier (board v6). */}
+      <div className={cn("absolute inset-0 rounded-2xl border bg-[var(--card-bg)]", TIER_BORDER[tier])} />
 
       {/* ── Card Content (above visual layers) ────────── */}
       <div className="relative z-10">
@@ -284,18 +245,7 @@ export function LeadCard({
               initial={{ width: 0 }}
               animate={{ width: `${lead.lead_score}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="h-full rounded-full"
-              style={{
-                background: tier === "legendary"
-                  ? "linear-gradient(90deg, #FF6EFF, #A78BFA)"
-                  : tier === "diamond"
-                    ? "linear-gradient(90deg, #60a5fa, #a78bfa, #06b6d4)"
-                    : tier === "gold"
-                      ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
-                      : tier === "silver"
-                        ? "linear-gradient(90deg, #9ca3af, #d1d5db)"
-                        : "#a1a1aa",
-              }}
+              className={cn("h-full rounded-full", TIER_BAR[tier])}
             />
           </div>
         </div>

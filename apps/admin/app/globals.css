@@ -143,53 +143,6 @@ body {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* ======================================== */
-/* Lead Card Gamified Tier Animations       */
-/* ======================================== */
-
-/* CSS custom property for Diamond border rotation */
-@property --diamond-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-/* Silver shimmer */
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-.animate-shimmer {
-  animation: shimmer 3s ease-in-out infinite;
-}
-
-/* Diamond: slow border rotation */
-@keyframes border-rotate {
-  0% { --diamond-angle: 0deg; }
-  100% { --diamond-angle: 360deg; }
-}
-.animate-border-rotate {
-  animation: border-rotate 6s linear infinite;
-}
-
-/* Sparkle animation (Diamond) */
-@keyframes sparkle {
-  0%, 100% { opacity: 0.2; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.5); }
-}
-.animate-sparkle {
-  animation: sparkle 2.5s ease-in-out infinite;
-}
-
-/* Delay utilities */
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
-.delay-600 { animation-delay: 600ms; }
-.delay-800 { animation-delay: 800ms; }
-.delay-1000 { animation-delay: 1000ms; }
-
 /* Staleness overlays */
 .lead-card--stale::after {
   content: "";

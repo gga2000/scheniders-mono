@@ -7,7 +7,6 @@ import {
   LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_PRIORITY_UI,
-  LEAD_TIER_CONFIG,
   LEAD_TIER_UI,
 } from "@/types/leads";
 import { PlatformChip, IndustryChip, TierChip } from "@/components/leads/lead-chips";
@@ -27,23 +26,15 @@ export interface LeadCellContext {
 // ── Presentational cells (inner <td> content only; the row owns the <td> + click) ──
 
 function MerchantCell({ lead }: { lead: Lead }) {
-  const tierCfg = LEAD_TIER_CONFIG[lead.tier];
   const tierUi = LEAD_TIER_UI[lead.tier];
-  const isWhale = lead.tier === "legendary" || lead.tier === "diamond";
   return (
     <div className="flex items-center gap-3">
+      {/* The first letter on the tier's soft colour, one flat fill (board v6). */}
       <div
-        className="relative w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0 transition-transform group-hover:scale-105"
-        style={{
-          backgroundImage: tierUi.gradient,
-          boxShadow: isWhale
-            ? `0 4px 14px -3px ${tierCfg.color}, inset 0 1px 0 rgba(255,255,255,0.45)`
-            : "0 2px 6px -2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.4)",
-          textShadow: "0 1px 2px rgba(0,0,0,0.35)",
-        }}
+        className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+        style={{ backgroundColor: tierUi.soft, color: tierUi.solid }}
       >
-        <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/25" />
-        <span className="relative">{lead.merchant_name.trim().charAt(0).toUpperCase() || "?"}</span>
+        {lead.merchant_name.trim().charAt(0).toUpperCase() || "?"}
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
@@ -81,7 +72,7 @@ function ScoreCell({ value }: { value: number }) {
     <div className="flex items-center gap-2">
       <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#FF8899] to-[#A78BFA]"
+          className="h-full rounded-full bg-foreground/70"
           style={{ width: `${value}%` }}
         />
       </div>

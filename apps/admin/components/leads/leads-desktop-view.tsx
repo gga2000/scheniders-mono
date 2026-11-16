@@ -243,7 +243,7 @@ export function LeadsDesktopView() {
 
           <button
             onClick={() => setFormOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] text-white text-sm font-bold hover:brightness-105 transition-all shadow-sm"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background text-sm font-bold hover:opacity-90 transition-all shadow-sm"
           >
             <UserPlus className="w-4 h-4" />
             Add Lead
@@ -362,7 +362,7 @@ export function LeadsDesktopView() {
           )
         ) : leads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF8899]/15 to-[#A78BFA]/15 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-foreground/[0.05] flex items-center justify-center mb-4">
               <UserPlus className="w-8 h-8 text-[#FF8899]" />
             </div>
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">No prospects yet</h3>
@@ -371,7 +371,7 @@ export function LeadsDesktopView() {
             </p>
             <button
               onClick={() => setFormOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] text-white text-sm font-bold hover:brightness-105 transition-all shadow-sm"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-foreground text-background text-sm font-bold hover:opacity-90 transition-all shadow-sm"
             >
               <UserPlus className="w-4 h-4" />
               Add Your First Lead

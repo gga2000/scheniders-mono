@@ -244,7 +244,7 @@ export function TeamCommissionDashboard({
                               className="w-8 h-8 rounded-lg object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold shrink-0">
                               {initial}
                             </div>
                           )}
