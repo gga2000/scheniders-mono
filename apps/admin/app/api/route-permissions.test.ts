@@ -410,8 +410,8 @@ describe("actor attribution", () => {
  * clock of a tenant that is on trial, never write `status`, or a support agent
  * could lift a pause (`limited`) or suspension that needs `reactivate_tenant`.
  * The check and the write live in the `admin_extend_trial` SQL function (its
- * behaviour is proven in packages/supabase/tests/admin_extend_trial.sql); the
- * routes must go through it and nothing else.
+ * behaviour is proven in packages/supabase/tests/behaviour/billing-lock.test.sql,
+ * sections 15 and 18); the routes must go through it and nothing else.
  */
 describe("trial extension goes through admin_extend_trial only", () => {
   const ROUTES: Case[] = [
