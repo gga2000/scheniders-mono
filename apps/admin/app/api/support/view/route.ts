@@ -15,10 +15,15 @@ export const dynamic = "force-dynamic";
 
 type AdminDb = ReturnType<typeof createAdminClient>;
 
+/** The viewer address is held by an account this route did not make. */
+class ViewerEmailTaken extends Error {}
+
 /**
  * The caller's viewer sign-in: found, or made now (auth user flagged
- * support_viewer, its profile, its row). Made only by this route, so the flag
- * is set only here.
+ * support_viewer, its profile, its row). Only this route sets the flag, and
+ * app_metadata can be written only with the service role, so an account at
+ * the viewer address without the flag was made some other way. It is never
+ * taken over, because whoever made it could still sign in to it.
  */
 async function ensureViewer(supabase: AdminDb, adminId: string, adminName: string): Promise<string> {
   const existing = await supabase.from("support_viewer_users").select("user_id").eq("admin_id", adminId).maybeSingle();
@@ -36,12 +41,11 @@ async function ensureViewer(supabase: AdminDb, adminId: string, adminName: strin
   if (created.data.user) {
     userId = created.data.user.id;
   } else if (created.error?.code === "email_exists") {
-    // An earlier try made the sign-in and stopped before its row.
+    // An earlier try made the sign-in and stopped before its row: it carries the flag.
     const found = await supabase.auth.admin.generateLink({ type: "magiclink", email });
     if (!found.data.user) throw new Error(`Viewer lookup failed: ${found.error?.message ?? "no user"}`);
+    if (found.data.user.app_metadata?.support_viewer !== true) throw new ViewerEmailTaken();
     userId = found.data.user.id;
-    const flagged = await supabase.auth.admin.updateUserById(userId, { app_metadata: { support_viewer: true } });
-    if (flagged.error) throw flagged.error;
   } else {
     throw new Error(`Viewer create failed: ${created.error?.message ?? "no user"}`);
   }
@@ -103,6 +107,13 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ url: supportViewUrl(platformUrl, hashedToken), expiresAt: session.expires_at });
   } catch (error) {
+    if (error instanceof ViewerEmailTaken) {
+      console.error("Support view refused: the viewer address is held by an account the console did not make", {
+        adminId: admin.user.id,
+      });
+      const refusal = SUPPORT_VIEW_REFUSALS.support_viewer_email_taken;
+      return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+    }
     console.error("Support view start error:", error);
     return NextResponse.json({ error: "Failed to open the merchant view" }, { status: 500 });
   }
