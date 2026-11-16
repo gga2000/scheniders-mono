@@ -1,6 +1,6 @@
+import { parseTenantAllowlist } from "@/lib/tenant-allowlist";
 import { describe, it, expect } from "vitest";
 import {
-    parseConfirmTenantIds,
     storefrontConfirmationVerdict,
     storefrontOrderGateRowSchema,
     type StorefrontOrderGateRow,
@@ -8,7 +8,7 @@ import {
 
 const TENANT = "44444444-4444-4444-8444-444444444444";
 const OTHER = "55555555-5555-4555-8555-555555555555";
-const enabled = parseConfirmTenantIds(TENANT);
+const enabled = parseTenantAllowlist(TENANT);
 
 function row(overrides: Partial<StorefrontOrderGateRow> = {}): StorefrontOrderGateRow {
     return {
@@ -23,17 +23,6 @@ function row(overrides: Partial<StorefrontOrderGateRow> = {}): StorefrontOrderGa
         ...overrides,
     };
 }
-
-describe("parseConfirmTenantIds", () => {
-    it("reads a comma-separated list, trimmed and lower-cased", () => {
-        expect([...parseConfirmTenantIds(` ${TENANT.toUpperCase()} , ${OTHER},, `)]).toEqual([TENANT, OTHER]);
-    });
-
-    it("an unset or empty list enables nobody", () => {
-        expect(parseConfirmTenantIds(undefined).size).toBe(0);
-        expect(parseConfirmTenantIds("").size).toBe(0);
-    });
-});
 
 describe("storefrontConfirmationVerdict", () => {
     it("sends for a new, live, non-test storefront order of an enabled tenant, naming the row's tenant", () => {
@@ -55,8 +44,15 @@ describe("storefrontConfirmationVerdict", () => {
         expect(storefrontConfirmationVerdict(row(overrides), enabled)).toEqual({ send: false, reason });
     });
 
+    it("\"*\" sends for any store's order", () => {
+        expect(storefrontConfirmationVerdict(row({ tenant_id: OTHER }), parseTenantAllowlist("*"))).toEqual({
+            send: true,
+            tenantId: OTHER,
+        });
+    });
+
     it("an empty allowlist sends to nobody", () => {
-        expect(storefrontConfirmationVerdict(row(), parseConfirmTenantIds(undefined))).toEqual({
+        expect(storefrontConfirmationVerdict(row(), parseTenantAllowlist(undefined))).toEqual({
             send: false,
             reason: "tenant_not_enabled",
         });

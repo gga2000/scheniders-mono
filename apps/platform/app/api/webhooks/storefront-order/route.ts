@@ -1,3 +1,4 @@
+import { parseTenantAllowlist } from "@/lib/tenant-allowlist";
 import { NextResponse } from "next/server";
 import { verifyQstashCallback } from "@/lib/qstash-verify";
 import { z } from "zod";
@@ -6,7 +7,6 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { triggerImmediateConfirmation } from "@/lib/whatsapp-dispatcher";
 import { sendNewOrderAlertToStaff } from "@/lib/staff-alerts";
 import {
-    parseConfirmTenantIds,
     storefrontConfirmationVerdict,
     storefrontOrderGateRowSchema,
 } from "@/lib/storefront-order-confirmation";
@@ -114,7 +114,7 @@ async function handlePost(request: Request): Promise<NextResponse> {
 
     const verdict = storefrontConfirmationVerdict(
         gateRow.data,
-        parseConfirmTenantIds(env.STOREFRONT_WA_CONFIRM_TENANT_IDS),
+        parseTenantAllowlist(env.STOREFRONT_WA_CONFIRM_TENANT_IDS),
     );
     if (!verdict.send) {
         console.log(`${LOG} order ${orderId}: skipped (${verdict.reason})`);

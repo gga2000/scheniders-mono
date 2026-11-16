@@ -56,6 +56,14 @@ const tenantIdList = z
         "must be a comma-separated list of tenant uuids",
     );
 
+// Same list, or "*" for every store (see lib/tenant-allowlist).
+const tenantIdListOrAll = z
+    .string()
+    .refine(
+        (v) => v.trim() === "*" || tenantIdList.safeParse(v).success,
+        'must be "*" or a comma-separated list of tenant uuids',
+    );
+
 const serverSchema = z.object({
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
     // Cloudflare Turnstile secret for server-side token checks (lib/turnstile).
@@ -108,11 +116,11 @@ const serverSchema = z.object({
     // Tenants whose STOREFRONT orders get the instant WhatsApp confirmation
     // (app/api/webhooks/storefront-order). Interakt is one global sender, so
     // list only tenants whose customers expect messages from that number.
-    STOREFRONT_WA_CONFIRM_TENANT_IDS: tenantIdList.optional(),
+    STOREFRONT_WA_CONFIRM_TENANT_IDS: tenantIdListOrAll.optional(),
     // Stores allowed to send ANY WhatsApp through the one platform Interakt
-    // number (INTERAKT_API_KEY). Unset = nobody sends: a store not listed here
-    // must never message customers from another store's number.
-    INTERAKT_SENDER_TENANT_IDS: tenantIdList.optional(),
+    // number (INTERAKT_API_KEY). Unset = nobody sends; "*" = every store (the
+    // order templates name the sending store and give its own WhatsApp).
+    INTERAKT_SENDER_TENANT_IDS: tenantIdListOrAll.optional(),
     // Stores allowed to use the one platform Al-Waseet account (WASEET_USERNAME).
     // Unset = nobody: its invoices, parcels and city map belong to whoever
     // owns that account, never to every store on the platform.
