@@ -4,6 +4,12 @@ import { Wallet, AlertTriangle } from "lucide-react";
 import { Sparkline } from "@/components/shared/sparkline";
 import type { WalletHealthData } from "@/types/dashboard";
 import { formatIQD } from "@/lib/format";
+import { uiHue } from "@/types/leads";
+
+// Soft tint with its own ink: readable in light and dark.
+const HEALTHY = uiHue("green");
+const WARNING = uiHue("amber");
+const CRITICAL = uiHue("red");
 
 interface WalletHealthProps {
   health: WalletHealthData | undefined;
@@ -66,12 +72,12 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 className="flex items-center justify-center transition-all duration-500"
                 style={{
                   width: `${healthyPct}%`,
-                  backgroundColor: "#86EFAC",
+                  backgroundColor: HEALTHY.strong,
                 }}
-                title={`Healthy: ${health.healthy} (${healthyPct.toFixed(0)}%)`}
+                title={`Over 50,000 IQD: ${health.healthy} (${healthyPct.toFixed(0)}%)`}
               >
                 {healthyPct >= 15 && (
-                  <span className="text-xs font-bold text-[var(--ink-green)]">
+                  <span className="text-xs font-bold" style={{ color: HEALTHY.solid }}>
                     {health.healthy}
                   </span>
                 )}
@@ -82,12 +88,12 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 className="flex items-center justify-center transition-all duration-500"
                 style={{
                   width: `${warningPct}%`,
-                  backgroundColor: "#FDE68A",
+                  backgroundColor: WARNING.strong,
                 }}
-                title={`Warning: ${health.warning} (${warningPct.toFixed(0)}%)`}
+                title={`10,000 to 50,000 IQD: ${health.warning} (${warningPct.toFixed(0)}%)`}
               >
                 {warningPct >= 15 && (
-                  <span className="text-xs font-bold text-[var(--ink-amber)]">
+                  <span className="text-xs font-bold" style={{ color: WARNING.solid }}>
                     {health.warning}
                   </span>
                 )}
@@ -98,12 +104,12 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 className="flex items-center justify-center transition-all duration-500"
                 style={{
                   width: `${criticalPct}%`,
-                  backgroundColor: "#FCA5A5",
+                  backgroundColor: CRITICAL.strong,
                 }}
-                title={`Critical: ${health.critical} (${criticalPct.toFixed(0)}%)`}
+                title={`Under 10,000 IQD: ${health.critical} (${criticalPct.toFixed(0)}%)`}
               >
                 {criticalPct >= 15 && (
-                  <span className="text-xs font-bold text-[var(--ink-red)]">
+                  <span className="text-xs font-bold" style={{ color: CRITICAL.solid }}>
                     {health.critical}
                   </span>
                 )}
@@ -114,18 +120,18 @@ export function WalletHealth({ health }: WalletHealthProps) {
           {/* Legend row */}
           <div className="flex items-center gap-4 mb-4 text-xs">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-green-300" />
-              <span className="text-foreground/70">Healthy (&gt;50K)</span>
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: HEALTHY.solid }} />
+              <span className="text-foreground/70">Over 50,000 IQD</span>
               <span className="font-bold text-foreground">{health.healthy}</span>
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-200" />
-              <span className="text-foreground/70">Warning (10-50K)</span>
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: WARNING.solid }} />
+              <span className="text-foreground/70">10,000 to 50,000 IQD</span>
               <span className="font-bold text-foreground">{health.warning}</span>
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-300" />
-              <span className="text-foreground/70">Critical (&lt;10K)</span>
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CRITICAL.solid }} />
+              <span className="text-foreground/70">Under 10,000 IQD</span>
               <span className="font-bold text-foreground">{health.critical}</span>
             </span>
           </div>
