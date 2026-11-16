@@ -42,6 +42,7 @@ import { NotificationsDropdown } from "./notifications-dropdown";
 import { AutoSendToggle } from "@/components/orders/auto-send-toggle";
 import { MerchantCodeBadge } from "./merchant-code-badge";
 import { TrialChip } from "@/components/billing/trial-chip";
+import { DemoStoreChip } from "./demo-store-chip";
 import { useHeadroom } from "@/hooks/use-headroom";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@scheniders/ui/dropdown-menu";
 import { HEADER_ACTION_CLASS } from "./header-action-button";
@@ -437,6 +438,7 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
                     <MerchantCodeBadge />
                     <TrialChip />
+                    <DemoStoreChip />
                 </div>
 
                 {/* Global Search Centered - Hidden on mobile */}

@@ -17,6 +17,8 @@ export interface Tenant extends Omit<BaseTenant, "plan" | "settings"> {
   store_config_v2?: StoreConfigV2 | null;
   store_config_v2_draft?: StoreConfigV2 | null;
   address?: string | null;
+  /** The demo store (Fermi B13): its checkout says so. */
+  is_demo?: boolean;
   /** Set to true ONLY by `withDraftView` (lib/tenant.ts) when this request
    *  holds a valid draft-view preview token for the tenant. Not a DB column:
    *  public loaders never set it. The render uses it to skip the merchant's

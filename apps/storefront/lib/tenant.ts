@@ -27,7 +27,7 @@ const STOREFRONT_CACHE_SECONDS = 60;
  * the storefront renders nothing from them.
  */
 const BASE_TENANT_COLS =
-  "id, business_name, slug, status, branding, store_config, contact_email, contact_phone, address, city";
+  "id, business_name, slug, status, branding, store_config, contact_email, contact_phone, address, city, is_demo";
 
 /**
  * Tenants a shopper may see. The row is read with the service client (anon has

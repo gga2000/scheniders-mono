@@ -162,3 +162,6 @@ $$;
 CREATE FUNCTION public.is_tenant_admin(p_tenant_id uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
     SELECT p_tenant_id = nullif(current_setting('test.admin_of', true), '')::uuid
 $$;
+
+-- tenants.is_demo (Fermi B13): the demo store is never charged, never sends.
+ALTER TABLE public.tenants ADD COLUMN is_demo boolean NOT NULL DEFAULT false;

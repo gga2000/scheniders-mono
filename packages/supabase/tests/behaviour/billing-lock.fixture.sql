@@ -189,3 +189,6 @@ CREATE FUNCTION public.has_tenant_permission(p_tenant_id uuid, p_permission text
     LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.finance_summary_core(_tenant_id uuid, _from date, _to date) RETURNS jsonb
     LANGUAGE sql STABLE AS $$ SELECT jsonb_build_object('tenant_id', _tenant_id) $$;
+
+-- tenants.is_demo (Fermi B13): the demo store is never charged, never sends.
+ALTER TABLE public.tenants ADD COLUMN is_demo boolean NOT NULL DEFAULT false;

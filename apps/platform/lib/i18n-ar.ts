@@ -1004,6 +1004,8 @@ export const ar: Record<string, string> = {
     "layout.merchantCode.copy": "رقم المتجر. اضغط للنسخ",
     "layout.merchantCode.copied": "تم النسخ",
     "layout.merchantCode.label": "رقم المتجر #{code}",
+    "layout.demoStore.chip": "أرقام مثال",
+    "layout.demoStore.hint": "متجر تجريبي: كل الأسماء والأرقام والمبالغ هنا مخترعة. ما يُرسل شي وما يُخصم شي.",
     "orders.card.shopOrder": "طلب محل",
     "orders.card.changeStatus": "تغيير حالة الطلب",
     "orders.card.paid": "واصل",

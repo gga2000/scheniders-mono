@@ -18,11 +18,17 @@ type Answer = { data: unknown; error: { message: string } | null };
 let income: Answer;
 let tenants: Answer;
 const tenantSelects: string[] = [];
+const tenantFilters: Array<[string, unknown]> = [];
 const rpc = vi.fn(async () => income);
 const from = vi.fn((_table: string) => ({
   select: (cols: string) => {
     tenantSelects.push(cols);
-    return Promise.resolve(tenants);
+    return {
+      eq: (column: string, value: unknown) => {
+        tenantFilters.push([column, value]);
+        return Promise.resolve(tenants);
+      },
+    };
   },
 }));
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ rpc, from }) }));
@@ -34,6 +40,7 @@ beforeEach(() => {
   rpc.mockClear();
   from.mockClear();
   tenantSelects.length = 0;
+  tenantFilters.length = 0;
   vi.spyOn(console, "error").mockImplementation(() => {});
   income = { data: incomeStats(), error: null };
   tenants = {
@@ -53,6 +60,8 @@ describe("GET /api/revenue", () => {
     expect(rpc).toHaveBeenCalledWith("admin_income_stats", {});
     expect(from.mock.calls.map(([table]) => table)).toEqual(["tenants"]);
     expect(tenantSelects.join(",")).not.toContain("wallets");
+    // The demo store (Fermi B13) is in no platform number.
+    expect(tenantFilters).toEqual([["is_demo", false]]);
   });
 
   it("counts our fees as income and reports other charges apart", async () => {

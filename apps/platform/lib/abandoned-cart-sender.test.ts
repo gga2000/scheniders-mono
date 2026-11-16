@@ -16,6 +16,7 @@ const sendRefusal = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock("./whatsapp-wallet", () => ({
     SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     takeDailySendSlot: vi.fn(async () => daySlot.allowed),
+    SHOP_DEMO_NOT_SENT: "Demo store, not sent",
     whatsappSendRefusal: vi.fn(async () => sendRefusal.value),
 }));
 import {

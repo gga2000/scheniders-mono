@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
         fetchIncomeStats(supabase),
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, created_at, branding, config_version, wallet(balance_iqd, total_topped_up_iqd)"),
+          .select("id, business_name, plan, status, created_at, branding, config_version, wallet(balance_iqd, total_topped_up_iqd)")
+          // The demo store (Fermi B13) is in no platform number.
+          .eq("is_demo", false),
         supabase.from("subscriptions").select("tenant_id, plan, status, pending_plan"),
         supabase.from("admin_activity_logs").select("*").order("created_at", { ascending: false }).limit(20),
         supabase.from("tenant_members").select("tenant_id").eq("status", "active"),

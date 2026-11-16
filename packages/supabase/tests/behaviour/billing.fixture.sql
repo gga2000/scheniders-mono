@@ -56,3 +56,6 @@ CREATE TABLE public.orders (
     till_session_id uuid,
     billing_phase text
 );
+
+-- tenants.is_demo (Fermi B13): the demo store is never charged, never sends.
+ALTER TABLE public.tenants ADD COLUMN is_demo boolean NOT NULL DEFAULT false;

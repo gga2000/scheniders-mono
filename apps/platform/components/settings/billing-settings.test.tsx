@@ -190,7 +190,7 @@ vi.mock("next/navigation", () => ({
 const { BillingSettings } = await import("./billing-settings");
 
 function tenant(status: string, trialEndsAt: string | null): TenantSummary {
-    return { id: "t1", status, trial_ends_at: trialEndsAt, plan: "starter", restrictions: null, display_id: 1 };
+    return { id: "t1", status, trial_ends_at: trialEndsAt, plan: "starter", restrictions: null, display_id: 1, is_demo: false };
 }
 
 function tx(partial: Partial<WalletTransaction>): WalletTransaction {

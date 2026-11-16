@@ -22,6 +22,7 @@ const call = (params = "") => GET(new NextRequest(`http://admin.test/api/merchan
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
+  is_demo: false,
   business_name: `Shop ${n}`,
   status: "active",
   plan: "starter",
@@ -259,7 +260,7 @@ describe("GET /api/merchants", () => {
       expect(stub.callsTo("tenants.filter")).toEqual([["staff_needs_attention", "eq", true]]);
       // No list of ids is sent back to the database, and "attention" is never read as a status.
       expect(stub.callsTo("tenants.in")).toEqual([]);
-      expect(stub.callsTo("tenants.eq")).toEqual([]);
+      expect(stub.callsTo("tenants.eq")).toEqual([["is_demo", false]]);
       expect(total).toBe(1);
       expect(merchants.map((m: Row) => m.id)).toEqual(["shop-1150"]);
     });
@@ -300,7 +301,7 @@ describe("GET /api/merchants", () => {
     it("puts the status, the balance band and the health band on one read", async () => {
       await call("status=trial&balance=low&health=healthy");
 
-      expect(stub.callsTo("tenants.eq")).toEqual([["status", "trial"]]);
+      expect(stub.callsTo("tenants.eq")).toEqual([["is_demo", false], ["status", "trial"]]);
       expect(stub.callsTo("tenants.filter")).toEqual([
         ["staff_wallet_balance", "gte", 10000],
         ["staff_wallet_balance", "lte", 50000],

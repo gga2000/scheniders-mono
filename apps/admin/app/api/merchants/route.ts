@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("tenants")
       // The health score and its parts are the database's: the browser shows them and works nothing out.
-      .select("*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts", { count: "exact" });
+      .select("*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts", { count: "exact" })
+      // The demo store (Fermi B13) has its own card, not a row among customers.
+      .eq("is_demo", false);
 
     if (ids.data) query = query.in("id", ids.data);
     if (plan) query = query.eq("plan", plan);

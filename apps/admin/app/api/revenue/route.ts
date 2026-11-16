@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     const supabase = createAdminClient();
     const [income, tenantsRes] = await Promise.all([
       fetchIncomeStats(supabase),
-      supabase.from("tenants").select("id, business_name, created_at"),
+      // The demo store (Fermi B13) is in no platform number.
+      supabase.from("tenants").select("id, business_name, created_at").eq("is_demo", false),
     ]);
     if (tenantsRes.error) throw new Error(tenantsRes.error.message);
 
