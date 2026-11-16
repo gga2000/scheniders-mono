@@ -6,6 +6,7 @@ import { X, MapPin, ChevronDown, Search, CreditCard, Wallet, Activity, AlertCirc
 import { useAdminStore } from "@/store/use-admin-store";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { cn } from "@/lib/utils";
+import { SHOP_GOVERNORATES } from "@/lib/shop-city";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { PLAN_LABELS, PLAN_TIERS, type AdminTenant } from "@/types/admin";
 
@@ -74,11 +75,7 @@ const HEALTH_OPTIONS = [
   { value: "healthy", label: "Healthy", dot: "bg-green-500" },
 ];
 
-const CITY_PILLS = [
-  "Baghdad", "Basra", "Erbil", "Sulaymaniyah", "Najaf", "Karbala",
-  "Duhok", "Kirkuk", "Mosul", "Diyala", "Wasit", "Maysan",
-  "Muthanna", "Dhi Qar", "Anbar", "Babil", "Saladin", "Qadisiyyah",
-];
+const CITY_PILLS = SHOP_GOVERNORATES.map((g) => g.name);
 
 // ── Generic dropdown filter button ─────────────────────────────────
 function FilterDropdown({

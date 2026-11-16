@@ -7,6 +7,7 @@ import { fetchMerchantListStats } from "@/lib/console-stats";
 import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
 import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
+import { governorateNamed } from "@/lib/shop-city";
 
 /** The "ids" query value, when it is given: shop ids. */
 const shopIdsSchema = z.array(z.string().uuid()).min(1).max(50).optional();
@@ -20,7 +21,10 @@ export async function GET(request: NextRequest) {
 
     const plan = searchParams.get("plan");
     const status = searchParams.get("status");
-    const city = searchParams.get("city");
+    // The city picker names a governorate; a shop's city is however the merchant typed it.
+    const cityAsked = searchParams.get("city");
+    const governorate = cityAsked ? governorateNamed(cityAsked) : undefined;
+    if (cityAsked && !governorate) return NextResponse.json({ error: "Unknown city" }, { status: 400 });
     const search = searchParams.get("search");
     const balance = searchParams.get("balance");
     const health = searchParams.get("health");
@@ -57,7 +61,8 @@ export async function GET(request: NextRequest) {
     if (plan) query = query.eq("plan", plan);
     // "attention" is not a value of the status column: it is one of the computed filters below.
     if (status && status !== ATTENTION) query = query.eq("status", status);
-    if (city) query = query.eq("city", city);
+    // "بغداد", "Baghdad" and "baghdad " are one city: the same pattern the map reads.
+    if (governorate) query = query.filter("city", "imatch", governorate.pattern);
     // Needs attention, the balance band and the health band are worked out in
     // the database, over every shop, before the list is cut into pages.
     for (const [column, operator, value] of computedShopFilters({ status, balance, health })) {

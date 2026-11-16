@@ -362,3 +362,27 @@ describe("GET /api/merchants", () => {
     });
   });
 });
+
+describe("GET /api/merchants city filter", () => {
+  it("finds a city however the merchant typed it", async () => {
+    stub.state.tables.tenants = [
+      shop(1, { city: "بغداد" }),
+      shop(2, { city: "Baghdad" }),
+      shop(3, { city: " baghdad" }),
+      shop(4, { city: "البصرة" }),
+      shop(5, { city: null }),
+    ];
+
+    const { merchants, total } = await (await call("city=baghdad")).json();
+
+    expect(merchants.map((m: Row) => m.id)).toEqual(["shop-1", "shop-2", "shop-3"]);
+    expect(total).toBe(3);
+  });
+
+  it("refuses a city the picker does not offer, before any read", async () => {
+    const res = await call("city=atlantis");
+
+    expect(res.status).toBe(400);
+    expect(stub.tablesRead()).toEqual([]);
+  });
+});
