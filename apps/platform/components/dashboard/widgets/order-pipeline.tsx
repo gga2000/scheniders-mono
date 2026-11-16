@@ -6,13 +6,15 @@ import { useLanguage } from "@/hooks/use-language";
 
 /** Below this share of the bar (about 40 px at 1440) a segment shows no count or label. */
 const MIN_LABELLED_PCT = 6;
-/** The stage get_dashboard_metrics fills with every order outside the five named stages. */
+/** The stage get_dashboard_metrics fills with every order outside the named stages. */
 const OTHER_STAGE = "other";
+const count = (n: number) => n.toLocaleString("en-US");
 
 interface OrderPipelineProps {
     stages: PipelineStage[];
     /** The dashboard period the stages were counted over: orders created in it, by their status now. */
     period: DateRangeKey;
+    /** Opens Orders on the stage's chip for the same period, so the list holds exactly the stage's count. */
     onStageClick?: (status: string) => void;
 }
 
@@ -27,11 +29,12 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
         'confirmed': t("dashboard.pipeline.confirmed"),
         'in_transit': t("dashboard.pipeline.inTransit"),
         'delivered': t("dashboard.pipeline.delivered"),
+        'completed': t("dashboard.pipeline.completed"),
         'other': t("dashboard.pipeline.other"),
     };
 
     const getLabel = (stage: PipelineStage) => PIPELINE_LABELS[stage.status] ?? stage.label;
-    // 'other' gathers several statuses (cancelled, rejected, returned, no answer): no one Orders filter shows it.
+    // 'other' gathers several statuses and the refunded and replacement orders Orders keeps out of «مكتمل»: no one chip shows it.
     const isOther = (stage: PipelineStage) => stage.status === OTHER_STAGE;
     const openStage = (stage: PipelineStage) => {
         if (!isOther(stage)) onStageClick?.(stage.status);
@@ -39,7 +42,7 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
     const stageTitle = (stage: PipelineStage) =>
         isOther(stage)
             ? t("dashboard.pipeline.otherHint", { count: stage.count })
-            : `${getLabel(stage)}: ${stage.count} ${t("dashboard.pipeline.orders")}`;
+            : t("dashboard.pipeline.stageTitle", { stage: getLabel(stage), count: stage.count });
 
     return (
         <div className="pastel-card p-4 md:p-5">
@@ -75,7 +78,7 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
                             {/* A sliver cannot hold its words: they spilled over the next segment. The legend below names it. */}
                             {pct >= MIN_LABELLED_PCT && (
                                 <>
-                                    <span className="text-xs font-bold leading-none" style={{ color: stage.textColor }}>{stage.count}</span>
+                                    <span className="text-xs font-bold leading-none" style={{ color: stage.textColor }}>{count(stage.count)}</span>
                                     <span className="text-[10px] font-semibold leading-none opacity-70 truncate px-1 max-w-full" style={{ color: stage.textColor }}>{getLabel(stage)}</span>
                                 </>
                             )}
@@ -103,7 +106,7 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
                                     style={{ width: `${pct}%`, background: stage.color }}
                                 />
                             </div>
-                            <span className="text-sm font-bold text-foreground w-8 text-right">{stage.count}</span>
+                            <span className="text-sm font-bold text-foreground w-8 text-right">{count(stage.count)}</span>
                         </div>
                     );
                 })}

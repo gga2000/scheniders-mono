@@ -125,7 +125,7 @@ export function GovernorateCard() {
                             >
                                 <span className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.01em] text-foreground">
                                     <i className={`size-1.5 rounded-full transition-colors ${p === period ? "bg-[var(--bento-up)]" : "bg-[var(--foreground-muted)]/60"}`} />
-                                    {t(PERIOD_KEY[p])}
+                                    <bdi>{t(PERIOD_KEY[p])}</bdi>
                                 </span>
                                 <span className="mt-1.5 flex items-baseline gap-1.5 font-mono text-[28px] font-medium leading-none tracking-[-0.04em] tabular-nums text-foreground">
                                     <CountUp value={periods[p].total} />
@@ -158,7 +158,7 @@ export function GovernorateCard() {
                                 <tr>
                                     <th className="pb-2 text-start text-xs font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">{t("dashboard.bento.governorate")}</th>
                                     {GOV_PERIODS.map((p) => (
-                                        <th key={p} className="pb-2 text-end text-xs font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">{t(PERIOD_KEY[p])}</th>
+                                        <th key={p} className="pb-2 text-end text-xs font-medium tracking-[-0.01em] text-[var(--foreground-muted)]"><bdi>{t(PERIOD_KEY[p])}</bdi></th>
                                     ))}
                                 </tr>
                             </thead>

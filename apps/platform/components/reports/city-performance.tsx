@@ -1,5 +1,6 @@
 "use client";
 
+import { CountWithWord } from "./count-with-word";
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { CityPerformanceMetrics } from "@/lib/analytics/reports-calculations";
@@ -125,10 +126,12 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                 <h4 className="text-lg font-bold mt-1 text-foreground">{city.city}</h4>
                                 {/* Count and word in one isolate so an Arabic reader meets the number first. */}
                                 <div className="mt-2">
-                                    <bdi>
-                                        <span className="text-2xl font-bold text-foreground tabular-nums">{city.totalOrders}</span>{" "}
-                                        <span className="text-xs text-muted">{t("reports.channels.orders", { count: city.totalOrders })}</span>
-                                    </bdi>
+                                    <CountWithWord
+                                        count={city.totalOrders}
+                                        word="reports.channels.orders"
+                                        numberClassName="text-2xl font-bold text-foreground tabular-nums"
+                                        wordClassName="text-xs text-muted"
+                                    />
                                 </div>
                                 <div className="text-xs mt-1 text-muted">
                                     <bdi>{t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) })}</bdi>

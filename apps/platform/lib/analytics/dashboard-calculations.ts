@@ -9,6 +9,8 @@
  * does not return — the daily trend — computed from a bounded server query.
  */
 
+import { addDaysToDayKey, baghdadDayKey } from "@/lib/order-window";
+
 // =============================================
 // Baghdad calendar boundaries (TMP-D1)
 // =============================================
@@ -125,19 +127,66 @@ export type DateRangeKey = 'today' | '7d' | '30d' | 'all';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** The calendar days in each dashboard period. */
+const PERIOD_DAYS: Record<Exclude<DateRangeKey, 'all'>, number> = { today: 1, '7d': 7, '30d': 30 };
+
+export interface PeriodWindow {
+    /** First instant of the period: the start of a Baghdad day. It ends now. */
+    start: Date;
+    /** The same stretch of time one period earlier: [previousStart, previousEnd). */
+    previousStart: Date;
+    previousEnd: Date;
+}
+
 /**
- * The instant a dashboard range starts, exactly as `get_dashboard_metrics` computes
- * it: `today` is the Baghdad calendar day, `7d`/`30d` are rolling windows ending
- * now, and `all` has no cutoff (null). Any client query that must agree with the
- * RPC's ranged numbers windows on this.
+ * One rule for every dashboard period, the same as `get_dashboard_metrics`:
+ * "last N days" is N Baghdad calendar days ending today, today so far included.
+ * The Orders date picker, Reports and Finances count "last 7 days" the same way,
+ * so a dashboard number and the list it opens agree. (7d and 30d used to be
+ * rolling 24-hour days: at 09:30 on 16 Nov «آخر 7 أيام» also took two orders
+ * from the afternoon of 9 Nov, 9 against 7 on the orders card and in Orders.)
+ *
+ * The comparison is the same stretch of time one period earlier, so today's
+ * first hours are never set against a whole day.
+ */
+export function periodWindow(range: Exclude<DateRangeKey, 'all'>, now: Date = new Date()): PeriodWindow {
+    const span = PERIOD_DAYS[range] * DAY_MS;
+    const start = new Date(baghdadDayStart(now).getTime() - span + DAY_MS);
+    return {
+        start,
+        previousStart: new Date(start.getTime() - span),
+        previousEnd: new Date(now.getTime() - span),
+    };
+}
+
+/**
+ * The instant a dashboard range starts (see periodWindow), or null for `all`.
+ * Any client query that must agree with the RPC's ranged numbers windows on this.
  */
 export function rangeCutoff(range: DateRangeKey, now: Date = new Date()): Date | null {
-    switch (range) {
-        case 'today': return baghdadDayStart(now);
-        case '7d': return new Date(now.getTime() - 7 * DAY_MS);
-        case '30d': return new Date(now.getTime() - 30 * DAY_MS);
-        case 'all': return null;
+    return range === 'all' ? null : periodWindow(range, now).start;
+}
+
+/** The Orders date picker preset (packages/ui DateRangePicker) covering each dashboard period. */
+const ORDERS_DATE_PRESET: Record<Exclude<DateRangeKey, 'all'>, string> = { today: 'today', '7d': 'last7', '30d': 'last30' };
+
+/**
+ * The query string that opens Orders on a status chip for the days a dashboard
+ * period counted (`?status=&from=&to=&preset=`, or `dates=all`). Without the
+ * days, Orders kept its own date filter: «تم التوصيل 192» for 30 days opened
+ * an empty Today list.
+ */
+export function ordersDrillQuery(status: string, range: DateRangeKey, now: Date = new Date()): string {
+    const query = new URLSearchParams({ status });
+    if (range === 'all') {
+        query.set('dates', 'all');
+    } else {
+        const to = baghdadDayKey(now);
+        query.set('from', addDaysToDayKey(to, 1 - PERIOD_DAYS[range]));
+        query.set('to', to);
+        query.set('preset', ORDERS_DATE_PRESET[range]);
     }
+    return query.toString();
 }
 
 /**

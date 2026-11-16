@@ -1,5 +1,6 @@
 "use client";
 
+import { CountWithWord } from "./count-with-word";
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { SourcePerformanceMetrics } from "@/lib/analytics/source-metrics";
@@ -138,10 +139,13 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                                     <div className="font-semibold text-foreground truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.sourceKey)}</div>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
-                                    <bdi className="text-center">
-                                        <span className="font-bold text-foreground">{emp.ordersProcessed}</span>{" "}
-                                        <span className="text-muted">{t("reports.channels.orders", { count: emp.ordersProcessed })}</span>
-                                    </bdi>
+                                    <CountWithWord
+                                        count={emp.ordersProcessed}
+                                        word="reports.channels.orders"
+                                        className="text-center"
+                                        numberClassName="font-bold text-foreground"
+                                        wordClassName="text-muted"
+                                    />
                                     <div className={cn(
                                         "px-2 py-1 rounded-full text-xs font-bold",
                                         emp.deliveryRate >= 80 ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" :

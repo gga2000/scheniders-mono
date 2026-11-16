@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { workQueueFromStatusCounts } from "@/lib/analytics/dashboard-work-queue";
-import { baghdadHour } from "@/lib/analytics/dashboard-calculations";
+import { baghdadHour, ordersDrillQuery } from "@/lib/analytics/dashboard-calculations";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
 import { useDashboardMetricsQuery } from "@/hooks/use-dashboard-metrics-query";
 import { useLanguage } from "@/hooks/use-language";
@@ -120,7 +120,7 @@ export function MobileDashboardPage() {
                     <OrderPipeline
                         stages={dashboardMetrics.pipeline}
                         period="all"
-                        onStageClick={(status) => router.push(`/orders?status=${status}`)}
+                        onStageClick={(status) => router.push(`/orders?${ordersDrillQuery(status, "all")}`)}
                     />
                 </WidgetBoundary>
 

@@ -100,10 +100,18 @@ export const getOrderAge = (
 
     const format = relativeTimeFormatters[locale] ?? relativeTimeFormatters.ar;
     if (diffMins < 1) return justNow[locale] ?? justNow.ar;
-    if (diffMins < 60) return format.format(-diffMins, "minute");
-    if (diffHours < 24) return format.format(-diffHours, "hour");
-    return format.format(-diffDays, "day");
+    if (diffMins < 60) return oneTanween(format.format(-diffMins, "minute"));
+    if (diffHours < 24) return oneTanween(format.format(-diffHours, "hour"));
+    return oneTanween(format.format(-diffDays, "day"));
 };
+
+/**
+ * Intl writes the accusative ending as fathatan then alif («يومًا»); the app's
+ * own strings put the alif first («يوماً»). One spelling on one screen.
+ */
+function oneTanween(text: string): string {
+    return text.replace(/\u064B\u0627/g, "\u0627\u064B");
+}
 
 /**
  * A full order timestamp: day, month, year and time, in Baghdad.

@@ -221,7 +221,7 @@ export function ProductDetailModal({
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <span className="text-sm text-muted">
-                                                    {t("products.detail.variantStock", { count: variant.stock_quantity })}
+                                                    <bdi>{t("products.detail.variantStock", { count: variant.stock_quantity })}</bdi>
                                                 </span>
                                                 <span className="font-bold text-foreground">
                                                     {formatIQD(variant.price || product.price)}
@@ -272,17 +272,18 @@ export function ProductDetailModal({
                             <h3 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
                                 {t("products.detail.stock")}
                             </h3>
+                            {/* Each figure is «number unit»: in a <bdi> so Arabic reads it right to left. */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.onShelf")}</p>
                                     <p className="text-lg font-bold text-foreground">
-                                        {t("products.detail.units", { count: product.stock_quantity })}
+                                        <bdi>{t("products.detail.units", { count: product.stock_quantity })}</bdi>
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.reserved")}</p>
                                     <p className="text-lg font-bold text-amber-600 dark:text-amber-300">
-                                        {t("products.detail.units", { count: product.reserved_quantity || 0 })}
+                                        <bdi>{t("products.detail.units", { count: product.reserved_quantity || 0 })}</bdi>
                                     </p>
                                     <p className="text-xs text-muted mt-1">{t("products.detail.reservedHint")}</p>
                                 </div>
@@ -290,14 +291,14 @@ export function ProductDetailModal({
                                 <div className="border-l border-[var(--card-border)] pl-4">
                                     <p className="text-sm text-muted">{t(oversold > 0 ? "products.detail.oversold" : "products.detail.available")}</p>
                                     <p className={cn("text-lg font-bold", oversold > 0 ? "text-red-600 dark:text-red-300" : "text-green-600 dark:text-green-300")}>
-                                        {t("products.detail.units", { count: oversold > 0 ? oversold : available })}
+                                        <bdi>{t("products.detail.units", { count: oversold > 0 ? oversold : available })}</bdi>
                                     </p>
                                     <p className="text-xs text-muted mt-1">{t(oversold > 0 ? "products.detail.oversoldHint" : "products.detail.availableHint")}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.lowStockAt")}</p>
                                     <p className="text-lg font-bold text-foreground">
-                                        ≤ {t("products.detail.units", { count: product.low_stock_threshold })}
+                                        <bdi>≤ {t("products.detail.units", { count: product.low_stock_threshold })}</bdi>
                                     </p>
                                 </div>
                             </div>

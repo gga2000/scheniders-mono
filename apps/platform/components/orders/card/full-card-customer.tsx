@@ -363,21 +363,21 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                             return (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-green-100 text-green-700">
                                     <Check className="h-3 w-3" aria-hidden />
-                                    {t("orders.card.guaranteeDays", { count: daysLeft })}
+                                    <bdi>{t("orders.card.guaranteeDays", { count: daysLeft })}</bdi>
                                 </span>
                             );
                         } else if (daysLeft > 2) {
                             return (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-yellow-100 text-yellow-700">
                                     <Clock className="h-3 w-3" aria-hidden />
-                                    {t("orders.card.guaranteeDays", { count: daysLeft })}
+                                    <bdi>{t("orders.card.guaranteeDays", { count: daysLeft })}</bdi>
                                 </span>
                             );
                         } else if (daysLeft > 0) {
                             return (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
                                     <AlertTriangle className="h-3 w-3" aria-hidden />
-                                    {daysLeft === 1 ? t("orders.card.lastDay") : t("orders.card.daysLeft", { count: daysLeft })}
+                                    <bdi>{daysLeft === 1 ? t("orders.card.lastDay") : t("orders.card.daysLeft", { count: daysLeft })}</bdi>
                                 </span>
                             );
                         } else {

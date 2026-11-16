@@ -27,6 +27,12 @@ describe("getOrderAge", () => {
         expect(label).toContain("5");
     });
 
+    it("spells the accusative like the app's own strings: «يوماً», not «يومًا»", () => {
+        const label = getOrderAge(ago(231 * 86_400_000), "ar");
+        expect(label).toContain("231 يوماً");
+        expect(label).not.toContain("\u064B\u0627");
+    });
+
     it("defaults to Arabic, which is the app's default locale", () => {
         expect(getOrderAge(ago(5 * 60_000))).toBe(getOrderAge(ago(5 * 60_000), "ar"));
     });

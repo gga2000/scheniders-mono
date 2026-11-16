@@ -24,9 +24,19 @@ const LanguageContext = createContext<LanguageContextType>({
 
 const STORAGE_KEY = "schneiders_language";
 
+/**
+ * Fills `{name}` slots. A numeric `count` is written with thousands separators
+ * («5,431 طلباً»), the same grouping as money and every other count on screen,
+ * and a true minus sign («−55 قطعة», as on the stock chip); other numbers
+ * (years, ids) are written as given.
+ */
 function interpolate(template: string, vars?: Record<string, string | number>): string {
     if (!vars) return template;
-    return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
+    return template.replace(/\{(\w+)\}/g, (_, k) => {
+        const v = vars[k];
+        if (v === undefined) return `{${k}}`;
+        return k === "count" && typeof v === "number" ? v.toLocaleString("en-US").replace("-", "\u2212") : String(v);
+    });
 }
 
 /** One PluralRules per language: "one", "two", "few", "many", "zero" or "other" for a count. */

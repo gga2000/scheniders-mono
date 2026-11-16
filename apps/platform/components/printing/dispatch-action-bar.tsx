@@ -33,7 +33,7 @@ export function DispatchActionBar({ selectedCount, shipping, primeLinked, onShip
 
     return (
         <div className="sticky bottom-4 z-30 flex items-center gap-2 overflow-hidden rounded-2xl bg-[var(--ink)] px-3 py-2.5 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.45)]">
-            <span className="px-2 text-sm font-semibold">{t("printing.selectedCount", { count: selectedCount })}</span>
+            <bdi className="px-2 text-sm font-semibold">{t("printing.selectedCount", { count: selectedCount })}</bdi>
             {primeLinked && primeMoney && !none && (
                 <div data-prime-money className="flex items-center gap-4 border-l border-white/15 pl-4 text-xs">
                     <span className="flex flex-col leading-tight">

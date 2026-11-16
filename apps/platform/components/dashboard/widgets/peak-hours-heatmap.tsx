@@ -70,7 +70,7 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
                         {HOUR_LABELS.map((label, h) => (
                             <div key={h} className="flex-1 text-center">
                                 {h % 3 === 0 && (
-                                    <span className="text-[9px] text-muted">{label}</span>
+                                    <bdi className="text-[9px] text-muted">{label}</bdi>
                                 )}
                             </div>
                         ))}
