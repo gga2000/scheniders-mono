@@ -30,7 +30,7 @@ const tenant = (id: string, over: Partial<DashboardTenant> = {}): DashboardTenan
   branding: { primary_color: "#1E1E1E" },
   wallet_balance: 0,
   team_members_count: 1,
-  setup: { branding: null, configVersion: 1, toppedUpIqd: 0 },
+  setup: { branding: null, storePublishes: 0, toppedUpIqd: 0 },
   ...over,
 });
 
@@ -187,7 +187,7 @@ describe("time to first order and onboarding", () => {
   it("names done steps with the keys the tracker draws its ticks from", () => {
     const allDone = tenant(SHOP_A, {
       team_members_count: 2,
-      setup: { branding: { logo_url: "https://cdn.example/logo.png" }, configVersion: 2, toppedUpIqd: 25_000 },
+      setup: { branding: { logo_url: "https://cdn.example/logo.png" }, storePublishes: 3, toppedUpIqd: 25_000 },
     });
     const [row] = calculateOnboardingProgress([allDone], dashboardStats().shops);
     // The tracker had its own keys ("team", "wallet"...), so these read as crosses beside "100%".

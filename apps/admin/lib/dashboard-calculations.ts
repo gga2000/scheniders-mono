@@ -41,7 +41,7 @@ export interface DashboardTenant {
   wallet_balance: number;
   team_members_count: number;
   /** What the onboarding steps read besides orders and the team (lib/onboarding-steps). */
-  setup: Pick<OnboardingFacts, "branding" | "configVersion" | "toppedUpIqd">;
+  setup: Pick<OnboardingFacts, "branding" | "storePublishes" | "toppedUpIqd">;
 }
 
 interface RawSubscriptionChange {

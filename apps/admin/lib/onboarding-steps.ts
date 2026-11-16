@@ -29,8 +29,12 @@ export interface OnboardingFacts {
    * logo shows the merchant has set up their brand.
    */
   branding: { logo_url?: string | null } | null | undefined;
-  /** 2 once the merchant has published the store builder. */
-  configVersion: number | null | undefined;
+  /**
+   * How many times the store builder was published (tenants.store_config_rev,
+   * raised only by a publish). Sign-up already writes config_version 2 and a
+   * starter store, so neither of those says the merchant published anything.
+   */
+  storePublishes: number | null | undefined;
   /** All money ever added to the wallet, so spending it does not undo the step. */
   toppedUpIqd: number;
 }
@@ -40,7 +44,7 @@ export function onboardingDone(facts: OnboardingFacts): Record<OnboardingStepKey
     has_orders: facts.orders > 0,
     has_team: facts.activeMembers > 1,
     has_branding: Boolean(facts.branding?.logo_url),
-    has_storefront: facts.configVersion === 2,
+    has_storefront: (facts.storePublishes ?? 0) > 0,
     wallet_funded: facts.toppedUpIqd > 0,
   };
 }

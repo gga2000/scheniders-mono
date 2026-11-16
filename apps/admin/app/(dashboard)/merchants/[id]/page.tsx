@@ -284,7 +284,7 @@ export default function MerchantDetailPage() {
             orders: orderCount,
             activeMembers: team.filter((member) => member.status === "active").length,
             branding: tenant.branding,
-            configVersion: tenant.config_version,
+            storePublishes: tenant.store_config_rev,
             toppedUpIqd: wallet?.total_topped_up_iqd ?? 0,
           }}
           walletBalance={wallet?.balance_iqd ?? 0}

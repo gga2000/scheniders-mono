@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       everyRow((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, created_at, branding, config_version, wallet(balance_iqd, total_topped_up_iqd)")
+          .select("id, business_name, plan, status, created_at, branding, store_config_rev, wallet(balance_iqd, total_topped_up_iqd)")
           // The demo store (Fermi B13) is in no platform number.
           .eq("is_demo", false)
           .order("id", { ascending: true })
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         branding: { primary_color: branding?.primary_color || DEFAULT_BRAND_COLOR },
         wallet_balance: Number(wallet?.balance_iqd) || 0,
         team_members_count: memberCountByTenant[t.id] || 0,
-        setup: { branding, configVersion: t.config_version, toppedUpIqd: toppedUp },
+        setup: { branding, storePublishes: t.store_config_rev, toppedUpIqd: toppedUp },
       };
     });
 

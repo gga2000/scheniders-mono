@@ -28,7 +28,7 @@ const quietShop = (n: number): Row => ({
   status: "active",
   created_at: "2026-05-01T09:00:00Z",
   branding: null,
-  config_version: 1,
+  store_config_rev: 0,
   wallet: [{ balance_iqd: "60000", total_topped_up_iqd: "0" }],
 });
 
@@ -47,7 +47,7 @@ beforeEach(() => {
       status: "active",
       created_at: "2026-04-01T09:00:00Z",
       branding: { primary_color: "#0A7", logo_url: "https://cdn.example/kut.png" },
-      config_version: 2,
+      store_config_rev: 65,
       wallet: [{ balance_iqd: "60000", total_topped_up_iqd: "100000" }],
     },
     {
@@ -58,7 +58,7 @@ beforeEach(() => {
       status: "trial",
       created_at: "2026-11-12T09:00:00Z",
       branding: { logo_url: null, primary_color: "#3b82f6", secondary_color: "#8b5cf6" },
-      config_version: 1,
+      store_config_rev: 0,
       wallet: null,
     },
   ];
