@@ -26,7 +26,7 @@ function usePaymentChip(entry: PrimeStatementEntryView): { label: string; tone: 
 }
 
 function PaymentButton({ entry, current, onSelect }: { entry: PrimeStatementEntryView; current: boolean; onSelect: (id: number) => void }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const chip = usePaymentChip(entry);
     return (
@@ -48,7 +48,7 @@ function PaymentButton({ entry, current, onSelect }: { entry: PrimeStatementEntr
             <span className="text-[22px] font-bold leading-tight text-foreground tabular-nums">{amount.format(entry.amount)}</span>
             <span dir={dir} className="text-left text-xs text-muted">
                 {/* Isolated, so a Latin time next to Arabic words keeps its order. */}
-                <bdi>{entry.at ? primeWhen(entry.at, t) : "—"}</bdi>
+                <bdi>{entry.at ? primeWhen(entry.at, t, language) : "—"}</bdi>
                 {entry.check && (
                     <>
                         {" · "}

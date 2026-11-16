@@ -38,7 +38,7 @@ const feeDiffers = (row: PrimeStatementRowView) => row.ours?.fee != null && row.
  * approval that closes the matching orders as paid.
  */
 export function PrimePaymentDetail({ paymentId, onAskPrime }: { paymentId: number; onAskPrime: (orderId: string, draft: string, label: string) => void }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const payment = usePrimeStatement(paymentId);
     const action = usePrimeStatementAction();
@@ -232,8 +232,8 @@ export function PrimePaymentDetail({ paymentId, onAskPrime }: { paymentId: numbe
                     <p dir={dir} className="text-left text-xs text-muted">
                         {approval
                             ? approval.source === "app"
-                                ? t("prime.cash.approvedOn", { when: primeWhen(approval.at, t) })
-                                : t("prime.cash.pdfOn", { when: primeWhen(approval.at, t) })
+                                ? t("prime.cash.approvedOn", { when: primeWhen(approval.at, t, language) })
+                                : t("prime.cash.pdfOn", { when: primeWhen(approval.at, t, language) })
                             : t("prime.cash.footer")}
                     </p>
                     {note && (

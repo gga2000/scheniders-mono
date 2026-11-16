@@ -58,7 +58,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     initialData,
     getBlacklistEntry,
 } = props;
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const router = useRouter();
     const { session } = useAuth();
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
@@ -595,6 +595,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         initialData,
         getBlacklistEntry,
         t,
+        language,
         router,
         session,
         limitWarning,

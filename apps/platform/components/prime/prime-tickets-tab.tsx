@@ -50,7 +50,7 @@ export function PrimeTicketsTab({
     onNew: (orderId: string, label: string) => void;
     onNewDone: () => void;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const list = tickets.data?.connected ? tickets.data.tickets : [];
     const subjects = tickets.data?.connected ? tickets.data.subjects : [];
@@ -135,7 +135,7 @@ export function PrimeTicketsTab({
                                 </b>
                                 {ticket.at && (
                                     <span dir={dir} className="shrink-0 text-[11px] text-muted">
-                                        {primeWhen(ticket.at, t)}
+                                        {primeWhen(ticket.at, t, language)}
                                     </span>
                                 )}
                             </span>
@@ -219,7 +219,7 @@ function PrimeFindParcel({ onFound }: { onFound: (orderId: string, label: string
 }
 
 function PrimeTicketChat({ ticket }: { ticket: PrimeTicketView }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const { ticketId } = ticket;
     const chat = usePrimeTicketChat(ticketId);
@@ -303,7 +303,7 @@ function PrimeTicketChat({ ticket }: { ticket: PrimeTicketView }) {
                             >
                                 <span dir={dir} className="block text-left text-[11px] opacity-70">
                                     {m.sender ?? (m.fromPrime ? t("prime.page.title") : t("prime.page.you"))}
-                                    {m.at && <> · {primeWhen(m.at, t)}</>}
+                                    {m.at && <> · {primeWhen(m.at, t, language)}</>}
                                 </span>
                                 {m.text && (
                                     <p dir="auto" className="whitespace-pre-wrap leading-relaxed">
