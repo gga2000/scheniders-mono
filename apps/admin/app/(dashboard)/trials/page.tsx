@@ -11,6 +11,8 @@ import {
   Timer,
   Loader2,
 } from "lucide-react";
+import { isStaffReason } from "@/lib/billing-lock-tools";
+import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +79,8 @@ function getBarPercent(days: number): number {
 
 function ExtendTrialButton({ tenantId }: { tenantId: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -84,7 +88,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
       const res = await fetch("/api/trials/extend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId, days }),
+        body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim() }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -95,6 +99,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "trials"] });
       setIsOpen(false);
+      setReason("");
     },
   });
 
@@ -119,11 +124,17 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
+      <StaffReasonInput
+        value={reason}
+        onChange={setReason}
+        placeholder="Why? (saved in the log)"
+        className="w-48"
+      />
       {presets.map((p) => (
         <button
           key={p.days}
           onClick={() => mutation.mutate(p.days)}
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || !reasonOk}
           className="px-2.5 py-1 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-xs font-semibold text-foreground/70 hover:text-foreground transition-all border border-[var(--card-border)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {p.label}

@@ -154,6 +154,16 @@ const SUPER_ADMIN_ONLY: Case[] = [
     },
   },
   {
+    name: "POST /api/merchants/[id]/force-unlock (manage_subscription)",
+    call: async (t) => {
+      const { POST } = await import("./merchants/[id]/force-unlock/route");
+      return POST(
+        req(`/api/merchants/${TENANT}/force-unlock`, "POST", t, { days: 30, reason: "paid in cash" }),
+        idParams,
+      );
+    },
+  },
+  {
     name: "POST /api/merchants/[id]/convert-trial (manage_subscription)",
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/convert-trial/route");
@@ -225,14 +235,27 @@ const ANY_ADMIN: Case[] = [
     name: "POST /api/merchants/[id]/extend-trial (extend_trial)",
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-trial/route");
-      return POST(req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 7 }), idParams);
+      return POST(
+        req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 7, reason: "customer asked" }),
+        idParams,
+      );
     },
   },
   {
     name: "POST /api/trials/extend (extend_trial)",
     call: async (t) => {
       const { POST } = await import("./trials/extend/route");
-      return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 7 }));
+      return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 7, reason: "customer asked" }));
+    },
+  },
+  {
+    name: "POST /api/merchants/[id]/lock-orders (extend_trial)",
+    call: async (t) => {
+      const { POST } = await import("./merchants/[id]/lock-orders/route");
+      return POST(
+        req(`/api/merchants/${TENANT}/lock-orders`, "POST", t, { orders: 10, reason: "courier delay" }),
+        idParams,
+      );
     },
   },
   {
@@ -396,14 +419,17 @@ describe("trial extension goes through admin_extend_trial only", () => {
       name: "POST /api/merchants/[id]/extend-trial",
       call: async (t) => {
         const { POST } = await import("./merchants/[id]/extend-trial/route");
-        return POST(req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 30 }), idParams);
+        return POST(
+          req(`/api/merchants/${TENANT}/extend-trial`, "POST", t, { days: 30, reason: "  customer asked  " }),
+          idParams,
+        );
       },
     },
     {
       name: "POST /api/trials/extend",
       call: async (t) => {
         const { POST } = await import("./trials/extend/route");
-        return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 30 }));
+        return POST(req("/api/trials/extend", "POST", t, { tenant_id: TENANT, days: 30, reason: "  customer asked  " }));
       },
     },
   ];
@@ -444,6 +470,7 @@ describe("trial extension goes through admin_extend_trial only", () => {
           {
             _tenant_id: TENANT,
             _days: 30,
+            _reason: "customer asked",
             _admin_user_id: SUPPORT_ID,
             _actor_email: "agent@example.com",
             _source: "single",
@@ -468,12 +495,128 @@ describe("trial extension goes through admin_extend_trial only", () => {
     const { POST: trials } = await import("./trials/extend/route");
 
     const a = await perMerchant(
-      req(`/api/merchants/${TENANT}/extend-trial`, "POST", "super", { days: 91 }),
+      req(`/api/merchants/${TENANT}/extend-trial`, "POST", "super", { days: 91, reason: "customer asked" }),
       idParams,
     );
-    const b = await trials(req("/api/trials/extend", "POST", "super", { tenant_id: TENANT, days: 91 }));
+    const b = await trials(
+      req("/api/trials/extend", "POST", "super", { tenant_id: TENANT, days: 91, reason: "customer asked" }),
+    );
     expect(a.status).toBe(400);
     expect(b.status).toBe(400);
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "", "   ", "ok", "x".repeat(501)])(
+    "needs a reason of 3 to 500 characters on both routes (%s)",
+    async (reason) => {
+      const { POST: perMerchant } = await import("./merchants/[id]/extend-trial/route");
+      const { POST: trials } = await import("./trials/extend/route");
+
+      const a = await perMerchant(
+        req(`/api/merchants/${TENANT}/extend-trial`, "POST", "support", { days: 7, reason }),
+        idParams,
+      );
+      const b = await trials(req("/api/trials/extend", "POST", "support", { tenant_id: TENANT, days: 7, reason }));
+      expect(a.status).toBe(400);
+      expect(b.status).toBe(400);
+      expect(createAdminClient).not.toHaveBeenCalled();
+    },
+  );
+});
+
+/**
+ * The billing lock's staff tools (Fermi A1): more storefront orders for a
+ * locked store (support staff too) and a free unlock (super admin only: it
+ * grants paid time without a payment). Each is one SQL function that checks
+ * the lock, writes the change and logs the reason with the acting admin.
+ */
+describe("billing lock staff tools", () => {
+  const lockOrders = async (t: string, body: unknown) => {
+    const { POST } = await import("./merchants/[id]/lock-orders/route");
+    return POST(req(`/api/merchants/${TENANT}/lock-orders`, "POST", t, body), idParams);
+  };
+  const forceUnlock = async (t: string, body: unknown) => {
+    const { POST } = await import("./merchants/[id]/force-unlock/route");
+    return POST(req(`/api/merchants/${TENANT}/force-unlock`, "POST", t, body), idParams);
+  };
+  const rpcCalls = () => dbCalls.filter((c) => c.method === "rpc").map((c) => c.args);
+  const tableCalls = () =>
+    dbCalls.filter((c) => ["from", "update", "insert", "upsert", "delete"].includes(c.method));
+
+  it("gives a locked store more orders through one RPC that names the admin and the reason", async () => {
+    dbResult = { data: { success: true, tenant_id: TENANT, orders_left: 12 }, error: null };
+    const res = await lockOrders("support", { orders: 10, reason: " courier delay " });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: TENANT, orders_left: 12 });
+    expect(rpcCalls()).toEqual([
+      [
+        "admin_add_lock_orders",
+        {
+          _tenant_id: TENANT,
+          _orders: 10,
+          _reason: "courier delay",
+          _admin_user_id: SUPPORT_ID,
+          _actor_email: "agent@example.com",
+        },
+      ],
+    ]);
+    expect(tableCalls()).toEqual([]);
+  });
+
+  it("unlocks a store for free through one RPC that names the admin and the reason", async () => {
+    dbResult = {
+      data: { success: true, tenant_id: TENANT, period_end: "2099-01-31T00:00:00+00:00", lock_reason: "unpaid" },
+      error: null,
+    };
+    const res = await forceUnlock("super", { days: 30, reason: "paid in cash" });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ status: "active", period_end: "2099-01-31T00:00:00+00:00" });
+    expect(rpcCalls()).toEqual([
+      [
+        "admin_force_unlock",
+        {
+          _tenant_id: TENANT,
+          _days: 30,
+          _reason: "paid in cash",
+          _admin_user_id: SUPER_ID,
+          _actor_email: "boss@example.com",
+        },
+      ],
+    ]);
+    expect(tableCalls()).toEqual([]);
+  });
+
+  it("a store that is not locked is a 409, an unknown one a 404", async () => {
+    dbResult = { data: { success: false, error: "not_locked" }, error: null };
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(409);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(409);
+
+    dbResult = { data: { success: false, error: "not_found" }, error: null };
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(404);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(404);
+  });
+
+  it("a database error or an unreadable answer is a 500, not a success", async () => {
+    dbResult = { data: null, error: { code: "40P01", message: "deadlock detected" } };
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(500);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(500);
+
+    dbResult = { data: { success: true }, error: null };
+    expect((await lockOrders("support", { orders: 10, reason: "courier delay" })).status).toBe(500);
+    expect((await forceUnlock("super", { days: 30, reason: "paid in cash" })).status).toBe(500);
+  });
+
+  it.each([
+    ["no reason", { orders: 10 }, { days: 30 }],
+    ["a short reason", { orders: 10, reason: "ok" }, { days: 30, reason: "ok" }],
+    ["zero", { orders: 0, reason: "courier delay" }, { days: 0, reason: "paid in cash" }],
+    ["over the cap", { orders: 1001, reason: "courier delay" }, { days: 91, reason: "paid in cash" }],
+    ["a fraction", { orders: 2.5, reason: "courier delay" }, { days: 1.5, reason: "paid in cash" }],
+  ])("refuses %s before touching the database", async (_label, ordersBody, unlockBody) => {
+    expect((await lockOrders("support", ordersBody)).status).toBe(400);
+    expect((await forceUnlock("super", unlockBody)).status).toBe(400);
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 });

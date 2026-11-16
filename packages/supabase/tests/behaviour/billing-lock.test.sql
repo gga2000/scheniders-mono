@@ -300,3 +300,149 @@ SELECT pg_temp.check(pg_temp.balance('20000000-0000-4000-8000-00000000000d') = 0
 DELETE FROM public.plan_limits WHERE plan = 'starter';
 UPDATE public.tenants SET lock_since = NULL, lock_orders_left = NULL WHERE id = '20000000-0000-4000-8000-00000000000f';
 SELECT pg_temp.check(pg_temp.refusal('20000000-0000-4000-8000-00000000000f', 'E4') = 'BILLING_PAUSED', 'no allowance configured pauses the store');
+
+-- 15. Staff tools (handoff A1 item 7): each needs a reason, writes one log row,
+--     and is refused to anyone but the service role.
+INSERT INTO public.plan_limits (plan, base_price_iqd, order_price_iqd, trial_order_cap, lock_order_allowance)
+VALUES ('starter', 9000, 55, 0, 3);
+-- X: trial ended unpaid (the job left its subscription past_due).
+-- Y: paid shop whose month could not be paid.  Z: running trial, not locked.
+-- W: trial ended unpaid, unlocked for free.
+INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
+  ('20000000-0000-4000-8000-000000000010', 'starter', 'trial', now() - interval '2 days'),
+  ('20000000-0000-4000-8000-000000000011', 'starter', 'active', now() - interval '60 days'),
+  ('20000000-0000-4000-8000-000000000012', 'starter', 'trial', now() + interval '4 days'),
+  ('20000000-0000-4000-8000-000000000013', 'starter', 'trial', now() - interval '1 day');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-000000000010', 0),
+  ('20000000-0000-4000-8000-000000000011', 500),
+  ('20000000-0000-4000-8000-000000000012', 0),
+  ('20000000-0000-4000-8000-000000000013', 0);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
+  ('20000000-0000-4000-8000-000000000010', 'starter', 'trialing', now() - interval '9 days', now() - interval '2 days', now() - interval '9 days'),
+  ('20000000-0000-4000-8000-000000000011', 'starter', 'active', now() - interval '31 days', now() - interval '1 day', now() - interval '60 days'),
+  ('20000000-0000-4000-8000-000000000012', 'starter', 'trialing', now() - interval '3 days', now() + interval '4 days', now() - interval '3 days');
+SELECT public.settle_billing_lock('20000000-0000-4000-8000-000000000010', true);
+SELECT public.renew_subscription_core(id, current_period_end) FROM public.subscriptions WHERE tenant_id = '20000000-0000-4000-8000-000000000011';
+SELECT pg_temp.check(pg_temp.sub_status('20000000-0000-4000-8000-000000000010') = 'past_due'
+  AND pg_temp.lock('20000000-0000-4000-8000-000000000010') = 'trial_ended', 'X starts locked with a past_due subscription');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-000000000011') = 'unpaid', 'Y starts locked unpaid');
+CREATE FUNCTION pg_temp.logs(p_tenant text, p_action text) RETURNS bigint LANGUAGE sql AS $$
+  SELECT count(*) FROM public.admin_activity_logs WHERE tenant_id = p_tenant::uuid AND action = p_action;
+$$;
+
+-- 15a. Only the service role; a reason is required.
+SELECT set_config('test.role', 'authenticated', false);
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_extend_trial('20000000-0000-4000-8000-000000000010', 7, 'customer asked')$$) LIKE '%service-role only%', 'a merchant cannot extend a trial');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 5, 'customer asked')$$) LIKE '%service-role only%', 'a merchant cannot add lock orders');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, 'paid in cash')$$) LIKE '%service-role only%', 'a merchant cannot unlock');
+SELECT set_config('test.role', '', false);
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_extend_trial('20000000-0000-4000-8000-000000000010', 7, '  ')$$) LIKE '%reason%', 'extend needs a reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 5, NULL)$$) LIKE '%reason%', 'lock orders need a reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, 'ok')$$) LIKE '%reason%', 'unlock needs a reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 0, 'customer asked')$$) LIKE '%between 1 and 1000%', '0 lock orders refused');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 91, 'paid in cash')$$) LIKE '%between 1 and 90%', '91 free days refused');
+SELECT pg_temp.check((SELECT count(*) FROM public.admin_activity_logs) = 0, 'a refused call writes no log');
+
+-- 15b. More lock orders: added to this lock period's counter, or to the
+--      allowance when the counter has not started.
+SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000010', 'X1');
+SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000010', 'X2');
+SELECT pg_temp.check(pg_temp.left_('20000000-0000-4000-8000-000000000010') = 1, 'X used 2 of 3');
+SELECT pg_temp.check(
+  (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 5, 'customer asked', NULL, 'staff@example.test'))->>'orders_left' = '6',
+  'adding 5 to 1 left gives 6');
+SELECT pg_temp.check(pg_temp.left_('20000000-0000-4000-8000-000000000010') = 6, 'the counter holds 6');
+SELECT pg_temp.check(
+  (SELECT details->>'reason' = 'customer asked' AND (details->>'orders_left_before')::int = 1 AND actor_email = 'staff@example.test' AND admin_label IS NULL
+     FROM public.admin_activity_logs WHERE tenant_id = '20000000-0000-4000-8000-000000000010' AND action = 'add_lock_orders'),
+  'add_lock_orders is logged with its reason and the counter before');
+SELECT pg_temp.check(
+  (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000011', 2, 'courier delay'))->>'orders_left' = '5',
+  'a lock whose counter has not started gets the allowance plus the grant');
+SELECT pg_temp.check(
+  (public.admin_add_lock_orders('20000000-0000-4000-8000-000000000012', 5, 'customer asked'))->>'error' = 'not_locked'
+  AND pg_temp.left_('20000000-0000-4000-8000-000000000012') IS NULL
+  AND pg_temp.logs('20000000-0000-4000-8000-000000000012', 'add_lock_orders') = 0,
+  'a store that is not locked gets nothing');
+SELECT pg_temp.check(
+  (public.admin_add_lock_orders(gen_random_uuid(), 5, 'customer asked'))->>'error' = 'not_found', 'unknown store');
+
+-- 15c. Extending an ended trial lifts the lock and revives the past_due
+--      subscription; it still refuses a shop that is not on trial.
+SELECT pg_temp.check(
+  (public.admin_extend_trial('20000000-0000-4000-8000-000000000010', 7, 'customer asked', NULL, NULL, 'single'))->>'was_locked' = 'true',
+  'extend reports the shop was locked');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-000000000010') IS NULL, 'the extended trial is not locked');
+SELECT pg_temp.check(
+  pg_temp.sub_status('20000000-0000-4000-8000-000000000010') = 'trialing'
+  AND (SELECT current_period_end = t.trial_ends_at AND t.trial_ends_at > now() + interval '6 days'
+         FROM public.subscriptions s JOIN public.tenants t ON t.id = s.tenant_id
+        WHERE s.tenant_id = '20000000-0000-4000-8000-000000000010'),
+  'the subscription is trialing again and ends with the trial');
+SELECT pg_temp.check(
+  (SELECT details->>'reason' = 'customer asked' AND admin_label = 'system' AND (details->>'subscriptions_moved')::int = 1
+     FROM public.admin_activity_logs WHERE tenant_id = '20000000-0000-4000-8000-000000000010' AND action = 'extend_trial'),
+  'extend_trial is logged with its reason');
+SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000010', 'X3');
+SELECT pg_temp.check(pg_temp.phase('X3') = 'trial', 'orders in the extension are trial orders');
+SELECT pg_temp.check(
+  (public.admin_extend_trial('20000000-0000-4000-8000-000000000011', 7, 'customer asked'))->>'error' = 'not_trial'
+  AND pg_temp.logs('20000000-0000-4000-8000-000000000011', 'extend_trial') = 0,
+  'a paid shop cannot be put back on trial');
+
+-- 15d. Free unlock: a new paid period, no charge, the shop active; renewal
+--      charges as usual when it ends.
+SELECT pg_temp.check(
+  (public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, 'paid in cash', '20000000-0000-4000-8000-0000000000ff'))->>'lock_reason' = 'unpaid',
+  'unlocking an unpaid shop');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-000000000011') IS NULL, 'the unpaid shop is unlocked');
+SELECT pg_temp.check(
+  pg_temp.sub_status('20000000-0000-4000-8000-000000000011') = 'active'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-000000000011') = 'active'
+  AND pg_temp.balance('20000000-0000-4000-8000-000000000011') = 500
+  AND (SELECT current_period_end BETWEEN now() + interval '29 days' AND now() + interval '31 days'
+         FROM public.subscriptions WHERE tenant_id = '20000000-0000-4000-8000-000000000011'),
+  'a free 30-day period, nothing charged');
+SELECT pg_temp.check(
+  (SELECT details->>'reason' = 'paid in cash' AND details->>'lock_reason' = 'unpaid' AND admin_user_id = '20000000-0000-4000-8000-0000000000ff'
+     FROM public.admin_activity_logs WHERE tenant_id = '20000000-0000-4000-8000-000000000011' AND action = 'force_unlock'),
+  'force_unlock is logged with its reason and the admin');
+SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000011', 'Y1');
+SELECT pg_temp.check(pg_temp.phase('Y1') IS NULL, 'orders after the unlock are ordinary paid orders');
+SELECT pg_temp.check(
+  (public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, 'paid in cash'))->>'error' = 'not_locked'
+  AND pg_temp.logs('20000000-0000-4000-8000-000000000011', 'force_unlock') = 1,
+  'unlocking twice does nothing the second time');
+SELECT pg_temp.check(
+  (public.admin_force_unlock('20000000-0000-4000-8000-000000000013', 14, 'launch partner'))->>'lock_reason' = 'trial_ended',
+  'unlocking an ended trial with no subscription row');
+SELECT pg_temp.check(
+  pg_temp.lock('20000000-0000-4000-8000-000000000013') IS NULL
+  AND pg_temp.shop_status('20000000-0000-4000-8000-000000000013') = 'active'
+  AND pg_temp.sub_status('20000000-0000-4000-8000-000000000013') = 'active',
+  'the ended trial becomes an active shop with a subscription');
+SELECT pg_temp.check(
+  (public.admin_force_unlock('20000000-0000-4000-8000-000000000012', 30, 'paid in cash'))->>'error' = 'not_locked'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-000000000012') = 'trial',
+  'a running trial is not touched');
+
+-- 16. The staff console's read of the lock: the same snapshot the shop reads
+--     (section 6 runs billing_lock_status on it). Its grants (service role
+--     only) are not applied here; they are checked on the live database.
+-- V: trial ended unpaid, one storefront order taken while locked.
+INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
+  ('20000000-0000-4000-8000-000000000014', 'starter', 'trial', now() - interval '1 day');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('20000000-0000-4000-8000-000000000014', 0);
+SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000014', 'V1');
+SELECT pg_temp.check(
+  (SELECT s->>'locked' = 'true' AND s->>'reason' = 'trial_ended' AND (s->>'orders_left')::int = 2
+          AND (s->>'allowance')::int = 3 AND (s->>'price_iqd')::numeric = 9000 AND s->>'since' IS NOT NULL
+          AND NOT s ? 'balance_iqd'
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-000000000014') s),
+  'the snapshot shows a locked shop, its orders left and its price, never the balance');
+SELECT pg_temp.check(
+  (SELECT s->>'locked' = 'false' AND s->'reason' = 'null'::jsonb AND s->'orders_left' = 'null'::jsonb
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-000000000012') s),
+  'a running trial is not locked');
+SELECT pg_temp.check(public.billing_lock_snapshot(gen_random_uuid()) IS NULL, 'an unknown shop has no snapshot');

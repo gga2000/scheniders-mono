@@ -499,7 +499,13 @@ function DialogBody({
       {/* ── Tab Content ────────────────────────────────────────────── */}
       <div className="min-h-[300px]">
         {activeTab === "Overview" && (
-          <OverviewTab merchantId={merchantId} tenant={tenant} subscription={subscription} />
+          <OverviewTab
+            merchantId={merchantId}
+            tenant={tenant}
+            subscription={subscription}
+            billingLock={data.billingLock}
+            canForceUnlock={data.canForceUnlock}
+          />
         )}
         {activeTab === "Billing" && (
           <BillingTab wallet={wallet} transactions={transactions} />

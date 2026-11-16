@@ -27,25 +27,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * through the `admin_extend_trial` RPC. One transaction moves
  * `tenants.trial_ends_at` (what staff and the merchant see) and the trialing
  * subscription's `current_period_end` (what billing reads) to the same
- * instant, and writes the activity row with the acting admin. Shared by
+ * instant, and writes the activity row with the acting admin and the staff
+ * member's reason (3 to 500 characters, required since the billing lock:
+ * extending an ended trial also lifts the lock). Shared by
  * POST /api/trials/extend, POST /api/merchants/[id]/extend-trial and the bulk
  * action so the three cannot drift.
  *
  * Only a tenant whose status is `trial` qualifies, and the status is never
  * written. `extend_trial` is a support_staff permission; letting it move a
  * `limited` (paused) or `suspended` tenant back to `trial` would lift the pause
- * or suspension, which needs `reactivate_tenant` (super_admin).
+ * or suspension, which needs `reactivate_tenant` (super_admin). An ended
+ * trial is still `trial` (the billing lock is derived), so it qualifies.
  */
 export async function extendTrial(
   supabase: ReturnType<typeof createAdminClient>,
   tenantId: string,
   days: number,
+  reason: string,
   actor: TrialExtensionActor,
   source: "single" | "bulk" = "single",
 ): Promise<TrialExtensionResult> {
   const { data, error } = await supabase.rpc("admin_extend_trial", {
     _tenant_id: tenantId,
     _days: days,
+    _reason: reason,
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
     _source: source,

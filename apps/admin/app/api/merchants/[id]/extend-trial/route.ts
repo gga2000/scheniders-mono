@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
+import { staffReasonSchema } from "@/lib/staff-reason";
 import { z } from "zod";
 
 const bodySchema = z.object({
   days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
+  reason: staffReasonSchema,
 });
 
 export async function POST(
@@ -29,7 +31,13 @@ export async function POST(
       );
     }
 
-    const result = await extendTrial(createAdminClient(), id, parsed.data.days, auth.user);
+    const result = await extendTrial(
+      createAdminClient(),
+      id,
+      parsed.data.days,
+      parsed.data.reason,
+      auth.user,
+    );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

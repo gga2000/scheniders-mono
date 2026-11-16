@@ -46,8 +46,8 @@ const req = (body: unknown) =>
 const topUp = (amount_iqd: unknown, tenant_ids = [T1, T2], request_id: unknown = REQUEST) =>
   req({ action: "top_up", tenant_ids, params: { amount_iqd, description: "Promo credit", request_id } });
 
-const extendTrial = (days: unknown, tenant_ids: unknown[] = [T1, T2]) =>
-  req({ action: "extend_trial", tenant_ids, params: { days } });
+const extendTrial = (days: unknown, tenant_ids: unknown[] = [T1, T2], reason: unknown = "Ramadan promo") =>
+  req({ action: "extend_trial", tenant_ids, params: { days, reason } });
 
 const extended = (tenantId: string) => ({
   data: { success: true, tenant_id: tenantId, trial_ends_at: "2026-12-01T00:00:00+00:00", subscriptions_moved: 1 },
@@ -174,6 +174,7 @@ describe("POST /api/bulk extend_trial", () => {
       expect(rpc).toHaveBeenCalledWith("admin_extend_trial", {
         _tenant_id: tid,
         _days: 14,
+        _reason: "Ramadan promo",
         _admin_user_id: ADMIN_ID,
         _actor_email: "ops@example.com",
         _source: "bulk",
@@ -213,5 +214,24 @@ describe("POST /api/bulk extend_trial", () => {
     const res = await POST(extendTrial(days));
     expect(res.status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "", "  ", "ok", 42, "x".repeat(501)])("rejects reason %s", async (reason) => {
+    const res = await POST(extendTrial(7, [T1, T2], reason));
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a bulk extension with no reason", async () => {
+    const res = await POST(req({ action: "extend_trial", tenant_ids: [T1, T2], params: { days: 7 } }));
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("sends the reason trimmed", async () => {
+    rpc.mockResolvedValueOnce(extended(T1));
+    const res = await POST(extendTrial(7, [T1], "  courier strike  "));
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("admin_extend_trial", expect.objectContaining({ _reason: "courier strike" }));
   });
 });
