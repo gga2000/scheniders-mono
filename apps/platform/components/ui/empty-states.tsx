@@ -10,6 +10,7 @@ import {
     Sparkles,
     Search,
     Filter,
+    CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -18,6 +19,8 @@ interface EmptyStateProps {
     type: "no-orders" | "no-results" | "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all";
     searchQuery?: string;
     hasFilters?: boolean;
+    /** Only a date window applies: say the period is empty, not that filters matched nothing. */
+    periodOnly?: boolean;
 }
 
 const stateConfigs = {
@@ -69,11 +72,19 @@ const stateConfigs = {
         color: "text-gray-500",
         bg: "bg-gray-50",
     },
+    "period": {
+        icon: CalendarDays,
+        key: "period",
+        color: "text-gray-500",
+        bg: "bg-gray-50",
+    },
 };
 
-export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
+export function EmptyState({ type, searchQuery, hasFilters, periodOnly }: EmptyStateProps) {
     // If searching or filtering with no results, show the search empty state
-    const effectiveType = (searchQuery || hasFilters) && type !== "no-orders" ? "no-results" : type;
+    const effectiveType = (searchQuery || hasFilters) && type !== "no-orders"
+        ? "no-results"
+        : periodOnly && type === "all" ? "period" : type;
     const config = stateConfigs[effectiveType] || stateConfigs["all"];
     const Icon = config.icon;
     const { t } = useLanguage();

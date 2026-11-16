@@ -1,10 +1,15 @@
 import type { Locale } from "@/lib/i18n";
-import { formatShortDate, formatTime } from "@/lib/order-format-utils";
+import { formatTime } from "@/lib/order-format-utils";
+import { formatBaghdadShortDate } from "@/lib/customer-format";
 import { addDaysToDayKey, baghdadDayKey, toBaghdadDayKey } from "@/lib/order-window";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-/** A Prime moment as the band and the panel say it, in Baghdad: "Today 10:42am", "أمس 04:40 م", "1/11 · 7:30pm". */
+/**
+ * A Prime moment as the band and the panel say it, in Baghdad: "Today 10:42am",
+ * "أمس 04:40 م", «13 تشرين الثاني · 08:24 م». Older days name their month like
+ * every other date in the app (round 16 critic: «13/11» on the track lines).
+ */
 export function primeWhen(iso: string, t: Translate, language: Locale, now: number = Date.now()): string {
     const day = toBaghdadDayKey(iso);
     const time = formatTime(iso, language);
@@ -12,7 +17,7 @@ export function primeWhen(iso: string, t: Translate, language: Locale, now: numb
     const today = baghdadDayKey(now);
     if (day === today) return t("orders.prime.when.today", { time });
     if (day === addDaysToDayKey(today, -1)) return t("orders.prime.when.yesterday", { time });
-    return `${formatShortDate(iso)} · ${time}`;
+    return `${formatBaghdadShortDate(iso, language, new Date(now))} · ${time}`;
 }
 
 /** Prime's reason as one line under the parcel: "Prime: customer not answering", "Prime: travelling · put off to 2026-11-06". */

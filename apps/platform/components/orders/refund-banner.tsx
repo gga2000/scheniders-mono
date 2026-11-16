@@ -39,7 +39,7 @@ export function RefundBanner({ order }: { order: Order }) {
                     <span className="font-medium">
                         {t("refund.original.by", {
                             id: refund.order_id,
-                            amount: formatIQD(computeRefundPayout(refund)),
+                            amount: formatIQD(-computeRefundPayout(refund)),
                         })}
                     </span>
                     <span className={cn("ms-auto text-xs", refund.status === "refund_delivered" ? "font-semibold" : "text-rose-700 dark:text-rose-300")}>

@@ -48,6 +48,17 @@ export function revenueWindowFor(range: DateRangeKey): RevenueWindow {
     return range === "today" || range === "7d" ? 7 : 30;
 }
 
+/** A window picked on the revenue card, and the header period it was picked under. */
+export type RevenueWindowPick = { range: DateRangeKey; days: RevenueWindow } | null;
+
+/**
+ * The window the revenue card shows: the one picked on it while the header's
+ * period is still the one it was picked under, else the header's own.
+ */
+export function revenueWindowShown(range: DateRangeKey, pick: RevenueWindowPick): RevenueWindow {
+    return pick && pick.range === range ? pick.days : revenueWindowFor(range);
+}
+
 export interface RevenueCardFigures {
     /** One point per Baghdad day, oldest first, `window` long. */
     series: { label: string; value: number }[];

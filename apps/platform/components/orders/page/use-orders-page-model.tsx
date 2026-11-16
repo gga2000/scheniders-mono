@@ -390,6 +390,10 @@ export function useOrdersPageModel() {
     // `hasFilters` counts the date range, so "no filters" here means the full window.
     const emptyStateHasFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority);
     const isFirstRun = (orders?.length ?? 0) === 0 && !filters.searchQuery && !emptyStateHasFilters;
+    // The date window alone is not "filters": the date button already names it, and on
+    // Today it is the default (round 16 critic: an empty Today said «الفلاتر مفعّلة»).
+    const emptyStateFiltered = !!(filters.city || filters.product || filters.priority);
+    const emptyStatePeriodOnly = !emptyStateFiltered && !!(filters.dateFrom || filters.dateTo);
 
     // ARCH-6: the order store is module-level, so an open modal, a bulk
     // selection or a half-finished inline edit outlived this page and came back
@@ -1145,7 +1149,8 @@ export function useOrdersPageModel() {
         handleSplitOrder,
         handleViewDetails,
         setSelectedOrderWithFetch,
-        emptyStateHasFilters,
+        emptyStateFiltered,
+        emptyStatePeriodOnly,
         isFirstRun,
         workflowTemplates,
         dateButtonRef,

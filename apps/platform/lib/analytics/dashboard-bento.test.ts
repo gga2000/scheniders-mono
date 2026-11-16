@@ -7,6 +7,7 @@ import {
     orderLane,
     pctChange,
     revenueCardFigures,
+    revenueWindowShown,
     seasonality,
     type MonthlySales,
 } from "./dashboard-bento";
@@ -235,5 +236,23 @@ describe("seasonality", () => {
         expect(monthlySalesSchema.safeParse([{ month: "2026-10", orders: 3, revenue: null }]).success).toBe(true);
         expect(monthlySalesSchema.safeParse([{ month: "Oct", orders: 3, revenue: null }]).success).toBe(false);
         expect(monthlySalesSchema.safeParse([{ month: "2026-10", orders: -1, revenue: 0 }]).success).toBe(false);
+    });
+});
+
+describe("revenueWindowShown", () => {
+    it("opens on the header's period: 7 days for today and 7 days, 30 for 30 days and all", () => {
+        expect(revenueWindowShown("today", null)).toBe(7);
+        expect(revenueWindowShown("7d", null)).toBe(7);
+        expect(revenueWindowShown("30d", null)).toBe(30);
+        expect(revenueWindowShown("all", null)).toBe(30);
+    });
+
+    it("keeps a window picked on the card while the header stays on the period it was picked under", () => {
+        // The page holds the pick, so a tab switch that unmounts the card keeps it (round 16 critic).
+        expect(revenueWindowShown("7d", { range: "7d", days: 14 })).toBe(14);
+    });
+
+    it("drops the pick once the header's period changes", () => {
+        expect(revenueWindowShown("30d", { range: "7d", days: 14 })).toBe(30);
     });
 });
