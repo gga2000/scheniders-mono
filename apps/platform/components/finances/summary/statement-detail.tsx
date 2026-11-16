@@ -12,7 +12,7 @@ interface StatementDetailProps {
     line: CostLine;
     summary: FinanceSummary;
     onOpenTab: (tab: FinanceTab) => void;
-    /** The statement is being read as an average (per order, per 1,000). The parts stay totals, and say so. */
+    /** The statement is being read as an average (per order). The parts stay totals, and say so. */
     averaged: boolean;
 }
 
@@ -46,6 +46,26 @@ export function StatementDetail({ line, summary, onOpenTab, averaged }: Statemen
     const totalsNote = (parts: number) =>
         averaged && parts > 0 ? <p className="text-left text-[12.5px] text-muted" dir={dir} data-testid="detail-totals">{t("fin.detail.totals")}</p> : null;
 
+    const deliveryLabel = (key: string): string => {
+        switch (key) {
+            case "file_fee":
+                return t("fin.detail.delivery.file", { n: formatWhole(summary.courier.file_orders), count: summary.courier.file_orders });
+            case "prime_fee":
+                return t("fin.detail.delivery.prime", {
+                    n: formatWhole(summary.courier.prime_parcels),
+                    count: summary.courier.prime_parcels,
+                    orders: formatWhole(summary.sales.orders),
+                });
+            case "prime_returned_fee":
+                return t("fin.detail.delivery.prime_returned", {
+                    n: formatWhole(summary.failed.prime_returned_parcels),
+                    count: summary.failed.prime_returned_parcels,
+                });
+            default:
+                return t("fin.detail.delivery.bills");
+        }
+    };
+
     let body: ReactNode;
     switch (line.id) {
         case "product_cost": {
@@ -76,24 +96,7 @@ export function StatementDetail({ line, summary, onOpenTab, averaged }: Statemen
                 <>
                     {line.parts.length === 0 && sentence(t("fin.detail.delivery.none"))}
                     {totalsNote(line.parts.length)}
-                    {line.parts.map((p) =>
-                        part(
-                            p.key,
-                            p.key === "prime_fee"
-                                ? t("fin.detail.delivery.prime", {
-                                      n: formatWhole(summary.courier.prime_parcels),
-                                      count: summary.courier.prime_parcels,
-                                      orders: formatWhole(summary.sales.orders),
-                                  })
-                                : p.key === "prime_returned_fee"
-                                  ? t("fin.detail.delivery.prime_returned", {
-                                        n: formatWhole(summary.failed.prime_returned_parcels),
-                                        count: summary.failed.prime_returned_parcels,
-                                    })
-                                  : t("fin.detail.delivery.bills"),
-                            p.amount,
-                        ),
-                    )}
+                    {line.parts.map((p) => part(p.key, deliveryLabel(p.key), p.amount))}
                     {tabLink("expenses", t("fin.detail.other.open"))}
                 </>
             );

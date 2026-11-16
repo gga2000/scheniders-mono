@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Clock, FileUp, HandCoins, Truck, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, FileUp, HandCoins, Truck, Wallet, type LucideIcon } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -58,12 +58,13 @@ function Stop({ icon: Icon, label, note, amount, textDir, road, arrived = false,
  * reached the shop in the period. Payments are dated by the courier, sales by
  * the delivery, so the last line says how many of the period's delivered orders
  * are already paid: without it the card looks as if money were missing.
+ * Stuck parcels are not repeated here: the strip and the banner above carry them.
  */
 export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, stuck, returning, prime_linked: primeLinked, prime_held: held, reached } = summary.cash;
+    const { in_transit: road, returning, prime_linked: primeLinked, prime_held: held, reached } = summary.cash;
     const { orders, paid_orders: paid } = summary.sales;
     const nothingOutside = road.count === 0 && returning.count === 0 && held.parcels === 0 && reached.payments === 0;
     const dayText = useMemo(
@@ -111,16 +112,6 @@ export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
                             </p>
-                        )}
-                        {stuck.count > 0 && (
-                            <Link
-                                href="/orders?status=in_transit"
-                                className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2.5 py-1 text-[12px] font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-200"
-                                data-testid="money-stuck"
-                            >
-                                <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-                                <span dir={dir}>{t("fin.money.stuck", { n: formatWhole(stuck.count), count: stuck.count, amount: money(stuck.amount) })}</span>
-                            </Link>
                         )}
                     </Stop>
                     {primeLinked && (

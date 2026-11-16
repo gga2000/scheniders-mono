@@ -55,6 +55,18 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/'courier', COALESCE\(pf\.fee, 0\) \+ COALESCE\(prt\.fee, 0\)/);
     });
 
+    it("counts what the courier kept in the shop's confirmed payment files once per order, and never on a Prime parcel", () => {
+        // the newest confirmed file of the shop names the order's fee
+        expect(core).toMatch(/file_rows AS \(\s*SELECT DISTINCT ON \(i\.order_id\) i\.order_id, COALESCE\(i\.pdf_delivery_fee, 0\) AS fee\s+FROM public\.delivery_import_items i\s+JOIN public\.delivery_imports di ON di\.id = i\.import_id\s+WHERE di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)/);
+        expect(core).toMatch(/ORDER BY i\.order_id, di\.created_at DESC, i\.id/);
+        // only delivered orders of the period, on their delivery day, and not the ones Prime charges for
+        expect(core).toMatch(/file_fee AS \(\s*SELECT s\.day, sum\(fr\.fee\) AS fee, count\(\*\) AS orders\s+FROM sold s\s+JOIN file_rows fr ON fr\.order_id = s\.id\s+WHERE fr\.fee > 0\s+AND NOT EXISTS \(\s*SELECT 1 FROM public\.prime_shipments ps\s+WHERE ps\.order_id = s\.id AND ps\.tenant_id = _tenant_id\)/);
+        expect(core).toMatch(/'file_fee', \(SELECT COALESCE\(sum\(fee\), 0\) FROM file_fee\)/);
+        // each day carries it beside Prime's fee, so the days still add up to the statement
+        expect(core).toMatch(/'courier_file', COALESCE\(ff\.fee, 0\)/);
+        expect(core).toMatch(/LEFT JOIN file_fee ff ON ff\.day = d\.day/);
+    });
+
     it("keeps stock purchases out of each day's costs: the goods count when they sell", () => {
         expect(core).toMatch(/exp_day AS \(\s*SELECT day, sum\(amount\) AS amount FROM exp\s+WHERE category IS DISTINCT FROM 'product_cost'/);
     });

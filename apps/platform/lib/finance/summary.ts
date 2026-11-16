@@ -11,9 +11,12 @@ import { z } from "zod";
  *   product cost   what the sold goods cost, frozen at delivery
  *   ads            `marketing` expenses (Meta spend is synced into them, so it
  *                  is never added a second time)
- *   delivery       the courier's fee on delivered Prime parcels and on the
- *                  parcels that came back (on the day they came back), plus
- *                  courier bills typed as `shipping` expenses
+ *   delivery       what the courier kept on delivered orders, read from the
+ *                  shop's confirmed payment files; the courier's fee on
+ *                  delivered Prime parcels (an order with a Prime parcel is
+ *                  charged there, never from a file too) and on the parcels
+ *                  that came back (on the day they came back); plus courier
+ *                  bills typed as `shipping` expenses
  *   refunds        money paid back, on the day it was paid
  *   other costs    every other expense category, except stock purchases
  *   salaries       payroll actually paid in the period
@@ -34,6 +37,8 @@ const DailySchema = z.object({
     revenue: z.number(),
     product_cost: z.number(),
     courier: z.number(),
+    /** What the courier kept on that day's delivered orders, from the shop's payment files. */
+    courier_file: z.number(),
     refunds: z.number(),
     expenses: z.number(),
     salaries: z.number(),
@@ -66,7 +71,13 @@ export const FinanceSummarySchema = z.object({
     refunds: CountAmountSchema,
     expenses: z.array(z.object({ category: z.string(), amount: z.number() })),
     salaries_paid: z.number(),
-    courier: z.object({ prime_fee: z.number(), prime_parcels: z.number() }),
+    courier: z.object({
+        prime_fee: z.number(),
+        prime_parcels: z.number(),
+        /** What the courier kept on the period's delivered orders, read from confirmed payment files. */
+        file_fee: z.number(),
+        file_orders: z.number(),
+    }),
     cash: z.object({
         in_transit: CountAmountSchema,
         stuck: CountAmountSchema,
@@ -108,7 +119,7 @@ export type CostLineId = (typeof COST_LINE_IDS)[number];
 
 /** What a cost line is made of, shown when the merchant opens the line. */
 export interface CostPart {
-    /** `prime_fee`, `prime_returned_fee`, `courier_bills` or an expense category. */
+    /** `file_fee`, `prime_fee`, `prime_returned_fee`, `courier_bills` or an expense category. */
     key: string;
     amount: number;
 }
@@ -158,8 +169,9 @@ export function buildStatement(summary: FinanceSummary): ProfitStatement {
         product_cost: { amount: summary.sales.product_cost, parts: [] },
         ads: { amount: ads, parts: [] },
         delivery: {
-            amount: summary.courier.prime_fee + summary.failed.prime_returned_fee + courierBills,
+            amount: summary.courier.file_fee + summary.courier.prime_fee + summary.failed.prime_returned_fee + courierBills,
             parts: [
+                { key: "file_fee", amount: summary.courier.file_fee },
                 { key: "prime_fee", amount: summary.courier.prime_fee },
                 { key: "prime_returned_fee", amount: summary.failed.prime_returned_fee },
                 { key: "courier_bills", amount: courierBills },
@@ -193,15 +205,13 @@ export function perOrder(amount: number, orders: number): number | null {
     return orders > 0 ? Math.round(amount / orders) : null;
 }
 
-/** How the statement's figures are read: the period's totals, one average delivered order, or each 1,000 IQD sold. */
-export const LENSES = ["total", "order", "thousand"] as const;
+/** How the statement's figures are read: the period's totals, or one average delivered order. */
+export const LENSES = ["total", "order"] as const;
 export type Lens = (typeof LENSES)[number];
 
-/** `amount` through a lens, as a whole number; null when the lens has no base (no order, or nothing sold). */
+/** `amount` through a lens, as a whole number; null when the lens has no base (no order delivered). */
 export function throughLens(amount: number, statement: ProfitStatement, lens: Lens): number | null {
-    if (lens === "total") return amount;
-    if (lens === "order") return perOrder(amount, statement.orders);
-    return statement.sales > 0 ? Math.round((amount / statement.sales) * 1000) : null;
+    return lens === "total" ? amount : perOrder(amount, statement.orders);
 }
 
 /** Under this many delivered orders, a period's averages are too jumpy to compare against. */
@@ -268,7 +278,7 @@ export type BarStep = "day" | "week" | "month";
 
 /** A day's profit: its sales minus every cost dated that day. Days add up to the statement's net profit. */
 export function dayProfit(day: FinanceSummaryDay): number {
-    return day.revenue - day.product_cost - day.courier - day.refunds - day.expenses - day.salaries;
+    return day.revenue - day.product_cost - day.courier - day.courier_file - day.refunds - day.expenses - day.salaries;
 }
 
 /** Daily bars up to two months, weekly up to about a year, monthly beyond: the chart never gets too thin to read. */
@@ -356,6 +366,39 @@ export function productRows(summary: FinanceSummary): ProductProfitRow[] {
             };
         })
         .sort((a, b) => b.profit - a.profit);
+}
+
+/**
+ * The courier's fee may be in the statement twice: the payment files already
+ * carry it, and courier bills were typed as `shipping` expenses too. The page
+ * cannot tell whether a typed bill covers the same orders, so it counts both
+ * and says so. Null when only one of the two sources has a fee.
+ */
+export function deliveryOverlap(summary: FinanceSummary): { fileFee: number; bills: number } | null {
+    const bills = expenseTotal(summary, COURIER_BILLS_CATEGORY);
+    return summary.courier.file_fee > 0 && bills > 0 ? { fileFee: summary.courier.file_fee, bills } : null;
+}
+
+/**
+ * The marks of a chart's money scale: zero, then round steps (1, 2, 2.5 or 5
+ * times a power of ten) up to the highest value and down to the lowest. The
+ * widest step that still leaves three marks is used, so the scale reads
+ * "0, 2.5, 5 million" and never shrinks to a lone zero.
+ */
+export function scaleMarks(low: number, high: number): number[] {
+    const top = Math.max(high, 0);
+    const bottom = Math.min(low, 0);
+    const range = top - bottom;
+    if (range <= 0) return [0];
+    const power = 10 ** Math.floor(Math.log10(range));
+    const steps = [power / 10, power].flatMap((p) => [1, 2, 2.5, 5].map((m) => m * p)).filter((step) => step >= 1);
+    const count = (step: number) => Math.floor(top / step) - Math.ceil(bottom / step) + 1;
+    const step = steps.reverse().find((candidate) => count(candidate) >= 3);
+    if (step === undefined) return [0];
+    const marks: number[] = [];
+    // `|| 0` keeps a rounded-up negative from printing as minus zero.
+    for (let k = Math.ceil(bottom / step); k * step <= top; k += 1) marks.push(k * step || 0);
+    return marks;
 }
 
 /** How many times the sales before a period may fit into it and still be a fair base: past this, every arrow is noise. */
