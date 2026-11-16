@@ -50,7 +50,9 @@ export function OrderNotes({
                             className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
                         />
                     ) : (
-                        <p className="text-sm text-amber-800 min-h-[40px]">
+                        // dir="auto": a note takes the direction of its own first letter, so
+                        // «إعادة طلب من #…» reads words first, and an English note stays left to right.
+                        <p dir="auto" className="text-sm text-amber-800 min-h-[40px]">
                             {/* The stored marker stays English for the courier import; it reads in the page's language here. */}
                             {order.notes
                                 ? showReorderNote(order.notes, (orderId) => t("orders.note.reorderFrom", { orderId }))
@@ -79,7 +81,7 @@ export function OrderNotes({
                             className="w-full px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
                         />
                     ) : (
-                        <p className="text-sm text-blue-800 min-h-[40px]">
+                        <p dir="auto" className="text-sm text-blue-800 min-h-[40px]">
                             {order.internal_notes || <span className="text-muted italic">{t("orderDetail.noInternalNotes")}</span>}
                         </p>
                     )}
