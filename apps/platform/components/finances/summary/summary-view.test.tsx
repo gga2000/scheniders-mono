@@ -207,6 +207,8 @@ describe("SummaryView", () => {
         expect(byTestId("money-reached")?.textContent).toContain("330,000");
         expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات بعد أجرة التوصيل");
         expect(byTestId("money-fee")?.textContent).toContain("30,000");
+        // the statement's delivery line has nothing more here, so no second figure to explain
+        expect(byTestId("money-fee-statement")).toBeNull();
         expect(byTestId("money-unpaid")?.textContent).toContain("40,000");
         expect(byTestId("money-unpaid")?.textContent).toContain("3 طلبات: 1 عند برايم و2 عند المندوب");
         expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
@@ -220,10 +222,20 @@ describe("SummaryView", () => {
         expect(byTestId("money-split")?.querySelectorAll("i")).toHaveLength(2);
     });
 
+    it("explains why the statement's delivery line is bigger than the fee in the money card", () => {
+        const s = summary();
+        renderView(query(summary({ failed: { ...s.failed, prime_returned_parcels: 3, prime_returned_fee: 15_000 } })));
+        // 30,000 on delivered parcels here, 45,000 in the statement
+        expect(byTestId("money-fee")?.textContent).toContain("30,000");
+        expect(byTestId("money-fee-statement")?.textContent).toContain("45,000");
+        expect(byTestId("money-fee-statement")?.textContent).toContain("15,000 د.ع أجرة الطرود الراجعة");
+    });
+
     it("names the courier payments dated in the period in one quiet line under the card", () => {
         renderView(query(summary()));
         expect(byTestId("money-payments")?.textContent).toContain("2");
         expect(byTestId("money-payments")?.textContent).toContain("300,000");
+        expect(byTestId("money-payments")?.textContent).toContain("قبل هذه الفترة");
         cleanup();
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));

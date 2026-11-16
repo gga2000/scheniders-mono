@@ -4,13 +4,15 @@ import Link from "next/link";
 import { ArrowUpRight, FileUp } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import type { FinanceSummary } from "@/lib/finance/summary";
+import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { CARD_LINK, SummaryCard } from "./summary-card";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
+    /** The statement's Delivery line: it also counts what this card leaves out (returned parcels, courier bills). */
+    delivery: CostLine;
     /** Opens the courier payment file import: how an unpaid order becomes paid. */
     onAddPayment: () => void;
 }
@@ -63,7 +65,7 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
  * pay for orders of an earlier period, so that figure never matches the sales.
  * Stuck parcels are not repeated here: the strip and the banner above carry them.
  */
-export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
+export function MoneyRoute({ summary, delivery, onAddPayment }: MoneyRouteProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
@@ -87,6 +89,18 @@ export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
               : split.unpaid_prime > 0
                 ? t("fin.money.unpaid.prime", { n: formatWhole(split.unpaid_prime), count: split.unpaid_prime })
                 : t("fin.money.unpaid.courier", { n: formatWhole(courierOnly), count: courierOnly });
+    // The statement's Delivery line adds the fee on parcels that came back and the courier bills:
+    // say so here, so the two delivery figures on the page never look like they disagree.
+    const part = (key: string) => delivery.parts.find((p) => p.key === key)?.amount ?? 0;
+    const returnedFee = part("prime_returned_fee");
+    const bills = part("courier_bills");
+    const deliveryNote =
+        returnedFee === 0 && bills === 0
+            ? null
+            : t(returnedFee !== 0 && bills !== 0 ? "fin.money.fee.both" : returnedFee !== 0 ? "fin.money.fee.returned" : "fin.money.fee.bills", {
+                  total: money(delivery.amount),
+                  extra: money(returnedFee + bills),
+              });
     const paymentsNote =
         payments.payments === 0
             ? t("fin.money.payments.none")
@@ -113,7 +127,9 @@ export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
             }
             footer={
                 <div className="w-full">
-                    <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments">{paymentsNote}</p>
+                    <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-payments">
+                        {paymentsNote} {payments.payments > 0 && t("fin.money.payments.why")}
+                    </p>
                     <button type="button" onClick={onAddPayment} className={`${CARD_LINK} mt-1.5`} data-testid="money-add-payment">
                         <FileUp className="size-3.5" aria-hidden="true" />
                         {t("fin.money.addPayment")}
@@ -151,7 +167,13 @@ export function MoneyRoute({ summary, onAddPayment }: MoneyRouteProps) {
                             note={primeLinked ? t("fin.money.fee.note") : t("fin.money.fee.noteCourier")}
                             amount={split.fee}
                             textDir={dir}
-                        />
+                        >
+                            {deliveryNote && (
+                                <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-fee-statement">
+                                    {deliveryNote}
+                                </p>
+                            )}
+                        </PartRow>
                         <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
                             {split.unpaid_prime > 0 && (
                                 <Link href="/prime" className={`${CARD_LINK} mt-1.5`}>
