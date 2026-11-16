@@ -26,7 +26,7 @@ export function MoveToTransitDialog({ open, onOpenChange, count, courierName, on
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="md:max-w-md" aria-describedby="move-transit-desc">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center justify-end gap-2 text-slate-800">
+                    <DialogTitle className="flex items-center justify-end gap-2 pr-10 text-slate-800">
                         {t("shipExport.transit.title")}
                         <div className="p-2 rounded-xl bg-blue-100">
                             <Truck className="h-5 w-5 text-blue-600" />

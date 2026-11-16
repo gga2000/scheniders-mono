@@ -291,7 +291,7 @@ export function ShipExportConfirmationDialog({
             <DialogContent className="md:max-w-xl" aria-describedby="ship-export-desc">
                 <DialogHeader>
                     <DialogTitle className={cn(
-                        "flex items-center justify-end gap-2",
+                        "flex items-center justify-end gap-2 pr-10",
                         isUnsafeTab ? "text-amber-700" : "text-slate-800"
                     )}>
                         {t("shipExport.title")}
