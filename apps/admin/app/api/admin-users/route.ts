@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireAdminFromRequest } from "@/lib/api-auth";
+import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -79,14 +79,8 @@ export async function GET(request: NextRequest) {
  * Idempotent: re-adding an existing admin reactivates / updates their row.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAdminFromRequest(request);
+  const auth = await requireAdminPermission(request, "manage_admins");
   if (auth instanceof NextResponse) return auth;
-  if (auth.role !== "super_admin") {
-    return NextResponse.json(
-      { error: "Only super admins can manage admin access" },
-      { status: 403 },
-    );
-  }
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -241,14 +235,8 @@ export async function POST(request: NextRequest) {
  * Guards against self-removal and removing the last active super admin.
  */
 export async function DELETE(request: NextRequest) {
-  const auth = await requireAdminFromRequest(request);
+  const auth = await requireAdminPermission(request, "manage_admins");
   if (auth instanceof NextResponse) return auth;
-  if (auth.role !== "super_admin") {
-    return NextResponse.json(
-      { error: "Only super admins can manage admin access" },
-      { status: 403 },
-    );
-  }
 
   const userId = new URL(request.url).searchParams.get("userId");
   if (!userId) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireAdminPermission } from "@/lib/api-auth";
+import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
@@ -185,10 +185,7 @@ export async function POST(request: NextRequest) {
       case "top_up": {
         // Crediting money needs the wallet permission on top of bulk_action.
         if (!hasPermission(auth.role, "top_up_wallet")) {
-          return NextResponse.json(
-            { error: 'Forbidden: missing permission "top_up_wallet"' },
-            { status: 403 }
-          );
+          return forbidden("top_up_wallet");
         }
 
         const amountParsed = bulkTopupAmountSchema.safeParse(params?.amount_iqd);

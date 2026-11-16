@@ -197,7 +197,8 @@ export type AdminAction =
   | "handle_support"
   | "pause_whatsapp"
   | "check_payments"
-  | "manage_demo_store";
+  | "manage_demo_store"
+  | "manage_admins";
 
 // Merchant table column definitions
 export type MerchantColumnId =
