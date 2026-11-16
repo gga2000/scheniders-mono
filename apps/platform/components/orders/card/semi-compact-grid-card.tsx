@@ -22,7 +22,7 @@ import { useOrderCardModel, type OrderCardProps } from "./use-order-card-model";
 
 /** Compact level 1 in grid mode: a stacked card with more detail. */
 export function SemiCompactGridCard(props: OrderCardProps) {
-    const { blacklistEntry, editable, governorateCode, isBlacklisted, isHighPriority, isNew, isPinned, isReturn, isUrgent, items, localSearchQuery, messageTemplates, onCancelWithReason, onOpenTemplatePanel, onRejectWithReason, onStatusUpdate, onViewDetails, openWhatsApp, order, orderStatusLabel, scheduledBadgeClass, scheduledLabel, scheduledState, t } = useOrderCardModel(props);
+    const { blacklistEntry, editable, governorateCode, isBlacklisted, isHighPriority, isNew, isPinned, isReturn, isUrgent, items, language, localSearchQuery, messageTemplates, onCancelWithReason, onOpenTemplatePanel, onRejectWithReason, onStatusUpdate, onViewDetails, openWhatsApp, order, orderStatusLabel, scheduledBadgeClass, scheduledLabel, scheduledState, t } = useOrderCardModel(props);
     const isValidPhone = validatePhoneDetailed(order.phone).isValid;
     const itemsText = items.length > 0
         ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
@@ -91,7 +91,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                         <AbandonedCartBadge order={order} />
                         <span className="text-[var(--card-border)]">·</span>
                         <span className="text-muted">{formatShortDate(order.created_at)}</span>
-                        <span className="text-muted">{formatTime(order.created_at)}</span>
+                        <span className="text-muted">{formatTime(order.created_at, language)}</span>
                         {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                             <span className="relative group/date-tag">
                                 <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-bold rounded">
@@ -99,7 +99,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                                     {t("orderDetail.dateCorrected")}
                                 </span>
                                 <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                                    {t("orders.ui.originalDate", { date: `${formatShortDate(order.original_created_at)} ${formatTime(order.original_created_at)}` })}
+                                    {t("orders.ui.originalDate", { date: `${formatShortDate(order.original_created_at)} ${formatTime(order.original_created_at, language)}` })}
                                 </span>
                             </span>
                         )}

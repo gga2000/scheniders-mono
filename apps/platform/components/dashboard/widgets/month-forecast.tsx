@@ -13,7 +13,7 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
     const { projectedOrders, projectedRevenue, daysElapsed, daysInMonth, ordersThisMonth, revenueThisMonth, ordersPerDay } = forecast;
     const progressPct = Math.round((daysElapsed / daysInMonth) * 100);
     const { t, language } = useLanguage();
-    const monthName = new Date().toLocaleDateString(language === 'ar' ? 'ar-IQ' : 'en-US', { month: 'long' });
+    const monthName = new Date().toLocaleDateString(language === 'ar' ? 'ar-IQ-u-nu-latn' : 'en-US', { month: 'long' });
 
     return (
         <div className="pastel-card pastel-card-purple p-5 md:p-6 h-full flex flex-col">
@@ -47,7 +47,7 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
                 <div>
                     <p className="text-[10px] font-bold text-purple-900/50 uppercase tracking-wider mb-0.5">{t("dashboard.forecast.projectedOrders")}</p>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-purple-950">{projectedOrders.toLocaleString()}</span>
+                        <span className="text-3xl font-bold text-purple-950">{projectedOrders.toLocaleString("en-US")}</span>
                         <span className="text-xs text-purple-900/40">({ordersThisMonth} {t("dashboard.forecast.soFar")} · {ordersPerDay.toFixed(1)}{t("dashboard.forecast.perDay")})</span>
                     </div>
                 </div>

@@ -176,7 +176,7 @@ export function AdsCampaignTable({ campaigns, breakEven, range }: { campaigns: C
                                     <td className={cn("py-3 pe-4 font-medium tabular-nums", verdict === "profitable" && "text-emerald-600", verdict === "losing" && "text-red-600")}>
                                         {dash(costPerDelivered, formatIQD)}
                                     </td>
-                                    <td className="py-3 pe-4 tabular-nums text-muted">{c.clicks.toLocaleString()}</td>
+                                    <td className="py-3 pe-4 tabular-nums text-muted">{c.clicks.toLocaleString("en-US")}</td>
                                 </tr>
                                 {isOpen ? (
                                     <tr>

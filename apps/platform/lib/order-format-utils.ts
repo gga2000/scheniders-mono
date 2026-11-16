@@ -45,11 +45,19 @@ export const formatShortDate = (dateStr: string | Date | undefined | null) => {
     return baghdadDayMonth.format(date);
 };
 
-export const formatTime = (dateStr: string | Date | undefined | null) => {
+/**
+ * Baghdad clock time: "07:01am" in English, "07:01 ص" in Arabic. Without a
+ * language it stays English, which is what every caller showed before.
+ */
+export const formatTime = (dateStr: string | Date | undefined | null, language: Locale = "en") => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return baghdadTime.format(date).replace(/\s/g, "");
+    const parts = baghdadTime.formatToParts(date);
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+    const clock = `${part("hour")}:${part("minute")}`;
+    const pm = part("dayPeriod").toLowerCase().startsWith("p");
+    return language === "ar" ? `${clock} ${pm ? "م" : "ص"}` : `${clock}${pm ? "pm" : "am"}`;
 };
 
 /**

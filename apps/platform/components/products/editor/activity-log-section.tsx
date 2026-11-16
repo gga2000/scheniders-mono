@@ -112,7 +112,7 @@ const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
 /** "3 hours ago" / "قبل ٣ ساعات", in the merchant's language. */
 export function relativeTime(iso: string, language: string, now: number = Date.now()): string {
     const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
-    const format = new Intl.RelativeTimeFormat(language === "ar" ? "ar" : "en", { numeric: "auto" });
+    const format = new Intl.RelativeTimeFormat(language === "ar" ? "ar-u-nu-latn" : "en", { numeric: "auto" });
     for (const [unit, size] of RELATIVE_STEPS) {
         if (seconds >= size) return format.format(-Math.floor(seconds / size), unit);
     }

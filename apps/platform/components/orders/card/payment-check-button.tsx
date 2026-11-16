@@ -26,7 +26,7 @@ export function PaymentCheckButton({ order, onToggle, className }: PaymentCheckB
     const checked = !!order.is_reviewed;
     const who = order.reviewed_by ? members?.find((m) => m.user_id === order.reviewed_by)?.display_name : undefined;
     const when = order.reviewed_at
-        ? new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", { day: "numeric", month: "short", timeZone: "Asia/Baghdad" }).format(new Date(order.reviewed_at))
+        ? new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", { day: "numeric", month: "short", timeZone: "Asia/Baghdad" }).format(new Date(order.reviewed_at))
         : undefined;
     const detail = checked
         ? [t("orders.payment.checkedTip"), who, when].filter(Boolean).join(" · ")

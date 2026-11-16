@@ -31,7 +31,7 @@ export function PrimeQueueBand({ m }: { m: OrderCardModel }) {
 
 function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
     const { order } = m;
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const router = useRouter();
     const requestReturnIntake = useOrderStore((s) => s.requestReturnIntake);
@@ -63,7 +63,7 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
                         <span data-problem-handled className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-[#165C39] dark:text-emerald-300">
                             <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                             <span className="truncate">
-                                {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt ?? "") })}
+                                {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt ?? "", language) })}
                                 {view.problemNote && <span className="font-medium text-[#4A4A4A] dark:text-white/60"> · {view.problemNote}</span>}
                             </span>
                         </span>

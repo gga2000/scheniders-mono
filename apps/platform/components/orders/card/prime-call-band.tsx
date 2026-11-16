@@ -71,7 +71,7 @@ function PrimeCallBandFor({ m }: { m: OrderCardModel }) {
     const finished = record.delivered + record.returned;
     const warn = record.returnedInARow > 0;
     const collect = computeCodAmount(order);
-    const month = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-US", { month: "long", timeZone: "Asia/Baghdad" });
+    const month = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { month: "long", timeZone: "Asia/Baghdad" });
 
     return (
         <div

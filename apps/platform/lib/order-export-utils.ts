@@ -47,7 +47,7 @@ export function formatOrderRow(order: Order): (string | number)[] {
         order.price,
         order.status,
         order.payment_status,
-        new Date(order.created_at).toLocaleDateString(),
+        new Date(order.created_at).toLocaleDateString("en-GB", { timeZone: "Asia/Baghdad" }),
     ];
 }
 

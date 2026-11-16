@@ -67,7 +67,7 @@ export function getRelativeTime(dateStr: string): string {
   if (diffHours < 24) return `منذ ${diffHours} ساعة`;
   if (diffDays === 1) return "أمس";
   if (diffDays < 7) return `منذ ${diffDays} أيام`;
-  return date.toLocaleDateString("ar-IQ", { month: "short", day: "numeric" });
+  return date.toLocaleDateString("ar-IQ-u-nu-latn", { month: "short", day: "numeric" });
 }
 
 export interface CustomerStats {

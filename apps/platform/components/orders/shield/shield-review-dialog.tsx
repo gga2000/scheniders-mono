@@ -45,7 +45,7 @@ const KICKER = "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-mut
 const PATH_ROWS = 10;
 
 function orderedAtLabel(iso: string, language: string): string {
-    return new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", {
+    return new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
         timeZone: "Asia/Baghdad",
         day: "numeric",
         month: "short",

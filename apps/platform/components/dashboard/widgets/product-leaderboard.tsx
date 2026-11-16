@@ -57,7 +57,7 @@ export function ProductLeaderboard({ products, onProductClick }: ProductLeaderbo
 
                             {/* Values */}
                             <div className="text-right shrink-0">
-                                <span className="text-xs font-bold text-foreground">{p.value.toLocaleString()}</span>
+                                <span className="text-xs font-bold text-foreground">{p.value.toLocaleString("en-US")}</span>
                                 <p className="text-[10px] text-muted leading-none mt-0.5">
                                     <FinancialValue
                                         amount={p.revenue}

@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSetShieldExcused, useShieldOwnBadOrders } from "@/hooks/use-shield-excuse";
 
 function dayLabel(iso: string, language: string): string {
-    return new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", {
+    return new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
         timeZone: "Asia/Baghdad",
         day: "numeric",
         month: "short",

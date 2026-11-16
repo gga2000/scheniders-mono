@@ -338,7 +338,7 @@ export async function parsePrimeDeliveryPDF(buffer: Buffer): Promise<ParsedDeliv
     const calculatedTotal = rows.reduce((sum, r) => sum + r.netToMerchant, 0);
     if (footerTotal !== 0 && calculatedTotal !== footerTotal) {
         validationErrors.push(
-            `Total mismatch: calculated ${calculatedTotal.toLocaleString()} IQD, footer says ${footerTotal.toLocaleString()} IQD`
+            `Total mismatch: calculated ${calculatedTotal.toLocaleString("en-US")} IQD, footer says ${footerTotal.toLocaleString("en-US")} IQD`
         );
     }
 

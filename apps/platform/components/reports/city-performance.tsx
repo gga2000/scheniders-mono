@@ -172,13 +172,13 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                             </div>
                                         </td>
                                         <td className="py-3 px-4 font-bold text-foreground">
-                                            {city.totalOrders.toLocaleString()}
+                                            {city.totalOrders.toLocaleString("en-US")}
                                         </td>
                                         <td className="py-3 px-4 text-emerald-600 dark:text-emerald-300 font-medium">
-                                            {city.delivered.toLocaleString()}
+                                            {city.delivered.toLocaleString("en-US")}
                                         </td>
                                         <td className="py-3 px-4 text-rose-600 dark:text-rose-300 font-medium">
-                                            {city.rejected.toLocaleString()}
+                                            {city.rejected.toLocaleString("en-US")}
                                         </td>
                                         <td className="py-3 px-4">
                                             <span className={cn(

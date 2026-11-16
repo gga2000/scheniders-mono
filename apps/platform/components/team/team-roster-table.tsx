@@ -214,7 +214,7 @@ export function TeamRosterTable({ members, activeUserIds, now, onSelect }: TeamR
                                         </td>
                                         <td className="px-3 py-3 text-right">
                                             <span className={cn("font-bold tabular-nums", idle ? "text-[#9A9A9A] dark:text-gray-500" : "text-[#1E1E1E] dark:text-white")}>
-                                                {m.total_actions.toLocaleString()}
+                                                {m.total_actions.toLocaleString("en-US")}
                                             </span>
                                             <span className="mt-1 ml-auto block h-1 w-16 rounded-full bg-[#F0ECE4] dark:bg-white/10 overflow-hidden" aria-hidden="true">
                                                 <span className="block h-full rounded-full bg-[#1E1E1E] dark:bg-white" style={{ width: `${Math.round(share * 100)}%` }} />
@@ -222,7 +222,7 @@ export function TeamRosterTable({ members, activeUserIds, now, onSelect }: TeamR
                                         </td>
                                         {numericColumns.slice(1).map((c) => (
                                             <td key={c.key} className={cn("px-3 py-3 text-right tabular-nums text-[#1E1E1E] dark:text-gray-200", c.className)}>
-                                                {(m[c.key as "orders_created" | "status_changes" | "orders_printed"]).toLocaleString()}
+                                                {(m[c.key as "orders_created" | "status_changes" | "orders_printed"]).toLocaleString("en-US")}
                                             </td>
                                         ))}
                                         <td className="hidden sm:table-cell px-3 py-3 text-right text-xs text-[#6B6B6B] dark:text-gray-400 whitespace-nowrap">

@@ -50,7 +50,7 @@ export function PrimeHandledFold({ orders, renderCard }: { orders: readonly Orde
 }
 
 function PrimeHandledRow({ order, renderCard }: { order: Order; renderCard: (order: Order) => ReactNode }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const entry = usePrimeQueueEntry(order.id);
     const [shown, setShown] = useState(false);
@@ -65,7 +65,7 @@ function PrimeHandledRow({ order, renderCard }: { order: Order; renderCard: (ord
                     {view &&
                         t("prime.problems.handledBy", {
                             name: view.problemCheckedBy ?? t("prime.problems.someone"),
-                            time: formatTime(view.problemCheckedAt ?? ""),
+                            time: formatTime(view.problemCheckedAt ?? "", language),
                         })}
                     {view?.problemNote && <span className="font-medium text-[#4A4A4A] dark:text-white/60"> · {view.problemNote}</span>}
                     {view?.stepName && <span className="font-medium text-[#6B6B6B] dark:text-white/50"> · {view.stepName}</span>}

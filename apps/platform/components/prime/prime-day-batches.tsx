@@ -28,7 +28,7 @@ export function PrimeDayBatches() {
     const [now] = useState(() => Date.now());
     const batches = useMemo(() => primeDayBatches(parcels, now, DAYS), [parcels, now]);
     const tallest = Math.max(1, ...batches.map((b) => b.sent));
-    const dayName = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(language === "ar" ? "ar-IQ" : "en-US", { weekday: "short", day: "numeric", timeZone: "UTC" });
+    const dayName = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { weekday: "short", day: "numeric", timeZone: "UTC" });
 
     if (isPending) return <div className="h-64 animate-pulse rounded-[22px] bg-[var(--card-bg)]" aria-busy="true" />;
     if (isError) return <p className="rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-6 text-sm text-muted">{t("orders.prime.unreachable")}</p>;

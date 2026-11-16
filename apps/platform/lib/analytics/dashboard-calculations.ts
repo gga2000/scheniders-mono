@@ -222,7 +222,7 @@ export interface PipelineStage {
  */
 export type ChartLocale = "en" | "ar";
 
-const CHART_LOCALE_TAG: Record<ChartLocale, string> = { en: "en-GB", ar: "ar-IQ" };
+const CHART_LOCALE_TAG: Record<ChartLocale, string> = { en: "en-GB", ar: "ar-IQ-u-nu-latn" };
 
 export function formatChartWeekday(d: Date, locale: ChartLocale = "en"): string {
     return d.toLocaleDateString(CHART_LOCALE_TAG[locale], {

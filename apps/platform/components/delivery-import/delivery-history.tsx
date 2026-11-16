@@ -207,7 +207,7 @@ export function DeliveryHistory() {
                                         <p className="text-xs text-muted">{t("deliveryImport.history.confirmedAt")}</p>
                                         <p className="font-medium text-foreground">
                                             {imp.confirmed_at
-                                                ? `${formatBaghdadDate(imp.confirmed_at, language)} ${formatTime(imp.confirmed_at)}`
+                                                ? `${formatBaghdadDate(imp.confirmed_at, language)} ${formatTime(imp.confirmed_at, language)}`
                                                 : "—"}
                                         </p>
                                     </div>

@@ -16,7 +16,7 @@ function dayLabel(iso: string, locale: string): string {
     const d = new Date(iso);
     if (isToday(d)) return locale === "ar" ? "اليوم" : "Today";
     if (isYesterday(d)) return locale === "ar" ? "أمس" : "Yesterday";
-    return d.toLocaleDateString(locale === "ar" ? "ar" : "en", {
+    return d.toLocaleDateString(locale === "ar" ? "ar-IQ-u-nu-latn" : "en", {
         weekday: "short",
         month: "short",
         day: "numeric",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
@@ -33,6 +33,9 @@ interface CustomDatePickerProps {
 
 export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePickerProps) {
     const { t, language } = useLanguage();
+    // The app is LTR; an Arabic date range needs its own direction or the
+    // months and days trade places ("تشرين الأول 18 2026 - 16 تشرين الثاني").
+    const dir = useTextDir();
     // Dates read in the page's language, Latin digits, as elsewhere in the app.
     const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const dayMonth = (d: Date) => d.toLocaleDateString(locale, { month: "short", day: "numeric" });
@@ -128,7 +131,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                 )}
             >
                 <Calendar className="w-4 h-4 text-indigo-500" />
-                <span>{dayMonth(dateRange.from)} - {dayMonthYear(dateRange.to)}</span>
+                <span dir={dir}>{dayMonth(dateRange.from)} - {dayMonthYear(dateRange.to)}</span>
             </button>
 
             {/* Dropdown */}

@@ -91,7 +91,7 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
                                     <div className="flex items-center justify-between mb-1">
                                         <span className="text-sm font-medium text-foreground">{t(`reports.status.${status.status}`, status.label)}</span>
                                         <span className="text-sm text-muted">
-                                            {status.count.toLocaleString()} <span className="text-xs">({status.percentage.toFixed(1)}%)</span>
+                                            {status.count.toLocaleString("en-US")} <span className="text-xs">({status.percentage.toFixed(1)}%)</span>
                                         </span>
                                     </div>
                                     <div className="h-2 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">

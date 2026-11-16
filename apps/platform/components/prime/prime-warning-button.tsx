@@ -31,7 +31,7 @@ export function PrimeWarningButton({
     view: PrimeShipmentView;
     order: { id: string; order_id: string; phone: string; status: string };
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const send = usePrimeFailedNoticeSend();
     const [open, setOpen] = useState(false);
@@ -50,7 +50,7 @@ export function PrimeWarningButton({
                 className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#CFE6D8] bg-[#E3F2E9] px-3 text-xs font-bold text-[#165C39] dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
             >
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                <span dir={dir}>{t("prime.warning.sent", { time: formatTime(view.warnedAt), name: view.warnedBy ?? t("prime.warning.auto") })}</span>
+                <span dir={dir}>{t("prime.warning.sent", { time: formatTime(view.warnedAt, language), name: view.warnedBy ?? t("prime.warning.auto") })}</span>
             </span>
         );
     }

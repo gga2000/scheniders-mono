@@ -151,10 +151,14 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                     evenly between ALL cards. Never position:sticky a card in
                                     here — it paints over the cards scrolling beneath it; the
                                     edge fades below signal overflow instead. */}
+                                    {/* The Actions group sits outside the scroll strip, so «طلب جديد»
+                                        stays in view when the other groups overflow at 1440 px or with
+                                        the sidebar open; only the strip scrolls under the edge fade. */}
+                                    <div className="flex items-start gap-3 w-full">
                                     <div
                                         ref={toolbarScrollRef}
                                         className={cn(
-                                            "flex items-start justify-between gap-3 pt-2 pb-6 w-full md:mx-0 md:px-0 overflow-x-auto scrollbar-hide flex-nowrap",
+                                            "flex items-start justify-between gap-3 pt-2 pb-6 flex-1 min-w-0 md:mx-0 md:px-0 overflow-x-auto scrollbar-hide flex-nowrap",
                                             toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px,black_calc(100%-32px),transparent)]",
                                             toolbarFade.left && !toolbarFade.right && "[mask-image:linear-gradient(to_right,transparent,black_32px)]",
                                             !toolbarFade.left && toolbarFade.right && "[mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]"
@@ -302,6 +306,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                     >
                                                         <DateRangePicker
                                                             inline
+                                                            language={language}
                                                             dateFrom={filters.dateFrom}
                                                             dateTo={filters.dateTo}
                                                             onDateChange={(from, to, presetId) => {
@@ -509,37 +514,38 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                         </div>
                                     </div>
 
-                                    {/* Action Group */}
-                                    <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
-                                        <div className="flex items-center gap-1.5">
-                                            <button
-                                                onClick={() => setIsReturnsOpen(true)}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
-                                                title={t("orders.tip.returnsCockpit")}
-                                            >
-                                                <PackageX className="w-4 h-4" />
-                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.ui.returns")}</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setIsCreateModalOpen(true)}
-                                                className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
-                                            >
-                                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                                <div className="relative flex items-center gap-2 font-bold text-sm">
-                                                    <Plus className="w-4 h-4" />
-                                                    {!sidebarExpanded && (
-                                                        <>
-                                                            <span className="whitespace-nowrap hidden lg:inline">{t("orders.newOrder")}</span>
-                                                            <span className="whitespace-nowrap lg:hidden">{t("orders.newOrderShort")}</span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </button>
+                                </div>
+                                    <div className="pt-2 pb-6 flex-shrink-0">
+                                        <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
+                                            <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    onClick={() => setIsReturnsOpen(true)}
+                                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
+                                                    title={t("orders.tip.returnsCockpit")}
+                                                >
+                                                    <PackageX className="w-4 h-4" />
+                                                    <span className="whitespace-nowrap hidden lg:inline">{t("orders.ui.returns")}</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsCreateModalOpen(true)}
+                                                    className="group relative px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 dark:bg-[var(--primary)] dark:text-[var(--primary-fg)] dark:hover:bg-[var(--primary)] dark:shadow-[0_0_15px_rgba(239,255,0,0.3)] dark:hover:shadow-[0_0_20px_rgba(239,255,0,0.5)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
+                                                >
+                                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                                    <div className="relative flex items-center gap-2 font-bold text-sm">
+                                                        <Plus className="w-4 h-4" />
+                                                        {!sidebarExpanded && (
+                                                            <>
+                                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.newOrder")}</span>
+                                                                <span className="whitespace-nowrap lg:hidden">{t("orders.newOrderShort")}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-
-                                </div>
+                                    </div>
                             </motion.div>
 
                             {/* Saved Views Tabs */}

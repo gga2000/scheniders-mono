@@ -1160,7 +1160,7 @@ export const en: Record<string, string> = {
     "orders.ui.originalDate": "Original: {date}",
     "orders.ui.reviewRequired": "Review required",
     "orders.ui.copy": "Copy",
-    "orders.ui.clone": "Clone",
+    "orders.ui.clone": "Duplicate order",
     "orders.ui.share": "Share",
     "orders.ui.selectedCount": "{count} selected",
     "orders.ui.reject": "Reject",
@@ -4646,7 +4646,7 @@ export const en: Record<string, string> = {
 
     // ── Reports ──
     "reports.title": "Operational Reports",
-    "reports.subtitle": "Technical insights & performance metrics",
+    "reports.subtitle": "How your orders went. An order counts on the day it was placed.",
     "reports.export": "Export",
     "reports.noData": "No Data Available",
     "reports.noDataDesc": "Start adding orders to see your operational reports",

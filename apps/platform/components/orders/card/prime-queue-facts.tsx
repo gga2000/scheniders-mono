@@ -40,7 +40,7 @@ function Fact({ label, field, icon, children, tone, title }: { label: string; fi
  * answer (its reason) and the team's last comment.
  */
 export function PrimeQueueFacts({ entry }: { entry: PrimeQueueEntry }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { problem, view } = entry;
     const note = primeReasonNote(view);
     const answer = [note?.reason ?? null, note?.until ? t("orders.prime.postponedUntil", { date: note.until }) : null].filter((p): p is string => p !== null).join(" · ");
@@ -83,7 +83,7 @@ export function PrimeQueueFacts({ entry }: { entry: PrimeQueueEntry }) {
                         <span className="truncate text-foreground">{view.problemNote}</span>
                         {view.problemCheckedAt && (
                             <span className="shrink-0 text-[11px] text-muted dark:text-white/45">
-                                {view.problemCheckedBy ?? t("prime.problems.someone")} · {formatTime(view.problemCheckedAt)}
+                                {view.problemCheckedBy ?? t("prime.problems.someone")} · {formatTime(view.problemCheckedAt, language)}
                             </span>
                         )}
                     </>

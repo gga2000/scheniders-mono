@@ -28,7 +28,7 @@ export function AbandonedCartBadge({
     const chip = abandonedCartChip(order);
     if (!chip) return null;
 
-    const date = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", {
+    const date = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
         timeZone: "Asia/Baghdad",
         dateStyle: "medium",
     }).format(new Date(chip.leftAt));

@@ -96,7 +96,7 @@ function CustomersPageContent() {
 
     const filtered = !!(state.search || state.tagId || filters.valueFilter || filters.riskFilter || laneFilter);
 
-    const { data, error, isLoading, isError, isFetchNextPageError, isRefetchError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
+    const { data, error, isPending, isError, isFetchNextPageError, isRefetchError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
 
     const allCustomers = useMemo(() => data?.pages.flatMap((p) => p.customers) || [], [data]);
@@ -338,7 +338,10 @@ function CustomersPageContent() {
                     </div>
                 )}
                 {/* Content */}
-                {isLoading ? (
+                {/* isPending, not isLoading: until the shop is known the query is
+                    disabled, isLoading is false, and the page showed "no customers"
+                    for about 1.5 s before 4,800 arrived. */}
+                {isPending ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="bg-(--card-bg) rounded-2xl border border-(--card-border) p-4 h-44 animate-pulse" />

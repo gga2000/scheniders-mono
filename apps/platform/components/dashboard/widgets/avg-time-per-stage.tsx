@@ -24,7 +24,8 @@ const STAGE_COLORS = [
 
 // Map original English labels to i18n keys
 const LABEL_KEYS: Record<string, string> = {
-    'New → Delivered (full cycle)': 'dashboard.avgTime.fullCycle',
+    // Exactly as get_dashboard_metrics spells them (ASCII arrow since the Sept migrations).
+    'New -> Delivered (full cycle)': 'dashboard.avgTime.fullCycle',
     'Pending response (avg age)': 'dashboard.avgTime.pendingResponse',
     'In transit (avg wait)': 'dashboard.avgTime.inTransitWait',
 };

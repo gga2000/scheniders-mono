@@ -233,22 +233,22 @@ async function handlePOST(request: NextRequest) {
             if (resAction === "mark_refund_delivered") {
                 newStatus = "refund_delivered";
                 orderUpdate.status = "refund_delivered";
-                deliveryNotes.push(`Refund delivered via delivery import: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+                deliveryNotes.push(`Refund delivered via delivery import: ${pdfRow?.netToMerchant?.toLocaleString("en-US")} IQD`);
             } else if (resAction === "mark_refund_failed") {
                 newStatus = "refund_failed";
                 orderUpdate.status = "refund_failed";
                 delete orderUpdate.delivered_at;
-                deliveryNotes.push(`Refund failed via delivery import: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+                deliveryNotes.push(`Refund failed via delivery import: ${pdfRow?.netToMerchant?.toLocaleString("en-US")} IQD`);
                 attentionReasons.push("refund_failed");
             } else if (resAction === "acknowledge_refund") {
                 newStatus = previousStatus;
                 delete orderUpdate.delivered_at;
-                deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString()} IQD`);
+                deliveryNotes.push(`Refund acknowledged: ${pdfRow?.netToMerchant?.toLocaleString("en-US")} IQD`);
             } else if (resAction === "process_with_pdf_price" && pdfRow) {
                 // The amount comes from the receipt row itself, which is stored as raw_data.
                 orderUpdate.price = pdfRow.shipmentAmount;
                 orderUpdate.status = deliveredStatus;
-                deliveryNotes.push(`Price updated from delivery PDF: ${pdfRow.shipmentAmount.toLocaleString()} IQD`);
+                deliveryNotes.push(`Price updated from delivery PDF: ${pdfRow.shipmentAmount.toLocaleString("en-US")} IQD`);
                 attentionReasons.push(`delivery_price_changed`);
             } else if (resAction === "force_deliver") {
                 orderUpdate.status = deliveredStatus;

@@ -292,7 +292,7 @@ function ProblemRow({
     onPick: (() => void) | null;
     ticket: PrimeTicketView | null;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const dir = useTextDir();
     const view = data.views.get(problem.orderId);
     const order = data.orders.get(problem.orderId);
@@ -343,7 +343,7 @@ function ProblemRow({
                         )}
                         {problem.handled && view.problemCheckedAt && (
                             <span data-problem-handled className="mt-0.5 block truncate text-xs font-semibold text-[#165C39] dark:text-emerald-300">
-                                ✓ {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt) })}
+                                ✓ {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt, language) })}
                                 {view.problemNote && <> · {view.problemNote}</>}
                             </span>
                         )}

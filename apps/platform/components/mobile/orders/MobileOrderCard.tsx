@@ -323,7 +323,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                     {/* Time Stack (Time above Time Ago) */}
                     <div className="flex flex-col items-end gap-1 opacity-80 mt-1 pr-1">
                         <span className="text-[10px] font-mono font-bold text-muted-foreground mr-1">
-                            {formatTime(order.created_at)}
+                            {formatTime(order.created_at, language)}
                         </span>
                         <div className="flex items-center justify-end gap-1 text-[11px] font-semibold text-muted-foreground">
                             <span>{orderAge}</span>

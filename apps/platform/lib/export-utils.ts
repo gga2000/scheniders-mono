@@ -50,7 +50,7 @@ export interface ProductExportI18n {
 }
 
 function dateLocale(locale: Locale): string {
-    return locale === "ar" ? "ar-IQ" : "en-GB";
+    return locale === "ar" ? "ar-IQ-u-nu-latn" : "en-GB";
 }
 
 /**
@@ -273,7 +273,7 @@ export function generatePrintableReport(
         </div>
         <div class="summary-card">
             <h3>${escapeHtml(t("products.export.report.totalSold"))}</h3>
-            <p>${totalSold.toLocaleString()}</p>
+            <p>${totalSold.toLocaleString("en-US")}</p>
         </div>
         ${includeFinancials ? `<div class="summary-card">
             <h3>${escapeHtml(t("products.export.report.totalRevenue"))}</h3>

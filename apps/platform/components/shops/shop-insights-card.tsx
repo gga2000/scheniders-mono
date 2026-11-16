@@ -99,7 +99,7 @@ function BusyHours({
     const dayName = (dow: number) => {
         // 2023-01-01 was a Sunday, so day 1 + dow gives that weekday.
         const d = new Date(Date.UTC(2023, 0, 1 + dow, 12));
-        return d.toLocaleDateString(language === "ar" ? "ar-IQ" : "en-GB", { weekday: "short", timeZone: "UTC" });
+        return d.toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", { weekday: "short", timeZone: "UTC" });
     };
 
     return (
