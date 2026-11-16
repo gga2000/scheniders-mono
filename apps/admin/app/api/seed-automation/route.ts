@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 /**
  * GET — Check if seed automation cron jobs are active
@@ -42,6 +43,10 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    await logAdminAction(auth, "update_settings", {
+      details: { setting: "seed_automation", active: Boolean(active) },
+    });
 
     return NextResponse.json({ success: true, ...data });
   } catch {

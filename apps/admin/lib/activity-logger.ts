@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "./admin-supabase";
 
 interface LogParams {
@@ -49,16 +50,52 @@ function buildRow(
   };
 }
 
-export async function logAdminActivity(params: LogParams) {
-  const supabase = createAdminClient();
+/**
+ * A log row that was not written is reported, never thrown. The action it
+ * records has already happened: an error here would answer 500 and invite a
+ * second click on a top-up or an extension. Sentry gets the miss, so an action
+ * with no trace does not pass in silence.
+ */
+function reportLogFailure(action: string, error: unknown) {
+  console.error("[Admin Activity Logger] Failed to log:", error);
+  const reason = error instanceof Error ? error.message : JSON.stringify(error);
+  Sentry.captureException(new Error(`Admin audit log row not written for "${action}": ${reason}`));
+}
 
-  const { error } = await supabase
-    .from("admin_activity_logs")
-    .insert(buildRow(params, params.tenantId ?? null));
-
-  if (error) {
-    console.error("[Admin Activity Logger] Failed to log:", error);
+/** Insert log rows; a refused insert and a failed request are both reported. */
+async function writeRows(action: string, rows: ReturnType<typeof buildRow> | ReturnType<typeof buildRow>[]) {
+  try {
+    const { error } = await createAdminClient().from("admin_activity_logs").insert(rows);
+    if (error) reportLogFailure(action, error);
+  } catch (error) {
+    reportLogFailure(action, error);
   }
+}
+
+export async function logAdminActivity(params: LogParams) {
+  await writeRows(params.action, buildRow(params, params.tenantId ?? null));
+}
+
+/** The admin who made a request, as the route guards return it. */
+type Actor = { user: { id: string; email?: string | null } };
+
+/**
+ * Log one action under the admin who made the request. Every changing route
+ * calls this (app/api/route-audit-log.test.ts checks it), so the actor is
+ * always the signed-in admin and never a value from the request body.
+ */
+export function logAdminAction(
+  admin: Actor,
+  action: string,
+  entry: { tenantId?: string | null; details?: Record<string, unknown> } = {},
+) {
+  return logAdminActivity({
+    adminUserId: admin.user.id,
+    actorEmail: admin.user.email ?? null,
+    tenantId: entry.tenantId ?? null,
+    action,
+    details: entry.details,
+  });
 }
 
 /**
@@ -71,13 +108,5 @@ export async function logAdminActivityBatch(
   const { tenantIds, ...envelope } = params;
   if (tenantIds.length === 0) return;
 
-  const supabase = createAdminClient();
-
-  const { error } = await supabase
-    .from("admin_activity_logs")
-    .insert(tenantIds.map((tenantId) => buildRow(envelope, tenantId)));
-
-  if (error) {
-    console.error("[Admin Activity Logger] Failed to log batch:", error);
-  }
+  await writeRows(envelope.action, tenantIds.map((tenantId) => buildRow(envelope, tenantId)));
 }

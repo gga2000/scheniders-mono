@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 const UpdateTagsSchema = z.object({
   tags: z.array(z.string().min(1).max(50)).max(20),
@@ -42,6 +43,8 @@ export async function PUT(
       }
       throw error;
     }
+
+    await logAdminAction(auth, "update_tags", { tenantId: id, details: { tags: data.tags } });
 
     return NextResponse.json({ tags: data.tags });
   } catch (error) {

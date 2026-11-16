@@ -9,15 +9,23 @@ const rpc = vi.fn();
 const createSignedUrls = vi.fn();
 let rows: unknown[] = [];
 
+/** What the decision route reads about the request before it decides. */
+let asked: { data: unknown; error: { message: string } | null } = { data: null, error: null };
+
 function listQuery() {
   const q = {
     select: () => q,
     is: () => q,
     order: () => q,
+    eq: () => q,
+    maybeSingle: () => Promise.resolve(asked),
     limit: () => Promise.resolve({ data: rows, error: null }),
   };
   return q;
 }
+
+const logAdminAction = vi.fn(async () => undefined);
+vi.mock("@/lib/activity-logger", () => ({ logAdminAction }));
 
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
@@ -45,7 +53,9 @@ function post(body: unknown, id = REQ_ID) {
 beforeEach(() => {
   rpc.mockReset();
   createSignedUrls.mockReset();
+  logAdminAction.mockClear();
   rows = [];
+  asked = { data: { tenant_id: TENANT, amount_iqd: 25000, method: "zain_cash" }, error: null };
 });
 
 describe("POST /api/wallet-topup-requests/[id]", () => {
@@ -60,9 +70,29 @@ describe("POST /api/wallet-topup-requests/[id]", () => {
     });
   });
 
+  it("writes the decision to the staff log with the shop and the amount", async () => {
+    rpc.mockResolvedValue({ data: { success: true, outcome: "approved" }, error: null });
+    await post({ approve: true });
+    rpc.mockResolvedValue({ data: { success: true, outcome: "rejected" }, error: null });
+    await post({ approve: false });
+
+    expect(logAdminAction.mock.calls.map((call) => call.slice(1))).toEqual([
+      ["approve_topup_request", { tenantId: TENANT, details: { request_id: REQ_ID, amount_iqd: 25000, method: "zain_cash", outcome: "approved" } }],
+      ["reject_topup_request", { tenantId: TENANT, details: { request_id: REQ_ID, amount_iqd: 25000, method: "zain_cash", outcome: "rejected" } }],
+    ]);
+  });
+
   it("answers 409 for a request already decided, so a double click adds nothing", async () => {
     rpc.mockResolvedValue({ data: { success: false, error: "already_decided", outcome: "approved" }, error: null });
     expect((await post({ approve: true })).status).toBe(409);
+    expect(logAdminAction).not.toHaveBeenCalled();
+  });
+
+  it("stops before the money moves when the request cannot be read", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    asked = { data: null, error: { message: "connection lost" } };
+    expect((await post({ approve: true })).status).toBe(500);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("refuses a bad body or id before touching the database", async () => {

@@ -33,6 +33,11 @@ vi.mock("@/lib/admin-supabase", () => ({
   resolveAdminRole: vi.fn(),
 }));
 
+// The audit row goes through the shared logger, so `from` below still proves
+// that the route writes no table of its own.
+const logAdminAction = vi.fn(async () => undefined);
+vi.mock("@/lib/activity-logger", () => ({ logAdminAction }));
+
 vi.mock("next/headers", () => ({
   cookies: async () => ({ getAll: () => [], set: () => undefined }),
 }));
@@ -46,6 +51,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   rpc.mockReset();
   from.mockReset();
+  logAdminAction.mockClear();
   createAdminClient.mockClear();
 });
 
@@ -78,6 +84,13 @@ describe("POST /api/leads/[id]/convert", () => {
     });
     // No table is written outside the transactional function.
     expect(from).not.toHaveBeenCalled();
+    // The conversion is in the staff log, under the caller and the new shop.
+    expect(logAdminAction).toHaveBeenCalledTimes(1);
+    expect(logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ id: SUPPORT_ID }) }),
+      "convert_lead",
+      { tenantId: TENANT, details: { lead_id: LEAD } },
+    );
   });
 
   it("is idempotent: a repeat call for a converted lead returns the existing tenant with 409", async () => {
@@ -93,6 +106,8 @@ describe("POST /api/leads/[id]/convert", () => {
     expect(await second.json()).toEqual({ error: "Lead already converted", tenant_id: TENANT });
     expect(rpc).toHaveBeenCalledTimes(2);
     expect(from).not.toHaveBeenCalled();
+    // Only the call that converted is logged.
+    expect(logAdminAction).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a lead whose status was set to converted by hand (no tenant) with 409", async () => {
