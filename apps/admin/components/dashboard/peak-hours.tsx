@@ -71,7 +71,7 @@ export function PeakHours({ cells }: PeakHoursProps) {
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-yellow)]/40 flex items-center justify-center">
           <Clock className="w-4 h-4 text-[var(--ink-amber)]" />
         </div>
-        <h3 className="font-bold text-foreground text-sm">Peak Hours</h3>
+        <h3 className="font-bold text-foreground text-sm">Peak Hours, last 90 days</h3>
       </div>
 
       {!cells ? (

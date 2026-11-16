@@ -121,7 +121,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
             <BarChart3 className="w-4 h-4 text-[var(--ink-green)]" />
           </div>
-          <h3 className="font-bold text-foreground text-sm">Platform Activity</h3>
+          <h3 className="font-bold text-foreground text-sm">Platform Activity, last 12 months</h3>
         </div>
         {/* Color scale legend */}
         <div className="flex items-center gap-1 text-xs text-foreground/70">
