@@ -277,7 +277,7 @@ export default function MerchantDetailPage() {
       )}
       {activeTab === "Overview" && <RecentOrdersSection merchantId={tenant.id} limit={5} />}
       {activeTab === "Timeline" && <TimelineTab merchantId={tenant.id} focusNote={focusNote} />}
-      {activeTab === "Usage" && <UsageTab usage={usage} />}
+      {activeTab === "Usage" && <UsageTab usage={usage} planLimits={data.planLimits} />}
       {activeTab === "Team" && <TeamTab team={team} />}
       {activeTab === "Onboarding" && (
         <OnboardingChecklist
@@ -286,7 +286,6 @@ export default function MerchantDetailPage() {
           teamCount={team.length}
           walletBalance={wallet?.balance_iqd ?? 0}
           hasStorefront={!!(tenant.store_config && Object.keys(tenant.store_config).length > 0)}
-          hasCustomDomain={false}
         />
       )}
 
