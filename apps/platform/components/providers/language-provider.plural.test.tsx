@@ -56,6 +56,17 @@ describe("t() singular forms", () => {
         expect(t("dashboard.bento.vsPrevious", { count: 30 })).toBe("مقارنة بالـ 30 يوماً السابقة");
     });
 
+    it("agrees Reports and Finances counts with their numbers", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        const t = result.current.t;
+        expect(t("reports.attention.count", { count: 7 })).toBe("7 طلبات تحتاج مراجعتك");
+        expect(t("finances.overview.cash.stuck", { count: 9 })).toBe("9 طلبات متعثرة تحتاج متابعة");
+        expect(t("reports.batch.ordersCount", { count: 1 })).toBe("طلب واحد");
+        expect(t("reports.team.activeMembers", { count: 6 })).toBe("6 أعضاء نشطون");
+        expect(t("dashboard.pipeline.periodTotal", { count: 12, period: "آخر 30 يوماً" })).toBe("12 طلباً · آخر 30 يوماً");
+    });
+
     it("uses the .zero entry for a count of 0 in both languages", async () => {
         localStorage.setItem("schneiders_language", "ar");
         const ar = renderHook(() => useLanguage(), { wrapper });

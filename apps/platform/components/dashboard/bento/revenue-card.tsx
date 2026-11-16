@@ -98,6 +98,8 @@ export function RevenueCard() {
                         <Delta pct={fig.deltaPct} className="self-center text-sm" />
                     </div>
                     <p className="mt-2 text-[13px] tracking-[-0.01em] text-[var(--foreground-muted)]">
+                        {/* In orders mode the line opens with its number; isolated, it reads from the right. */}
+                        <bdi>
                         {measure === "revenue" ? (
                             <>
                                 {t("dashboard.bento.avgOrder")}{" "}
@@ -113,6 +115,7 @@ export function RevenueCard() {
                             </>
                         )}
                         {fig.deltaPct !== null && <>{" · "}{t("dashboard.bento.vsPrevious", { count: days })}</>}
+                        </bdi>
                     </p>
                     <div className="mt-5 flex flex-1">
                         <RevenueLine

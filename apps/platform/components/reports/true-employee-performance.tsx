@@ -4,8 +4,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { EmployeeActivityMetrics } from "@/hooks/use-employee-metrics";
 import {
-    Trophy, Medal, Activity, Package, RefreshCw, Printer,
-    CheckCircle2, Truck, Users, Zap, Clock, TrendingUp,
+    Trophy, Medal, Activity, Package, RefreshCw,
+    CheckCircle2, Truck, Users, Clock,
     Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -123,7 +123,7 @@ export function TrueEmployeePerformance({
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-foreground">{t("reports.team.title")}</h3>
-                            <p className="text-sm text-muted">{t("reports.team.activeMembers", { n: data.length })}</p>
+                            <p className="text-sm text-muted"><bdi>{t("reports.team.activeMembers", { count: data.length })}</bdi></p>
                         </div>
                     </div>
 

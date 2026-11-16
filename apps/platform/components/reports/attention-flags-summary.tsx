@@ -83,7 +83,7 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
                     </div>
                     <div>
                         <h3 className="text-xl font-bold text-amber-900 dark:text-amber-300">{t("reports.attention.title")}</h3>
-                        <p className="text-sm text-amber-700 dark:text-amber-300">{t("reports.attention.count", { n: totalFlags })}</p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300"><bdi>{t("reports.attention.count", { count: totalFlags })}</bdi></p>
                     </div>
                 </div>
                 <Link

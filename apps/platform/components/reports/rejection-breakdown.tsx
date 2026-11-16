@@ -70,7 +70,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">{t("reports.rejection.title")}</h3>
-                            <p className="text-xs text-muted">{t("reports.rejection.total", { n: total })}</p>
+                            <p className="text-xs text-muted"><bdi>{t("reports.rejection.total", { n: total })}</bdi></p>
                         </div>
                     </div>
 

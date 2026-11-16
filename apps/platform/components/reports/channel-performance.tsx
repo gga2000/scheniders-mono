@@ -70,7 +70,7 @@ function Headline({ row }: { row: ChannelPerformanceRow }) {
                 <span className="font-bold text-foreground tabular-nums">{formatIQD(row.realizedRevenue)}</span>
             )}
             <span className="text-muted">
-                <span className="tabular-nums">{row.orders}</span> {t("reports.channels.orders")}
+                <span className="tabular-nums">{row.orders}</span> {t("reports.channels.orders", { count: row.orders })}
             </span>
         </div>
     );
@@ -132,11 +132,13 @@ export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPer
                             </div>
                         )}
                         <div className="text-xs text-muted">
-                            <span className="tabular-nums">{data.totalOrders}</span> {t("reports.channels.orders")}
-                            {" · "}
-                            <span data-testid="channel-coverage">
-                                {t("reports.channels.coverage", { pct: data.attributedShare.toFixed(0) })}
-                            </span>
+                            <bdi>
+                                <span className="tabular-nums">{data.totalOrders}</span> {t("reports.channels.orders", { count: data.totalOrders })}
+                                {" · "}
+                                <span data-testid="channel-coverage">
+                                    {t("reports.channels.coverage", { pct: data.attributedShare.toFixed(0) })}
+                                </span>
+                            </bdi>
                         </div>
                     </div>
                 </div>

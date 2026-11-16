@@ -72,7 +72,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">{t("reports.returns.title")}</h3>
-                            <p className="text-xs text-muted">{t("reports.returns.summary", { n: totalReturns, amount: formatIQD(totalReturnValue) })}</p>
+                            <p className="text-xs text-muted"><bdi>{t("reports.returns.summary", { n: totalReturns, amount: formatIQD(totalReturnValue) })}</bdi></p>
                         </div>
                     </div>
 
@@ -185,9 +185,9 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                     {t("reports.returns.topReason", { reason: returnsByReason[0]?.reason ?? "" })}
                                 </p>
                                 <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
-                                    {returnsByReason[0]?.topCity
+                                    <bdi>{returnsByReason[0]?.topCity
                                         ? t("reports.returns.topReasonCity", { pct: returnsByReason[0].percentage.toFixed(0), city: returnsByReason[0].topCity })
-                                        : t("reports.returns.topReasonDesc", { pct: returnsByReason[0]?.percentage.toFixed(0) ?? "0" })}
+                                        : t("reports.returns.topReasonDesc", { pct: returnsByReason[0]?.percentage.toFixed(0) ?? "0" })}</bdi>
                                 </p>
                             </div>
                         </div>
