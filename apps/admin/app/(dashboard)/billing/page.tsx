@@ -153,12 +153,9 @@ export default function BillingPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <CreditCard className="w-6 h-6" />
-            Billing & Wallets
-          </h1>
-          <p className="text-foreground-muted mt-1">
-            Manage wallet balances, top-ups, and transaction history
+          <h1 className="text-[22px] font-semibold text-foreground">Wallets</h1>
+          <p className="text-[13px] text-foreground/70">
+            Every shop&apos;s wallet, its top-ups and its charges.
           </p>
         </div>
         <ExportButton type="transactions" label="Export Transactions" />

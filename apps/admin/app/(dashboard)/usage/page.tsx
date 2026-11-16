@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Loader2, Calendar, Clock, TrendingUp } from "lucide-react";
+import { Loader2, Calendar, Clock, TrendingUp } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -105,11 +105,8 @@ export default function UsagePage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="w-6 h-6" />
-            Usage Heatmap
-          </h1>
-          <p className="text-foreground-muted mt-1">Orders per day and hour, Baghdad time, last 365 days</p>
+          <h1 className="text-[22px] font-semibold text-foreground">Orders by hour</h1>
+          <p className="text-[13px] text-foreground/70">Orders per day and hour, Baghdad time, last 365 days</p>
         </div>
         <div className="flex items-center gap-2">
           <AnimatedCounter value={data.totalOrders} className="text-lg font-bold text-foreground" />
