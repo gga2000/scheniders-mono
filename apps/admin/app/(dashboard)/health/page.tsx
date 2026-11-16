@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
+import { LoadError } from "@/components/shared/load-error";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,8 +82,7 @@ function getRiskBarBg(score: number): string {
 // ---------------------------------------------------------------------------
 
 async function fetchHealth(): Promise<HealthData> {
-  const res = await fetch("/api/health");
-  if (!res.ok) throw new Error("Failed to fetch health data");
+  const res = okOrLoadFailure(await fetch("/api/health"), "the health numbers");
   return res.json();
 }
 
@@ -90,12 +91,16 @@ async function fetchHealth(): Promise<HealthData> {
 // ---------------------------------------------------------------------------
 
 export default function HealthPage() {
-  const { data, isLoading } = useQuery<HealthData>({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<HealthData>({
     queryKey: ["admin", "health"],
     queryFn: fetchHealth,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+
+  if (isError && !data) {
+    return <LoadError what="the health numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+  }
 
   const health = data?.platformHealth;
   const riskIndicators = data?.riskIndicators ?? [];

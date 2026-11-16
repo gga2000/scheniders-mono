@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Last-resort boundary for errors thrown by the root layout itself, which
@@ -17,9 +18,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    void import("@sentry/nextjs").then((Sentry) =>
-      Sentry.captureException(error, { tags: { boundary: "global-error" } }),
-    );
+    reportError(error, "global-error");
   }, [error]);
 
   return (
