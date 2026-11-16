@@ -1,12 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Store, Truck, FileSpreadsheet, PenLine, ShoppingBag } from "lucide-react";
 import type { Order } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 
-export function SourceBadge({ source }: { source: Order["source"] }) {
+/** The order card's source chip. `fallback` renders for a source that has no chip. */
+export function SourceBadge({ source, fallback = null }: { source: Order["source"]; fallback?: ReactNode }) {
     const { t } = useLanguage();
-    if (!source) return null;
+    if (!source) return fallback;
 
     switch (source) {
         case "whatsapp":
@@ -106,6 +108,6 @@ export function SourceBadge({ source }: { source: Order["source"] }) {
                 </span>
             );
         default:
-            return null;
+            return fallback;
     }
 }

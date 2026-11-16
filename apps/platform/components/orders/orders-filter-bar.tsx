@@ -66,6 +66,8 @@ interface OrdersFilterBarProps {
     dueTodayCount: number;
     /** Hide status, product and channel numbers (lib/orders/count-visibility.ts). */
     countsHidden?: boolean;
+    /** The «قيد التوصيل» number is still loading (StickyFilterBar). */
+    transitCountPending?: boolean;
     dueTodayCountHidden?: boolean;
     riskCountHidden?: boolean;
     showSubFilters: boolean;
@@ -92,6 +94,7 @@ export function OrdersFilterBar({
     totalRiskCount,
     dueTodayCount,
     countsHidden = false,
+    transitCountPending = false,
     dueTodayCountHidden = false,
     riskCountHidden = false,
     showSubFilters,
@@ -118,7 +121,6 @@ export function OrdersFilterBar({
         saveFilterPreset,
         loadFilterPreset,
         deleteFilterPreset,
-        bulkUpdateStatus,
     } = useOrdersContext();
 
     const {
@@ -129,7 +131,7 @@ export function OrdersFilterBar({
         groupBy, setGroupBy,
         filterDuplicatesOnly, setFilterDuplicatesOnly,
         filterDueToday, setFilterDueToday,
-        selectedOrders, setSelectedOrders,
+        selectedOrders,
         isFilterPanelAnimating, setIsFilterPanelAnimating,
         setTemplatePanelOpen,
     } = useOrderStore(
@@ -206,6 +208,7 @@ export function OrdersFilterBar({
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
                                 countsHidden={countsHidden}
+                                transitCountPending={transitCountPending}
                                 dueTodayCountHidden={dueTodayCountHidden}
                                 riskCountHidden={riskCountHidden}
                                 showSubFilters={showSubFilters}

@@ -29,7 +29,7 @@ import type { RiskLevel } from "@/types/order";
 
 export interface CountContext {
     /** useOrderFilters' countViewFacts (deferred, from the list's render). */
-    facts: { ready: boolean; statusIsAll: boolean; windowIsAll: boolean };
+    facts: { ready: boolean; statusIsAll: boolean; windowIsAll: boolean; transitReady: boolean };
     /** Desktop archive view (deferred); always false on mobile. */
     archived: boolean;
     /** Any table column filter (deferred); always false on mobile. */
@@ -57,6 +57,8 @@ export interface CountContext {
 export interface CountVisibility {
     /** Status chips, pipeline, status cards, Needs Attention (urgent / no response / returns), product and channel chips. */
     chips: boolean;
+    /** The «قيد التوصيل» chip: `chips`, and its own read across dates has answered. */
+    transitChip: boolean;
     dueTodayBadge: boolean;
     riskBadge: boolean;
     /** Needs Attention: Flagged (it opens the risk filter). */
@@ -69,6 +71,7 @@ export function countVisibility(c: CountContext): CountVisibility {
         c.columnFilter || c.duplicatesOnly || !!c.stuckTransit || !!c.scheduledLater || !!c.paymentUnchecked || !!c.lockTime || !!c.primeBucket || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
     return {
         chips: base && !refined(),
+        transitChip: base && !refined() && c.facts.transitReady,
         dueTodayBadge: base && !refined({ exceptDue: true }),
         // Turning the risk filter on also clears the status (dates stay), so
         // with it off the badge equals that list only on the All tab.

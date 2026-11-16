@@ -132,7 +132,7 @@ export function EmptyState({ type, searchQuery, hasFilters }: EmptyStateProps) {
                         {t("orders.emptyState.noResultsFor")} «<span className="font-medium text-foreground">{searchQuery}</span>»
                     </>
                 ) : (
-                    t(`orders.emptyState.${config.key}.desc`)
+                    <bdi>{t(`orders.emptyState.${config.key}.desc`)}</bdi>
                 )}
             </motion.p>
 

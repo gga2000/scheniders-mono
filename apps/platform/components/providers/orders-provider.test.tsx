@@ -60,7 +60,7 @@ vi.mock("@/hooks/use-order-auxiliary", () => ({ useOrderAuxiliary: () => ({ stat
 vi.mock("@/hooks/use-order-filters", () => ({
     useOrderFilters: ({ orders, filters, setFilters }: { orders: Order[]; filters: unknown; setFilters: unknown }) => ({
         filteredOrders: orders, filters, setFilters, statusCounts: {},
-        countViewFacts: { ready: true, statusIsAll: true, windowIsAll: false },
+        countViewFacts: { ready: true, covered: true, statusIsAll: true, windowIsAll: false, transitReady: true },
     }),
 }));
 vi.mock("@/hooks/use-order-crud", () => ({ useOrderCrud: () => ({}) }));

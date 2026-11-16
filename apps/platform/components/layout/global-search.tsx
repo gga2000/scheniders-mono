@@ -149,7 +149,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                         id: order.phone,
                         title: order.customer_name,
                         subtitle: formatPhoneGrouped(order.phone),
-                        meta: `${customerOrders.length} orders`,
+                        meta: t("search.customerOrders", { count: customerOrders.length }),
                         href: `/customers?search=${order.phone}`,
                     });
                 }
@@ -175,7 +175,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
         }
 
         return searchResults.slice(0, MAX_RESULTS);
-    }, [query, searchOrders, searchCustomers, searchProducts, orderSearch.orders, productSearch.products]);
+    }, [query, searchOrders, searchCustomers, searchProducts, orderSearch.orders, productSearch.products, t]);
 
     // Close on click outside
     useEffect(() => {

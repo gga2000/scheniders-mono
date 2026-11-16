@@ -76,7 +76,7 @@ export function CashHealthCard({ data }: Props) {
                         <bdi className="font-semibold">
                             <FinanceValue value={data.cashAtRisk} currency="IQD" abbreviate className="text-inherit" />
                         </bdi>{" "}
-                        {t("finances.overview.cash.warn")}
+                        <bdi>{t("finances.overview.cash.warn")}</bdi>
                     </p>
                 </motion.div>
             )}

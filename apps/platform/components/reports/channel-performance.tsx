@@ -199,7 +199,7 @@ export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPer
                                 </div>
                                 <Headline row={data.unattributed} />
                             </div>
-                            <p className="mt-2 text-[11px] text-muted">{t("reports.channels.unattributedHint")}</p>
+                            <p className="mt-2 text-[11px] text-muted"><bdi>{t("reports.channels.unattributedHint")}</bdi></p>
                             <Stats row={data.unattributed} showMoney={showMoney} />
                         </div>
                     )}

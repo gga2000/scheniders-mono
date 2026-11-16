@@ -226,7 +226,7 @@ function CashCoverCard({
                     <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2">
                         <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                         <div className="text-[12px] text-rose-700 dark:text-rose-300">
-                            {t("finances.forecast.cover.warn")}
+                            <bdi>{t("finances.forecast.cover.warn")}</bdi>
                         </div>
                     </div>
                 )}
@@ -288,7 +288,7 @@ function ForecastConfidenceCard({
                     }
                 />
                 <div className="text-[11px] text-muted leading-relaxed pt-2 border-t border-[var(--card-border)]">
-                    {t("finances.forecast.health.note")}
+                    <bdi>{t("finances.forecast.health.note")}</bdi>
                 </div>
             </div>
         </SectionCard>

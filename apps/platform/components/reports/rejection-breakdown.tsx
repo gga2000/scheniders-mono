@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { RejectionReasonMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { XOctagon, MapPin, AlertCircle, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
 
 interface RejectionBreakdownProps {
@@ -174,9 +173,9 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                             <div>
                                 <p className="text-sm font-semibold text-rose-900 dark:text-rose-300">{t("reports.rejection.topIssue", { reason: reasonLabel(data[0]?.reason) })}</p>
                                 <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
-                                    {data[0]?.topCity
+                                    <bdi>{data[0]?.topCity
                                         ? t("reports.rejection.topIssueCity", { pct: data[0].percentage.toFixed(0), city: data[0].topCity })
-                                        : t("reports.rejection.topIssueDesc", { pct: data[0]?.percentage.toFixed(0) ?? "0" })}
+                                        : t("reports.rejection.topIssueDesc", { pct: data[0]?.percentage.toFixed(0) ?? "0" })}</bdi>
                                 </p>
                             </div>
                         </div>

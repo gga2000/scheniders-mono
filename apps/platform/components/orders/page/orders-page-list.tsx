@@ -36,6 +36,9 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
         if (handledIds.size === 0) return [listOrders, NO_ORDERS];
         return [listOrders.filter((o) => !handledIds.has(o.id)), listOrders.filter((o) => handledIds.has(o.id))];
     }, [listOrders, handledIds]);
+    // A failed search says so in the banner above, with a retry. An empty
+    // state under it would read as "this customer has no orders".
+    const searchFailedEmpty = !showArchived && orderSearch.active && orderSearch.failure !== null && listOrders.length === 0;
     const handledFold = (
         <PrimeHandledFold orders={handledOrders} renderCard={(order) => <VirtualizedOrderList {...cardListProps} orders={[order]} />} />
     );
@@ -138,7 +141,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                            state, and a merchant with 4,778 orders was told "No orders
                                            yet. When you receive orders, they'll appear here." */
                                         <OrderRowsSkeleton variant="cards" />
-                                    ) : listOrders.length === 0 && primeQueue !== null ? (
+                                    ) : searchFailedEmpty ? null : listOrders.length === 0 && primeQueue !== null ? (
                                         <PrimeQueueEmpty queue={primeQueue} />
                                     ) : listOrders.length === 0 ? (
                                         <EmptyState
@@ -181,7 +184,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                             )}
 
                             {/* Table View - State of the Art */}
-                            {viewMode === "table" && (previewing && listOrders.length === 0 ? (
+                            {viewMode === "table" && !searchFailedEmpty && (previewing && listOrders.length === 0 ? (
                                 <OrderRowsSkeleton variant="table" />
                             ) : (
                                 <VirtualizedOrderTable

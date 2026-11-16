@@ -85,7 +85,7 @@ export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
             </div>
 
             <p className="text-[10px] text-muted mt-4">
-                {t("dashboard.avgTime.disclaimer")}
+                <bdi>{t("dashboard.avgTime.disclaimer")}</bdi>
             </p>
         </div>
     );

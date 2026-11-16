@@ -25,13 +25,15 @@ const KPICards = dynamic(
 );
 
 const StatusFlowDiagram = dynamic(
+    // Placeholder heights are the loaded sections' at 1440 (measured live
+    // 2026-11-16): a taller placeholder pushed the cards under it up 149 px.
     () => import("@/components/reports/status-flow-diagram").then(mod => ({ default: mod.StatusFlowDiagram })),
-    { loading: () => <div className="h-[450px] animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-[308px] animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const ContactHeatmap = dynamic(
     () => import("@/components/reports/contact-heatmap").then(mod => ({ default: mod.ContactHeatmap })),
-    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-[506px] animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const CityPerformance = dynamic(
@@ -41,12 +43,12 @@ const CityPerformance = dynamic(
 
 const TimeAnalysis = dynamic(
     () => import("@/components/reports/time-analysis").then(mod => ({ default: mod.TimeAnalysis })),
-    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-[506px] animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const RejectionBreakdown = dynamic(
     () => import("@/components/reports/rejection-breakdown").then(mod => ({ default: mod.RejectionBreakdown })),
-    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-[506px] animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const ReturnBreakdown = dynamic(
@@ -238,7 +240,7 @@ export default function ReportsPage() {
                                 {t("reports.title")}
                             </h1>
                             <p className="text-muted mt-1 text-lg">
-                                {t("reports.subtitle")}
+                                <bdi>{t("reports.subtitle")}</bdi>
                             </p>
                         </div>
                     </div>

@@ -32,6 +32,11 @@ interface OrderPipelineProps {
      * list on screen is not the one they would count. lib/orders/count-visibility.ts.
      */
     countsHidden?: boolean;
+    /**
+     * The «قيد التوصيل» number is still loading (its own read across dates).
+     * When that stage is shown its count, and the total it feeds, are hidden too.
+     */
+    transitCountPending?: boolean;
 }
 
 export const OrderPipeline = memo(function OrderPipeline({
@@ -39,11 +44,13 @@ export const OrderPipeline = memo(function OrderPipeline({
     activeStatus,
     onSelectStatus,
     className,
-    countsHidden = false,
+    countsHidden: listCountsHidden = false,
+    transitCountPending = false,
 }: OrderPipelineProps) {
     const { t } = useLanguage();
     const reduceMotion = useReducedMotion();
     const layout = useOrderPipelineLayout();
+    const countsHidden = listCountsHidden || (transitCountPending && layout.stages.includes("in_transit"));
 
     const stages = layout.stages.map((id) => ({
         ...PIPELINE_STAGE_REGISTRY[id],

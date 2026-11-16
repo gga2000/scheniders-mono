@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ContactAttemptMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { ORDINAL_BLUES } from "@/lib/analytics/chart-categories";
-import { MessageCircle, TrendingDown, Zap } from "lucide-react";
+import { MessageCircle, Zap } from "lucide-react";
 
 interface ContactHeatmapProps {
     data: ContactAttemptMetrics[];
@@ -157,7 +157,7 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                             <div>
                                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">{t("reports.common.insight")}</p>
                                 <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                                    {t("reports.contact.insight", { label: t(`reports.contact.bucket.${best.attempts}`, best.label), pct: best.confirmationRate.toFixed(0) })}
+                                    <bdi>{t("reports.contact.insight", { label: t(`reports.contact.bucket.${best.attempts}`, best.label), pct: best.confirmationRate.toFixed(0) })}</bdi>
                                 </p>
                             </div>
                         </div>
