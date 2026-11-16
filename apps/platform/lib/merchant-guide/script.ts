@@ -91,6 +91,10 @@ export const GUIDE_LINES = {
         ar: "كل طلب يمشي بهالمراحل من اليسار لليمين. «مكتمل» يعني الفلوس وصلتك بإيدك.",
         en: "Every order moves through these stages, left to right. Completed means the money is in your hand.",
     },
+    "fo.storeOrder": {
+        ar: "هسه جرب مثل زبون: افتح متجرك واطلب أي شي. الطلب ينكتب تجربة، ما يوصل لأحد وما ينحسب بمبيعاتك.",
+        en: "Now try it like a customer: open your shop and order anything. It's marked as a test: it reaches no one and never counts in your sales.",
+    },
     "fo.confirm": {
         ar: "هذا طلب تجربة من محلك. أكّده من هنا مثل أي طلب حقيقي.",
         en: "This is a practice order from your shop. Confirm it here, like a real one.",
@@ -100,8 +104,12 @@ export const GUIDE_LINES = {
         en: "When an order comes in, WhatsApp sends the customer a confirmation by itself. They tap Confirm, and the order is confirmed without a call.",
     },
     "fo.whatsappOff": {
-        ar: "الإرسال التلقائي طافي هسه. اضغط زر الواتساب اللي فوق حتى يشتغل.",
-        en: "Auto-send is off right now. Tap the WhatsApp button at the top to turn it on.",
+        ar: "الإرسال التلقائي طافي هسه. شغّله من هنا، لو من زر الواتساب اللي فوق.",
+        en: "Auto-send is off right now. Turn it on here, or with the WhatsApp button at the top.",
+    },
+    "fo.courier": {
+        ar: "منو يوصل طلباتك؟ اربط Prime وتروح الطلبات للمندوب وحدها، لو اختار شركة ثانية وطلّع ملف الطلبات بشكل شركتك.",
+        en: "Who delivers your orders? Link Prime and orders go to the courier by themselves, or pick another company and export your orders in its format.",
     },
     "fo.dispatch": {
         ar: "مكتب الشحن تجيه آخر اليوم: تطبع كل الوصولات مرة وحدة، وتسلمها للمندوب.",

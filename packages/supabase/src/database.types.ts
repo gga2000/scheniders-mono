@@ -9635,7 +9635,7 @@ export type Database = {
       get_topup_payment_details: { Args: never; Returns: Json }
       get_user_tenant_ids: { Args: never; Returns: string[] }
       guide_end_practice_orders: {
-        Args: { _tenant_id: string }
+        Args: { _store_orders_since?: string; _tenant_id: string }
         Returns: number
       }
       guide_start_practice_orders: {
