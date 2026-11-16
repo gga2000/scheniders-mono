@@ -40,12 +40,12 @@ const { POST } = await import("./route");
 
 const call = (body: Record<string, unknown>) =>
   POST(
-    new NextRequest("http://admin.test/api/leads/l1/follow-ups", {
+    new NextRequest("http://admin.test/api/leads/11111111-1111-4111-8111-111111111111/follow-ups", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer t" },
       body: JSON.stringify(body),
     }),
-    { params: Promise.resolve({ id: "l1" }) },
+    { params: Promise.resolve({ id: "11111111-1111-4111-8111-111111111111" }) },
   );
 
 beforeEach(() => {

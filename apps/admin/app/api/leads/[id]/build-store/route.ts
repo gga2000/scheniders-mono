@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
+import { notAnId } from "@/lib/route-id";
 
 // The dialog also sends business_name and slug; the store takes the lead's
 // name and a generated slug, so those are not read.
@@ -32,6 +33,8 @@ export async function POST(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid store details" }, { status: 400 });

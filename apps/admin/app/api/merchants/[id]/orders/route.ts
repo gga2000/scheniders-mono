@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { notAnId } from "@/lib/route-id";
 
 export async function GET(
   request: NextRequest,
@@ -11,6 +12,8 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
   const url = new URL(request.url);
   const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? "10")));
 

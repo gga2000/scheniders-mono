@@ -3,6 +3,7 @@ import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
+import { notAnId } from "@/lib/route-id";
 
 export async function GET(
   _request: NextRequest,
@@ -13,6 +14,8 @@ export async function GET(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const supabase = createAdminClient();
 
     const [leadResult, activitiesResult, followUpsResult, socialLinksResult, competitorsResult] =
@@ -98,6 +101,8 @@ export async function PATCH(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const body = await request.json();
     const supabase = createAdminClient();
 
@@ -164,6 +169,8 @@ export async function DELETE(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const supabase = createAdminClient();
 
     const { data: removed, error } = await supabase

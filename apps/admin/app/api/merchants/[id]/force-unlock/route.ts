@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { forceUnlock, MAX_FREE_UNLOCK_DAYS } from "@/lib/billing-lock-tools";
 import { staffReasonSchema } from "@/lib/staff-reason";
+import { notAnId } from "@/lib/route-id";
 
 const bodySchema = z.object({
   days: z.number().int().min(1).max(MAX_FREE_UNLOCK_DAYS),
@@ -23,6 +24,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const parsed = bodySchema.safeParse(await request.json());

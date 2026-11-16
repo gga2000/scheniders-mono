@@ -27,7 +27,7 @@ describe("GET /api/team/[id]", () => {
   it("refuses an id that is not a user id, before any read", async () => {
     const res = await call("x,status.eq.lost");
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(stub.tablesRead()).toEqual([]);
   });
 });

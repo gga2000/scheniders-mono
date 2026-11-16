@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { notAnId } from "@/lib/route-id";
 
 const BodySchema = z.object({
   period_days: z.number().int().positive().max(365).default(30),
@@ -18,6 +19,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const body = await request.json().catch(() => ({}));

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { notAnId } from "@/lib/route-id";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,6 +12,8 @@ export async function PATCH(
     if (admin instanceof NextResponse) return admin;
 
     const { id, fid } = await params;
+    const missing = notAnId(id, fid);
+    if (missing) return missing;
     const body = await request.json();
     const supabase = createAdminClient();
 
