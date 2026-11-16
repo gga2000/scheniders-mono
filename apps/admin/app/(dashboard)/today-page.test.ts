@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TodayResponse, TodayShop } from "@/lib/today";
+import type { HandledRow, TodayResponse, TodayShop } from "@/lib/today";
 
 /*
  * Today is the console's home page (board h1): the shops that need someone,
@@ -36,6 +36,12 @@ const trialEnds: TodayShop = {
   nothing_to_renew: false,
 };
 
+const done = { tenant_id: trialEnds.tenant_id, display_id: 100095, business_name: "متجر تجريبي Claude", who: "Karrar" };
+const handled: HandledRow[] = [
+  { ...done, kind: "reply", at: "2026-11-16T07:20:00Z", case_id: "8d4e6d9b-eaf5-42f9-abd1-a8afee593d9d", who: "Noor" },
+  { ...done, kind: "receipt", at: "2026-11-16T06:40:00Z", outcome: "approved", amount_iqd: 15000, credited_iqd: 15000, reject_reason: null },
+];
+
 let today: { data?: TodayResponse; isLoading: boolean; dataUpdatedAt: number; error?: unknown };
 vi.mock("@/hooks/use-today", () => ({ useToday: () => today }));
 vi.mock("@/hooks/use-merchant-list", () => ({
@@ -55,7 +61,7 @@ const numbers = { orders_today: 4, orders_yesterday_by_now: 5, fees_month: 23870
 
 beforeEach(() => {
   role = "super_admin";
-  today = { data: { shops: [receipt(1), trialEnds], numbers }, isLoading: false, dataUpdatedAt: Date.now() };
+  today = { data: { shops: [receipt(1), trialEnds], numbers, handled }, isLoading: false, dataUpdatedAt: Date.now() };
 });
 
 describe("the Today page", () => {
@@ -94,7 +100,7 @@ describe("the Today page", () => {
   it("shows five rows a group and offers the rest", () => {
     today = {
       ...today,
-      data: { shops: Array.from({ length: 7 }, (_, n) => receipt(n + 1)), numbers },
+      data: { shops: Array.from({ length: 7 }, (_, n) => receipt(n + 1)), numbers, handled },
     };
     const html = render();
     expect(html.match(/>Check receipt</g)).toHaveLength(5);
@@ -102,10 +108,24 @@ describe("the Today page", () => {
   });
 
   it("says so when nobody is waiting", () => {
-    today = { ...today, data: { shops: [], numbers } };
+    today = { ...today, data: { shops: [], numbers, handled: [] } };
     const html = render();
     expect(html).toContain("Nobody is waiting.");
     expect(html).toContain("Last checked at");
+    expect(html).not.toContain("Handled today");
+  });
+
+  it("lists what was handled today under the list, newest first, with the time and who", () => {
+    const html = render();
+    expect(html).toContain("Handled today");
+    expect(html).toContain("2 so far");
+    expect(html).toContain("10:20"); // 07:20 UTC in Baghdad
+    expect(html).toContain('href="/support?case=8d4e6d9b-eaf5-42f9-abd1-a8afee593d9d"');
+    expect(html).toContain("Question answered");
+    expect(html).toContain("Receipt approved, 15,000 IQD");
+    expect(html.indexOf("Question answered")).toBeLessThan(html.indexOf("Receipt approved"));
+    expect(html).toContain(">Karrar<");
+    expect(html).toContain(">Noor<");
   });
 
   it("says it could not load, never that nobody is waiting", () => {

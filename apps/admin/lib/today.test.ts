@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { groupCount, groupRows, rowWords, waitWords, whatsappLink, type TodayShop } from "./today";
+import {
+  groupCount,
+  groupRows,
+  handledWords,
+  isSupportWork,
+  rowWords,
+  waitWords,
+  whatsappLink,
+  type HandledRow,
+  type TodayShop,
+} from "./today";
 
 /*
  * Each Today row says why the shop is there with the number that matters,
@@ -106,5 +116,42 @@ describe("the owner's WhatsApp", () => {
     expect(whatsappLink("+964 770 000 9456")).toBe("https://wa.me/9647700009456");
     expect(whatsappLink("01 555 1234")).toBeNull();
     expect(whatsappLink(null)).toBeNull();
+  });
+});
+
+describe("a Handled today row", () => {
+  const done = { tenant_id: base.tenant_id, display_id: 100095, business_name: "Shop", at: "2026-11-16T06:40:00Z", who: "Karrar" };
+  const receipt = (over: Partial<Extract<HandledRow, { kind: "receipt" }>>): HandledRow => ({
+    ...done,
+    kind: "receipt",
+    outcome: "approved",
+    amount_iqd: 15000,
+    credited_iqd: 15000,
+    reject_reason: null,
+    ...over,
+  });
+  const change = (action: string, details: Record<string, unknown> | null): HandledRow => ({ ...done, kind: "change", action, details });
+
+  it("says what happened to a receipt, with the money", () => {
+    expect(handledWords(receipt({}))).toBe("Receipt approved, 15,000 IQD");
+    expect(handledWords(receipt({ credited_iqd: 20000 }))).toBe("Receipt for 15,000 IQD approved, 20,000 IQD added");
+    expect(handledWords(receipt({ outcome: "rejected", amount_iqd: 25000, credited_iqd: null, reject_reason: "The photo could not be read" }))).toBe(
+      "Receipt for 25,000 IQD rejected: The photo could not be read",
+    );
+    expect(handledWords(receipt({ outcome: "rejected", credited_iqd: null }))).toBe("Receipt for 15,000 IQD rejected");
+  });
+
+  it("says a change in the words of the shop timeline, with the money added", () => {
+    expect(handledWords(change("top_up_wallet", { amount_iqd: 10000 }))).toBe("Added 10,000 IQD");
+    expect(handledWords(change("extend_trial", { days: 2 }))).toBe("Gave 2 free trial days");
+    expect(handledWords(change("support_reached_out", null))).toBe("Reached out to the shop");
+    expect(handledWords({ ...done, kind: "reply", case_id: "8d4e6d9b-eaf5-42f9-abd1-a8afee593d9d" })).toBe("Question answered");
+  });
+
+  it("knows which steps are support work", () => {
+    expect(isSupportWork({ ...done, kind: "reply", case_id: "8d4e6d9b-eaf5-42f9-abd1-a8afee593d9d" })).toBe(true);
+    expect(isSupportWork(change("support_case_solved", null))).toBe(true);
+    expect(isSupportWork(change("top_up_wallet", { amount_iqd: 10000 }))).toBe(false);
+    expect(isSupportWork(receipt({}))).toBe(false);
   });
 });
