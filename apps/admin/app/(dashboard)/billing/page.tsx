@@ -16,7 +16,7 @@ import { ExportButton } from "@/components/shared/export-button";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
-import { formatIQD, formatWhen } from "@/lib/format";
+import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -289,7 +289,7 @@ export default function BillingPage() {
                       : "bg-[var(--card-bg)] text-foreground/60 border-[var(--card-border)] hover:border-foreground/30"
                   }`}
                 >
-                  {(preset / 1000).toFixed(0)}K
+                  {formatCount(preset)}
                 </button>
               ))}
             </div>
