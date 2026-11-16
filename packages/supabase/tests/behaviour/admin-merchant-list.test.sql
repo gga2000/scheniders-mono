@@ -34,8 +34,8 @@
 --       who added the lead and the person it is assigned to;
 --     * a draft lead is not counted;
 --     * 1,500 logged actions count as 1,500;
---     * paid commissions are earned, pending ones are pending, approved ones
---       are neither;
+--     * every commission is earned; the ones not paid yet (pending or
+--       approved) are waiting, so earned minus waiting is what was paid;
 --     * a member of staff with nothing still gets a row of zeros.
 --   Search by shop number (merchant_code):
 --     * the number reads as six digits, padded when shorter and never cut when
@@ -320,9 +320,10 @@ BEGIN
     PERFORM pg_temp.check('team: Omar added 1, converted 1, built 1, got '
             || _r.leads_added || '/' || _r.leads_converted || '/' || _r.stores_built,
         _r.leads_added = 1 AND _r.leads_converted = 1 AND _r.stores_built = 1);
-    PERFORM pg_temp.check('team: Omar earned 40,000 and has 8,000 pending, got '
+    -- Paid 40,000, pending 8,000, approved 3,000: earned 51,000, waiting 11,000, paid 51,000 - 11,000.
+    PERFORM pg_temp.check('team: Omar earned 51,000 and has 11,000 waiting, got '
             || _r.commission_earned || '/' || _r.commission_pending,
-        _r.commission_earned = 40000 AND _r.commission_pending = 8000 AND _r.total_actions = 1);
+        _r.commission_earned = 51000 AND _r.commission_pending = 11000 AND _r.total_actions = 1);
 
     SELECT * INTO _r FROM public.admin_team_counts() c WHERE c.user_id = _new;
     PERFORM pg_temp.check('team: someone with nothing has no row', FOUND);

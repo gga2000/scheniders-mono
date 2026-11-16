@@ -6,7 +6,7 @@
  */
 
 export type Row = Record<string, unknown>;
-type Answer = { data: unknown; error: { message: string } | null };
+type Answer = { data: unknown; error: { code?: string; message: string } | null };
 
 export const SERVER_MAX_ROWS = 1000;
 
@@ -65,6 +65,9 @@ export function supabaseStub() {
         window = [window[0], window[0] + count - 1];
         return note("limit", count);
       },
+      // One row: single() wants exactly one (PGRST116 otherwise), maybeSingle() one or none.
+      single: async (): Promise<Answer> => one(true),
+      maybeSingle: async (): Promise<Answer> => one(false),
       then: (resolve: (answer: Answer & { count: number | null }) => void) => {
         if (state.failing.has(table)) {
           return resolve({ data: null, error: { message: "connection lost" }, count: null });
@@ -74,6 +77,14 @@ export function supabaseStub() {
         return resolve({ data: rows.slice(window[0], last + 1), error: null, count: rows.length });
       },
     };
+    function one(exactlyOne: boolean): Answer {
+      note(exactlyOne ? "single" : "maybeSingle");
+      if (state.failing.has(table)) return { data: null, error: { message: "connection lost" } };
+      if (rows.length > 1 || (exactlyOne && rows.length === 0)) {
+        return { data: null, error: { code: "PGRST116", message: `JSON object requested, ${rows.length} rows returned` } };
+      }
+      return { data: rows[0] ?? null, error: null };
+    }
     return builder;
   }
 
