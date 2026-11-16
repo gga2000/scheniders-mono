@@ -5,7 +5,8 @@
 --
 -- Money rule under test:
 --   a paying shop is charged its plan's per-order price once per order, the
---   first time it reaches delivered / completed / refund_delivered;
+--   first time it reaches delivered / completed; a return or refund parcel
+--   (is_return, refund_delivered) is free (Ali, 16 Nov);
 --   a trial or internal shop, a test / practice / stock-take / till order is
 --   never charged; a status correction back to delivered is not charged again;
 --   a charge that would pass the -10,000 IQD overdraft is declined, and the
@@ -67,18 +68,21 @@ INSERT INTO public.orders (id, tenant_id, order_id, status) VALUES
   ('a0000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000a', '1002', 'delivered');
 SELECT pg_temp.check(pg_temp.charges('10000000-0000-4000-8000-00000000000a') = 2, 'inserted delivered is charged');
 
--- 5. A delivered refund (refund_delivered) is charged too.
-INSERT INTO public.orders (id, tenant_id, order_id, status) VALUES
-  ('a0000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-00000000000a', 'RTN-1', 'return_pending');
+-- 5. Returns are free: a refund parcel reaching refund_delivered, or a return
+--    order marked delivered, is never charged.
+INSERT INTO public.orders (id, tenant_id, order_id, status, is_return) VALUES
+  ('a0000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-00000000000a', 'RTN-1', 'return_pending', true),
+  ('a0000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-00000000000a', 'RTN-2', 'return_pending', true);
 UPDATE public.orders SET status = 'refund_delivered' WHERE id = 'a0000000-0000-4000-8000-000000000003';
-SELECT pg_temp.check(pg_temp.charges('10000000-0000-4000-8000-00000000000a') = 3, 'refund_delivered is charged');
+UPDATE public.orders SET status = 'delivered' WHERE id = 'a0000000-0000-4000-8000-000000000005';
+SELECT pg_temp.check(pg_temp.charges('10000000-0000-4000-8000-00000000000a') = 2, 'returns are not charged');
 
 -- 6. Never billable: test, practice, stock taken, till sale.
 INSERT INTO public.orders (tenant_id, order_id, status, is_test) VALUES ('10000000-0000-4000-8000-00000000000a', 't', 'delivered', true);
 INSERT INTO public.orders (tenant_id, order_id, status, guide_practice) VALUES ('10000000-0000-4000-8000-00000000000a', 'g', 'delivered', true);
 INSERT INTO public.orders (tenant_id, order_id, status, take_kind) VALUES ('10000000-0000-4000-8000-00000000000a', 'k', 'completed', 'staff');
 INSERT INTO public.orders (tenant_id, order_id, status, till_session_id) VALUES ('10000000-0000-4000-8000-00000000000a', 'c', 'completed', gen_random_uuid());
-SELECT pg_temp.check(pg_temp.charges('10000000-0000-4000-8000-00000000000a') = 3, 'test, practice, take and till orders are never charged');
+SELECT pg_temp.check(pg_temp.charges('10000000-0000-4000-8000-00000000000a') = 2, 'test, practice, take and till orders are never charged');
 
 -- 7. Trial and internal shops are never charged.
 INSERT INTO public.orders (tenant_id, order_id, status) VALUES
