@@ -16,7 +16,7 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
-import { formatIQD } from "@/lib/format";
+import { formatDayTime, formatIQD } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,7 +53,6 @@ interface TrialsResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
-
 /** Where a trial stands, in Baghdad calendar days (see the trials route). */
 function trialDayLabel({ is_expired, days_remaining: days }: Pick<Trial, "is_expired" | "days_remaining">): string {
   if (is_expired) {
@@ -63,15 +62,6 @@ function trialDayLabel({ is_expired, days_remaining: days }: Pick<Trial, "is_exp
   if (days === 1) return "Ends tomorrow";
   return `${days} days left`;
 }
-
-const trialEndFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Baghdad",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
 
 function getBarColor(days: number, ended: boolean): string {
   if (ended) return "bg-gray-400";
@@ -378,7 +368,7 @@ export default function TrialsPage() {
                         {trialDayLabel(trial)}
                       </p>
                       <p className="text-[10px] text-foreground/40">
-                        {trialEndFormat.format(new Date(trial.trial_ends_at))}
+                        {formatDayTime(trial.trial_ends_at)}
                       </p>
                     </div>
                   </div>
