@@ -17,6 +17,8 @@ interface AdvancedFiltersProps {
     onApply: (filters: FilterValues) => void;
     onReset: () => void;
     embedded?: boolean;
+    /** Offers the "no cost yet" filter; members who cannot see costs would match every stocked product. */
+    canSeeCost?: boolean;
 }
 
 export interface FilterValues {
@@ -33,6 +35,8 @@ export interface FilterValues {
     productType: string | null;
     hasVariants: "all" | "yes" | "no";
     tagId: string | null;
+    /** Only products with pieces on the shelf and no cost entered (the Finances stock card's count). */
+    missingCost: boolean;
 }
 
 export const EMPTY_ADVANCED_FILTERS: FilterValues = {
@@ -49,6 +53,7 @@ export const EMPTY_ADVANCED_FILTERS: FilterValues = {
     productType: null,
     hasVariants: "all",
     tagId: null,
+    missingCost: false,
 };
 
 function countActiveFilters(filters: FilterValues): number {
@@ -66,13 +71,14 @@ function countActiveFilters(filters: FilterValues): number {
     if (filters.productType !== null) count++;
     if (filters.hasVariants !== "all") count++;
     if (filters.tagId !== null) count++;
+    if (filters.missingCost) count++;
     return count;
 }
 
 const inputClasses = "px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] text-foreground";
 const labelClasses = "block text-sm font-medium text-foreground mb-2";
 
-export function AdvancedFilters({ value, onApply, onReset, embedded = false }: AdvancedFiltersProps) {
+export function AdvancedFilters({ value, onApply, onReset, embedded = false, canSeeCost = false }: AdvancedFiltersProps) {
     const [isOpen, setIsOpen] = useState(embedded);
     const [filters, setFilters] = useState<FilterValues>(value ?? EMPTY_ADVANCED_FILTERS);
     // Follow the page: a removed pill, a forecast card or the URL changes the
@@ -371,6 +377,22 @@ export function AdvancedFilters({ value, onApply, onReset, embedded = false }: A
                                     {t("products.filters.showArchived")}
                                 </label>
                             </div>
+
+                            {/* No cost yet */}
+                            {canSeeCost && (
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id="missingCost"
+                                        checked={filters.missingCost}
+                                        onChange={(e) => updateFilter("missingCost", e.target.checked)}
+                                        className="w-4 h-4 rounded border-[var(--card-border)] text-[var(--foreground)] focus:ring-[var(--pastel-yellow)]"
+                                    />
+                                    <label htmlFor="missingCost" className="text-sm text-foreground">
+                                        {t("products.filters.missingCost")}
+                                    </label>
+                                </div>
+                            )}
                         </div>
 
                         {/* Save Preset */}

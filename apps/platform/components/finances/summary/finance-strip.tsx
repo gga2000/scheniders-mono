@@ -1,5 +1,6 @@
 "use client";
 
+import { STUCK_ORDERS_HREF } from "@/lib/orders/stuck-in-transit";
 import Link from "next/link";
 import type { Format } from "@number-flow/react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -131,7 +132,7 @@ export function FinanceStrip({ summary, statement, previous }: FinanceStripProps
                     }
                     note={
                         stuck.count > 0 ? (
-                            <Link href="/orders?status=in_transit" className="underline decoration-white/25 underline-offset-2 hover:text-stone-200">
+                            <Link href={STUCK_ORDERS_HREF} className="underline decoration-white/25 underline-offset-2 hover:text-stone-200">
                                 <span dir="ltr">{formatWhole(stuck.amount)} {t("common.iqd")}</span>
                             </Link>
                         ) : null

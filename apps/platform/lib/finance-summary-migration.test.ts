@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { STUCK_TRANSIT_DAYS } from "@/lib/orders/stuck-in-transit";
 
 /*
  * get_finance_summary() hands a shop's whole profit statement to the browser.
@@ -120,5 +121,11 @@ describe("get_finance_summary gate", () => {
             const alias = table.split(" ")[1];
             expect(core, table).toMatch(new RegExp(`public\\.${table.replace(" ", " ")}[\\s\\S]{0,160}${alias}\\.tenant_id = _tenant_id`));
         }
+    });
+});
+
+describe("stuck parcels", () => {
+    it("draws the same line as the orders page's stuck filter, which the Finances link opens", () => {
+        expect(liveFile("finance_summary_core")).toContain(`FROM road WHERE since <= now() - interval '${STUCK_TRANSIT_DAYS} days'`);
     });
 });

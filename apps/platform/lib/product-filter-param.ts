@@ -18,6 +18,7 @@ const filterSchema = z.object({
     productType: z.string().nullable().catch(null),
     hasVariants: z.enum(["all", "yes", "no"]).catch("all"),
     tagId: z.string().nullable().catch(null),
+    missingCost: z.boolean().catch(false),
 });
 
 /**
@@ -35,4 +36,9 @@ export function parseFilterParam(param: string): FilterValues | null {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const parsed = filterSchema.safeParse({ ...EMPTY_ADVANCED_FILTERS, ...raw });
     return parsed.success ? parsed.data : null;
+}
+
+/** A link that opens the products list with these filters on (the rest stay off). */
+export function productFilterHref(filters: Partial<FilterValues>): string {
+    return `/products?filters=${encodeURIComponent(btoa(JSON.stringify(filters)))}`;
 }

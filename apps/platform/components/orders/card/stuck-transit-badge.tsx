@@ -6,7 +6,7 @@ import { useStuckInTransit } from "@/hooks/use-stuck-in-transit";
 import { daysInTransit, STUCK_TRANSIT_DAYS } from "@/lib/orders/stuck-in-transit";
 import type { Order } from "@/types/order";
 
-/** "12 days in transit" on an order out with the courier 7+ days. */
+/** "12 days in transit" on an order out with the courier STUCK_TRANSIT_DAYS (15)+ days. */
 export function StuckTransitBadge({ order }: { order: Pick<Order, "id" | "status"> }) {
     // Only in-transit cards subscribe to the stuck query.
     if (order.status !== "in_transit") return null;

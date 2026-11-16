@@ -15,7 +15,7 @@ import {
 export interface StuckInTransit {
     /** When each live in-transit order entered that status. */
     since: ReadonlyMap<string, string>;
-    /** Orders in transit 7+ days, oldest first. */
+    /** Orders in transit STUCK_TRANSIT_DAYS+ days, oldest first. */
     stuckIds: readonly string[];
 }
 

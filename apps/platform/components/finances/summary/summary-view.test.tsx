@@ -1,5 +1,6 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
+import { parseFilterParam } from "@/lib/product-filter-param";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -395,6 +396,9 @@ describe("SummaryView", () => {
         expect(line("other")?.textContent).toContain("−5,000");
         expect(byTestId("stock-bought")?.textContent).toContain("200,000");
         expect(byTestId("stock-missing")?.textContent).toContain("4");
+        // The warning opens the products list on exactly those products.
+        const fix = byTestId("stock-missing-fix")?.getAttribute("href") ?? "";
+        expect(parseFilterParam(new URL(fix, "https://x.test").searchParams.get("filters") ?? "")?.missingCost).toBe(true);
     });
 
     it("draws the profit path with a readout for the day under the pointer", () => {
@@ -523,6 +527,9 @@ describe("SummaryView", () => {
         })));
         expect(document.querySelector('[data-alert="stuck"]')?.textContent).toContain("50,000");
         expect(document.querySelector('[data-alert="no_cost"]')?.textContent).toContain("3");
+        // Stuck parcels open the orders list on the stuck ones only, not every parcel on the road.
+        expect(document.querySelector('[data-alert="stuck"]')?.getAttribute("href")).toBe("/orders?stuck=1");
+        expect(document.querySelector('[data-cell="stuck"] a')?.getAttribute("href")).toBe("/orders?stuck=1");
     });
 
     it("keeps the costs on screen when nothing was delivered, without the charts", () => {

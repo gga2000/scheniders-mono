@@ -5,8 +5,13 @@
  * orders had been there 2 to 4 weeks.
  */
 
-/** Days in transit after which an order counts as stuck. */
-export const STUCK_TRANSIT_DAYS = 7;
+/**
+ * Days in transit after which an order counts as stuck. 15, the same line the
+ * Finances page draws (finance_summary_core's cash.stuck): at 7 days, 39 of
+ * the 41 parcels a busy shop had out on 2026-11-16 were "stuck", so the chip
+ * flagged nearly everything; at 15 it flags the 9 that need a call.
+ */
+export const STUCK_TRANSIT_DAYS = 15;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -53,3 +58,6 @@ export function stuckOrderIds(since: ReadonlyMap<string, string>, now: number = 
         .sort((a, b) => Date.parse(a[1]) - Date.parse(b[1]))
         .map(([id]) => id);
 }
+
+/** Opens the orders list on the In transit tab with the stuck filter on (read by the orders page model). */
+export const STUCK_ORDERS_HREF = "/orders?stuck=1";
