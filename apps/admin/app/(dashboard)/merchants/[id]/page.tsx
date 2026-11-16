@@ -24,6 +24,20 @@ import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
 import { NotesTab } from "@/components/merchants/detail/notes-tab";
 import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
+import { MerchantActionBar } from "@/components/merchants/detail/merchant-action-bar";
+import { LimitedBanner } from "@/components/merchants/detail/limited-banner";
+import { PinnedNoteStrip } from "@/components/merchants/detail/pinned-note-strip";
+import { RecentOrdersSection } from "@/components/merchants/detail/recent-orders-section";
+import { formatCount } from "@/lib/format";
+import { shopStatusLine } from "@/lib/shop-status";
+import { ShopStatus } from "@/components/merchants/detail/shop-status";
+import { PLAN_LABELS, PLAN_TIERS, type PlanTier, type TenantRestrictions, type TenantStatus } from "@/types/admin";
+
+/** "Starter plan", or the plan's own word for a plan this console does not sell. */
+function planLabel(plan: string): string {
+  const tier = PLAN_TIERS.find((t) => t === plan);
+  return tier ? (tier === "internal" ? PLAN_LABELS.internal : `${PLAN_LABELS[tier]} plan`) : `${plan} plan`;
+}
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
 import { loadFailureKind } from "@/lib/load-failure";
@@ -35,23 +49,6 @@ type Tab = (typeof tabs)[number];
 function isTab(value: string | null): value is Tab {
   return !!value && (tabs as readonly string[]).includes(value);
 }
-
-const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-
-const statusStyles: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  trial: "bg-amber-100 text-amber-800",
-  limited: "bg-yellow-100 text-yellow-800",
-  suspended: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-600",
-};
-
-const planStyles: Record<string, string> = {
-  free: "bg-gray-100 text-gray-700",
-  starter: "bg-blue-100 text-blue-800",
-  growth: "bg-purple-100 text-purple-800",
-  enterprise: "bg-amber-100 text-amber-800",
-};
 
 
 export default function MerchantDetailPage() {
@@ -151,9 +148,6 @@ export default function MerchantDetailPage() {
                 View Lead Details
               </Link>
             )}
-            <button className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 dark:border-green-400/30 dark:text-green-300 dark:bg-green-400/15 dark:hover:bg-green-400/25 transition-all">
-              Convert to Merchant
-            </button>
           </div>
         </div>
       )}
@@ -182,54 +176,39 @@ export default function MerchantDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize ${
-                statusStyles[tenant.status] ?? "bg-gray-100 text-gray-600"
-              }`}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowComparison(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground hover:border-foreground/30 transition-all"
             >
-              {tenant.status}
-            </span>
-            <span
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize ${
-                planStyles[tenant.plan] ?? "bg-gray-100 text-gray-700"
-              }`}
-            >
-              {tenant.plan}
-            </span>
-
-            <div className="flex items-center gap-1.5 ml-2">
-              <button className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 transition-all">
-                Top Up
-              </button>
-              <button className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-all">
-                Change Plan
-              </button>
-              {tenant.status === "suspended" ? (
-                <button className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 transition-all">
-                  Reactivate
-                </button>
-              ) : (
-                <button className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-all">
-                  Suspend
-                </button>
-              )}
-              <button
-                onClick={() => setShowComparison(true)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground hover:border-foreground/30 transition-all"
-              >
-                Compare
-              </button>
-              <ImpersonateButton
-                tenantId={tenant.id}
-                businessName={tenant.business_name}
-                slug={tenant.slug}
-                status={tenant.status}
-              />
-            </div>
+              Compare
+            </button>
+            <ImpersonateButton
+              tenantId={tenant.id}
+              businessName={tenant.business_name}
+              slug={tenant.slug}
+              status={tenant.status}
+            />
           </div>
         </div>
+        <div className="mt-4 border-t border-[var(--card-border)] pt-4">
+          <ShopStatus line={shopStatusLine(data)} planLabel={planLabel(tenant.plan)} />
+        </div>
       </div>
+
+      {/* The shop's money, plan and status actions: each one asks before it acts. */}
+      <MerchantActionBar
+        merchantId={tenant.id}
+        status={tenant.status as TenantStatus}
+        plan={tenant.plan as PlanTier}
+        walletBalance={wallet?.balance_iqd ?? 0}
+      />
+
+      {tenant.status === "limited" && (
+        <LimitedBanner merchantId={tenant.id} restrictions={(tenant.restrictions ?? null) as TenantRestrictions | null} />
+      )}
+
+      <PinnedNoteStrip notes={notes} onOpenNotes={() => setActiveTab("Notes")} />
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -239,16 +218,16 @@ export default function MerchantDetailPage() {
             <span className="text-xs font-semibold">Wallet Balance</span>
           </div>
           <p className="text-lg font-bold text-foreground">
-            {fmt(wallet?.balance_iqd ?? 0)} <span className="text-xs font-normal text-foreground/50">IQD</span>
+            {formatCount(wallet?.balance_iqd ?? 0)} <span className="text-xs font-normal text-foreground/50">IQD</span>
           </p>
         </div>
         <div className="pastel-card p-4 bg-amber-50/50">
           <div className="flex items-center gap-2 text-amber-700 mb-1">
             <CreditCard className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Charged</span>
+            <span className="text-xs font-semibold" title="Everything the wallet has paid: plan, order and message fees, and any other charge">Wallet charges</span>
           </div>
           <p className="text-lg font-bold text-foreground">
-            {fmt(wallet?.total_charged_iqd ?? 0)} <span className="text-xs font-normal text-foreground/50">IQD</span>
+            {formatCount(wallet?.total_charged_iqd ?? 0)} <span className="text-xs font-normal text-foreground/50">IQD</span>
           </p>
         </div>
         <div className="pastel-card p-4 bg-blue-50/50">
@@ -256,7 +235,7 @@ export default function MerchantDetailPage() {
             <ShoppingBag className="w-4 h-4" />
             <span className="text-xs font-semibold">Orders, all time</span>
           </div>
-          <p className="text-lg font-bold text-foreground">{fmt(orderCount)}</p>
+          <p className="text-lg font-bold text-foreground">{formatCount(orderCount)}</p>
         </div>
         <div className="pastel-card p-4 bg-purple-50/50">
           <div className="flex items-center gap-2 text-purple-700 mb-1">
@@ -294,6 +273,7 @@ export default function MerchantDetailPage() {
           canForceUnlock={data.canForceUnlock}
         />
       )}
+      {activeTab === "Overview" && <RecentOrdersSection merchantId={tenant.id} limit={5} />}
       {activeTab === "Billing" && (
         <BillingTab wallet={wallet} transactions={transactions} />
       )}
