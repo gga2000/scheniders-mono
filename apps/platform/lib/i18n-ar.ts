@@ -692,8 +692,14 @@ export const ar: Record<string, string> = {
     "dashboard.bento.days.many": "{count} يوماً",
     "dashboard.bento.avgOrder": "متوسط الطلب",
     "dashboard.bento.realizedNote": "الطلبات المسلّمة فقط",
+    // The number sits before this in its own span; the noun agrees with it
+    // (3-10 plural, 11-99 singular accusative).
     "dashboard.bento.perDay": "طلب يومياً",
-    "dashboard.bento.vsPrevious": "مقارنة بالـ {n} يوم السابقة",
+    "dashboard.bento.perDay.few": "طلبات يومياً",
+    "dashboard.bento.perDay.many": "طلباً يومياً",
+    "dashboard.bento.vsPrevious": "مقارنة بالـ {count} يوم السابقة",
+    "dashboard.bento.vsPrevious.few": "مقارنة بالـ {count} أيام السابقة",
+    "dashboard.bento.vsPrevious.many": "مقارنة بالـ {count} يوماً السابقة",
     "dashboard.bento.lastDays": "آخر {count} يوم",
     "dashboard.bento.lastDays.few": "آخر {count} أيام",
     "dashboard.bento.lastDays.many": "آخر {count} يوماً",

@@ -109,10 +109,10 @@ export function RevenueCard() {
                         ) : (
                             <>
                                 <span className="font-medium text-foreground/80">{whole(fig.total / days)}</span>{" "}
-                                {t("dashboard.bento.perDay")}
+                                {t("dashboard.bento.perDay", { count: Math.round(fig.total / days) })}
                             </>
                         )}
-                        {fig.deltaPct !== null && <>{" · "}{t("dashboard.bento.vsPrevious", { n: String(days) })}</>}
+                        {fig.deltaPct !== null && <>{" · "}{t("dashboard.bento.vsPrevious", { count: days })}</>}
                     </p>
                     <div className="mt-5 flex flex-1">
                         <RevenueLine

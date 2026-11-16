@@ -5,11 +5,26 @@ import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 /** What a recorded run was: a label print, or a courier hand-off file. */
 export type RunKind = "labels" | "prime" | "waseet";
 
+const HANDOFF_PREFIX = { prime: "Prime Export", waseet: "Al-Waseet Export" } as const;
+const HANDOFF_TITLE_KEY = { prime: "printing.runKindPrime", waseet: "printing.runKindWaseet" } as const;
+
 /** Hand-off runs are named "Prime Export dd/mm/yyyy" / "Al-Waseet Export …" by both export paths. */
 export function runKind(batch: Pick<PrintBatch, "name">): RunKind {
-    if (batch.name.startsWith("Prime Export")) return "prime";
-    if (batch.name.startsWith("Al-Waseet Export")) return "waseet";
+    if (batch.name.startsWith(HANDOFF_PREFIX.prime)) return "prime";
+    if (batch.name.startsWith(HANDOFF_PREFIX.waseet)) return "waseet";
     return "labels";
+}
+
+/**
+ * The run's name in the merchant's language. The stored name keeps its English
+ * prefix because runKind reads it; only what is shown is translated. Label runs
+ * are named by their date and time, which reads the same in every language.
+ */
+export function runTitle(batch: Pick<PrintBatch, "name">, t: (key: string) => string): string {
+    const kind = runKind(batch);
+    if (kind === "labels") return batch.name;
+    const rest = batch.name.slice(HANDOFF_PREFIX[kind].length).trim();
+    return rest ? `${t(HANDOFF_TITLE_KEY[kind])} ${rest}` : t(HANDOFF_TITLE_KEY[kind]);
 }
 
 // Ids go in the request URL; chunks keep each one well under the gateway's URL limit.

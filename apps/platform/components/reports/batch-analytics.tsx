@@ -3,14 +3,15 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import type { BatchMetrics, BatchAnalyticsSummary } from "@/lib/analytics/batch-metrics";
+import { runTitle } from "@/lib/print-runs";
 import {
-    Package, Truck, Receipt, TrendingUp, MapPin, Calendar,
-    CheckCircle2, XCircle, Clock, Loader2, RefreshCw, ChevronRight,
+    Package, Receipt, TrendingUp, MapPin,
+    Clock, Loader2, RefreshCw, ChevronRight,
     Boxes, Banknote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { ar as arLocale } from "date-fns/locale";
 
 interface BatchAnalyticsProps {
@@ -231,7 +232,7 @@ export function BatchAnalytics({
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
                                         <span className="font-semibold text-foreground truncate">
-                                            {batch.name}
+                                            {runTitle(batch, t)}
                                         </span>
                                         <span className={cn(
                                             "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
