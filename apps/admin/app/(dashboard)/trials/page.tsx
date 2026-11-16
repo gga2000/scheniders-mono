@@ -15,6 +15,7 @@ import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -220,6 +221,9 @@ export default function TrialsPage() {
             : `${summary.total} active trial${summary.total !== 1 ? "s" : ""}`}
         </p>
       </div>
+
+      {/* Stores that matched an earlier store (Fermi B5) */}
+      <TrialChecksPanel />
 
       {/* Summary Cards */}
       <div className="grid gap-3 md:gap-6 grid-cols-1 sm:grid-cols-3">

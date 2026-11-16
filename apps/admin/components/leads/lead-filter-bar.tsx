@@ -62,7 +62,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search merchants…"
+            placeholder="Search leads…"
             className="w-full pl-10 pr-9 py-2 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 transition-shadow"
           />
           {searchQuery && (

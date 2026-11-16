@@ -136,6 +136,15 @@ CREATE TABLE public.admin_activity_logs (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Fermi B5: what billing_lock_status reads to say "we found an earlier store"
+-- (20261116103536_trial_one_per_merchant.sql; only the columns it reads).
+CREATE TABLE public.trial_checks (
+    tenant_id uuid PRIMARY KEY,
+    verdict text NOT NULL CHECK (verdict IN ('review', 'no_trial')),
+    trial_withheld_at timestamptz,
+    staff_decision text CHECK (staff_decision IN ('allow_trial', 'end_trial', 'checked'))
+);
+
 -- Stubs.
 CREATE FUNCTION public.loyalty_phone_key(p text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
     SELECT nullif(regexp_replace(coalesce(p, ''), '\D', '', 'g'), '')

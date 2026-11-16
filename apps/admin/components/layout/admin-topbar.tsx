@@ -1,27 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { Search, Sun, Moon, Menu, Loader2, Shield, UserPlus } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Search, Sun, Moon, Menu, Loader2, Shield } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { usePageHeader } from "@/store/use-page-header";
-
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Command Center",
-  "/merchants": "Merchants",
-  "/payments": "Payments to check",
-  "/leads": "Prospects",
-  "/team": "Team",
-  "/billing": "Billing",
-  "/trials": "Trials",
-  "/health": "Health",
-  "/activity": "Activity Log",
-  "/settings": "Settings",
-  "/revenue": "Revenue Analytics",
-  "/usage": "Usage Heatmap",
-  "/whatsapp": "WhatsApp",
-};
+import { pageTitle as menuPageTitle } from "@/lib/admin-menu";
 
 /** Friendly labels for the admin-console roles (stored as snake_case). */
 const ROLE_LABELS: Record<string, string> = {
@@ -29,15 +14,6 @@ const ROLE_LABELS: Record<string, string> = {
   support_staff: "Support",
 };
 
-/** Per-route header icon, rendered beside the title (mirrors PAGE_TITLES). */
-const PAGE_ICONS: Record<string, ReactNode> = {
-  "/leads": (
-    <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF8899]/25 to-[#A78BFA]/25 shadow-[0_0_18px_-4px_rgba(255,136,153,0.45)]">
-      <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20" />
-      <UserPlus className="h-[18px] w-[18px] text-[#FF8899]" />
-    </span>
-  ),
-};
 
 interface MerchantResult {
   id: string;
@@ -79,9 +55,13 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { title: pageHeaderTitle, subtitle: pageHeaderSubtitle } = usePageHeader();
-  const pageTitle = pageHeaderTitle ?? PAGE_TITLES[pathname ?? "/"] ?? "Admin";
-  const pageIcon = PAGE_ICONS[pathname ?? "/"] ?? null;
+  const { title: pageHeaderTitle, subtitle: pageHeaderSubtitle, tab } = usePageHeader();
+  const pageTitle = pageHeaderTitle ?? menuPageTitle(pathname ?? "/") ?? "Admin";
+
+  // The browser tab says where you are, in the menu's words or the shop's name.
+  useEffect(() => {
+    document.title = `${tab ?? pageTitle} · Scheniders Admin`;
+  }, [tab, pageTitle]);
 
   // The global merchant search queries /api/merchants and jumps to a merchant
   // profile — it only belongs on the Merchants directory, not every page.
@@ -171,7 +151,6 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
             <Menu className="w-5 h-5 text-foreground" />
           </button>
         )}
-        {pageIcon}
         {pageTitle && (
           <div className="min-w-0">
             <h1 className="text-lg font-semibold text-foreground leading-tight truncate">

@@ -1,52 +1,25 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Building2,
-  CreditCard,
-  Clock,
-  Activity,
-  FileText,
-  Settings,
-  TrendingUp,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-  Shield,
-  X,
-  LogOut,
-  UserPlus,
-  Users,
-  Headset,
-  MessageCircle,
-  Landmark,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Shield, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSupportWaitingCount } from "@/hooks/use-support-cases";
 import { useTopupRequests } from "@/components/shared/topup-requests-section";
+import {
+  MENU,
+  SETTINGS_SECTION,
+  activeLink,
+  activeSection,
+  type MenuCount,
+  type MenuSection,
+} from "@/lib/admin-menu";
+import { MENU_ICONS } from "./menu-icons";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Merchants", icon: Building2, href: "/merchants" },
-  { label: "Support", icon: Headset, href: "/support" },
-  { label: "Payments", icon: Landmark, href: "/payments" },
-  { label: "Prospects", icon: UserPlus, href: "/leads" },
-  { label: "Team", icon: Users, href: "/team" },
-  { label: "Billing", icon: CreditCard, href: "/billing" },
-  { label: "Trials", icon: Clock, href: "/trials" },
-  { label: "Health", icon: Activity, href: "/health" },
-  { label: "Activity Log", icon: FileText, href: "/activity" },
-  { label: "Settings", icon: Settings, href: "/settings" },
-];
 
-const ANALYTICS_ITEMS = [
-  { label: "Revenue", icon: TrendingUp, href: "/revenue" },
-  { label: "Usage Heatmap", icon: BarChart3, href: "/usage" },
-  { label: "WhatsApp", icon: MessageCircle, href: "/whatsapp" },
-];
+/** The pink mark of the merchant app, used for the open place. */
+const MARK = "#E4B5D1";
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -56,6 +29,159 @@ interface AdminSidebarProps {
   setMobileMenuOpen?: (v: boolean) => void;
   user: { email: string; full_name: string | null; avatar_url: string | null } | null;
   onSignOut: () => void;
+}
+
+type Waiting = Record<MenuCount, { count: number; label: string }>;
+
+function useWaiting(): Waiting {
+  const support = useSupportWaitingCount().data ?? 0;
+  const payments = useTopupRequests().data?.length ?? 0;
+  return {
+    support: { count: support, label: `${support} waiting on us` },
+    payments: { count: payments, label: `${payments} receipts to check` },
+  };
+}
+
+/** One place on the menu, with its pages under it while it is open. */
+function MenuEntry({
+  section,
+  pathname,
+  collapsed,
+  waiting,
+  onNavigate,
+}: {
+  section: MenuSection;
+  pathname: string;
+  collapsed: boolean;
+  waiting: Waiting;
+  onNavigate: () => void;
+}) {
+  const Icon = MENU_ICONS[section.icon];
+  const open = activeSection(pathname)?.href === section.href;
+  const page = activeLink(pathname);
+  const badge = section.count && waiting[section.count].count > 0 ? waiting[section.count] : null;
+
+  return (
+    <div>
+      <Link
+        href={section.href}
+        onClick={onNavigate}
+        aria-current={open && page === section.href ? "page" : undefined}
+        title={collapsed ? section.label : undefined}
+        className={cn(
+          "relative flex items-center rounded-xl py-2.5 transition-colors",
+          collapsed ? "justify-center" : "gap-3 px-3",
+          open ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/[0.04] hover:text-white",
+        )}
+      >
+        {open && (
+          <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: MARK }} />
+        )}
+        <Icon className="h-5 w-5 flex-shrink-0" />
+        {!collapsed && <span className="text-[15px] font-medium">{section.label}</span>}
+        {badge && (
+          <span
+            aria-label={badge.label}
+            className={cn(
+              "flex items-center justify-center rounded-full bg-red-600 font-semibold text-white tabular-nums",
+              collapsed ? "absolute right-2 top-2 h-2 w-2 text-[0px]" : "ml-auto h-6 min-w-6 px-1.5 text-[13px]",
+            )}
+          >
+            {badge.count > 99 ? "99+" : badge.count}
+          </span>
+        )}
+      </Link>
+
+      {open && !collapsed && section.links.length > 1 && (
+        <div className="mt-1 mb-2 ml-[22px] space-y-0.5 border-l border-white/10 pl-3">
+          {section.links.map((link) => {
+            const here = page === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={onNavigate}
+                aria-current={here ? "page" : undefined}
+                className={cn(
+                  "block rounded-lg px-2 py-1.5 text-[14px] transition-colors",
+                  here ? "font-medium text-white" : "text-zinc-400 hover:text-white",
+                )}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuList({
+  pathname,
+  collapsed,
+  waiting,
+  onNavigate,
+}: {
+  pathname: string;
+  collapsed: boolean;
+  waiting: Waiting;
+  onNavigate: () => void;
+}) {
+  return (
+    <nav aria-label="Console" className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-hide">
+      <div className="space-y-1">
+        {MENU.map((section) => (
+          <MenuEntry
+            key={section.href}
+            section={section}
+            pathname={pathname}
+            collapsed={collapsed}
+            waiting={waiting}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </div>
+      <div className="mt-auto pt-4">
+        <MenuEntry
+          section={SETTINGS_SECTION}
+          pathname={pathname}
+          collapsed={collapsed}
+          waiting={waiting}
+          onNavigate={onNavigate}
+        />
+      </div>
+    </nav>
+  );
+}
+
+function Avatar({ user, size }: { user: NonNullable<AdminSidebarProps["user"]>; size: "sm" | "md" }) {
+  return (
+    <div
+      className={cn(
+        "flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full",
+        size === "sm" ? "h-8 w-8 text-sm" : "h-10 w-10 text-base",
+      )}
+      style={{ background: MARK }}
+    >
+      {user.avatar_url ? (
+        <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="font-semibold text-[#1E1E1E]">{(user.full_name || user.email)?.charAt(0).toUpperCase()}</span>
+      )}
+    </div>
+  );
+}
+
+function Brand({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-3", collapsed ? "justify-center" : "px-1")}>
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary)] text-[var(--primary-fg)]">
+        <Shield className="h-5 w-5" />
+      </div>
+      {!collapsed && <span className="whitespace-nowrap text-lg font-bold tracking-tight">Scheniders Admin</span>}
+    </div>
+  );
 }
 
 export function AdminSidebar({
@@ -68,231 +194,60 @@ export function AdminSidebar({
   onSignOut,
 }: AdminSidebarProps) {
   const pathname = usePathname();
-  const supportWaiting = useSupportWaitingCount().data ?? 0;
-  const paymentsWaiting = useTopupRequests().data?.length ?? 0;
-  /** Pages with work waiting on us, and how much: a red count beside the link. */
-  const waiting: Record<string, { count: number; label: string }> = {
-    "/support": { count: supportWaiting, label: `${supportWaiting} waiting on us` },
-    "/payments": { count: paymentsWaiting, label: `${paymentsWaiting} receipts to check` },
+  const waiting = useWaiting();
+  const closeMobile = () => {
+    if (isMobile) setMobileMenuOpen?.(false);
   };
 
-  const isCollapsed = isMobile ? false : collapsed;
-
-  const handleNavClick = () => {
-    if (isMobile && setMobileMenuOpen) {
-      setMobileMenuOpen(false);
-    }
-  };
-
-  // Desktop sidebar
   if (!isMobile) {
     return (
       <aside
         className={cn(
-          "fixed left-4 top-4 bottom-4 bg-[#1E1E1E] rounded-[32px] flex flex-col py-6 text-white shadow-lg shadow-black/20 z-50 border border-white/5",
-          "transition-all duration-500 ease-in-out",
-          collapsed ? "w-[72px]" : "w-64 px-6"
+          "fixed left-4 top-4 bottom-4 z-50 flex flex-col rounded-[28px] border border-white/5 bg-[#1E1E1E] py-6 text-white shadow-lg shadow-black/20",
+          "transition-[width] duration-300 ease-out",
+          collapsed ? "w-[72px] px-2" : "w-64 px-4",
         )}
       >
-        {/* Collapse Toggle Button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-16 z-10 w-8 h-8 rounded-full bg-[#E4B5D1] hover:bg-[#d9a0c4] flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg border-[3px] border-[#1E1E1E]"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="absolute -right-3 top-16 z-10 flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-[#1E1E1E] shadow-md"
+          style={{ background: MARK }}
+          aria-label={collapsed ? "Show the menu's words" : "Show icons only"}
         >
           {collapsed ? (
-            <ChevronRight className="w-4 h-4 text-zinc-800" strokeWidth={2.5} />
+            <ChevronRight className="h-4 w-4 text-zinc-800" strokeWidth={2.5} />
           ) : (
-            <ChevronLeft className="w-4 h-4 text-zinc-800" strokeWidth={2.5} />
+            <ChevronLeft className="h-4 w-4 text-zinc-800" strokeWidth={2.5} />
           )}
         </button>
 
-        {/* Logo Section */}
-        <div
-          className={cn(
-            "flex items-center mb-8 transition-all duration-500",
-            collapsed ? "justify-center flex-col gap-2" : "gap-3 px-2"
-          )}
-        >
-          <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0">
-            <Shield className="w-5 h-5" />
-          </div>
-          <span
-            className={cn(
-              "font-bold tracking-tight transition-all duration-500 overflow-hidden whitespace-nowrap",
-              collapsed ? "text-[0px] w-0 opacity-0" : "text-lg opacity-100"
-            )}
-          >
-            Scheniders Admin
-          </span>
+        <div className="mb-8">
+          <Brand collapsed={collapsed} />
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
-          {!collapsed && (
-            <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1 transition-opacity duration-300">
-              Navigation
-            </div>
-          )}
+        <MenuList pathname={pathname} collapsed={collapsed} waiting={waiting} onNavigate={closeMobile} />
 
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
-            const badge = (waiting[item.href]?.count ?? 0) > 0 ? waiting[item.href] : null;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleNavClick}
-                className={cn(
-                  "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
-                  collapsed ? "justify-center w-full" : "gap-3 px-3",
-                  isActive
-                    ? "bg-white/10 text-white"
-                    : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <item.icon
-                  className={cn(
-                    "w-[22px] h-[22px] transition-colors flex-shrink-0",
-                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
-                  )}
-                />
-
-                <span
-                  className={cn(
-                    "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
-                    collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
-                  )}
-                >
-                  {item.label}
-                </span>
-
-                {badge && (
-                  <span
-                    aria-label={badge.label}
-                    className={cn(
-                      "flex items-center justify-center rounded-full bg-red-500 font-bold text-white tabular-nums",
-                      collapsed
-                        ? "absolute left-1.5 top-1.5 h-2 w-2 text-[0px]"
-                        : "ml-auto h-5 min-w-5 px-1.5 text-[11px]"
-                    )}
-                  >
-                    {badge.count > 99 ? "99+" : badge.count}
-                  </span>
-                )}
-
-                {isActive && !collapsed && !badge && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                )}
-
-                {isActive && collapsed && (
-                  <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                )}
-              </Link>
-            );
-          })}
-
-          {/* Analytics Section Divider */}
-          <div className={cn("my-3", collapsed ? "mx-auto w-6 h-px bg-white/10" : "h-px bg-white/10 mx-1")} />
-          {!collapsed && (
-            <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-1 transition-opacity duration-300">
-              Analytics
-            </div>
-          )}
-          {ANALYTICS_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleNavClick}
-                className={cn(
-                  "flex items-center py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
-                  collapsed ? "justify-center w-full" : "gap-3 px-3",
-                  isActive
-                    ? "bg-white/10 text-white"
-                    : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <item.icon
-                  className={cn(
-                    "w-[22px] h-[22px] transition-colors flex-shrink-0",
-                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "font-medium text-[15px] transition-all duration-500 whitespace-nowrap",
-                    collapsed ? "w-0 opacity-0 hidden" : "opacity-100"
-                  )}
-                >
-                  {item.label}
-                </span>
-                {isActive && !collapsed && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                )}
-                {isActive && collapsed && (
-                  <div className="absolute right-1.5 top-1.5 w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User Section */}
         {user && (
-          <div
-            className={cn(
-              "mt-4 pt-4 border-t border-white/10 px-2",
-              collapsed ? "flex flex-col items-center" : ""
-            )}
-          >
-            {/* User Info */}
-            <div
-              className={cn(
-                "flex items-center gap-3 mb-3",
-                collapsed ? "justify-center" : "px-3"
-              )}
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-[#1E1E1E] font-semibold text-sm">
-                    {(user.full_name || user.email)?.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
+          <div className={cn("mt-4 border-t border-white/10 pt-4", collapsed && "flex flex-col items-center")}>
+            <div className={cn("mb-2 flex items-center gap-3", collapsed ? "justify-center" : "px-2")}>
+              <Avatar user={user} size="sm" />
               {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">
-                    {user.full_name || user.email?.split("@")[0]}
-                  </p>
-                  <p className="text-zinc-500 text-xs truncate">{user.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-white">{user.full_name || user.email?.split("@")[0]}</p>
+                  <p className="truncate text-[13px] text-zinc-400">{user.email}</p>
                 </div>
               )}
             </div>
-
-            {/* Logout Button */}
             <button
               onClick={onSignOut}
               className={cn(
-                "flex items-center gap-3 py-3 rounded-2xl transition-all duration-200 w-full",
-                "text-zinc-500 hover:text-white hover:bg-white/[0.05]",
-                collapsed ? "justify-center" : "px-3"
+                "flex w-full items-center gap-3 rounded-xl py-2.5 text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-white",
+                collapsed ? "justify-center" : "px-3",
               )}
               title={collapsed ? "Sign out" : undefined}
             >
-              <LogOut className="w-[20px] h-[20px]" />
-              {!collapsed && (
-                <span className="text-sm font-medium">Sign out</span>
-              )}
+              <LogOut className="h-5 w-5" />
+              {!collapsed && <span className="text-sm font-medium">Sign out</span>}
             </button>
           </div>
         )}
@@ -300,134 +255,51 @@ export function AdminSidebar({
     );
   }
 
-  // Mobile sidebar drawer
   return (
     <AnimatePresence>
       {mobileMenuOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setMobileMenuOpen?.(false)}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            className="fixed inset-0 z-50 bg-black/50"
           />
-
-          {/* Drawer */}
           <motion.aside
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-0 top-0 bottom-0 w-[280px] max-w-[85vw] bg-[#1E1E1E] flex flex-col py-6 px-4 text-white shadow-2xl z-[60]"
+            className="fixed left-0 top-0 bottom-0 z-[60] flex w-[280px] max-w-[85vw] flex-col bg-[#1E1E1E] px-4 py-6 text-white shadow-2xl"
           >
-            {/* Header with Close Button */}
-            <div className="flex items-center justify-between mb-8 px-2">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <span className="font-bold text-xl tracking-tight">
-                  Scheniders Admin
-                </span>
-              </div>
+            <div className="mb-8 flex items-center justify-between">
+              <Brand collapsed={false} />
               <button
                 onClick={() => setMobileMenuOpen?.(false)}
-                className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
+                aria-label="Close the menu"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
-              <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
-                Navigation
-              </div>
+            <MenuList pathname={pathname} collapsed={false} waiting={waiting} onNavigate={closeMobile} />
 
-              {NAV_ITEMS.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={handleNavClick}
-                    className={cn(
-                      "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
-                      isActive
-                        ? "bg-white/10 text-white"
-                        : "text-zinc-400 hover:text-white hover:bg-white/5"
-                    )}
-                  >
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium text-base">{item.label}</span>
-                    {isActive && (
-                      <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                    )}
-                  </Link>
-                );
-              })}
-
-              {/* Analytics Section */}
-              <div className="h-px bg-white/10 my-2 mx-3" />
-              <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 px-3">
-                Analytics
-              </div>
-              {ANALYTICS_ITEMS.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={handleNavClick}
-                    className={cn(
-                      "flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200",
-                      isActive
-                        ? "bg-white/10 text-white"
-                        : "text-zinc-400 hover:text-white hover:bg-white/5"
-                    )}
-                  >
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium text-base">{item.label}</span>
-                    {isActive && (
-                      <div className="ml-auto w-2 h-2 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* Mobile User Section */}
             {user && (
-              <div className="mt-auto border-t border-white/10 p-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {user.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-[#1E1E1E] font-semibold text-base">
-                        {(user.full_name || user.email)?.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-base font-medium truncate">
-                      {user.full_name || user.email?.split("@")[0]}
-                    </p>
-                    <p className="text-zinc-500 text-sm truncate">{user.email}</p>
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="mb-4 flex items-center gap-3 px-1">
+                  <Avatar user={user} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-medium text-white">{user.full_name || user.email?.split("@")[0]}</p>
+                    <p className="truncate text-sm text-zinc-400">{user.email}</p>
                   </div>
                 </div>
-
                 <button
                   onClick={onSignOut}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-3 font-medium text-white transition-colors hover:bg-white/20"
                 >
-                  <LogOut className="w-5 h-5" />
+                  <LogOut className="h-5 w-5" />
                   <span>Sign out</span>
                 </button>
               </div>

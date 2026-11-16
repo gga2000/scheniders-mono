@@ -3,21 +3,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import {
-  Search,
-  Building2,
-  LayoutDashboard,
-  CreditCard,
-  Clock,
-  Activity,
-  FileText,
-  Settings,
-  TrendingUp,
-  BarChart3,
-  MessageCircle,
-  Landmark,
-  ArrowRight,
-} from "lucide-react";
+import { Search, ArrowRight } from "lucide-react";
+import { menuPages } from "@/lib/admin-menu";
+import { MENU_ICONS } from "@/components/layout/menu-icons";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
@@ -30,33 +18,18 @@ interface CommandItem {
   category: "page" | "action" | "merchant";
 }
 
-const PAGES: CommandItem[] = [
-  { id: "dashboard", label: "Dashboard", sublabel: "Command Center", icon: <LayoutDashboard className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "merchants", label: "Merchants", sublabel: "All merchants", icon: <Building2 className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "payments", label: "Payments to check", sublabel: "Transfer receipts to approve", icon: <Landmark className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "billing", label: "Billing", sublabel: "Wallets & transactions", icon: <CreditCard className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "trials", label: "Trials", sublabel: "Trial management", icon: <Clock className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "health", label: "Health", sublabel: "Platform health", icon: <Activity className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "activity", label: "Activity Log", sublabel: "Admin actions", icon: <FileText className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "settings", label: "Settings", sublabel: "Platform settings", icon: <Settings className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "revenue", label: "Revenue Analytics", sublabel: "Fees shops paid us, by month", icon: <TrendingUp className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "usage", label: "Usage Heatmap", sublabel: "Activity patterns", icon: <BarChart3 className="w-4 h-4" />, action: () => {}, category: "page" },
-  { id: "whatsapp", label: "WhatsApp", sublabel: "Message costs & paused shops", icon: <MessageCircle className="w-4 h-4" />, action: () => {}, category: "page" },
-];
-
-const PAGE_ROUTES: Record<string, string> = {
-  dashboard: "/",
-  merchants: "/merchants",
-  payments: "/payments",
-  billing: "/billing",
-  trials: "/trials",
-  health: "/health",
-  activity: "/activity",
-  settings: "/settings",
-  revenue: "/revenue",
-  usage: "/usage",
-  whatsapp: "/whatsapp",
-};
+/** Every page on the menu, under the place it sits in, in the menu's own words. */
+const PAGES = menuPages().map(({ label, href, section }) => {
+  const Icon = MENU_ICONS[section.icon];
+  return {
+    id: href,
+    label,
+    sublabel: label === section.label ? undefined : section.label,
+    icon: <Icon className="w-4 h-4" />,
+    href,
+    category: "page" as const,
+  };
+});
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -71,10 +44,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   // Build items with router-aware actions
   const items = useMemo(() => {
-    return PAGES.map((page) => ({
+    return PAGES.map(({ href, ...page }): CommandItem => ({
       ...page,
       action: () => {
-        router.push(PAGE_ROUTES[page.id] || "/");
+        router.push(href);
         onClose();
       },
     }));

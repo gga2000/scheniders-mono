@@ -16,6 +16,7 @@ function table(name: string) {
     };
     chain.upsert = () => Promise.resolve({ error: null });
     chain.select = () => chain;
+    chain.eq = () => chain;
     chain.single = () =>
         Promise.resolve(
             (name === "tenants" && tenantResults.shift()) || { data: { id: "tenant-1", slug: "shop" }, error: null },
@@ -132,6 +133,17 @@ describe("POST /api/auth/signup", () => {
         expect(res.status).toBe(201);
         const slugsTried = tableInserts.filter((i) => i.table === "tenants").map((i) => i.row.slug);
         expect(slugsTried).toEqual(["shop", "shop-1"]);
+    });
+
+    it("starts the subscription at the store's real trial end when the one-trial check already ended it (Fermi B5)", async () => {
+        const endedAt = "2026-11-16T10:40:00.000Z";
+        tenantResults.push({ data: { id: "tenant-1", slug: "shop" }, error: null });
+        tenantResults.push({ data: { trial_ends_at: endedAt }, error: null });
+        const res = await POST(request({ ...base, contact_phone: "07701234567" }));
+        expect(res.status).toBe(201);
+        const sub = tableInserts.find((i) => i.table === "subscriptions");
+        expect(sub?.row.current_period_end).toBe(endedAt);
+        expect((await res.json()).trial_ends_at).toBe(endedAt);
     });
 
     it("publishes a designed default store so the new subdomain is never blank", async () => {

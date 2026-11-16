@@ -304,6 +304,23 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
+    name: "GET /api/trial-checks",
+    call: async (t) => {
+      const { GET } = await import("./trial-checks/route");
+      return GET(req("/api/trial-checks", "GET", t));
+    },
+  },
+  {
+    name: "POST /api/trial-checks/[id] (review_trials)",
+    call: async (t) => {
+      const { POST } = await import("./trial-checks/[id]/route");
+      return POST(
+        req(`/api/trial-checks/${TENANT}`, "POST", t, { decision: "allow_trial", days: 7, reason: "same owner, new brand" }),
+        idParams,
+      );
+    },
+  },
+  {
     name: "POST /api/trials/extend (extend_trial)",
     call: async (t) => {
       const { POST } = await import("./trials/extend/route");
