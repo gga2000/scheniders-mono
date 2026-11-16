@@ -8,8 +8,10 @@ import { decideTrialCheck, trialCheckDecisionSchema } from "@/lib/trial-checks";
  * Decide a flagged store (Fermi B5): give its trial back for some days, end
  * its trial now, or mark it checked. Each takes a reason for the staff log,
  * which admin_trial_check_decide writes in the same transaction. The request
- * id makes a retry, a second tab or a double click decide once
- * (admin_trial_check_decide_once); a repeat answers `repeat: true`.
+ * id makes a retry or a double click decide once
+ * (admin_trial_check_decide_once); a repeat answers `repeat: true`. A
+ * decision on a row decided since the person saw it (another person, another
+ * tab) is refused with 409.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminPermission(request, "review_trials");

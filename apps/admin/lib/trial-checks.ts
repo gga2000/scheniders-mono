@@ -181,6 +181,16 @@ export async function readTrialChecks(supabase: ReturnType<typeof createAdminCli
 }
 
 /**
+ * When the row was last decided, as the person saw it (null: never). If it
+ * was decided since, by someone else or in another tab, the decision is
+ * refused, so the same days are never given twice from two screens.
+ */
+const seenDecidedAtSchema = z
+  .string({ error: "This page is out of date. Reload it and try again" })
+  .datetime({ offset: true, message: "This page is out of date. Reload it and try again" })
+  .nullable();
+
+/**
  * What staff send: giving a trial back says for how many days. The request id
  * (lib/request-ids.ts) makes a retry or a double click give the days once.
  */
@@ -190,9 +200,20 @@ export const trialCheckDecisionSchema = z.discriminatedUnion("decision", [
     days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
     reason: staffReasonSchema,
     request_id: staffRequestIdSchema,
+    seen_decided_at: seenDecidedAtSchema,
   }),
-  z.object({ decision: z.literal("end_trial"), reason: staffReasonSchema, request_id: staffRequestIdSchema }),
-  z.object({ decision: z.literal("checked"), reason: staffReasonSchema, request_id: staffRequestIdSchema }),
+  z.object({
+    decision: z.literal("end_trial"),
+    reason: staffReasonSchema,
+    request_id: staffRequestIdSchema,
+    seen_decided_at: seenDecidedAtSchema,
+  }),
+  z.object({
+    decision: z.literal("checked"),
+    reason: staffReasonSchema,
+    request_id: staffRequestIdSchema,
+    seen_decided_at: seenDecidedAtSchema,
+  }),
 ]);
 
 export type TrialCheckDecisionInput = z.infer<typeof trialCheckDecisionSchema>;
@@ -205,6 +226,10 @@ export type TrialCheckDecideResult =
 const REFUSALS: Record<string, { status: 400 | 404 | 409; error: string }> = {
   not_found: { status: 404, error: "This store has no trial check" },
   not_trial: { status: 400, error: "This store is not on a trial any more" },
+  decided_meanwhile: {
+    status: 409,
+    error: "Someone decided this store while you were looking. The list now shows that decision: check it before you decide.",
+  },
   request_reused: REQUEST_REUSED,
 };
 
@@ -223,7 +248,8 @@ const decideAnswerSchema = z.union([
  * check again), end it now, or mark the row checked. One transaction in
  * admin_trial_check_decide; it writes the staff log with the reason. The
  * _once wrapper keeps the first successful answer for the request id, so a
- * repeat gets it back marked `repeat` and changes nothing.
+ * repeat gets it back marked `repeat` and changes nothing; and it refuses a
+ * decision on a row decided since the person saw it (`decided_meanwhile`).
  */
 export async function decideTrialCheck(
   supabase: ReturnType<typeof createAdminClient>,
@@ -239,6 +265,7 @@ export async function decideTrialCheck(
     _days: input.decision === "allow_trial" ? input.days : null,
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
+    _seen_decided_at: input.seen_decided_at,
   });
   if (error) throw error;
 
