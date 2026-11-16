@@ -21,7 +21,7 @@ export function ShopStatus({ line, planLabel }: { line: ShopStatusLine; planLabe
           <span aria-hidden className={cn("h-2 w-2 rounded-full", TONE_DOT[line.tone])} />
           {line.label}
         </span>
-        <span className="text-[13px] text-foreground/60">{planLabel}</span>
+        <span className="text-[13px] text-foreground/70">{planLabel}</span>
         <span>{line.sentence}</span>
       </p>
       {line.next && <p className="mt-1.5 text-[15px] font-semibold text-foreground">{line.next}</p>}

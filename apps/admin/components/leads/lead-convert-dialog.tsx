@@ -1,10 +1,11 @@
 "use client";
 
+import { PlatformChip } from "@/components/leads/lead-chips";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
-import { LEAD_TIER_CONFIG, PLATFORM_CONFIG } from "@/types/leads";
+import { LEAD_TIER_CONFIG, LEAD_TIER_UI } from "@/types/leads";
 import { useConvertLead } from "@/hooks/use-lead-mutations";
 import {
   Trophy,
@@ -76,7 +77,6 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
   ];
 
   const tierConfig = LEAD_TIER_CONFIG[lead.tier];
-  const platformConfig = PLATFORM_CONFIG[lead.platform];
 
   // Submit
   const handleConvert = () => {
@@ -219,16 +219,11 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                               <span
                                 className="px-2 py-0.5 rounded-full text-xs font-bold"
-                                style={{ backgroundColor: `${tierConfig.color}20`, color: tierConfig.color }}
+                                style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
                               >
                                 {tierConfig.label}
                               </span>
-                              <span
-                                className="px-2 py-0.5 rounded-full text-xs font-medium"
-                                style={{ backgroundColor: `${platformConfig.color}15`, color: platformConfig.color }}
-                              >
-                                {platformConfig.label}
-                              </span>
+                              <PlatformChip platform={lead.platform} size="sm" />
                             </div>
                           </div>
                           <div className="text-right shrink-0">

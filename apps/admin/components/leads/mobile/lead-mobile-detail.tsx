@@ -1,5 +1,6 @@
 "use client";
 
+import { PlatformChip } from "@/components/leads/lead-chips";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -21,7 +22,7 @@ import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
-  PLATFORM_CONFIG,
+  LEAD_TIER_UI,
 } from "@/types/leads";
 import {
   OverviewContent,
@@ -108,7 +109,6 @@ export function LeadMobileDetail() {
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
-  const platformCfg = PLATFORM_CONFIG[lead.platform];
 
   // Phone helpers
   const phone = leadPhone(lead);
@@ -156,17 +156,12 @@ export function LeadMobileDetail() {
         {/* Badge row */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Platform */}
-          <span
-            className="px-2.5 py-1 rounded-lg text-xs font-bold"
-            style={{ backgroundColor: `${platformCfg.color}20`, color: platformCfg.color }}
-          >
-            {platformCfg.label}
-          </span>
+          <PlatformChip platform={lead.platform} />
 
           {/* Tier */}
           <span
             className="px-2.5 py-1 rounded-lg text-xs font-bold"
-            style={{ backgroundColor: `${tierCfg.color}20`, color: tierCfg.color }}
+            style={{ backgroundColor: LEAD_TIER_UI[lead.tier].soft, color: LEAD_TIER_UI[lead.tier].solid }}
           >
             {tierCfg.label}
           </span>

@@ -82,7 +82,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
   if (items.length === 0) {
     return (
       <div className="pastel-card p-6">
-        <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
           <Inbox className="w-10 h-10 mb-3" />
           <p className="text-sm font-medium">No actions recorded</p>
           <p className="text-xs mt-1">Activity will appear here as actions are performed.</p>
@@ -135,7 +135,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 {showUser && item.admin_user && (
-                  <p className="text-xs text-foreground/40 font-medium mb-0.5">
+                  <p className="text-xs text-foreground/70 font-medium mb-0.5">
                     {item.admin_user.display_name ??
                       item.admin_user.email.split("@")[0]}
                   </p>
@@ -160,7 +160,7 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
               </div>
 
               {/* Timestamp */}
-              <span className="text-xs text-foreground/40 flex-shrink-0 mt-0.5 whitespace-nowrap">
+              <span className="text-xs text-foreground/70 flex-shrink-0 mt-0.5 whitespace-nowrap">
                 {item.relativeTime}
               </span>
             </div>

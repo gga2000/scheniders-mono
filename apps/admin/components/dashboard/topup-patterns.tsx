@@ -63,7 +63,7 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
       {!patterns ? (
         <Skeleton />
       ) : patterns.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           No top-up data available
         </p>
       ) : (

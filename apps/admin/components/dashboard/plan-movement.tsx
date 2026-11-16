@@ -62,7 +62,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
       {!movements ? (
         <Skeleton />
       ) : movements.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           No plan movements in the last 30 days
         </p>
       ) : (
@@ -102,7 +102,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
                     <span className="font-medium text-foreground/80">
                       {formatPlan(m.fromPlan)}
                     </span>
-                    <ArrowRight className="h-3.5 w-3.5 text-foreground/40" />
+                    <ArrowRight className="h-3.5 w-3.5 text-foreground/70" />
                     <span className="font-medium text-foreground/80">
                       {formatPlan(m.toPlan)}
                     </span>

@@ -36,7 +36,7 @@ const CustomTooltip = ({
 };
 
 function EmptyNote({ text }: { text: string }) {
-  return <p className="text-sm text-foreground/40 py-10 text-center">{text}</p>;
+  return <p className="text-sm text-foreground/70 py-10 text-center">{text}</p>;
 }
 
 function SkeletonContent() {
@@ -83,7 +83,7 @@ function PieView({ slices }: { slices: RevenueSlice[] }) {
         {/* Center label */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <p className="text-xs text-foreground/50">Total</p>
+            <p className="text-xs text-foreground/70">Total</p>
             <p className="text-sm font-bold text-foreground">{formatIQD(total)}</p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export function RevenueBreakdown({ breakdown }: RevenueBreakdownProps) {
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                 tab === t.key
                   ? "bg-[var(--card-bg)] text-foreground shadow-sm"
-                  : "text-foreground/50 hover:text-foreground"
+                  : "text-foreground/70 hover:text-foreground"
               }`}
             >
               {t.label}

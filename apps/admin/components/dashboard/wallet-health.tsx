@@ -115,17 +115,17 @@ export function WalletHealth({ health }: WalletHealthProps) {
           <div className="flex items-center gap-4 mb-4 text-xs">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-300" />
-              <span className="text-foreground/60">Healthy (&gt;50K)</span>
+              <span className="text-foreground/70">Healthy (&gt;50K)</span>
               <span className="font-bold text-foreground">{health.healthy}</span>
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-amber-200" />
-              <span className="text-foreground/60">Warning (10-50K)</span>
+              <span className="text-foreground/70">Warning (10-50K)</span>
               <span className="font-bold text-foreground">{health.warning}</span>
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-300" />
-              <span className="text-foreground/60">Critical (&lt;10K)</span>
+              <span className="text-foreground/70">Critical (&lt;10K)</span>
               <span className="font-bold text-foreground">{health.critical}</span>
             </span>
           </div>
@@ -133,7 +133,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
           {/* Stats row */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-3">
-              <p className="text-xs text-foreground/50 uppercase tracking-wider mb-0.5">
+              <p className="text-xs text-foreground/70 uppercase tracking-wider mb-0.5">
                 Avg Balance
               </p>
               <p className="text-sm font-bold text-foreground">
@@ -141,7 +141,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
               </p>
             </div>
             <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-3">
-              <p className="text-xs text-foreground/50 uppercase tracking-wider mb-0.5">
+              <p className="text-xs text-foreground/70 uppercase tracking-wider mb-0.5">
                 Median Balance
               </p>
               <p className="text-sm font-bold text-foreground">
@@ -152,7 +152,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
 
           {/* Top-up rate sparkline */}
           <div>
-            <p className="text-xs text-foreground/50 uppercase tracking-wider mb-1">
+            <p className="text-xs text-foreground/70 uppercase tracking-wider mb-1">
               Daily Top-up Rate (7d)
             </p>
             <Sparkline

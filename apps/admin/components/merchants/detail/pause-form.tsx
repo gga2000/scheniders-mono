@@ -53,7 +53,7 @@ export function PauseForm({ shopId, onDone }: { shopId: string; onDone: () => vo
           </Choice>
         ))}
       </div>
-      <p className="mb-1.5 text-[13px] text-foreground/65">What stops</p>
+      <p className="mb-1.5 text-[13px] text-foreground/70">What stops</p>
       <div className="mb-3 grid grid-cols-2 gap-1.5">
         {BLOCKS.map((b) => (
           <label key={b.key} className="flex cursor-pointer items-center gap-2 text-[13px] text-foreground">

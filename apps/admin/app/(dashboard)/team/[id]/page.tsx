@@ -46,7 +46,7 @@ export default function TeamMemberDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -56,12 +56,12 @@ export default function TeamMemberDetailPage() {
       <div className="p-4 md:p-6 space-y-4">
         <Link
           href="/team"
-          className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Team
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <UserCircle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Employee not found</p>
         </div>
@@ -86,7 +86,7 @@ export default function TeamMemberDetailPage() {
       {/* Back link */}
       <Link
         href="/team"
-        className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-foreground/70 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Team
@@ -110,7 +110,7 @@ export default function TeamMemberDetailPage() {
             <h1 className="text-xl font-bold text-foreground truncate">
               {employee.display_name ?? "Unnamed"}
             </h1>
-            <p className="text-sm text-foreground/50 truncate">{employee.email}</p>
+            <p className="text-sm text-foreground/70 truncate">{employee.email}</p>
           </div>
           <span
             className={cn(
@@ -141,7 +141,7 @@ export default function TeamMemberDetailPage() {
               "px-4 py-2.5 text-sm font-semibold transition-colors",
               activeTab === tab
                 ? "text-foreground border-b-2 border-[#1E1E1E]"
-                : "text-foreground/50 hover:text-foreground/70"
+                : "text-foreground/70 hover:text-foreground"
             )}
           >
             {tab}
@@ -158,17 +158,17 @@ export default function TeamMemberDetailPage() {
               <button
                 onClick={() => setActionPage((p) => Math.max(1, p - 1))}
                 disabled={actionPage === 1}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/70 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 Previous
               </button>
-              <span className="text-xs text-foreground/50">
+              <span className="text-xs text-foreground/70">
                 Page {actionPage} of {totalPages}
               </span>
               <button
                 onClick={() => setActionPage((p) => Math.min(totalPages, p + 1))}
                 disabled={actionPage === totalPages}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/70 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 Next
               </button>
@@ -183,22 +183,22 @@ export default function TeamMemberDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--card-border)]">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                     Period
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                     Merchant
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                     Orders
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                     Revenue
                   </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-foreground/70">
                     Earned
                   </th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/50">
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-foreground/70">
                     Status
                   </th>
                 </tr>
@@ -208,7 +208,7 @@ export default function TeamMemberDetailPage() {
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-12 text-center text-foreground/40 text-sm"
+                      className="px-4 py-12 text-center text-foreground/70 text-sm"
                     >
                       No commission records yet
                     </td>
@@ -291,11 +291,11 @@ export default function TeamMemberDetailPage() {
                       style={{ color: ach.color }}
                     />
                   ) : (
-                    <Lock className="w-5 h-5 text-foreground/30" />
+                    <Lock className="w-5 h-5 text-foreground/70" />
                   )}
                 </div>
                 <p className="text-xs font-bold text-foreground">{ach.name}</p>
-                <p className="text-xs text-foreground/50 mt-0.5">
+                <p className="text-xs text-foreground/70 mt-0.5">
                   {ach.description}
                 </p>
               </div>

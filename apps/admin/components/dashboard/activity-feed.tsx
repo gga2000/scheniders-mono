@@ -88,7 +88,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
         </div>
         <Link
           href="/activity"
-          className="text-xs font-semibold text-foreground/50 hover:text-foreground/80 transition-colors"
+          className="text-xs font-semibold text-foreground/70 hover:text-foreground/80 transition-colors"
         >
           View all
         </Link>
@@ -102,7 +102,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+        <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
           <Inbox className="h-10 w-10 mb-3" />
           <p className="text-sm font-medium">No activity yet</p>
           <p className="text-xs mt-1">Actions performed in the admin panel will appear here.</p>
@@ -128,14 +128,14 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
                   <span className="font-semibold">{item.action}</span>
                 </p>
                 {item.summary && (
-                  <p className="text-xs text-foreground/50 mt-0.5 truncate">
+                  <p className="text-xs text-foreground/70 mt-0.5 truncate">
                     {item.summary}
                   </p>
                 )}
               </div>
 
               {/* Time */}
-              <span className="text-xs text-foreground/40 flex-shrink-0 mt-0.5 whitespace-nowrap">
+              <span className="text-xs text-foreground/70 flex-shrink-0 mt-0.5 whitespace-nowrap">
                 {item.relativeTime}
               </span>
             </div>

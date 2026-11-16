@@ -137,7 +137,7 @@ function SupportInbox() {
 
           <div className={PANE}>
             {activeId === null ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-foreground/40">
+              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-foreground/70">
                 <MessageSquareText className="h-10 w-10" />
                 <p className="text-sm font-medium">
                   When a merchant presses Help in their app, the conversation shows up here.
@@ -153,7 +153,7 @@ function SupportInbox() {
               />
             ) : (
               <div className="flex h-full items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-foreground/30" />
+                <Loader2 className="h-6 w-6 animate-spin text-foreground/70" />
               </div>
             )}
           </div>
@@ -162,7 +162,7 @@ function SupportInbox() {
             {detail.data && activeId !== null ? (
               <SupportShopCard shop={detail.data.shop} caseId={detail.data.case.id} />
             ) : (
-              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-foreground/40">
+              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-foreground/70">
                 The shop&apos;s plan, wallet and orders show here.
               </div>
             )}

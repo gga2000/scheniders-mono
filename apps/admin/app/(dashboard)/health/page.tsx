@@ -175,12 +175,12 @@ export default function HealthPage() {
       {/* Risk Alerts */}
       <div className="pastel-card overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-foreground/60" />
+          <AlertTriangle className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
             Tenants at Risk
           </h2>
           {!isLoading && (
-            <span className="ml-auto text-xs text-foreground/40">
+            <span className="ml-auto text-xs text-foreground/70">
               {riskIndicators.length} tenant
               {riskIndicators.length !== 1 ? "s" : ""}
             </span>
@@ -189,10 +189,10 @@ export default function HealthPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+            <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
           </div>
         ) : riskIndicators.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+          <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
             <CheckCircle2 className="w-10 h-10 mb-2" />
             <p className="text-sm font-medium">No tenants at risk</p>
             <p className="text-xs mt-1">All merchants are operating normally</p>
@@ -212,7 +212,7 @@ export default function HealthPage() {
                   >
                     {ri.business_name}
                   </Link>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/60 mt-1 inline-block">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/70 mt-1 inline-block">
                     {ri.plan}
                   </span>
                 </div>
@@ -267,12 +267,12 @@ export default function HealthPage() {
       {/* Low Balance Wallets */}
       <div className="pastel-card overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-foreground/60" />
+          <Wallet className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
             Low Balance Alerts
           </h2>
           {!isLoading && (
-            <span className="ml-auto text-xs text-foreground/40">
+            <span className="ml-auto text-xs text-foreground/70">
               {lowBalanceWallets.length} wallet
               {lowBalanceWallets.length !== 1 ? "s" : ""}
             </span>
@@ -281,10 +281,10 @@ export default function HealthPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-foreground/30" />
+            <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
           </div>
         ) : lowBalanceWallets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-foreground/40">
+          <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
             <CheckCircle2 className="w-10 h-10 mb-2" />
             <p className="text-sm font-medium">All wallets healthy</p>
             <p className="text-xs mt-1">
@@ -296,19 +296,19 @@ export default function HealthPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--card-border)]">
-                  <th className="p-3 text-left text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Business Name
                   </th>
-                  <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Balance
                   </th>
-                  <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Threshold
                   </th>
-                  <th className="p-3 text-right text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Deficit
                   </th>
-                  <th className="p-3 text-center text-xs font-semibold text-foreground/60 uppercase tracking-wider">
+                  <th className="p-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>

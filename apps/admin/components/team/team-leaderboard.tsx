@@ -110,7 +110,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                   </p>
 
                   {/* Stats */}
-                  <p className="text-xs text-foreground/50 mt-0.5">
+                  <p className="text-xs text-foreground/70 mt-0.5">
                     {emp.leads_converted} conversions
                   </p>
                   <p className="text-xs font-semibold text-green-600 mt-0.5">
@@ -140,7 +140,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
       <div className="pastel-card overflow-hidden">
         <div className="p-4 border-b border-[var(--card-border)]">
           <div className="flex items-center gap-2">
-            <Medal className="w-5 h-5 text-foreground/50" />
+            <Medal className="w-5 h-5 text-foreground/70" />
             <h3 className="font-bold text-foreground">Full Rankings</h3>
           </div>
         </div>
@@ -149,42 +149,42 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50 w-12">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70 w-12">
                   #
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/70">
                   Employee
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("leads_added")}
                 >
                   Leads Added
                   <SortIcon column="leads_added" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("leads_converted")}
                 >
                   Converted
                   <SortIcon column="leads_converted" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("stores_built")}
                 >
                   Stores Built
                   <SortIcon column="stores_built" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("commission_earned")}
                 >
                   Commission
                   <SortIcon column="commission_earned" />
                 </th>
                 <th
-                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/50 cursor-pointer hover:text-foreground transition-colors select-none"
+                  className="text-right px-4 py-3 text-xs font-semibold text-foreground/70 cursor-pointer hover:text-foreground transition-colors select-none"
                   onClick={() => handleSort("total_actions")}
                 >
                   Actions
@@ -197,7 +197,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-12 text-center text-foreground/40 text-sm"
+                    className="px-4 py-12 text-center text-foreground/70 text-sm"
                   >
                     No team members yet
                   </td>
@@ -222,7 +222,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                                 ? "text-gray-400"
                                 : i === 2
                                   ? "text-orange-400"
-                                  : "text-foreground/40"
+                                  : "text-foreground/70"
                           )}
                         >
                           {i + 1}
@@ -248,7 +248,7 @@ export function TeamLeaderboard({ employees }: TeamLeaderboardProps) {
                             <p className="text-sm font-semibold text-foreground truncate">
                               {emp.display_name ?? emp.email.split("@")[0]}
                             </p>
-                            <p className="text-xs text-foreground/40 truncate">
+                            <p className="text-xs text-foreground/70 truncate">
                               {emp.email}
                             </p>
                           </div>

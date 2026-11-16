@@ -46,10 +46,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <p className="text-sm font-semibold text-foreground/70">
             {this.props.name ? `${this.props.name} failed to load` : "Something went wrong"}
           </p>
-          <p className="text-xs text-foreground/40 mt-1 max-w-xs">The error was reported.</p>
+          <p className="text-xs text-foreground/70 mt-1 max-w-xs">The error was reported.</p>
           <button
             onClick={this.handleRetry}
-            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground/60 hover:text-foreground border border-[var(--card-border)] hover:border-foreground/30 transition-all flex items-center gap-1"
+            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] hover:border-foreground/30 transition-all flex items-center gap-1"
           >
             <RefreshCw className="w-3 h-3" />
             Retry

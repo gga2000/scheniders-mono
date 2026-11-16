@@ -106,7 +106,7 @@ export default function LeadAnalyticsPage() {
       {/* Header: the menu calls this page Lead numbers (board n3, one name). */}
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Lead numbers</h1>
-        <p className="text-xs text-foreground/60">Every lead together: where they stand, where they came from, how many became shops.</p>
+        <p className="text-xs text-foreground/70">Every lead together: where they stand, where they came from, how many became shops.</p>
       </div>
 
       {/* Content */}

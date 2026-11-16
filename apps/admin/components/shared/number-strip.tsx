@@ -53,7 +53,7 @@ export function NumberCell({
 }) {
   return (
     <div className="min-w-0 bg-[var(--card-bg)] px-5 py-4">
-      <p className="text-xs text-foreground/60">{label}</p>
+      <p className="text-xs text-foreground/70">{label}</p>
       <p
         className={cn(
           "mt-1 text-[22px] font-semibold tabular-nums",
@@ -62,7 +62,7 @@ export function NumberCell({
       >
         {value}
       </p>
-      {note && <p className="mt-0.5 text-xs text-foreground/60">{note}</p>}
+      {note && <p className="mt-0.5 text-xs text-foreground/70">{note}</p>}
       {children}
     </div>
   );

@@ -30,11 +30,11 @@ export function UsageTab({ usage, planLimits }: UsageTabProps) {
   return (
     <div className="space-y-4">
       <section className="pastel-card p-5" aria-label="Orders this month">
-        <p className="text-[13px] text-foreground/60">Orders counted this month</p>
+        <p className="text-[13px] text-foreground/70">Orders counted this month</p>
         <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">
           {formatCount(used)}
           {allowed !== null && (
-            <span className="text-[15px] font-normal text-foreground/60"> of {formatCount(allowed)} the plan allows</span>
+            <span className="text-[15px] font-normal text-foreground/70"> of {formatCount(allowed)} the plan allows</span>
           )}
         </p>
         {allowed !== null && (
@@ -48,17 +48,17 @@ export function UsageTab({ usage, planLimits }: UsageTabProps) {
             />
           </div>
         )}
-        <p className="mt-2 text-[13px] text-foreground/55">The count starts again at each renewal.</p>
+        <p className="mt-2 text-[13px] text-foreground/70">The count starts again at each renewal.</p>
       </section>
 
       <section className="pastel-card p-5" aria-label="Month by month">
-        <h2 className="mb-2 text-[13px] font-semibold text-foreground/60">Month by month</h2>
+        <h2 className="mb-2 text-[13px] font-semibold text-foreground/70">Month by month</h2>
         {sorted.length === 0 ? (
-          <p className="py-4 text-[13px] text-foreground/60">No orders counted yet.</p>
+          <p className="py-4 text-[13px] text-foreground/70">No orders counted yet.</p>
         ) : (
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[13px] text-foreground/55">
+              <tr className="text-[13px] text-foreground/70">
                 <th className="py-2 font-medium">Month</th>
                 <th className="py-2 text-right font-medium">Orders counted</th>
               </tr>
@@ -68,7 +68,7 @@ export function UsageTab({ usage, planLimits }: UsageTabProps) {
                 <tr key={`${row.year}-${row.month}`} className="text-[15px] tabular-nums text-foreground">
                   <td className="py-2.5">
                     {MONTH.format(Date.UTC(row.year, row.month - 1, 1))}
-                    {row === current && <span className="text-[13px] text-foreground/55"> · now</span>}
+                    {row === current && <span className="text-[13px] text-foreground/70"> · now</span>}
                   </td>
                   <td className="py-2.5 text-right">{formatCount(row.orders_count ?? 0)}</td>
                 </tr>

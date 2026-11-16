@@ -48,7 +48,7 @@ function billingLine(row: TopupQueueItem): string {
 
 function Receipt({ row }: { row: TopupQueueItem }) {
   if (!row.receipt_url) {
-    return <div className="flex h-36 w-28 items-center justify-center rounded-xl bg-foreground/5 text-xs text-foreground/40">No file</div>;
+    return <div className="flex h-36 w-28 items-center justify-center rounded-xl bg-foreground/5 text-xs text-foreground/70">No file</div>;
   }
   if (row.receipt_kind === "pdf") {
     return (
@@ -111,7 +111,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
     },
   });
 
-  if (!canDecide) return <p className="text-xs text-foreground/50">Your login can see receipts but not decide them.</p>;
+  if (!canDecide) return <p className="text-xs text-foreground/70">Your login can see receipts but not decide them.</p>;
 
   const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
   const reasonOk = reason.trim().length >= REJECT_REASON_MIN && reason.trim().length <= REJECT_REASON_MAX;
@@ -125,7 +125,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
         <p className="text-xs font-semibold text-foreground">
           {approve ? `Add ${iqd(amount)} to ${row.business_name ?? "this shop"}'s wallet?` : "Refuse this receipt?"}
         </p>
-        {!approve && <p className="max-w-[16rem] text-xs text-foreground/60">The shop will read: “{reason.trim()}”</p>}
+        {!approve && <p className="max-w-[16rem] text-xs text-foreground/70">The shop will read: “{reason.trim()}”</p>}
         <div className="flex gap-1.5">
           <button type="button" onClick={() => setConfirming(null)} className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-xs">
             Back
@@ -169,7 +169,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
 
   return (
     <div className="flex w-64 flex-col gap-2">
-      <label className="text-xs font-semibold uppercase tracking-wide text-foreground/45" htmlFor={`amount-${row.id}`}>
+      <label className="text-xs font-semibold uppercase tracking-wide text-foreground/70" htmlFor={`amount-${row.id}`}>
         Amount that arrived
       </label>
       <input
@@ -224,13 +224,13 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
           <Link href={`/merchants/${row.tenant_id}`} className="text-sm font-semibold text-foreground hover:underline">
             {row.business_name ?? "Shop"}
           </Link>
-          {row.display_id && <span className="text-xs text-foreground/40 tabular-nums">#{row.display_id}</span>}
+          {row.display_id && <span className="text-xs text-foreground/70 tabular-nums">#{row.display_id}</span>}
         </div>
         <p className="text-sm text-foreground">
           <span className="font-bold tabular-nums">{iqd(row.amount_iqd)}</span>
-          <span className="text-foreground/60"> by {METHOD_LABEL[row.method]} · sent {sentAgo(row.created_at)}</span>
+          <span className="text-foreground/70"> by {METHOD_LABEL[row.method]} · sent {sentAgo(row.created_at)}</span>
         </p>
-        <p className="text-xs text-foreground/60">{billingLine(row)}</p>
+        <p className="text-xs text-foreground/70">{billingLine(row)}</p>
         {row.billing?.locked && (
           <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
             <Lock className="w-3 h-3" />
@@ -288,7 +288,7 @@ export default function PaymentsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16 text-foreground/40">
+        <div className="flex items-center justify-center py-16 text-foreground/70">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : data && data.length > 0 ? (
@@ -301,7 +301,7 @@ export default function PaymentsPage() {
         <div className="pastel-card flex flex-col items-center gap-2 py-14 text-center" data-testid="payments-empty">
           <Check className="w-6 h-6 text-green-600" />
           <p className="text-sm font-semibold text-foreground">No receipts waiting</p>
-          <p className="text-xs text-foreground/50">New receipts show up here and in the bell.</p>
+          <p className="text-xs text-foreground/70">New receipts show up here and in the bell.</p>
         </div>
       )}
     </div>

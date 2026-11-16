@@ -105,7 +105,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-[13px] text-foreground/60">{label}</dt>
+      <dt className="text-[13px] text-foreground/70">{label}</dt>
       <dd className="mt-1 text-[15px] font-semibold text-foreground tabular-nums">{children}</dd>
     </div>
   );
@@ -114,7 +114,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 /** "in 3 days" beside a date, amber when it is under a day away. */
 function When({ end, now, soon }: { end: string; now: Date; soon: boolean }) {
   return (
-    <span className={cn("ml-2 text-[13px] font-medium", soon ? "text-amber-700 dark:text-amber-300" : "text-foreground/55")}>
+    <span className={cn("ml-2 text-[13px] font-medium", soon ? "text-amber-700 dark:text-amber-300" : "text-foreground/70")}>
       {formatUntil(end, now)}
     </span>
   );

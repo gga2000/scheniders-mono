@@ -39,7 +39,7 @@ export function TeamTab({ team }: TeamTabProps) {
     return (
       <section className="pastel-card p-5" aria-label="Team">
         <p className="text-[15px] font-semibold text-foreground">This shop has no members</p>
-        <p className="mt-1 text-[13px] text-foreground/60">Every shop should have at least its owner. Nobody can sign in to this one.</p>
+        <p className="mt-1 text-[13px] text-foreground/70">Every shop should have at least its owner. Nobody can sign in to this one.</p>
       </section>
     );
   }
@@ -53,7 +53,7 @@ export function TeamTab({ team }: TeamTabProps) {
 
   return (
     <section className="pastel-card p-5" aria-label="Team">
-      <h2 className="mb-2 text-[13px] font-semibold text-foreground/60">
+      <h2 className="mb-2 text-[13px] font-semibold text-foreground/70">
         {formatCount(active)} active {active === 1 ? "member" : "members"}
         {team.length > active && ` of ${formatCount(team.length)}`}
       </h2>
@@ -80,18 +80,18 @@ export function TeamTab({ team }: TeamTabProps) {
                 <p className="truncate text-[15px] font-semibold text-foreground">
                   {name}
                   {inactive && (
-                    <span className="text-[13px] font-normal text-foreground/60"> · {STATUS_WORD[member.status] ?? member.status}</span>
+                    <span className="text-[13px] font-normal text-foreground/70"> · {STATUS_WORD[member.status] ?? member.status}</span>
                   )}
                 </p>
                 {email ? (
-                  <CopyableText value={email} className="text-[13px] text-foreground/60" />
+                  <CopyableText value={email} className="text-[13px] text-foreground/70" />
                 ) : (
-                  <p className="text-[13px] text-foreground/50">No email</p>
+                  <p className="text-[13px] text-foreground/70">No email</p>
                 )}
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-[13px] font-semibold text-foreground">{role}</p>
-                <p className="text-[13px] tabular-nums text-foreground/55">{since(member)}</p>
+                <p className="text-[13px] tabular-nums text-foreground/70">{since(member)}</p>
               </div>
             </li>
           );

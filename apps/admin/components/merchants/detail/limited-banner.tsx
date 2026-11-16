@@ -53,7 +53,7 @@ export function LimitedBanner({ merchantId, restrictions }: LimitedBannerProps) 
         <p>
           <span className="font-semibold">Paused.</span> Stopped: {what}.
         </p>
-        <p className="mt-1 text-[13px] text-foreground/65">
+        <p className="mt-1 text-[13px] text-foreground/70">
           {until
             ? new Date(until).getTime() > now.getTime()
               ? `Lifts on its own ${formatDayTime(until, now)}, ${formatUntil(until, now)}.`

@@ -43,7 +43,7 @@ export default function TodayPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Today</h1>
-          <p className="min-h-5 text-[13px] text-foreground/60">
+          <p className="min-h-5 text-[13px] text-foreground/70">
             {now && waiting !== undefined && (
               <>
                 {formatDayTime(now, now)}.{" "}
@@ -57,7 +57,7 @@ export default function TodayPage() {
         <form onSubmit={onFind} role="search">
           <label className="relative block">
             <span className="sr-only">Find a shop</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" aria-hidden />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/70" aria-hidden />
             <input
               type="search"
               value={find}
@@ -72,7 +72,7 @@ export default function TodayPage() {
       <TodayNumbers counts={counts.data} numbers={today.data?.numbers} leadsWithNoOwner={noOwner.data} now={now} />
 
       {today.isLoading ? (
-        <p className="flex items-center gap-2 py-10 text-[13px] text-foreground/60">
+        <p className="flex items-center gap-2 py-10 text-[13px] text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Looking for shops that need someone...
         </p>

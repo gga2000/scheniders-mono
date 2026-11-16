@@ -102,7 +102,7 @@ export function TeamPerformanceChart({
       {/* Bar Chart */}
       <div className="pastel-card p-5">
         <div className="flex items-center gap-2 mb-5">
-          <BarChart3 className="w-4 h-4 text-foreground/50" />
+          <BarChart3 className="w-4 h-4 text-foreground/70" />
           <h3 className="font-bold text-foreground text-sm">
             Daily Activity (Last 14 Days)
           </h3>
@@ -114,7 +114,7 @@ export function TeamPerformanceChart({
             {[...yTicks].reverse().map((tick) => (
               <span
                 key={tick}
-                className="text-xs text-foreground/40 text-right tabular-nums leading-none"
+                className="text-xs text-foreground/70 text-right tabular-nums leading-none"
               >
                 {tick}
               </span>
@@ -176,7 +176,7 @@ export function TeamPerformanceChart({
                       "text-xs leading-none",
                       i === chartData.length - 1
                         ? "font-semibold text-foreground/70"
-                        : "text-foreground/30"
+                        : "text-foreground/70"
                     )}
                   >
                     {day.label.split(" ")[1]}

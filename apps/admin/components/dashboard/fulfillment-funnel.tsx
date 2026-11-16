@@ -41,7 +41,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
       {!funnel ? (
         <Skeleton />
       ) : funnel.length === 0 ? (
-        <p className="text-sm text-foreground/50 text-center py-8">
+        <p className="text-sm text-foreground/70 text-center py-8">
           No funnel data available
         </p>
       ) : (
@@ -80,7 +80,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
                 {idx < funnel.length - 1 && step.dropOffPct > 0 && (
                   <div className="flex items-center gap-1.5 py-1">
                     <div className="w-px h-3 bg-foreground/20" />
-                    <span className="text-xs font-medium text-foreground/50">
+                    <span className="text-xs font-medium text-foreground/70">
                       {step.dropOffPct.toFixed(0)}% drop-off
                     </span>
                     <div className="w-px h-3 bg-foreground/20" />

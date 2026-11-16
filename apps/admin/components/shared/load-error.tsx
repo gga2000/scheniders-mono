@@ -46,11 +46,11 @@ export function LoadError({ what, onRetry, retrying = false, error, compact = fa
           }`}
         >
           {refused ? (
-            <Lock className={`${icon} text-foreground/50`} />
+            <Lock className={`${icon} text-foreground/70`} />
           ) : signedOut ? (
-            <LogIn className={`${icon} text-foreground/50`} />
+            <LogIn className={`${icon} text-foreground/70`} />
           ) : missing ? (
-            <SearchX className={`${icon} text-foreground/50`} />
+            <SearchX className={`${icon} text-foreground/70`} />
           ) : (
             <AlertTriangle className={`${icon} text-red-500`} />
           )}
