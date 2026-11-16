@@ -1,6 +1,6 @@
 "use client";
 
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 
 interface SparklineProps {
   data: number[];
@@ -22,23 +22,17 @@ export function Sparkline({
   return (
     <div className={className} style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-          <defs>
-            <linearGradient id={`spark-${color.replace(/[^a-zA-Z0-9]/g, "")}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area
+        {/* A plain line, no filled area (board v6: no gradients). */}
+        <LineChart data={chartData} margin={{ top: 1, right: 1, bottom: 1, left: 1 }}>
+          <Line
             type="monotone"
             dataKey="value"
             stroke={color}
             strokeWidth={1.5}
-            fill={`url(#spark-${color.replace(/[^a-zA-Z0-9]/g, "")})`}
             dot={false}
             isAnimationActive={false}
           />
-        </AreaChart>
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

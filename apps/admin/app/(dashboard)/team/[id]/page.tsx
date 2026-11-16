@@ -14,11 +14,6 @@ import {
   ArrowLeft,
   UserCircle,
   Loader2,
-  Target,
-  TrendingUp,
-  Store,
-  DollarSign,
-  Trophy,
   Lock,
   CheckCircle2,
 } from "lucide-react";
@@ -28,6 +23,7 @@ import {
   type EmployeeCommission,
 } from "@/types/leads";
 import { formatDay } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 const tabs = ["Actions", "Commissions", "Achievements", "Performance"] as const;
 type Tab = (typeof tabs)[number];
@@ -128,45 +124,12 @@ export default function TeamMemberDetailPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <Target className="w-4 h-4" />
-            <span className="text-xs font-semibold">Leads Added</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.leads_added)}
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-semibold">Leads Converted</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.leads_converted)}
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Store className="w-4 h-4" />
-            <span className="text-xs font-semibold">Stores Built</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.stores_built)}
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-amber-50/50">
-          <div className="flex items-center gap-2 text-amber-700 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">Commission Earned</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(employee.commission_earned)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-      </div>
+      <NumberStrip columns={4}>
+        <NumberCell label="Leads added" value={fmt(employee.leads_added)} />
+        <NumberCell label="Leads converted" value={fmt(employee.leads_converted)} />
+        <NumberCell label="Stores built" value={fmt(employee.stores_built)} />
+        <NumberCell label="Commission earned" value={`${fmt(employee.commission_earned)} IQD`} />
+      </NumberStrip>
 
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-[var(--card-border)]">

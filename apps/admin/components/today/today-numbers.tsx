@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import type { MerchantTab } from "@/lib/merchant-list";
 import type { TodayNumbers as Numbers } from "@/lib/today";
@@ -18,16 +18,6 @@ export function shopsBreakdown(counts: Record<MerchantTab, number>): string {
   if (counts.internal > 0) parts.push(`${formatCount(counts.internal)} internal`);
   const locked = counts.locked > 0 ? ` ${formatCount(counts.locked)} of them locked.` : "";
   return parts.length > 0 ? `${parts.join(", ")}.${locked}` : "No shops yet.";
-}
-
-function Cell({ label, value, note }: { label: string; value: string; note?: ReactNode }) {
-  return (
-    <div className="px-5 py-4">
-      <p className="text-[13px] text-foreground/60">{label}</p>
-      <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">{value}</p>
-      {note && <p className="mt-0.5 text-[13px] text-foreground/60">{note}</p>}
-    </div>
-  );
 }
 
 /**
@@ -48,22 +38,22 @@ export function TodayNumbers({
 }) {
   const loading = "...";
   return (
-    <div className="pastel-card grid grid-cols-4 divide-x divide-[var(--card-border)]">
-      <Cell
+    <NumberStrip columns={4} label="Numbers today">
+      <NumberCell
         label="Shops, now"
         value={counts ? formatCount(counts.all) : loading}
         note={counts ? shopsBreakdown(counts) : undefined}
       />
-      <Cell
+      <NumberCell
         label="Orders today, since midnight"
         value={numbers ? formatCount(numbers.orders_today) : loading}
         note={numbers ? `${formatCount(numbers.orders_yesterday_by_now)} by this time yesterday` : undefined}
       />
-      <Cell
+      <NumberCell
         label={now ? `Our fees, ${MONTH.format(now)} so far` : "Our fees, this month so far"}
         value={numbers ? formatIQD(numbers.fees_month) : loading}
       />
-      <Cell
+      <NumberCell
         label="Leads with no owner"
         value={leadsWithNoOwner === undefined ? loading : formatCount(leadsWithNoOwner)}
         note={
@@ -72,6 +62,6 @@ export function TodayNumbers({
           </Link>
         }
       />
-    </div>
+    </NumberStrip>
   );
 }

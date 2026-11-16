@@ -4,9 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
   Loader2,
-  DollarSign,
-  Users,
-  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -19,10 +16,9 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { AnimatedCounter } from "@/components/shared/animated-counter";
-import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatIQD } from "@/lib/format";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -97,29 +93,11 @@ export default function RevenuePage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">Fees, last 6 months</span>
-          </div>
-          <AnimatedCounter value={totalRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
-        </div>
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <BarChart3 className="w-4 h-4" />
-            <span className="text-xs font-semibold">This month so far</span>
-          </div>
-          <AnimatedCounter value={thisMonthRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
-        </div>
-        <div className="pastel-card p-4 bg-purple-50/50">
-          <div className="flex items-center gap-2 text-purple-700 mb-1">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-semibold">Avg fees per shop, all time</span>
-          </div>
-          <AnimatedCounter value={data.avgLTV} suffix=" IQD" className="text-lg font-bold text-foreground" />
-        </div>
-      </div>
+      <NumberStrip columns={3}>
+        <NumberCell label="Fees, last 6 months" value={formatIQD(totalRevenue)} />
+        <NumberCell label="Fees, this month so far" value={formatIQD(thisMonthRevenue)} />
+        <NumberCell label="Avg fees per shop, all time" value={formatIQD(data.avgLTV)} />
+      </NumberStrip>
 
       {data.otherCharges > 0 && (
         <p className="text-xs text-foreground/50">

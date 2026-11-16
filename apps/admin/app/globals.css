@@ -46,26 +46,13 @@ body {
 .dark .text-purple-800 { color: #d8b4fe; }
 
 /*
- * Pastel cards (the number tiles on Home, Billing, Health and Trials) keep
- * their light fill in dark mode: packages/ui keeps the pastels light so the
- * dark ink on them reads. The ink stays dark too. These rules used to turn
- * that ink near-white, so every number on a tile vanished in dark mode
- * (contrast about 1:1). The -950, -900/70 and -800/70 shades are used only on
- * the tiles and keep their light-mode colour; the -700 and -800 shades, which
- * badges on dark surfaces lighten, are put back on the tiles here.
+ * Board v6: one flat surface. Cards in the console hold numbers and lists,
+ * not links, so they stay still under the pointer (packages/ui lifts them).
  */
-.dark [class*="pastel-card-"] .text-blue-700 { color: #1d4ed8; }
-.dark [class*="pastel-card-"] .text-green-700 { color: #15803d; }
-.dark [class*="pastel-card-"] .text-amber-700 { color: #b45309; }
-.dark [class*="pastel-card-"] .text-rose-700 { color: #be123c; }
-.dark [class*="pastel-card-"] .text-purple-700 { color: #7e22ce; }
-.dark [class*="pastel-card-"] .text-teal-700 { color: #0f766e; }
-.dark [class*="pastel-card-"] .text-red-700 { color: #b91c1c; }
-.dark [class*="pastel-card-"] .text-blue-800 { color: #1e40af; }
-.dark [class*="pastel-card-"] .text-green-800 { color: #166534; }
-.dark [class*="pastel-card-"] .text-amber-800 { color: #92400e; }
-.dark [class*="pastel-card-"] .text-red-800 { color: #991b1b; }
-.dark [class*="pastel-card-"] .text-purple-800 { color: #6b21a8; }
+.pastel-card:hover {
+  transform: none;
+  box-shadow: var(--card-shadow);
+}
 
 /* -700 ink elsewhere in dark mode sits on dark surfaces. */
 .dark .text-blue-700 { color: #93c5fd; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendingUp } from "lucide-react";
+import { DeltaChip } from "@/components/shared/delta-chip";
 import type { GrowthMetric } from "@/types/dashboard";
 
 interface GrowthMetricsProps {
@@ -54,7 +55,6 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {growth.map((metric) => {
-            const isPositive = metric.delta >= 0;
             return (
               <div
                 key={metric.label}
@@ -72,18 +72,7 @@ export function GrowthMetrics({ growth }: GrowthMetricsProps) {
                       ? metric.emptyNote
                       : `before: ${formatNumber(metric, metric.previous, false)}`}
                   </span>
-                  {metric.deltaPct !== null && (
-                    <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                        isPositive
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {isPositive ? "+" : ""}
-                      {metric.deltaPct.toFixed(1)}%
-                    </span>
-                  )}
+                  <DeltaChip deltaPct={metric.deltaPct} />
                 </div>
               </div>
             );

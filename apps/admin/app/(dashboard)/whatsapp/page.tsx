@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, Loader2, MessageCircle, MessageCircleOff, Gift, Wallet, PauseCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, MessageCircle, MessageCircleOff } from "lucide-react";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
@@ -129,20 +130,6 @@ export default function WhatsAppPage() {
   }
 
   const canPause = role === "super_admin";
-  const kpis = data
-    ? [
-        { label: "Messages delivered", value: number(data.totals.messages), icon: MessageCircle, tone: "text-green-700 bg-green-50/50" },
-        { label: "Shops paid", value: iqd(data.totals.shopPaidIqd), icon: Wallet, tone: "text-blue-700 bg-blue-50/50" },
-        {
-          label: "Trial messages, on us",
-          value: number(data.totals.trialMessages),
-          note: `about ${iqd(data.totals.trialCostIqd)}`,
-          icon: Gift,
-          tone: "text-purple-700 bg-purple-50/50",
-        },
-        { label: "Shops paused now", value: number(data.totals.pausedShops), icon: PauseCircle, tone: "text-rose-700 bg-rose-50/50" },
-      ]
-    : [];
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -185,18 +172,20 @@ export default function WhatsAppPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((k) => (
-              <div key={k.label} className={`pastel-card p-4 ${k.tone.split(" ")[1]}`}>
-                <div className={`flex items-center gap-2 mb-1 ${k.tone.split(" ")[0]}`}>
-                  <k.icon className="w-4 h-4" />
-                  <span className="text-xs font-semibold">{k.label}</span>
-                </div>
-                <p className="text-lg font-bold text-foreground tabular-nums">{k.value}</p>
-                {k.note && <p className="text-xs text-foreground/50 tabular-nums">{k.note}</p>}
-              </div>
-            ))}
-          </div>
+          <NumberStrip columns={4} label="WhatsApp numbers">
+            <NumberCell label={`Messages delivered, ${monthLabel(month)}`} value={number(data.totals.messages)} />
+            <NumberCell label={`Shops paid, ${monthLabel(month)}`} value={iqd(data.totals.shopPaidIqd)} />
+            <NumberCell
+              label={`Trial messages on us, ${monthLabel(month)}`}
+              value={number(data.totals.trialMessages)}
+              note={`about ${iqd(data.totals.trialCostIqd)}`}
+            />
+            <NumberCell
+              label="Shops paused, now"
+              value={number(data.totals.pausedShops)}
+              alert={data.totals.pausedShops > 0}
+            />
+          </NumberStrip>
 
           {data.totals.unpaid > 0 && (
             <p className="text-xs text-foreground/50">

@@ -5,13 +5,11 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useCommissionConfigs } from "@/hooks/use-admin-commissions";
 import {
-  DollarSign,
-  Clock,
-  CheckCircle2,
   Settings,
   Loader2,
 } from "lucide-react";
 import type { AdminEmployee, CommissionType } from "@/types/leads";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface TeamCommissionDashboardProps {
   employees: AdminEmployee[];
@@ -64,38 +62,11 @@ export function TeamCommissionDashboard({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="pastel-card p-4 bg-green-50/50">
-          <div className="flex items-center gap-2 text-green-700 mb-1">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Earned</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(totals.totalEarned)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-amber-50/50">
-          <div className="flex items-center gap-2 text-amber-700 mb-1">
-            <Clock className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Pending</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(totals.totalPending)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-        <div className="pastel-card p-4 bg-blue-50/50">
-          <div className="flex items-center gap-2 text-blue-700 mb-1">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="text-xs font-semibold">Total Paid</span>
-          </div>
-          <p className="text-lg font-bold text-foreground">
-            {fmt(totals.totalPaid)}{" "}
-            <span className="text-xs font-normal text-foreground/50">IQD</span>
-          </p>
-        </div>
-      </div>
+      <NumberStrip columns={3}>
+        <NumberCell label="Commission earned" value={`${fmt(totals.totalEarned)} IQD`} />
+        <NumberCell label="Commission waiting" value={`${fmt(totals.totalPending)} IQD`} />
+        <NumberCell label="Commission paid" value={`${fmt(totals.totalPaid)} IQD`} />
+      </NumberStrip>
 
       {/* Commission Configs */}
       <div className="pastel-card p-5">

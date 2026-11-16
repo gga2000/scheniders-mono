@@ -1,72 +1,38 @@
 "use client";
 
-import { AnimatedCounter } from "@/components/shared/animated-counter";
+import { DeltaChip } from "@/components/shared/delta-chip";
+import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatCount } from "@/lib/format";
 import type { PlatformOrderStat } from "@/types/dashboard";
 
 interface PlatformOrderStatsProps {
   stats: PlatformOrderStat[] | undefined;
 }
 
-function DeltaBadge({ deltaPct }: { deltaPct: number | null }) {
-  if (deltaPct === null) return null;
-  const isPositive = deltaPct >= 0;
-  return (
-    <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold ${
-        isPositive
-          ? "bg-green-100 text-green-700"
-          : "bg-red-100 text-red-700"
-      }`}
-    >
-      {isPositive ? "+" : ""}
-      {deltaPct.toFixed(1)}%
-    </span>
-  );
-}
+const LOADING_LABELS = ["Today", "Last 7 days", "This month", "All time"];
 
-function SkeletonCard() {
-  return (
-    <div className="pastel-card p-4 animate-pulse">
-      <div className="h-3 w-16 rounded bg-foreground/[0.08] mb-2" />
-      <div className="h-6 w-12 rounded-lg bg-foreground/[0.1] mb-1" />
-      <div className="h-4 w-10 rounded bg-foreground/[0.06]" />
-    </div>
-  );
-}
+/** "Orders, last 7 days": the API names the window, the strip says what is counted. */
+const ordersLabel = (window: string) => `Orders, ${window.toLowerCase()}`;
 
+/** Orders across every shop, today to all time, each against the period before. */
 export function PlatformOrderStats({ stats }: PlatformOrderStatsProps) {
-  if (!stats) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <SkeletonCard key={i} />
-        ))}
-      </div>
-    );
-  }
-
-
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {stats.map((stat) => (
-        <div key={stat.label} className="pastel-card p-4">
-          <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-1">
-            {stat.label}
-          </p>
-          <div className="flex items-baseline gap-2">
-            <AnimatedCounter
-              value={stat.value}
-              className="text-xl font-bold text-foreground"
+    <NumberStrip columns={4} label="Orders">
+      {stats
+        ? stats.map((stat) => (
+            <NumberCell
+              key={stat.label}
+              label={ordersLabel(stat.label)}
+              value={
+                <span className="inline-flex items-baseline gap-2">
+                  {formatCount(stat.value)}
+                  <DeltaChip deltaPct={stat.deltaPct} />
+                </span>
+              }
+              note={stat.previousLabel ? `${stat.previousLabel}: ${formatCount(stat.previousValue)}` : undefined}
             />
-            <DeltaBadge deltaPct={stat.deltaPct} />
-          </div>
-          {stat.previousLabel && (
-            <p className="text-xs text-foreground/40 mt-0.5">
-              {stat.previousLabel}: {new Intl.NumberFormat("en-IQ").format(stat.previousValue)}
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
+          ))
+        : LOADING_LABELS.map((label) => <NumberCell key={label} label={ordersLabel(label)} value="..." />)}
+    </NumberStrip>
   );
 }
