@@ -324,14 +324,17 @@ describe("SummaryView", () => {
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
     });
 
-    it("says what each 1,000 IQD of ads brought, or that nothing was spent", () => {
+    it("says what each 1,000 IQD of ads brought as a rate, not as money, or that nothing was spent", () => {
         renderView(query(summary()));
         // 400,000 of sales on 60,000 of ads.
-        expect(byTestId("ad-return")?.textContent).toContain("6,667");
-        expect(byTestId("ad-return")?.textContent).toContain("مبيعات لكل 1,000 دينار تصرفها على الإعلان");
-        // 60,000 spent, 6,000 an order
-        expect(byTestId("ad-return")?.textContent).toContain("60,000");
-        expect(byTestId("ad-return")?.textContent).toContain("6,000");
+        const figure = byTestId("ad-return-figure")?.textContent ?? "";
+        expect(figure).toContain("6,667");
+        expect(figure).toContain("لكل ألف");
+        expect(figure).not.toContain("د.ع");
+        expect(byTestId("ad-return")?.textContent).toContain("مبيعات من كل 1,000 دينار إعلان");
+        expect(byTestId("ad-return")?.textContent).toContain("صرفت على الإعلان 60,000 د.ع في هذه الفترة");
+        // the cost per order stays in the dark strip only
+        expect(byTestId("ad-return")?.textContent).not.toContain("6,000");
         cleanup();
         renderView(query(summary({ expenses: [] })));
         expect(byTestId("ad-return")).toBeNull();
