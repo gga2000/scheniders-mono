@@ -7,6 +7,10 @@ describe("isSystemActor", () => {
         expect(isSystemActor(" system ")).toBe(true);
     });
 
+    it("treats the database jobs' \"Automation\" as the same placeholder", () => {
+        expect(isSystemActor("Automation")).toBe(true);
+    });
+
     it("does not treat a person, the bot or an empty value as the system", () => {
         expect(isSystemActor("Mohammed")).toBe(false);
         expect(isSystemActor("WhatsApp Bot")).toBe(false);

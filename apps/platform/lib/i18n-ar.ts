@@ -1308,6 +1308,7 @@ export const ar: Record<string, string> = {
     "products.tagInput.pickColor": "اختر لونًا لـ «{name}»",
     "products.tagInput.creating": "جارٍ الإنشاء...",
     "products.tagInput.createTag": "إنشاء الوسم",
+    "orders.card.lastUpdatedBy": "آخر تحديث بواسطة: {name}",
     "orders.create.blocked": "لا يمكن إنشاء الطلب",
     "orders.create.typeDelivery": "توصيل",
     "orders.create.typeShop": "محل",

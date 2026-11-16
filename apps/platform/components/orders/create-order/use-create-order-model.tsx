@@ -100,6 +100,12 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
     const [showBulkUpload, setShowBulkUpload] = useState(false);
     const [customCreatedAt, setCustomCreatedAt] = useState<string>(new Date().toISOString());
+    // The picker opens on "now" so it has something to show, but only a date
+    // the merchant picks is sent: the open-time default used to back-date
+    // every order to when the form was opened (a minute or an hour before,
+    // the day before across midnight) and log a date "edit" on its history.
+    const [dateTouched, setDateTouched] = useState(false);
+    const pickCreatedAt = (iso: string) => { setCustomCreatedAt(iso); setDateTouched(true); };
     const postponeTo = routeCreateOrderDate(customCreatedAt).scheduledDate;
     const [createAndNew, setCreateAndNew] = useState(false);
     const handleCreateRef = useRef<(() => void) | undefined>(undefined);
@@ -132,6 +138,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     const syncFromInitialData = useEffectEvent(() => {
         if (open) {
             setCustomCreatedAt(new Date().toISOString());
+            setDateTouched(false);
         }
         if (open && initialData) {
             setFormData({
@@ -206,6 +213,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         setOrderIdStatus("idle");
         setEditingPriceIndex(null);
         setCustomCreatedAt(new Date().toISOString());
+        setDateTouched(false);
     };
 
     const handleClose = () => {
@@ -303,6 +311,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         setDeliveryFee(5000);
         setIncludeDeliveryFee(false);
         setCustomCreatedAt(new Date().toISOString());
+        setDateTouched(false);
     };
 
     const handleRemoveImage = () => {
@@ -494,7 +503,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
                     taken_by: takenBy.trim(),
                     internal_notes: formData.internal_notes || "",
                     items: takeItems,
-                    custom_created_at: customCreatedAt,
+                    custom_created_at: dateTouched ? customCreatedAt : undefined,
                     idempotency_key: idempotencyKeyRef.current,
                 });
                 if (takeResult.success) {
@@ -526,7 +535,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
                 notes: orderType === "shop" ? `[طلب محل] ${formData.notes || ''}`.trim() : formData.notes,
                 internal_notes: formData.internal_notes || "",
                 items: formData.items.filter(item => item.name.trim()),
-                custom_created_at: customCreatedAt,
+                custom_created_at: dateTouched ? customCreatedAt : undefined,
                 idempotency_key: idempotencyKeyRef.current,
             });
 
@@ -630,7 +639,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         showBulkUpload,
         setShowBulkUpload,
         customCreatedAt,
-        setCustomCreatedAt,
+        setCustomCreatedAt: pickCreatedAt,
         postponeTo,
         createAndNew,
         setCreateAndNew,

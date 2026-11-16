@@ -49,3 +49,31 @@ describe("create order idempotency key", () => {
         expect(sent[2].idempotency_key).not.toBe(sent[0].idempotency_key);
     });
 });
+
+/**
+ * Store walkthrough 2026-11-16: the picker's open-time "now" was sent as the
+ * order date, so every order was back-dated to when the form opened and its
+ * history showed a date edit. Only a date the merchant picks is sent.
+ */
+describe("create order date", () => {
+    const filled = {
+        customer_name: "Ali",
+        items: [{ product_id: "p1", name: "Shirt", price: 10000, quantity: 1 }],
+    };
+
+    it("sends no date unless the merchant picked one", async () => {
+        const sent: CreateOrderInput[] = [];
+        const onCreate = vi.fn(async (o: CreateOrderInput) => { sent.push(o); return { success: false, error: "x" }; });
+        const { result } = renderHook(() =>
+            useCreateOrderModel({ open: true, onClose: vi.fn(), onCreate, initialData: filled }),
+        );
+        act(() => result.current.handleOrderTypeChange("shop"));
+        await act(async () => { await result.current.handleCreate(); });
+        expect(sent[0].custom_created_at).toBeUndefined();
+
+        const picked = "2026-11-10T09:00:00.000Z";
+        act(() => result.current.setCustomCreatedAt(picked));
+        await act(async () => { await result.current.handleCreate(); });
+        expect(sent[1].custom_created_at).toBe(picked);
+    });
+});

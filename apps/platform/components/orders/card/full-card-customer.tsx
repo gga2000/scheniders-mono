@@ -124,7 +124,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                                         className="flex items-center -ml-0.5 transition-transform hover:scale-110"
                                         title={isSystemActor(order.last_status_changed_by_name)
                                             ? t("orders.card.systemActorTip")
-                                            : `Last updated by: ${order.last_status_changed_by_name}`}
+                                            : t("orders.card.lastUpdatedBy", { name: order.last_status_changed_by_name })}
                                     >
                                         {isSystemActor(order.last_status_changed_by_name) ? (
                                             <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm">
