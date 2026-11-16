@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { RevenueBreakdown as RevenueBreakdownType, RevenueSlice } from "@/types/dashboard";
+import { formatIQD } from "@/lib/format";
 
 interface RevenueBreakdownProps {
   breakdown: RevenueBreakdownType | undefined;
@@ -16,9 +17,6 @@ interface RevenueBreakdownProps {
 
 type Tab = "byPlan" | "byCity";
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 const CustomTooltip = ({
   active,

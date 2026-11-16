@@ -59,9 +59,9 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   const pageTitle = pageHeaderTitle ?? menuPageTitle(pathname ?? "/") ?? "Admin";
 
   // The browser tab says where you are, in the menu's words or the shop's name.
-  useEffect(() => {
-    document.title = `${tab ?? pageTitle} · Scheniders Admin`;
-  }, [tab, pageTitle]);
+  // React puts this <title> in the document head, on the server and after every
+  // change; the root layout sets none, so nothing writes over it.
+  const tabTitle = `${tab ?? pageTitle} · Scheniders Admin`;
 
   // The global merchant search queries /api/merchants and jumps to a merchant
   // profile — it only belongs on the Merchants directory, not every page.
@@ -140,6 +140,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
 
   return (
     <header className="h-16 flex items-center justify-between px-6 gap-4">
+      <title>{tabTitle}</title>
       {/* Left: Mobile menu + Page title */}
       <div className="flex items-center gap-3">
         {isMobile && (

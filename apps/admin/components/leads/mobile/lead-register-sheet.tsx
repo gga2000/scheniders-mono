@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatIQD } from "@/lib/format";
 import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
 import { PLATFORM_CONFIG } from "@/types/leads";
 import { IRAQ_GOVERNORATES } from "@scheniders/shared";

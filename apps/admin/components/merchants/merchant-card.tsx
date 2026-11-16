@@ -27,6 +27,7 @@ import { MerchantAlertFlag } from "./merchant-alert-flag";
 import { LastActorBadge } from "./last-actor-badge";
 import type { LastActor } from "@/hooks/use-last-actors";
 import { listChurnRisk } from "@/lib/merchant-health";
+import { formatCount } from "@/lib/format";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -40,12 +41,6 @@ interface MerchantCardProps {
   onOpenDetail?: (id: string) => void;
   onOpenPanel?: (id: string) => void;
   onToggleStar?: (id: string) => void;
-}
-
-function formatCompactIQD(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
-  return String(amount);
 }
 
 function timeAgo(dateStr: string): { text: string; color: string } {
@@ -294,7 +289,7 @@ export function MerchantCard({
               Balance
             </p>
             <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
-              {formatCompactIQD(balance)}
+              {formatCount(balance)}
               <span className="text-[10px] font-bold text-foreground/40 ml-1">
                 IQD
               </span>
@@ -309,7 +304,7 @@ export function MerchantCard({
               Our fees, 30 days
             </p>
             <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
-              {formatCompactIQD(fees30d)}
+              {formatCount(fees30d)}
               <span className="text-[10px] font-bold text-foreground/40 ml-1">
                 IQD
               </span>
@@ -345,7 +340,7 @@ export function MerchantCard({
           </span>
           <span className="w-0.5 h-0.5 rounded-full bg-foreground/20" />
           <span className="text-[11px] font-black text-foreground tabular-nums truncate">
-            {formatCompactIQD(feesToday)}
+            {formatCount(feesToday)}
             <span className="text-[9px] font-bold text-foreground/45 ml-0.5">IQD fees</span>
           </span>
         </div>

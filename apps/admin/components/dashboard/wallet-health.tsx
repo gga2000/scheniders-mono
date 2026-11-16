@@ -3,14 +3,12 @@
 import { Wallet, AlertTriangle } from "lucide-react";
 import { Sparkline } from "@/components/shared/sparkline";
 import type { WalletHealthData } from "@/types/dashboard";
+import { formatIQD } from "@/lib/format";
 
 interface WalletHealthProps {
   health: WalletHealthData | undefined;
 }
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(Math.round(amount)) + " IQD";
-}
 
 function SkeletonContent() {
   return (

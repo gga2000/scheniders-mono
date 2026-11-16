@@ -5,14 +5,9 @@ import { BarChart3, ShoppingBag, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { usageMonthNow } from "@/lib/usage-month";
+import { formatCount, formatIQD } from "@/lib/format";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-
-function compact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`;
-  return String(n);
-}
 
 interface UsageTabProps {
   usage: MerchantDetail["usage"];
@@ -74,7 +69,7 @@ export function UsageTab({ usage }: UsageTabProps) {
               Orders
             </p>
             <p className="text-2xl font-black tabular-nums leading-none mt-1.5 text-sky-900 dark:text-sky-200 tracking-tight">
-              {compact(totals.orders)}
+              {formatCount(totals.orders)}
             </p>
           </div>
           <div>
@@ -83,7 +78,7 @@ export function UsageTab({ usage }: UsageTabProps) {
               Charged
             </p>
             <p className="text-2xl font-black tabular-nums leading-none mt-1.5 text-amber-700 dark:text-amber-300 tracking-tight">
-              {compact(totals.charged)}
+              {formatIQD(totals.charged)}
             </p>
           </div>
         </div>

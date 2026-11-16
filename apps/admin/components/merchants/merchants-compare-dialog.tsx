@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminTenant } from "@/types/admin";
+import { formatCount } from "@/lib/format";
 
 interface MerchantsCompareDialogProps {
   open: boolean;
@@ -39,13 +40,6 @@ const PLAN_GRADIENTS: Record<string, string> = {
   starter: "from-sky-400 to-cyan-500 shadow-sky-500/30",
   internal: "from-slate-400 to-slate-500 shadow-slate-500/30",
 };
-
-function fmtCompactIQD(amount: number): string {
-  if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(1)}B`;
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(1)}K`;
-  return String(amount);
-}
 
 function daysSince(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
@@ -87,7 +81,7 @@ export function MerchantsCompareDialog({
         label: "Balance",
         icon: Wallet,
         values: merchants.map((m) => m.wallet?.balance_iqd ?? 0),
-        format: (n) => fmtCompactIQD(n),
+        format: formatCount,
         suffix: "IQD",
         bestIs: "high",
       },
@@ -97,7 +91,7 @@ export function MerchantsCompareDialog({
         label: "Our fees, 30 days",
         icon: TrendingUp,
         values: merchants.map((m) => m.fees_30d),
-        format: (n) => fmtCompactIQD(n),
+        format: formatCount,
         suffix: "IQD",
         bestIs: "high",
       },

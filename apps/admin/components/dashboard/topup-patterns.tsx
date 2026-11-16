@@ -11,14 +11,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { TopUpPattern } from "@/types/dashboard";
+import { formatIQD } from "@/lib/format";
 
 interface TopUpPatternsProps {
   patterns: TopUpPattern[] | undefined;
 }
 
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount) + " IQD";
-}
 
 const CustomTooltip = ({
   active,

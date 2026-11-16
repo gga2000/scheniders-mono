@@ -5,10 +5,8 @@ import { ExternalLink, Pin } from "lucide-react";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { SupportShopCheck } from "@/components/support/support-shop-check";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
+import { formatIQD } from "@/lib/format";
 
-function formatIQD(amount: number): string {
-  return `${new Intl.NumberFormat("en-IQ").format(Math.round(amount))} IQD`;
-}
 
 function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });

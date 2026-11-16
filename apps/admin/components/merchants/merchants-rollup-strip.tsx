@@ -8,15 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
-
-function formatCompactIQD(amount: number): string {
-  const abs = Math.abs(amount);
-  const sign = amount < 0 ? "-" : "";
-  if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(0)}K`;
-  return `${sign}${abs}`;
-}
+import { formatCount } from "@/lib/format";
 
 export function MerchantsRollupStrip() {
   // No numbers until they are read: a zero here would pass for a real total.
@@ -40,7 +32,7 @@ export function MerchantsRollupStrip() {
     {
       label: "Total Wallet",
       sublabel: "active + trial only",
-      value: !data ? "—" : formatCompactIQD(totalWallet),
+      value: !data ? "—" : formatCount(totalWallet),
       suffix: "IQD",
       icon: Wallet,
       accent: "text-emerald-700 dark:text-emerald-300",
@@ -51,7 +43,7 @@ export function MerchantsRollupStrip() {
       // A promise, not money in: what the active shops' plans cost a month at list price.
       label: "Plan prices",
       sublabel: "active shops, a month",
-      value: !data ? "—" : formatCompactIQD(planPrices),
+      value: !data ? "—" : formatCount(planPrices),
       suffix: "IQD",
       icon: Repeat,
       accent: "text-violet-700 dark:text-violet-300",
@@ -62,7 +54,7 @@ export function MerchantsRollupStrip() {
       // Money in: monthly fees, delivered orders and paid messages.
       label: "Our fees",
       sublabel: "last 30 days",
-      value: !data ? "—" : formatCompactIQD(fees30d),
+      value: !data ? "—" : formatCount(fees30d),
       suffix: "IQD",
       icon: ShoppingBag,
       accent: "text-rose-700 dark:text-rose-300",

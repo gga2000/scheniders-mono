@@ -15,16 +15,7 @@ import {
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LockedChip } from "./locked-chip";
 import { healthChipClass } from "@/lib/merchant-health";
-
-function formatIQD(amount: number): string {
-  return new Intl.NumberFormat("en-IQ").format(amount);
-}
-
-function formatCompactIQD(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
-  return String(amount);
-}
+import { formatCount, formatIQD } from "@/lib/format";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -308,17 +299,17 @@ export function MerchantSheetView({
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center justify-end border-r border-[var(--card-border)]/30">
                   <span className="font-black tabular-nums text-foreground text-[12px]">
-                    {formatCompactIQD(m.wallet?.balance_iqd ?? 0)}
+                    {formatCount(m.wallet?.balance_iqd ?? 0)}
                     <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
                   </span>
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center justify-end text-foreground/55 tabular-nums font-bold border-r border-[var(--card-border)]/30">
-                  {formatCompactIQD(m.wallet?.total_charged_iqd ?? 0)}
+                  {formatIQD(m.wallet?.total_charged_iqd ?? 0)}
                 </div>
 
                 <div className="min-w-[120px] shrink-0 px-2 flex items-center justify-end text-foreground/55 tabular-nums font-bold border-r border-[var(--card-border)]/30">
-                  {formatCompactIQD(m.wallet?.total_topped_up_iqd ?? 0)}
+                  {formatIQD(m.wallet?.total_topped_up_iqd ?? 0)}
                 </div>
 
                 <div className="w-20 shrink-0 px-2 flex items-center justify-end font-black tabular-nums text-foreground border-r border-[var(--card-border)]/30">
@@ -342,7 +333,7 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="min-w-[120px] shrink-0 px-2 flex items-center justify-end tabular-nums text-foreground/85 font-black border-r border-[var(--card-border)]/30">
-                  {formatCompactIQD(m.fees_30d)}
+                  {formatCount(m.fees_30d)}
                   <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
                 </div>
 
