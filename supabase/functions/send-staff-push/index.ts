@@ -1,12 +1,15 @@
 // supabase/functions/send-staff-push/index.ts
 //
-// Web-push sender for the staff console: "a merchant wrote to support".
-//
-// Invoked by the `trg_support_notify_staff` trigger on `public.support_messages`
-// (merchant messages only) with an `Authorization: Bearer <EDGE_PUSH_SECRET>`
-// header. The trigger has already picked the recipients (active staff with at
-// least one device in `admin_push_subscriptions`); this function only builds
-// the message, delivers it and drops subscriptions the browser threw away.
+// Web-push sender for the staff console. Two messages:
+//   - "a merchant wrote to support": from the `trg_support_notify_staff`
+//     trigger on `public.support_messages` (merchant messages only);
+//   - "a merchant has waited past 5 minutes" (kind "late"): from
+//     `public.support_alert_late()`, run every minute by pg_cron, to the
+//     supervisor.
+// Both call with an `Authorization: Bearer <EDGE_PUSH_SECRET>` header and have
+// already picked the recipients (staff with at least one device in
+// `admin_push_subscriptions`); this function only builds the message, delivers
+// it and drops subscriptions the browser threw away.
 //
 // Uses the same VAPID keys as `send-order-push`. Inert until they are set.
 
@@ -33,10 +36,12 @@ const json = (body: unknown, status = 200): Response =>
     });
 
 interface StaffPushPayload {
+    kind: "new" | "late";
     caseId: string;
     shop: string;
     sender: string;
     preview: string;
+    waitedMin: number;
     recipients: string[];
 }
 
@@ -50,11 +55,28 @@ function parse(raw: unknown): StaffPushPayload | null {
     const recipients = Array.isArray(r.recipients)
         ? r.recipients.filter((id): id is string => typeof id === "string" && UUID_RE.test(id))
         : [];
-    return { caseId, shop: str(r.shop), sender: str(r.sender), preview: str(r.preview), recipients };
+    const waited = typeof r.waited_min === "number" && Number.isFinite(r.waited_min) ? Math.max(0, Math.floor(r.waited_min)) : 0;
+    return {
+        kind: r.kind === "late" ? "late" : "new",
+        caseId,
+        shop: str(r.shop),
+        sender: str(r.sender),
+        preview: str(r.preview),
+        waitedMin: waited,
+        recipients,
+    };
 }
 
 /** Staff console copy is English, like the rest of the console. */
 function compose(p: StaffPushPayload): string {
+    if (p.kind === "late") {
+        return JSON.stringify({
+            title: `No reply for ${p.waitedMin} min${p.shop ? ` · ${p.shop}` : ""}`,
+            body: [p.sender, p.preview].filter(Boolean).join(": ") || "A merchant is still waiting for a reply.",
+            url: `/support?case=${p.caseId}`,
+            tag: `support-late:${p.caseId}`,
+        });
+    }
     return JSON.stringify({
         title: p.shop ? `Support · ${p.shop}` : "Support · new message",
         body: [p.sender, p.preview].filter(Boolean).join(": ") || "A merchant is waiting for a reply.",

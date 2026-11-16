@@ -23,6 +23,7 @@ import { useSupportStore } from "@/store/use-support-store";
 import { useOrderStore } from "@/store/use-order-store";
 import { SupportRequestError, useSupportAction, useSupportMarkRead, useSupportShot, useSupportThread } from "@/hooks/use-support";
 import { useLanguage } from "@/components/providers/language-provider";
+import { SupportHoursLine } from "@/components/support/support-hours-line";
 import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
 import type { SupportMessage } from "@/lib/support/schema";
@@ -220,7 +221,7 @@ export function SupportSheet() {
                             </span>
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-foreground">{t("support.title")}</p>
-                                <p className="text-xs text-muted">{t("support.subtitle")}</p>
+                                <SupportHoursLine />
                             </div>
                             <button
                                 type="button"
@@ -246,6 +247,7 @@ export function SupportSheet() {
                                     </span>
                                     <p className="text-base font-bold text-foreground">{t("support.empty.title")}</p>
                                     <p dir="auto" className="text-sm leading-relaxed text-muted">{t("support.empty.body")}</p>
+                                    <p dir="auto" className="text-xs text-muted">{t("support.hours.days")}</p>
                                 </div>
                             ) : (
                                 messages.map((message) => <MessageLine key={message.id} message={message} />)

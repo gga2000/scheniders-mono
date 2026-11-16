@@ -68,7 +68,7 @@ A new merchant message pings support staff on their phone or computer.
 - `admin_push_subscriptions`: one row per device. Server-only like the support tables (RLS on, no policies, no browser grants).
 - Trigger `trg_support_notify_staff` on `support_messages` (merchant messages only) queues a call to the `send-staff-push` edge function with the shop name and a 140-character preview. Recipients: every active staff member with a device. A push failure never blocks the merchant's message.
 - `send-staff-push` signs with the same VAPID keys as the merchant push, collapses alerts per conversation (one notification per case, rings again on each message) and drops subscriptions the push service has thrown away (404/410). Tapping the alert opens `/support?case=<id>`.
-- Waiting on Ali's hours answer: moving an unanswered alert to a supervisor after the promised reply time.
+- Moving an unanswered alert to a supervisor after the promised reply time: built, see Support hours.
 
 ## Wave 2: saved replies the team edits
 
@@ -78,7 +78,7 @@ A new merchant message pings support staff on their phone or computer.
 
 ## Wave 2: scoreboard and shop check
 
-- **Scoreboard** tab on `/support` (7 or 30 days): waiting now, conversations, typical first reply and the slowest 1 in 10, share answered within 5 minutes, typical time to solve, merchant yes/no, reasons, team table. One SQL function, `support_scoreboard`; demo store left out; clock time until support hours are decided.
+- **Scoreboard** tab on `/support` (7 or 30 days): waiting now, conversations, typical first reply and the slowest 1 in 10, share answered within 5 minutes, typical time to solve, merchant yes/no, reasons, team table. One SQL function, `support_scoreboard`; demo store left out; first reply counts support hours (see Support hours).
 - **Check this shop** button on the shop card beside a conversation. `support_shop_check` gathers store state (paused, payment lock, trial), real orders, products on the store and stock, wallet, WhatsApp (paused, 7-day sends), Al-Waseet calls, the Prime link, and errors merchants sent with their messages. The console marks each line fine, worth a look, broken or not in use, and links to where staff fix it (merchant page, WhatsApp page, the shop's Sentry issues). No fix buttons yet: each fix changes a shop, so it stays on the pages that already log it.
 
 ## Wave 2: picture of the screen
@@ -87,3 +87,13 @@ A new merchant message pings support staff on their phone or computer.
 - `POST /api/support/shot` stores it in the private bucket `support-shots` as `<tenant_id>/<uuid>.jpg` (JPEG only, 1.5 MB, 10 per shop per 10 minutes). The next message carries the path in `context.screenshot`; the send route refuses a path outside the caller's shop folder.
 - Merchant and staff see it through signed links (1 hour in the chat, 15 minutes in the console). No storage policy opens the bucket: screens can show customer names and phones.
 - Not yet: deleting old pictures, and pictures that were taken but never sent.
+
+## Support hours and the late alert (Ali, 2026-11-16: option A)
+
+- **Promise:** every day 9 AM to 12 AM Baghdad time, first reply within 5 minutes. Iraq has no daylight saving, so it is plain wall clock. One rule in two places: `packages/shared/src/support-hours.ts` for the apps and `public.support_clock_start()` in the database.
+- **Merchant chat:** under the title, «متصلون الآن · نرد خلال 5 دقائق» with a green dot, or «مغلق الآن · نرد عليك من الساعة 9 صباحاً» at night. The empty chat also shows the days and hours.
+- **Clock:** a message inside hours starts the 5 minutes at once; a message between midnight and 9 AM starts them at 9 AM.
+- **Late alert:** `support_alert_late()` runs every minute (pg_cron job `support-late-alert`). Once per wait, it pings the supervisor's phone when a merchant has waited 5 minutes of support hours: «No reply for N min · shop». The supervisor is every active super admin with alerts on; if none has a phone, every support person with one hears it. It is quiet at night and never alerts for the demo store. When no phone has alerts on, nothing is marked, so the first phone that turns them on still hears about the waiting merchants.
+- **Inbox:** the wait chip turns amber when the 5-minute promise is broken and red after 15, both counted in support hours.
+- **Scoreboard:** first reply time and "answered within 5 min" count from the clock start, so a 3 AM message answered at 9:03 is a 3-minute reply. Time to solve stays clock time.
+

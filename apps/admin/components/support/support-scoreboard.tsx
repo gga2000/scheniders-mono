@@ -121,8 +121,8 @@ function Board({ board }: { board: SupportScoreboard }) {
       </div>
 
       <p className="text-xs text-foreground/40">
-        Counts conversations opened in the last {board.days} days. Times are clock time, nights included. The demo store
-        is left out.
+        Counts conversations opened in the last {board.days} days. First reply counts support hours, 9 AM to 12 AM
+        Baghdad: a message sent at night starts at 9 AM. Time to solve is clock time. The demo store is left out.
       </p>
     </div>
   );

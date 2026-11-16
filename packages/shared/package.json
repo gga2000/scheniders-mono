@@ -22,7 +22,8 @@
     "./sentry-scrub": "./src/sentry-scrub.ts",
     "./whatsapp-templates": "./src/whatsapp-templates.ts",
     "./store-address": "./src/store-address.ts",
-    "./plans": "./src/plans.ts"
+    "./plans": "./src/plans.ts",
+    "./support-hours": "./src/support-hours.ts"
   },
   "scripts": {
     "test": "vitest run"
