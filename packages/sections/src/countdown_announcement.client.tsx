@@ -3,12 +3,9 @@
 // =====================================================================
 // Slim dark countdown bar for the promo_bar slot: flame glyph + short
 // label + ticking HH:MM:SS digits in small rounded boxes with tiny unit
-// labels beneath. Three modes:
-//   - "daily_reset"       — evergreen; counts down to the next LOCAL
-//     midnight and restarts every day (never expires).
-//   - "fixed_end"         — counts down to an explicit ISO datetime,
-//     clamping at 00:00:00 once it passes.
-//   - "evergreen_minutes" — loops on a fixed wall-clock cycle.
+// labels beneath. The clock counts to the end time the merchant set and the
+// bar is gone once it passes; modes that restart on their own draw no clock
+// (helpers/countdown.ts).
 // Hydration-safe: the server and the first client render both show
 // "--" placeholders; the real clock only starts ticking after mount, so
 // SSR and hydration always agree regardless of server/client timezone
@@ -26,7 +23,12 @@ import type { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import type { SectionRenderContext } from "./_types";
 import type { barBg, Props } from "./countdown_announcement";
-import { computeCountdown, type CountdownTick } from "./helpers/countdown";
+import {
+  countdownDraws,
+  countdownRemainingMs,
+  splitCountdown,
+  type CountdownTick,
+} from "./helpers/countdown";
 
 /** Band colour + its contrast text read the brand-kit tokens so the bar
  *  stays on-palette (no hardcoded white). */
@@ -71,27 +73,45 @@ export function CountdownAnnouncement({
   const t = locale !== "en";
   const label = resolveI18n(props.label_i18n, locale);
 
+  // A clock is drawn only for a real deadline: the end time the merchant
+  // set, or a stored loop the merchant explicitly kept (`evergreen_clock`).
+  // A midnight reset, a loop without the opt-in, or no date at all leave a
+  // plain bar: the label stays, no clock.
+  const keepLoop = props.evergreen_clock === true;
+  const honest = countdownDraws(props.mode, props.ends_at, keepLoop);
+  const isFixed = props.mode === "fixed_end";
+
   // `null` until mounted: the server and the hydrating client both render
   // "--" so the digits never mismatch; the interval fills real values.
-  // "evergreen_minutes" is a clock that restarts for every visitor — a
-  // deadline nobody set, which the audit called fake scarcity. The enum
-  // value stays (a stored config must keep parsing, or the whole bar is
-  // silently dropped), but it no longer draws a clock: the announcement
-  // renders as a plain bar. A real deadline is "fixed_end" with a date —
-  // unless the merchant explicitly opts back in with `evergreen_clock`.
-  const honest = props.mode !== "evergreen_minutes" || props.evergreen_clock === true;
-
   const [tick, setTick] = useState<CountdownTick | null>(null);
+  // The offer's end time has passed (server time first, then the live clock).
+  const [ended, setEnded] = useState(
+    () =>
+      honest &&
+      isFixed &&
+      countdownRemainingMs(props.mode, props.ends_at, props.duration_minutes, ctx.runtime.now, keepLoop) === 0,
+  );
   useEffect(() => {
     if (!honest) return;
-    const update = () =>
-      setTick(
-        computeCountdown(props.mode, props.ends_at, props.duration_minutes, new Date()),
+    const update = () => {
+      const ms = countdownRemainingMs(
+        props.mode,
+        props.ends_at,
+        props.duration_minutes,
+        new Date(),
+        keepLoop,
       );
+      if (ms === null) return;
+      setTick(splitCountdown(ms));
+      if (isFixed && ms === 0) setEnded(true);
+    };
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [honest, props.mode, props.ends_at, props.duration_minutes]);
+  }, [honest, isFixed, keepLoop, props.mode, props.ends_at, props.duration_minutes]);
+
+  // The offer is over: the bar announced it, so the bar goes with it.
+  if (ended) return null;
 
   // The document is LTR in every locale (platform invariant), so the row
   // must read hours → minutes → seconds left to right.

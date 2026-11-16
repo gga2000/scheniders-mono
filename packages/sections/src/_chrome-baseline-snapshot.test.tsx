@@ -159,9 +159,14 @@ describe("sticky_cta_bar baseline", () => {
 });
 
 describe("countdown_announcement baseline", () => {
+  // The bar draws a clock only for a real end time (B6); with one set, the
+  // clock markup must stay byte-identical to the frozen baseline. A new bar
+  // without a date is a plain bar (_countdown-honesty.test.tsx).
+  const withEnd = { ...countdown_announcement.defaultProps, ends_at: "2099-01-01T00:00:00Z" };
+
   it("defaults", () => {
     expect(
-      render(countdown_announcement, countdown_announcement.defaultProps, saleProduct),
+      render(countdown_announcement, withEnd, saleProduct),
     ).toMatchSnapshot();
   });
 
@@ -169,7 +174,7 @@ describe("countdown_announcement baseline", () => {
     expect(
       render(
         countdown_announcement,
-        { ...countdown_announcement.defaultProps, bg: "ink", show_flame: false },
+        { ...withEnd, bg: "ink", show_flame: false },
         saleProduct,
         { runtime: { ...productRuntime, locale: "en" } },
       ),
