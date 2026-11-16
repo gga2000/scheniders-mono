@@ -8,10 +8,9 @@ import type { PrimeBoardList, PrimeNeedReason } from "@/lib/prime/board";
 import { primeChipState } from "@/lib/prime/chip-state";
 import { primeReasonNote, primeTrack } from "@/lib/prime/track";
 import { primeReasonText, primeWhen } from "@/lib/prime/when";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { PrimeParcelPanel, type PrimePanelFocus } from "@/components/orders/card/prime-parcel-panel";
 
-const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 const REASON_CHIP: Record<PrimeNeedReason, string> = {
     stuck: "bg-[#FEF3E2] text-[#8A4B00] dark:bg-amber-400/15 dark:text-amber-200",
@@ -97,7 +96,7 @@ export function PrimeParcelList({
                                         </span>
                                     ) : (
                                         <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-muted">
-                                            IQD {amount.format(view.receiptAmountIqd ?? 0)} · #{view.caseId}
+                                            {formatIQD(view.receiptAmountIqd ?? 0)} · #{view.caseId}
                                         </span>
                                     )}
                                     {chip.canResend ? (

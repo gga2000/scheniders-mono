@@ -98,7 +98,7 @@ describe("Prime lines in the feed", () => {
             notice("prime.daily", { delivered: 37, returning: 6, collected: 1_361_250 }),
         ];
         show(items);
-        expect(screen.getByText(/وصلت دفعة من برايم: .*1,284,250 · 39 مطابق · 1 مختلف/)).toBeTruthy();
+        expect(screen.getByText(/وصلت دفعة من برايم: .*1,284,250 د.ع · 39 مطابق · 1 مختلف/)).toBeTruthy();
         expect(screen.getByText(/يومك مع برايم: سُلّم 37 · راجع 6 · حُصّل .*1,361,250/)).toBeTruthy();
 
         cleanup();

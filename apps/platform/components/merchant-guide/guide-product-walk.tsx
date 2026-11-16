@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ImageIcon } from "lucide-react";
-import { formatIQD } from "@scheniders/shared";
+import { formatIQD } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { PRODUCT_WALK, productWalkFilled, type ProductWalkDraft } from "@/lib/merchant-guide/product-walk";
 import { cn } from "@/lib/utils";

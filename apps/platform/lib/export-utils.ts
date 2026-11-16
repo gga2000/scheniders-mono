@@ -277,7 +277,7 @@ export function generatePrintableReport(
         </div>
         ${includeFinancials ? `<div class="summary-card">
             <h3>${escapeHtml(t("products.export.report.totalRevenue"))}</h3>
-            <p>${formatIQD(totalRevenue)}</p>
+            <p>${formatIQD(totalRevenue, "en")}</p>
         </div>` : ""}
     </div>
     
@@ -300,10 +300,10 @@ export function generatePrintableReport(
                 <tr>
                     <td>${index + 1}</td>
                     <td><strong>${escapeHtml(product.name)}</strong></td>
-                    <td class="text-right">${formatIQD(product.price)}</td>
+                    <td class="text-right">${formatIQD(product.price, "en")}</td>
                     <td class="text-right">${product.stock_quantity}</td>
                     <td class="text-right">${product.times_sold || 0}</td>
-                    ${includeFinancials ? `<td class="text-right">${formatIQD(product.total_revenue || 0)}</td>` : ""}
+                    ${includeFinancials ? `<td class="text-right">${formatIQD(product.total_revenue || 0, "en")}</td>` : ""}
                     <td class="${product.is_archived ? "status-archived" : "status-active"}">
                         ${escapeHtml(product.is_archived ? t("products.export.status.archived") : t("products.export.status.active"))}
                     </td>

@@ -1,9 +1,9 @@
 // Re-export shared utilities
-import { formatIQD } from "@scheniders/shared";
+import { formatIQD as formatIQDFor } from "@scheniders/shared";
 import type { Locale } from "@/lib/i18n";
 import { getOrderStatusLabel } from "@/lib/order-status-labels";
 import { mergeOrderItems } from "@/lib/merge-order-items";
-export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
+export { cn, formatIQDArabic } from "@scheniders/shared";
 
 const COUNT_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
@@ -11,6 +11,29 @@ const COUNT_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }
  * language ("1,250"), never the browser's own locale digits. */
 export function formatCount(value: number): string {
     return COUNT_FORMAT.format(value);
+}
+
+// The language money is written in on screen. LanguageProvider sets it as it
+// renders, before its children, so every screen formats money in the page's
+// language without passing it through each of the ~300 call sites.
+let moneyLanguage: Locale = "ar";
+
+/** Called by LanguageProvider on every render with the page's language. */
+export function setMoneyLanguage(locale: Locale): void {
+    moneyLanguage = locale;
+}
+
+/**
+ * An IQD amount as the page's language writes it, in whole dinars:
+ * «1,250,000 د.ع» in Arabic (the minus a true minus), "IQD 1,250,000" in
+ * English. Screens once wrote it three ways (round 8 board, V1).
+ * Print and export paths pass "en": the PDF has no Arabic font, and the
+ * courier files and exports stay as they were.
+ */
+export function formatIQD(amount: number, locale: Locale = moneyLanguage): string {
+    if (locale === "en") return formatIQDFor(amount, "en-IQ");
+    const whole = Math.round(amount);
+    return `${whole < 0 ? "\u2212" : ""}${formatCount(Math.abs(whole))} د.ع`;
 }
 
 const CHANGE_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });

@@ -9,11 +9,10 @@ import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { usePrimeRowSets, usePrimeShipments } from "@/hooks/use-prime-shipments";
 import { computeCodAmount } from "@/lib/order-money";
 import { primeLastChecked, type PrimeRowFilter } from "@/lib/prime/track";
-import { cn } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { useOrderStore } from "@/store/use-order-store";
 import type { OrderFilters } from "@/types/order";
 
-const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 const CHIPS: { filter: PrimeRowFilter; key: string; tone: "blue" | "amber" | "red" }[] = [
     { filter: "on_way", key: "orders.prime.row.onWay", tone: "blue" },
@@ -165,7 +164,7 @@ function PrimeTransitRowFor() {
             <span className="mx-1 h-5 w-px bg-[#DCE4F2] dark:bg-white/10" aria-hidden="true" />
             <span className="inline-flex items-baseline gap-1.5 text-[13px] text-[#4A4A4A] dark:text-white/70" title={t("orders.prime.row.cashTip")}>
                 {t("orders.prime.row.cash")}
-                <b className="font-mono text-sm font-bold tabular-nums text-foreground">IQD {amount.format(cash)}</b>
+                <b className="font-mono text-sm font-bold tabular-nums text-foreground">{formatIQD(cash)}</b>
             </span>
             {minutesAgo !== null && (
                 <span className="text-xs text-[#6B6B6B] dark:text-white/50" title={t("orders.prime.row.checkedTip")}>
