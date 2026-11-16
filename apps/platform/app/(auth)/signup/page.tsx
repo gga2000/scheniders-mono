@@ -34,6 +34,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { BUSINESS_TYPES, isBusinessTypeId, type BusinessTypeId } from "@/lib/business-types";
 import { supabase } from "@/lib/supabase";
 import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
+import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/signup-phone-check";
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 
@@ -76,6 +77,9 @@ function SignupForm() {
     /** The address the confirm link went to; the form is replaced by "check your email". */
     const [sentTo, setSentTo] = useState<string | null>(null);
     const captcha = useAuthCaptcha();
+    // While the console's switch is on, the owner proves their WhatsApp number with a code (B11).
+    const phoneCode = useSignupPhoneCodeSwitch();
+    const [phoneProof, setPhoneProof] = useState<string | null>(null);
     // The store's address, offered from its name and the merchant's to change (B11).
     const storeAddress = useStoreAddress(businessName);
 
@@ -114,7 +118,8 @@ function SignupForm() {
         email.length > 0 &&
         password.length >= 8 &&
         businessName.trim().length > 0 &&
-        storeAddressSendable(storeAddress.state);
+        storeAddressSendable(storeAddress.state) &&
+        (phoneCode.on !== true || phoneProof !== null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -135,6 +140,7 @@ function SignupForm() {
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
                     captcha_token: captcha.token,
+                    phone_proof: phoneCode.on === true ? (phoneProof ?? undefined) : undefined,
                 }),
             });
 
@@ -146,6 +152,14 @@ function SignupForm() {
                 if (data.code === "slug_taken") {
                     // Shown at the address field, with a free one to take.
                     storeAddress.markTaken(storeAddress.slug, typeof data.suggestion === "string" ? data.suggestion : null);
+                    setIsLoading(false);
+                    return;
+                }
+                if (data.code === "phone_unverified") {
+                    // The proof ran out or the switch was turned on while the page was open.
+                    setPhoneProof(null);
+                    phoneCode.markOn();
+                    setError(t("signup.code.again"));
                     setIsLoading(false);
                     return;
                 }
@@ -181,6 +195,24 @@ function SignupForm() {
             setIsLoading(false);
         }
     };
+
+    const cityField = (
+        <div>
+            <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.city")}</label>
+            <div className="relative group">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <MapPin className="w-4 h-4 text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
+                </div>
+                <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder={t("signup.cityPlaceholder")}
+                    className="w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                />
+            </div>
+        </div>
+    );
 
     return (
         <div className="px-6 sm:px-8 pt-3 pb-8">
@@ -354,38 +386,39 @@ function SignupForm() {
                     </motion.div>
 
                     {/* Phone + City row */}
-                    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.phone")}</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                    <Phone className="w-4 h-4 text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
+                    {phoneCode.on === true ? (
+                        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="space-y-4">
+                            <SignupPhoneCheck
+                                phone={contactPhone}
+                                onPhoneChange={setContactPhone}
+                                proof={phoneProof}
+                                onProof={setPhoneProof}
+                                captcha={captcha}
+                                t={t}
+                                dir={dir}
+                            />
+                            {cityField}
+                        </motion.div>
+                    ) : (
+                        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.phone")}</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <Phone className="w-4 h-4 text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
+                                    </div>
+                                    <input
+                                        type="tel"
+                                        value={contactPhone}
+                                        onChange={(e) => setContactPhone(e.target.value)}
+                                        placeholder="07XXXXXXXX"
+                                        className="w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                                    />
                                 </div>
-                                <input
-                                    type="tel"
-                                    value={contactPhone}
-                                    onChange={(e) => setContactPhone(e.target.value)}
-                                    placeholder="07XXXXXXXX"
-                                    className="w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
-                                />
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-[13px] font-medium text-[#1E1E1E] mb-2">{t("signup.city")}</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                    <MapPin className="w-4 h-4 text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={city}
-                                    onChange={(e) => setCity(e.target.value)}
-                                    placeholder={t("signup.cityPlaceholder")}
-                                    className="w-full h-12 pl-10 pr-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
-                                />
-                            </div>
-                        </div>
-                    </motion.div>
+                            {cityField}
+                        </motion.div>
+                    )}
 
                     <AuthCaptcha captcha={captcha} />
 

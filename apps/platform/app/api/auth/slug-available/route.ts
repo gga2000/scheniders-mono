@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isSlugFree, suggestFreeSlug } from "@/lib/tenant";
 import { normalizeSlug, slugRejection } from "@/lib/tenant-slug";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { requestIp } from "@/lib/request-ip";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { withFailureReport } from "@/lib/job-monitor";
 
@@ -24,14 +25,9 @@ export const dynamic = "force-dynamic";
 const CHECK_LIMIT = 120;
 const CHECK_WINDOW_SECONDS = 10 * 60;
 
-function clientIp(request: NextRequest): string {
-    const real = request.headers.get("x-real-ip");
-    if (real) return real.trim();
-    return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-}
 
 async function handleGET(request: NextRequest): Promise<NextResponse> {
-    const limit = await consumeRateLimit(`slug-check:${clientIp(request)}`, CHECK_LIMIT, CHECK_WINDOW_SECONDS);
+    const limit = await consumeRateLimit(`slug-check:${requestIp(request)}`, CHECK_LIMIT, CHECK_WINDOW_SECONDS);
     if (limit.error) {
         // Fails open, like signup itself, but never silently.
         reportOrderError(new Error(`Rate limiter unavailable: ${limit.error}`), { operation: "slug-check-rate-limit" });

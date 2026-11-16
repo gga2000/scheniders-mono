@@ -51,6 +51,26 @@ vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
 vi.mock("@/lib/turnstile", () => ({
     verifyTurnstile: (...args: unknown[]) => verifyTurnstile(...args),
 }));
+const phoneCode = vi.hoisted(() => ({
+    settings: { phone_code: false, welcome: false, welcome_video_url: null as string | null },
+    spend: vi.fn(),
+    release: vi.fn(),
+    link: vi.fn(),
+    welcome: vi.fn(),
+    later: [] as (() => unknown)[],
+}));
+vi.mock("@/lib/signup-phone-code", () => ({
+    loadSignupWhatsApp: async () => phoneCode.settings,
+    spendSignupProof: (...args: unknown[]) => phoneCode.spend(...args),
+    releaseSignupProof: (...args: unknown[]) => phoneCode.release(...args),
+    linkSignupProof: (...args: unknown[]) => phoneCode.link(...args),
+    sendSignupWelcome: (...args: unknown[]) => phoneCode.welcome(...args),
+}));
+vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN: "scheniders.com" } }));
+vi.mock("next/server", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("next/server")>()),
+    after: (task: () => unknown) => phoneCode.later.push(task),
+}));
 
 import { NextRequest } from "next/server";
 import { POST } from "./route";
@@ -77,6 +97,9 @@ describe("POST /api/auth/signup", () => {
         verifyTurnstile.mockResolvedValue({ ok: true, skipped: false });
         slugFree.mockResolvedValue(true);
         freeSuggestion.mockResolvedValue("noor-2");
+        phoneCode.settings = { phone_code: false, welcome: false, welcome_video_url: null };
+        phoneCode.spend.mockResolvedValue(true);
+        phoneCode.later.length = 0;
     });
 
     it("ignores a plan sent in the body: the server picks the trial plan", async () => {
@@ -234,5 +257,69 @@ describe("POST /api/auth/signup", () => {
         expect((await res.json()).code).toBe("slug_taken");
         const slugsTried = tableInserts.filter((i) => i.table === "tenants").map((i) => i.row.slug);
         expect(slugsTried).toEqual(["noor"]);
+    });
+
+    describe("the owner's WhatsApp number, proven by a code (B11)", () => {
+        const PROOF = "c0000000-0000-4000-8000-000000000002";
+
+        it("while the switch is off, keeps the number as typed and checks nothing", async () => {
+            const res = await POST(request({ ...base, contact_phone: "0770 123 4567" }));
+            expect(res.status).toBe(201);
+            const tenant = tableInserts.find((i) => i.table === "tenants");
+            expect(tenant?.row).toMatchObject({ contact_phone: "0770 123 4567", contact_phone_verified_at: null });
+            expect(phoneCode.spend).not.toHaveBeenCalled();
+            expect(phoneCode.later).toHaveLength(0);
+        });
+
+        it("while it is on, makes no account without a proven number", async () => {
+            phoneCode.settings = { phone_code: true, welcome: false, welcome_video_url: null };
+            for (const body of [{ ...base }, { ...base, contact_phone: "07701234567" }, { ...base, contact_phone: "123", phone_proof: PROOF }]) {
+                const res = await POST(request(body));
+                expect(res.status).toBe(422);
+                expect((await res.json()).code).toBe("phone_unverified");
+            }
+            phoneCode.spend.mockResolvedValue(false);
+            const res = await POST(request({ ...base, contact_phone: "07701234567", phone_proof: PROOF }));
+            expect(res.status).toBe(422);
+            expect(createUser).not.toHaveBeenCalled();
+        });
+
+        it("spends the proof for the number in its plain form, and stores it as proven", async () => {
+            phoneCode.settings = { phone_code: true, welcome: false, welcome_video_url: null };
+            const res = await POST(request({ ...base, contact_phone: "+964 770 123 4567", phone_proof: PROOF }));
+            expect(res.status).toBe(201);
+            expect(phoneCode.spend).toHaveBeenCalledWith(expect.anything(), PROOF, "07701234567");
+            const tenant = tableInserts.find((i) => i.table === "tenants");
+            expect(tenant?.row.contact_phone).toBe("07701234567");
+            expect(typeof tenant?.row.contact_phone_verified_at).toBe("string");
+            expect(phoneCode.link).toHaveBeenCalledWith(expect.anything(), PROOF, "tenant-1");
+            expect(phoneCode.release).not.toHaveBeenCalled();
+            expect(phoneCode.later).toHaveLength(0);
+        });
+
+        it("gives the proof back when the store is not made", async () => {
+            phoneCode.settings = { phone_code: true, welcome: false, welcome_video_url: null };
+            tenantResults.push({ data: null, error: { code: "XX000", message: "boom" } });
+            const res = await POST(request({ ...base, contact_phone: "07701234567", phone_proof: PROOF }));
+            expect(res.status).toBe(500);
+            expect(phoneCode.release).toHaveBeenCalledWith(expect.anything(), PROOF);
+        });
+
+        it("sends the welcome with the store link and the video after answering, when switched on", async () => {
+            phoneCode.settings = { phone_code: true, welcome: true, welcome_video_url: "https://youtu.be/abc" };
+            const res = await POST(request({ ...base, contact_phone: "07701234567", phone_proof: PROOF }));
+            expect(res.status).toBe(201);
+            expect(phoneCode.welcome).not.toHaveBeenCalled();
+            expect(phoneCode.later).toHaveLength(1);
+            await phoneCode.later[0]();
+            expect(phoneCode.welcome).toHaveBeenCalledWith(expect.anything(), {
+                proof: PROOF,
+                tenantId: "tenant-1",
+                phone: "07701234567",
+                businessName: "Shop",
+                storeUrl: "https://shop.scheniders.com",
+                videoUrl: "https://youtu.be/abc",
+            });
+        });
     });
 });
