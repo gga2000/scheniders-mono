@@ -78,11 +78,12 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
     onMutate: async (newStatus) => {
       // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      patchMerchantInCache(queryClient, merchantId, { status: newStatus });
+      return { restore: patchMerchantInCache(queryClient, merchantId, { status: newStatus }) };
     },
     // The server says why it refused (a paused shop, a trial, the demo store).
-    // onSettled then reads the list again, which puts the real status back.
-    onError: (error: Error) => {
+    // The card goes back to the real status at once, before the list is read again.
+    onError: (error: Error, _newStatus, context) => {
+      context?.restore();
       toast.error(error.message);
     },
     onSettled: () => {
