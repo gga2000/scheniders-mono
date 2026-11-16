@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ArrowRight } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { cn } from "@/lib/utils";
-import type { HealthParts } from "@/types/admin";
+import { fetchComparisonShops, formatBaghdadDay, type ComparisonShop } from "@/lib/merchant-compare";
 import {
   RadarChart,
   PolarGrid,
@@ -16,71 +17,56 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface ComparisonTenant {
-  id: string;
-  business_name: string;
-  plan: string;
-  status: string;
-  city: string | null;
-  wallet_balance: number;
-  order_count: number;
-  team_size: number;
-  created_at: string;
-  order_sparkline?: number[];
-  monthly_revenue?: number;
-  health_score: number;
-  health_parts: HealthParts;
-}
-
 interface TenantComparisonProps {
   isOpen: boolean;
   onClose: () => void;
-  currentTenant: ComparisonTenant;
+  /** The shop the page is about. Its numbers are read from the Merchants list, like the shops added to it. */
+  currentTenantId: string;
 }
 
 const TENANT_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444"];
 
+const iqd = (amount: number) => `${new Intl.NumberFormat("en-IQ").format(amount)} IQD`;
+
+/** Each row names its window. A row with `number` marks the highest and the lowest shop. */
 const METRICS: Array<{
-  key: keyof ComparisonTenant;
   label: string;
-  format: (v: unknown) => string;
-  higherIsBetter?: boolean;
+  text: (shop: ComparisonShop) => string;
+  number?: (shop: ComparisonShop) => number;
 }> = [
-  { key: "plan", label: "Plan", format: (v) => String(v) },
-  { key: "status", label: "Status", format: (v) => String(v) },
-  { key: "order_count", label: "Orders", format: (v) => new Intl.NumberFormat("en-IQ").format(v as number), higherIsBetter: true },
-  { key: "wallet_balance", label: "Wallet Balance", format: (v) => `${new Intl.NumberFormat("en-IQ").format(v as number)} IQD`, higherIsBetter: true },
-  { key: "team_size", label: "Team Size", format: (v) => String(v), higherIsBetter: true },
-  { key: "monthly_revenue", label: "Monthly Revenue", format: (v) => `${new Intl.NumberFormat("en-IQ").format((v as number) ?? 0)} IQD`, higherIsBetter: true },
-  { key: "health_score", label: "Health Score", format: (v) => String(v as number), higherIsBetter: true },
-  { key: "city", label: "City", format: (v) => (v as string) || "\u2014" },
-  { key: "created_at", label: "Created", format: (v) => new Date(v as string).toLocaleDateString() },
+  { label: "Plan", text: (s) => s.plan },
+  { label: "Status", text: (s) => s.status },
+  { label: "Orders, 30 days", text: (s) => new Intl.NumberFormat("en-IQ").format(s.orders_30d), number: (s) => s.orders_30d },
+  { label: "Our fees, 30 days", text: (s) => iqd(s.fees_30d), number: (s) => s.fees_30d },
+  { label: "Wallet now", text: (s) => iqd(s.wallet_balance), number: (s) => s.wallet_balance },
+  { label: "Team now", text: (s) => String(s.team_members), number: (s) => s.team_members },
+  { label: "Health score", text: (s) => String(s.health_score), number: (s) => s.health_score },
+  { label: "City", text: (s) => s.city || "\u2014" },
+  { label: "Created", text: (s) => formatBaghdadDay(s.created_at) },
 ];
 
 /**
  * The radar's three axes: the parts of the health score, as the database
  * worked them out. A part that takes points away sits at the centre, at 0.
  */
-function computeHealthDimensions(tenant: ComparisonTenant) {
+function computeHealthDimensions(tenant: ComparisonShop) {
   const { status, wallet, orders } = tenant.health_parts;
   return { Status: Math.max(0, status), Wallet: Math.max(0, wallet), Orders: Math.max(0, orders) };
 }
 
-function SparklineOverlay({ tenants }: { tenants: ComparisonTenant[] }) {
-  const tenantsWithSparkline = tenants.filter(
-    (t) => t.order_sparkline && t.order_sparkline.length > 1
-  );
+function SparklineOverlay({ tenants }: { tenants: ComparisonShop[] }) {
+  const tenantsWithSparkline = tenants.filter((t) => t.order_sparkline.length > 1);
   if (tenantsWithSparkline.length === 0) return null;
 
   const w = 64;
   const h = 28;
-  const allValues = tenantsWithSparkline.flatMap((t) => t.order_sparkline!);
+  const allValues = tenantsWithSparkline.flatMap((t) => t.order_sparkline);
   const max = Math.max(...allValues, 1);
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
-      {tenantsWithSparkline.map((tenant, idx) => {
-        const data = tenant.order_sparkline!;
+      {tenantsWithSparkline.map((tenant) => {
+        const data = tenant.order_sparkline;
         const points = data
           .map((v, i) => {
             const x = (i / (data.length - 1)) * w;
@@ -107,65 +93,49 @@ function SparklineOverlay({ tenants }: { tenants: ComparisonTenant[] }) {
   );
 }
 
-export function TenantComparison({ isOpen, onClose, currentTenant }: TenantComparisonProps) {
+export function TenantComparison({ isOpen, onClose, currentTenantId }: TenantComparisonProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ComparisonTenant[]>([]);
-  const [compareTenants, setCompareTenants] = useState<ComparisonTenant[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchFor, setSearchFor] = useState("");
+  const [compareTenants, setCompareTenants] = useState<ComparisonShop[]>([]);
 
+  /** Closing starts the next compare from this shop alone. */
+  function close() {
+    setCompareTenants([]);
+    setSearchQuery("");
+    onClose();
+  }
+
+  // Search a moment after the typing stops.
   useEffect(() => {
-    if (!isOpen) {
-      setCompareTenants([]);
-      setSearchQuery("");
-      setSearchResults([]);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const timeout = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await fetch(`/api/merchants?search=${encodeURIComponent(searchQuery)}&limit=5`);
-        if (!res.ok) throw new Error("Search failed");
-        const data = await res.json();
-        const results = (data.merchants || [])
-          .filter((m: { id: string }) => m.id !== currentTenant.id && !compareTenants.some((c) => c.id === m.id))
-          .map((m: Record<string, unknown>) => ({
-            id: m.id as string,
-            business_name: m.business_name as string,
-            plan: m.plan as string,
-            status: m.status as string,
-            city: m.city as string | null,
-            wallet_balance: ((m.wallet as Record<string, number> | undefined)?.balance_iqd) ?? 0,
-            order_count: ((m.usage as Record<string, number> | undefined)?.orders_count) ?? 0,
-            team_size: ((m.usage as Record<string, number> | undefined)?.team_members_count) ?? 0,
-            created_at: m.created_at as string,
-            order_sparkline: m.order_sparkline as number[] | undefined,
-            monthly_revenue: m.monthly_revenue as number | undefined,
-            health_score: m.staff_health_score as number,
-            health_parts: m.staff_health_parts as HealthParts,
-          }));
-        setSearchResults(results);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
+    const timeout = setTimeout(() => setSearchFor(searchQuery.trim()), 300);
     return () => clearTimeout(timeout);
-  }, [searchQuery, currentTenant.id, compareTenants]);
+  }, [searchQuery]);
 
-  function addTenant(t: ComparisonTenant) {
+  const current = useQuery({
+    queryKey: ["admin", "merchants", "compare", currentTenantId],
+    queryFn: async () => {
+      const [shop] = await fetchComparisonShops(`ids=${currentTenantId}&limit=1`);
+      if (!shop) throw new Error("This shop is not on the Merchants list");
+      return shop;
+    },
+    enabled: isOpen,
+  });
+
+  const search = useQuery({
+    queryKey: ["admin", "merchants", "compare-search", searchFor],
+    queryFn: () => fetchComparisonShops(`search=${encodeURIComponent(searchFor)}&limit=5`),
+    enabled: isOpen && searchFor.length > 0,
+  });
+
+  const searchResults =
+    searchQuery.trim().length > 0 && searchFor === searchQuery.trim()
+      ? (search.data ?? []).filter((t) => t.id !== currentTenantId && !compareTenants.some((c) => c.id === t.id))
+      : [];
+
+  function addTenant(t: ComparisonShop) {
     if (compareTenants.length < 3) {
       setCompareTenants((prev) => [...prev, t]);
       setSearchQuery("");
-      setSearchResults([]);
     }
   }
 
@@ -173,42 +143,22 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
     setCompareTenants((prev) => prev.filter((t) => t.id !== id));
   }
 
-  const allTenants = [currentTenant, ...compareTenants];
+  const allTenants = current.data ? [current.data, ...compareTenants] : [];
 
-  function getWinner(key: keyof ComparisonTenant): string | null {
-    const metric = METRICS.find((m) => m.key === key);
-    if (!metric?.higherIsBetter || allTenants.length < 2) return null;
-    let maxVal = -Infinity;
-    let winnerId = "";
-    for (const t of allTenants) {
-      const val = (t[key] as number) ?? 0;
-      if (val > maxVal) {
-        maxVal = val;
-        winnerId = t.id;
-      }
-    }
-    return winnerId;
-  }
-
-  function getLoser(key: keyof ComparisonTenant): string | null {
-    const metric = METRICS.find((m) => m.key === key);
-    if (!metric?.higherIsBetter || allTenants.length < 2) return null;
-    let minVal = Infinity;
-    let loserId = "";
-    for (const t of allTenants) {
-      const val = (t[key] as number) ?? 0;
-      if (val < minVal) {
-        minVal = val;
-        loserId = t.id;
-      }
-    }
-    return loserId;
+  /** The shop with the highest and the shop with the lowest number of a row; none when they are level. */
+  function extremes(number: (shop: ComparisonShop) => number): { best: string | null; worst: string | null } {
+    if (allTenants.length < 2) return { best: null, worst: null };
+    const sorted = [...allTenants].sort((a, b) => number(b) - number(a));
+    const top = sorted[0];
+    const bottom = sorted[sorted.length - 1];
+    if (!top || !bottom || number(top) === number(bottom)) return { best: null, worst: null };
+    return { best: top.id, worst: bottom.id };
   }
 
   // Radar chart data
   const radarData = ["Status", "Wallet", "Orders"].map((dimension) => {
     const entry: Record<string, string | number> = { dimension };
-    allTenants.forEach((tenant, idx) => {
+    allTenants.forEach((tenant) => {
       const dims = computeHealthDimensions(tenant);
       entry[tenant.business_name] = dims[dimension as keyof typeof dims];
     });
@@ -224,7 +174,7 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={close}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -20 }}
@@ -237,7 +187,7 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)]">
                 <h2 className="text-sm font-semibold text-foreground">Compare Tenants</h2>
-                <button onClick={onClose} className="p-1 rounded-lg text-foreground/40 hover:text-foreground transition-colors">
+                <button onClick={close} className="p-1 rounded-lg text-foreground/40 hover:text-foreground transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -253,6 +203,9 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
                       placeholder="Search to add a tenant to compare..."
                       className="w-full h-9 px-3 rounded-lg border border-[var(--card-border)] bg-transparent text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:border-foreground/30"
                     />
+                    {search.isError && searchFor.length > 0 && (
+                      <p className="mt-1.5 text-xs text-red-600">Search could not load. Type again to retry.</p>
+                    )}
                     {searchResults.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-xl z-10 overflow-hidden">
                         {searchResults.map((t) => (
@@ -308,9 +261,9 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
               )}
 
               {/* Sparkline Overlay */}
-              {allTenants.some((t) => t.order_sparkline && t.order_sparkline.length > 1) && (
+              {allTenants.some((t) => t.order_sparkline.length > 1) && (
                 <div className="px-5 py-3 border-b border-[var(--card-border)] flex items-center gap-3">
-                  <span className="text-xs font-semibold text-foreground/50">Order Trend</span>
+                  <span className="text-xs font-semibold text-foreground/50">Orders per day, 30 days</span>
                   <SparklineOverlay tenants={allTenants} />
                   <div className="flex items-center gap-2 ml-2">
                     {allTenants.map((t, idx) => (
@@ -327,66 +280,78 @@ export function TenantComparison({ isOpen, onClose, currentTenant }: TenantCompa
               )}
 
               {/* Comparison table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--card-border)]">
-                      <th className="p-3 text-left text-xs font-semibold text-foreground/50 w-32">Metric</th>
-                      {allTenants.map((t, idx) => (
-                        <th key={t.id} className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span
-                              className="inline-block w-2 h-2 rounded-full shrink-0"
-                              style={{ backgroundColor: TENANT_COLORS[idx] }}
-                            />
-                            <span className="text-xs font-bold text-foreground truncate max-w-[120px]">
-                              {t.business_name}
-                            </span>
-                            {t.id !== currentTenant.id && (
-                              <button
-                                onClick={() => removeTenant(t.id)}
-                                className="text-foreground/30 hover:text-foreground/60"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {METRICS.map((metric) => {
-                      const winnerId = getWinner(metric.key);
-                      const loserId = getLoser(metric.key);
-                      return (
-                        <tr key={metric.key} className="border-b border-[var(--card-border)] last:border-0">
-                          <td className="p-3 text-xs font-medium text-foreground/50">{metric.label}</td>
-                          {allTenants.map((t) => {
-                            const isWinner = metric.higherIsBetter && winnerId === t.id && allTenants.length >= 2;
-                            const isLoser = metric.higherIsBetter && loserId === t.id && loserId !== winnerId && allTenants.length >= 2;
-                            return (
+              {current.isPending && (
+                <p className="px-5 py-8 text-center text-sm text-foreground/50">Loading this shop&apos;s numbers…</p>
+              )}
+              {current.isError && (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-sm text-red-600">Could not load this shop&apos;s numbers.</p>
+                  <button
+                    onClick={() => current.refetch()}
+                    className="mt-3 px-3 py-1.5 rounded-xl text-xs font-semibold border border-[var(--card-border)] text-foreground/70 hover:text-foreground hover:border-foreground/30 transition-all"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+              {current.data && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--card-border)]">
+                        <th className="p-3 text-left text-xs font-semibold text-foreground/50 w-36">Metric</th>
+                        {allTenants.map((t, idx) => (
+                          <th key={t.id} className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: TENANT_COLORS[idx] }}
+                              />
+                              <span className="text-xs font-bold text-foreground truncate max-w-[120px]">
+                                {t.business_name}
+                              </span>
+                              {t.id !== currentTenantId && (
+                                <button
+                                  onClick={() => removeTenant(t.id)}
+                                  className="text-foreground/30 hover:text-foreground/60"
+                                  aria-label={`Remove ${t.business_name}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {METRICS.map((metric) => {
+                        const { best, worst } = metric.number ? extremes(metric.number) : { best: null, worst: null };
+                        return (
+                          <tr key={metric.label} className="border-b border-[var(--card-border)] last:border-0">
+                            <td className="p-3 text-xs font-medium text-foreground/50">{metric.label}</td>
+                            {allTenants.map((t) => (
                               <td
                                 key={t.id}
                                 className={cn(
-                                  "p-3 text-center text-sm",
-                                  isWinner
+                                  "p-3 text-center text-sm tabular-nums",
+                                  best === t.id
                                     ? "text-green-600 font-bold"
-                                    : isLoser
+                                    : worst === t.id
                                       ? "text-red-500/60"
                                       : "text-foreground/70",
                                 )}
                               >
-                                {metric.format(t[metric.key])}
+                                {metric.text(t)}
                               </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </motion.div>
         </>

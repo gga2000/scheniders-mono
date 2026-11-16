@@ -92,24 +92,21 @@ export function MerchantsCompareDialog({
         bestIs: "high",
       },
       {
+        // What each shop paid us (monthly fee, delivered orders, messages), not a monthly run rate.
         key: "revenue",
-        label: "MRR",
+        label: "Our fees, 30 days",
         icon: TrendingUp,
-        values: merchants.map(
-          (m) => (m as { monthly_revenue?: number }).monthly_revenue ?? 0
-        ),
+        values: merchants.map((m) => m.monthly_revenue),
         format: (n) => fmtCompactIQD(n),
-        suffix: "IQD/mo",
+        suffix: "IQD",
         bestIs: "high",
       },
       {
+        // Real orders over the same 30 days, as the list counts them.
         key: "orders",
-        label: "Orders",
+        label: "Orders, 30 days",
         icon: ShoppingBag,
-        values: merchants.map(
-          (m) =>
-            (m as { usage?: { orders_count?: number } }).usage?.orders_count ?? 0
-        ),
+        values: merchants.map((m) => m.orders_30d ?? 0),
         format: (n) => new Intl.NumberFormat("en-IQ").format(n),
         bestIs: "high",
       },

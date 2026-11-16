@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { fetchMerchantListStats } from "@/lib/console-stats";
 import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
+
+/** The "ids" query value, when it is given: shop ids. */
+const shopIdsSchema = z.array(z.string().uuid()).min(1).max(50).optional();
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -24,6 +28,11 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "50")));
     const includeSparkline = searchParams.get("include_sparkline") === "true";
+    // "ids=a,b": only these shops, for a screen that shows named shops with the list's numbers.
+    const ids = shopIdsSchema.safeParse(searchParams.get("ids")?.split(",") ?? undefined);
+    if (!ids.success) {
+      return NextResponse.json({ error: "ids must be shop ids, at most 50" }, { status: 400 });
+    }
 
     const offset = (page - 1) * limit;
 
@@ -35,6 +44,7 @@ export async function GET(request: NextRequest) {
       // The health score and its parts are the database's: the browser shows them and works nothing out.
       .select("*, wallet(*), subscriptions(*), staff_health_score, staff_health_parts", { count: "exact" });
 
+    if (ids.data) query = query.in("id", ids.data);
     if (plan) query = query.eq("plan", plan);
     // "attention" is not a value of the status column: it is one of the computed filters below.
     if (status && status !== ATTENTION) query = query.eq("status", status);
@@ -121,6 +131,8 @@ export async function GET(request: NextRequest) {
         monthly_revenue: row.fees_30d,
         daily_revenue: row.fees_today,
         orders_30d: row.orders_30d,
+        // Active members today. The usage row's team number below is written once, at sign-up.
+        team_members: row.team_members,
         order_sparkline: includeSparkline ? row.order_sparkline : [],
         usage:
           row.usage_orders_count === null

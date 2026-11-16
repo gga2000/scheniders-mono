@@ -306,19 +306,7 @@ export default function MerchantDetailPage() {
       <TenantComparison
         isOpen={showComparison}
         onClose={() => setShowComparison(false)}
-        currentTenant={{
-          id: tenant.id,
-          business_name: tenant.business_name,
-          plan: tenant.plan,
-          status: tenant.status,
-          city: tenant.city,
-          wallet_balance: wallet?.balance_iqd ?? 0,
-          order_count: orderCount,
-          team_size: team.length,
-          created_at: tenant.created_at,
-          health_score: tenant.staff_health_score,
-          health_parts: tenant.staff_health_parts,
-        }}
+        currentTenantId={tenant.id}
       />
     </div>
   );

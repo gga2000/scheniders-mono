@@ -97,6 +97,8 @@ export const merchantListStatsSchema = z.array(
     usage_orders_count: num.nullable(),
     usage_orders_charged: num.nullable(),
     usage_team_members_count: num.nullable(),
+    /** People who can sign in to the shop today (migration admin_merchant_list_team_count). */
+    team_members: num,
     lock_reason: z.enum(["trial_ended", "unpaid"]).nullable(),
     lock_since: instant.nullable(),
   }),

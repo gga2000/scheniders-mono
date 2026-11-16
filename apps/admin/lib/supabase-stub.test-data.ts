@@ -140,6 +140,7 @@ export function listStatsRow(tenantId: string, extra: Row = {}): Row {
     usage_orders_count: null,
     usage_orders_charged: null,
     usage_team_members_count: null,
+    team_members: 0,
     lock_reason: null,
     lock_since: null,
     ...extra,
