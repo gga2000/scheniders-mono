@@ -4,6 +4,7 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { staffReasonSchema } from "@/lib/staff-reason";
 import { z } from "zod";
+import { notAnId } from "@/lib/route-id";
 
 const bodySchema = z.object({
   days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
@@ -20,6 +21,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const body = await request.json();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
+import { notAnId } from "@/lib/route-id";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,6 +21,8 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const supabase = createAdminClient();
@@ -54,6 +57,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const body = await request.json();

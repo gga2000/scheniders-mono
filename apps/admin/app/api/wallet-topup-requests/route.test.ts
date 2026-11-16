@@ -174,7 +174,7 @@ describe("POST /api/wallet-topup-requests/[id]", () => {
   });
 
   it("refuses a bad id before touching the database", async () => {
-    expect((await post({ approve: true }, "not-a-uuid")).status).toBe(400);
+    expect((await post({ approve: true }, "not-a-uuid")).status).toBe(404);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

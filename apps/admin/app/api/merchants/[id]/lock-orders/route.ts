@@ -5,6 +5,7 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { addLockOrders, MAX_LOCK_ORDERS_GRANT } from "@/lib/billing-lock-tools";
 import { staffReasonSchema } from "@/lib/staff-reason";
+import { notAnId } from "@/lib/route-id";
 
 const bodySchema = z.object({
   orders: z.number().int().min(1).max(MAX_LOCK_ORDERS_GRANT),
@@ -26,6 +27,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const parsed = bodySchema.safeParse(await request.json());

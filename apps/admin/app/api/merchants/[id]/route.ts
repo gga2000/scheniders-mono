@@ -7,6 +7,7 @@ import { logActor } from "@/lib/shop-timeline";
 import { updateShop } from "@/lib/shop-update";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
+import { notAnId } from "@/lib/route-id";
 
 const patchSchema = z
   .object({
@@ -77,6 +78,8 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const supabase = createAdminClient();
@@ -185,6 +188,8 @@ export async function PATCH(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const body = await request.json();

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
+import { notAnId } from "@/lib/route-id";
 
 const patchSchema = z
   .object({
@@ -25,6 +26,8 @@ export async function PATCH(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const parsed = patchSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid industry" }, { status: 400 });
@@ -60,6 +63,8 @@ export async function DELETE(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const supabase = createAdminClient();
 
     // Check how many leads reference this industry

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { notAnId } from "@/lib/route-id";
 
 export async function GET(
   _request: NextRequest,
@@ -11,6 +12,8 @@ export async function GET(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
@@ -37,6 +40,8 @@ export async function POST(
     if (admin instanceof NextResponse) return admin;
 
     const { id } = await params;
+    const missing = notAnId(id);
+    if (missing) return missing;
     const body = await request.json();
     const supabase = createAdminClient();
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
+import { notAnId } from "@/lib/route-id";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -30,6 +31,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid request id" }, { status: 400 });
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
