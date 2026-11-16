@@ -37,6 +37,10 @@ const CustomTooltip = ({
   );
 };
 
+function EmptyNote({ text }: { text: string }) {
+  return <p className="text-sm text-foreground/40 py-10 text-center">{text}</p>;
+}
+
 function SkeletonContent() {
   return (
     <div className="animate-pulse space-y-4">
@@ -147,14 +151,14 @@ export function RevenueBreakdown({ breakdown }: RevenueBreakdownProps) {
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
             <svg className="w-4 h-4 text-green-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
           </div>
-          <h3 className="font-bold text-foreground text-sm">Revenue Breakdown</h3>
+          <h3 className="font-bold text-foreground text-sm">Last 90 days</h3>
         </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-1 bg-[var(--background)] rounded-xl p-1 border border-[var(--card-border)]">
           {([
-            { key: "byPlan" as Tab, label: "By Plan" },
-            { key: "byCity" as Tab, label: "By City" },
+            { key: "byPlan" as Tab, label: "Our fees by plan" },
+            { key: "byCity" as Tab, label: "Shop sales by city" },
           ]).map((t) => (
             <button
               key={t.key}
@@ -174,7 +178,13 @@ export function RevenueBreakdown({ breakdown }: RevenueBreakdownProps) {
       {!breakdown ? (
         <SkeletonContent />
       ) : tab === "byPlan" ? (
-        <PieView slices={breakdown.byPlan} />
+        breakdown.byPlan.length === 0 ? (
+          <EmptyNote text="No fees collected in the last 90 days." />
+        ) : (
+          <PieView slices={breakdown.byPlan} />
+        )
+      ) : breakdown.byCity.length === 0 ? (
+        <EmptyNote text="No delivered orders in the last 90 days." />
       ) : (
         <BarView slices={breakdown.byCity} />
       )}

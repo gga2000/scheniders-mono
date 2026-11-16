@@ -1,153 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { feesOf, fetchIncomeStats, monthLabel } from "@/lib/console-stats";
+import { calculateMerchantLTV } from "@/lib/dashboard-calculations";
 
 export const dynamic = "force-dynamic";
+
+const MONTHS_SHOWN = 6;
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = createAdminClient();
-  if (!supabase) {
-    return NextResponse.json({ error: "Not configured" }, { status: 500 });
-  }
-
   try {
-    // Parallel queries
-    const [wallTxRes, tenantsRes] = await Promise.all([
-      // Wallet transactions (charges = revenue) last 12 months
-      supabase
-        .from("wallet_transactions")
-        .select("id, tenant_id, type, amount_iqd, created_at")
-        .in("type", ["charge", "topup"])
-        .gte("created_at", new Date(Date.now() - 365 * 86400000).toISOString())
-        .order("created_at", { ascending: true }),
-
-      // Tenants (name, plan, signup month)
-      supabase
-        .from("tenants")
-        .select("id, business_name, plan, status, created_at"),
+    const supabase = createAdminClient();
+    const [income, tenantsRes] = await Promise.all([
+      fetchIncomeStats(supabase),
+      supabase.from("tenants").select("id, business_name, created_at"),
     ]);
+    if (tenantsRes.error) throw new Error(tenantsRes.error.message);
 
-    // A failed query used to read as "no data": every tenant showed as Unknown.
-    const failed = [wallTxRes, tenantsRes].find((r) => r.error);
-    if (failed?.error) throw failed.error;
+    // Income is the fees we charge (monthly plan, delivered orders, paid
+    // messages), summed in the database by Baghdad month. Any other wallet
+    // charge is a correction and is reported apart, never as income.
+    const months = income.monthly.slice(-MONTHS_SHOWN);
+    const mrrWaterfall = months.map((m) => ({ month: monthLabel(m.month), revenue: feesOf(m) }));
+    const otherCharges = months.reduce((sum, m) => sum + m.other, 0);
 
-    // The wallet ledger stores charges as negative amounts; revenue is their magnitude.
-    const transactions = (wallTxRes.data || []).map((tx) =>
-      tx.type === "charge" ? { ...tx, amount_iqd: 0 - tx.amount_iqd } : tx,
-    );
-    const tenants = tenantsRes.data || [];
+    const cohorts = income.cohorts.map((c) => ({ cohort: c.cohort, tenantCount: c.tenants, months: c.months }));
 
-    // --- MRR Waterfall (last 6 months) ---
-    const now = new Date();
-    const mrrWaterfall = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-      const monthLabel = monthStart.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    const ltv = calculateMerchantLTV(tenantsRes.data ?? [], income.byTenant, income.today, 10);
 
-      const charges = transactions.filter((tx) => {
-        const d = new Date(tx.created_at);
-        return tx.type === "charge" && d >= monthStart && d <= monthEnd;
-      });
-      const totalRevenue = charges.reduce((s, tx) => s + tx.amount_iqd, 0);
-
-      mrrWaterfall.push({ month: monthLabel, revenue: totalRevenue });
+    const monthIndex = new Map(months.map((m, i) => [m.month, i]));
+    const planFees = new Map<string, number[]>();
+    for (const row of income.byPlan) {
+      const i = monthIndex.get(row.month);
+      if (i === undefined) continue;
+      const data = planFees.get(row.plan) ?? new Array<number>(MONTHS_SHOWN).fill(0);
+      data[i] += row.amount;
+      planFees.set(row.plan, data);
     }
-
-    // --- Cohort Analysis (signup month → revenue per month) ---
-    const cohortMap = new Map<string, { signupMonth: string; tenantIds: string[] }>();
-    tenants.forEach((t) => {
-      const d = new Date(t.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (!cohortMap.has(key)) cohortMap.set(key, { signupMonth: key, tenantIds: [] });
-      cohortMap.get(key)!.tenantIds.push(t.id);
-    });
-
-    const cohorts = Array.from(cohortMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-6)
-      .map(([key, { tenantIds }]) => {
-        const months: number[] = [];
-        for (let m = 0; m < 6; m++) {
-          const [y, mo] = key.split("-").map(Number);
-          const start = new Date(y, mo - 1 + m, 1);
-          const end = new Date(y, mo + m, 0);
-          const rev = transactions
-            .filter((tx) => {
-              const d = new Date(tx.created_at);
-              return tx.type === "charge" && tenantIds.includes(tx.tenant_id) && d >= start && d <= end;
-            })
-            .reduce((s, tx) => s + tx.amount_iqd, 0);
-          months.push(rev);
-        }
-        return { cohort: key, tenantCount: tenantIds.length, months };
-      });
-
-    // --- LTV Distribution ---
-    const tenantRevenue = new Map<string, number>();
-    transactions
-      .filter((tx) => tx.type === "charge")
-      .forEach((tx) => {
-        tenantRevenue.set(tx.tenant_id, (tenantRevenue.get(tx.tenant_id) || 0) + tx.amount_iqd);
-      });
-
-    const ltvValues = Array.from(tenantRevenue.entries())
-      .map(([id, rev]) => ({ id, revenue: rev, name: tenants.find((t) => t.id === id)?.business_name || "Unknown" }))
-      .sort((a, b) => b.revenue - a.revenue);
-
-    const ltvBuckets = [
-      { label: "0-50K", min: 0, max: 50000 },
-      { label: "50K-200K", min: 50000, max: 200000 },
-      { label: "200K-500K", min: 200000, max: 500000 },
-      { label: "500K-1M", min: 500000, max: 1000000 },
-      { label: "1M+", min: 1000000, max: Infinity },
-    ];
-
-    const ltvDistribution = ltvBuckets.map((bucket) => ({
-      label: bucket.label,
-      count: ltvValues.filter((v) => v.revenue >= bucket.min && v.revenue < bucket.max).length,
-    }));
-
-    // --- Revenue by Plan ---
-    const planRevenue: Record<string, number[]> = {};
-    for (let i = 5; i >= 0; i--) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-
-      transactions
-        .filter((tx) => {
-          const d = new Date(tx.created_at);
-          return tx.type === "charge" && d >= monthStart && d <= monthEnd;
-        })
-        .forEach((tx) => {
-          const tenant = tenants.find((t) => t.id === tx.tenant_id);
-          const plan = tenant?.plan || "unknown";
-          if (!planRevenue[plan]) planRevenue[plan] = new Array(6).fill(0);
-          planRevenue[plan][5 - i] += tx.amount_iqd;
-        });
-    }
-
-    const revenueByPlan = Object.entries(planRevenue).map(([plan, data]) => ({
-      plan,
-      data,
-    }));
-
-    const monthLabels = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-      return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-    });
 
     return NextResponse.json({
       mrrWaterfall,
+      otherCharges,
       cohorts,
-      ltvDistribution,
-      topLTV: ltvValues.slice(0, 10),
-      avgLTV: ltvValues.length > 0 ? Math.round(ltvValues.reduce((s, v) => s + v.revenue, 0) / ltvValues.length) : 0,
-      revenueByPlan,
-      monthLabels,
+      ltvDistribution: ltv.distribution.map((d) => ({ label: d.bucket, count: d.count })),
+      topLTV: ltv.topMerchants.map((m) => ({ id: m.tenantId, name: m.businessName, revenue: m.totalRevenue })),
+      avgLTV: ltv.avgLTV,
+      revenueByPlan: [...planFees].map(([plan, data]) => ({ plan, data })),
+      monthLabels: months.map((m) => monthLabel(m.month)),
     });
   } catch (error) {
     console.error("Revenue API error:", error);

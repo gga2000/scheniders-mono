@@ -8,6 +8,7 @@ import {
     type NotificationFilter,
 } from "@/hooks/use-notification-feed";
 import { useChatStore } from "@/store/use-chat-store";
+import { useSupportStore } from "@/store/use-support-store";
 import { useOrderStore } from "@/store/use-order-store";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { Popover, PopoverTrigger, PopoverContent } from "@scheniders/ui/popover";
@@ -55,6 +56,7 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
     } = useNotificationFeed(filter, { live: !open, sound: ownsTitleBadge });
 
     const { open: openChat } = useChatStore();
+    const openSupport = useSupportStore((s) => s.open);
     const { openOrderDetails } = useOrderStore();
     const push = useNotificationPush();
     const { mute } = useNotificationMute();
@@ -85,6 +87,12 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
 
         if (n.category === "chat") {
             if (n.entity_id) openChat(n.entity_id);
+            return;
+        }
+
+        // Our support team answered or closed the merchant's chat: open it.
+        if (n.category === "support") {
+            openSupport();
             return;
         }
 

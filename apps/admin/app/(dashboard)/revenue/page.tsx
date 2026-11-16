@@ -21,9 +21,12 @@ import {
 } from "recharts";
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
+import { LoadError } from "@/components/shared/load-error";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
+  /** Wallet charges of the same six months that are not fees (corrections, test reversals). */
+  otherCharges: number;
   cohorts: Array<{ cohort: string; tenantCount: number; months: number[] }>;
   ltvDistribution: Array<{ label: string; count: number }>;
   topLTV: Array<{ id: string; name: string; revenue: number }>;
@@ -48,8 +51,12 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
+function EmptyChart({ text }: { text: string }) {
+  return <p className="text-sm text-foreground/40 py-16 text-center">{text}</p>;
+}
+
 export default function RevenuePage() {
-  const { data, isLoading } = useQuery<RevenueData>({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<RevenueData>({
     queryKey: ["admin", "revenue"],
     queryFn: async () => {
       const res = await fetch("/api/revenue");
@@ -60,6 +67,10 @@ export default function RevenuePage() {
     refetchInterval: 120_000,
   });
 
+  if (isError && !data) {
+    return <LoadError what="the fee numbers" onRetry={() => refetch()} retrying={isFetching} />;
+  }
+
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -69,7 +80,7 @@ export default function RevenuePage() {
   }
 
   const totalRevenue = data.mrrWaterfall.reduce((s, m) => s + m.revenue, 0);
-  const lastMonthRevenue = data.mrrWaterfall[data.mrrWaterfall.length - 1]?.revenue ?? 0;
+  const thisMonthRevenue = data.mrrWaterfall[data.mrrWaterfall.length - 1]?.revenue ?? 0;
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -79,7 +90,9 @@ export default function RevenuePage() {
           <TrendingUp className="w-6 h-6" />
           Revenue Analytics
         </h1>
-        <p className="text-foreground-muted mt-1">MRR, cohorts, and lifetime value analysis</p>
+        <p className="text-foreground-muted mt-1">
+          Fees shops paid us: monthly plan, delivered orders and paid messages. Months on Baghdad time.
+        </p>
       </div>
 
       {/* KPI Row */}
@@ -87,49 +100,60 @@ export default function RevenuePage() {
         <div className="pastel-card p-4 bg-green-50/50">
           <div className="flex items-center gap-2 text-green-700 mb-1">
             <DollarSign className="w-4 h-4" />
-            <span className="text-xs font-semibold">6-Month Revenue</span>
+            <span className="text-xs font-semibold">Fees, last 6 months</span>
           </div>
           <AnimatedCounter value={totalRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
         </div>
         <div className="pastel-card p-4 bg-blue-50/50">
           <div className="flex items-center gap-2 text-blue-700 mb-1">
             <BarChart3 className="w-4 h-4" />
-            <span className="text-xs font-semibold">Last Month</span>
+            <span className="text-xs font-semibold">This month so far</span>
           </div>
-          <AnimatedCounter value={lastMonthRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
+          <AnimatedCounter value={thisMonthRevenue} suffix=" IQD" className="text-lg font-bold text-foreground" />
         </div>
         <div className="pastel-card p-4 bg-purple-50/50">
           <div className="flex items-center gap-2 text-purple-700 mb-1">
             <Users className="w-4 h-4" />
-            <span className="text-xs font-semibold">Avg LTV</span>
+            <span className="text-xs font-semibold">Avg fees per shop, all time</span>
           </div>
           <AnimatedCounter value={data.avgLTV} suffix=" IQD" className="text-lg font-bold text-foreground" />
         </div>
       </div>
 
-      {/* MRR Waterfall */}
+      {data.otherCharges > 0 && (
+        <p className="text-xs text-foreground/50">
+          Not counted as income: {new Intl.NumberFormat("en-IQ").format(data.otherCharges)} IQD of other wallet
+          charges in these six months (corrections and test reversals).
+        </p>
+      )}
+
+      {/* Fees by month */}
       <div className="pastel-card p-5">
         <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
-          Monthly Revenue
+          Fees by month
         </h2>
-        <div className="h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.mrrWaterfall}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="revenue" fill="#86efac" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {totalRevenue === 0 ? (
+          <EmptyChart text="No fees collected in these six months." />
+        ) : (
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.mrrWaterfall}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="revenue" fill="#86efac" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Cohort Analysis */}
         <div className="pastel-card p-5">
           <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
-            Cohort Revenue
+            Fees by signup month
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -174,7 +198,7 @@ export default function RevenuePage() {
         {/* LTV Distribution */}
         <div className="pastel-card p-5">
           <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
-            LTV Distribution
+            Shops by fees paid, all time
           </h2>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -190,7 +214,7 @@ export default function RevenuePage() {
 
           {/* Top LTV merchants */}
           <div className="mt-4 pt-3 border-t border-[var(--card-border)]">
-            <h3 className="text-xs font-semibold text-foreground/50 mb-2">Top Merchants by LTV</h3>
+            <h3 className="text-xs font-semibold text-foreground/50 mb-2">Top shops by fees paid</h3>
             <div className="space-y-1.5">
               {data.topLTV.slice(0, 5).map((m, i) => (
                 <div key={m.id} className="flex items-center gap-2 text-xs">
@@ -199,45 +223,52 @@ export default function RevenuePage() {
                   <span className="text-foreground/50 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
                 </div>
               ))}
+              {data.topLTV.length === 0 && (
+                <p className="text-xs text-foreground/40">No shop has paid a fee yet.</p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Revenue by Plan */}
+      {/* Fees by plan */}
       <div className="pastel-card p-5">
         <h2 className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-4">
-          Revenue by Plan Tier
+          Fees by plan (the plan each shop is on today)
         </h2>
-        <div className="h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={data.monthLabels.map((month, i) => {
-                const point: Record<string, unknown> = { month };
-                data.revenueByPlan.forEach((p) => {
-                  point[p.plan] = p.data[i] || 0;
-                });
-                return point;
-              })}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-              <Tooltip />
-              {data.revenueByPlan.map((p) => (
-                <Area
-                  key={p.plan}
-                  type="monotone"
-                  dataKey={p.plan}
-                  stackId="1"
-                  fill={PLAN_COLORS[p.plan] || "#d1d5db"}
-                  stroke={PLAN_COLORS[p.plan] || "#d1d5db"}
-                  fillOpacity={0.7}
-                />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {data.revenueByPlan.length === 0 ? (
+          <EmptyChart text="No fees to split by plan yet." />
+        ) : (
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={data.monthLabels.map((month, i) => {
+                  const point: Record<string, unknown> = { month };
+                  data.revenueByPlan.forEach((p) => {
+                    point[p.plan] = p.data[i] || 0;
+                  });
+                  return point;
+                })}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <Tooltip />
+                {data.revenueByPlan.map((p) => (
+                  <Area
+                    key={p.plan}
+                    type="monotone"
+                    dataKey={p.plan}
+                    stackId="1"
+                    fill={PLAN_COLORS[p.plan] || "#d1d5db"}
+                    stroke={PLAN_COLORS[p.plan] || "#d1d5db"}
+                    fillOpacity={0.7}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         <div className="flex items-center gap-4 mt-3">
           {data.revenueByPlan.map((p) => (
             <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/60">

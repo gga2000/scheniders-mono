@@ -23,6 +23,7 @@ import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { MerchantWatchlistWidget } from "@/components/merchants/merchant-watchlist-widget";
 import { Loader2 } from "lucide-react";
 import { SeedAutomationToggle } from "@/components/dashboard/seed-automation-toggle";
+import { LoadError } from "@/components/shared/load-error";
 
 const staggerContainer = {
   initial: {},
@@ -42,6 +43,9 @@ const staggerItem = {
 export default function CommandCenterPage() {
   const {
     isLoading,
+    isError,
+    isFetching,
+    refetch,
     kpis,
     platformStats,
     pipeline,
@@ -67,6 +71,11 @@ export default function CommandCenterPage() {
         <Loader2 className="w-8 h-8 animate-spin text-foreground/30" />
       </div>
     );
+  }
+
+  // Only when there is nothing to show: a failed background refresh keeps the last good numbers.
+  if (isError && !data) {
+    return <LoadError what="the dashboard" onRetry={() => refetch()} retrying={isFetching} />;
   }
 
   return (

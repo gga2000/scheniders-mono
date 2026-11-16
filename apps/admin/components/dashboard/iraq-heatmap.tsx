@@ -121,7 +121,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                   : "text-foreground/50 hover:text-foreground"
               }`}
             >
-              {v}
+              {v === "revenue" ? "Shop sales" : "Orders"}
             </button>
           ))}
         </div>

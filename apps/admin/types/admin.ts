@@ -175,7 +175,8 @@ export type AdminAction =
   | "manage_commissions"
   | "convert_lead"
   | "delete_leads"
-  | "link_prime";
+  | "link_prime"
+  | "handle_support";
 
 // Merchant table column definitions
 export type MerchantColumnId =

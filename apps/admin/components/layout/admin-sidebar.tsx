@@ -18,14 +18,17 @@ import {
   LogOut,
   UserPlus,
   Users,
+  Headset,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSupportWaitingCount } from "@/hooks/use-support-cases";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Merchants", icon: Building2, href: "/merchants" },
+  { label: "Support", icon: Headset, href: "/support" },
   { label: "Prospects", icon: UserPlus, href: "/leads" },
   { label: "Team", icon: Users, href: "/team" },
   { label: "Billing", icon: CreditCard, href: "/billing" },
@@ -60,6 +63,7 @@ export function AdminSidebar({
   onSignOut,
 }: AdminSidebarProps) {
   const pathname = usePathname();
+  const supportWaiting = useSupportWaitingCount().data ?? 0;
 
   const isCollapsed = isMobile ? false : collapsed;
 
@@ -152,7 +156,21 @@ export function AdminSidebar({
                   {item.label}
                 </span>
 
-                {isActive && !collapsed && (
+                {item.href === "/support" && supportWaiting > 0 && (
+                  <span
+                    aria-label={`${supportWaiting} waiting on us`}
+                    className={cn(
+                      "flex items-center justify-center rounded-full bg-red-500 font-bold text-white tabular-nums",
+                      collapsed
+                        ? "absolute left-1.5 top-1.5 h-2 w-2 text-[0px]"
+                        : "ml-auto h-5 min-w-5 px-1.5 text-[11px]"
+                    )}
+                  >
+                    {supportWaiting > 99 ? "99+" : supportWaiting}
+                  </span>
+                )}
+
+                {isActive && !collapsed && !(item.href === "/support" && supportWaiting > 0) && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-[2px] bg-[var(--primary)] shadow-[0_0_10px_rgba(239,255,0,0.6)]" />
                 )}
 

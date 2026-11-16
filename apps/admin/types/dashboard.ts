@@ -1,4 +1,4 @@
-import type { PlanTier, TenantStatus } from "./admin";
+import type { PlanTier } from "./admin";
 
 // ─── KPI Stats ──────────────────────────────────────────────────────────────
 export interface KpiData {
@@ -54,15 +54,17 @@ export interface FunnelStep {
   color: string;
 }
 
-// ─── Growth Metrics (Week-over-Week) ────────────────────────────────────────
+// ─── Growth Metrics (last 7 days against the 7 before) ──────────────────────
 export interface GrowthMetric {
   label: string;
-  current: number;
-  previous: number;
+  /** null when the sample is too small to show a number; `emptyNote` says why. */
+  current: number | null;
+  previous: number | null;
   delta: number;
   deltaPct: number | null;
   isFinancial: boolean;
   unit?: string;
+  emptyNote?: string;
 }
 
 // ─── Wallet Health ──────────────────────────────────────────────────────────
@@ -134,12 +136,6 @@ export interface TimeToFirstOrderBucket {
 }
 
 // ─── Onboarding Progress ────────────────────────────────────────────────────
-export interface OnboardingStep {
-  key: string;
-  label: string;
-  icon: string;
-}
-
 export interface TenantOnboarding {
   tenantId: string;
   businessName: string;
@@ -154,6 +150,8 @@ export interface PlatformOrderStat {
   label: string;
   value: number;
   previousValue: number;
+  /** Names the period `previousValue` covers; without it there is nothing to compare with. */
+  previousLabel?: string;
   delta: number;
   deltaPct: number | null;
 }

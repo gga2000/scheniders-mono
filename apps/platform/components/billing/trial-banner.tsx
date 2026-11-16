@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { useTrialOrderCap, useTrialOrderCount } from "@/hooks/use-billing";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { useBillingLock } from "@/hooks/use-billing-lock";
 import { isOpenWhileLocked } from "@/lib/billing/lock-routes";
 import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
@@ -71,6 +72,11 @@ export function TrialBanner() {
                     >
                         {t("billing.goToBilling")}
                     </button>
+                    <ContactSupportButton
+                        className="mt-3 w-full justify-center border-gray-300 bg-white py-3 text-gray-900"
+                        errorCode={isSuspended ? "billing.suspendedBody" : "billing.cancelledBody"}
+                        errorMessage={isSuspended ? t("billing.suspendedBody") : t("billing.cancelledBody")}
+                    />
                 </div>
             </div>
         );
