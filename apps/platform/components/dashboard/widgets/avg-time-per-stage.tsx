@@ -64,7 +64,7 @@ export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
                                             className="text-[10px] text-amber-600"
                                             title={t("dashboard.avgTime.excludedTitle")}
                                         >
-                                            −{m.excluded}
+                                            {t("dashboard.avgTime.excluded", { count: m.excluded })}
                                         </span>
                                     )}
                                 </div>

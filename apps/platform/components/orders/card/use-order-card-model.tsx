@@ -8,7 +8,7 @@ import type { OrderRiskData } from "@/lib/customer-trust-risk";
 import { useOrderStore } from "@/store/use-order-store";
 
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
-import { formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode } from "@/lib/order-format-utils";
+import { formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, showReorderNote, getOrderReasonInfo, getGovernorateCode } from "@/lib/order-format-utils";
 import { useLanguage } from "@/hooks/use-language";
 import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 import { manualConfirmMessage } from "@/lib/orders/whatsapp-unsent";
@@ -190,7 +190,7 @@ export function useOrderCardModel(props: OrderCardProps) {
     // the age badge is calm on an order that was placed days ago.
     const scheduledLabel = isScheduledToday(order.scheduled_date)
         ? t("orderDetail.scheduledToday")
-        : formatScheduledDate(order.scheduled_date);
+        : formatScheduledDate(order.scheduled_date, language);
     const scheduledBadgeClass = scheduledState === "future"
         ? "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200"
         : "bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-200";
@@ -216,7 +216,7 @@ export function useOrderCardModel(props: OrderCardProps) {
     // Externalized getItemsDisplay
     // Externalized getFullAddress, cleanSystemNotes, getActualNotes
     const fullAddress = getFullAddress(order.city, order.address_details);
-    const actualNotes = getActualNotes(order.notes);
+    const actualNotes = showReorderNote(getActualNotes(order.notes), (orderId) => t("orders.note.reorderFrom", { orderId }));
     const actualInternalNotes = cleanSystemNotes(order.internal_notes);
 
     const orderReasonInfo = useMemo(() => getOrderReasonInfo(order, isReturn), [order, isReturn]);

@@ -360,7 +360,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                     {getScheduledState(order.scheduled_date) && (
                         <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">
                             <Calendar className="w-2.5 h-2.5" />
-                            {isScheduledToday(order.scheduled_date) ? t("orderDetail.scheduledToday") : formatScheduledDate(order.scheduled_date)}
+                            {isScheduledToday(order.scheduled_date) ? t("orderDetail.scheduledToday") : formatScheduledDate(order.scheduled_date, language)}
                         </span>
                     )}
                 </div>

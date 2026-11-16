@@ -62,7 +62,7 @@ function useFieldValue() {
             return Number.isFinite(n) ? formatIQD(n) : value;
         }
         if (f === "governorate") return governorateLabel(value, language);
-        if (f === "scheduled_date") return formatScheduledDate(value);
+        if (f === "scheduled_date") return formatScheduledDate(value, language);
         if (f === "order_date") return formatBaghdadDate(value);
         if (f === "delivery_slot") {
             const slot = parseDeliverySlot(value);

@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@scheniders/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 
 // Statuses to show in expanded breakdown
 const DISPLAY_STATUSES: { key: keyof GovernorateStats; i18nKey: string; color: string }[] = [
@@ -52,6 +52,11 @@ const COLOR_SCALES: Record<string, ColorScale> = {
   return_pending: ["#f1f5f9", "#fce7f3", "#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777"],
   suspended:      ["#f1f5f9", "#ffedd5", "#fed7aa", "#fdba74", "#fb923c", "#f97316", "#ea580c"],
 };
+
+/** A table cell's count with separators, or a dash for none. */
+function countOrDash(n: number): string {
+  return n > 0 ? formatCount(n) : "-";
+}
 
 function getHeatColor(count: number, max: number, scale: ColorScale): string {
   if (count === 0) return scale[0];
@@ -217,7 +222,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                     className="pointer-events-none select-none"
                     style={{ textShadow: "0 1px 3px rgba(0,0,0,0.25)" }}
                   >
-                    {count}
+                    {formatCount(count)}
                   </text>
                   {large && (
                     <text
@@ -266,7 +271,12 @@ export function IraqMap({ orders, className }: IraqMapProps) {
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            <bdi className="text-xs text-muted">{totalOrders} {t("map.orders", { count: totalOrders })}</bdi>
+            {/* The map places only orders with a known governorate: say how many
+                sit outside it, so the header never reads as every order. */}
+            <bdi className="text-xs text-muted">
+              {formatCount(totalOrders)} {t("map.orders", { count: totalOrders })}
+              {unknownCount > 0 && <> · {t("map.withoutGovernorate", { count: unknownCount })}</>}
+            </bdi>
             <Expand className="w-4 h-4 text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
@@ -284,7 +294,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                 style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
               >
                 <p className="font-bold text-foreground">{govName(tooltip.stats)}</p>
-                <p className="text-muted"><bdi>{tooltip.stats.total} {t("map.orders", { count: tooltip.stats.total })}</bdi></p>
+                <p className="text-muted"><bdi>{formatCount(tooltip.stats.total)} {t("map.orders", { count: tooltip.stats.total })}</bdi></p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -368,7 +378,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                     style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
                   >
                     <p className="font-bold text-foreground">{govName(tooltip.stats)}</p>
-                    <p className="text-muted"><bdi>{tooltip.stats.total} {t("map.orders", { count: tooltip.stats.total })}</bdi></p>
+                    <p className="text-muted"><bdi>{formatCount(tooltip.stats.total)} {t("map.orders", { count: tooltip.stats.total })}</bdi></p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -410,15 +420,15 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800">
-                        <p className="text-lg font-bold text-foreground">{selectedStats.total}</p>
+                        <p className="text-lg font-bold text-foreground">{formatCount(selectedStats.total)}</p>
                         <p className="text-[10px] text-muted">{t("map.filter.total")}</p>
                       </div>
                       <div className="text-center p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
-                        <p className="text-lg font-bold text-emerald-600">{selectedStats.delivered + selectedStats.completed}</p>
+                        <p className="text-lg font-bold text-emerald-600">{formatCount(selectedStats.delivered + selectedStats.completed)}</p>
                         <p className="text-[10px] text-muted">{t("orders.status.delivered")}</p>
                       </div>
                       <div className="text-center p-2 rounded-xl bg-red-50 dark:bg-red-900/20">
-                        <p className="text-lg font-bold text-red-600">{selectedStats.rejected}</p>
+                        <p className="text-lg font-bold text-red-600">{formatCount(selectedStats.rejected)}</p>
                         <p className="text-[10px] text-muted">{t("orders.status.rejected")}</p>
                       </div>
                     </div>
@@ -460,7 +470,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                               <span className={cn("w-2 h-2 rounded-full", s.color)} />
                               <span className="text-muted">{t(s.i18nKey)}</span>
                             </div>
-                            <span className="font-semibold text-foreground">{val} <span className="text-muted font-normal">({pct}%)</span></span>
+                            <span className="font-semibold text-foreground">{formatCount(val)} <span className="text-muted font-normal">({pct}%)</span></span>
                           </div>
                         );
                       })}
@@ -536,7 +546,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                           <td className="p-2 font-medium text-foreground">{govName(m)}</td>
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center gap-1.5">
-                              <span className="font-bold text-foreground">{m.total}</span>
+                              <span className="font-bold text-foreground">{formatCount(m.total)}</span>
                               {/* #5 — Mini proportional bar */}
                               <div className="w-12 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                 <div
@@ -546,9 +556,9 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                               </div>
                             </div>
                           </td>
-                          <td className="p-2 text-center text-emerald-600">{m.delivered + m.completed || "-"}</td>
-                          <td className="p-2 text-center text-red-600">{m.rejected || "-"}</td>
-                          <td className="p-2 text-center text-green-600">{m.confirmed || "-"}</td>
+                          <td className="p-2 text-center text-emerald-600">{countOrDash(m.delivered + m.completed)}</td>
+                          <td className="p-2 text-center text-red-600">{countOrDash(m.rejected)}</td>
+                          <td className="p-2 text-center text-green-600">{countOrDash(m.confirmed)}</td>
                         </tr>
                       );
                     })}
@@ -560,7 +570,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                           <AlertTriangle className="w-3 h-3" />
                           {t("map.unknown")}
                         </td>
-                        <td className="p-2 text-center font-bold text-orange-600">{unknownCount}</td>
+                        <td className="p-2 text-center font-bold text-orange-600">{formatCount(unknownCount)}</td>
                         <td className="p-2 text-center text-muted">-</td>
                         <td className="p-2 text-center text-muted">-</td>
                         <td className="p-2 text-center text-muted">-</td>

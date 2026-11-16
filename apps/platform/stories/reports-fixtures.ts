@@ -40,6 +40,9 @@ export function buildReportFixtures(end: Date, days: number, count: number, seed
             attention_reasons: i % 37 === 0 ? ["missing_product"] : i % 23 === 0 ? ["address_issue"] : null,
             source: SOURCES[Math.floor(r() * SOURCES.length)],
             is_return: isReturn,
+            refund_status: null,
+            is_replacement: null,
+            order_id: null,
             notes: isReturn ? "استرجاع: منتج تالف | ..." : null,
             price: isReturn ? -(20000 + Math.floor(r() * 5) * 10000) : 20000 + Math.floor(r() * 8) * 5000,
         };

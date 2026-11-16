@@ -48,7 +48,7 @@ export function useOrderBulkOperations() {
     const selectedOrders = useOrderStore((s) => s.selectedOrders);
     const setSelectedOrders = useOrderStore((s) => s.setSelectedOrders);
     const { tenantId } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
     // Re-entry is checked against a ref, not the state: a retry button on a
@@ -166,7 +166,7 @@ export function useOrderBulkOperations() {
             if (result.failures.length === 0) {
                 toast({
                     title: day
-                        ? t("orders.bulk.rescheduled", { count: result.count, date: formatScheduledDate(day) })
+                        ? t("orders.bulk.rescheduled", { count: result.count, date: formatScheduledDate(day, language) })
                         : t("orders.bulk.rescheduleCleared", { count: result.count }),
                     description: skippedNote,
                     variant: "success",

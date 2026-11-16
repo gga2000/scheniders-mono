@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { getPrimeClient, isPrimeUnreachable, PrimeApiError } from "@/lib/prime/client";
-import { loadPrimeMerchant } from "@/lib/prime/connection";
+import { isPrimeUnreachable, PrimeApiError } from "@/lib/prime/client";
+import { loadPrimeLink } from "@/lib/prime/connection";
 import { primeStateOf } from "@/lib/prime/district";
 import { primeFeeQuote } from "@/lib/prime/desk-preview";
 import { withFailureReport } from "@/lib/job-monitor";
@@ -30,9 +30,9 @@ async function handlePOST(request: NextRequest) {
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
 
-    const client = getPrimeClient();
-    const merchant = client ? await loadPrimeMerchant(createSupabaseServiceClient(), caller.tenantId) : null;
-    if (!client || !merchant) return NextResponse.json({ success: true, connected: false });
+    const link = await loadPrimeLink(createSupabaseServiceClient(), caller.tenantId);
+    if (!link) return NextResponse.json({ success: true, connected: false });
+    const { client, connection: merchant } = link;
 
     const { city, governorate, districtId, amount } = parsed.data;
     const state = primeStateOf({ city, governorate_code: governorate, validated_governorate_code: undefined, address_details: undefined });

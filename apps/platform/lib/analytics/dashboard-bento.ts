@@ -2,8 +2,9 @@ import { z } from "zod";
 import {
     baghdadHour,
     calculateRevenueTrend,
+    daysOrderWindow,
     isRealizedRevenue,
-    periodWindow,
+    PERIOD_DAYS,
     realizedAt,
     realizedRevenueBetween,
     type ChartLocale,
@@ -11,6 +12,7 @@ import {
     trendWindowStart,
 } from "@/lib/analytics/dashboard-calculations";
 import type { TrendFact } from "@/lib/analytics/dashboard-order-facts";
+import { orderInDateWindow } from "@/lib/order-window";
 
 /**
  * Pure figures behind the dashboard's bento cards (revenue, hourly waves,
@@ -59,22 +61,22 @@ export function revenueCardFigures(
     locale: ChartLocale,
     now: Date = new Date(),
 ): RevenueCardFigures {
-    const days: RevenueTrendPoint[] = calculateRevenueTrend(facts, BENTO_FACT_DAYS, locale, now);
+    // Orders of the window by the Orders list's rule (daysOrderWindow): the days
+    // add up to the list «آخر 7 أيام» opens.
+    const days: RevenueTrendPoint[] = calculateRevenueTrend(facts, BENTO_FACT_DAYS, locale, now, daysOrderWindow(window, now));
     const pick = (p: RevenueTrendPoint) => (measure === "orders" ? p.orders : p.revenue);
     const current = days.slice(-window);
     const total = current.reduce((s, p) => s + pick(p), 0);
 
-    // The same stretch of time one window earlier (periodWindow), not the whole
-    // days before it: at 09:30 a full previous week against six and a half days
-    // read as a fall that was only the clock.
+    // The same stretch of time one window earlier, not the whole days before
+    // it: at 09:30 a full previous week against six and a half days read as a
+    // fall that was only the clock.
     const span = window * DAY_MS;
     const previousStart = new Date(trendWindowStart(window, now).getTime() - span);
     const previousEnd = new Date(now.getTime() - span);
+    const previous = daysOrderWindow(window, now, 1);
     const previousTotal = measure === "orders"
-        ? facts.filter((f) => {
-            const at = new Date(f.created_at);
-            return at >= previousStart && at < previousEnd;
-        }).length
+        ? facts.filter((f) => orderInDateWindow(f, previous)).length
         : realizedRevenueBetween(facts, previousStart, previousEnd);
 
     // Same first instant as the plotted days, so the average matches the line.
@@ -113,9 +115,10 @@ export function orderLane(source: string | null): OrderLane | null {
 
 export interface HourlyWaves {
     /**
-     * [week][hour]. Week 0 is the dashboard's last 7 days (periodWindow: 7 Baghdad
-     * days, today so far included); weeks 1 and 2 are the same stretch of time one
-     * and two weeks earlier, so the three lines and the change compare like with like.
+     * [week][hour]. Week 0 is the dashboard's last 7 days (daysOrderWindow: 7 Baghdad
+     * days, today so far included, orders arrived or scheduled in them); weeks 1 and 2
+     * are the same stretch of time one and two weeks earlier, so the three lines and
+     * the change compare like with like.
      */
     online: number[][];
     chat: number[][];
@@ -133,22 +136,17 @@ export function hourlyWaves(facts: TrendFact[], now: Date = new Date()): HourlyW
     const empty = () => Array.from({ length: WAVE_WEEKS }, () => new Array<number>(24).fill(0));
     const online = empty();
     const chat = empty();
-    const { start } = periodWindow("7d", now);
-    const startMs = start.getTime();
-    const nowMs = now.getTime();
+    // Each week holds the orders the Orders list holds for those days (arrived,
+    // or scheduled for one of them), at the hour they arrived.
+    const weeks = Array.from({ length: WAVE_WEEKS }, (_, week) => daysOrderWindow(7, now, week));
 
     for (const f of facts) {
         const lane = orderLane(f.source);
         if (!lane) continue;
         const created = new Date(f.created_at);
-        const at = created.getTime();
-        for (let week = 0; week < WAVE_WEEKS; week++) {
-            const shift = week * 7 * DAY_MS;
-            if (at >= startMs - shift && at <= nowMs - shift) {
-                (lane === "online" ? online : chat)[week][baghdadHour(created)]++;
-                break;
-            }
-        }
+        if (Number.isNaN(created.getTime())) continue;
+        const week = weeks.findIndex((w) => orderInDateWindow(f, w));
+        if (week >= 0) (lane === "online" ? online : chat)[week][baghdadHour(created)]++;
     }
 
     const weekTotal = (w: number) =>
@@ -206,20 +204,20 @@ export function governorateOf(f: Pick<TrendFact, "governorate_code" | "validated
 export function governoratePeriods(facts: TrendFact[], now: Date = new Date()): Record<GovPeriod, GovernoratePeriod> {
     const out = {} as Record<GovPeriod, GovernoratePeriod>;
     for (const period of GOV_PERIODS) {
-        // The days get_dashboard_metrics counts, compared with the same stretch of time one period earlier.
-        const { start, previousStart, previousEnd } = periodWindow(period, now);
+        // The orders get_dashboard_metrics and the Orders list count for these days,
+        // compared with the same stretch of time one period earlier.
+        const current = daysOrderWindow(PERIOD_DAYS[period], now);
+        const previous = daysOrderWindow(PERIOD_DAYS[period], now, 1);
         const counts = new Map<string, number>();
         let total = 0;
         let previousTotal = 0;
         for (const f of facts) {
-            const created = new Date(f.created_at);
-            if (created >= start && created <= now) {
+            if (orderInDateWindow(f, current)) {
                 const code = governorateOf(f);
                 counts.set(code, (counts.get(code) ?? 0) + 1);
                 total++;
-            } else if (created >= previousStart && created < previousEnd) {
-                previousTotal++;
             }
+            if (orderInDateWindow(f, previous)) previousTotal++;
         }
         out[period] = { counts, total, previousTotal, deltaPct: pctChange(total, previousTotal) };
     }

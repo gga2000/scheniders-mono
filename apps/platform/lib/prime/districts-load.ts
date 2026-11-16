@@ -7,7 +7,8 @@ export interface PrimeDistrictOption {
 
 /** Prime's district list changes rarely; one read per state serves the day's new orders. */
 const TTL_MS = 12 * 3_600_000;
-const cache = new Map<string, { districts: PrimeDistrictOption[]; at: number }>();
+/** Per client, so the demo store's empty lists never stand in for Prime's real ones. */
+let cache = new WeakMap<PrimeClient, Map<string, { districts: PrimeDistrictOption[]; at: number }>>();
 
 const byName = new Intl.Collator("ar");
 
@@ -17,7 +18,9 @@ const byName = new Intl.Collator("ar");
  * first id so the picker shows each place once.
  */
 export async function primeDistrictsOf(client: PrimeClient, state: string): Promise<PrimeDistrictOption[]> {
-    const cached = cache.get(state);
+    const lists = cache.get(client) ?? new Map<string, { districts: PrimeDistrictOption[]; at: number }>();
+    cache.set(client, lists);
+    const cached = lists.get(state);
     if (cached && Date.now() - cached.at < TTL_MS) return cached.districts;
     const seen = new Set<string>();
     const districts: PrimeDistrictOption[] = [];
@@ -28,11 +31,11 @@ export async function primeDistrictsOf(client: PrimeClient, state: string): Prom
         districts.push({ id: d.districtId, name });
     }
     districts.sort((a, b) => byName.compare(a.name, b.name));
-    cache.set(state, { districts, at: Date.now() });
+    lists.set(state, { districts, at: Date.now() });
     return districts;
 }
 
 /** Test hook: forget the cached lists. */
 export function clearPrimeDistrictsCache(): void {
-    cache.clear();
+    cache = new WeakMap();
 }

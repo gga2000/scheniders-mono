@@ -9299,6 +9299,10 @@ export type Database = {
         }
         Returns: Json
       }
+      demo_store_quiet_guide: {
+        Args: { _owner_id: string; _tenant_id: string }
+        Returns: undefined
+      }
       generate_seed_orders: { Args: never; Returns: undefined }
       get_current_tenant_id: { Args: never; Returns: string }
       get_abandoned_cart_recovery: {

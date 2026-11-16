@@ -12,12 +12,18 @@ interface MerchantsPage {
   limit: number;
 }
 
-/** Optimistically change one merchant in every loaded merchants list. */
+/**
+ * Optimistically change one merchant in every loaded merchants list. Returns a
+ * function that puts every list back as it was, for when the server refuses
+ * the change or the request fails: the card must not keep showing a status or
+ * plan the shop does not have while the list is read again.
+ */
 export function patchMerchantInCache(
   queryClient: QueryClient,
   merchantId: string,
   patch: Partial<AdminTenant>,
-) {
+): () => void {
+  const before = queryClient.getQueriesData({ queryKey: ["admin", "merchants"] });
   queryClient.setQueriesData<InfiniteData<MerchantsPage>>({ queryKey: ["admin", "merchants"] }, (old) => {
     // Other queries share the key prefix; only the paged list has `pages`.
     if (!old?.pages) return old;
@@ -29,6 +35,9 @@ export function patchMerchantInCache(
       })),
     };
   });
+  return () => {
+    for (const [queryKey, data] of before) queryClient.setQueryData(queryKey, data);
+  };
 }
 
 export function useInfiniteMerchants(limit = 50) {

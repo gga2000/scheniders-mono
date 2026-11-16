@@ -4,6 +4,7 @@ import { WowMetric } from "@/lib/analytics/dashboard-calculations";
 import { TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
+import { formatSigned } from "@/lib/utils";
 
 interface WeekOverWeekProps {
     metrics: WowMetric[];
@@ -28,10 +29,10 @@ function DeltaPill({ delta, deltaPct, unit }: { delta: number | null; deltaPct: 
     // "pp" (percentage points) only makes sense for a percentage metric; the
     // Orders row was rendering counts as "+2pp" (COR-D7).
     const label = deltaPct !== null
-        ? `${up ? '+' : ''}${deltaPct}%`
+        ? formatSigned(deltaPct, "%")
         : unit === '%'
-            ? `${up ? '+' : ''}${t("dashboard.wow.points", { n: Math.abs(delta), count: Math.abs(delta) })}`
-            : `${up ? '+' : ''}${Math.abs(delta)}`;
+            ? t("dashboard.wow.points", { n: formatSigned(delta), count: Math.abs(delta) })
+            : formatSigned(delta);
     return (
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${up ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700'}`}>
             {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}

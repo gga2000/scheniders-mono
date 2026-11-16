@@ -198,9 +198,10 @@ describe("display, print and export surfaces show one line × 3", () => {
     });
 
     it("shipping label names the product once, like a clean order", () => {
-        const html = shippingLabelHTML(split);
+        const brand = { primeLogo: true, fragileWarning: true };
+        const html = shippingLabelHTML(split, brand);
         expect(html.match(/انفوي/g)).toHaveLength(1);
-        expect(html).toBe(shippingLabelHTML(clean));
+        expect(html).toBe(shippingLabelHTML(clean, brand));
     });
 
     it("CSV / Excel and courier export rows", () => {

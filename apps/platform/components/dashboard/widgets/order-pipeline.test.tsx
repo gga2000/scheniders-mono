@@ -64,4 +64,24 @@ describe("dashboard order pipeline", () => {
         expect(completed?.getAttribute("title")).toBe("مكتمل: 3,198 طلباً");
         expect(screen.getAllByText("6")[0].closest("[title]")?.getAttribute("title")).toBe("تم التوصيل: 6 طلبات");
     });
+
+    it("never offers an empty stage as a link, and says Orders lists in-transit from every day (round 13)", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const opened: string[] = [];
+        render(
+            <LanguageProvider>
+                <OrderPipeline
+                    period="7d"
+                    stages={[stage("new", 0), stage("in_transit", 3), stage("delivered", 3)]}
+                    onStageClick={(status) => opened.push(status)}
+                />
+            </LanguageProvider>,
+        );
+        const empty = screen.getAllByText("جديد");
+        empty.forEach((el) => el.click());
+        expect(opened).toEqual([]);
+        expect(empty.every((el) => el.closest("button") === null)).toBe(true);
+        const transit = screen.getAllByText("قيد التوصيل")[0].closest("[title]");
+        expect(transit?.getAttribute("title")).toBe("قيد التوصيل: 3 طلبات\nصفحة الطلبات تعرض «قيد التوصيل» من كل الأيام");
+    });
 });
