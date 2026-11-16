@@ -229,7 +229,8 @@ function DialogBody({
   // The plan price the shop pays each month; nothing while the subscription is not active.
   const paysForPlan = subscription?.status === "active";
   const planPerMonth = paysForPlan ? (planLimits?.base_price_iqd ?? 0) : 0;
-  const billedToDate = wallet?.total_charged_iqd ?? 0;
+  // Every charge the wallet took, test charges included: not the same as our fees.
+  const walletCharges = wallet?.total_charged_iqd ?? 0;
 
   const isLimited = tenant.status === "limited";
   const restrictions = (tenant.restrictions ?? null) as TenantRestrictions | null;
@@ -364,14 +365,14 @@ function DialogBody({
         />
         <DialogStatCard
           icon={Coins}
-          label="Billed to date"
-          value={fmt(billedToDate)}
+          label="Wallet charges"
+          value={fmt(walletCharges)}
           unit="IQD"
           tone="amber"
           spark={chargeSpark}
           delta={chargeDelta !== null ? { value: chargeDelta } : null}
           onClick={() => setActiveTab("Billing")}
-          title="Everything the wallet was charged since the shop opened"
+          title="Every charge to the wallet since the shop opened, test charges included. Our fees are on the Revenue page."
         />
         <DialogStatCard
           icon={ShoppingBag}
