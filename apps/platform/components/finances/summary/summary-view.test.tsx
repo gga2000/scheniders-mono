@@ -345,7 +345,7 @@ describe("SummaryView", () => {
         })));
         const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
-            "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
+            "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
             "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
             "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
@@ -364,7 +364,7 @@ describe("SummaryView", () => {
         expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
         expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
         expect(byTestId("money-payments-link")?.textContent).toBe(
-            "هذا ما دفعته لك شركات التوصيل فعلاً خلال الفترة: ثمن طلبات هذه الفترة في الكشوف (380,000 د.ع) بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
+            "هذا ما دفعته لك شركات التوصيل فعلاً خلال الفترة: ثمن طلبات هذه الفترة في كشوف هذه الفترة (380,000 د.ع) بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
         );
         expect(byTestId("money-payments")?.textContent).not.toContain("أيّاً كان تاريخ الدفعة");
     });
@@ -373,7 +373,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000, reached_prepaid: 20_000, reached_prepaid_orders: 2, reached_other: 10_000 } } })));
         const parts = byTestId("money-reached-parts")?.textContent ?? "";
-        expect(parts).toContain("من كشوف مؤرَّخة في هذه الفترةاعرض الدفعات وفروقها100,000");
+        expect(parts).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةاعرض الدفعات وفروقها100,000");
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
         expect(parts).toContain("طلبات دُفع ثمنها لك سابقاً، وسجّلتها «مُسلَّمة» متأخراً في هذه الفترة200,000");
         expect(parts).toContain("دفعها الزبون لك مسبقاً (طلبان)20,000");
@@ -381,7 +381,7 @@ describe("SummaryView", () => {
         cleanup();
         // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 }, statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1 } } })));
-        expect(byTestId("money-reached-parts")?.textContent).toContain("وصلك منها فعلاً 80,000 د.ع بعد المبالغ المستردة والفروق في الكشوف.");
+        expect(byTestId("money-reached-parts")?.textContent).toContain("خصمت منها الكشوف نفسها 20,000 د.ع (المبالغ المستردة والفروق)، فوصلك منها فعلاً 80,000 د.ع.");
         cleanup();
         // the same statements also paid 3,000 for an order not marked delivered: the note names it, so 80,000 + 3,000
         // meets the payments card's 83,000
@@ -394,7 +394,7 @@ describe("SummaryView", () => {
             },
         })));
         expect(byTestId("money-reached-parts")?.textContent).toContain(
-            "وصلك منها فعلاً 80,000 د.ع بعد المبالغ المستردة والفروق في الكشوف. ودفعت الكشوف أيضاً 3,000 د.ع عن طلب لم تجعله «مُسلَّماً» بعد، فالمجموع 83,000 د.ع كما في الدفعات.",
+            "خصمت منها الكشوف نفسها 20,000 د.ع (المبالغ المستردة والفروق)، فوصلك منها فعلاً 80,000 د.ع. ودفعت الكشوف أيضاً 3,000 د.ع عن طلب لم تجعله «مُسلَّماً» بعد، فالمجموع 83,000 د.ع كما في الدفعات.",
         );
         cleanup();
         renderView(query(summary()));

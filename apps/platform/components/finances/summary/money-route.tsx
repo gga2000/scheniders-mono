@@ -114,17 +114,21 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     // The statements also paid for orders not marked delivered (outside this card): when that is all
     // that is left, name it, so the cash here and the payments card's total visibly agree.
     const withUndelivered = statement.undelivered > 0 && cashForNow + statement.undelivered === payments.amount;
+    // What the same statements took off the price of these orders: said as one figure, so 6,810,500 above
+    // and what actually reached the shop are never two unexplained amounts.
+    const nowGap = split.reached_now - cashForNow;
     const nowNote =
-        cashForNow === split.reached_now
+        nowGap <= 0
             ? null
             : withUndelivered
               ? t("fin.money.from.nowNoteUndelivered", {
+                    gap: money(nowGap),
                     paid: money(cashForNow),
                     extra: money(statement.undelivered),
                     total: money(payments.amount),
                     count: statement.undelivered_orders,
                 })
-              : t("fin.money.from.nowNote", { paid: money(cashForNow) });
+              : t("fin.money.from.nowNote", { gap: money(nowGap), paid: money(cashForNow) });
     // "Paid to you" by where its money came from, listed under it so the parts visibly add up.
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
