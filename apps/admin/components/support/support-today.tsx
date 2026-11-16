@@ -111,12 +111,12 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-foreground">
             {task.kind === "call_back" ? (
-              <PhoneCall className="h-3.5 w-3.5 self-center text-emerald-700" />
+              <PhoneCall className="h-3.5 w-3.5 self-center text-[var(--ink-green)]" />
             ) : (
               <CalendarCheck className="h-3.5 w-3.5 self-center" />
             )}
             {label.title}
-            <span className={cn("text-xs font-medium", late ? "text-red-700" : "text-foreground-muted")}>
+            <span className={cn("text-xs font-medium", late ? "text-[var(--ink-red)]" : "text-foreground-muted")}>
               {formatDue(task.due_at, now)}
             </span>
             {task.attempts > 0 && (

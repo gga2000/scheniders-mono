@@ -70,9 +70,9 @@ function getBarColor(days: number, ended: boolean): string {
 
 function getBarBg(days: number, ended: boolean): string {
   if (ended) return "bg-gray-200";
-  if (days <= 3) return "bg-red-100";
-  if (days <= 7) return "bg-amber-100";
-  return "bg-green-100";
+  if (days <= 3) return "bg-red-500/15";
+  if (days <= 7) return "bg-amber-500/15";
+  return "bg-green-500/15";
 }
 
 function getBarPercent(days: number): number {
@@ -157,7 +157,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
         <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/70" />
       )}
       {mutation.isError && (
-        <span className="text-xs text-red-600 font-medium">
+        <span className="text-xs text-[var(--ink-red)] font-medium">
           {mutation.error.message}
         </span>
       )}
@@ -282,10 +282,10 @@ export default function TrialsPage() {
                           trial.is_expired
                             ? "text-foreground/70"
                             : trial.days_remaining <= 3
-                              ? "text-red-600"
+                              ? "text-[var(--ink-red)]"
                               : trial.days_remaining <= 7
-                                ? "text-amber-600"
-                                : "text-green-600"
+                                ? "text-[var(--ink-amber)]"
+                                : "text-[var(--ink-green)]"
                         }`}
                       >
                         {trialDayLabel(trial)}

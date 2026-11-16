@@ -83,7 +83,7 @@ export function LeadDetailDesktop() {
           <ArrowLeft className="w-4 h-4" />
           Back to Leads
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-red-400">
+        <div className="flex flex-col items-center justify-center py-20 text-[var(--ink-red)]">
           <AlertTriangle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Failed to load lead</p>
           <p className="text-sm text-[var(--muted)] mt-1">Something went wrong. Please try again later.</p>
@@ -300,7 +300,7 @@ export function LeadDetailDesktop() {
             <p className="text-lg font-semibold text-[var(--muted)] mt-1">
               ~{fmt(estMonthlyOrders)} orders/month
             </p>
-            <p className="text-lg font-bold text-emerald-400 mt-1">
+            <p className="text-lg font-bold text-[var(--ink-green)] mt-1">
               ~{fmt(lead.estimated_monthly_revenue)} IQD/month potential revenue
             </p>
           </div>

@@ -91,7 +91,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
               {autoRenew ? "On: charges the wallet each month" : "Off: the month ends and is not renewed"}
             </span>
             {renew.error && (
-              <span role="alert" className="mt-1 block text-[13px] font-medium text-rose-700 dark:text-rose-300">
+              <span role="alert" className="mt-1 block text-[13px] font-medium text-[var(--ink-red)]">
                 {renew.error.message}
               </span>
             )}
@@ -114,7 +114,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 /** "in 3 days" beside a date, amber when it is under a day away. */
 function When({ end, now, soon }: { end: string; now: Date; soon: boolean }) {
   return (
-    <span className={cn("ml-2 text-[13px] font-medium", soon ? "text-amber-700 dark:text-amber-300" : "text-foreground/70")}>
+    <span className={cn("ml-2 text-[13px] font-medium", soon ? "text-[var(--ink-amber)]" : "text-foreground/70")}>
       {formatUntil(end, now)}
     </span>
   );

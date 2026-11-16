@@ -125,7 +125,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
           </div>
         );
       })}
-      {approve.isError && <p className="px-4 pb-3 text-xs text-red-600">{approve.error.message}</p>}
+      {approve.isError && <p className="px-4 pb-3 text-xs text-[var(--ink-red)]">{approve.error.message}</p>}
     </div>
   );
 }

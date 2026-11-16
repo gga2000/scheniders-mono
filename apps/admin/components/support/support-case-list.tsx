@@ -20,8 +20,8 @@ interface SupportCaseListProps {
  */
 function waitTone(since: string, now: number): string {
   const minutes = supportWaitMinutes(Date.parse(since), now);
-  if (minutes >= 15) return "bg-red-100 text-red-800";
-  if (minutes >= SUPPORT_REPLY_MINUTES) return "bg-amber-100 text-amber-800";
+  if (minutes >= 15) return "bg-red-500/15 text-[var(--ink-red)]";
+  if (minutes >= SUPPORT_REPLY_MINUTES) return "bg-amber-500/15 text-[var(--ink-amber)]";
   return "bg-foreground/5 text-foreground/70";
 }
 
@@ -75,8 +75,8 @@ export function SupportCaseList({ cases, selectedId, onSelect, isLoading, emptyL
                 </span>
               ) : c.status === "solved" ? (
                 <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-foreground/70">
-                  {c.rating === "yes" && <ThumbsUp className="h-3 w-3 text-green-700" />}
-                  {c.rating === "no" && <ThumbsDown className="h-3 w-3 text-red-700" />}
+                  {c.rating === "yes" && <ThumbsUp className="h-3 w-3 text-[var(--ink-green)]" />}
+                  {c.rating === "no" && <ThumbsDown className="h-3 w-3 text-[var(--ink-red)]" />}
                   <CheckCircle2 className="h-3 w-3" />
                   {c.reason ? SUPPORT_REASON_LABELS[c.reason] : "Solved"}
                 </span>

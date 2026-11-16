@@ -42,7 +42,7 @@ export function LoadError({ what, onRetry, retrying = false, error, compact = fa
       <div className="text-center space-y-4 max-w-md">
         <div
           className={`${compact ? "w-12 h-12" : "w-16 h-16"} rounded-2xl border flex items-center justify-center mx-auto ${
-            quiet ? "bg-foreground/5 border-[var(--card-border)]" : "bg-red-50 border-red-200"
+            quiet ? "bg-foreground/5 border-[var(--card-border)]" : "bg-red-500/5 border-red-200"
           }`}
         >
           {refused ? (
@@ -52,7 +52,7 @@ export function LoadError({ what, onRetry, retrying = false, error, compact = fa
           ) : missing ? (
             <SearchX className={`${icon} text-foreground/70`} />
           ) : (
-            <AlertTriangle className={`${icon} text-red-500`} />
+            <AlertTriangle className={`${icon} text-[var(--ink-red)]`} />
           )}
         </div>
         <div>

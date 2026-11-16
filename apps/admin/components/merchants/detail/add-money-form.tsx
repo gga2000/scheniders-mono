@@ -83,7 +83,7 @@ export function AddMoneyForm({ shopId, balance, onDone }: AddMoneyFormProps) {
         className="mb-3"
       />
       {amount !== null && !amountOk && (
-        <p className="mb-2 text-[13px] text-rose-700 dark:text-rose-300">At most {formatIQD(TOPUP_MAX_IQD)} at once.</p>
+        <p className="mb-2 text-[13px] text-[var(--ink-red)]">At most {formatIQD(TOPUP_MAX_IQD)} at once.</p>
       )}
       {ready && <WillHappen>Wallet after: {formatIQD(balance + amount)}.</WillHappen>}
       <ErrorLine error={add.error} />

@@ -38,7 +38,7 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
     <div className="border-b border-[var(--card-border)]" data-testid="wallet-topup-requests">
       <div className="flex items-center justify-between px-4 pt-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-foreground/70">Payments to check</p>
-        <Link href="/payments" className="text-xs font-semibold text-blue-600 hover:underline">
+        <Link href="/payments" className="text-xs font-semibold text-[var(--ink-blue)] hover:underline">
           Open all
         </Link>
       </div>
@@ -46,7 +46,7 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
         const flagged = topupWarnings(req).length > 0;
         return (
           <Link key={req.id} href="/payments" className="flex items-start gap-3 px-4 py-3 hover:bg-foreground/[0.03]">
-            <span className="mt-0.5 text-green-600"><Wallet className="w-3.5 h-3.5" /></span>
+            <span className="mt-0.5 text-[var(--ink-green)]"><Wallet className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{req.business_name ?? req.tenant_id}</p>
               <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
@@ -55,13 +55,13 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
               <div className="mt-1 flex items-center gap-2 text-xs text-foreground/70">
                 <span>{formatWhen(req.created_at)}</span>
                 {req.billing?.locked && (
-                  <span className="inline-flex items-center gap-0.5 text-amber-700">
+                  <span className="inline-flex items-center gap-0.5 text-[var(--ink-amber)]">
                     <Lock className="w-3 h-3" />
                     locked
                   </span>
                 )}
                 {flagged && (
-                  <span className="inline-flex items-center gap-0.5 text-rose-700">
+                  <span className="inline-flex items-center gap-0.5 text-[var(--ink-red)]">
                     <AlertTriangle className="w-3 h-3" />
                     check twice
                   </span>

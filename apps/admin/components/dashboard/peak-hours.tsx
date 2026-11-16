@@ -69,7 +69,7 @@ export function PeakHours({ cells }: PeakHoursProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-yellow)]/40 flex items-center justify-center">
-          <Clock className="w-4 h-4 text-amber-700" />
+          <Clock className="w-4 h-4 text-[var(--ink-amber)]" />
         </div>
         <h3 className="font-bold text-foreground text-sm">Peak Hours</h3>
       </div>

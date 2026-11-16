@@ -141,17 +141,17 @@ function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; on
           return (
             <li
               key={p.code}
-              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-[var(--ink-amber)]"
             >
               <AlertTriangle className="h-3 w-3" />
               {SHOP_PROBLEM_LABELS[p.code]}
               {detail && (
-                <span dir="auto" className="max-w-[260px] truncate font-medium text-amber-900/70">
+                <span dir="auto" className="max-w-[260px] truncate font-medium text-[var(--ink-amber)]">
                   · {detail}
                 </span>
               )}
               {p.since && p.code !== "trial_ending" && (
-                <span className="font-medium text-amber-900/60">· {formatAgo(p.since, now)}</span>
+                <span className="font-medium text-[var(--ink-amber)]">· {formatAgo(p.since, now)}</span>
               )}
             </li>
           );

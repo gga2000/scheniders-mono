@@ -110,8 +110,8 @@ function Board({ board }: { board: SupportScoreboard }) {
                   <tr key={s.name} className="border-t border-[var(--card-border)]">
                     <td className="py-2 text-foreground">{s.name}</td>
                     <td className="py-2 text-right tabular-nums">{s.solved}</td>
-                    <td className="py-2 text-right tabular-nums text-green-700">{s.rated_yes}</td>
-                    <td className={cn("py-2 text-right tabular-nums", s.rated_no > 0 && "text-red-700")}>{s.rated_no}</td>
+                    <td className="py-2 text-right tabular-nums text-[var(--ink-green)]">{s.rated_yes}</td>
+                    <td className={cn("py-2 text-right tabular-nums", s.rated_no > 0 && "text-[var(--ink-red)]")}>{s.rated_no}</td>
                   </tr>
                 ))}
               </tbody>

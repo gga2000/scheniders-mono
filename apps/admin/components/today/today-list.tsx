@@ -101,7 +101,7 @@ export function TodayList({
   if (groups.length === 0) {
     return (
       <div className="pastel-card flex items-center gap-3 px-5 py-6">
-        <CircleCheck className="h-5 w-5 text-emerald-700" aria-hidden />
+        <CircleCheck className="h-5 w-5 text-[var(--ink-green)]" aria-hidden />
         <p className="text-[15px] font-semibold text-foreground">Nobody is waiting.</p>
         <p className="text-[13px] text-foreground/70">Last checked at {formatTime(now)}</p>
       </div>

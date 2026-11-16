@@ -120,7 +120,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
           Loading the timeline...
         </p>
       ) : timeline.isError ? (
-        <p role="alert" className="py-6 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+        <p role="alert" className="py-6 text-[13px] font-medium text-[var(--ink-red)]">
           {timeline.error.message}{" "}
           <button type="button" onClick={() => timeline.refetch()} className="underline">
             Try again
@@ -190,7 +190,7 @@ function Row({ entry }: { entry: TimelineEntry }) {
           <p
             className={cn(
               "text-[15px] font-semibold tabular-nums",
-              entry.amount > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-foreground",
+              entry.amount > 0 ? "text-[var(--ink-green)]" : "text-foreground",
             )}
           >
             {entry.amount > 0 ? "+" : entry.amount < 0 ? "−" : ""}

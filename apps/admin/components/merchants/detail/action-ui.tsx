@@ -75,7 +75,7 @@ export function ConfirmButton({
 export function ErrorLine({ error }: { error: Error | null }) {
   if (!error) return null;
   return (
-    <p role="alert" className="mb-2 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+    <p role="alert" className="mb-2 text-[13px] font-medium text-[var(--ink-red)]">
       {error.message}
     </p>
   );

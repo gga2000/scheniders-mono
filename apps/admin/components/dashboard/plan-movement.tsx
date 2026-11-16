@@ -11,10 +11,10 @@ const TYPE_STYLES: Record<
   PlanMovement["type"],
   { bg: string; text: string; label: string }
 > = {
-  upgrade: { bg: "bg-green-100", text: "text-green-800", label: "Upgrades" },
-  downgrade: { bg: "bg-red-100", text: "text-red-800", label: "Downgrades" },
-  cancellation: { bg: "bg-gray-100", text: "text-gray-700", label: "Cancellations" },
-  new: { bg: "bg-blue-100", text: "text-blue-800", label: "New Signups" },
+  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Upgrades" },
+  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Downgrades" },
+  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Cancellations" },
+  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New Signups" },
 };
 
 function Skeleton() {
@@ -52,7 +52,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-pink)]/40 flex items-center justify-center">
-          <ArrowUpDown className="w-4 h-4 text-rose-700" />
+          <ArrowUpDown className="w-4 h-4 text-[var(--ink-red)]" />
         </div>
         <h3 className="font-bold text-foreground text-sm">
           Plan Movements (30d)
@@ -81,7 +81,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
                   <p className={`text-xl font-bold ${style.text}`}>
                     {summary[type]}
                   </p>
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${style.text}/70`}>
+                  <p className={`text-xs font-semibold uppercase tracking-wider ${style.text}`}>
                     {style.label}
                   </p>
                 </div>

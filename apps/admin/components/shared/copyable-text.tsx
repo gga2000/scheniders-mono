@@ -51,7 +51,7 @@ export function CopyableText({
         )}
       >
         {copied ? (
-          <Check className="w-3 h-3 text-emerald-500" />
+          <Check className="w-3 h-3 text-[var(--ink-green)]" />
         ) : (
           <Copy className="w-3 h-3 text-foreground/70" />
         )}

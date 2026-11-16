@@ -29,9 +29,9 @@ const STATUS: Record<string, { word: string; tone: Tone }> = {
 
 const TONE: Record<Tone, string> = {
   neutral: "bg-foreground/[0.06] text-foreground/70",
-  moving: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
-  done: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
-  lost: "bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
+  moving: "bg-amber-500/15 text-[var(--ink-amber)] dark:bg-amber-400/15",
+  done: "bg-emerald-500/15 text-[var(--ink-green)] dark:bg-emerald-400/15",
+  lost: "bg-rose-500/15 text-[var(--ink-red)] dark:bg-rose-400/15",
 };
 
 export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSectionProps) {

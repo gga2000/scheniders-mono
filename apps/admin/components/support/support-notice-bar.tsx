@@ -107,8 +107,8 @@ export function SupportNoticeBar() {
   if (live) {
     const left = Math.max(0, (Date.parse(live.ends_at) - now) / 1000);
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-        <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-300/60 bg-amber-500/5 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+        <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ink-amber)]" />
         <div className="min-w-0 flex-1">
           <p dir="auto" className="text-sm font-medium text-foreground">
             {live.body}

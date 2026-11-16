@@ -564,7 +564,7 @@ export function StoreContent({ lead }: { lead: Lead }) {
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
               copied
-                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                ? "border-emerald-500/30 text-[var(--ink-green)] bg-emerald-500/10"
                 : "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)]"
             )}
           >

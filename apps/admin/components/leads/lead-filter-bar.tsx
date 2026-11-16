@@ -177,7 +177,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
           {filterCount > 0 && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
             >
               <Filter className="w-3.5 h-3.5" />
               Clear {filterCount}

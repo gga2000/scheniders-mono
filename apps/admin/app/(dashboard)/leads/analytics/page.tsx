@@ -8,6 +8,7 @@ import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
   LEAD_TIER_CONFIG,
+  LEAD_TIER_UI,
   PLATFORM_CONFIG,
 } from "@/types/leads";
 import type { LeadStatus, LeadTier } from "@/types/leads";
@@ -261,8 +262,8 @@ function AnalyticsDashboard({
                       className="h-full flex items-center justify-center text-xs font-bold transition-all"
                       style={{
                         width: `${pct}%`,
-                        backgroundColor: cfg.color,
-                        color: tier === "bronze" || tier === "gold" || tier === "legendary" ? "#000" : "#fff",
+                        backgroundColor: LEAD_TIER_UI[tier].strong,
+                        color: LEAD_TIER_UI[tier].solid,
                         minWidth: count > 0 ? "28px" : 0,
                       }}
                       title={`${cfg.label}: ${count}`}
@@ -287,7 +288,7 @@ function AnalyticsDashboard({
                       <div className="flex items-center gap-2">
                         <div
                           className="w-3 h-3 rounded-sm"
-                          style={{ backgroundColor: cfg.color }}
+                          style={{ backgroundColor: LEAD_TIER_UI[tier].solid }}
                         />
                         <span className="text-xs font-medium text-[var(--foreground)]">
                           {cfg.label}
@@ -475,12 +476,12 @@ function AnalyticsDashboard({
                       {emp.leads_added}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <span className="font-bold text-[#34D399]">
+                      <span className="font-bold text-[var(--ink-green)]">
                         {emp.leads_converted}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <span className="font-semibold text-[#A78BFA]">
+                      <span className="font-semibold text-[var(--ink-violet)]">
                         {formatIQD(emp.commission_earned)}
                       </span>
                     </td>

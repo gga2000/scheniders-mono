@@ -524,7 +524,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                         {file ? (
                           <>
                             <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                              <FileSpreadsheet className="w-7 h-7 text-emerald-500" />
+                              <FileSpreadsheet className="w-7 h-7 text-[var(--ink-green)]" />
                             </div>
                             <div className="text-center">
                               <p className="text-sm font-semibold text-[var(--foreground)]">
@@ -657,7 +657,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                                 ))}
                               </select>
                               {columnMapping[index] && columnMapping[index] !== "__skip__" && (
-                                <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                                <Check className="w-4 h-4 text-[var(--ink-green)] shrink-0" />
                               )}
                             </div>
                           ))}
@@ -690,7 +690,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                         </div>
                         <div className="w-px h-8 bg-[var(--card-border)]" />
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-emerald-500">{validCount}</div>
+                          <div className="text-2xl font-bold text-[var(--ink-green)]">{validCount}</div>
                           <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                             Valid
                           </div>
@@ -699,7 +699,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                           <>
                             <div className="w-px h-8 bg-[var(--card-border)]" />
                             <div className="text-center">
-                              <div className="text-2xl font-bold text-amber-500">{warningCount}</div>
+                              <div className="text-2xl font-bold text-[var(--ink-amber)]">{warningCount}</div>
                               <div className="text-xs text-[var(--muted)] uppercase tracking-wider">
                                 Warnings
                               </div>
@@ -717,12 +717,12 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                       {warningCount > 0 && (
                         <div className="px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                           <div className="flex items-center gap-2 mb-1">
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="w-4 h-4 text-[var(--ink-amber)]" />
+                            <span className="text-xs font-semibold text-[var(--ink-amber)]">
                               {warningCount} lead{warningCount > 1 ? "s" : ""} with warnings
                             </span>
                           </div>
-                          <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
+                          <p className="text-xs text-[var(--ink-amber)]">
                             A row with no merchant name is left out. A row with no platform is saved as Other.
                           </p>
                         </div>
@@ -736,9 +736,9 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--foreground)]/[0.01]"
                           >
                             {result.valid ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-[var(--ink-green)] shrink-0" />
                             ) : (
-                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                              <AlertTriangle className="w-4 h-4 text-[var(--ink-amber)] shrink-0" />
                             )}
                             <span className="text-sm text-[var(--foreground)] font-medium truncate min-w-0">
                               {result.row.merchant_name || `Row ${result.index + 1}`}
@@ -749,7 +749,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                               </span>
                             )}
                             {!result.valid && (
-                              <span className="ml-auto text-xs text-amber-500 shrink-0">
+                              <span className="ml-auto text-xs text-[var(--ink-amber)] shrink-0">
                                 {result.warnings.join(", ")}
                               </span>
                             )}
@@ -816,11 +816,11 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             )}
                           >
                             {importResult.created === 0 ? (
-                              <XCircle className="w-8 h-8 text-red-500" />
+                              <XCircle className="w-8 h-8 text-[var(--ink-red)]" />
                             ) : importResult.failed + importResult.skipped === 0 ? (
-                              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                              <CheckCircle2 className="w-8 h-8 text-[var(--ink-green)]" />
                             ) : (
-                              <AlertTriangle className="w-8 h-8 text-amber-500" />
+                              <AlertTriangle className="w-8 h-8 text-[var(--ink-amber)]" />
                             )}
                           </motion.div>
                           <div className="text-center">
@@ -829,19 +829,19 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             </h3>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 justify-center mt-2">
                               {importResult.created > 0 && (
-                                <span className="flex items-center gap-1.5 text-sm text-emerald-500 font-semibold">
+                                <span className="flex items-center gap-1.5 text-sm text-[var(--ink-green)] font-semibold">
                                   <CheckCircle2 className="w-4 h-4" />
                                   {importResult.created} imported
                                 </span>
                               )}
                               {importResult.skipped > 0 && (
-                                <span className="flex items-center gap-1.5 text-sm text-amber-500 font-semibold">
+                                <span className="flex items-center gap-1.5 text-sm text-[var(--ink-amber)] font-semibold">
                                   <AlertTriangle className="w-4 h-4" />
                                   {importResult.skipped} left out, no merchant name
                                 </span>
                               )}
                               {importResult.failed > 0 && (
-                                <span className="flex items-center gap-1.5 text-sm text-red-500 font-semibold">
+                                <span className="flex items-center gap-1.5 text-sm text-[var(--ink-red)] font-semibold">
                                   <XCircle className="w-4 h-4" />
                                   {importResult.failed} failed
                                 </span>
@@ -849,7 +849,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             </div>
                           </div>
                           {importResult.problem && (
-                            <p className="w-full max-w-md text-xs text-center text-red-600 dark:text-red-400">
+                            <p className="w-full max-w-md text-xs text-center text-[var(--ink-red)]">
                               {importResult.problem}
                             </p>
                           )}

@@ -36,7 +36,7 @@ const orderCount = (n: number) => `${n} ${n === 1 ? "order" : "orders"}`;
 function getHeatmapColor(count: number, maxCount: number): string {
   if (count === 0) return "bg-foreground/[0.03]";
   const ratio = count / maxCount;
-  if (ratio < 0.15) return "bg-green-100 dark:bg-green-900/30";
+  if (ratio < 0.15) return "bg-green-500/15";
   if (ratio < 0.3) return "bg-green-200 dark:bg-green-800/40";
   if (ratio < 0.5) return "bg-green-300 dark:bg-green-700/50";
   if (ratio < 0.7) return "bg-green-400 dark:bg-green-600/60";

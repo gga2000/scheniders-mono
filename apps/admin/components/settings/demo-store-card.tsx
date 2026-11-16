@@ -96,7 +96,7 @@ export function DemoStoreCard() {
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : isError || !data ? (
-        <p className="text-xs text-red-600">Could not load the demo store. Reload the page.</p>
+        <p className="text-xs text-[var(--ink-red)]">Could not load the demo store. Reload the page.</p>
       ) : !data.store ? (
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-foreground/70">No demo store yet.</p>
@@ -182,8 +182,8 @@ export function DemoStoreCard() {
         </div>
       )}
 
-      {failure && <p className="mt-3 text-xs text-red-600">{failure.message}</p>}
-      {done && !failure && <p className="mt-3 text-xs text-green-700">Ready: {demoCountsLine(done)}.</p>}
+      {failure && <p className="mt-3 text-xs text-[var(--ink-red)]">{failure.message}</p>}
+      {done && !failure && <p className="mt-3 text-xs text-[var(--ink-green)]">Ready: {demoCountsLine(done)}.</p>}
     </div>
   );
 }

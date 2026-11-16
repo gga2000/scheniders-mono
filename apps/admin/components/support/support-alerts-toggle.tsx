@@ -41,7 +41,7 @@ export function SupportAlertsToggle() {
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60",
         on
-          ? "border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300"
+          ? "border-emerald-600/30 bg-emerald-600/10 text-[var(--ink-green)]"
           : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-foreground/5",
       )}
     >

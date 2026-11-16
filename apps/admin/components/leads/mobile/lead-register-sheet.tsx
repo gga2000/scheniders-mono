@@ -222,12 +222,12 @@ export function LeadRegisterSheet({
               </button>
             </div>
             {analyzeError && (
-              <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+              <p className="text-xs text-[var(--ink-red)] font-medium flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" /> {analyzeError}
               </p>
             )}
             {analyzeSuccess && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <p className="text-xs text-[var(--ink-green)] font-medium flex items-center gap-1">
                 <Check className="w-3 h-3" /> Profile loaded — fields below were auto-filled.
               </p>
             )}
@@ -237,7 +237,7 @@ export function LeadRegisterSheet({
         {/* 2. Merchant name */}
         <div>
           <label className={LABEL}>
-            Merchant Name <span className="text-red-500">*</span>
+            Merchant Name <span className="text-[var(--ink-red)]">*</span>
           </label>
           <input
             ref={nameRef}
@@ -372,7 +372,7 @@ export function LeadRegisterSheet({
                   <button
                     type="button"
                     onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-indigo-500 hover:underline"
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] hover:underline"
                   >
                     <Settings2 className="w-3 h-3" /> Manage
                   </button>
@@ -396,7 +396,7 @@ export function LeadRegisterSheet({
                 </div>
                 {showIndustryDetail || form.industry_detail ? (
                   <div className="relative mt-2">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-blue)] pointer-events-none">
                       <Tag className="w-4 h-4" />
                     </span>
                     <input
@@ -509,7 +509,7 @@ export function LeadRegisterSheet({
                           <button
                             type="button"
                             onClick={() => removePhone(idx)}
-                            className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -558,10 +558,10 @@ export function LeadRegisterSheet({
 
               {/* Order Prediction card */}
               {hasPrediction && (
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 p-3.5">
+                <div className="rounded-xl bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 p-3.5">
                   <div className="flex items-center gap-2 mb-2.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                    <TrendingUp className="w-3.5 h-3.5 text-[var(--ink-green)]" />
+                    <span className="text-xs font-bold text-[var(--ink-green)] uppercase tracking-wider">
                       Order Prediction
                     </span>
                   </div>
@@ -572,10 +572,10 @@ export function LeadRegisterSheet({
                       [formatIQD(estimatedMonthlyRevenue), "per month"],
                     ].map(([value, label]) => (
                       <div key={label}>
-                        <div className="text-xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums break-all">
+                        <div className="text-xl font-black text-[var(--ink-green)] tabular-nums break-all">
                           {value}
                         </div>
-                        <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                        <div className="text-xs text-[var(--ink-green)]">
                           {label}
                         </div>
                       </div>
@@ -746,7 +746,7 @@ export function LeadRegisterSheet({
                                 <button
                                   type="button"
                                   onClick={() => removeBranch(bi)}
-                                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                                   title="Remove branch"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -811,7 +811,7 @@ export function LeadRegisterSheet({
                                         <button
                                           type="button"
                                           onClick={() => removeBranchPhone(bi, pi)}
-                                          className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                          className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-[var(--ink-red)] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </button>

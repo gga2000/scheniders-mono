@@ -25,10 +25,10 @@ const commissionTypeLabels: Record<CommissionType, string> = {
 };
 
 const commissionTypeBadge: Record<CommissionType, string> = {
-  per_order: "bg-blue-100 text-blue-800",
-  percentage: "bg-purple-100 text-purple-800",
-  tiered_bonus: "bg-amber-100 text-amber-800",
-  custom: "bg-gray-100 text-gray-700",
+  per_order: "bg-blue-500/15 text-[var(--ink-blue)]",
+  percentage: "bg-purple-500/15 text-[var(--ink-violet)]",
+  tiered_bonus: "bg-amber-500/15 text-[var(--ink-amber)]",
+  custom: "bg-gray-500/15 text-[var(--muted)]",
 };
 
 type Period = "month" | "quarter";
@@ -114,7 +114,7 @@ export function TeamCommissionDashboard({
                 </div>
                 <div className="flex items-center gap-2">
                   {config.is_active ? (
-                    <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                    <span className="flex items-center gap-1 text-xs font-medium text-[var(--ink-green)]">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                       Active
                     </span>
@@ -233,10 +233,10 @@ export function TeamCommissionDashboard({
                       <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">
                         {fmt(emp.commission_earned)}
                       </td>
-                      <td className="px-4 py-3 text-right text-amber-600 tabular-nums">
+                      <td className="px-4 py-3 text-right text-[var(--ink-amber)] tabular-nums">
                         {fmt(emp.commission_pending)}
                       </td>
-                      <td className="px-4 py-3 text-right text-green-600 tabular-nums">
+                      <td className="px-4 py-3 text-right text-[var(--ink-green)] tabular-nums">
                         {fmt(paid)}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -244,8 +244,8 @@ export function TeamCommissionDashboard({
                           className={cn(
                             "px-2 py-0.5 rounded-full text-xs font-semibold",
                             isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-600"
+                              ? "bg-green-500/15 text-[var(--ink-green)]"
+                              : "bg-gray-500/15 text-[var(--muted)]"
                           )}
                         >
                           {isActive ? "Active" : "No activity"}

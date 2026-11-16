@@ -136,7 +136,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                       transition={{ duration: 0.5, times: [0, 0.6, 1] }}
                       className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4"
                     >
-                      <Trophy className="w-8 h-8 text-emerald-500" />
+                      <Trophy className="w-8 h-8 text-[var(--ink-green)]" />
                     </motion.div>
                     <motion.h3
                       initial={{ opacity: 0, y: 8 }}
@@ -193,7 +193,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                          <Trophy className="w-5 h-5 text-emerald-500" />
+                          <Trophy className="w-5 h-5 text-[var(--ink-green)]" />
                         </div>
                         <h2 className="text-lg font-bold text-[var(--foreground)]">
                           Convert to Merchant
@@ -262,16 +262,16 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                             className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
                           >
                             {item.status === "pass" ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-[var(--ink-green)] shrink-0" />
                             ) : (
-                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                              <AlertTriangle className="w-4 h-4 text-[var(--ink-amber)] shrink-0" />
                             )}
                             <span
                               className={cn(
                                 "text-sm",
                                 item.status === "pass"
                                   ? "text-[var(--foreground)]"
-                                  : "text-amber-600 dark:text-amber-400"
+                                  : "text-[var(--ink-amber)]"
                               )}
                             >
                               {item.label}
@@ -311,7 +311,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
 
                       {/* Error State */}
                       {convertLead.isError && (
-                        <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+                        <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
                           {convertLead.error?.message || "Failed to convert lead. Please try again."}
                         </div>
                       )}

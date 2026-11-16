@@ -42,7 +42,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
             {lead.merchant_name}
           </span>
           {lead.is_draft && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--ink-amber)]">
               <Pencil className="h-2.5 w-2.5" /> Draft
             </span>
           )}
@@ -130,7 +130,7 @@ export const LEAD_CELL_RENDERERS: Record<LeadColumnId, (lead: Lead, ctx: LeadCel
   ranking: (lead) => <TierChip tier={lead.tier} />,
   score: (lead) => <ScoreCell value={lead.lead_score} />,
   est_orders: (lead) => (
-    <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+    <span className="font-semibold text-[var(--ink-green)] tabular-nums">
       ~{lead.estimated_daily_orders}/d
     </span>
   ),

@@ -59,10 +59,10 @@ interface BillingData {
 // ---------------------------------------------------------------------------
 
 const TYPE_STYLES: Record<string, string> = {
-  topup: "bg-green-100 text-green-800",
-  charge: "bg-amber-100 text-amber-800",
-  refund: "bg-blue-100 text-blue-800",
-  adjustment: "bg-purple-100 text-purple-800",
+  topup: "bg-green-500/15 text-[var(--ink-green)]",
+  charge: "bg-amber-500/15 text-[var(--ink-amber)]",
+  refund: "bg-blue-500/15 text-[var(--ink-blue)]",
+  adjustment: "bg-purple-500/15 text-[var(--ink-violet)]",
 };
 
 const PRESET_AMOUNTS = [25_000, 50_000, 100_000, 250_000, 500_000];
@@ -272,12 +272,12 @@ export default function BillingPage() {
         </form>
 
         {topupMutation.isError && (
-          <p className="text-xs text-red-600 mt-2">
+          <p className="text-xs text-[var(--ink-red)] mt-2">
             {(topupMutation.error as Error).message}
           </p>
         )}
         {topupMutation.isSuccess && (
-          <p className="text-xs text-green-600 mt-2">
+          <p className="text-xs text-[var(--ink-green)] mt-2">
             Top-up successful! New balance:{" "}
             {formatIQD(topupMutation.data?.newBalance ?? 0)}
           </p>
@@ -329,7 +329,7 @@ export default function BillingPage() {
                       <tr
                         key={w.tenant_id}
                         className={`border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.02] transition-colors ${
-                          isLow ? "bg-rose-50/50" : ""
+                          isLow ? "bg-rose-500/5" : ""
                         }`}
                       >
                         <td className="p-3">
@@ -350,11 +350,11 @@ export default function BillingPage() {
                         </td>
                         <td className="p-3 text-center">
                           {isLow ? (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-[var(--ink-red)]">
                               Low
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-[var(--ink-green)]">
                               OK
                             </span>
                           )}
@@ -393,7 +393,7 @@ export default function BillingPage() {
                   {/* Type badge */}
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize shrink-0 ${
-                      TYPE_STYLES[tx.type] ?? "bg-gray-100 text-gray-800"
+                      TYPE_STYLES[tx.type] ?? "bg-gray-500/15 text-foreground"
                     }`}
                   >
                     {tx.type}
@@ -402,9 +402,9 @@ export default function BillingPage() {
                   {/* Amount + direction icon */}
                   <div className="flex items-center gap-1 min-w-0">
                     {tx.type === "topup" || tx.type === "refund" ? (
-                      <ArrowUpRight className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                      <ArrowUpRight className="w-3.5 h-3.5 text-[var(--ink-green)] shrink-0" />
                     ) : (
-                      <ArrowDownRight className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <ArrowDownRight className="w-3.5 h-3.5 text-[var(--ink-amber)] shrink-0" />
                     )}
                     <span className="text-sm font-semibold text-foreground tabular-nums">
                       {formatIQD(Number(tx.amount_iqd) || 0)}

@@ -76,7 +76,7 @@ export function LeadMobileDetail() {
           <ArrowLeft className="w-4 h-4" />
           Back to Leads
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-red-400">
+        <div className="flex flex-col items-center justify-center py-20 text-[var(--ink-red)]">
           <AlertTriangle className="w-12 h-12 mb-3" />
           <p className="text-lg font-semibold">Failed to load lead</p>
           <p className="text-sm text-[var(--muted)] mt-1">Something went wrong. Please try again later.</p>

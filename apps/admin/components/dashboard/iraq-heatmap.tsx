@@ -102,7 +102,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-blue)]/40 flex items-center justify-center">
-            <MapPin className="w-4 h-4 text-blue-700" />
+            <MapPin className="w-4 h-4 text-[var(--ink-blue)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
             Geographic Distribution
