@@ -1,58 +1,103 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { SERVER_MAX_ROWS, supabaseStub, type Row } from "@/lib/supabase-stub.test-data";
 
-const SHOP = "33333333-3333-4333-8333-333333333333";
-let tables: Record<string, unknown[]>;
-const filters: Record<string, string[]> = {};
+/*
+ * The bell's red row says the daily renewal job missed a shop. It used to
+ * name every unpaid trial that ended more than a day ago, but under the lock
+ * rule such a trial stays "trial" and is locked on purpose: the row would
+ * have stayed red for good, and staff learn to ignore a bell like that.
+ */
 
-function query(table: string) {
-  const record = (f: string) => {
-    (filters[table] ??= []).push(f);
-    return q;
-  };
-  const q = {
-    select: () => q,
-    eq: (c: string, v: string) => record(`eq ${c} ${v}`),
-    neq: (c: string, v: string) => record(`neq ${c} ${v}`),
-    lt: (c: string) => record(`lt ${c}`),
-    in: () => q,
-    limit: () => q,
-    then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: tables[table] ?? [], error: null }),
-  };
-  return q;
-}
-
-vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ from: (t: string) => query(t) }) }));
 vi.mock("@/lib/api-auth", () => ({
-  requireAdminFromRequest: vi.fn(async () => ({ user: { id: "a" }, role: "super_admin" })),
+  requireAdminFromRequest: async () => ({ user: { id: "a", email: "a@b.co" }, role: "support_staff" }),
 }));
 
-const { GET } = await import("./route");
+let stub: ReturnType<typeof supabaseStub>;
+vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => stub.client }));
 
-async function check() {
-  return (await GET(new NextRequest("http://localhost/api/billing-check"))).json();
-}
+const { GET } = await import("./route");
+const check = async () => (await GET(new NextRequest("http://admin.test/api/billing-check"))).json();
+
+const NOW = Date.parse("2026-11-18T12:00:00Z");
+const LONG_AGO = "2026-11-17T03:21:00Z"; // 32 hours before NOW
+
+let n = 0;
+const sub = (status: string, periodEnd: string, shop: Row, plan = "starter"): Row => {
+  n += 1;
+  return {
+    id: `sub-${String(n).padStart(5, "0")}`,
+    tenant_id: `shop-${n}`,
+    status,
+    plan,
+    current_period_end: periodEnd,
+    tenants: { business_name: `Shop ${n}`, status: "active", plan, ...shop },
+  };
+};
 
 beforeEach(() => {
-  tables = {};
-  for (const k of Object.keys(filters)) delete filters[k];
+  n = 0;
+  stub = supabaseStub();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+  return () => vi.useRealTimers();
 });
 
 describe("GET /api/billing-check", () => {
-  it("nothing missed: both lists empty", async () => {
-    expect(await check()).toEqual({ trialsNotPaused: [], renewalsMissed: [] });
+  it("is quiet when nothing was missed", async () => {
+    stub.state.tables.subscriptions = [];
+    expect(await check()).toEqual({ trialsNotBilled: [], renewalsMissed: [] });
   });
 
-  it("names a trial that ended and a month that was not renewed, never Ali's own store", async () => {
-    tables = {
-      tenants: [{ id: SHOP, business_name: "Shop A", trial_ends_at: "2026-11-01T00:00:00Z" }],
-      subscriptions: [{ tenant_id: SHOP, current_period_end: "2026-11-01T00:00:00Z" }],
-    };
+  it("never calls a locked trial a missed job", async () => {
+    // The job reached it and the wallet was short: past_due, the shop keeps "trial" and is locked.
+    stub.state.tables.subscriptions = [sub("past_due", LONG_AGO, { status: "trial" })];
+    expect(await check()).toEqual({ trialsNotBilled: [], renewalsMissed: [] });
+  });
+
+  it("names a trial and a month the job never reached", async () => {
+    stub.state.tables.subscriptions = [
+      sub("trialing", LONG_AGO, { status: "trial" }),
+      sub("active", LONG_AGO, { status: "active" }),
+    ];
+
+    expect(await check()).toEqual({
+      trialsNotBilled: [{ tenant_id: "shop-1", business_name: "Shop 1", due: LONG_AGO }],
+      renewalsMissed: [{ tenant_id: "shop-2", business_name: "Shop 2", due: LONG_AGO }],
+    });
+  });
+
+  it("gives the job 26 hours after an end before it counts as missed", async () => {
+    await check();
+    // NOW less 26 hours: an end at 03:00 today (9 hours ago) is not asked for.
+    expect(stub.callsTo("subscriptions.lt")).toEqual([["current_period_end", "2026-11-17T10:00:00.000Z"]]);
+  });
+
+  it("leaves out shops the job skips on purpose: on hold, paused or internal", async () => {
+    stub.state.tables.subscriptions = [
+      sub("active", LONG_AGO, { status: "suspended" }),
+      sub("active", LONG_AGO, { status: "paused" }),
+      sub("active", LONG_AGO, { status: "cancelled" }),
+      sub("active", LONG_AGO, { status: "active" }, "internal"),
+      // A house shop whose subscription row still names a paid plan.
+      sub("active", LONG_AGO, { status: "active", plan: "internal" }),
+    ];
+
+    expect(await check()).toEqual({ trialsNotBilled: [], renewalsMissed: [] });
+  });
+
+  it("finds a missed shop past the first 1,000 rows", async () => {
+    const fine = Array.from({ length: SERVER_MAX_ROWS + 10 }, () => sub("past_due", LONG_AGO, { status: "trial" }));
+    stub.state.tables.subscriptions = [...fine, sub("active", LONG_AGO, { status: "active" })];
+
     const body = await check();
-    expect(body.trialsNotPaused[0]).toEqual({ tenant_id: SHOP, business_name: "Shop A", due: "2026-11-01T00:00:00Z" });
-    expect(body.renewalsMissed[0].business_name).toBe("Shop A");
-    expect(filters.tenants).toContain("neq plan internal");
-    expect(filters.tenants).toContain("eq status trial");
-    expect(filters.subscriptions).toContain("eq status active");
+
+    expect(body.renewalsMissed).toEqual([{ tenant_id: "shop-1011", business_name: "Shop 1011", due: LONG_AGO }]);
+  });
+
+  it("answers 500 when the read fails, not with a quiet bell", async () => {
+    stub.state.failing.add("subscriptions");
+    const res = await GET(new NextRequest("http://admin.test/api/billing-check"));
+    expect(res.status).toBe(500);
   });
 });

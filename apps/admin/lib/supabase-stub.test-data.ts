@@ -50,8 +50,12 @@ export function supabaseStub() {
         return note("filter", column, operator, value);
       },
       in: (column: string, values: unknown[]) => {
-        rows = rows.filter((row) => values.includes(row[column]));
+        rows = rows.filter((row) => values.includes(fieldOf(row, column)));
         return note("in", column, values);
+      },
+      neq: (column: string, value: unknown) => {
+        rows = rows.filter((row) => fieldOf(row, column) !== value);
+        return note("neq", column, value);
       },
       range: (first: number, last: number) => {
         window = [first, last];
