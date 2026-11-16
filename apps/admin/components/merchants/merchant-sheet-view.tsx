@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LockedChip } from "./locked-chip";
+import { healthChipClass } from "@/lib/merchant-health";
 
 function formatIQD(amount: number): string {
   return new Intl.NumberFormat("en-IQ").format(amount);
@@ -22,12 +23,6 @@ function formatCompactIQD(amount: number): string {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
   return String(amount);
-}
-
-function getHealthColor(score: number): string {
-  if (score >= 70) return "text-emerald-700 bg-emerald-100 dark:bg-emerald-400/15 dark:text-emerald-300";
-  if (score >= 40) return "text-amber-700 bg-amber-100 dark:bg-amber-400/15 dark:text-amber-300";
-  return "text-rose-700 bg-rose-100 dark:bg-rose-400/15 dark:text-rose-300";
 }
 
 function timeAgo(dateStr: string): string {
@@ -335,7 +330,7 @@ export function MerchantSheetView({
                   <span
                     className={cn(
                       "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black tabular-nums",
-                      getHealthColor(healthScore),
+                      healthChipClass(healthScore),
                     )}
                   >
                     <Heart className="w-2.5 h-2.5" />

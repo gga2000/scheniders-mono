@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LockedChip } from "./locked-chip";
+import { healthChipClass, listChurnRisk } from "@/lib/merchant-health";
 
 const DENSITY_CONFIG: Record<TableDensity, { rowHeight: number; cellPy: string; fontSize: string }> = {
   compact: { rowHeight: 52, cellPy: "py-1.5", fontSize: "text-[11px]" },
@@ -28,25 +29,6 @@ function formatCompactIQD(amount: number): string {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
   return String(amount);
-}
-
-function getHealthColor(score: number): string {
-  if (score >= 70) return "text-emerald-700 bg-emerald-100 dark:bg-emerald-400/15 dark:text-emerald-300";
-  if (score >= 40) return "text-amber-700 bg-amber-100 dark:bg-amber-400/15 dark:text-amber-300";
-  return "text-rose-700 bg-rose-100 dark:bg-rose-400/15 dark:text-rose-300";
-}
-
-function isChurnRisk(m: AdminTenant): boolean {
-  const balance = m.wallet?.balance_iqd ?? 0;
-  const orders = m.usage?.orders_count ?? 0;
-  if (m.status === "suspended") return true;
-  if (balance < 5000 && orders < 5) return true;
-  if (m.status === "trial") {
-    if (!m.trial_ends_at) return false;
-    const days = Math.ceil((new Date(m.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (days <= 3 && orders === 0) return true;
-  }
-  return false;
 }
 
 const STATUS_PILL: Record<string, string> = {
@@ -189,7 +171,7 @@ export function VirtualizedMerchantTable({
           const isStarred = starredSet.has(m.id);
           const isFocused = focusedIndex === virtualRow.index;
           const healthScore = m.staff_health_score;
-          const churn = isChurnRisk(m);
+          const churn = listChurnRisk(m);
 
           return (
             <div
@@ -380,7 +362,7 @@ function renderCell(
           <span
             className={cn(
               "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black tabular-nums",
-              getHealthColor(healthScore),
+              healthChipClass(healthScore),
             )}
           >
             <Heart className="w-2.5 h-2.5" />

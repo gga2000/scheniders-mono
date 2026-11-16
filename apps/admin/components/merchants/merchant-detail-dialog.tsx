@@ -27,6 +27,7 @@ import { NotesTab } from "./detail/notes-tab";
 import { MerchantActionBar } from "./detail/merchant-action-bar";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { HealthScoreTooltip } from "./health-score-tooltip";
+import { isChurnRisk, newestMonthOrders } from "@/lib/merchant-health";
 import { MerchantAlertFlag } from "./merchant-alert-flag";
 import { DialogStatCard } from "./detail/dialog-stat-card";
 import { DialogQuickActions } from "./detail/dialog-quick-actions";
@@ -193,20 +194,6 @@ function buildAdminTenantShape(data: MerchantDetail): AdminTenant {
   } satisfies AdminTenant;
 }
 
-function isChurnRisk(t: AdminTenant): boolean {
-  const balance = t.wallet?.balance_iqd ?? 0;
-  const orders = t.usage?.orders_count ?? 0;
-  if (t.status === "suspended") return true;
-  if (balance < 5000 && orders < 5) return true;
-  if (t.status === "trial" && t.trial_ends_at) {
-    const days = Math.ceil(
-      (new Date(t.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
-    if (days <= 3 && orders === 0) return true;
-  }
-  return false;
-}
-
 function buildOrderSparkline(usage: MerchantDetail["usage"]): number[] {
   return [...usage]
     .sort((a, b) => (a.year - b.year) || (a.month - b.month))
@@ -264,7 +251,13 @@ function DialogBody({
 
   const adapterTenant = useMemo(() => buildAdminTenantShape(data), [data]);
   const healthScore = tenant.staff_health_score;
-  const churnRisk = useMemo(() => isChurnRisk(adapterTenant), [adapterTenant]);
+  // The same facts the Merchants list reads: the newest usage month, not six months added up.
+  const churnRisk = isChurnRisk({
+    status: tenant.status,
+    trialEndsAt: tenant.trial_ends_at,
+    walletIqd: wallet?.balance_iqd ?? 0,
+    ordersNewestMonth: newestMonthOrders(usage),
+  });
 
   const orderSpark = useMemo(() => buildOrderSparkline(usage), [usage]);
   const chargeSpark = useMemo(() => buildChargeSparkline(usage), [usage]);
