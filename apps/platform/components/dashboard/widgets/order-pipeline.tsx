@@ -6,6 +6,8 @@ import { useLanguage } from "@/hooks/use-language";
 
 /** Below this share of the bar (about 40 px at 1440) a segment shows no count or label. */
 const MIN_LABELLED_PCT = 6;
+/** The stage get_dashboard_metrics fills with every order outside the five named stages. */
+const OTHER_STAGE = "other";
 
 interface OrderPipelineProps {
     stages: PipelineStage[];
@@ -25,18 +27,29 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
         'confirmed': t("dashboard.pipeline.confirmed"),
         'in_transit': t("dashboard.pipeline.inTransit"),
         'delivered': t("dashboard.pipeline.delivered"),
+        'other': t("dashboard.pipeline.other"),
     };
 
     const getLabel = (stage: PipelineStage) => PIPELINE_LABELS[stage.status] ?? stage.label;
+    // 'other' gathers several statuses (cancelled, rejected, returned, no answer): no one Orders filter shows it.
+    const isOther = (stage: PipelineStage) => stage.status === OTHER_STAGE;
+    const openStage = (stage: PipelineStage) => {
+        if (!isOther(stage)) onStageClick?.(stage.status);
+    };
+    const stageTitle = (stage: PipelineStage) =>
+        isOther(stage)
+            ? t("dashboard.pipeline.otherHint", { count: stage.count })
+            : `${getLabel(stage)}: ${stage.count} ${t("dashboard.pipeline.orders")}`;
 
     return (
         <div className="pastel-card p-4 md:p-5">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-widest">{t("dashboard.pipeline.title")}</h3>
-                {/* Names its period: Orders' «قيد التوصيل» counts every day, this bar only the dashboard's period. */}
-                <span className="text-xs text-muted" title={t("dashboard.pipeline.scopeHint")}>
+                {/* Names its period: Orders' «قيد التوصيل» counts every day, this bar only the dashboard's period.
+                    The stages hold every order of the period, so this total matches the orders card. */}
+                <bdi className="text-xs text-muted" title={t("dashboard.pipeline.scopeHint")}>
                     {t("dashboard.pipeline.periodTotal", { count: total, period: t(`dashboard.pipeline.period.${period}`) })}
-                </span>
+                </bdi>
             </div>
 
             {/* Desktop: proportional bar */}
@@ -54,10 +67,10 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
                     return (
                         <div
                             key={stage.status}
-                            className={`relative flex flex-col items-center justify-center gap-0.5 overflow-hidden transition-all cursor-pointer hover:brightness-95 active:scale-95 ${i > 0 ? "border-l border-white/40" : ""}`}
+                            className={`relative flex flex-col items-center justify-center gap-0.5 overflow-hidden transition-all ${isOther(stage) ? "" : "cursor-pointer hover:brightness-95 active:scale-95"} ${i > 0 ? "border-l border-white/40" : ""}`}
                             style={{ flexBasis: `${width}%`, minWidth: '2px', background: stage.color }}
-                            onClick={() => onStageClick?.(stage.status)}
-                            title={`${getLabel(stage)}: ${stage.count} ${t("dashboard.pipeline.orders")}`}
+                            onClick={() => openStage(stage)}
+                            title={stageTitle(stage)}
                         >
                             {/* A sliver cannot hold its words: they spilled over the next segment. The legend below names it. */}
                             {pct >= MIN_LABELLED_PCT && (
@@ -78,8 +91,9 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
                     return (
                         <div
                             key={stage.status}
-                            className="flex items-center gap-3 cursor-pointer"
-                            onClick={() => onStageClick?.(stage.status)}
+                            className={`flex items-center gap-3 ${isOther(stage) ? "" : "cursor-pointer"}`}
+                            onClick={() => openStage(stage)}
+                            title={stageTitle(stage)}
                         >
                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
                             <span className="text-sm text-foreground font-medium flex-1">{getLabel(stage)}</span>
@@ -97,17 +111,24 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
 
             {/* Legend row (desktop only) */}
             <div className="hidden md:flex items-center gap-4 mt-3 flex-wrap">
-                {stages.map((stage) => (
-                    <button
-                        key={stage.status}
-                        className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
-                        onClick={() => onStageClick?.(stage.status)}
-                    >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
-                        <span>{getLabel(stage)}</span>
-                        <ChevronRight className="w-3 h-3 opacity-50" />
-                    </button>
-                ))}
+                {stages.map((stage) =>
+                    isOther(stage) ? (
+                        <span key={stage.status} className="flex items-center gap-1.5 text-xs text-muted" title={stageTitle(stage)}>
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
+                            <span>{getLabel(stage)}</span>
+                        </span>
+                    ) : (
+                        <button
+                            key={stage.status}
+                            className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
+                            onClick={() => openStage(stage)}
+                        >
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
+                            <span>{getLabel(stage)}</span>
+                            <ChevronRight className="w-3 h-3 opacity-50" />
+                        </button>
+                    ),
+                )}
             </div>
         </div>
     );

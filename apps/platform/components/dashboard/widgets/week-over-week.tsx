@@ -30,12 +30,12 @@ function DeltaPill({ delta, deltaPct, unit }: { delta: number | null; deltaPct: 
     const label = deltaPct !== null
         ? `${up ? '+' : ''}${deltaPct}%`
         : unit === '%'
-            ? `${up ? '+' : ''}${t("dashboard.wow.points", { n: Math.abs(delta) })}`
+            ? `${up ? '+' : ''}${t("dashboard.wow.points", { n: Math.abs(delta), count: Math.abs(delta) })}`
             : `${up ? '+' : ''}${Math.abs(delta)}`;
     return (
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${up ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700'}`}>
             {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-            {label}
+            <bdi>{label}</bdi>
         </span>
     );
 }

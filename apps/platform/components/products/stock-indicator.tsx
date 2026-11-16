@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
-import { StockStatus } from "@/lib/supabase";
+import { StockStatus, formatStockCount } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -92,7 +92,7 @@ export function StockIndicator({
     // Confirmed orders beyond the shelf: say so, with the count Orders shows ("−55").
     const oversold = quantity !== undefined && quantity < 0;
     const labelKey = oversold ? "products.stock.oversold" : config.key;
-    const shownQuantity = quantity === undefined ? undefined : oversold ? `−${Math.abs(quantity)}` : String(quantity);
+    const shownQuantity = quantity === undefined ? undefined : formatStockCount(quantity);
     const sizeStyles = sizeConfig[size];
     const Icon = config.icon;
 

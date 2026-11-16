@@ -120,7 +120,7 @@ export function BatchAnalytics({
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-foreground">{t("reports.batch.title")}</h3>
-                            <p className="text-sm text-muted">{t("reports.batch.shipped", { n: summary.totalBatches })}</p>
+                            <p className="text-sm text-muted"><bdi>{t("reports.batch.shipped", { n: summary.totalBatches })}</bdi></p>
                         </div>
                     </div>
 
@@ -241,7 +241,7 @@ export function BatchAnalytics({
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted mt-0.5 flex items-center gap-3">
-                                        <span>{t("reports.batch.ordersCount", { count: batch.orderCount })}</span>
+                                        <bdi>{t("reports.batch.ordersCount", { count: batch.orderCount })}</bdi>
                                         <span>•</span>
                                         {/* Refund labels carry negative prices, so a run of mostly refunds sums below zero. */}
                                         <span>

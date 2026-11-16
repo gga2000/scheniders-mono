@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, Clock } from "lucide-react";
-import { Product, getStockStatus } from "@/lib/supabase";
+import { Product, getAvailableStock, getStockStatus } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useProductStore } from "@/store/use-product-store";
@@ -73,7 +73,8 @@ export function LowStockAlert({ products, onViewProduct, onShowInList }: LowStoc
         const buckets: Record<Severity, AlertProduct[]> = { critical: [], warning: [], info: [] };
         for (const product of products) {
             if (product.is_archived || product.is_supply || product.is_filler) continue;
-            const available = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
+            // Not clamped: an oversell sorts first and is named as one.
+            const available = getAvailableStock(product);
             const enriched = { ...product, available, daysOfSupply: estimateDaysOfSupply(available, product) };
             const status = getStockStatus(product);
             if (status === "out_of_stock") buckets.critical.push(enriched);
@@ -110,9 +111,9 @@ export function LowStockAlert({ products, onViewProduct, onShowInList }: LowStoc
                         const label = (
                             <>
                                 <span className={cn("h-2 w-2 rounded-full", SEVERITY_DOT[g.severity])} aria-hidden />
-                                <span className={g.severity === "critical" ? "font-semibold" : undefined}>
+                                <bdi className={g.severity === "critical" ? "font-semibold" : undefined}>
                                     {t(SEVERITY_COUNT_KEY[g.severity], { count: g.products.length })}
-                                </span>
+                                </bdi>
                             </>
                         );
                         const status = SEVERITY_STATUS[g.severity];
@@ -166,7 +167,9 @@ export function LowStockAlert({ products, onViewProduct, onShowInList }: LowStoc
                                         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", SEVERITY_DOT[g.severity])} aria-hidden />
                                         <bdi className="max-w-[180px] truncate font-medium">{product.name}</bdi>
                                         <span className="tabular-nums text-[var(--foreground-muted)]">
-                                            {t("products.alert.leftCount", { count: product.available })}
+                                            {product.available < 0
+                                                ? t("products.alert.oversoldCount", { count: -product.available })
+                                                : t("products.alert.leftCount", { count: product.available })}
                                         </span>
                                         {product.daysOfSupply !== null && product.daysOfSupply > 0 && (
                                             <span

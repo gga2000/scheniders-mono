@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
+import { getOrderAge } from "@/lib/order-format-utils";
 import { motion } from "framer-motion";
 import { EmployeeActivityMetrics } from "@/hooks/use-employee-metrics";
 import {
@@ -9,8 +10,6 @@ import {
     Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { ar as arLocale } from "date-fns/locale";
 
 interface TrueEmployeePerformanceProps {
     data: EmployeeActivityMetrics[];
@@ -131,7 +130,7 @@ export function TrueEmployeePerformance({
                         {/* Online indicator */}
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-full">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{t("reports.team.online", { n: onlineCount })}</span>
+                            <bdi className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{t("reports.team.online", { n: onlineCount })}</bdi>
                         </div>
 
                         {onRefresh && (
@@ -238,14 +237,14 @@ export function TrueEmployeePerformance({
                                     <div className="text-xs text-muted truncate">{emp.userEmail}</div>
                                 </div>
                                 <div className="flex items-center gap-6 text-sm">
-                                    <div className="text-center">
-                                        <span className="font-bold text-foreground">{emp.totalActions}</span>
-                                        <span className="text-muted ml-1 text-xs">{t("reports.team.actions")}</span>
-                                    </div>
-                                    <div className="text-center hidden md:block">
-                                        <span className="font-bold text-foreground">{emp.ordersCreated}</span>
-                                        <span className="text-muted ml-1 text-xs">{t("reports.team.createdShort")}</span>
-                                    </div>
+                                    <bdi className="text-center">
+                                        <span className="font-bold text-foreground">{emp.totalActions}</span>{" "}
+                                        <span className="text-muted text-xs">{t("reports.team.actions")}</span>
+                                    </bdi>
+                                    <bdi className="text-center hidden md:block">
+                                        <span className="font-bold text-foreground">{emp.ordersCreated}</span>{" "}
+                                        <span className="text-muted text-xs">{t("reports.team.createdShort")}</span>
+                                    </bdi>
                                 </div>
                             </motion.div>
                         ))}
@@ -256,7 +255,7 @@ export function TrueEmployeePerformance({
                 {data[0]?.mostRecentAction && (
                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/10 text-xs text-muted flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {t("reports.team.lastActivity", { when: formatDistanceToNow(data[0].mostRecentAction, { addSuffix: true, locale: language === "ar" ? arLocale : undefined }) })}
+                        {t("reports.team.lastActivity", { when: getOrderAge(data[0].mostRecentAction, language) })}
                     </div>
                 )}
             </div>

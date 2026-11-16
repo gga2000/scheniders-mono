@@ -3,8 +3,6 @@
 import { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { useLanguage } from "@/hooks/use-language";
 
-const OPTION_VALUES: DateRangeKey[] = ["today", "7d", "30d", "all"];
-
 interface DateRangeFilterProps {
     value: DateRangeKey;
     onChange: (range: DateRangeKey) => void;
@@ -32,7 +30,7 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
                             : "text-[var(--foreground-subtle)] hover:bg-[var(--background)] hover:text-foreground"
                     }`}
                 >
-                    {opt.label}
+                    <bdi>{opt.label}</bdi>
                 </button>
             ))}
         </div>

@@ -501,8 +501,21 @@ export type ShrinkageType = 'shrinkage_damaged' | 'shrinkage_stolen' | 'shrinkag
 
 export type ExtendedInventoryChangeType = InventoryChangeType | ShrinkageType | 'transfer' | 'stock_take';
 
+/**
+ * What is free to sell: on the shelf minus reserved. Not clamped: below zero is
+ * an oversell, and every Products view shows it as Orders does (−N), never as 0.
+ */
+export function getAvailableStock(product: Pick<Product, "stock_quantity" | "reserved_quantity">): number {
+    return product.stock_quantity - (product.reserved_quantity || 0);
+}
+
+/** A stock count as merchants read it: an oversell keeps its sign, as a true minus («−55»). */
+export function formatStockCount(count: number): string {
+    return count < 0 ? `−${Math.abs(count)}` : String(count);
+}
+
 export function getStockStatus(product: Product): StockStatus {
-    const available = product.stock_quantity - (product.reserved_quantity || 0);
+    const available = getAvailableStock(product);
     if (available <= 0) return 'out_of_stock';
     if (available <= product.low_stock_threshold) return 'low_stock';
     return 'in_stock';

@@ -39,7 +39,7 @@ export function Segmented<V extends string | number>({ items, value, onChange, l
                     onClick={() => onChange(it.value)}
                     className={`relative z-10 rounded-[8px] px-3 text-xs font-medium tracking-[-0.01em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--primary)] ${it.value === value ? "text-foreground" : "text-[var(--foreground-muted)] hover:text-foreground"}`}
                 >
-                    {it.label}
+                    <bdi>{it.label}</bdi>
                 </button>
             ))}
         </div>

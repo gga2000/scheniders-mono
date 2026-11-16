@@ -266,7 +266,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted">{totalOrders} {t("map.orders")}</span>
+            <bdi className="text-xs text-muted">{totalOrders} {t("map.orders", { count: totalOrders })}</bdi>
             <Expand className="w-4 h-4 text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
@@ -284,7 +284,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                 style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
               >
                 <p className="font-bold text-foreground">{govName(tooltip.stats)}</p>
-                <p className="text-muted">{tooltip.stats.total} {t("map.orders")}</p>
+                <p className="text-muted"><bdi>{tooltip.stats.total} {t("map.orders", { count: tooltip.stats.total })}</bdi></p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -368,7 +368,7 @@ export function IraqMap({ orders, className }: IraqMapProps) {
                     style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
                   >
                     <p className="font-bold text-foreground">{govName(tooltip.stats)}</p>
-                    <p className="text-muted">{tooltip.stats.total} {t("map.orders")}</p>
+                    <p className="text-muted"><bdi>{tooltip.stats.total} {t("map.orders", { count: tooltip.stats.total })}</bdi></p>
                   </motion.div>
                 )}
               </AnimatePresence>

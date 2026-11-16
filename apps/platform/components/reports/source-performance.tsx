@@ -3,9 +3,8 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { SourcePerformanceMetrics } from "@/lib/analytics/source-metrics";
-import { Trophy, Medal, Package, CheckCircle2, Clock, Banknote, TrendingUp } from "lucide-react";
+import { Trophy, Medal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
 
 interface SourcePerformanceProps {
     data: SourcePerformanceMetrics[];
@@ -139,10 +138,10 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                                     <div className="font-semibold text-foreground truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.sourceKey)}</div>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
-                                    <div className="text-center">
-                                        <span className="font-bold text-foreground">{emp.ordersProcessed}</span>
-                                        <span className="text-muted ml-1">{t("reports.common.orders")}</span>
-                                    </div>
+                                    <bdi className="text-center">
+                                        <span className="font-bold text-foreground">{emp.ordersProcessed}</span>{" "}
+                                        <span className="text-muted">{t("reports.channels.orders", { count: emp.ordersProcessed })}</span>
+                                    </bdi>
                                     <div className={cn(
                                         "px-2 py-1 rounded-full text-xs font-bold",
                                         emp.deliveryRate >= 80 ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" :

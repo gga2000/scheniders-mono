@@ -73,7 +73,7 @@ export function MonthForecast({ forecast }: MonthForecastProps) {
 
             <div className="flex items-center gap-1.5 mt-3 text-[10px] text-purple-900/40">
                 <TrendingUp className="w-3 h-3" />
-                <span>{t("dashboard.forecast.linearProjection")} {daysElapsed}{t("dashboard.forecast.daySample")}</span>
+                <span>{t("dashboard.forecast.basis", { count: daysElapsed })}</span>
             </div>
         </div>
     );
