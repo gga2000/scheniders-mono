@@ -17,6 +17,7 @@ import {
     CreditCard,
     BellRing,
     PackageX,
+    Headset,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -32,6 +33,7 @@ import { BusinessSettings } from "@/components/settings/business-settings";
 import { BillingSettings } from "@/components/settings/billing-settings";
 import { StaffAlertsSettings } from "@/components/settings/staff-alerts-settings";
 import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
+import { SupportVisitsSettings } from "@/components/settings/support-visits-settings";
 
 function IntegrationsSettings() {
     const { t } = useLanguage();
@@ -156,6 +158,16 @@ const SECTIONS = [
         iconColor: "text-purple-700",
         component: PageSettings,
         keywords: ["pages", "access", "permissions", "roles", "control", "viewer"],
+    },
+    {
+        id: "support-activity",
+        title: "settings.nav.supportVisits",
+        description: "settings.nav.supportVisitsDesc",
+        icon: Headset,
+        colorVar: "--pastel-blue",
+        iconColor: "text-blue-700",
+        component: SupportVisitsSettings,
+        keywords: ["support", "staff", "access", "visits", "activity", "trust", "team"],
     },
     {
         id: "data",

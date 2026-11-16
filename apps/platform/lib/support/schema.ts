@@ -111,3 +111,40 @@ export function supportRefusal(error: { code?: string; message?: string } | null
     const status = REFUSALS[error.message];
     return status === undefined ? null : { status, code: error.message };
 }
+
+/**
+ * What our staff did on this shop, as the merchant sees it in Settings
+ * (support_staff_visits). Only steps a merchant should know about; the staff
+ * member is named by display name, never by email.
+ */
+export const STAFF_VISIT_ACTIONS = [
+    "impersonate",
+    "support_view",
+    "extend_trial",
+    "convert_trial",
+    "change_plan",
+    "pause_tenant",
+    "unpause_tenant",
+    "suspend",
+    "bulk_suspend",
+    "reactivate",
+    "top_up_wallet",
+    "top_up",
+    "bulk_top_up",
+    "pause_whatsapp",
+    "resume_whatsapp",
+    "support_reached_out",
+    "support_shop_taken",
+] as const;
+
+export type StaffVisitAction = (typeof STAFF_VISIT_ACTIONS)[number];
+
+export const staffVisitsSchema = z.array(
+    z.object({
+        action: z.enum(STAFF_VISIT_ACTIONS),
+        staff: z.string().nullable(),
+        at: z.string(),
+    }),
+);
+
+export type StaffVisit = z.infer<typeof staffVisitsSchema>[number];
