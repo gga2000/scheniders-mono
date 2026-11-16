@@ -19,6 +19,7 @@ import {
   UserPlus,
   Users,
   Headset,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
 const ANALYTICS_ITEMS = [
   { label: "Revenue", icon: TrendingUp, href: "/revenue" },
   { label: "Usage Heatmap", icon: BarChart3, href: "/usage" },
+  { label: "WhatsApp", icon: MessageCircle, href: "/whatsapp" },
 ];
 
 interface AdminSidebarProps {

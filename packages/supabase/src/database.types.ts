@@ -8680,6 +8680,44 @@ export type Database = {
           },
         ]
       }
+      whatsapp_sender_pauses: {
+        Row: {
+          detail: Json
+          paused_at: string
+          paused_by: string | null
+          reason: string
+          resumed_at: string | null
+          resumed_by: string | null
+          tenant_id: string
+        }
+        Insert: {
+          detail?: Json
+          paused_at?: string
+          paused_by?: string | null
+          reason: string
+          resumed_at?: string | null
+          resumed_by?: string | null
+          tenant_id: string
+        }
+        Update: {
+          detail?: Json
+          paused_at?: string
+          paused_by?: string | null
+          reason?: string
+          resumed_at?: string | null
+          resumed_by?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_sender_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       customer_aggregates: {
@@ -8958,6 +8996,11 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_whatsapp_pause: {
+        Args: { p_admin_id: string; p_pause: boolean; p_tenant_id: string }
+        Returns: Json
+      }
+      admin_whatsapp_report: { Args: { p_month: string }; Returns: Json }
       aggregate_experiment_stats: {
         Args: { p_experiment_id: string; p_tenant_id: string }
         Returns: {
@@ -10071,12 +10114,21 @@ export type Database = {
         Args: { _marketing: boolean; _tenant_id: string }
         Returns: number
       }
-      whatsapp_send_allowed: { Args: { _tenant_id: string }; Returns: boolean }
       whatsapp_send_check: {
         Args: { _marketing: boolean; _tenant_id: string }
         Returns: string
       }
+      whatsapp_shop_health: {
+        Args: { _window: unknown }
+        Returns: {
+          bad: number
+          failed: number
+          reached: number
+          tenant_id: string
+        }[]
+      }
       whatsapp_usage: { Args: { p_tenant_id: string }; Returns: Json }
+      whatsapp_watch: { Args: never; Returns: Json }
     }
     Enums: {
       commission_status: "pending" | "approved" | "paid"

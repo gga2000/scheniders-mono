@@ -7,14 +7,16 @@ import { useAuth } from "@/components/auth/auth-provider";
 
 /**
  * The shop's WhatsApp messages (Fermi B2), as whatsapp_usage returns it
- * (20261116052907_fermi_whatsapp_trial_cap.sql): the free-trial counter and
- * this month's delivered messages by template. `charged_iqd` is null for a
- * member who may not see the shop's money.
+ * (20261116055117_fermi_whatsapp_guard.sql): the free-trial counter, whether
+ * its automatic messages are paused to protect the shared number, and this
+ * month's delivered messages by template. `charged_iqd` is null for a member
+ * who may not see the shop's money.
  */
 const usageSchema = z.object({
     trial: z.boolean(),
     trial_sent: z.number().int(),
     trial_cap: z.number().int(),
+    paused: z.boolean(),
     month_start: z.string(),
     month: z.array(
         z.object({

@@ -19,6 +19,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/revenue": "Revenue Analytics",
   "/usage": "Usage Heatmap",
+  "/whatsapp": "WhatsApp",
 };
 
 /** Friendly labels for the admin-console roles (stored as snake_case). */

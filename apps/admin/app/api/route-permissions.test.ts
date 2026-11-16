@@ -144,6 +144,13 @@ const SUPER_ADMIN_ONLY: Case[] = [
     },
   },
   {
+    name: "POST /api/merchants/[id]/whatsapp-pause (pause_whatsapp)",
+    call: async (t) => {
+      const { POST } = await import("./merchants/[id]/whatsapp-pause/route");
+      return POST(req(`/api/merchants/${TENANT}/whatsapp-pause`, "POST", t, { paused: true }), idParams);
+    },
+  },
+  {
     name: "POST /api/merchants/[id]/extend-subscription (manage_subscription)",
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-subscription/route");

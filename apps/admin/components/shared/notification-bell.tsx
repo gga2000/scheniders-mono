@@ -6,7 +6,7 @@ import { Bell, Check, Wallet, Building2, Clock, AlertTriangle } from "lucide-rea
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { useQueryClient } from "@tanstack/react-query";
 import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
-import { WhatsAppHealthAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
+import { WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
 import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing-check-alert";
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
 
@@ -76,10 +76,11 @@ export function NotificationBell() {
   const openTopups = useTopupRequests().data ?? [];
   const whatsapp = useWhatsAppHealth().data;
   const interaktEmpty = whatsapp?.interaktEmpty === true;
+  const pausedShops = whatsapp?.pausedShops ?? 0;
   const billingCheck = useBillingCheck().data;
   const billingMissed = billingCheckCount(billingCheck) > 0;
   // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (billingMissed ? 1 : 0);
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0);
 
   const markAllRead = useCallback(() => {
     setReadIds(new Set(notifications.map((n) => n.id)));
@@ -145,6 +146,9 @@ export function NotificationBell() {
             {/* Interakt wallet empty: every shop's WhatsApp is stopped */}
             {interaktEmpty && <WhatsAppHealthAlert since={whatsapp?.since ?? null} timeAgo={timeAgo} />}
 
+            {/* Shops whose automatic WhatsApp is paused to protect the shared number */}
+            {pausedShops > 0 && <WhatsAppPausedAlert count={pausedShops} onOpen={() => setIsOpen(false)} />}
+
             {/* Top-up receipts: shops waiting for our team to add their money */}
             <TopupRequestsSection requests={openTopups} timeAgo={timeAgo} />
 
@@ -153,7 +157,7 @@ export function NotificationBell() {
 
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
-              {notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && !billingMissed ? (
+              {notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/40">
                   No notifications yet
                 </div>

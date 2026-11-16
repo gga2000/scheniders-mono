@@ -224,7 +224,7 @@ beforeEach(() => {
     state.addons = { extra_member: 0, pos_branch: 0 };
     state.planQuote = undefined;
     state.addonQuote = undefined;
-    state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, month_start: "2026-10-31T21:00:00Z", month: [] };
+    state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, paused: false, month_start: "2026-10-31T21:00:00Z", month: [] };
     quotedPlans.length = 0;
     applyPlan.mockReset();
     applyAddon.mockReset();
@@ -523,7 +523,7 @@ describe("BillingSettings WhatsApp messages (Fermi B2)", () => {
     it("a trial shows how many of its free messages are used", () => {
         state.tenant = tenant("trial", new Date(Date.now() + 3 * 86_400_000).toISOString());
         state.balance = 0;
-        state.whatsapp = { trial: true, trial_sent: 143, trial_cap: 200, month_start: "2026-10-31T21:00:00Z",
+        state.whatsapp = { trial: true, trial_sent: 143, trial_cap: 200, paused: false, month_start: "2026-10-31T21:00:00Z",
             month: [{ template_name: "cod_order_confirm_v3", category: "utility", count: 120, charged_iqd: 0 }] };
         show();
         const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
@@ -535,7 +535,7 @@ describe("BillingSettings WhatsApp messages (Fermi B2)", () => {
 
     it("at the cap the trial says messages stopped and that paying turns them back on", () => {
         state.tenant = tenant("trial", new Date(Date.now() + 3 * 86_400_000).toISOString());
-        state.whatsapp = { trial: true, trial_sent: 200, trial_cap: 200, month_start: "2026-10-31T21:00:00Z", month: [] };
+        state.whatsapp = { trial: true, trial_sent: 200, trial_cap: 200, paused: false, month_start: "2026-10-31T21:00:00Z", month: [] };
         show();
         const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
         expect(card).toContain("خلصت رسائل التجربة المجانية، فوقفت الرسائل التلقائية");
@@ -543,7 +543,7 @@ describe("BillingSettings WhatsApp messages (Fermi B2)", () => {
     });
 
     it("a paying shop sees this month's messages and what they cost, by kind", () => {
-        state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, month_start: "2026-10-31T21:00:00Z", month: [
+        state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, paused: false, month_start: "2026-10-31T21:00:00Z", month: [
             { template_name: "cod_order_confirm_v3", category: "utility", count: 300, charged_iqd: 9000 },
             { template_name: "order_reminder_v3", category: "utility", count: 12, charged_iqd: 360 },
         ] };
@@ -561,6 +561,15 @@ describe("BillingSettings WhatsApp messages (Fermi B2)", () => {
         state.balance = 0;
         show();
         expect(screen.getByTestId("whatsapp-usage-card").textContent).toContain("رصيدك ما يكفي لرسالة، فوقفت الرسائل التلقائية");
+    });
+
+    it("a shop paused to protect the shared number is told why and to confirm by hand", () => {
+        state.whatsapp = { trial: false, trial_sent: 0, trial_cap: 200, paused: true, month_start: "2026-10-31T21:00:00Z", month: [] };
+        show();
+        const card = screen.getByTestId("whatsapp-usage-card").textContent ?? "";
+        expect(card).toContain("الرسائل التلقائية موقوفة لمتجرك");
+        expect(card).toContain("أكّدها من واتسابك");
+        expect(card).not.toContain("رصيدك ما يكفي لرسالة");
     });
 });
 
