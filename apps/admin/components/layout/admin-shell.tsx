@@ -108,12 +108,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  const getMainMargin = () => {
-    if (!mounted) return "0px";
-    if (isMobile) return "0px";
-    return isCollapsed ? "88px" : "272px";
-  };
-
   const sidebarUser = user
     ? {
         email: user.email ?? "",
@@ -153,11 +147,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           onSignOut={handleSignOut}
         />
 
+        {/*
+          The room for the fixed menu is set in CSS, so the server's page
+          already has it. It used to start at 0 and slide to 272px for half a
+          second after every page load, pushing the whole page sideways. It
+          slides only when someone opens or closes the menu.
+        */}
         <main
           className={cn(
-            "flex-1 min-w-0 transition-all duration-500 ease-in-out"
+            "flex-1 min-w-0",
+            isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]",
+            mounted && "transition-[margin-left] duration-500 ease-in-out",
           )}
-          style={{ marginLeft: getMainMargin() }}
         >
           <AdminTopbar
             user={topbarUser}
