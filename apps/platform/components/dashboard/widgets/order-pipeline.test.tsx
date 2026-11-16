@@ -21,4 +21,26 @@ describe("dashboard order pipeline", () => {
         expect(screen.getByText("7 طلبات · آخر 7 أيام")).toBeTruthy();
         expect(document.body.textContent).not.toContain("إجمالي نشط");
     });
+
+    it("counts every order of the period, so its total matches the orders card", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const opened: string[] = [];
+        render(
+            <LanguageProvider>
+                <OrderPipeline
+                    period="30d"
+                    stages={[stage("new", 4), stage("in_transit", 39), stage("delivered", 192), stage("other", 93)]}
+                    onStageClick={(status) => opened.push(status)}
+                />
+            </LanguageProvider>,
+        );
+        expect(screen.getByText("328 طلباً · آخر 30 يوماً")).toBeTruthy();
+        // Several statuses share the 'other' stage: no single Orders filter to open.
+        const other = screen.getAllByText("حالات أخرى");
+        other.forEach((el) => el.click());
+        expect(opened).toEqual([]);
+        expect(other.every((el) => el.closest("button") === null)).toBe(true);
+        screen.getAllByText("تم التوصيل")[0].click();
+        expect(opened).toEqual(["delivered"]);
+    });
 });

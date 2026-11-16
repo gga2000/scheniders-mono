@@ -70,7 +70,7 @@ export function WalletHistory({ transactions }: { transactions: WalletTransactio
                                     </div>
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-medium text-foreground">{transactionLabel(tx, t, language)}</p>
-                                        <p className="text-xs text-muted-foreground">{formatBillingDate(tx.created_at, language)}</p>
+                                        <p className="text-xs text-muted-foreground"><bdi>{formatBillingDate(tx.created_at, language)}</bdi></p>
                                     </div>
                                 </div>
                                 <div className="ms-3 shrink-0 text-end">

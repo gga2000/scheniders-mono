@@ -23,6 +23,11 @@ describe("product surplus flag", () => {
         expect(calculateProductScore({ ...base, stock_quantity: 0, reserved_quantity: 55 }).flags.isOverstocked).toBe(false);
     });
 
+    it("never calls low stock a surplus, even with no recent sales", () => {
+        expect(calculateProductScore({ ...base, stock_quantity: 2, daily_sales_rate: 0 }).flags.isOverstocked).toBe(false);
+        expect(calculateProductScore({ ...base, stock_quantity: 5, daily_sales_rate: 0.01 }).flags.isOverstocked).toBe(false);
+    });
+
     it("still flags stock that would last more than 90 days", () => {
         expect(calculateProductScore({ ...base, stock_quantity: 40, daily_sales_rate: 0.2 }).flags.isOverstocked).toBe(true);
         expect(calculateProductScore({ ...base, stock_quantity: 40, daily_sales_rate: 0 }).flags.isOverstocked).toBe(true);

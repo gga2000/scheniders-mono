@@ -35,7 +35,7 @@ import {
     type DragStartEvent,
     type DragEndEvent,
 } from "@dnd-kit/core";
-import { Product, getStockStatus } from "@/lib/supabase";
+import { Product, formatStockCount, getAvailableStock, getStockStatus } from "@/lib/supabase";
 import { cn, formatIQD, maskIQD, formatCount } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -731,10 +731,7 @@ function MiniProductCard({
 }: MiniProductCardProps) {
     const { t } = useLanguage();
     const stockStatus = getStockStatus(product);
-    const availableStock = Math.max(
-        0,
-        product.stock_quantity - (product.reserved_quantity || 0)
-    );
+    const availableStock = getAvailableStock(product);
 
     const stockColor =
         stockStatus === "out_of_stock"
@@ -812,7 +809,7 @@ function MiniProductCard({
                         {formatIQD(product.price)}
                     </span>
                     <span className={cn("text-[10px] font-medium", stockColor)}>
-                        {availableStock} {product.is_visible ? "" : "("}
+                        {formatStockCount(availableStock)} {product.is_visible ? "" : "("}
                         {!product.is_visible && (
                             <>
                                 <EyeOff className="inline w-2.5 h-2.5" />

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Product, getStockStatus } from "@/lib/supabase";
+import { Product, getAvailableStock, getStockStatus } from "@/lib/supabase";
 import { formatIQD, maskIQD } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { cn } from "@/lib/utils";
@@ -75,8 +75,7 @@ export const ProductListRow = React.memo(function ProductListRow({
     const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
     const quickEditable = canEdit && !product.is_archived;
     const stockStatus = getStockStatus(product);
-    // Not clamped: below zero is an oversell, which the chip names (Orders shows the same −N).
-    const availableStock = product.stock_quantity - (product.reserved_quantity || 0);
+    const availableStock = getAvailableStock(product);
     const threshold = product.low_stock_threshold || 5;
     const stockRatio = Math.min(availableStock / threshold, 2);
     const hasReserved = (product.reserved_quantity || 0) > 0;
@@ -300,7 +299,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                     </div>
                     {hasReserved && (
                         <span className="text-[10px] text-[var(--foreground-muted)] font-medium tabular-nums" title={t("products.stock.reservedStock")}>
-                            {t("products.stock.reservedCount", { count: product.reserved_quantity || 0 })}
+                            <bdi>{t("products.stock.reservedCount", { count: product.reserved_quantity || 0 })}</bdi>
                         </span>
                     )}
                 </div>

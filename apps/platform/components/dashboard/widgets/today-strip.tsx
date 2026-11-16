@@ -94,7 +94,7 @@ export function TodayStrip({ metrics }: TodayStripProps) {
 
                 <div className="ml-auto hidden md:flex items-center gap-1.5 text-xs text-muted">
                     <span>{t("dashboard.today.vsYesterday")}</span>
-                    <span className="font-semibold text-foreground">{metrics.ordersYesterday} {t("dashboard.today.ordersCount")}</span>
+                    <bdi className="font-semibold text-foreground">{metrics.ordersYesterday} {t("dashboard.today.ordersCount", { count: metrics.ordersYesterday })}</bdi>
                     <span className="font-semibold text-foreground inline-flex items-center gap-1">
                         ·
                         <FinancialValue amount={metrics.revenueYesterday} hideToggle />

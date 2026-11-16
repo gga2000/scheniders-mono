@@ -33,7 +33,7 @@ export function CustomerStatusFlags({
     surface?: "plain" | "tinted";
     className?: string;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const flags = statusFlags(customer);
     if (flags.length === 0) return null;
 
@@ -72,7 +72,7 @@ export function CustomerStatusFlags({
                     {/* ltr: the count stays "+1" in Arabic too */}
                     <span dir="ltr" className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 rounded-full bg-muted/40 tabular-nums cursor-default">
                         +{hidden.length}
-                        <span className="sr-only"> {hidden.map(named).join(", ")}</span>
+                        <span className="sr-only"> {hidden.map(named).join(language === "ar" ? "، " : ", ")}</span>
                     </span>
                 </Tooltip>
             )}

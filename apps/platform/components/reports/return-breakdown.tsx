@@ -72,7 +72,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">{t("reports.returns.title")}</h3>
-                            <p className="text-xs text-muted"><bdi>{t("reports.returns.summary", { n: totalReturns, amount: formatIQD(totalReturnValue) })}</bdi></p>
+                            <p className="text-xs text-muted"><bdi>{t("reports.returns.summary", { n: totalReturns, count: totalReturns, amount: formatIQD(totalReturnValue) })}</bdi></p>
                         </div>
                     </div>
 

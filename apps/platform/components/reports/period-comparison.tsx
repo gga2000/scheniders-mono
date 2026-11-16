@@ -109,7 +109,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-foreground">{t("reports.period.title")}</h3>
-                            <p className="text-sm text-muted">{t("reports.period.subtitle", { n: days })}</p>
+                            <p className="text-sm text-muted"><bdi>{t("reports.period.subtitle", { n: days, count: days })}</bdi></p>
                         </div>
                     </div>
                 </div>
@@ -157,7 +157,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                 <div className="space-y-2">
                                     <div className="flex items-baseline justify-between gap-2">
                                         <span className="text-2xl font-bold text-foreground tabular-nums whitespace-nowrap">
-                                            {metric.format(metric.current)}
+                                            <bdi>{metric.format(metric.current)}</bdi>
                                         </span>
                                         {showChip && change !== null && (
                                             <div className={cn(
@@ -165,13 +165,13 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                                 isGood ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                             )}>
                                                 {isUp ? <ArrowUpRight className="w-3 h-3" aria-hidden /> : <ArrowDownRight className="w-3 h-3" aria-hidden />}
-                                                {Math.abs(change).toFixed(1)}{metric.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}
+                                                <bdi>{Math.abs(change).toFixed(1)}{metric.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}</bdi>
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-muted">
                                         <span>{t("reports.period.vs")}</span>
-                                        <span className="font-medium tabular-nums whitespace-nowrap">{metric.format(metric.previous)}</span>
+                                        <bdi className="font-medium tabular-nums whitespace-nowrap">{metric.format(metric.previous)}</bdi>
                                     </div>
                                 </div>
                             </motion.div>

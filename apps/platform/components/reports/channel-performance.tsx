@@ -44,13 +44,13 @@ function Stats({ row, showMoney }: { row: ChannelPerformanceRow; showMoney: bool
     const { t } = useLanguage();
     return (
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
-            <span title={t("reports.channels.shareHint")}>
+            <bdi title={t("reports.channels.shareHint")}>
                 <span className="tabular-nums">{row.share.toFixed(0)}%</span> {t("reports.channels.ofOrders")}
-            </span>
+            </bdi>
             {row.deliveryRate !== null && (
-                <span title={t("reports.channels.deliveryHint")}>
+                <bdi title={t("reports.channels.deliveryHint")}>
                     <span className="tabular-nums">{row.deliveryRate.toFixed(0)}%</span> {t("reports.channels.delivered")}
-                </span>
+                </bdi>
             )}
             {showMoney && row.revenuePerOrder !== null && (
                 <span title={t("reports.channels.perOrderHint")}>
@@ -69,9 +69,9 @@ function Headline({ row }: { row: ChannelPerformanceRow }) {
             {row.realizedRevenue !== null && (
                 <span className="font-bold text-foreground tabular-nums">{formatIQD(row.realizedRevenue)}</span>
             )}
-            <span className="text-muted">
+            <bdi className="text-muted">
                 <span className="tabular-nums">{row.orders}</span> {t("reports.channels.orders", { count: row.orders })}
-            </span>
+            </bdi>
         </div>
     );
 }

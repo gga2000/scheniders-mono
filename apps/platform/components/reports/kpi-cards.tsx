@@ -114,12 +114,12 @@ export function KPICards({ metrics }: KPICardsProps) {
                                     )}
                                 >
                                     {kpi.change > 0 ? <TrendingUp className="w-3 h-3" aria-hidden /> : <TrendingDown className="w-3 h-3" aria-hidden />}
-                                    {Math.abs(kpi.change).toFixed(1)}{kpi.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}
+                                    <bdi>{Math.abs(kpi.change).toFixed(1)}{kpi.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}</bdi>
                                 </span>
                             )}
                         </div>
 
-                        <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground tabular-nums">{kpi.value}</h3>
+                        <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground tabular-nums"><bdi>{kpi.value}</bdi></h3>
                         <p className="text-sm font-medium mt-1 text-muted">{kpi.title}</p>
                     </motion.div>
                 );

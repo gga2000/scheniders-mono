@@ -115,7 +115,7 @@ function ShieldImpactCard({ impact, score, days }: { impact: ShieldImpact; score
     return (
         <section data-shield-impact className={CARD}>
             <span dir={dir} className="text-left text-xs text-muted">
-                {t("shield.home.impactTitle", { days })}
+                {t("shield.home.impactTitle", { days, count: days })}
             </span>
             {impact.flagged_decided === 0 ? (
                 <p dir={dir} className="text-left text-sm text-muted">
