@@ -13,11 +13,14 @@ interface UsageTabProps {
 const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
 
 /**
- * The orders that count toward the plan, this month against what the plan
- * allows, then month by month. The database counts each order once in
- * `orders_count` and starts the count again at each renewal. `orders_charged`
- * always holds the same number and `team_members_count` is set once at sign-up, so
- * neither is shown: the Team tab counts the team.
+ * The plan's own order counter (`usage_tracking.orders_count`), this month
+ * against what the plan allows, then month by month. It is not the shop's
+ * orders: the merchant app adds one when an order is entered there (and for a
+ * replacement), never takes one off when an order is removed, and starts again
+ * at each renewal. So the tab says so and points to "Orders, all time" for the
+ * real count. `orders_charged` always holds the same number and
+ * `team_members_count` is set once at sign-up, so neither is shown: the Team
+ * tab counts the team.
  */
 export function UsageTab({ usage, planLimits }: UsageTabProps) {
   const sorted = [...usage].sort((a, b) => b.year - a.year || b.month - a.month);
@@ -30,7 +33,7 @@ export function UsageTab({ usage, planLimits }: UsageTabProps) {
   return (
     <div className="space-y-4">
       <section className="pastel-card p-5" aria-label="Orders this month">
-        <p className="text-[13px] text-foreground/70">Orders counted this month</p>
+        <p className="text-[13px] text-foreground/70">Orders counted for the plan this month</p>
         <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">
           {formatCount(used)}
           {allowed !== null && (
@@ -48,19 +51,22 @@ export function UsageTab({ usage, planLimits }: UsageTabProps) {
             />
           </div>
         )}
-        <p className="mt-2 text-[13px] text-foreground/70">The count starts again at each renewal.</p>
+        <p className="mt-2 text-[13px] text-foreground/70">
+          {"The plan's own counter, not the shop's orders: it counts an order when it is entered, keeps it if the order is removed, and starts again at each renewal. The shop's real orders are in \u201cOrders, all time\u201d above."}
+          {allowed === null && " This plan has no order limit."}
+        </p>
       </section>
 
       <section className="pastel-card p-5" aria-label="Month by month">
         <h2 className="mb-2 text-[13px] font-semibold text-foreground/70">Month by month</h2>
         {sorted.length === 0 ? (
-          <p className="py-4 text-[13px] text-foreground/70">No orders counted yet.</p>
+          <p className="py-4 text-[13px] text-foreground/70">Nothing counted for the plan yet.</p>
         ) : (
           <table className="w-full text-left">
             <thead>
               <tr className="text-[13px] text-foreground/70">
                 <th className="py-2 font-medium">Month</th>
-                <th className="py-2 text-right font-medium">Orders counted</th>
+                <th className="py-2 text-right font-medium">Counted for the plan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--card-border)]">
