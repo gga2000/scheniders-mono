@@ -68,13 +68,13 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
                                             <span dir={dir}>
                                                 {row.profitPerPiece === null
-                                                    ? t("fin.products.pieces", { n: formatWhole(row.units) })
-                                                    : t("fin.products.piecesEach", { n: formatWhole(row.units), each: money(row.profitPerPiece) })}
+                                                    ? t("fin.products.pieces", { n: formatWhole(row.units), count: row.units })
+                                                    : t("fin.products.piecesEach", { n: formatWhole(row.units), count: row.units, each: money(row.profitPerPiece) })}
                                             </span>
                                             {row.missingUnits > 0 && (
                                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-800 dark:text-amber-200">
                                                     <TriangleAlert className="size-3" aria-hidden="true" />
-                                                    <span dir={dir}>{t("fin.products.missing", { n: formatWhole(row.missingUnits) })}</span>
+                                                    <span dir={dir}>{t("fin.products.missing", { n: formatWhole(row.missingUnits), count: row.missingUnits })}</span>
                                                 </span>
                                             )}
                                         </div>

@@ -273,11 +273,28 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-share="p1"]')?.textContent).toBe("100%");
     });
 
+    it("counts things the way Arabic does: 3 to 10 in the plural, 11 to 99 with the singular in the accusative", () => {
+        renderView(query(summary({
+            sales: { orders: 27, revenue: 400_000, units: 5, product_cost: 150_000, missing_cost_units: 4, paid_orders: 0 },
+            cash: { ...summary().cash, in_transit: { count: 27, amount: 160_000 } },
+            failed: { refused_orders: 36, refused_value: 80_000, prime_returned_parcels: 13, prime_returned_fee: 65_000 },
+            stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 29 },
+            products: [{ key: "p1", name: "Envoy", image_url: null, units: 5, revenue: 400_000, cost: 150_000, missing_units: 0 }],
+        })));
+        expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
+        expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
+        expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
+        expect(byTestId("returned-parcels")?.textContent).toContain("13 طرداً راجعاً");
+        expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
+        expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
+        expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
+    });
+
     it("says what each 1,000 IQD of ads brought, or that nothing was spent", () => {
         renderView(query(summary()));
         // 400,000 of sales on 60,000 of ads.
         expect(byTestId("ad-return")?.textContent).toContain("6,667");
-        expect(byTestId("ad-return")?.textContent).toContain("مبيعات عن كل 1,000 دينار إعلان");
+        expect(byTestId("ad-return")?.textContent).toContain("مبيعات لكل 1,000 دينار تصرفها على الإعلان");
         // 60,000 spent, 6,000 an order
         expect(byTestId("ad-return")?.textContent).toContain("60,000");
         expect(byTestId("ad-return")?.textContent).toContain("6,000");
@@ -365,9 +382,12 @@ describe("SummaryView", () => {
         renderView(query(summary()), query(summary({ sales: { orders: 20, revenue: 10_000, units: 20, product_cost: 4_000, missing_cost_units: 0, paid_orders: 0 } })));
         expect(document.querySelector("[data-change]")).toBeNull();
         expect(byTestId("profit-statement")?.textContent).not.toContain("الأسهم تقارن");
+        // and the statement says why no arrow shows
+        expect(byTestId("profit-statement")?.textContent).toContain("لا أسهم مقارنة");
         cleanup();
         renderView(query(summary()));
         expect(change("sales")).toBeNull();
+        expect(byTestId("profit-statement")?.textContent).not.toContain("لا أسهم مقارنة");
     });
 
     it("says how many delivered orders a day cover the costs, and what happens when none are needed or none can", () => {
@@ -376,8 +396,8 @@ describe("SummaryView", () => {
         // so 2 orders a day pay the bill, and 3 of the 5 delivered a day are profit
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
-        expect(bar?.textContent).toContain("طلبان يغطيان مصاريف اليوم");
-        expect(bar?.textContent).toContain("3 ربح، من 5 في اليوم");
+        expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
+        expect(bar?.textContent).toContain("الباقي ربح: 3 من 5 في اليوم");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         cleanup();

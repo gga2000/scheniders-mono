@@ -72,10 +72,10 @@ export function StatementDetail({ line, summary, onOpenTab, averaged }: Statemen
             const missing = summary.sales.missing_cost_units;
             body = (
                 <>
-                    {sentence(t("fin.detail.product_cost", { n: formatWhole(summary.sales.units) }))}
+                    {sentence(t("fin.detail.product_cost", { n: formatWhole(summary.sales.units), count: summary.sales.units }))}
                     {missing > 0 && (
                         <p className="text-left text-[13px] leading-relaxed text-amber-700 dark:text-amber-300" dir={dir}>
-                            {t("fin.detail.product_cost.missing", { n: formatWhole(missing) })}
+                            {t("fin.detail.product_cost.missing", { n: formatWhole(missing), count: missing })}
                         </p>
                     )}
                     {missing > 0 && pageLink("/products", t("fin.detail.product_cost.fix"))}
@@ -104,7 +104,7 @@ export function StatementDetail({ line, summary, onOpenTab, averaged }: Statemen
         case "refunds":
             body = (
                 <>
-                    {sentence(t("fin.detail.refunds", { n: formatWhole(summary.refunds.count) }))}
+                    {sentence(t("fin.detail.refunds", { n: formatWhole(summary.refunds.count), count: summary.refunds.count }))}
                     {tabLink("returns", t("fin.detail.refunds.open"))}
                 </>
             );
