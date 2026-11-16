@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) throw error;
+      await logAdminAction(auth, "update_commission_config", {
+        details: { config_id: body.id, change: "edited", fields: Object.keys(updateData).filter((key) => key !== "updated_at") },
+      });
       return NextResponse.json({ config: data });
     }
 
@@ -70,12 +74,17 @@ export async function POST(request: NextRequest) {
         type: body.type || "per_order",
         config: body.config || {},
         is_active: body.is_active ?? false,
-        created_by: body.created_by || null,
+        // The signed-in admin, never an id from the request body.
+        created_by: auth.user.id,
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    await logAdminAction(auth, "update_commission_config", {
+      details: { config_id: data.id, change: "added", name: data.name, is_active: data.is_active },
+    });
 
     return NextResponse.json({ config: data }, { status: 201 });
   } catch (error) {

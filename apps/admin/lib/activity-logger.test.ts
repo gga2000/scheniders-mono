@@ -13,7 +13,10 @@ vi.mock("./admin-supabase", () => ({
   createAdminClient: () => ({ from }),
 }));
 
-const { logAdminActivity, logAdminActivityBatch } = await import("./activity-logger");
+const captureException = vi.fn();
+vi.mock("@sentry/nextjs", () => ({ captureException }));
+
+const { logAdminAction, logAdminActivity, logAdminActivityBatch } = await import("./activity-logger");
 
 const UUID = "11111111-2222-3333-4444-555555555555";
 
@@ -35,6 +38,7 @@ beforeEach(() => {
   inserted.length = 0;
   insert.mockClear();
   from.mockClear();
+  captureException.mockClear();
 });
 
 describe("logAdminActivity", () => {
@@ -134,5 +138,49 @@ describe("logAdminActivityBatch", () => {
     await logAdminActivityBatch({ adminUserId: UUID, tenantIds: [], action: "bulk_suspend" });
     expect(from).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("logAdminAction", () => {
+  it("logs under the admin who made the request", async () => {
+    await logAdminAction({ user: { id: UUID, email: "boss@example.com" } }, "update_tags", {
+      tenantId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      details: { tags: ["vip"] },
+    });
+    expect(inserted[0]).toMatchObject({
+      admin_user_id: UUID,
+      actor_email: "boss@example.com",
+      admin_label: null,
+      tenant_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      action: "update_tags",
+      details: { tags: ["vip"] },
+    });
+  });
+});
+
+describe("a log row that is not written", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("is reported when the database refuses it, and does not fail the action", async () => {
+    insert.mockImplementationOnce(() => Promise.resolve({ error: { message: "permission denied" } }) as never);
+    await expect(logAdminAction({ user: { id: UUID } }, "approve_topup_request")).resolves.toBeUndefined();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(String(captureException.mock.calls[0][0])).toContain('"approve_topup_request"');
+  });
+
+  it("is reported when the request itself fails, and does not fail the action", async () => {
+    insert.mockImplementationOnce(() => Promise.reject(new Error("fetch failed")));
+    await expect(
+      logAdminActivityBatch({ adminUserId: UUID, action: "bulk_action", tenantIds: ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"] }),
+    ).resolves.toBeUndefined();
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(String(captureException.mock.calls[0][0])).toContain("fetch failed");
+  });
+
+  it("reports nothing when the row is written", async () => {
+    await logAdminAction({ user: { id: UUID } }, "update_tags");
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

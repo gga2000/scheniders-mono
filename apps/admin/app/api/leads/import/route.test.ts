@@ -32,6 +32,9 @@ vi.mock("@/lib/admin-supabase", () => ({
   }),
 }));
 
+const logAdminAction = vi.fn(async () => undefined);
+vi.mock("@/lib/activity-logger", () => ({ logAdminAction }));
+
 const { POST } = await import("./route");
 
 const call = (body: unknown) =>
@@ -46,6 +49,7 @@ const call = (body: unknown) =>
 beforeEach(() => {
   inserted.length = 0;
   refused.clear();
+  logAdminAction.mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -71,6 +75,10 @@ describe("POST /api/leads/import", () => {
       { row: 4, name: "Twice", reason: 'duplicate key value violates unique constraint "leads_handle_key"' },
     ]);
     expect(body.created + body.skipped + body.failed).toBe(4);
+    // One row in the staff log for the whole file.
+    expect(logAdminAction.mock.calls.map((call) => call.slice(1))).toEqual([
+      ["import_leads", { details: { rows: 4, created: 1, skipped: 1, failed: 2 } }],
+    ]);
   });
 
   it("saves the row under the admin who ran the import, whatever the file says", async () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 import { LEAD_IMPORT_MAX_ROWS, leadImportRow, type LeadImportResult } from "@/lib/lead-import";
 
 const bodySchema = z.object({ leads: z.array(z.record(z.string(), z.unknown())) });
@@ -51,6 +52,15 @@ export async function POST(request: NextRequest) {
       if (error) fail(index, lead.row.merchant_name, error.message);
       else result.created++;
     }
+
+    await logAdminAction(admin, "import_leads", {
+      details: {
+        rows: body.data.leads.length,
+        created: result.created,
+        skipped: result.skipped,
+        failed: result.failed,
+      },
+    });
 
     return NextResponse.json(result, { status: result.created > 0 ? 201 : 200 });
   } catch (error) {

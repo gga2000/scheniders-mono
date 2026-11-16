@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 export async function POST(request: NextRequest) {
   // Recalculating writes every employee's commission rows — super_admin only,
@@ -105,6 +106,10 @@ export async function POST(request: NextRequest) {
 
       calculated++;
     }
+
+    await logAdminAction(auth, "calculate_commissions", {
+      details: { period_start, period_end, calculated },
+    });
 
     return NextResponse.json({ success: true, calculated });
   } catch (error) {

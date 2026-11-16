@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
+import { logAdminAction } from "@/lib/activity-logger";
 
 const patchSchema = z
   .object({
@@ -39,6 +40,10 @@ export async function PATCH(
 
     if (error) throw error;
 
+    await logAdminAction(admin, "update_settings", {
+      details: { setting: "industries", change: "edited", industry_id: id, fields: Object.keys(parsed.data) },
+    });
+
     return NextResponse.json({ industry: data });
   } catch (error) {
     console.error("Industry PATCH error:", error);
@@ -72,6 +77,10 @@ export async function DELETE(
 
       if (error) throw error;
 
+      await logAdminAction(admin, "update_settings", {
+        details: { setting: "industries", change: "switched_off", industry_id: id, leads_using_it: count },
+      });
+
       return NextResponse.json({
         success: true,
         warning: `Industry deactivated. ${count} leads still reference it.`,
@@ -86,6 +95,10 @@ export async function DELETE(
       .eq("id", id);
 
     if (error) throw error;
+
+    await logAdminAction(admin, "update_settings", {
+      details: { setting: "industries", change: "removed", industry_id: id },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
