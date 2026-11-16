@@ -2,12 +2,15 @@
 
 import { Filter } from "lucide-react";
 import type { FunnelStep } from "@/types/dashboard";
+import { uiHue } from "@/types/leads";
 
 interface FulfillmentFunnelProps {
   funnel: FunnelStep[] | undefined;
 }
 
 const WIDTHS = ["90%", "70%", "50%", "35%"];
+/** New to delivered, blue into green: soft tints that read in light and dark. */
+const STAGE_TINTS = [uiHue("blue"), uiHue("cyan"), uiHue("teal"), uiHue("green")];
 
 function Skeleton() {
   return (
@@ -48,14 +51,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
         <div className="flex flex-col items-center gap-1 mt-2">
           {funnel.map((step, idx) => {
             const width = WIDTHS[idx] ?? WIDTHS[WIDTHS.length - 1];
-            // Interpolate from pastel-blue to pastel-green
-            const colorStops = [
-              "var(--pastel-blue)",
-              "#8DD8BE",
-              "#A4DFA8",
-              "var(--pastel-green)",
-            ];
-            const bgColor = colorStops[idx] ?? colorStops[colorStops.length - 1];
+            const bgColor = (STAGE_TINTS[idx] ?? STAGE_TINTS[STAGE_TINTS.length - 1]).strong;
 
             return (
               <div key={step.label} className="w-full flex flex-col items-center">
@@ -65,10 +61,9 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
                   style={{
                     width,
                     backgroundColor: bgColor,
-                    opacity: 0.85,
                   }}
                 >
-                  <span className="text-sm font-semibold text-foreground/90">
+                  <span className="text-sm font-semibold text-foreground">
                     {step.label}
                   </span>
                   <span className="text-sm font-bold text-foreground">

@@ -23,7 +23,8 @@
  * places but was never defined, so they fell back to full ink.
  *
  * Status and tier colours read from --ink-*: a dark shade in light mode, a
- * light shade in dark mode, each tested on its own 12% tint.
+ * light shade in dark mode, each at least 4.5:1 on its own 22% tint (uiHue's
+ * `strong`) on a white card, in both themes.
  */
 :root {
   --muted: #626262;
@@ -33,10 +34,10 @@
   --ink-green: #166534;
   --ink-teal: #115e59;
   --ink-cyan: #155e75;
-  --ink-blue: #1d4ed8;
-  --ink-violet: #6d28d9;
-  --ink-fuchsia: #a21caf;
-  --ink-red: #b91c1c;
+  --ink-blue: #1e40af;
+  --ink-violet: #5b21b6;
+  --ink-fuchsia: #86198f;
+  --ink-red: #991b1b;
   --ink-slate: #475569;
 }
 .dark {
