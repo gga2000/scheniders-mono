@@ -92,10 +92,13 @@ jobs:
       # packages/sections is in: the platform's store builder renders its
       # sections, and its copy lints read the source files. execSync covers
       # guards that grep the tree (customer-aggregates-access).
-      - name: File-reading guard tests (platform, sections)
+      # apps/admin is in: its guards read every API route file to check that
+      # each one has a sign-in check and that money routes name a permission,
+      # so a new staff route with no guard must fail on the PR that adds it.
+      - name: File-reading guard tests (platform, sections, admin)
         run: |
           set -euo pipefail
-          for dir in apps/platform packages/sections; do
+          for dir in apps/platform packages/sections apps/admin; do
             files=$(cd "$dir" && grep -rlE "readFileSync|readdirSync|readFile\(|execSync" --include=*.test.ts --include=*.test.tsx --exclude-dir=node_modules --exclude-dir=.next .)
             echo "== $dir"; echo "$files"
             (cd "$dir" && echo "$files" | xargs pnpm exec vitest run)
