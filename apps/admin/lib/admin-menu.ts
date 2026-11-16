@@ -69,6 +69,7 @@ export const MENU: readonly MenuSection[] = [
     links: [
       { label: "Our fees", href: "/revenue" },
       { label: "Orders by hour", href: "/usage" },
+      { label: "Platform numbers", href: "/numbers" },
     ],
   },
 ];
