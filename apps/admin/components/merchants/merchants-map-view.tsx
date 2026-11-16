@@ -10,8 +10,8 @@ import {
 } from "@scheniders/shared/iraq-map-paths";
 import { useAdminStore } from "@/store/use-admin-store";
 import { cn } from "@/lib/utils";
-import { SHOP_GOVERNORATES, shopGovernorate } from "@/lib/shop-city";
-import type { AdminTenant } from "@/types/admin";
+import { SHOP_GOVERNORATES, governorateNamed } from "@/lib/shop-city";
+import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 
 const HEAT_SCALE = [
   "#f1f5f9",
@@ -40,100 +40,55 @@ function textColor(count: number, max: number): string {
   return ratio <= 0.45 ? "#1e293b" : "#ffffff";
 }
 
-interface GovStats {
+interface GovCount {
   code: string;
   name: string;
   count: number;
-  totalBalance: number;
-  /** Our fees from the city's shops, last 30 days. */
-  fees30d: number;
-  active: number;
-  trial: number;
-  suspended: number;
-  cancelled: number;
 }
 
-interface MerchantsMapViewProps {
-  merchants: AdminTenant[];
-  onMerchantClick?: (id: string) => void;
-}
-
-export function MerchantsMapView({
-  merchants,
-  onMerchantClick,
-}: MerchantsMapViewProps) {
+/**
+ * Shops per governorate, counted by the server over every shop that matches
+ * the filters, not over the pages of the list loaded so far. Picking a
+ * governorate filters the list to it, so the panel's numbers are the filtered
+ * totals, the same ones the strip above shows.
+ */
+export function MerchantsMapView() {
   const { cityFilter, setCityFilter } = useAdminStore();
+  const { data: stats, isError } = useMerchantsStats();
   const [hovered, setHovered] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
-    stats: GovStats;
+    gov: GovCount;
   } | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
 
-  const stats = useMemo(() => {
-    const map = new Map<string, GovStats>();
-    let unknownCount = 0;
-
-    for (const m of merchants) {
-      // However the merchant typed the city: "بغداد" and "Baghdad" are one governorate.
-      const governorate = shopGovernorate(m.city);
-      if (!governorate) {
-        unknownCount++;
-        continue;
-      }
-      const { code } = governorate;
-      const existing =
-        map.get(code) ??
-        ({
-          code,
-          name: governorate.name,
-          count: 0,
-          totalBalance: 0,
-          fees30d: 0,
-          active: 0,
-          trial: 0,
-          suspended: 0,
-          cancelled: 0,
-        } as GovStats);
-
-      existing.count++;
-      existing.totalBalance += m.wallet?.balance_iqd ?? 0;
-      existing.fees30d += m.fees_30d;
-      const status = (m as { status?: string }).status;
-      if (status === "active") existing.active++;
-      else if (status === "trial") existing.trial++;
-      else if (status === "suspended") existing.suspended++;
-      else if (status === "cancelled") existing.cancelled++;
-
-      map.set(code, existing);
+  const counts = useMemo(() => {
+    const byCode = new Map<string, GovCount>();
+    for (const governorate of SHOP_GOVERNORATES) {
+      const count = stats?.governorates[governorate.code] ?? 0;
+      if (count > 0) byCode.set(governorate.code, { code: governorate.code, name: governorate.name, count });
     }
-
-    return { byCode: map, unknownCount };
-  }, [merchants]);
+    return byCode;
+  }, [stats]);
 
   const maxCount = useMemo(() => {
     let max = 1;
-    for (const s of stats.byCode.values()) if (s.count > max) max = s.count;
+    for (const g of counts.values()) if (g.count > max) max = g.count;
     return max;
-  }, [stats]);
+  }, [counts]);
 
-  const selectedStats = selected ? stats.byCode.get(selected) ?? null : null;
+  // The governorate the list is filtered to, however it was picked: here or in the city filter.
+  const selectedGovernorate = cityFilter ? governorateNamed(cityFilter) : undefined;
+  const selected = selectedGovernorate?.code ?? null;
 
   const handlePathClick = useCallback(
     (code: string) => {
       const cityName = SHOP_GOVERNORATES.find((g) => g.code === code)?.name.toLowerCase();
       if (!cityName) return;
       // Toggle: clicking again clears
-      if (cityFilter === cityName) {
-        setCityFilter(null);
-        setSelected(null);
-      } else {
-        setCityFilter(cityName);
-        setSelected(code);
-      }
+      setCityFilter(selected === code ? null : cityName);
     },
-    [cityFilter, setCityFilter]
+    [selected, setCityFilter]
   );
 
   const padding = 20;
@@ -150,10 +105,10 @@ export function MerchantsMapView({
             </h3>
           </div>
           <span className="text-xs text-foreground/50 tabular-nums">
-            {merchants.length} total
-            {stats.unknownCount > 0 && (
+            {isError ? "The counts did not load" : stats ? `${stats.total} total` : "—"}
+            {stats && stats.unknown_city > 0 && (
               <span className="text-amber-600 dark:text-amber-400 ml-1.5">
-                · {stats.unknownCount} unmapped
+                · {stats.unknown_city} unmapped
               </span>
             )}
           </span>
@@ -169,7 +124,7 @@ export function MerchantsMapView({
           }}
         >
           {IRAQ_GOVERNORATE_PATHS.map((path) => {
-            const s = stats.byCode.get(path.code);
+            const s = counts.get(path.code);
             const count = s?.count ?? 0;
             const isHovered = hovered === path.code;
             const isSelected = selected === path.code;
@@ -196,7 +151,7 @@ export function MerchantsMapView({
                         setTooltip({
                           x: e.clientX - rect.left,
                           y: e.clientY - rect.top - 10,
-                          stats: s,
+                          gov: s,
                         });
                       }
                     }
@@ -209,7 +164,7 @@ export function MerchantsMapView({
                         setTooltip({
                           x: e.clientX - rect.left,
                           y: e.clientY - rect.top - 10,
-                          stats: s,
+                          gov: s,
                         });
                       }
                     }
@@ -254,10 +209,10 @@ export function MerchantsMapView({
                 transform: "translate(-50%, -100%)",
               }}
             >
-              <p className="font-bold text-foreground">{tooltip.stats.name}</p>
+              <p className="font-bold text-foreground">{tooltip.gov.name}</p>
               <p className="text-foreground/60 mt-0.5">
-                {tooltip.stats.count}{" "}
-                {tooltip.stats.count === 1 ? "merchant" : "merchants"}
+                {tooltip.gov.count}{" "}
+                {tooltip.gov.count === 1 ? "merchant" : "merchants"}
               </p>
             </motion.div>
           )}
@@ -280,9 +235,9 @@ export function MerchantsMapView({
       {/* ── Detail Panel ──────────────────────────────────────────── */}
       <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
         <AnimatePresence mode="wait">
-          {selectedStats ? (
+          {selectedGovernorate && stats ? (
             <motion.div
-              key={selectedStats.code}
+              key={selectedGovernorate.code}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -291,18 +246,15 @@ export function MerchantsMapView({
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h4 className="font-black text-lg text-foreground tracking-tight">
-                    {selectedStats.name}
+                    {selectedGovernorate.name}
                   </h4>
                   <p className="text-[11px] text-foreground/55 font-medium mt-0.5">
-                    {selectedStats.count}{" "}
-                    {selectedStats.count === 1 ? "merchant" : "merchants"}
+                    {stats.total}{" "}
+                    {stats.total === 1 ? "merchant" : "merchants"}
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    setSelected(null);
-                    setCityFilter(null);
-                  }}
+                  onClick={() => setCityFilter(null)}
                   className="p-1 rounded-lg hover:bg-foreground/5 text-foreground/40 hover:text-foreground transition-colors"
                   aria-label="Close detail"
                 >
@@ -321,7 +273,7 @@ export function MerchantsMapView({
                   </div>
                   <p className="text-sm font-black text-foreground tabular-nums mt-0.5">
                     {new Intl.NumberFormat("en-IQ").format(
-                      selectedStats.totalBalance
+                      stats.total_wallet_iqd
                     )}{" "}
                     <span className="text-[10px] font-bold text-foreground/40">
                       IQD
@@ -337,7 +289,7 @@ export function MerchantsMapView({
                   </div>
                   <p className="text-sm font-black text-foreground tabular-nums mt-0.5">
                     {new Intl.NumberFormat("en-IQ").format(
-                      selectedStats.fees30d
+                      stats.fees_30d_iqd
                     )}{" "}
                     <span className="text-[10px] font-bold text-foreground/40">
                       IQD
@@ -349,10 +301,11 @@ export function MerchantsMapView({
               {/* status breakdown */}
               <div className="space-y-1">
                 {[
-                  { label: "Active", count: selectedStats.active, color: "bg-emerald-500" },
-                  { label: "Trial", count: selectedStats.trial, color: "bg-amber-500" },
-                  { label: "Suspended", count: selectedStats.suspended, color: "bg-rose-500" },
-                  { label: "Cancelled", count: selectedStats.cancelled, color: "bg-slate-400" },
+                  { label: "Active", count: stats.status.active, color: "bg-emerald-500" },
+                  { label: "Trial", count: stats.status.trial, color: "bg-amber-500" },
+                  { label: "Paused", count: stats.status.limited, color: "bg-yellow-500" },
+                  { label: "Suspended", count: stats.status.suspended, color: "bg-rose-500" },
+                  { label: "Cancelled", count: stats.status.cancelled, color: "bg-slate-400" },
                 ]
                   .filter((b) => b.count > 0)
                   .map((b) => (
@@ -372,7 +325,7 @@ export function MerchantsMapView({
               </div>
 
               <p className="text-[10px] text-foreground/45 font-medium mt-3 pt-3 border-t border-foreground/10">
-                List below filtered to {selectedStats.name}
+                List below filtered to {selectedGovernorate.name}
               </p>
             </motion.div>
           ) : (
@@ -399,7 +352,7 @@ export function MerchantsMapView({
             Top Governorates
           </p>
           <div className="space-y-0.5">
-            {Array.from(stats.byCode.values())
+            {Array.from(counts.values())
               .sort((a, b) => b.count - a.count)
               .slice(0, 8)
               .map((s) => {

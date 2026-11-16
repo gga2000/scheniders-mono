@@ -6,7 +6,7 @@ import { fetchFees30d } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
-import { readShopCity } from "@/lib/shop-city";
+import { readShopCity, shopGovernorate } from "@/lib/shop-city";
 
 /** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
 interface LiteShop {
@@ -14,13 +14,16 @@ interface LiteShop {
   status: string;
   plan: string | null;
   trial_ends_at: string | null;
+  city: string | null;
   wallet: { balance_iqd?: number } | { balance_iqd?: number }[] | null;
   staff_needs_attention: boolean;
 }
 
+/** One count for each status a shop can have, so the Pipeline columns add up to the total. */
 interface StatusCounts {
   trial: number;
   active: number;
+  limited: number;
   suspended: number;
   cancelled: number;
 }
@@ -41,6 +44,10 @@ interface Aggregates {
   fees_30d_iqd: number;
   status: StatusCounts;
   buckets: BucketCounts;
+  /** Shops per governorate (by map code), for the map. Only governorates with shops. */
+  governorates: Record<string, number>;
+  /** Shops whose typed city names no governorate the console knows. */
+  unknown_city: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -69,16 +76,19 @@ export async function GET(request: NextRequest) {
     const tenants = await everyRow<LiteShop>((from, to) => {
       let query = supabase
         .from("tenants")
-        .select("id, status, plan, trial_ends_at, wallet(balance_iqd), staff_needs_attention")
+        .select("id, status, plan, trial_ends_at, city, wallet(balance_iqd), staff_needs_attention")
         // The demo store (Fermi B13) is no customer: it is in no count.
         .eq("is_demo", false);
 
       if (plan) query = query.eq("plan", plan);
-      // "attention" is never a filter here: the header always counts it, so its pill can light up.
+      // "attention" is not a value of the status column: it is one of the computed filters below.
       if (status && status !== ATTENTION) query = query.eq("status", status);
       if (city.governorate) query = query.filter("city", "imatch", city.governorate.pattern);
-      // The balance and health bands, filtered by the database the way the list filters them.
-      for (const [column, operator, value] of computedShopFilters({ balance, health })) {
+      // Needs attention and the balance and health bands, filtered by the
+      // database the way the list filters them, so these numbers count the
+      // list's shops. The header pills ask with no status, so their
+      // attention count is always the whole list's.
+      for (const [column, operator, value] of computedShopFilters({ status, balance, health })) {
         query = query.filter(column, operator, value);
       }
       if (search) query = query.or(merchantSearchFilter(search));
@@ -93,7 +103,7 @@ export async function GET(request: NextRequest) {
       total_wallet_iqd: 0,
       plan_prices_iqd: 0,
       fees_30d_iqd: 0,
-      status: { trial: 0, active: 0, suspended: 0, cancelled: 0 },
+      status: { trial: 0, active: 0, limited: 0, suspended: 0, cancelled: 0 },
       buckets: {
         trials_today: 0,
         trials_expired: 0,
@@ -102,6 +112,8 @@ export async function GET(request: NextRequest) {
         low_wallet: 0,
         attention: 0,
       },
+      governorates: {},
+      unknown_city: 0,
     };
 
     if (tenants.length === 0) {
@@ -128,7 +140,7 @@ export async function GET(request: NextRequest) {
     const fees30d = tenantIds.length > 0 ? await fetchFees30d(supabase, tenantIds) : 0;
 
     // Walk the filtered tenants to compute everything in one pass.
-    const status_: StatusCounts = { trial: 0, active: 0, suspended: 0, cancelled: 0 };
+    const status_: StatusCounts = { trial: 0, active: 0, limited: 0, suspended: 0, cancelled: 0 };
     const buckets: BucketCounts = {
       trials_today: 0,
       trials_expired: 0,
@@ -137,6 +149,8 @@ export async function GET(request: NextRequest) {
       low_wallet: 0,
       attention: 0,
     };
+    const governorates: Record<string, number> = {};
+    let unknownCity = 0;
     let totalWallet = 0;
     let planPrices = 0;
 
@@ -175,6 +189,11 @@ export async function GET(request: NextRequest) {
       if (balanceVal < ATTENTION_WALLET_IQD && s !== "cancelled") buckets.low_wallet++;
 
       if (t.staff_needs_attention) buckets.attention++;
+
+      // However the merchant typed the city: "بغداد" and "Baghdad" are one governorate.
+      const governorate = shopGovernorate(t.city);
+      if (governorate) governorates[governorate.code] = (governorates[governorate.code] ?? 0) + 1;
+      else unknownCity++;
     }
 
     const result: Aggregates = {
@@ -184,6 +203,8 @@ export async function GET(request: NextRequest) {
       fees_30d_iqd: fees30d,
       status: status_,
       buckets,
+      governorates,
+      unknown_city: unknownCity,
     };
 
     return NextResponse.json(result);
@@ -197,5 +218,11 @@ export async function GET(request: NextRequest) {
 }
 
 function isCountedStatus(status: string): status is keyof StatusCounts {
-  return status === "trial" || status === "active" || status === "suspended" || status === "cancelled";
+  return (
+    status === "trial" ||
+    status === "active" ||
+    status === "limited" ||
+    status === "suspended" ||
+    status === "cancelled"
+  );
 }
