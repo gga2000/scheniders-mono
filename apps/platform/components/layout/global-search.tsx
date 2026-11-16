@@ -382,6 +382,7 @@ interface TopBarProps {
 
 export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
     const { user, profile, signOut } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
 
     const [scrolled, setScrolled] = useState(false);
@@ -440,17 +441,17 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         {/* Overflow: Theme + Language */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className={HEADER_ACTION_CLASS} title="More" aria-label="More options">
+                                <button className={HEADER_ACTION_CLASS} title={t("header.more.title")} aria-label={t("header.more.title")}>
                                     <MoreHorizontal className="w-5 h-5" />
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" style={{ zIndex: "var(--z-header-overlay)" }} className="w-48">
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between gap-3 cursor-pointer">
-                                    <span className="text-sm">Theme</span>
+                                    <span className="text-sm">{t("header.more.theme")}</span>
                                     <ThemeToggle />
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between gap-3 cursor-pointer">
-                                    <span className="text-sm">Language</span>
+                                    <span className="text-sm">{t("header.more.language")}</span>
                                     <LanguageToggle />
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -461,8 +462,8 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                             <DropdownMenuTrigger asChild>
                                 <button
                                     className="w-10 h-10 rounded-full bg-linear-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center text-[#1E1E1E] font-bold text-sm hover:scale-105 transition-transform overflow-hidden shadow-sm"
-                                    title="Account"
-                                    aria-label="Account menu"
+                                    title={t("header.account")}
+                                    aria-label={t("header.account")}
                                 >
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} alt={profile.display_name || "User"} className="w-full h-full object-cover" />

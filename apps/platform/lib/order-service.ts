@@ -2,7 +2,7 @@ import { after } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import type { CreateOrderInput } from "@/types/order";
 import { Order } from "@/lib/supabase";
-import { canCreateOrder } from "@/lib/tenant";
+import { canCreateOrder, type OrderLimitCode } from "@/lib/tenant";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { reportOrderError } from "@/lib/order-telemetry";
 import { findForeignCatalogRefs, hasNegativeQuantity } from "@/lib/order-items-tenant";
@@ -27,6 +27,9 @@ export type CreateOrderResult = {
     data?: Order;
     error?: string;
     warning?: string;
+    /** Set when the plan or billing state blocked the order; the UI words it. */
+    limitCode?: OrderLimitCode;
+    limitParams?: Record<string, number>;
 };
 
 export async function createOrderForTenant(
@@ -59,7 +62,7 @@ export async function createOrderForTenant(
         if (!isTake) {
             const limitCheck = await canCreateOrder(tenantId);
             if (!limitCheck.allowed) {
-                return { success: false, error: limitCheck.reason };
+                return { success: false, error: limitCheck.reason, limitCode: limitCheck.code, limitParams: limitCheck.params };
             }
             warning = limitCheck.warning;
         }

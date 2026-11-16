@@ -370,7 +370,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 {/* Color Scheme Toggle */}
                 <button
                     onClick={() => setUseStatusColors(!useStatusColors)}
-                    title={useStatusColors ? "Disable Status Colors" : "Enable Status Colors"}
+                    title={useStatusColors ? t("orders.filters.statusColorsOff") : t("orders.filters.statusColorsOn")}
                     className={cn(
                         "p-2 rounded-full transition-all border shrink-0",
                         useStatusColors

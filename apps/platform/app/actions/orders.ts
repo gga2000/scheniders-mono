@@ -6,8 +6,8 @@ import { memberHasPermission } from "@/lib/auth/member-has-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import type { CreateOrderInput } from "@/types/order";
 import { Order, OrderItem } from "@/lib/supabase";
-import { canCreateOrder } from "@/lib/tenant";
-import { createOrderForTenant } from "@/lib/order-service";
+import { canCreateOrder, type OrderLimitCheck } from "@/lib/tenant";
+import { createOrderForTenant, type CreateOrderResult } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { isPastDaySystemOrderNumber, isSystemOrderNumber, merchantOrderNumberSchema } from "@/lib/order-number";
 import { ORDER_READ_COLUMNS, RESTORE_ORDERS_BATCH_SIZE, pickOrderWriteColumns } from "@/lib/repositories/order-columns";
@@ -22,7 +22,7 @@ import { primeDistrictSchema } from "@/lib/prime/district";
 
 export async function checkOrderLimitsAction(
     accessToken: string,
-): Promise<{ allowed: boolean; reason?: string; warning?: string }> {
+): Promise<OrderLimitCheck> {
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { allowed: false, reason: resolved.error };
     return canCreateOrder(resolved.caller.tenantId);
@@ -60,7 +60,7 @@ const createOrderInputSchema = z
 export async function createOrderAction(
     orderData: CreateOrderInput,
     accessToken: string,
-): Promise<{ success: boolean; data?: Order; error?: string; warning?: string }> {
+): Promise<CreateOrderResult> {
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { success: false, error: resolved.error };
 

@@ -242,30 +242,48 @@ async function getCurrentUsage(tenantId: string): Promise<TenantUsage> {
  * Check if a tenant can create another order.
  * Returns { allowed, reason, warning }
  */
-export async function canCreateOrder(tenantId: string): Promise<{
+/**
+ * Why an order can't be made, or what to warn about. The UI shows the message
+ * for the code in the merchant's language; `reason` / `warning` keep an
+ * English line for logs and server callers.
+ */
+export type OrderLimitCode =
+    | "tenant_not_found"
+    | "suspended"
+    | "cancelled"
+    | "trial_expired"
+    | "monthly_limit_exceeded"
+    | "monthly_limit_reached"
+    | "monthly_limit_near";
+
+export type OrderLimitCheck = {
     allowed: boolean;
     reason?: string;
     warning?: string;
-}> {
+    code?: OrderLimitCode;
+    params?: Record<string, number>;
+};
+
+export async function canCreateOrder(tenantId: string): Promise<OrderLimitCheck> {
     // Check tenant status
     const tenant = await getTenantById(tenantId);
-    if (!tenant) return { allowed: false, reason: 'Tenant not found' };
+    if (!tenant) return { allowed: false, code: 'tenant_not_found', reason: 'Tenant not found' };
 
     // The house tier is never billed, so no billing state may block its orders.
     if (isBillingExempt(tenant.plan)) return { allowed: true };
 
     if (tenant.status === 'suspended') {
-        return { allowed: false, reason: 'Account is suspended. Please contact support.' };
+        return { allowed: false, code: 'suspended', reason: 'Account is suspended. Please contact support.' };
     }
 
     if (tenant.status === 'cancelled') {
-        return { allowed: false, reason: 'Subscription has been cancelled.' };
+        return { allowed: false, code: 'cancelled', reason: 'Subscription has been cancelled.' };
     }
 
     // Check trial expiry
     if (tenant.status === 'trial' && tenant.trial_ends_at) {
         if (new Date(tenant.trial_ends_at) < new Date()) {
-            return { allowed: false, reason: 'Your trial has expired. Please subscribe to continue.' };
+            return { allowed: false, code: 'trial_expired', reason: 'Your trial has expired. Please subscribe to continue.' };
         }
     }
 
@@ -281,6 +299,8 @@ export async function canCreateOrder(tenantId: string): Promise<{
     if (usage.orders_count >= hardLimit) {
         return {
             allowed: false,
+            code: 'monthly_limit_exceeded',
+            params: { used: usage.orders_count, limit: limits.max_orders_per_month },
             reason: `Monthly order limit exceeded (${usage.orders_count}/${limits.max_orders_per_month}). Upgrade your plan to continue.`,
         };
     }
@@ -288,6 +308,8 @@ export async function canCreateOrder(tenantId: string): Promise<{
     if (usage.orders_count >= limits.max_orders_per_month) {
         return {
             allowed: true,
+            code: 'monthly_limit_reached',
+            params: { limit: limits.max_orders_per_month, price: limits.overage_price_iqd },
             warning: `You've reached your monthly order limit (${limits.max_orders_per_month}). Additional orders are charged at ${limits.overage_price_iqd} IQD each.`,
         };
     }
@@ -295,6 +317,8 @@ export async function canCreateOrder(tenantId: string): Promise<{
     if (usage.orders_count >= limits.max_orders_per_month * 0.9) {
         return {
             allowed: true,
+            code: 'monthly_limit_near',
+            params: { percent: Math.round((usage.orders_count / limits.max_orders_per_month) * 100) },
             warning: `You've used ${Math.round((usage.orders_count / limits.max_orders_per_month) * 100)}% of your monthly order limit.`,
         };
     }

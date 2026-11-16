@@ -50,8 +50,8 @@ export function RevealToggle({ className, size = 14 }: RevealToggleProps) {
         <button
             type="button"
             onClick={handleClick}
-            aria-label={revealed ? "Hide financial data" : "Show financial data"}
-            title={revealed ? "Hide" : "Show"}
+            aria-label={language === "ar" ? (revealed ? "إخفاء الأرقام المالية" : "إظهار الأرقام المالية") : (revealed ? "Hide financial data" : "Show financial data")}
+            title={language === "ar" ? (revealed ? "إخفاء" : "إظهار") : (revealed ? "Hide" : "Show")}
             className={cn(
                 "inline-flex items-center justify-center text-muted hover:text-foreground transition-colors shrink-0",
                 className

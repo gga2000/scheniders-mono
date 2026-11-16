@@ -211,7 +211,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     )}>
                                         <Pin className={cn("w-3.5 h-3.5", isPinned ? "text-blue-600 -rotate-45" : "text-blue-700")} />
                                     </div>
-                                    <span className="font-medium">{isPinned ? "Unpin" : "Pin"}</span>
+                                    <span className="font-medium">{isPinned ? t("orders.card.unpin") : t("orders.card.pin")}</span>
                                 </button>
                             )}
 

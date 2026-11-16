@@ -80,8 +80,8 @@ export const GlobalSearchField = React.memo(function GlobalSearchField({ setFilt
             {onToggleSubFilters && (
                 <button
                     onClick={onToggleSubFilters}
-                    title={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
-                    aria-label={subFiltersOpen ? "Hide sub-filters" : "Show sub-filters"}
+                    title={subFiltersOpen ? t("orders.search.hideSubFilters") : t("orders.search.showSubFilters")}
+                    aria-label={subFiltersOpen ? t("orders.search.hideSubFilters") : t("orders.search.showSubFilters")}
                     aria-pressed={!!subFiltersOpen}
                     className={cn(
                         "absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all",

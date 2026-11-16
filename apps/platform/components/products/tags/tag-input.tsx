@@ -274,7 +274,7 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
                         }}
                         onFocus={() => setIsOpen(true)}
                         onKeyDown={handleKeyDown}
-                        placeholder={t?.("Add tags...") ?? "Add tags..."}
+                        placeholder={t("products.tagInput.add")}
                         className={cn(
                             "w-full pl-9 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)]",
                             "rounded-xl text-foreground placeholder:text-[var(--foreground-muted)]",
@@ -332,7 +332,7 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
                                 )}
                             >
                                 <Plus className="w-4 h-4" />
-                                {t?.("Create") ?? "Create"} &quot;{inputValue.trim()}&quot;
+                                {t("products.tagInput.create", { name: inputValue.trim() })}
                             </button>
                         )}
 
@@ -347,7 +347,7 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
                                 >
                                     <div className="p-3 space-y-2">
                                         <p className="text-xs text-muted">
-                                            {t?.("Pick a color for") ?? "Pick a color for"} &quot;{inputValue.trim()}&quot;
+                                            {t("products.tagInput.pickColor", { name: inputValue.trim() })}
                                         </p>
                                         <div className="flex items-center gap-1.5">
                                             {PRESET_COLORS.map((color) => (
@@ -382,8 +382,8 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
                                             )}
                                         >
                                             {createMutation.isPending
-                                                ? (t?.("Creating...") ?? "Creating...")
-                                                : (t?.("Create Tag") ?? "Create Tag")}
+                                                ? t("products.tagInput.creating")
+                                                : t("products.tagInput.createTag")}
                                         </button>
                                     </div>
                                 </motion.div>
