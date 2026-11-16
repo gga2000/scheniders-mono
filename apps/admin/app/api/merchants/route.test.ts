@@ -181,18 +181,25 @@ describe("GET /api/merchants", () => {
     expect(stub.callsTo("tenants.or")[0]?.[0]).toContain('merchant_code.ilike."%95%"');
   });
 
-  describe("the Needs attention filter", () => {
-    it("looks at every shop, past the first 1,000", async () => {
-      stub.state.tables.tenants = Array.from({ length: 1200 }, (_, n) => shop(n, n === 1150 ? { status: "suspended" } : {}));
+  /*
+   * "Needs attention", the balance bands and the health bands are database
+   * functions over the shop (migration staff_list_filters). The route used to
+   * work them out here: attention from a list of ids, balance and health on
+   * the page it had already cut, so a page of 50 could hold 3 shops under a
+   * count of all of them.
+   */
+  describe("the filters the database works out", () => {
+    it("asks the database which shops need attention, and counts only those", async () => {
+      stub.state.tables.tenants = Array.from({ length: 1200 }, (_, n) =>
+        shop(n, { staff_needs_attention: n === 1150 }),
+      );
 
       const { merchants, total } = await (await call("status=attention")).json();
 
-      expect(stub.callsTo("tenants.range").slice(0, 3)).toEqual([
-        [0, 999],
-        [1000, 1999],
-        [1200, 2199],
-      ]);
-      expect(stub.callsTo("tenants.in")).toEqual([["id", ["shop-1150"]]]);
+      expect(stub.callsTo("tenants.filter")).toEqual([["staff_needs_attention", "eq", true]]);
+      // No list of ids is sent back to the database, and "attention" is never read as a status.
+      expect(stub.callsTo("tenants.in")).toEqual([]);
+      expect(stub.callsTo("tenants.eq")).toEqual([]);
       expect(total).toBe(1);
       expect(merchants.map((m: Row) => m.id)).toEqual(["shop-1150"]);
     });
@@ -203,20 +210,42 @@ describe("GET /api/merchants", () => {
       expect((await call("status=attention")).status).toBe(500);
     });
 
-    it("counts a suspended shop, a trial ending within 3 days and a wallet under 5,000", async () => {
-      const inDays = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-      stub.state.tables.tenants = [
-        shop(1),
-        shop(2, { status: "suspended" }),
-        shop(3, { status: "trial", trial_ends_at: inDays(2) }),
-        shop(4, { status: "trial", trial_ends_at: inDays(6) }),
-        shop(5, { wallet: { balance_iqd: 4999 } }),
-        shop(6, { status: "cancelled", wallet: { balance_iqd: 0 } }),
-      ];
+    it("filters by wallet balance before the list is cut into pages", async () => {
+      // The one shop under 10,000 IQD is the 111th: the first page of 50 never held it.
+      stub.state.tables.tenants = Array.from({ length: 120 }, (_, n) =>
+        shop(n, { staff_wallet_balance: n === 110 ? 4000 : 20000 }),
+      );
 
-      await call("status=attention");
+      const { merchants, total } = await (await call("balance=critical&limit=50")).json();
 
-      expect(stub.callsTo("tenants.in")).toEqual([["id", ["shop-2", "shop-3", "shop-5", "shop-6"]]]);
+      expect(total).toBe(1);
+      expect(merchants.map((m: Row) => m.id)).toEqual(["shop-110"]);
+    });
+
+    it("filters by health before the list is cut into pages", async () => {
+      stub.state.tables.tenants = Array.from({ length: 120 }, (_, n) =>
+        shop(n, { staff_health_score: n === 110 ? 20 : n === 111 ? 55 : 95 }),
+      );
+
+      const atRisk = await (await call("health=at_risk&limit=50")).json();
+      expect([atRisk.total, atRisk.merchants.map((m: Row) => m.id)]).toEqual([1, ["shop-110"]]);
+
+      const warning = await (await call("health=warning&limit=50")).json();
+      expect([warning.total, warning.merchants.map((m: Row) => m.id)]).toEqual([1, ["shop-111"]]);
+
+      const healthy = await (await call("health=healthy&limit=50")).json();
+      expect([healthy.total, healthy.merchants.length]).toEqual([118, 50]);
+    });
+
+    it("puts the status, the balance band and the health band on one read", async () => {
+      await call("status=trial&balance=low&health=healthy");
+
+      expect(stub.callsTo("tenants.eq")).toEqual([["status", "trial"]]);
+      expect(stub.callsTo("tenants.filter")).toEqual([
+        ["staff_wallet_balance", "gte", 10000],
+        ["staff_wallet_balance", "lte", 50000],
+        ["staff_health_score", "gte", 70],
+      ]);
     });
   });
 });

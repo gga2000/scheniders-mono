@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { fetchMerchantListStats } from "@/lib/console-stats";
-import { everyRow } from "@/lib/every-row";
+import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
 
 export async function GET(request: NextRequest) {
@@ -29,54 +29,19 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // ── Resolve "attention" filter to a tenant-id allowlist ────────────
-    // "attention" combines status + trial date math + balance threshold,
-    // none of which can be expressed as a single Supabase filter. Compute
-    // the matching ids in Node, then constrain the main query.
-    let attentionIds: string[] | null = null;
-    if (status === "attention") {
-      // Every shop, a page at a time: one request stops at 1,000 rows.
-      const lite = await everyRow((from, to) =>
-        supabase
-          .from("tenants")
-          .select("id, status, trial_ends_at, wallet(balance_iqd)")
-          .order("id", { ascending: true })
-          .range(from, to),
-      );
-      const now = Date.now();
-      attentionIds = [];
-      for (const t of lite) {
-        const s = t.status as string;
-        const trialEnd = t.trial_ends_at as string | null;
-        const walletRel = t.wallet as { balance_iqd?: number } | { balance_iqd?: number }[] | null;
-        const bal = Array.isArray(walletRel) ? walletRel[0]?.balance_iqd ?? 0 : walletRel?.balance_iqd ?? 0;
-
-        let attn = false;
-        if (s === "suspended" || s === "cancelled") attn = true;
-        if (s === "trial" && trialEnd) {
-          const daysLeft = Math.ceil((new Date(trialEnd).getTime() - now) / (1000 * 60 * 60 * 24));
-          if (daysLeft <= 3) attn = true;
-        }
-        if (bal < 5000 && s !== "cancelled") attn = true;
-        if (attn) attentionIds.push(t.id);
-      }
-    }
-
     // ── Main query ─────────────────────────────────────────────────────
     let query = supabase
       .from("tenants")
       .select("*, wallet(*), subscriptions(*)", { count: "exact" });
 
     if (plan) query = query.eq("plan", plan);
-    // "attention" is synthetic — never forward as a column filter.
-    if (status && status !== "attention") query = query.eq("status", status);
+    // "attention" is not a value of the status column: it is one of the computed filters below.
+    if (status && status !== ATTENTION) query = query.eq("status", status);
     if (city) query = query.eq("city", city);
-    if (attentionIds !== null) {
-      if (attentionIds.length === 0) {
-        // No matches — return empty without a round-trip.
-        return NextResponse.json({ merchants: [], total: 0, page, limit });
-      }
-      query = query.in("id", attentionIds);
+    // Needs attention, the balance band and the health band are worked out in
+    // the database, over every shop, before the list is cut into pages.
+    for (const [column, operator, value] of computedShopFilters({ status, balance, health })) {
+      query = query.filter(column, operator, value);
     }
 
     if (search) query = query.or(merchantSearchFilter(search));
@@ -142,7 +107,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Assemble enriched merchants ────────────────────────────────────
-    let merchants = tenants.map((tenant) => {
+    const merchants = tenants.map((tenant) => {
       const row = stats.get(tenant.id);
       if (!row) throw new Error(`No list numbers for shop ${tenant.id}`);
 
@@ -170,31 +135,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // ── Client-side-like filters that need computed data ────────────────
-    if (balance) {
-      merchants = merchants.filter((m) => {
-        const bal = m.wallet?.balance_iqd ?? 0;
-        switch (balance) {
-          case "critical": return bal < 10000;
-          case "low": return bal >= 10000 && bal <= 50000;
-          case "healthy": return bal > 50000;
-          default: return true;
-        }
-      });
-    }
-
-    if (health) {
-      merchants = merchants.filter((m) => {
-        const score = computeHealthScore(m);
-        switch (health) {
-          case "at_risk": return score < 40;
-          case "warning": return score >= 40 && score < 70;
-          case "healthy": return score >= 70;
-          default: return true;
-        }
-      });
-    }
-
     return NextResponse.json({
       merchants,
       total: count ?? 0,
@@ -214,28 +154,4 @@ export async function GET(request: NextRequest) {
 function laterOf(a: string | null, b: string | null): string | null {
   if (!a || !b) return a ?? b;
   return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
-}
-
-// ── Health score calculation (mirrors client-side logic) ────────────────
-function computeHealthScore(merchant: Record<string, unknown>): number {
-  let score = 50;
-  const status = merchant.status as string;
-  const wallet = merchant.wallet as { balance_iqd: number } | null;
-  const usage = merchant.usage as { orders_count: number } | null;
-
-  if (status === "active") score += 15;
-  else if (status === "trial") score += 5;
-  else if (status === "suspended") score -= 20;
-
-  const balance = wallet?.balance_iqd ?? 0;
-  if (balance > 50000) score += 15;
-  else if (balance > 10000) score += 5;
-  else score -= 10;
-
-  const orders = usage?.orders_count ?? 0;
-  if (orders > 50) score += 15;
-  else if (orders > 10) score += 10;
-  else if (orders > 0) score += 5;
-
-  return Math.max(0, Math.min(100, score));
 }

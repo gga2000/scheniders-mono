@@ -68,12 +68,56 @@ describe("GET /api/merchants/stats", () => {
   });
 
   it("asks for the fees of the shops left after the balance filter only", async () => {
-    stub.state.tables.tenants = [shop(1, { wallet: { balance_iqd: 4000 } }), shop(2), shop(3, { wallet: [] })];
+    stub.state.tables.tenants = [
+      shop(1, { wallet: { balance_iqd: 4000 }, staff_wallet_balance: 4000 }),
+      shop(2, { staff_wallet_balance: 20000 }),
+      shop(3, { wallet: [], staff_wallet_balance: 0 }),
+    ];
 
     const stats = await (await call("balance=critical")).json();
 
+    // Every page of the read carries the filter (here: the page of shops, then the empty one that ends it).
+    expect(stub.callsTo("tenants.filter")).toEqual(new Array(2).fill(["staff_wallet_balance", "lt", 10000]));
     expect(stats.total).toBe(2);
     expect(stub.state.rpcCalls[0].args).toEqual({ _tenant_ids: ["shop-1", "shop-3"] });
+  });
+
+  it("counts the shops of a health band, as the list does", async () => {
+    stub.state.tables.tenants = [shop(1, { staff_health_score: 20 }), shop(2, { staff_health_score: 95 })];
+
+    const stats = await (await call("health=at_risk")).json();
+
+    expect(stats.total).toBe(1);
+    expect(stub.state.rpcCalls[0].args).toEqual({ _tenant_ids: ["shop-1"] });
+  });
+
+  it("takes \"needs attention\" from the database, so a locked shop with a full wallet counts", async () => {
+    stub.state.tables.tenants = [
+      // Paying, 80,000 IQD, month unpaid: no status, date or balance rule here sees it.
+      shop(1, { wallet: { balance_iqd: 80000 }, staff_needs_attention: true }),
+      shop(2, { staff_needs_attention: false }),
+      shop(3, { status: "suspended", staff_needs_attention: true }),
+    ];
+
+    const stats = await (await call()).json();
+
+    expect(stub.callsTo("tenants.select")[0]?.[0]).toContain("staff_needs_attention");
+    expect(stats.buckets).toEqual({
+      trials_today: 0,
+      trials_expired: 0,
+      suspended: 1,
+      cancelled: 0,
+      critical_balance: 0,
+      attention: 2,
+    });
+  });
+
+  it("never reads \"attention\" as a status", async () => {
+    const stats = await (await call("status=attention")).json();
+
+    expect(stub.callsTo("tenants.eq")).toEqual([]);
+    expect(stub.callsTo("tenants.filter")).toEqual([]);
+    expect(stats.total).toBe(2);
   });
 
   it("answers with an error when the fees cannot be read, not with 0 IQD", async () => {
