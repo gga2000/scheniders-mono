@@ -178,3 +178,16 @@ describe("expenses", () => {
         expect(env.tables.expenses[1].amount).toBe(777);
     });
 });
+
+describe("while the store is billing-locked (Fermi A1)", () => {
+    it("refuses every finance tool and reads nothing", async () => {
+        resolveMcpCaller.mockResolvedValue({
+            ok: true,
+            caller: { userId: "u1", email: null, displayName: "Ali", tenantId: STORE, role: "admin", clientId: "c", db: env.db, token: "t", appUrl: "https://app.test", billingLocked: true },
+        });
+        const res = await call("profit_report", { from: "2026-10-01", to: "2026-10-31", top_products: 5 });
+        expect(res.isError).toBe(true);
+        expect(res.text).toMatch(/locked until its bill is paid/);
+        expect(res.text).not.toContain("IQD");
+    });
+});

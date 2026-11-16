@@ -7,6 +7,7 @@ import {
     verifyAccessToken,
 } from "@/lib/supabase-server";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { readServerBillingLock } from "@/lib/billing/lock-refusal";
 import type { UserRole } from "@/lib/permissions";
 
 /**
@@ -27,6 +28,11 @@ export type McpCaller = {
     token: string;
     /** The app's origin as Claude reached it, for links back into the app. */
     appUrl: string;
+    /**
+     * The store is billing-locked (Fermi A1): only the tools marked
+     * `openWhileLocked` (orders, shipping, returns) run. Read per call.
+     */
+    billingLocked: boolean;
 };
 
 /** The claims we read from a token Supabase Auth has already verified. */
@@ -117,6 +123,7 @@ export async function resolveMcpCaller(authInfo: AuthInfo | undefined): Promise<
     const active = await resolveActiveTenant(extra.data.userId);
     if (!active.ok) return { ok: false, error: active.error };
 
+    const lock = await readServerBillingLock(active.tenantId);
     const db = createSupabaseServerClientWithToken(authInfo.token, { allowOAuthClient: true });
     const { data: profile } = await db
         .from("user_profiles")
@@ -136,6 +143,7 @@ export async function resolveMcpCaller(authInfo: AuthInfo | undefined): Promise<
             db,
             token: authInfo.token,
             appUrl: extra.data.appUrl,
+            billingLocked: lock.locked,
         },
     };
 }

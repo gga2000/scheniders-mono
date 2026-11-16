@@ -31,6 +31,8 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
         windowSeconds: 3600,
         // Store setup copy: whoever may change the store settings.
         permission: PERMISSIONS.ACCESS_SETTINGS,
+        // Store setup is locked while the store's bill is unpaid (Fermi A1).
+        refuseWhileLocked: true,
     });
     if (!caller.ok) return caller.response;
 

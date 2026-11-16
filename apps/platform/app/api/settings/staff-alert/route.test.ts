@@ -39,14 +39,15 @@ describe("staff alert settings", () => {
     it("lets any member read but asks for a store admin to change anything", async () => {
         mocks.requireRequestCaller.mockResolvedValue(admin);
         await GET(req("GET"));
-        expect(mocks.requireRequestCaller).toHaveBeenLastCalledWith(expect.anything(), "member");
+        // Settings is closed while the store's bill is unpaid (Fermi A1).
+        expect(mocks.requireRequestCaller).toHaveBeenLastCalledWith(expect.anything(), "member", { refuseWhileLocked: true });
         for (const call of [
             () => POST(req("POST", { phone: "07701234567" })),
             () => PUT(req("PUT", { enabled: false })),
             () => DELETE(req("DELETE", undefined, "?phone=07701234567")),
         ]) {
             await call();
-            expect(mocks.requireRequestCaller).toHaveBeenLastCalledWith(expect.anything(), "tenant-admin");
+            expect(mocks.requireRequestCaller).toHaveBeenLastCalledWith(expect.anything(), "tenant-admin", { refuseWhileLocked: true });
         }
     });
 

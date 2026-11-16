@@ -159,3 +159,20 @@ $$;
 CREATE FUNCTION public.is_tenant_admin(p_tenant_id uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
     SELECT p_tenant_id = nullif(current_setting('test.admin_of', true), '')::uuid
 $$;
+
+-- Finance data the lock closes (20261116024144_billing_lock_closes_finance.sql).
+CREATE TABLE public.expenses (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL,
+    amount numeric NOT NULL DEFAULT 0
+);
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON public.expenses FOR ALL TO authenticated
+    USING (tenant_id IN (SELECT public.get_user_tenant_ids()))
+    WITH CHECK (tenant_id IN (SELECT public.get_user_tenant_ids()));
+GRANT USAGE ON SCHEMA public, auth TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.expenses TO authenticated;
+CREATE FUNCTION public.has_tenant_permission(p_tenant_id uuid, p_permission text) RETURNS boolean
+    LANGUAGE sql STABLE AS $$ SELECT false $$;
+CREATE FUNCTION public.finance_summary_core(_tenant_id uuid, _from date, _to date) RETURNS jsonb
+    LANGUAGE sql STABLE AS $$ SELECT jsonb_build_object('tenant_id', _tenant_id) $$;

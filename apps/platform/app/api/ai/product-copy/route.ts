@@ -26,6 +26,8 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
         limit: 40,
         windowSeconds: 3600,
         permission: PERMISSIONS.EDIT_PRODUCTS,
+        // Products are locked while the store's bill is unpaid (Fermi A1).
+        refuseWhileLocked: true,
     });
     if (!caller.ok) return caller.response;
 

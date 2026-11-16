@@ -19,7 +19,8 @@ async function resolveTenant(
     request: NextRequest,
     mode: "member" | "tenant-admin",
 ): Promise<{ tenantId: string } | { error: NextResponse }> {
-    const caller = await requireRequestCaller(request, mode);
+    // Settings is locked for a store whose bill is unpaid (Fermi A1).
+    const caller = await requireRequestCaller(request, mode, { refuseWhileLocked: true });
     if (!caller.ok) return { error: caller.response };
     return { tenantId: caller.tenantId };
 }

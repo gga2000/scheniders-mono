@@ -24,7 +24,8 @@ const NO_RECORD_CODES = new Set(["ENODATA", "ENOTFOUND", "NXDOMAIN"]);
  * one tenant cannot probe or verify another tenant's domain ids.
  */
 async function handlePOST(request: Request): Promise<NextResponse> {
-    const caller = await requireRequestCaller(request, "tenant-admin");
+    // A store setting: locked while unpaid (Fermi A1).
+    const caller = await requireRequestCaller(request, "tenant-admin", { refuseWhileLocked: true });
     if (!caller.ok) return caller.response;
 
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));

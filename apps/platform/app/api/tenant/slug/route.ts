@@ -72,7 +72,8 @@ async function handleGET(request: Request): Promise<NextResponse> {
 }
 
 async function handlePATCH(request: Request): Promise<NextResponse> {
-    const caller = await requireRequestCaller(request, "tenant-admin");
+    // Changing the store address is a store setting: locked while unpaid (Fermi A1).
+    const caller = await requireRequestCaller(request, "tenant-admin", { refuseWhileLocked: true });
     if (!caller.ok) return caller.response;
 
     let raw: unknown;

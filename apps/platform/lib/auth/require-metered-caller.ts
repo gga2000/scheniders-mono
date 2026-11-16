@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireRequestCaller, type RequestCaller } from "@/lib/auth/require-request-caller";
+import { requireRequestCaller, type CallerOptions, type RequestCaller } from "@/lib/auth/require-request-caller";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { callerHasPermission } from "@/lib/auth/caller-has-permission";
 import type { PermissionKey } from "@/lib/permissions";
@@ -14,7 +14,7 @@ type Meter = {
      * meter is charged, so a refused caller never spends the store's budget.
      */
     permission?: PermissionKey;
-};
+} & CallerOptions;
 
 /**
  * Authorize a route that spends platform money per call (paid AI APIs,
@@ -31,7 +31,7 @@ export async function requireMeteredCaller(
     request: Request,
     meter: Meter,
 ): Promise<RequestCaller> {
-    const caller = await requireRequestCaller(request, "member");
+    const caller = await requireRequestCaller(request, "member", { refuseWhileLocked: meter.refuseWhileLocked });
     if (!caller.ok) return caller;
 
     if (meter.permission) {

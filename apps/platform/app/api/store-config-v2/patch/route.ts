@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { z } from "zod";
 import { withFailureReport } from "@/lib/job-monitor";
+import { billingLockRefusal } from "@/lib/billing/lock-refusal";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Field-level autosave PATCH endpoint                                  */
@@ -150,6 +151,11 @@ async function handlePOST(request: Request): Promise<NextResponse> {
     if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // The store builder is locked while the store's bill is unpaid (Fermi A1).
+    // The id can only narrow this to a refusal; the RPC checks membership.
+    const locked = await billingLockRefusal(tenant_id);
+    if (locked) return locked;
 
     const { error } = await supabase.rpc("apply_store_config_v2_patch", {
         p_tenant_id: tenant_id,

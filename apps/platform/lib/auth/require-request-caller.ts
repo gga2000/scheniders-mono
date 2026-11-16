@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/supabase-server";
 import { isAdminRole, type UserRole } from "@/lib/permissions";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { billingLockRefusal } from "@/lib/billing/lock-refusal";
 
 export type RequestCaller =
     /** `role` is the caller's effective role in `tenantId` (see resolveActiveTenant). */
@@ -9,6 +10,15 @@ export type RequestCaller =
     | { ok: false; response: NextResponse };
 
 type Requirement = "member" | "tenant-admin" | "platform-admin";
+
+export type CallerOptions = {
+    /**
+     * The route belongs to a page a billing-locked store cannot use (Fermi A1:
+     * everything but orders, shipping, labels, export, returns and paying), so
+     * a locked store gets 402 here as well as the lock screen.
+     */
+    refuseWhileLocked?: boolean;
+};
 
 function deny(status: number, error: string): { ok: false; response: NextResponse } {
     return { ok: false, response: NextResponse.json({ success: false, error }, { status }) };
@@ -24,6 +34,7 @@ function deny(status: number, error: string): { ok: false; response: NextRespons
 export async function requireRequestCaller(
     request: Request,
     requirement: Requirement,
+    options: CallerOptions = {},
 ): Promise<RequestCaller> {
     const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     if (!token) return deny(401, "Unauthorized");
@@ -40,6 +51,11 @@ export async function requireRequestCaller(
     // super_admin counts as an admin of every tenant.
     if (requirement === "tenant-admin" && !isAdminRole(active.role)) {
         return deny(403, "This action requires an administrator.");
+    }
+
+    if (options.refuseWhileLocked) {
+        const refusal = await billingLockRefusal(active.tenantId);
+        if (refusal) return { ok: false, response: refusal };
     }
 
     return { ok: true, userId: user.id, email: user.email, tenantId: active.tenantId, role: active.role, platformAdmin: active.platformAdmin };

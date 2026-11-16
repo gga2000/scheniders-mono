@@ -19,6 +19,7 @@ const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 export function registerOrderReadTools(server: McpServer): void {
     registerTool(server, {
         name: "search_orders",
+        openWhileLocked: true,
         title: "Search orders",
         kind: "read",
         description:
@@ -90,6 +91,7 @@ export function registerOrderReadTools(server: McpServer): void {
 
     registerTool(server, {
         name: "get_order",
+        openWhileLocked: true,
         title: "Open an order",
         kind: "read",
         description: "Full details of one order: customer, address, items, money, delivery, notes and status history.",

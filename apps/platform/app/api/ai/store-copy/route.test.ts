@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// The billing lock (Fermi A1) is read from the database: the store is not
+// locked unless a test locks it.
+const lockState = vi.hoisted(() => ({ locked: false }));
+vi.mock("@/lib/billing/lock-refusal", async () => {
+    const { NextResponse } = await import("next/server");
+    return {
+        billingLockRefusal: async () =>
+            lockState.locked ? NextResponse.json({ code: "billing_locked" }, { status: 402 }) : null,
+    };
+});
+
 vi.mock("@/lib/supabase-server", () => ({ verifyAccessToken: vi.fn() }));
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({
     resolveActiveTenant: vi.fn(async () => ({ ok: true, tenantId: "t1", role: "employee", platformAdmin: false })),
