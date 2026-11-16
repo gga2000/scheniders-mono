@@ -111,6 +111,19 @@ export const FinanceSummarySchema = z.object({
             /** Of `reached`, the rest (a payment dated after the period). before + now + other = reached. */
             reached_other: z.number().catch(0),
         }),
+        /** The unpaid delivered orders with money owed on them, oldest first (up to 20). Empty from a server older than the field. */
+        unpaid_list: z
+            .array(
+                z.object({
+                    id: z.string(),
+                    code: z.string().nullable(),
+                    customer: z.string().nullable(),
+                    amount: z.number(),
+                    day: z.string(),
+                    prime: z.boolean(),
+                }),
+            )
+            .catch([]),
     }),
     failed: z.object({
         refused_orders: z.number(),
