@@ -4,14 +4,15 @@
  * The storefront hands only an order id to QStash. Everything the decision
  * needs is re-read from the orders row here, and the tenant is the row's own:
  * never a value from the message. Interakt is one global sender (a single
- * INTERAKT_API_KEY), so a tenant must also be listed in
- * STOREFRONT_WA_CONFIRM_TENANT_IDS: only tenants whose customers expect
- * messages from that number.
+ * INTERAKT_API_KEY), so a tenant must also be let through by
+ * STOREFRONT_WA_CONFIRM_TENANT_IDS ("*" = every store, see
+ * lib/tenant-allowlist).
  *
  * Used by app/api/webhooks/storefront-order. Pure, no I/O.
  */
 
 import { z } from "zod";
+import { allowlistIncludes, type TenantAllowlist } from "@/lib/tenant-allowlist";
 
 /** The columns the decision reads. Validated because the row comes from an
  *  untyped `select("*")`. A row without `confirmation_dispatched_at` means
@@ -45,20 +46,9 @@ export type StorefrontConfirmationVerdict =
     | { send: true; tenantId: string }
     | { send: false; reason: StorefrontConfirmationSkip };
 
-/** STOREFRONT_WA_CONFIRM_TENANT_IDS → a set of lower-cased tenant uuids.
- *  env.ts has already refused a malformed list at boot. */
-export function parseConfirmTenantIds(raw: string | undefined): ReadonlySet<string> {
-    return new Set(
-        (raw ?? "")
-            .split(",")
-            .map((s) => s.trim().toLowerCase())
-            .filter(Boolean),
-    );
-}
-
 export function storefrontConfirmationVerdict(
     row: StorefrontOrderGateRow,
-    enabledTenants: ReadonlySet<string>,
+    enabledTenants: TenantAllowlist,
 ): StorefrontConfirmationVerdict {
     if (row.source !== "storefront") return { send: false, reason: "not_storefront" };
     // Only an explicit false is a shopper's order: a draft-view test order is
@@ -66,7 +56,7 @@ export function storefrontConfirmationVerdict(
     if (row.is_test !== false) return { send: false, reason: "test_order" };
     if (row.deleted_at !== null) return { send: false, reason: "deleted" };
     if (row.status !== "new") return { send: false, reason: "not_new" };
-    if (!row.tenant_id || !enabledTenants.has(row.tenant_id.toLowerCase())) {
+    if (!row.tenant_id || !allowlistIncludes(enabledTenants, row.tenant_id)) {
         return { send: false, reason: "tenant_not_enabled" };
     }
     if (row.confirmation_dispatched_at !== null) return { send: false, reason: "already_dispatched" };

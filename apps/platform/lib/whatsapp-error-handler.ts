@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 import type { SendTemplateResult } from "./interakt";
-import { SHOP_WALLET_EMPTY } from "./whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, SHOP_WALLET_EMPTY } from "./whatsapp-wallet";
 
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -36,6 +36,9 @@ export function categorizeWhatsAppFailure(
         // The shop's own wallet in our app, not the platform's Interakt wallet.
         reason = "whatsapp_shop_wallet_empty";
         notePrefix = "لم تُرسل رسالة واتساب: رصيد محفظة المتجر لا يكفي، اشحن المحفظة من الفوترة";
+    } else if (errorMsg === SHOP_DAILY_CAP_REACHED) {
+        reason = "whatsapp_rate_limited";
+        notePrefix = "لم تُرسل رسالة واتساب: وصل المتجر إلى حد الرسائل اليومي";
     } else if (msg.includes("sufficient balance") || msg.includes("recharge your wallet")) {
         reason = "whatsapp_wallet_empty";
         notePrefix = "رصيد محفظة Interakt غير كافٍ — اشحن المحفظة";

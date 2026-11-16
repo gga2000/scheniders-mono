@@ -15,7 +15,9 @@ import type { Order } from "@/types/order";
 // Provide an API key so sendTemplateMessage proceeds to the fetch.
 vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
+    SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     shopCanPayForWhatsApp: vi.fn(async () => true),
+    takeDailySendSlot: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/supabase-server", async () =>

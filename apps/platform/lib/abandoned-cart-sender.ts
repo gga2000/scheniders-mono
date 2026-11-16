@@ -9,6 +9,7 @@
 
 import { env, providerBaseUrls } from "./env";
 import { formatPhoneForInterakt, sharedSenderAllows, type SendTemplateResult } from "./interakt";
+import { SHOP_DAILY_CAP_REACHED, takeDailySendSlot } from "./whatsapp-wallet";
 import { cartItemsSubtotal, type AbandonedCartItem } from "@scheniders/shared";
 
 const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
@@ -90,6 +91,9 @@ export async function sendCartRecoveryMessage(
   const apiKey = env.INTERAKT_API_KEY;
   if (!apiKey) {
     return { success: false, error: "Interakt API key not configured" };
+  }
+  if (!(await takeDailySendSlot(cart.tenant_id))) {
+    return { success: false, error: SHOP_DAILY_CAP_REACHED, delivery: "not_sent" };
   }
 
   const body = buildCartRecoveryBody(cart);

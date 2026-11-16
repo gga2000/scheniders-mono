@@ -1,16 +1,21 @@
 import { describe, it, expect, vi } from "vitest";
 
-const envState = vi.hoisted(() => ({ INTERAKT_SENDER_TENANT_IDS: undefined as string | undefined }));
+const envState = vi.hoisted(() => ({ INTERAKT_SENDER_TENANT_IDS: undefined as string | undefined, INTERAKT_API_KEY: undefined as string | undefined }));
 vi.mock("./env", async (importOriginal) => {
     const actual = await importOriginal<typeof import("./env")>();
     return {
         ...actual,
         env: new Proxy(actual.env, {
             get: (target, key) =>
-                key === "INTERAKT_SENDER_TENANT_IDS" ? envState.INTERAKT_SENDER_TENANT_IDS : Reflect.get(target, key),
+                key === "INTERAKT_SENDER_TENANT_IDS" || key === "INTERAKT_API_KEY" ? envState[key] : Reflect.get(target, key),
         }),
     };
 });
+const daySlot = vi.hoisted(() => ({ allowed: true }));
+vi.mock("./whatsapp-wallet", () => ({
+    SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
+    takeDailySendSlot: vi.fn(async () => daySlot.allowed),
+}));
 import {
     buildCartRecoveryBody,
     sendCartRecoveryMessage,
@@ -60,5 +65,19 @@ describe("sendCartRecoveryMessage", () => {
         const r = await sendCartRecoveryMessage(cart);
         expect(r.success).toBe(false);
         expect(r.error).toMatch(/not configured/i);
+    });
+
+    it("refuses a store past today's WhatsApp limit before calling Interakt", async () => {
+        envState.INTERAKT_SENDER_TENANT_IDS = cart.tenant_id;
+        envState.INTERAKT_API_KEY = "k";
+        daySlot.allowed = false;
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const r = await sendCartRecoveryMessage(cart);
+        expect(r).toEqual({ success: false, error: "Store reached today's WhatsApp limit", delivery: "not_sent" });
+        expect(fetchMock).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+        envState.INTERAKT_API_KEY = undefined;
+        daySlot.allowed = true;
     });
 });

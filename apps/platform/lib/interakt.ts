@@ -9,11 +9,13 @@
  * Auth: Basic Auth with API Key from Interakt Dashboard → Settings → Developer Settings
  */
 
+import { allowlistIncludes, parseTenantAllowlist } from "@/lib/tenant-allowlist";
 import { env, providerBaseUrls } from "./env";
 import type { Order } from "@/types/order";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
-import { SHOP_WALLET_EMPTY, shopCanPayForWhatsApp } from "@/lib/whatsapp-wallet";
+import { SHOP_DAILY_CAP_REACHED, SHOP_WALLET_EMPTY, shopCanPayForWhatsApp, takeDailySendSlot } from "@/lib/whatsapp-wallet";
+import { normalizeIraqiMobile } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { ORDER_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
 import { PROVIDER_TIMEOUT_MS, requestNeverSent } from "@/lib/request-never-sent";
@@ -46,17 +48,12 @@ interface InteraktTemplateBody {
  */
 /**
  * INTERAKT_API_KEY is ONE WhatsApp number shared by the platform. Only stores
- * listed in INTERAKT_SENDER_TENANT_IDS may send through it; every send path
- * checks this, so one store can never message people from another store's
- * number. No tenant (or an unset list) means no send.
+ * let through by INTERAKT_SENDER_TENANT_IDS may send through it; every send
+ * path checks this. Unset means nobody sends, "*" means every store (each
+ * order message names the sending store and gives its own WhatsApp).
  */
 export function sharedSenderAllows(tenantId: string | null | undefined): boolean {
-    if (!tenantId) return false;
-    const allowed = (env.INTERAKT_SENDER_TENANT_IDS ?? "")
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-    return allowed.includes(tenantId.toLowerCase());
+    return allowlistIncludes(parseTenantAllowlist(env.INTERAKT_SENDER_TENANT_IDS), tenantId);
 }
 
 const SENDER_NOT_ALLOWED = "This store is not set up to send WhatsApp from the shared number";
@@ -157,8 +154,11 @@ export function storeContactFrom(row: {
     store_config: unknown;
 }): StoreContact | null {
     const config = row.store_config as { contact?: { whatsapp_number?: string | null } | null } | null;
-    const whatsapp = formatPhoneForDisplay(config?.contact?.whatsapp_number?.trim() || row.contact_phone?.trim() || "");
-    const name = shopperText(row.business_name ?? "", NAME_MAX);
+    // The store types both, and both go to its customers from the shared
+    // number: a short plain name (no links, no line breaks) and a real Iraqi
+    // mobile, or the store is not ready to send.
+    const whatsapp = normalizeIraqiMobile(config?.contact?.whatsapp_number?.trim() || row.contact_phone?.trim() || "");
+    const name = shopperText(row.business_name ?? "", STORE_NAME_MAX);
     if (!whatsapp || !name) return null;
     return { name, whatsapp };
 }
@@ -274,6 +274,7 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
 }
 
 const NAME_MAX = 60;
+const STORE_NAME_MAX = 40;
 const ADDRESS_MAX = 160;
 // Links and bare domains ("evil.example/x", "www.x", "https://…").
 const LINK_PATTERN = /(?:https?:\/\/|www\.)\S*|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:\/\S*)?/gi;
@@ -518,6 +519,9 @@ export async function sendTemplateMessage(
     if (!store) {
         return { success: false, error: STORE_WHATSAPP_MISSING };
     }
+    if (!(await takeDailySendSlot(tenantId))) {
+        return { success: false, error: SHOP_DAILY_CAP_REACHED };
+    }
     const apiKey = env.INTERAKT_API_KEY;
 
     if (!apiKey) {
@@ -669,6 +673,7 @@ export interface NamedTemplateInput {
 export async function sendNamedTemplate(input: NamedTemplateInput): Promise<SendTemplateResult> {
     if (!sharedSenderAllows(input.tenantId)) return { success: false, error: SENDER_NOT_ALLOWED };
     if (!(await shopCanPayForWhatsApp(input.tenantId))) return { success: false, error: SHOP_WALLET_EMPTY };
+    if (!(await takeDailySendSlot(input.tenantId))) return { success: false, error: SHOP_DAILY_CAP_REACHED };
     const apiKey = env.INTERAKT_API_KEY;
     if (!apiKey) return { success: false, error: "Interakt API key not configured" };
     const { countryCode, phoneNumber } = formatPhoneForInterakt(input.phone);

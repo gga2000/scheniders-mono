@@ -78,7 +78,9 @@ async function findOrder(
     // that is what /api/webhooks/interakt/[tenantId] is for. What it CAN do is
     // refuse to guess. Ambiguity resolves to "no match", which leaves the order
     // for a human, instead of silently confirming the wrong merchant's.
-    if (phone) {
+    // The phone comes from the webhook body, so only a plain number is used
+    // to look up orders, and it is passed as values, never spliced into a filter.
+    if (phone && /^\+?\d{7,15}$/.test(phone)) {
         // Normalize the phone for matching
         const standardPhone = formatPhoneToStandard(phone);
 
@@ -86,7 +88,7 @@ async function findOrder(
             .from("orders")
             .select("id, order_id, status, tenant_id")
             .eq("status", "contacted")
-            .or(`phone.eq.${standardPhone},phone.eq.${phone}`)
+            .in("phone", [standardPhone, phone])
             .order("created_at", { ascending: false })
             .limit(5);
 

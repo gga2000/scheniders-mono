@@ -20,6 +20,12 @@ vi.mock("@/lib/supabase-server", () => ({
     }),
 }));
 
+// The cart sender first takes one of the store's daily WhatsApp sends.
+vi.mock("@/lib/whatsapp-wallet", () => ({
+    SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
+    takeDailySendSlot: async () => true,
+}));
+
 const QSTASH_KEYS = { currentSigningKey: "sig_test_current", nextSigningKey: "sig_test_next" };
 
 describe("platform provider base URLs (lib/env.ts)", () => {

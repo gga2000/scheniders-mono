@@ -7,10 +7,13 @@ import type { Order } from "@/types/order";
  */
 
 const canPay = vi.fn<(tenantId: string) => Promise<boolean>>();
+const daySlot = vi.fn<(tenantId: string) => Promise<boolean>>();
 
 vi.mock("@/lib/whatsapp-wallet", () => ({
     SHOP_WALLET_EMPTY: "Shop wallet cannot pay for WhatsApp",
+    SHOP_DAILY_CAP_REACHED: "Store reached today's WhatsApp limit",
     shopCanPayForWhatsApp: (tenantId: string) => canPay(tenantId),
+    takeDailySendSlot: (tenantId: string) => daySlot(tenantId),
 }));
 vi.mock("@/lib/supabase-server", async () =>
     (await import("@/lib/testing/store-contact-service-client")).storeContactSupabaseServer);
@@ -40,6 +43,8 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
     canPay.mockReset();
+    daySlot.mockReset();
+    daySlot.mockResolvedValue(true);
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ result: true, id: "m1" }),
         text: async () => JSON.stringify({ result: true, id: "m1" }) });
@@ -71,5 +76,30 @@ describe("WhatsApp paid from the shop's wallet", () => {
         expect(shop.attention_reasons).toEqual(["whatsapp_shop_wallet_empty"]);
         const ours = categorizeWhatsAppFailure({ success: false, error: "Your wallet doesn't have sufficient balance." }, "7209", "0770");
         expect(ours.attention_reasons).toEqual(["whatsapp_wallet_empty"]);
+    });
+});
+
+describe("each store's daily WhatsApp limit", () => {
+    it("a store past today's limit is not sent and Interakt is never called", async () => {
+        canPay.mockResolvedValue(true);
+        daySlot.mockResolvedValue(false);
+        const res = await sendTemplateMessage(order, "confirmation");
+        expect(res).toEqual({ success: false, error: "Store reached today's WhatsApp limit" });
+        expect(daySlot).toHaveBeenCalledWith(TENANT);
+
+        const named = await sendNamedTemplate({ tenantId: TENANT, phone: "07701234567", name: "x", languageCode: "ar", bodyValues: ["a"], label: "7209" });
+        expect(named).toEqual({ success: false, error: "Store reached today's WhatsApp limit" });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("a shop that cannot pay does not use up a daily send", async () => {
+        canPay.mockResolvedValue(false);
+        await sendTemplateMessage(order, "confirmation");
+        expect(daySlot).not.toHaveBeenCalled();
+    });
+
+    it("the order says the store hit its daily limit", () => {
+        const flags = categorizeWhatsAppFailure({ success: false, error: "Store reached today's WhatsApp limit" }, "7209", "0770");
+        expect(flags.attention_reasons).toEqual(["whatsapp_rate_limited"]);
     });
 });
