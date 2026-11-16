@@ -21,9 +21,11 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *   delete_leads        — delete sales leads, one or in bulk. Super admins
  *                         only: a deleted lead takes its history with it.
  *   update_settings     — also covers the industry list leads are sorted by.
- *   link_prime          — mark a shop's Prime link request done («تم الربط»),
- *                         which tells the shop. Open to support_staff: linking
- *                         couriers is day-to-day onboarding work.
+ *   link_prime          — approve a shop's Prime link (the shop's own check
+ *                         found the account; another shop uses it, or a Prime
+ *                         shop must be picked), which tells the shop. Open to
+ *                         support_staff: linking couriers is day-to-day
+ *                         onboarding work.
  *   handle_support      — read merchant support conversations, reply, take
  *                         ownership and mark them solved. Open to both roles:
  *                         answering merchants is the support team's job.

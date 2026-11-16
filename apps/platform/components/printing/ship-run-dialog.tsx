@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Check, Copy, FileSpreadsheet, FileText, Printer, RefreshCw, Send, ShieldOff, Truck } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, Check, Copy, FileSpreadsheet, FileText, Link2, Printer, RefreshCw, Send, ShieldOff, Truck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@scheniders/ui/dialog";
 import { Switch } from "@scheniders/ui/switch";
 import { cn } from "@/lib/utils";
@@ -216,6 +217,12 @@ export function ShipRunDialog({
                             <Switch checked={moveToTransit} onCheckedChange={setMoveToTransit} aria-label={t("printing.shipStepTransit", { count })} />
                         </label>
                         <p className="mt-3 text-xs text-muted">{t(primeLinked ? "printing.shipStepsNoteLinked" : "printing.shipStepsNote")}</p>
+                        {!primeLinked && (
+                            <Link href="/prime" className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#315EA8] hover:underline">
+                                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                {t("printing.linkPrime")}
+                            </Link>
+                        )}
                     </section>
                 </div>
 
