@@ -19,7 +19,8 @@ import { ChangeChip, isShownChange } from "./change-chip";
 import { COST_COLORS } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { LensSwitch } from "./lens-switch";
-import { Money, formatWhole } from "./money";
+import { COURIER_PAYMENTS_ID } from "./courier-payments";
+import { Money, formatWhole, useMoneyText } from "./money";
 import { StatementDetail } from "./statement-detail";
 import { SummaryCard } from "./summary-card";
 
@@ -54,6 +55,9 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const reduceMotion = useReducedMotion();
+    const money = useMoneyText();
+    // Refunds the courier paid that the shop has not marked yet: until it does, the net profit below is too high.
+    const refundsOpen = summary.cash.statement.returns_open_orders;
     const [open, setOpen] = useState<CostLineId | null>(null);
     const [lens, setLens] = useState<Lens>("total");
     const steps = useMemo(() => new Map(waterfall(statement).map((step) => [step.id, step])), [statement]);
@@ -189,6 +193,28 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                         {t("fin.statement.addExpense")}
                         <ArrowUpRight className="size-3.5" aria-hidden="true" />
                     </button>
+                </div>
+            )}
+
+            {refundsOpen > 0 && (
+                <div
+                    className="flex items-center gap-4 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
+                    data-testid="statement-refunds-open"
+                >
+                    <span className="min-w-0 flex-1 text-left" dir={dir}>
+                        {t("fin.statement.refundsOpen", {
+                            n: formatWhole(refundsOpen),
+                            count: refundsOpen,
+                            amount: money(-summary.cash.statement.returns_open),
+                        })}
+                    </span>
+                    <a
+                        href={`#${COURIER_PAYMENTS_ID}`}
+                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                    >
+                        {t("fin.alert.refundsOpen.open")}
+                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </a>
                 </div>
             )}
 
