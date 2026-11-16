@@ -3,9 +3,12 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
 import { notAnId } from "@/lib/route-id";
+import { staffRequestIdSchema } from "@/lib/staff-reason";
+import { REQUEST_REUSED } from "@/lib/billing-lock-tools";
 
 const bodySchema = z.object({
   days: z.number().int().positive().max(365),
+  request_id: staffRequestIdSchema,
 });
 
 const resultSchema = z.discriminatedUnion("success", [
@@ -14,6 +17,7 @@ const resultSchema = z.discriminatedUnion("success", [
     tenant_id: z.string(),
     current_period_end: z.string(),
     status: z.string(),
+    repeat: z.boolean().optional(),
   }),
   z.object({ success: z.literal(false), error: z.string(), status: z.string().optional() }),
 ]);
@@ -26,6 +30,7 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   paused: { status: 409, error: "This shop is paused. Lift the pause first" },
   still_trial: { status: 409, error: "This shop is on trial. Extend the trial or convert it instead" },
   not_active: { status: 409, error: "This shop is not active. Reactivate it first" },
+  request_reused: REQUEST_REUSED,
 };
 
 /**
@@ -35,7 +40,9 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
  * admin_extend_subscription does it in one step: only an active shop, its
  * status kept (a paused, suspended, cancelled or trial shop, or the demo
  * store, is refused), and the staff log row written with the old and new
- * period end.
+ * period end. It runs through admin_extend_subscription_once, so the same
+ * request_id (a retry, a second tab) adds the days once and gets the first
+ * answer back with `repeat`.
  */
 export async function POST(
   request: NextRequest,
@@ -57,7 +64,8 @@ export async function POST(
       );
     }
 
-    const { data, error } = await createAdminClient().rpc("admin_extend_subscription", {
+    const { data, error } = await createAdminClient().rpc("admin_extend_subscription_once", {
+      _request_id: parsed.data.request_id,
       _tenant_id: id,
       _days: parsed.data.days,
       _admin_user_id: auth.user.id,
@@ -75,6 +83,7 @@ export async function POST(
       tenant_id: result.tenant_id,
       current_period_end: result.current_period_end,
       status: result.status,
+      repeat: result.repeat === true,
     });
   } catch (error) {
     console.error("Extend subscription error:", error);

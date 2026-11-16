@@ -3,12 +3,13 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { forceUnlock, MAX_FREE_UNLOCK_DAYS } from "@/lib/billing-lock-tools";
-import { staffReasonSchema } from "@/lib/staff-reason";
+import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { notAnId } from "@/lib/route-id";
 
 const bodySchema = z.object({
   days: z.number().int().min(1).max(MAX_FREE_UNLOCK_DAYS),
   reason: staffReasonSchema,
+  request_id: staffRequestIdSchema,
 });
 
 /**
@@ -42,6 +43,7 @@ export async function POST(
       parsed.data.days,
       parsed.data.reason,
       auth.user,
+      parsed.data.request_id,
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
@@ -51,6 +53,7 @@ export async function POST(
       status: "active",
       period_end: result.periodEnd,
       lock_reason: result.lockReason,
+      repeat: result.repeat,
     });
   } catch (error) {
     console.error("Force unlock error:", error);

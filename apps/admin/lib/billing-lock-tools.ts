@@ -15,6 +15,15 @@ export const STAFF_REASON_MAX = 500;
 export const MAX_LOCK_ORDERS_GRANT = 1000;
 export const MAX_FREE_UNLOCK_DAYS = 90;
 
+/**
+ * The database saw this request id used for a different change on the same
+ * shop (staff_action_seen). Shared by every *_once caller.
+ */
+export const REQUEST_REUSED = {
+  status: 409,
+  error: "This request was already used for another change. Reload the page and try again",
+} as const;
+
 /** A reason the database accepts: trimmed, 3 to 500 characters. */
 export function isStaffReason(reason: string): boolean {
   const length = reason.trim().length;
@@ -38,6 +47,7 @@ type Refusal = { ok: false; status: 403 | 404 | 409; error: string };
 
 const REFUSALS: Record<string, Omit<Refusal, "ok">> = {
   not_found: { status: 404, error: "Merchant not found" },
+  request_reused: REQUEST_REUSED,
   not_locked: { status: 409, error: "This store is not locked" },
   unpaid_lock: { status: 403, error: "A store locked for an unpaid month gets more orders from a super admin" },
 };
@@ -82,7 +92,11 @@ export async function readBillingLock(
   };
 }
 
-/** Give a locked store `orders` more storefront orders before it pauses. */
+/**
+ * Give a locked store `orders` more storefront orders before it pauses, once
+ * per `requestId` (admin_add_lock_orders_once): a retry gets the first answer
+ * back with `repeat`, and no orders are added twice.
+ */
 export async function addLockOrders(
   supabase: ReturnType<typeof createAdminClient>,
   tenantId: string,
@@ -91,8 +105,10 @@ export async function addLockOrders(
   actor: StaffActor,
   /** Room at the end of a trial is support's to give; an unpaid month needs a super admin. */
   mayGrantUnpaid: boolean,
-): Promise<{ ok: true; ordersLeft: number } | Refusal> {
-  const { data, error } = await supabase.rpc("admin_add_lock_orders", {
+  requestId: string,
+): Promise<{ ok: true; ordersLeft: number; repeat: boolean } | Refusal> {
+  const { data, error } = await supabase.rpc("admin_add_lock_orders_once", {
+    _request_id: requestId,
     _tenant_id: tenantId,
     _orders: orders,
     _reason: reason,
@@ -104,12 +120,13 @@ export async function addLockOrders(
   if (!isRecord(data)) throw new Error("Unexpected admin_add_lock_orders response");
   if (data.success !== true) return refusalOf(data, "admin_add_lock_orders");
   if (typeof data.orders_left !== "number") throw new Error("Unexpected admin_add_lock_orders response");
-  return { ok: true, ordersLeft: data.orders_left };
+  return { ok: true, ordersLeft: data.orders_left, repeat: data.repeat === true };
 }
 
 /**
  * Unlock a locked store for free: a paid period of `days` with no wallet
- * charge. When it ends, renewal charges the wallet as usual.
+ * charge. When it ends, renewal charges the wallet as usual. Once per
+ * `requestId` (admin_force_unlock_once), like addLockOrders.
  */
 export async function forceUnlock(
   supabase: ReturnType<typeof createAdminClient>,
@@ -117,8 +134,10 @@ export async function forceUnlock(
   days: number,
   reason: string,
   actor: StaffActor,
-): Promise<{ ok: true; periodEnd: string; lockReason: string } | Refusal> {
-  const { data, error } = await supabase.rpc("admin_force_unlock", {
+  requestId: string,
+): Promise<{ ok: true; periodEnd: string; lockReason: string; repeat: boolean } | Refusal> {
+  const { data, error } = await supabase.rpc("admin_force_unlock_once", {
+    _request_id: requestId,
     _tenant_id: tenantId,
     _days: days,
     _reason: reason,
@@ -131,5 +150,5 @@ export async function forceUnlock(
   if (typeof data.period_end !== "string" || typeof data.lock_reason !== "string") {
     throw new Error("Unexpected admin_force_unlock response");
   }
-  return { ok: true, periodEnd: data.period_end, lockReason: data.lock_reason };
+  return { ok: true, periodEnd: data.period_end, lockReason: data.lock_reason, repeat: data.repeat === true };
 }

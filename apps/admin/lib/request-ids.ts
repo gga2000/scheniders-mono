@@ -1,7 +1,8 @@
 /**
- * One id per distinct money request, made in the browser and sent with it.
- * Asking for the same payload again (a double click, a retry after an error or
- * a lost response) reuses the id, so the server credits once. A different
+ * One id per distinct money or free-time request (a top-up, free days, lock
+ * orders, a free unlock), made in the browser and sent with it. Asking for the
+ * same payload again (a double click, a retry after an error or a lost
+ * response) reuses the id, so the server makes the change once. A different
  * payload, or the same one after `done()`, gets a new id.
  *
  * Hold one per form: `const [requestIds] = useState(createRequestIds)`.
