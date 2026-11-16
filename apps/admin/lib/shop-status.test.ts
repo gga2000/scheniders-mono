@@ -46,7 +46,7 @@ describe("shopStatusLine", () => {
 
   it("says how short the wallet is for the next charge", () => {
     expect(shopStatusLine(shop({ wallet: 4_000 }), now).next).toBe(
-      "Next charge 9,000 IQD on Thu 19 Nov. Wallet 4,000 IQD, short by 5,000 IQD.",
+      "Next charge 9,000 IQD on Thu 19 Nov. Wallet 4,000 IQD, short by 5,000 IQD. It locks that day unless money is added.",
     );
   });
 
@@ -63,7 +63,9 @@ describe("shopStatusLine", () => {
   it("gives a trial its end and first charge", () => {
     const line = shopStatusLine(shop({ tenant: { status: "trial", trial_ends_at: "2026-11-17T09:00:00Z" }, wallet: 0 }), now);
     expect(line.sentence).toBe("Trial until Tue 17 Nov, 12:00.");
-    expect(line.next).toBe("First charge 9,000 IQD on Tue 17 Nov. Wallet 0 IQD, short by 9,000 IQD.");
+    expect(line.next).toBe(
+      "First charge 9,000 IQD on Tue 17 Nov. Wallet 0 IQD, short by 9,000 IQD. It locks that day unless money is added.",
+    );
   });
 
   it("reads a shop stopped by staff as On hold, with no fee", () => {

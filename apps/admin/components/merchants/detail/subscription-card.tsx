@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Plus, Sparkles, Zap, Repeat, RefreshCw } from "lucide-react";
+import { Calendar, Clock, Sparkles, Repeat, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
-import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
-import { isStaffReason } from "@/lib/billing-lock-tools";
-import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay } from "@/lib/format";
 
@@ -16,9 +13,6 @@ interface SubscriptionCardProps {
   tenant: MerchantDetail["tenant"];
   subscription: MerchantDetail["subscription"];
 }
-
-const TRIAL_PRESETS = [3, 7, 14, 30];
-const SUB_PRESETS = [7, 30, 90];
 
 function daysBetween(a: Date, b: Date): number {
   return Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
@@ -58,12 +52,6 @@ export function SubscriptionCard({
   subscription,
 }: SubscriptionCardProps) {
   const queryClient = useQueryClient();
-  const [customDays, setCustomDays] = useState("");
-  const [customMode, setCustomMode] = useState<"trial" | "sub" | null>(null);
-  // Extending a trial is logged with the staff member's reason.
-  const [trialReason, setTrialReason] = useState("");
-  const trialReasonOk = isStaffReason(trialReason);
-
   const isTrial = tenant.status === "trial";
   const trialEnd = tenant.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
   const periodEnd = subscription
@@ -102,32 +90,6 @@ export function SubscriptionCard({
     return Math.max(0, Math.min(100, (elapsed / total) * 100));
   }, [periodEnd, periodStart, now]);
 
-  const extendMutation = useMutation({
-    mutationFn: async ({ kind, days }: { kind: "trial" | "sub"; days: number }) => {
-      const url =
-        kind === "trial"
-          ? `/api/merchants/${merchantId}/extend-trial`
-          : `/api/merchants/${merchantId}/extend-subscription`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(kind === "trial" ? { days, reason: trialReason.trim() } : { days }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed");
-      }
-      return res.json();
-    },
-    onSuccess: (_data, { kind }) => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
-      setCustomMode(null);
-      setCustomDays("");
-      if (kind === "trial") setTrialReason("");
-    },
-  });
-
   const autoRenew = subscription?.auto_renew ?? true;
   const autoRenewMutation = useMutation({
     mutationFn: async (next: boolean) => {
@@ -147,18 +109,6 @@ export function SubscriptionCard({
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
     },
   });
-
-  const handleExtend = (kind: "trial" | "sub", days: number) => {
-    if (extendMutation.isPending) return;
-    if (kind === "trial" && !trialReasonOk) return;
-    extendMutation.mutate({ kind, days });
-  };
-
-  const handleCustom = () => {
-    const n = parseInt(customDays, 10);
-    if (!Number.isFinite(n) || n <= 0 || !customMode) return;
-    handleExtend(customMode, n);
-  };
 
   const trialUrgent = trialDaysLeft !== null && trialDaysLeft <= 3;
   const subUrgent = periodDaysLeft !== null && periodDaysLeft <= 7;
@@ -246,7 +196,7 @@ export function SubscriptionCard({
           </div>
 
           {/* progress bar */}
-          <div className="relative h-1.5 rounded-full bg-foreground/10 overflow-hidden mb-4">
+          <div className="relative h-1.5 rounded-full bg-foreground/10 overflow-hidden">
             <div
               className={cn(
                 "absolute left-0 top-0 bottom-0 rounded-full transition-all duration-500",
@@ -256,64 +206,6 @@ export function SubscriptionCard({
               )}
               style={{ width: `${trialProgress}%` }}
             />
-          </div>
-
-          {/* extend actions */}
-          <div className="relative">
-            <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
-              Extend trial
-            </p>
-            <StaffReasonInput
-              value={trialReason}
-              onChange={setTrialReason}
-              placeholder="Why? (saved in the log)"
-              className="mb-2"
-            />
-            <div className="flex flex-wrap items-center gap-1.5">
-              {TRIAL_PRESETS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  disabled={extendMutation.isPending || !trialReasonOk}
-                  onClick={() => handleExtend("trial", d)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-foreground text-[11px] font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-3 h-3" />
-                  {d}d
-                </button>
-              ))}
-              {customMode === "trial" ? (
-                <div className="inline-flex items-center gap-1 bg-white/80 dark:bg-white/10 rounded-full ring-1 ring-foreground/20 pl-3 pr-1 py-0.5">
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_TRIAL_EXTENSION_DAYS}
-                    autoFocus
-                    value={customDays}
-                    onChange={(e) => setCustomDays(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCustom()}
-                    placeholder="Days"
-                    className="w-14 bg-transparent outline-none text-[11px] font-bold tabular-nums"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCustom}
-                    disabled={!customDays || !trialReasonOk || extendMutation.isPending}
-                    className="p-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
-                  >
-                    <Zap className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCustomMode("trial")}
-                  className="px-3 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-[11px] font-bold transition-colors"
-                >
-                  Custom...
-                </button>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -404,7 +296,7 @@ export function SubscriptionCard({
           </div>
 
           {/* Auto-renew toggle */}
-          <div className="relative mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 ring-1 ring-foreground/[0.08]">
+          <div className="relative flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/60 dark:bg-white/5 ring-1 ring-foreground/[0.08]">
             <div className="flex items-center gap-2 min-w-0">
               {autoRenew ? (
                 <Repeat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -441,63 +333,6 @@ export function SubscriptionCard({
               />
             </button>
           </div>
-
-          <div className="relative">
-            <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
-              Extend subscription
-            </p>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {SUB_PRESETS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  disabled={extendMutation.isPending}
-                  onClick={() => handleExtend("sub", d)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-foreground text-[11px] font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-3 h-3" />
-                  {d}d
-                </button>
-              ))}
-              {customMode === "sub" ? (
-                <div className="inline-flex items-center gap-1 bg-white/80 dark:bg-white/10 rounded-full ring-1 ring-foreground/20 pl-3 pr-1 py-0.5">
-                  <input
-                    type="number"
-                    min={1}
-                    max={365}
-                    autoFocus
-                    value={customDays}
-                    onChange={(e) => setCustomDays(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCustom()}
-                    placeholder="Days"
-                    className="w-14 bg-transparent outline-none text-[11px] font-bold tabular-nums"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCustom}
-                    disabled={!customDays || extendMutation.isPending}
-                    className="p-1 rounded-full bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50"
-                  >
-                    <Zap className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCustomMode("sub")}
-                  className="px-3 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-[11px] font-bold transition-colors"
-                >
-                  Custom...
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {extendMutation.isError && (
-        <div className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-400/10 border border-rose-200 dark:border-rose-400/30 text-xs text-rose-700 dark:text-rose-300 font-medium">
-          {extendMutation.error?.message ?? "Something went wrong"}
         </div>
       )}
     </div>

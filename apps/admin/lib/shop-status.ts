@@ -9,6 +9,7 @@
  */
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatIQD } from "@/lib/format";
+import { isSubscriptionRunning } from "@/lib/shop-actions";
 
 export type ShopTone = "paying" | "trial" | "locked" | "paused" | "hold" | "ended" | "internal";
 
@@ -29,6 +30,12 @@ const LOCK_REASON = { trial_ended: "Trial ended, not paid", unpaid: "Month not p
 /** "Wallet 4,000 IQD, short by 5,000 IQD." when the wallet cannot pay `price`. */
 function shortBy(balance: number, price: number): string {
   return balance >= price ? "" : ` Wallet ${formatIQD(balance)}, short by ${formatIQD(price - balance)}.`;
+}
+
+/** The same, for a charge still to come: an unpaid trial end or renewal locks the shop. */
+function shortByThen(balance: number, price: number): string {
+  const short = shortBy(balance, price);
+  return short && `${short} It locks that day unless money is added.`;
 }
 
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
@@ -76,13 +83,12 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       tone: "trial",
       label: "Trial",
       sentence: ends ? `Trial until ${formatDayTime(ends, now)}.` : "On trial.",
-      next: ends && price > 0 ? `First charge ${formatIQD(price)} on ${formatDay(ends, now)}.${shortBy(balance, price)}` : null,
+      next: ends && price > 0 ? `First charge ${formatIQD(price)} on ${formatDay(ends, now)}.${shortByThen(balance, price)}` : null,
     };
   }
 
   // Active: the subscription says whether and when the next month is charged.
-  const running = subscription && ["trialing", "active", "past_due"].includes(subscription.status);
-  if (!subscription || !running) {
+  if (!subscription || !isSubscriptionRunning(subscription.status)) {
     return {
       tone: "ended",
       label: "Active",
@@ -106,6 +112,6 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       subscription.status === "past_due"
         ? "The last month is not paid yet."
         : `Paying. This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`,
-    next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortBy(balance, price)}` : null,
+    next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
   };
 }
