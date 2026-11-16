@@ -211,3 +211,55 @@ describe("support case actions", () => {
     expect(dbCalls.some((c) => c.method === "neq" && c.args[0] === "status" && c.args[1] === "solved")).toBe(true);
   });
 });
+
+describe("support phone alerts", () => {
+  const SUB = {
+    endpoint: "https://fcm.googleapis.com/fcm/send/abc",
+    keys: { p256dh: "BPk", auth: "xyz" },
+  };
+
+  async function push(method: "POST" | "DELETE", token: string | null, body: unknown): Promise<Response> {
+    const route = await import("../push/route");
+    return route[method](req("/api/support/push", method, token, body));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await push("POST", null, SUB)).status).toBe(401);
+    expect((await push("DELETE", null, { endpoint: SUB.endpoint })).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it.each([
+    ["no body", undefined],
+    ["an http endpoint", { ...SUB, endpoint: "http://push.example/abc" }],
+    ["missing keys", { endpoint: SUB.endpoint }],
+    ["an oversized key", { ...SUB, keys: { p256dh: "x".repeat(201), auth: "a" } }],
+  ])("refuses %s", async (_name, body) => {
+    expect((await push("POST", "support", body)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("stores the device for the signed-in admin, whatever the body claims", async () => {
+    const res = await push("POST", "support", { ...SUB, admin_user_id: "11111111-1111-4111-8111-111111111111" });
+    expect(res.status).toBe(200);
+    const upsert = dbCalls.find((c) => c.method === "upsert");
+    expect(upsert?.args[0]).toEqual({
+      admin_user_id: SUPPORT_ID,
+      endpoint: SUB.endpoint,
+      p256dh: "BPk",
+      auth: "xyz",
+      user_agent: null,
+    });
+    expect(upsert?.args[1]).toEqual({ onConflict: "endpoint" });
+  });
+
+  it("only removes the caller's own device", async () => {
+    const res = await push("DELETE", "support", { endpoint: SUB.endpoint });
+    expect(res.status).toBe(200);
+    const filters = dbCalls.filter((c) => c.method === "eq").map((c) => c.args);
+    expect(filters).toEqual([
+      ["endpoint", SUB.endpoint],
+      ["admin_user_id", SUPPORT_ID],
+    ]);
+  });
+});

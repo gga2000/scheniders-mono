@@ -46,8 +46,9 @@ describe("supportRefusal", () => {
 
 /*
  * support_cases and support_messages hold every shop's conversations with
- * staff. They are server-only: if a later migration grants them to the browser
- * roles or adds a permissive policy, one shop could read another's messages.
+ * staff, and admin_push_subscriptions holds staff devices. They are
+ * server-only: if a later migration grants them to the browser roles or adds a
+ * permissive policy, one shop could read another's messages.
  */
 describe("support tables stay server-only", () => {
     const dir = path.resolve(__dirname, "../../../../packages/supabase/migrations");
@@ -58,7 +59,7 @@ describe("support tables stay server-only", () => {
         .map((f) => fs.readFileSync(path.join(dir, f), "utf8").replace(/^\s*--.*$/gm, ""))
         .join("\n");
 
-    it.each(["support_cases", "support_messages"])("%s has RLS on and no browser grants", (table) => {
+    it.each(["support_cases", "support_messages", "admin_push_subscriptions"])("%s has RLS on and no browser grants", (table) => {
         expect(sql).toMatch(new RegExp(`alter table public\\.${table} enable row level security`, "i"));
         expect(sql).toMatch(new RegExp(`revoke all on table public\\.${table} from public, anon, authenticated`, "i"));
         expect(sql).not.toMatch(new RegExp(`grant[^;]*on (table )?public\\.${table} to[^;]*\\b(anon|authenticated)\\b`, "i"));
@@ -67,7 +68,13 @@ describe("support tables stay server-only", () => {
     });
 
     it("lets only the service role run the state-change functions", () => {
-        for (const fn of ["support_merchant_send", "support_staff_reply", "support_staff_solve", "support_merchant_rate"]) {
+        for (const fn of [
+            "support_merchant_send",
+            "support_staff_reply",
+            "support_staff_solve",
+            "support_merchant_rate",
+            "support_notify_staff",
+        ]) {
             expect(sql).toMatch(new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\) from public, anon, authenticated`, "i"));
             expect(sql).not.toMatch(new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\) to[^;]*\\b(anon|authenticated|public)\\b`, "i"));
         }
