@@ -66,3 +66,17 @@ export function useLeads(page = 1, limit = 20) {
     staleTime: 30_000,
   });
 }
+
+/** How many open leads have no owner yet: the count beside Leads on the menu. */
+export function useLeadsWithNoOwner() {
+  return useQuery<number>({
+    queryKey: ["leads", "no-owner-count"],
+    queryFn: async () => {
+      const res = await adminFetch("/api/leads/no-owner");
+      if (!res.ok) throw new Error("Failed to count leads with no owner");
+      const body: { noOwner: number } = await res.json();
+      return body.noOwner;
+    },
+    refetchInterval: 60_000,
+  });
+}

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { DialogCloseLabel } from "@scheniders/ui/dialog";
 import { reportError } from "@/lib/report-error";
+import { setMoneyLanguage } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
 // Arabic is the default and the language every page renders first, so it ships
 // with the app. English (another ~400 kB) loads only for someone who picks it.
@@ -118,6 +119,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     // does before mount.
     const active: Locale = language === "en" && en ? "en" : "ar";
     const dict = active === "en" && en ? en : ar;
+    // Set before the children render, so every amount they format is written
+    // in this language (lib/utils formatIQD).
+    setMoneyLanguage(active);
 
     useEffect(() => {
         if (typeof document === "undefined") return;

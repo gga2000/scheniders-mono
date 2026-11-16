@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSupportWaitingCount } from "@/hooks/use-support-cases";
+import { useLeadsWithNoOwner } from "@/hooks/use-leads";
 import { useTopupRequests } from "@/components/shared/topup-requests-section";
 import {
   MENU,
@@ -34,9 +35,11 @@ interface AdminSidebarProps {
 type Waiting = Record<MenuCount, { count: number; label: string }>;
 
 function useWaiting(): Waiting {
+  const leads = useLeadsWithNoOwner().data ?? 0;
   const support = useSupportWaitingCount().data ?? 0;
   const payments = useTopupRequests().data?.length ?? 0;
   return {
+    leads: { count: leads, label: `${leads} leads with no owner` },
     support: { count: support, label: `${support} waiting on us` },
     payments: { count: payments, label: `${payments} receipts to check` },
   };

@@ -4,7 +4,6 @@ import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import type {
   TableDensity,
   ViewMode,
-  DetailViewMode,
   SavedView,
   SortConfig,
   MerchantColumnId,
@@ -30,10 +29,6 @@ interface AdminViewState {
   setViewMode: (mode: ViewMode) => void;
   density: TableDensity;
   setDensity: (d: TableDensity) => void;
-  detailViewMode: DetailViewMode;
-  setDetailViewMode: (m: DetailViewMode) => void;
-  activeDetailId: string | null;
-  setActiveDetailId: (id: string | null) => void;
 }
 
 interface AdminFilterState {
@@ -157,10 +152,6 @@ export const useAdminStore = create<AdminStore>()(
       setViewMode: (mode) => set({ viewMode: mode }),
       density: "comfortable",
       setDensity: (d) => set({ density: d }),
-      detailViewMode: "dialog",
-      setDetailViewMode: (m) => set({ detailViewMode: m }),
-      activeDetailId: null,
-      setActiveDetailId: (id) => set({ activeDetailId: id }),
 
       // ── Filters ──
       planFilter: null,
@@ -297,7 +288,6 @@ export const useAdminStore = create<AdminStore>()(
       partialize: (state) => ({
         viewMode: state.viewMode,
         density: state.density,
-        detailViewMode: state.detailViewMode,
         filterPresets: state.filterPresets,
         savedViews: state.savedViews,
         activeViewId: state.activeViewId,

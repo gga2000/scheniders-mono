@@ -11,7 +11,7 @@
 export type MenuIcon = "today" | "merchants" | "leads" | "support" | "money" | "numbers" | "settings";
 
 /** Work waiting on staff, counted beside a place on the menu. */
-export type MenuCount = "support" | "payments";
+export type MenuCount = "leads" | "support" | "payments";
 
 export interface MenuLink {
   label: string;
@@ -44,6 +44,7 @@ export const MENU: readonly MenuSection[] = [
     label: "Leads",
     href: "/leads",
     icon: "leads",
+    count: "leads",
     links: [
       { label: "All leads", href: "/leads" },
       { label: "Lead numbers", href: "/leads/analytics" },

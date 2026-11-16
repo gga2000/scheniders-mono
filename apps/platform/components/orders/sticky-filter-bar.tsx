@@ -1,7 +1,7 @@
 "use client";
 
 import { Filter, Layers, ChevronDown, ShieldCheck, Copy, CalendarClock, Package, Check, X, RotateCcw, Repeat, ShoppingCart, Gift } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { Order, OrderStatus, OrderPriority } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import {
@@ -45,8 +45,8 @@ interface StickyFilterBarProps {
     filterDueToday?: boolean;
     /** Extra queue toggles rendered beside due-today (desktop: stuck in transit). */
     queueChips?: ReactNode;
-    /** Chips placed right after «متروكة» (the Prime «معالجة» / «راجع» queues). */
-    afterAbandonedChips?: ReactNode;
+    /** The Prime «يحتاج قرارك» / «راجع» queue chips, placed right after «قيد التوصيل». */
+    primeQueueChips?: ReactNode;
     /** Chip at the end of the products row (desktop: scheduled for another day). */
     productRowEnd?: ReactNode;
     /** Keeps the products row up when `productRowEnd` has something to show but no product is in view. */
@@ -76,6 +76,13 @@ interface StickyFilterBarProps {
 
 import { Fragment, memo, useState, type ReactNode } from "react";
 
+/**
+ * The statuses the desktop row keeps in view: the queues a merchant works
+ * every day. Every other status sits in the «حالات أخرى» menu at the end of
+ * them (round 15, board S1). The phone row keeps every chip.
+ */
+const WORKING_CHIPS: ReadonlySet<string> = new Set(["all", "new", "contacted", "confirmed", "in_transit"]);
+
 export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
     setFilters,
@@ -91,7 +98,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     setFilterDuplicatesOnly,
     filterDueToday = false,
     queueChips,
-    afterAbandonedChips,
+    primeQueueChips,
     productRowEnd,
     showProductRowEnd = false,
     setFilterDueToday,
@@ -126,7 +133,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         setFilters({ ...filters, orderType: filters.orderType === type ? undefined : type });
 
     const filterOptions = [
-        { id: "all", label: t("orders.status.all"), fullLabel: t("orders.status.all"), count: statusCounts.all },
+        { id: "all", label: t("orders.status.all"), count: statusCounts.all || 0 },
         { id: "new", label: t("orders.status.new"), count: statusCounts.new || 0 },
         { id: "contacted", label: t("orders.status.contacted"), count: statusCounts.contacted || 0 },
         { id: "confirmed", label: t("orders.status.confirmed"), count: statusCounts.confirmed || 0 },
@@ -144,6 +151,41 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
+    const isSelected = (id: string) =>
+        primeQueue === null && (filters.status === id || (id === "all" && !filters.status));
+    const chipOptions = isMobile ? filterOptions : filterOptions.filter((o) => WORKING_CHIPS.has(o.id));
+    const otherOptions = isMobile ? [] : filterOptions.filter((o) => !WORKING_CHIPS.has(o.id));
+    const selectedOther = otherOptions.find((o) => isSelected(o.id));
+    const chooseStatus = (id: string) => {
+        setPrimeQueue(null);
+        setFilters({ ...filters, status: id === "all" ? undefined : id as Order["status"] });
+    };
+    const countClass = (selected: boolean) => cn(
+        "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center tabular-nums",
+        selected
+            ? "bg-background/20 text-current"
+            : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
+    );
+    const chipClass = (id: string, selected: boolean) => cn(
+        "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start shrink-0 border",
+        // Mobile: Larger touch targets (48px min height for better accessibility)
+        isMobile
+            ? "min-h-[48px] px-5 py-3 text-sm font-semibold"
+            : "px-4 py-2 text-sm font-medium",
+
+        selected
+            ? "bg-primary text-(--primary-fg) border-primary font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
+            : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]",
+
+        // Status specific colors when enabled
+        useStatusColors && id !== "all" && [
+            getStatusBadgeStyle(id as OrderStatus),
+            selected
+                ? "ring-2 ring-current ring-offset-2 border-current! scale-105 font-bold shadow-lg"
+                : "opacity-85 hover:opacity-100"
+        ]
+    );
+
     return (
         <div
             className={cn(
@@ -159,56 +201,70 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 isMobile ? "min-h-[50px]" : ""
             )}>
                 {/* Status Pills */}
-                {filterOptions.map((option) => {
-                    const selected = primeQueue === null && (filters.status === option.id || (option.id === "all" && !filters.status));
+                {chipOptions.map((option) => {
+                    const selected = isSelected(option.id);
                     const countPending = !countsHidden && transitCountPending && option.id === "in_transit";
-                    const countClass = cn(
-                        "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center",
-                        selected
-                            ? "bg-background/20 text-current"
-                            : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
-                    );
                     return (
                     <Fragment key={option.id}>
                     <button
+                        type="button"
                         data-chip={option.id}
                         data-chip-count={countsHidden || countPending ? undefined : option.count}
                         aria-busy={countPending || undefined}
-                        onClick={() => {
-                            setPrimeQueue(null);
-                            setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] });
-                        }}
-                        className={cn(
-                            "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start shrink-0 border",
-                            // Mobile: Larger touch targets (48px min height for better accessibility)
-                            isMobile
-                                ? "min-h-[48px] px-5 py-3 text-sm font-semibold"
-                                : "px-4 py-2 text-sm font-medium",
-
-                            selected
-                                ? "bg-primary text-(--primary-fg) border-primary font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
-                                : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]",
-
-                            // Status specific colors when enabled
-                            useStatusColors && option.id !== "all" && [
-                                getStatusBadgeStyle(option.id as OrderStatus),
-                                selected
-                                    ? "ring-2 ring-current ring-offset-2 border-current! scale-105 font-bold shadow-lg"
-                                    : "opacity-85 hover:opacity-100"
-                            ]
-                        )}
+                        onClick={() => chooseStatus(option.id)}
+                        className={chipClass(option.id, selected)}
                     >
-                        <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
+                        <span>{option.label}</span>
                         {countPending ? (
-                            <span aria-hidden className={cn(countClass, "animate-pulse")}>{"\u00a0"}</span>
+                            <span aria-hidden className={cn(countClass(selected), "animate-pulse")}>{"\u00a0"}</span>
                         ) : !countsHidden && (
-                            <span className={countClass}>{option.count}</span>
+                            <span className={countClass(selected)}>{formatCount(option.count)}</span>
                         )}
                     </button>
-                    {option.id === "pending_checkout" && afterAbandonedChips}
+                    {option.id === "in_transit" && primeQueueChips}
                     </Fragment>
                     );
                 })}
+
+                {/* «حالات أخرى»: the statuses that are not a daily queue. The trigger
+                    names the chosen one and its count, so the row still says which
+                    list is on screen. */}
+                {otherOptions.length > 0 && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                data-chip-menu="other"
+                                className={chipClass(selectedOther?.id ?? "all", !!selectedOther)}
+                            >
+                                <span>{selectedOther ? selectedOther.label : t("orders.chip.otherStatuses")}</span>
+                                {selectedOther && !countsHidden && (
+                                    <span className={countClass(true)}>{formatCount(selectedOther.count)}</span>
+                                )}
+                                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                            {otherOptions.map((option) => (
+                                <DropdownMenuItem
+                                    key={option.id}
+                                    data-chip={option.id}
+                                    data-chip-count={countsHidden ? undefined : option.count}
+                                    onClick={() => chooseStatus(option.id)}
+                                    className="flex items-center justify-between gap-3"
+                                >
+                                    <span className="flex items-center gap-2 min-w-0">
+                                        <Check className={cn("w-3.5 h-3.5 shrink-0", isSelected(option.id) ? "opacity-100" : "opacity-0")} />
+                                        <span className="truncate">{option.label}</span>
+                                    </span>
+                                    {!countsHidden && (
+                                        <span className="text-xs text-muted-foreground font-semibold tabular-nums shrink-0">{formatCount(option.count)}</span>
+                                    )}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
 
                 {/* Vertical Divider */}
                 <div className="w-px h-8 bg-border shrink-0 mx-1" />

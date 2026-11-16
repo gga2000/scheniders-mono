@@ -50,8 +50,9 @@ describe("counts hidden", () => {
                 />
             </LanguageProvider>,
         );
+        // Desktop: the five working queues in view, the rest behind «حالات أخرى».
         const chips = [...document.querySelectorAll<HTMLElement>("[data-chip]")];
-        expect(chips).toHaveLength(16);
+        expect(chips.map((c) => c.dataset.chip)).toEqual(["all", "new", "contacted", "confirmed", "in_transit"]);
         for (const chip of chips) {
             expect(chip.textContent ?? "").not.toMatch(/\d/);
             expect(chip.hasAttribute("data-chip-count")).toBe(false);
@@ -69,24 +70,37 @@ describe("counts hidden", () => {
             expect((item.textContent ?? "").replace(/Product [A-Z]/, "")).not.toMatch(/\d/);
         }
 
-        fireEvent.click(chips.find((c) => c.dataset.chip === "delivered") as HTMLElement);
+        fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+        const other = document.querySelector<HTMLElement>('[data-chip-menu="other"]');
+        if (!other) throw new Error("no «حالات أخرى» trigger");
+        expect(other.textContent ?? "").not.toMatch(/\d/);
+        fireEvent.pointerDown(other, { button: 0, ctrlKey: false, pointerType: "mouse" });
+        const statuses = await screen.findAllByRole("menuitem");
+        expect(statuses).toHaveLength(11);
+        for (const item of statuses) {
+            expect(item.textContent ?? "").not.toMatch(/\d/);
+            expect(item.hasAttribute("data-chip-count")).toBe(false);
+        }
+        fireEvent.click(statuses.find((c) => c.dataset.chip === "delivered") as HTMLElement);
         expect(setFilters).toHaveBeenCalledWith(expect.objectContaining({ status: "delivered" }));
     });
 
-    it("renders the counts as data attributes when shown", () => {
-        renderBar({ statusCounts: { all: 12, delivered: 9 } });
-        expect(document.querySelector<HTMLElement>('[data-chip="delivered"]')?.dataset.chipCount).toBe("9");
-        expect(document.querySelector<HTMLElement>('[data-chip="all"]')?.dataset.chipCount).toBe("12");
+    it("renders the counts as data attributes when shown, with thousands separators", () => {
+        renderBar({ statusCounts: { all: 1250, new: 9 } });
+        expect(document.querySelector<HTMLElement>('[data-chip="new"]')?.dataset.chipCount).toBe("9");
+        const all = document.querySelector<HTMLElement>('[data-chip="all"]');
+        expect(all?.dataset.chipCount).toBe("1250");
+        expect(all?.textContent).toContain("1,250");
     });
 
     it("holds the in-transit chip's place while its count loads, never showing a 0", () => {
-        renderBar({ statusCounts: { all: 12, delivered: 9, in_transit: 0 }, transitCountPending: true });
+        renderBar({ statusCounts: { all: 12, new: 9, in_transit: 0 }, transitCountPending: true });
         const transit = document.querySelector<HTMLElement>('[data-chip="in_transit"]');
         expect(transit?.hasAttribute("data-chip-count")).toBe(false);
         expect(transit?.getAttribute("aria-busy")).toBe("true");
         expect(transit?.textContent ?? "").not.toMatch(/\d/);
         // The other chips keep their numbers.
-        expect(document.querySelector<HTMLElement>('[data-chip="delivered"]')?.dataset.chipCount).toBe("9");
+        expect(document.querySelector<HTMLElement>('[data-chip="new"]')?.dataset.chipCount).toBe("9");
     });
 
     it("keeps the due-today toggle reachable while its badge is hidden", () => {
@@ -133,13 +147,48 @@ describe("due-today filter chip", () => {
     });
 });
 
+describe("«حالات أخرى» menu (desktop)", () => {
+    it("names the chosen status and its count on the trigger", () => {
+        renderBar({ filters: { status: "delivered" }, statusCounts: { all: 12, delivered: 1250 } });
+        const other = document.querySelector<HTMLElement>('[data-chip-menu="other"]');
+        expect(other?.textContent).toContain("تم التوصيل");
+        expect(other?.textContent).toContain("1,250");
+        expect(other?.className).toContain("ring-2");
+        // No chip in view reads as chosen.
+        expect(document.querySelector('[data-chip="all"]')?.className).not.toContain("bg-primary");
+    });
+
+    it("reads «حالات أخرى» with no number while a working queue is chosen", () => {
+        renderBar({ filters: { status: "new" }, statusCounts: { all: 12, new: 3, delivered: 9 } });
+        const other = document.querySelector<HTMLElement>('[data-chip-menu="other"]');
+        expect(other?.textContent).toBe("حالات أخرى");
+    });
+
+    it("lists every other status, each with its count", async () => {
+        renderBar({ statusCounts: { all: 12, delivered: 9, no_response: 2 } });
+        fireEvent.pointerDown(document.querySelector('[data-chip-menu="other"]') as HTMLElement, { button: 0, ctrlKey: false, pointerType: "mouse" });
+        const items = await screen.findAllByRole("menuitem");
+        expect(items.map((i) => i.dataset.chip)).toEqual([
+            "pending_checkout", "delivered", "completed", "cancelled", "rejected", "refunds",
+            "refunded", "refund_pending", "replacements", "suspended", "no_response",
+        ]);
+        expect(items.find((i) => i.dataset.chip === "delivered")?.dataset.chipCount).toBe("9");
+    });
+
+    it("is not on the phone, which keeps every chip in its row", () => {
+        renderBar({ isMobile: true });
+        expect(document.querySelectorAll("[data-chip]")).toHaveLength(16);
+        expect(document.querySelector('[data-chip-menu="other"]')).toBeNull();
+    });
+});
+
 describe("Prime queue chips slot", () => {
-    it("sits right after «متروكة», and a status chip turns a Prime queue off", async () => {
+    it("sits right after «قيد التوصيل», and a status chip turns a Prime queue off", async () => {
         const { useOrderStore } = await import("@/store/use-order-store");
         useOrderStore.getState().setPrimeQueue("fix");
-        renderBar({ afterAbandonedChips: <span data-testid="queue-slot" /> });
-        const abandoned = document.querySelector('[data-chip="pending_checkout"]');
-        expect(abandoned?.nextElementSibling?.getAttribute("data-testid")).toBe("queue-slot");
+        renderBar({ primeQueueChips: <span data-testid="queue-slot" /> });
+        const transit = document.querySelector('[data-chip="in_transit"]');
+        expect(transit?.nextElementSibling?.getAttribute("data-testid")).toBe("queue-slot");
         // While a queue is on no status chip reads as chosen.
         expect(document.querySelector('[data-chip="all"]')?.className).not.toContain("bg-primary");
         fireEvent.click(document.querySelector('[data-chip="new"]') as HTMLElement);
