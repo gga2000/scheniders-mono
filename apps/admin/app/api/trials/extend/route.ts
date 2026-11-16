@@ -5,7 +5,7 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 
 const ExtendSchema = z.object({
-  tenant_id: z.string().min(1),
+  tenant_id: z.string().uuid(),
   days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
 });
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { tenant_id, days } = parsed.data;
-    const result = await extendTrial(createAdminClient(), tenant_id, days);
+    const result = await extendTrial(createAdminClient(), tenant_id, days, auth.user);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

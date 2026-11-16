@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivity } from "@/lib/activity-logger";
-import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
+import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
 
 const topupSchema = z.object({
   tenant_id: z.string().uuid(),
   amount: topupAmountSchema,
   description: z.string().trim().max(500).optional(),
+  request_id: topupRequestIdSchema,
 });
 
 export async function POST(request: NextRequest) {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { tenant_id, amount } = parsed.data;
+  const { tenant_id, amount, request_id } = parsed.data;
   const description = parsed.data.description || "Admin top-up";
 
   const result = await topUpWallet({
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
     amount,
     description,
     adminUserId: auth.user.id,
+    requestId: request_id,
   });
 
   if (!result.ok) {
@@ -45,13 +47,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Top-up failed: ${result.error}` }, { status });
   }
 
-  await logAdminActivity({
-    adminUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
-    tenantId: tenant_id,
-    action: "top_up_wallet",
-    details: { amount_iqd: amount, description, new_balance_iqd: result.newBalance },
-  });
+  // A repeat of a request that was already credited moved no money: the first
+  // call is the one on record.
+  if (!result.duplicate) {
+    await logAdminActivity({
+      adminUserId: auth.user.id,
+      actorEmail: auth.user.email ?? null,
+      tenantId: tenant_id,
+      action: "top_up_wallet",
+      details: { amount_iqd: amount, description, new_balance_iqd: result.newBalance },
+    });
+  }
 
-  return NextResponse.json({ success: true, newBalance: result.newBalance });
+  return NextResponse.json({
+    success: true,
+    newBalance: result.newBalance,
+    duplicate: result.duplicate,
+  });
 }
