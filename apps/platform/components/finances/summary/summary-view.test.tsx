@@ -43,13 +43,14 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             prime_linked: true,
             prime_held: { parcels: 2, collected: 80_000, fee: 10_000 },
             reached: { payments: 2, amount: 300_000, last_day: "2026-11-02", last_amount: 120_000 },
+            split: { reached: 330_000, reached_orders: 7, fee: 30_000, unpaid: 40_000, unpaid_orders: 3, unpaid_prime: 1 },
         },
         failed: { refused_orders: 2, refused_value: 80_000, prime_returned_parcels: 0, prime_returned_fee: 0 },
         daily: [
             { day: "2026-11-01", orders: 6, revenue: 240_000, product_cost: 90_000, courier: 20_000, courier_file: 0, refunds: 0, expenses: 35_000, salaries: 0 },
             { day: "2026-11-02", orders: 4, revenue: 160_000, product_cost: 60_000, courier: 10_000, courier_file: 0, refunds: 40_000, expenses: 30_000, salaries: 0 },
         ],
-        stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 0 },
+        stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 0, top: [] },
         products: [{ key: "p1", name: "Envoy", image_url: null, units: 12, revenue: 400_000, cost: 150_000, missing_units: 0 }],
         ...over,
     };
@@ -198,48 +199,72 @@ describe("SummaryView", () => {
         expect(line("delivery")?.textContent).toContain("15,000");
     });
 
-    it("shows what Prime still owes after its own fee", () => {
+    it("splits the delivered sales into what reached you, the delivery fee and what is not paid yet, adding up to the sales", () => {
         renderView(query(summary()));
-        expect(byTestId("money-prime")?.textContent).toContain("70,000");
+        expect(byTestId("money-sold")?.textContent).toContain("400,000");
+        expect(byTestId("money-sold")?.textContent).toContain("10 طلبات");
+        // 330,000 + 30,000 + 40,000 = 400,000
+        expect(byTestId("money-reached")?.textContent).toContain("330,000");
+        expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات بعد أجرة التوصيل");
+        expect(byTestId("money-fee")?.textContent).toContain("30,000");
+        // the statement's delivery line has nothing more here, so no second figure to explain
+        expect(byTestId("money-fee-statement")).toBeNull();
+        expect(byTestId("money-unpaid")?.textContent).toContain("40,000");
+        expect(byTestId("money-unpaid")?.textContent).toContain("3 طلبات: 1 عند برايم و2 عند المندوب");
+        expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
+        // the road is not a sale yet: it sits under the line, apart from the three parts
         expect(byTestId("money-road")?.textContent).toContain("160,000");
+        expect(byTestId("money-road")?.textContent).toContain("ليست مبيعات بعد");
+        cleanup();
+        const s = summary();
+        renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached: 370_000, reached_orders: 10, unpaid: 0, unpaid_orders: 0, unpaid_prime: 0 } } })));
+        expect(byTestId("money-unpaid")?.textContent).toContain("كل الطلبات المسلّمة مدفوعة لك");
+        expect(byTestId("money-split")?.querySelectorAll("i")).toHaveLength(2);
     });
 
-    it("shows Prime's stop while Prime holds the shop's money, even with no link, and hides it with neither", () => {
+    it("names Prime's unpaid orders and links to Prime even with no link row (the demo store), and says Prime took part of the fee", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, prime_linked: false } })));
-        expect(byTestId("money-prime")?.textContent).toContain("70,000");
+        expect(byTestId("money-unpaid")?.textContent).toContain("1 عند برايم");
+        expect(byTestId("money-unpaid")?.querySelector('a[href="/prime"]')).not.toBeNull();
+        expect(byTestId("money-fee")?.textContent).toContain("وبرايم");
         cleanup();
-        renderView(query(summary({ cash: { ...s.cash, prime_linked: false, prime_held: { parcels: 0, collected: 0, fee: 0 } } })));
-        expect(byTestId("money-prime")).toBeNull();
+        renderView(query(summary({
+            cash: { ...s.cash, prime_linked: false, split: { ...s.cash.split, unpaid_prime: 0 } },
+            courier: { ...s.courier, prime_fee: 0, prime_parcels: 0 },
+        })));
+        expect(byTestId("money-unpaid")?.querySelector('a[href="/prime"]')).toBeNull();
+        expect(byTestId("money-fee")?.textContent).not.toContain("برايم");
     });
 
-    it("ends the road on the courier payments that reached the shop in the period", () => {
+    it("explains why the statement's delivery line is bigger than the fee in the money card", () => {
+        const s = summary();
+        renderView(query(summary({ failed: { ...s.failed, prime_returned_parcels: 3, prime_returned_fee: 15_000 } })));
+        // 30,000 on delivered parcels here, 45,000 in the statement
+        expect(byTestId("money-fee")?.textContent).toContain("30,000");
+        expect(byTestId("money-fee-statement")?.textContent).toContain("45,000");
+        expect(byTestId("money-fee-statement")?.textContent).toContain("15,000 د.ع أجرة الطرود الراجعة");
+    });
+
+    it("names the courier payments dated in the period in one quiet line under the card", () => {
         renderView(query(summary()));
-        expect(byTestId("money-reached")?.textContent).toContain("300,000");
-        expect(byTestId("money-reached")?.textContent).toContain("120,000");
+        expect(byTestId("money-payments")?.textContent).toContain("2");
+        expect(byTestId("money-payments")?.textContent).toContain("300,000");
+        expect(byTestId("money-payments")?.textContent).toContain("قبل هذه الفترة");
         cleanup();
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, reached: { payments: 0, amount: 0, last_day: null, last_amount: 0 } } })));
-        expect(byTestId("money-reached")?.textContent).toContain("لا توجد دفعة");
+        expect(byTestId("money-payments")?.textContent).toContain("لا توجد دفعة");
     });
 
-    it("names the parcels on their way back beside the road, and says how many delivered orders are already paid", () => {
+    it("names the parcels on their way back beside the road", () => {
         renderView(query(summary()));
         expect(byTestId("money-returning")).toBeNull();
-        expect(byTestId("money-paid")).toBeNull();
         cleanup();
         const s = summary();
-        renderView(query(summary({
-            sales: { ...s.sales, paid_orders: 7 },
-            cash: { ...s.cash, returning: { count: 5, amount: 90_000 } },
-        })));
+        renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
         expect(byTestId("money-returning")?.textContent).toContain("5 طرود راجعة");
-        expect(byTestId("money-paid")?.textContent).toContain("10");
-        expect(byTestId("money-paid")?.textContent).toContain("7");
-        cleanup();
-        renderView(query(summary({ sales: { ...s.sales, paid_orders: 10 } })));
-        expect(byTestId("money-paid")?.textContent).toContain("كلها");
     });
 
     it("leaves the stuck parcels to the strip and the banner: the money card does not say them a third time", () => {
@@ -287,7 +312,7 @@ describe("SummaryView", () => {
             sales: { orders: 27, revenue: 400_000, units: 5, product_cost: 150_000, missing_cost_units: 4, paid_orders: 0 },
             cash: { ...summary().cash, in_transit: { count: 27, amount: 160_000 } },
             failed: { refused_orders: 36, refused_value: 80_000, prime_returned_parcels: 13, prime_returned_fee: 65_000 },
-            stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 29 },
+            stock: { pieces: 120, costed_pieces: 100, cost_value: 900_000, missing_cost_products: 29, top: [] },
             products: [{ key: "p1", name: "Envoy", image_url: null, units: 5, revenue: 400_000, cost: 150_000, missing_units: 0 }],
         })));
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
@@ -312,6 +337,40 @@ describe("SummaryView", () => {
         expect(byTestId("ad-return")).toBeNull();
         expect(byTestId("ad-return-none")).not.toBeNull();
         expect(byTestId("daily-costs")).not.toBeNull();
+    });
+
+    it("names the three products holding the most stock money", () => {
+        renderView(query(summary()));
+        expect(byTestId("stock-top")).toBeNull();
+        cleanup();
+        const s = summary();
+        renderView(query(summary({
+            stock: {
+                ...s.stock,
+                top: [
+                    { key: "a", name: "Envoy Blue", pieces: 80, value: 991_760 },
+                    { key: "b", name: "Identity", pieces: 50, value: 710_000 },
+                    { key: "c", name: "Tobacco", pieces: 2, value: 40_000 },
+                ],
+            },
+        })));
+        const top = byTestId("stock-top")?.textContent ?? "";
+        expect(top).toContain("أكثر ما يحبس أموالك");
+        expect(top).toContain("Envoy Blue");
+        expect(top).toContain("991,760");
+        expect(top).toContain("80 قطعة");
+        expect(top).toContain("قطعتان");
+    });
+
+    it("ends the page on one panel of three columns, not three boxes", () => {
+        renderView(query(summary()));
+        const panel = byTestId("summary-bottom");
+        for (const id of ["returned-parcels", "daily-costs", "stock-shelf"]) {
+            const card = byTestId(id);
+            expect(card?.parentElement).toBe(panel);
+            expect(card?.className).not.toContain("rounded-2xl");
+        }
+        expect(byTestId("money-route")?.className).toContain("rounded-2xl");
     });
 
     it("shows the stock on the shelf, and keeps a stock purchase out of the profit", () => {
@@ -353,6 +412,17 @@ describe("SummaryView", () => {
         expect(byTestId("profit-path")?.textContent).not.toContain("أفضل يوم");
         expect(byTestId("profit-path")?.textContent).not.toContain("معدّل اليوم");
         expect(byTestId("profit-path-end")?.textContent).toContain("115,000");
+    });
+
+    it("rings the day that jumped instead of covering the line with a label, and names it under the chart", () => {
+        renderView(query(summary()));
+        // Day 1 left 95,000 of the 115,000; day 2 only 20,000.
+        const rings = document.querySelectorAll("[data-jump]");
+        expect(rings).toHaveLength(1);
+        expect(rings[0]?.textContent).toBe("");
+        expect(byTestId("profit-path-big")?.textContent).toContain("أكبر يوم");
+        expect(byTestId("profit-path-big")?.textContent).toContain("6 طلبات");
+        expect(byTestId("profit-path-big")?.textContent).toContain("+95,000");
     });
 
     it("puts the money card before the chart", () => {

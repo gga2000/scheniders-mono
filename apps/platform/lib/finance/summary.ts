@@ -24,8 +24,11 @@ import { z } from "zod";
  *   stock purchase an expense typed as `product_cost`: cash out, but never a
  *                  cost of the period, because the goods are already counted
  *                  as product cost on the day they sell
- *   reached you    the courier's payments dated in the period, each payment
- *                  file counted once
+ *   money split    the period's delivered sales cut in three, order by order:
+ *                  reached you (paid orders, minus their delivery fee), the
+ *                  delivery fee, and not paid to you yet. The three add up to
+ *                  the sales. Courier payments dated in the period are a
+ *                  separate figure (`cash.reached`), each file counted once
  *   break-even     delivered orders a day that pay the daily bill (ads, other
  *                  costs, salaries) out of what one order leaves after its
  *                  goods, its delivery and the refunds
@@ -92,6 +95,16 @@ export const FinanceSummarySchema = z.object({
             last_day: z.string().nullable(),
             last_amount: z.number(),
         }),
+        /** The period's delivered sales, cut by whether the order is paid: reached + fee + unpaid = sales. */
+        split: z.object({
+            reached: z.number(),
+            reached_orders: z.number(),
+            fee: z.number(),
+            unpaid: z.number(),
+            unpaid_orders: z.number(),
+            /** Of the unpaid orders, those Prime delivered and has not paid out yet. */
+            unpaid_prime: z.number(),
+        }),
     }),
     failed: z.object({
         refused_orders: z.number(),
@@ -105,6 +118,8 @@ export const FinanceSummarySchema = z.object({
         costed_pieces: z.number(),
         cost_value: z.number(),
         missing_cost_products: z.number(),
+        /** The three products holding the most money on the shelf, at cost. */
+        top: z.array(z.object({ key: z.string(), name: z.string(), pieces: z.number(), value: z.number() })),
     }),
     daily: z.array(DailySchema),
     products: z.array(ProductSchema),
@@ -448,11 +463,6 @@ export function breakEven(summary: FinanceSummary, statement: ProfitStatement): 
 export function refusedShare(summary: FinanceSummary): number | null {
     const reachedDoor = summary.sales.orders + summary.failed.refused_orders;
     return reachedDoor > 0 ? summary.failed.refused_orders / reachedDoor : null;
-}
-
-/** What Prime still owes the shop for delivered parcels: the cash it collected minus its own fee. */
-export function primeOwes(summary: FinanceSummary): number {
-    return summary.cash.prime_held.collected - summary.cash.prime_held.fee;
 }
 
 /** Percent change from `previous` to `current`; null when the base is zero or negative (no honest percent exists). */

@@ -70,7 +70,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                             <span dir={dir}>{t("fin.failed.legend.back", { n: formatWhole(ofHundred) })}</span>
                         </span>
                         <span className="flex items-center gap-1.5">
-                            <span className="size-2.5 rounded-[3px] bg-emerald-500/25 dark:bg-emerald-400/20" aria-hidden="true" />
+                            <span className="size-2.5 rounded-[3px] bg-emerald-500/25 dark:bg-emerald-400/35" aria-hidden="true" />
                             <span dir={dir}>{t("fin.failed.legend.kept", { n: formatWhole(SQUARES - ofHundred) })}</span>
                         </span>
                     </div>
@@ -82,7 +82,7 @@ export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
                         {Array.from({ length: SQUARES }, (_, i) => (
                             <span
                                 key={i}
-                                className={cn("aspect-square rounded-[3px]", !rose.has(i) && "bg-emerald-500/25 dark:bg-emerald-400/20")}
+                                className={cn("aspect-square rounded-[3px]", !rose.has(i) && "bg-emerald-500/25 dark:bg-emerald-400/35")}
                                 style={rose.has(i) ? { background: LOSS_COLOR } : undefined}
                             />
                         ))}
