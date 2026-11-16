@@ -7,7 +7,7 @@
 // the app's @supabase/ssr client writes. No bypass exists in production code.
 
 import { test, type Page } from "@playwright/test";
-import { loadEnvFile, mintSessionCookies } from "./perf/session";
+import { loadEnvFile, mintSessionCookies, type MintedSession } from "./perf/session";
 import path from "node:path";
 
 loadEnvFile(path.resolve(__dirname, "../.env.local"));
@@ -17,10 +17,12 @@ export function canMintSession(email: string | undefined): email is string {
     return Boolean(email && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
-export async function loginWithSession(page: Page, email: string, landing = "/orders"): Promise<void> {
+/** Signs the page in and opens `landing`; returns the session, for reading as the same user from Node. */
+export async function loginWithSession(page: Page, email: string, landing = "/orders"): Promise<MintedSession> {
     const baseUrl = test.info().project.use.baseURL;
     if (!baseUrl) throw new Error("Playwright baseURL is not set");
-    const { cookies } = await mintSessionCookies(email, baseUrl);
-    await page.context().addCookies(cookies);
+    const session = await mintSessionCookies(email, baseUrl);
+    await page.context().addCookies(session.cookies);
     await page.goto(landing);
+    return session;
 }
