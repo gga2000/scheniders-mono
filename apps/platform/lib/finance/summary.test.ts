@@ -12,6 +12,7 @@ import {
     lensChange,
     perOrder,
     productRows,
+    wholePercents,
     profitBars,
     profitPath,
     refusedShare,
@@ -320,6 +321,16 @@ describe("productRows", () => {
         expect(rows.map((row) => row.key)).toEqual(["earner", "big", "loser"]);
         expect(rows[0].profitShare).toBeCloseTo(0.8);
         expect(rows[2].profitShare).toBe(0);
+    });
+
+    it("shows whole percents that add up to 100, not 99", () => {
+        // the live shop's three products: 4,528,591 / 4,034,200 / 2,198,535 used to read 42 + 37 + 20
+        expect(wholePercents([4_528_591, 4_034_200, 2_198_535].map((p) => p / 10_761_326))).toEqual([42, 38, 20]);
+        expect(wholePercents([1 / 3, 1 / 3, 1 / 3])).toEqual([34, 33, 33]);
+        expect(wholePercents([0.8, 0.2, 0])).toEqual([80, 20, 0]);
+        expect(wholePercents([])).toEqual([]);
+        const rows = productRows(summary());
+        expect(rows.reduce((sum, row) => sum + row.sharePercent, 0)).toBe(100);
     });
 
     it("has no margin for a product given away", () => {
