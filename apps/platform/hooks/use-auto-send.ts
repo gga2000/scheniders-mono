@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { authedFetch } from "@/lib/authed-fetch";
@@ -31,10 +32,11 @@ export function useAutoSend() {
     const { t } = useLanguage();
     const { session } = useAuth();
     const accessToken = session?.access_token ?? "";
+    const held = useSideReadsHeld();
     const query = useQuery({
         queryKey: KEY,
         queryFn: fetchAutoSend,
-        enabled: accessToken !== "",
+        enabled: accessToken !== "" && !held,
         staleTime: 60_000,
     });
     const mutation = useMutation({

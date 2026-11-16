@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import {
     attributionCoverage,
@@ -233,9 +234,10 @@ export function useMetaAdsReport(preset: AdRangePreset, compare: boolean) {
 export function useMetaAdsConnection() {
     const { session } = useAuth();
     const token = session?.access_token ?? "";
+    const held = useSideReadsHeld();
     return useQuery({
         queryKey: ["meta-ads", "connection"],
-        enabled: token !== "",
+        enabled: token !== "" && !held,
         queryFn: async () => {
             const res = await authedFetch("/api/settings/meta-ads", { });
             if (!res.ok) throw new Error(`Meta Ads status failed: ${res.status}`);

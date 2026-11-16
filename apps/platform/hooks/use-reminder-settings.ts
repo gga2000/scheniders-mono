@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { followUpWindowSchema, DEFAULT_FOLLOW_UP_WINDOW, type FollowUpWindow } from "@/lib/follow-up-window";
 import { authedFetch } from "@/lib/authed-fetch";
 
@@ -40,7 +41,8 @@ export function useReminderSettings() {
     const qc = useQueryClient();
     const { session } = useAuth();
     const accessToken = session?.access_token ?? "";
-    const query = useQuery({ queryKey: KEY, queryFn: fetchReminder, enabled: accessToken !== "" });
+    const held = useSideReadsHeld();
+    const query = useQuery({ queryKey: KEY, queryFn: fetchReminder, enabled: accessToken !== "" && !held });
     const mutation = useMutation({
         mutationFn: putReminder,
         onSuccess: (saved) => qc.setQueryData(KEY, saved),

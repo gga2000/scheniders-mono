@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { useLanguage } from "@/hooks/use-language";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -67,7 +68,8 @@ export function MerchantGuide() {
     const staffTour = !isAdmin && !!role && !!user?.created_at && user.created_at >= STAFF_TOUR_SINCE;
     // The till console hides the guide, except for its own phase after the basics (see GuideAfterBasics).
     const onTill = pathname === "/till";
-    const enabled = (isAdmin || staffTour) && !!tenantId && !!userId && !isMobile && (onTill || !guideHiddenOn(pathname));
+    const held = useSideReadsHeld();
+    const enabled = (isAdmin || staffTour) && !!tenantId && !!userId && !isMobile && (onTill || !guideHiddenOn(pathname)) && !held;
     const progressQ = useGuideProgress(tenantId, userId, enabled);
     const progress = progressQ.data ?? null;
     const finished = !!progress?.foundation_done_at;

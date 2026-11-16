@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { supabase } from "@/lib/supabase";
 import { productKeys } from "@/hooks/use-products-query";
 import { buildStockToday } from "@/lib/orders/stock-today";
@@ -13,6 +14,7 @@ import { buildStockToday } from "@/lib/orders/stock-today";
  */
 export function useStockTodayQuery(enabled: boolean) {
     const { session, clientReady, tenantId } = useAuth();
+    const held = useSideReadsHeld();
     return useQuery({
         queryKey: [...productKeys.all, "stock-today", tenantId] as const,
         queryFn: async () => {
@@ -21,7 +23,7 @@ export function useStockTodayQuery(enabled: boolean) {
             if (error) throw error;
             return buildStockToday(data ?? []);
         },
-        enabled: enabled && !!session && clientReady && !!tenantId,
+        enabled: enabled && !!session && clientReady && !!tenantId && !held,
         staleTime: 0,
         refetchInterval: enabled ? 30_000 : false,
     });
