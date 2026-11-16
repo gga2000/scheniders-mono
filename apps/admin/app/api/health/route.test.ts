@@ -40,7 +40,12 @@ beforeEach(() => {
     { tenant_id: "b", balance_iqd: 1_000, threshold_iqd: 5_000 },
     { tenant_id: "c", balance_iqd: 0, threshold_iqd: 5_000 },
   ];
-  stub.state.tables.admin_order_facts = [{ id: "o1" }, { id: "o2" }];
+  // Two orders in the last 24 hours; the one a minute before the window is not counted.
+  stub.state.tables.admin_order_facts = [
+    { id: "o1", created_at: "2026-11-16T08:00:00Z" },
+    { id: "o2", created_at: "2026-11-15T09:30:00Z" },
+    { id: "o-old", created_at: "2026-11-15T08:59:00Z" },
+  ];
   // Raw rows, the demo store's invented orders among them: never counted here.
   stub.state.tables.orders = [{ id: "o1" }, { id: "o2" }, { id: "demo-1" }, { id: "demo-2" }, { id: "demo-3" }];
   stub.state.tables.usage_tracking = [
