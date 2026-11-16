@@ -90,7 +90,8 @@ const en: Record<string, string> = {
     "billing.tx.addon": "{name} +{count} (rest of the month)",
     "billing.lock.changePlan": "Change plan",
     "billing.lock.planPrice": "{plan}: {amount} a month",
-    "shops.branchLimit": "Your plan has no room for another open POS branch. Add a branch on the billing page.",
+    "shops.branchLimit": "All the POS branches in your plan are open. Add a branch on the billing page.",
+    "shops.branchLimit.starter": "The Start plan has no POS. Move to Team or Business on the billing page to open a shop.",
 };
 
 const ar: Record<string, string> = {
@@ -180,7 +181,8 @@ const ar: Record<string, string> = {
     "billing.tx.addon": "{name} +{count} (باقي الشهر)",
     "billing.lock.changePlan": "غيّر الباقة",
     "billing.lock.planPrice": "{plan}: {amount} بالشهر",
-    "shops.branchLimit": "باقتك ما بيها مكان لفرع كاشير ثاني شغال. أضف فرع من صفحة الفوترة.",
+    "shops.branchLimit": "كل فروع الكاشير اللي بباقتك شغالة. أضف فرع من صفحة الفوترة.",
+    "shops.branchLimit.starter": "باقة البداية ما بيها كاشير. انتقل لباقة الفريق أو الأعمال من صفحة الفوترة حتى تفتح محل.",
 };
 
 export function planTranslations(locale: Locale): Record<string, string> {

@@ -159,6 +159,15 @@ export function isBranchLimitError(err: unknown): boolean {
     return typeof err === "object" && err !== null && "hint" in err && err.hint === "BRANCH_LIMIT";
 }
 
+/**
+ * What to tell a merchant who hit the branch limit. Start includes no POS
+ * branch and sells none as an add-on, so it points to a bigger plan; Team and
+ * Business can buy one more branch on the billing page.
+ */
+export function branchLimitMessageKey(plan: string | null | undefined): "shops.branchLimit" | "shops.branchLimit.starter" {
+    return plan === "starter" ? "shops.branchLimit.starter" : "shops.branchLimit";
+}
+
 /** Adds a shop, or edits one when `id` is given, and sets who works there. */
 export function useSaveShop() {
     const { tenantId } = useAuth();
