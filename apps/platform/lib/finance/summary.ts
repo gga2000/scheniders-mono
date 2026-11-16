@@ -116,14 +116,17 @@ export const FinanceSummarySchema = z.object({
         }),
         /**
          * The period's courier payments against what they paid for this period's orders (`split.reached_now`):
-         * return parcels charged back (negative), prepaid orders the courier collected nothing on, and orders
-         * collected at another price, and orders it paid for that the shop has not marked delivered. The rest is
-         * shown as one remainder, so the parts add up to the payments.
+         * refunds the courier paid customers for the shop (negative; `returns_open` the ones the shop has not
+         * marked refunded, which the profit statement does not count yet), what the statements did with prepaid
+         * orders (usually only the fee taken off), orders collected at another price, and orders paid for that
+         * are not marked delivered. The rest is shown as one remainder, so the parts add up to the payments.
          */
         statement: z
             .object({
                 returns: z.number(),
                 returns_orders: z.number(),
+                returns_open: z.number().catch(0),
+                returns_open_orders: z.number().catch(0),
                 prepaid_gap: z.number(),
                 prepaid_orders: z.number(),
                 price_gap: z.number(),
@@ -134,6 +137,8 @@ export const FinanceSummarySchema = z.object({
             .catch({
                 returns: 0,
                 returns_orders: 0,
+                returns_open: 0,
+                returns_open_orders: 0,
                 prepaid_gap: 0,
                 prepaid_orders: 0,
                 price_gap: 0,
@@ -141,9 +146,16 @@ export const FinanceSummarySchema = z.object({
                 undelivered: 0,
                 undelivered_orders: 0,
             }),
-        /** Orders a courier payment in the period paid for that are not marked delivered (up to 10). */
-        undelivered_list: z
-            .array(z.object({ id: z.string(), code: z.string().nullable(), amount: z.number() }))
+        /** The orders behind the statement differences the shop can act on, up to 10 of each kind. */
+        statement_orders: z
+            .array(
+                z.object({
+                    kind: z.enum(["refund_open", "undelivered", "price"]),
+                    id: z.string(),
+                    code: z.string().nullable(),
+                    amount: z.number(),
+                }),
+            )
             .catch([]),
         /** The unpaid delivered orders with money owed on them, oldest first (up to 20). Empty from a server older than the field. */
         unpaid_list: z

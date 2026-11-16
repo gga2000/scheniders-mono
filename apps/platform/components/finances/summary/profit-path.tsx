@@ -134,7 +134,6 @@ export function ProfitPath({ daily }: ProfitPathProps) {
             sub={t(`fin.path.sub.${step}`)}
             textDir={dir}
             testId="profit-path"
-            className="lg:self-start"
         >
             <div className="flex flex-1 flex-col" onMouseLeave={() => setHovered(null)}>
                 <div className="mb-2 flex h-[20px] items-center text-[12.5px]" aria-live="polite">
