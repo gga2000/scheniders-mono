@@ -35,7 +35,8 @@ interface ProfitStatementProps {
 /** 12 / 3.4 / 0.2: one decimal only under ten, so the column stays short. */
 function pct(share: number): string {
     const value = Math.abs(share) * 100;
-    return value >= 10 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, "");
+    // Whole percents, as the shares sit in one column; a decimal only for a share under 1%.
+    return value >= 1 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, "");
 }
 
 const ROW = "grid w-full grid-cols-[190px_minmax(0,1fr)_minmax(104px,auto)_minmax(150px,auto)] items-center gap-x-[18px]";
@@ -75,6 +76,22 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const salesChange = change(statement.sales, previous?.sales);
     const netChange = change(statement.netProfit, previous?.netProfit);
     const lineChanges = new Map(shown.map((line) => [line.id, change(line.amount, previous?.lines.find((l) => l.id === line.id)?.amount)]));
+    /**
+     * A cost that was close to nothing in the period before (ten times smaller or less): its change is too
+     * big for an arrow, so the row says so in words, and when it explains most of a fall in profit, the
+     * net line names it, so a red arrow on net profit never stands without its cause.
+     */
+    const comparable = previous !== null && isComparablePeriod(statement, previous);
+    const beforeOf = (id: CostLineId) => previous?.lines.find((l) => l.id === id)?.amount ?? 0;
+    const newCosts = comparable ? shown.filter((line) => line.amount > 0 && beforeOf(line.id) * 10 <= line.amount) : [];
+    const profitFall = previous ? previous.netProfit - statement.netProfit : 0;
+    const fallCause =
+        netChange !== null && netChange < 0 && profitFall > 0
+            ? newCosts
+                  .map((line) => ({ line, rise: line.amount - beforeOf(line.id) }))
+                  .sort((x, y) => y.rise - x.rise)
+                  .find(({ rise }) => rise * 2 >= profitFall)?.line ?? null
+            : null;
     const compared = salesChange !== null || netChange !== null || [...lineChanges.values()].some((value) => value !== null);
     /** A comparison is on, but the period before sold too little to be a fair base: say why no arrow shows. */
     const tooThinBefore = previous !== null && !isComparablePeriod(statement, previous);
@@ -156,6 +173,11 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                         <ChangeChip value={lineChange} lowerIsBetter surface="card" />
                                     </span>
                                 )}
+                                {lineChange === null && newCosts.includes(line) && (
+                                    <span className="whitespace-nowrap text-[12px] font-semibold text-rose-600 dark:text-rose-400" dir={dir} data-change={line.id} data-new-cost>
+                                        {t("fin.line.newCost")}
+                                    </span>
+                                )}
                                 {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
                             </span>
                         </button>
@@ -220,6 +242,11 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-plain">
                         {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
                     </p>
+                    {fallCause && (
+                        <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-fall-cause">
+                            {t("fin.statement.fallCause", { line: t(`fin.line.${fallCause.id}`), amount: money(fallCause.amount) })}
+                        </p>
+                    )}
                 </div>
                 <span className="flex shrink-0 items-baseline gap-3">
                     {netChange !== null && (

@@ -54,8 +54,9 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
     } else if (even && even.needed === 0) {
         cover = <p className={quiet} dir={dir} data-testid="break-even-free">{t("fin.even.free")}</p>;
     } else if (even && even.needed !== null) {
-        // Whole orders pay a bill, and the two parts of the bar must add up to the figure beside them.
-        const need = Math.ceil(even.needed);
+        // One decimal on both sides, as the per-order profit works out: rounding the bill up to whole
+        // orders would shrink the profit part of the bar by up to an order a day.
+        const need = Number(rate(even.needed));
         const have = Number(rate(even.delivered));
         const above = have >= need;
         cover = (
@@ -65,7 +66,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                         <>
                             <span className={label}>
                                 <span className={`${dot} bg-stone-900 dark:bg-stone-100`} aria-hidden="true" />
-                                <span dir={dir}>{t("fin.even.cover", { n: String(need), count: need })}</span>
+                                <span dir={dir}>{t("fin.even.cover", { n: rate(need), ...countOf(rate(need)) })}</span>
                             </span>
                             <span className={label}>
                                 <span className={dot} style={{ background: PROFIT_COLOR }} aria-hidden="true" />
@@ -80,7 +81,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                             </span>
                             <span className={label}>
                                 <span className={`${dot} border border-dashed border-stone-400`} aria-hidden="true" />
-                                <span dir={dir}>{t("fin.even.need", { n: String(need) })}</span>
+                                <span dir={dir}>{t("fin.even.need", { n: rate(need) })}</span>
                             </span>
                         </>
                     )}
@@ -109,7 +110,8 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                 {bulk && (
                     <p className="mt-1.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="break-even-bulk">
                         {t("fin.even.bulk", {
-                            share: String(Math.round(bulk.share * 100)),
+                            n: formatWhole(bulk.orders),
+                            total: formatWhole(bulk.total),
                             days: t("fin.even.bulk.days", { n: String(bulk.days), count: bulk.days }),
                         })}
                     </p>

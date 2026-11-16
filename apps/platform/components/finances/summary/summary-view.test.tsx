@@ -254,9 +254,9 @@ describe("SummaryView", () => {
         expect(list?.textContent).toContain("محمد كاظم");
         expect(list?.textContent).toContain("25,000");
         expect(list?.textContent).toContain("عند شركة التوصيل");
-        expect(list?.textContent).toContain("عند برايم");
+        expect(list?.textContent).toContain("عند برايم، بعد أجرتها");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
-        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا يبقى لك منه شيء بعد أجرة التوصيل.");
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا تنتظر عنه مالاً: مجاني، أو سعره لا يزيد على أجرة التوصيل.");
         cleanup();
         const s = summary();
         const full = Array.from({ length: 20 }, (_, i) => ({ ...s.cash.unpaid_list[0], id: `id-${i}`, code: `${i}` }));
@@ -342,7 +342,7 @@ describe("SummaryView", () => {
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
             "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
-            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تخصم شركة التوصيل عن كل طلب إلا أجرة التوصيل 5,000 د.ع. إلا الطلب 1261030001: يذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
             "فروق أخرى−28,001د.ع",
@@ -604,11 +604,12 @@ describe("SummaryView", () => {
     it("says how many delivered orders a day cover the costs, and what happens when none are needed or none can", () => {
         renderView(query(summary()));
         // one order leaves (400,000 - 150,000 - 30,000 - 40,000) / 10 = 18,000; ads and packaging are 32,500 a day
-        // so 2 orders a day pay the bill, and 3 of the 5 delivered a day are profit
+        // so 1.8 orders a day pay the bill (not rounded up), and 3.2 of the 5 delivered a day are profit:
+        // 3.2 x 18,000 = 57,600, the 5 x 11,500 a day left after the costs, give or take the rounding
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
-        expect(bar?.textContent).toContain("طلبان يغطيان مصروفات اليوم");
-        expect(bar?.textContent).toContain("من كل 5 طلبات في اليوم، 3 منها ربح لك");
+        expect(bar?.textContent).toContain("1.8 طلب تغطي مصروفات اليوم");
+        expect(bar?.textContent).toContain("من كل 5 طلبات في اليوم، 3.2 منها ربح لك");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         // and what each order leaves after the daily costs: the strip's profit per order
@@ -617,17 +618,33 @@ describe("SummaryView", () => {
         expect(bar?.textContent).toContain("مصروفاتك اليومية 32,500 د.ع (إعلانات، مصروفات أخرى)");
         expect(byTestId("break-even-bulk")).toBeNull();
         cleanup();
-        // four times the ads: 122,500 a day asks for 7 orders, and the shop delivers 5
+        // four times the ads: 122,500 a day asks for 6.8 orders, and the shop delivers 5
         renderView(query(summary({ expenses: [{ category: "marketing", amount: 240_000 }, { category: "packaging", amount: 5_000 }] })));
         expect(byTestId("break-even-bar")?.getAttribute("data-state")).toBe("below");
         expect(byTestId("break-even-bar")?.textContent).toContain("معدّل طلباتك اليومية: 5");
-        expect(byTestId("break-even-bar")?.textContent).toContain("الطلبات التي تغطي مصروفات اليوم: 7");
+        expect(byTestId("break-even-bar")?.textContent).toContain("الطلبات التي تغطي مصروفات اليوم: 6.8");
         cleanup();
         renderView(query(summary({ expenses: [] })));
         expect(byTestId("break-even-free")).not.toBeNull();
         cleanup();
         renderView(query(summary({ sales: { orders: 10, revenue: 400_000, units: 12, product_cost: 400_000, missing_cost_units: 0, paid_orders: 0 } })));
         expect(byTestId("break-even-never")).not.toBeNull();
+    });
+
+    it("names a cost that was almost nothing before, and says it is behind a fall in profit", () => {
+        const s = summary();
+        // the same period, but with 1,000 of ads before against 60,000 now: too big a change for an arrow
+        const before = summary({ expenses: s.expenses.map((e) => (e.category === "marketing" ? { ...e, amount: 1_000 } : e)) });
+        renderView(query(s), query(before));
+        const ads = document.querySelector('[data-change="ads"]');
+        expect(ads?.hasAttribute("data-new-cost")).toBe(true);
+        expect(ads?.textContent).toBe("شبه لا شيء قبلها");
+        expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب هذا الانخفاض من «الإعلانات»: 60,000 د.ع في هذه الفترة، وشبه لا شيء في الفترة السابقة.");
+        cleanup();
+        // the same ads both times: no words, no cause
+        renderView(query(s), query(summary()));
+        expect(document.querySelector("[data-new-cost]")).toBeNull();
+        expect(byTestId("statement-fall-cause")).toBeNull();
     });
 
     it("compares against the period before only when that period is big enough to compare", () => {

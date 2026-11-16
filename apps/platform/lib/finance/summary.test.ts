@@ -310,6 +310,8 @@ describe("bulkDays", () => {
         const bulk = bulkDays(daily);
         expect(bulk?.days).toBe(2);
         expect(bulk?.share).toBeCloseTo(344 / 406);
+        expect(bulk?.orders).toBe(344);
+        expect(bulk?.total).toBe(406);
     });
 
     it("leaves a steady period, a small one and an empty one alone", () => {
