@@ -212,7 +212,7 @@ export function CreateOrderProductsSection({ m }: { m: CreateOrderModel }) {
                                         }}
                                         className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right font-bold text-green-700"
                                     />
-                                    <span className="text-[11px] text-muted">IQD</span>
+                                    <span className="text-[11px] text-muted">{t("common.iqd")}</span>
                                 </div>
                             </div>
 

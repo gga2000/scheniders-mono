@@ -5,8 +5,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { useStoreOverview } from "@/hooks/use-store-overview";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
-import { storeOverviewMetrics, type OverviewMetric, type OverviewMetricKey } from "@/lib/analytics/store-overview";
-import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
+import { storeLogStart, storeOverviewMetrics, type OverviewMetric, type OverviewMetricKey } from "@/lib/analytics/store-overview";
+import { formatChartDayMonth, type DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { FINANCIAL_MASK, formatIQD } from "@/lib/utils";
 import { BentoCard } from "./bento-card";
 import { CountUp } from "./count-up";
@@ -71,23 +71,23 @@ const VERSUS: Record<DateRangeKey, string> = {
     all: "dashboard.overview.vsYesterday",
 };
 
-/** The period printed on each card. «All» is every day the log returns, at most 60. */
-const PERIOD: Record<DateRangeKey, string> = {
+/** The period printed on each card for the header's 7 and 30 days and today. */
+const PERIOD: Record<Exclude<DateRangeKey, "all">, string> = {
     today: "dashboard.pipeline.period.today",
     "7d": "dashboard.pipeline.period.7d",
     "30d": "dashboard.pipeline.period.30d",
-    all: "dashboard.overview.last60",
 };
 
-function MetricCard({ metric, order, moneyOn, range }: { metric: OverviewMetric; order: number; moneyOn: boolean; range: DateRangeKey }) {
+function MetricCard({ metric, order, moneyOn, range, period }: { metric: OverviewMetric; order: number; moneyOn: boolean; range: DateRangeKey; period: string }) {
     const { t } = useLanguage();
     const hidden = MONEY.has(metric.key) && !moneyOn;
     const label = t(`dashboard.overview.${metric.key}`);
     return (
         <BentoCard label={label} order={order} className={`flex flex-col justify-between gap-3 !p-5 ${CARD_HEIGHT}`}>
-            {/* Each card names the period it counts: the header's, or for «الكل» the days the log keeps. */}
-            <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">
-                {label} <span className="opacity-70">· <bdi>{t(PERIOD[range])}</bdi></span>
+            {/* Each card names what it counts (the storefront's own log, not every order)
+                and the period: the header's, or for «الكل» the day the log began. */}
+            <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]" title={t("dashboard.overview.fromSiteHint")}>
+                {label} <span className="opacity-70">· <bdi>{period}</bdi></span>
             </h3>
             <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0">
@@ -113,10 +113,17 @@ function MetricCard({ metric, order, moneyOn, range }: { metric: OverviewMetric;
  * never exceeds 100%.
  */
 export function StoreOverviewRow({ range }: { range: DateRangeKey }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { revealed, canReveal } = useFinancialVisibility();
     const query = useStoreOverview();
     const metrics = useMemo(() => (query.data ? storeOverviewMetrics(query.data, range) : null), [query.data, range]);
+    const start = query.data ? storeLogStart(query.data) : null;
+    // «الكل» is every day since the log's first visit or order, at most the 60 it keeps.
+    const period = range !== "all"
+        ? t(PERIOD[range])
+        : start
+            ? t("dashboard.overview.since", { date: formatChartDayMonth(new Date(`${start}T12:00:00+03:00`), language === "ar" ? "ar" : "en") })
+            : t("dashboard.overview.last60");
 
     if (query.isError) return <WidgetLoadError onRetry={() => void query.refetch()} className="min-h-[120px]" />;
     // The same grid of six cards at the cards' own height, so nothing below
@@ -134,7 +141,7 @@ export function StoreOverviewRow({ range }: { range: DateRangeKey }) {
     return (
         <section aria-label={t("dashboard.overview.title")} className={GRID}>
             {metrics.map((metric, i) => (
-                <MetricCard key={metric.key} metric={metric} order={i} moneyOn={revealed && canReveal} range={range} />
+                <MetricCard key={metric.key} metric={metric} order={i} moneyOn={revealed && canReveal} range={range} period={period} />
             ))}
         </section>
     );

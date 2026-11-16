@@ -28,7 +28,7 @@ const isCompany = (value: string | null): value is CourierCompany => value === "
 export default function ShippingExportPage({ params }: { params: Promise<{ batchId: string }> }) {
     const { batchId } = use(params);
     const { tenantId } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [downloading, setDownloading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -107,7 +107,7 @@ export default function ShippingExportPage({ params }: { params: Promise<{ batch
             <div className="flex items-center gap-3">
                 <Truck className="h-6 w-6 text-primary" aria-hidden="true" />
                 <div>
-                    <h1 className="text-lg font-semibold">{runTitle(data.batch, t)}</h1>
+                    <h1 className="text-lg font-semibold">{runTitle(data.batch, t, language)}</h1>
                     <p className="text-sm text-muted">
                         {t("shippingExport.summary", {
                             count: data.orders.length,

@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { baghdadDayKey } from "@/lib/order-window";
 import { primeChipState } from "@/lib/prime/chip-state";
 import { PRIME_PROBLEM_KINDS, primeProblemsFrom, type PrimeProblem, type PrimeProblemKind } from "@/lib/prime/problems";
+import { primeQueues } from "@/lib/prime/queues";
 import { primeReasonNote, primeTrack } from "@/lib/prime/track";
 import { primeReasonText, primeWhen } from "@/lib/prime/when";
 import { formatTime } from "@/lib/order-format-utils";
@@ -62,7 +63,8 @@ export function PrimeProblemsTab({
     const { t } = useLanguage();
     const [filter, setFilter] = useState<Filter>("all");
     const [open, setOpen] = useState<{ orderId: string; focus: PrimePanelFocus } | null>(null);
-    const problems = useMemo(() => primeProblemsFrom(data.views, data.orders, data.readAt), [data]);
+    // The Orders page's «معالجة» queue. A parcel coming back has its own list, «راجع إليك», where it can be resent.
+    const problems = useMemo(() => primeQueues(primeProblemsFrom(data.views, data.orders, data.readAt)).fix.problems, [data]);
     const counts = new Map<PrimeProblemKind, number>();
     for (const p of problems) if (!p.handled) counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
     const waiting = problems.filter((p) => !p.handled).length;

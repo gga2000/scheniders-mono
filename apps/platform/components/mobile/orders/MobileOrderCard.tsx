@@ -492,8 +492,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                             "text-sm font-bold tabular-nums",
                                             isReturn ? "text-red-600" : "text-foreground"
                                         )}>
-                                            {isReturn && "-"}
-                                            {formatIQD(Math.abs(Number(order.price)))}
+                                            {formatIQD(isReturn ? -Math.abs(Number(order.price)) : Math.abs(Number(order.price)))}
                                         </span>
                                     </div>
                                 </>
@@ -502,8 +501,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     "text-sm font-bold tabular-nums",
                                     isReturn ? "text-red-600" : "text-foreground"
                                 )}>
-                                    {isReturn && "-"}
-                                    {formatIQD(Math.abs(Number(order.price)))}
+                                    {formatIQD(isReturn ? -Math.abs(Number(order.price)) : Math.abs(Number(order.price)))}
                                 </span>
                             )}
                         </div>

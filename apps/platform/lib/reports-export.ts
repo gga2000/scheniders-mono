@@ -128,7 +128,7 @@ interface KpiLine {
 
 function kpiLines(data: ReportsExportData): KpiLine[] {
     const { t, kpis: k } = data;
-    const pct = (n: number) => `${n.toFixed(1)}%`;
+    const pct = (n: number | null) => (n === null ? "—" : `${n.toFixed(1)}%`);
     return [
         { label: t("reports.kpi.total"), value: k.totalOrders.toLocaleString("en-US"), change: k.totalOrdersChange, unit: "%", higherIsBetter: true },
         { label: t("reports.kpi.delivery"), value: pct(k.deliveryRate), change: k.deliveryRateChange, unit: "pp", higherIsBetter: true },
@@ -202,7 +202,7 @@ export function exportReportsToCSV(data: ReportsExportData): { success: boolean 
             c.totalOrders.toString(),
             c.delivered.toString(),
             c.rejected.toString(),
-            `${c.deliveryRate.toFixed(1)}%`,
+            c.deliveryRate === null ? "—" : `${c.deliveryRate.toFixed(1)}%`,
             c.avgDeliveryDays > 0 ? c.avgDeliveryDays.toFixed(1) : "-"
         ]);
     });
@@ -303,7 +303,7 @@ export function exportReportsToExcel(data: ReportsExportData): { success: boolea
         xml += `<Cell ss:StyleID="Number"><Data ss:Type="Number">${city.totalOrders}</Data></Cell>`;
         xml += `<Cell ss:StyleID="Number"><Data ss:Type="Number">${city.delivered}</Data></Cell>`;
         xml += `<Cell ss:StyleID="Number"><Data ss:Type="Number">${city.rejected}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${city.deliveryRate.toFixed(1)}%</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${city.deliveryRate === null ? "—" : `${city.deliveryRate.toFixed(1)}%`}</Data></Cell>`;
         xml += `<Cell><Data ss:Type="String">${city.avgDeliveryDays > 0 ? city.avgDeliveryDays.toFixed(1) : '-'}</Data></Cell>`;
         xml += `</Row>\n`;
     });
@@ -405,7 +405,7 @@ export function printOperationalReport(data: ReportsExportData) {
                     <div class="rank">#${i + 1}</div>
                     <div class="city">${escapeMarkup(city.city)}</div>
                     <div class="orders">${city.totalOrders}</div>
-                    <div class="rank">${escapeMarkup(t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) }))}</div>
+                    <div class="rank">${escapeMarkup(city.deliveryRate === null ? t("reports.city.noAnswerYet") : t("reports.city.deliveredOf", { pct: city.deliveryRate.toFixed(0), delivered: city.delivered, decided: city.delivered + city.rejected }))}</div>
                 </div>
             `).join('')}
         </div>
@@ -423,7 +423,7 @@ export function printOperationalReport(data: ReportsExportData) {
                         <td>${city.totalOrders}</td>
                         <td>${city.delivered}</td>
                         <td>${city.rejected}</td>
-                        <td class="${city.deliveryRate >= 85 ? 'rate-good' : city.deliveryRate >= 70 ? 'rate-warn' : 'rate-bad'}">${city.deliveryRate.toFixed(1)}%</td>
+                        <td class="${city.deliveryRate === null ? '' : city.deliveryRate >= 85 ? 'rate-good' : city.deliveryRate >= 70 ? 'rate-warn' : 'rate-bad'}">${city.deliveryRate === null ? '—' : `${city.deliveryRate.toFixed(1)}%`}</td>
                         <td>${city.avgDeliveryDays > 0 ? escapeMarkup(t("reports.unit.days", { n: city.avgDeliveryDays.toFixed(1) })) : '-'}</td>
                     </tr>
                 `).join('')}

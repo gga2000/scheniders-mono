@@ -99,10 +99,11 @@ describe("primeBoard", () => {
             ],
             NOW,
         );
-        expect(board.lists.needs).toEqual(["stuck", "back", "prime-cancelled", "asks"]);
+        // A parcel coming back is on «راجع إليك» only, as on the Orders page.
+        expect(board.lists.needs).toEqual(["stuck", "prime-cancelled", "asks"]);
+        expect(board.lists.returning).toEqual(["back"]);
         expect(Object.fromEntries(board.reasons)).toEqual({
             stuck: "stuck",
-            back: "returning",
             "prime-cancelled": "cancelled_by_prime",
             asks: "needs_you",
         });

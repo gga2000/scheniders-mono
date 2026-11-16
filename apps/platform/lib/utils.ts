@@ -23,17 +23,45 @@ export function setMoneyLanguage(locale: Locale): void {
     moneyLanguage = locale;
 }
 
+/** Right-to-left isolate: the Arabic amount reads number first wherever it sits. */
+const RTL_ISOLATE = "\u2067";
+/** Left-to-right isolate: a signed number keeps its sign on its left, «−5,000», inside the Arabic amount. */
+const LTR_ISOLATE = "\u2066";
+const POP_ISOLATE = "\u2069";
+
+/** «1,250,000 د.ع», «−5,000 د.ع» (true minus), and «+5,000 د.ع» when asked. */
+function arabicIQD(amount: number, plus = false, isolate = true): string {
+    const whole = Math.round(amount);
+    const sign = whole < 0 ? "\u2212" : plus && whole > 0 ? "+" : "";
+    const number = `${sign}${formatCount(Math.abs(whole))}`;
+    return `${sign && isolate ? `${LTR_ISOLATE}${number}${POP_ISOLATE}` : number} د.ع`;
+}
+
 /**
  * An IQD amount as the page's language writes it, in whole dinars:
  * «1,250,000 د.ع» in Arabic (the minus a true minus), "IQD 1,250,000" in
  * English. Screens once wrote it three ways (round 8 board, V1).
+ * The Arabic amount is a right-to-left isolate, so inside the app's LTR
+ * layout a reader still meets the number before «د.ع» (round 15 critic: 23
+ * amounts on Reports read unit first). Element-level, so no `<html dir>`.
+ * A sign belongs inside: pass a negative amount, never print "-" before it.
  * Print and export paths pass "en": the PDF has no Arabic font, and the
  * courier files and exports stay as they were.
  */
 export function formatIQD(amount: number, locale: Locale = moneyLanguage): string {
     if (locale === "en") return formatIQDFor(amount, "en-IQ");
-    const whole = Math.round(amount);
-    return `${whole < 0 ? "\u2212" : ""}${formatCount(Math.abs(whole))} د.ع`;
+    return `${RTL_ISOLATE}${arabicIQD(amount)}${POP_ISOLATE}`;
+}
+
+/** A change in money with its sign either way: «+5,000 د.ع», «−5,000 د.ع». */
+export function formatIQDChange(amount: number, locale: Locale = moneyLanguage): string {
+    if (locale === "en") return `${amount > 0 ? "+" : ""}${formatIQDFor(amount, "en-IQ")}`;
+    return `${RTL_ISOLATE}${arabicIQD(amount, true)}${POP_ISOLATE}`;
+}
+
+/** The amount for text that leaves the app, such as a WhatsApp message: no isolate marks. */
+export function formatIQDText(amount: number, locale: Locale = moneyLanguage): string {
+    return locale === "en" ? formatIQDFor(amount, "en-IQ") : arabicIQD(amount, false, false);
 }
 
 const CHANGE_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
@@ -185,7 +213,7 @@ export async function copyOrderToClipboard(order: {
 🛒 المنتجات:
 ${itemsList}
 
-💰 المجموع: ${formatIQD(Number(order.price))}
+💰 المجموع: ${formatIQDText(Number(order.price))}
 ${order.notes ? `\n📝 ملاحظات: ${order.notes}` : ''}`;
 
     try {

@@ -21,7 +21,7 @@ export function readPrimeBoardList(value: string | null | undefined): PrimeBoard
 }
 
 /** Why a parcel is on the "needs your decision" list. */
-export type PrimeNeedReason = "cancelled_by_prime" | "returning" | "needs_you" | "stuck";
+export type PrimeNeedReason = "cancelled_by_prime" | "needs_you" | "stuck";
 
 export interface PrimeBoard {
     lists: Record<PrimeBoardList, string[]>;
@@ -42,9 +42,11 @@ function since(view: PrimeShipmentView): number {
 
 /**
  * The Prime page's board: today's hand-off, where the open parcels are along
- * the way, today's deliveries, and the parcels that need a decision (Prime
- * cancelled it, it is coming back, Prime asks something, or it has not moved
- * in 3+ days), oldest first. Days are Baghdad days.
+ * the way, today's deliveries, the parcels coming back, and the parcels that
+ * need a decision (Prime cancelled it, Prime asks something, or it has not
+ * moved in 3+ days), oldest first. A parcel coming back is on «راجع إليك»
+ * only: round 15's critic read «يحتاج قرارك 15» on Prime beside the Orders
+ * chip's 1, because the 14 returns were counted on both. Days are Baghdad days.
  */
 export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): PrimeBoard {
     const today = baghdadDayKey(now);
@@ -87,8 +89,6 @@ export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): P
 
         if (bucket === "returning") {
             lists.returning.push(p.orderId);
-            reasons.set(p.orderId, "returning");
-            needs.push(p);
             continue;
         }
         cash.on_road += p.cash;

@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useTrendFacts } from "@/hooks/use-dashboard-order-facts";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-query-state";
 import {
     BENTO_FACT_DAYS,
     revenueCardFigures,
+    revenueWindowFor,
     type RevenueMeasure,
     type RevenueWindow,
 } from "@/lib/analytics/dashboard-bento";
+import type { DateRangeKey } from "@/lib/analytics/dashboard-calculations";
 import { formatIQD } from "@/lib/utils";
 import { BentoCard } from "./bento-card";
 import { CountUp } from "./count-up";
@@ -31,12 +33,17 @@ const whole = (n: number) => Math.round(n).toLocaleString("en-US");
  * only while money is revealed; otherwise the card shows orders, which every role
  * may see. Revenue is realized revenue (COR-D1), dated by delivery.
  */
-export function RevenueCard() {
+export function RevenueCard({ range }: { range: DateRangeKey }) {
     const { t, language } = useLanguage();
+    const dir = useTextDir();
     const { revealed, canReveal } = useFinancialVisibility();
     const facts = useTrendFacts(BENTO_FACT_DAYS);
     const tip = useChartTooltip();
-    const [days, setDays] = useState<RevenueWindow>(30);
+    // Opens on the header's period (7 days for today and 7 days, 30 for 30 days and all);
+    // a window picked here holds until the header's period changes.
+    const [own, setOwn] = useState<{ range: DateRangeKey; days: RevenueWindow } | null>(null);
+    const days: RevenueWindow = own && own.range === range ? own.days : revenueWindowFor(range);
+    const setDays = (next: RevenueWindow) => setOwn({ range, days: next });
     const [picked, setPicked] = useState<RevenueMeasure>("revenue");
     const moneyOn = revealed && canReveal;
     const measure: RevenueMeasure = moneyOn ? picked : "orders";
@@ -93,8 +100,11 @@ export function RevenueCard() {
             ) : (
                 <>
                     <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5 font-mono text-[46px] font-medium leading-none tracking-[-0.04em] tabular-nums">
-                        <CountUp value={fig.total} format={whole} />
-                        {measure === "revenue" && <span className="font-sans text-[13px] font-normal tracking-normal text-[var(--foreground-muted)]">IQD</span>}
+                        {/* The unit in the page's language, laid out its way: the number first in Arabic too. */}
+                        <span dir={dir} className="inline-flex items-baseline gap-x-2.5">
+                            <CountUp value={fig.total} format={whole} />
+                            {measure === "revenue" && <span className="font-sans text-[13px] font-normal tracking-normal text-[var(--foreground-muted)]">{t("common.iqd")}</span>}
+                        </span>
                         <Delta pct={fig.deltaPct} className="self-center text-sm" />
                     </div>
                     <p className="mt-2 text-[13px] tracking-[-0.01em] text-[var(--foreground-muted)]">

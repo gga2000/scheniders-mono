@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatIQD, formatShare, formatSigned, parseWholeNumber, setMoneyLanguage } from "./utils";
+import { formatCount, formatIQD, formatIQDChange, formatIQDText, formatShare, formatSigned, parseWholeNumber, setMoneyLanguage } from "./utils";
 
 describe("parseWholeNumber", () => {
     it("reads Latin, Arabic-Indic and Persian digits", () => {
@@ -49,9 +49,14 @@ describe("formatShare", () => {
 describe("formatIQD", () => {
     it("writes money in the page's language: «د.ع» after the number in Arabic, IQD before it in English", () => {
         setMoneyLanguage("ar");
-        expect(formatIQD(1250000)).toBe("1,250,000 د.ع");
-        expect(formatIQD(-5000)).toBe("\u22125,000 د.ع");
+        // A right-to-left isolate, so the number reads first inside the LTR app.
+        expect(formatIQD(1250000)).toBe("\u20671,250,000 د.ع\u2069");
+        // A signed number is its own left-to-right run, so the sign stays on its left.
+        expect(formatIQD(-5000)).toBe("\u2067\u2066\u22125,000\u2069 د.ع\u2069");
+        expect(formatIQDChange(5000)).toBe("\u2067\u2066+5,000\u2069 د.ع\u2069");
+        expect(formatIQDText(-5000)).toBe("\u22125,000 د.ع");
         setMoneyLanguage("en");
+        expect(formatIQDChange(5000)).toMatch(/^\+IQD\s5,000$/);
         expect(formatIQD(1250000)).toMatch(/^IQD\s1,250,000$/);
         setMoneyLanguage("ar");
     });

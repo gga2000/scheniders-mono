@@ -91,8 +91,7 @@ export function FullCardMobile({ m }: { m: OrderCardModel }) {
                                             "text-xl font-bold tabular-nums",
                                             isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                         )}>
-                                            {isReturn && "-"}
-                                            {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
+                                            {formatIQD(isReturn ? -computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                         </span>
                                         <div className="mt-1">
                                             <DiscountBadge
@@ -107,8 +106,7 @@ export function FullCardMobile({ m }: { m: OrderCardModel }) {
                                         "text-xl font-bold tabular-nums",
                                         isReturn ? "text-red-600" : "text-foreground"
                                     )}>
-                                        {isReturn && "-"}
-                                        {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
+                                        {formatIQD(isReturn ? -computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                     </span>
                                 )}
                                 {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (

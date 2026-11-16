@@ -101,6 +101,19 @@ describe("PrimeProblemsTab", () => {
         expect(screen.getByText("Your work now").parentElement?.textContent).toContain("· 2");
     });
 
+    it("leaves a parcel coming back to «راجع إليك», so the count is the Orders page's «معالجة» queue", () => {
+        const base = data();
+        const d: PrimeBoardData = {
+            ...base,
+            views: new Map([...base.views, ["o5", view({ status: "RETURNED", stepCode: "RTN_INSTORE", stepName: "راجع" })]]),
+            orders: new Map([...base.orders, ["o5", order("o5", "زينب")]]),
+        };
+        render(<PrimeProblemsTab data={d} onAskPrime={vi.fn()} />);
+        const rows = [...document.querySelectorAll("[data-prime-problem]")].map((r) => r.getAttribute("data-prime-problem"));
+        expect(rows).not.toContain("o5");
+        expect(screen.getByText("Your work now").parentElement?.textContent).toContain("· 2");
+    });
+
     it("says all is clear, with the last check and the oldest parcel on the road, when nothing needs anyone", () => {
         const calm: PrimeBoardData = { ...data(), views: new Map([["o4", view({})]]), orders: new Map([["o4", order("o4", "سارة")]]) };
         render(<PrimeProblemsTab data={calm} onAskPrime={vi.fn()} calm={{ checkedMinutesAgo: 3, oldest: { orderNumber: "1261103004", days: 2 } }} />);

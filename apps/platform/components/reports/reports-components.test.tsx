@@ -63,7 +63,7 @@ describe("CityPerformance", () => {
 });
 
 const kpis: KPIMetrics = {
-    totalOrders: 8, totalOrdersChange: 0, deliveryRate: 50, deliveryRateChange: 0, contactSuccessRate: 60, contactSuccessChange: 0,
+    totalOrders: 8, totalOrdersChange: 0, deliveryRate: 50, deliveredCount: 1, decidedCount: 2, deliveryRateChange: 0, contactSuccessRate: 60, contactSuccessChange: 0,
     rejectionRate: 10, rejectionRateChange: 0, noResponseRate: 14.3, noResponseChange: 0, avgProcessingTime: 5, avgProcessingTimeChange: 0,
 };
 
@@ -78,6 +78,15 @@ describe("KPICards", () => {
     it("adds no note when there are no returns, because the two counts already agree", () => {
         const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={0} />);
         expect(container.querySelector("[data-kpi-note]")).toBeNull();
+    });
+
+    it("puts the delivery rate's base on its card, and a dash while nothing has finished", () => {
+        const { container } = inLanguage("ar", <KPICards metrics={kpis} returnsCount={0} />);
+        expect(container.querySelector("[data-kpi-base]")?.textContent).toBe("سُلِّم 1 من 2 منتهية");
+        cleanup();
+        const none = inLanguage("ar", <KPICards metrics={{ ...kpis, deliveryRate: null, deliveredCount: 0, decidedCount: 0 }} returnsCount={0} />);
+        expect(none.container.textContent).toContain("—");
+        expect(none.container.querySelector("[data-kpi-base]")?.textContent).toBe("ما انتهى أي طلب بعد");
     });
 });
 

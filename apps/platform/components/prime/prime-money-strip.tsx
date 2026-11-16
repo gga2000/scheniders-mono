@@ -1,15 +1,21 @@
 "use client";
 
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePrimeStatements } from "@/hooks/use-prime-statements";
-import { formatIqdNumber } from "@scheniders/shared";
+import { formatCount } from "@/lib/utils";
 
-/** One money style for all three tiles: the amount, then a small «IQD». */
+/**
+ * One money style for all three tiles: the amount, then a small unit in the
+ * page's language («د.ع», "IQD"). Laid out in the language's direction, so an
+ * Arabic reader meets the number first.
+ */
 function Money({ value, className }: { value: number | null; className: string }) {
+    const { t } = useLanguage();
+    const dir = useTextDir();
     return (
-        <b className={`text-[26px] leading-tight tabular-nums ${className}`}>
-            {value === null ? "…" : formatIqdNumber(value)}
-            {value !== null && <span className="ms-1 text-xs font-semibold text-muted">IQD</span>}
+        <b dir={dir} className={`text-[26px] leading-tight tabular-nums ${className}`}>
+            {value === null ? "…" : formatCount(Math.round(value))}
+            {value !== null && <span className="ms-1 text-xs font-semibold text-muted">{t("common.iqd")}</span>}
         </b>
     );
 }

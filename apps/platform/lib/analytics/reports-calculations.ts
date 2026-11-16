@@ -22,7 +22,11 @@ export interface StatusFlowMetrics {
 export interface KPIMetrics {
     totalOrders: number;
     totalOrdersChange: number;
-    deliveryRate: number;
+    /** delivered ÷ (delivered + rejected); null while no order has an answer at the door. */
+    deliveryRate: number | null;
+    /** The rate's base, shown on the card: delivered, out of the orders that got an answer at the door. */
+    deliveredCount: number;
+    decidedCount: number;
     /** Percentage points (rates), not relative percent. */
     deliveryRateChange: number;
     contactSuccessRate: number;
@@ -48,7 +52,8 @@ export interface CityPerformanceMetrics {
     totalOrders: number;
     delivered: number;
     rejected: number;
-    deliveryRate: number;
+    /** delivered ÷ (delivered + rejected); null while none of the city's orders has an answer (round 15: 0 of 0 drew a red 0%). */
+    deliveryRate: number | null;
     avgDeliveryDays: number;
     noResponse: number;
     trend: 'up' | 'down' | 'stable';
@@ -148,7 +153,7 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
         const noResponse = orders.filter(o => o.status === 'no_response').length;
 
         const shipped = delivered + rejected;
-        const deliveryRate = deliveryRatePct(delivered, rejected) ?? 0;
+        const deliveryRate = deliveryRatePct(delivered, rejected);
         const contactSuccessRate = contacted > 0 ? (confirmed / contacted) * 100 : 0;
         const rejectionRate = shipped > 0 ? (rejected / shipped) * 100 : 0;
         const noResponseRate = contacted > 0 ? (noResponse / contacted) * 100 : 0;
@@ -165,7 +170,7 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
             avgProcessingTime = totalHours / deliveredOrders.length;
         }
 
-        return { total, deliveryRate, contactSuccessRate, rejectionRate, noResponseRate, avgProcessingTime };
+        return { total, delivered, shipped, deliveryRate, contactSuccessRate, rejectionRate, noResponseRate, avgProcessingTime };
     };
 
     const current = calcMetrics(currentOrders);
@@ -186,7 +191,12 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
         totalOrders: current.total,
         totalOrdersChange: calcChange(current.total, previous.total),
         deliveryRate: current.deliveryRate,
-        deliveryRateChange: calcRateChange(current.deliveryRate, previous.deliveryRate, hasBaseline),
+        deliveredCount: current.delivered,
+        decidedCount: current.shipped,
+        // A change needs a rate on both sides: no answer yet is not a fall to 0%.
+        deliveryRateChange: current.deliveryRate !== null && previous.deliveryRate !== null
+            ? calcRateChange(current.deliveryRate, previous.deliveryRate, hasBaseline)
+            : 0,
         contactSuccessRate: current.contactSuccessRate,
         contactSuccessChange: calcRateChange(current.contactSuccessRate, previous.contactSuccessRate, hasBaseline),
         rejectionRate: current.rejectionRate,
@@ -278,13 +288,12 @@ export function calculateCityPerformance(orders: ReportOrder[]): CityPerformance
 
     return Object.entries(cityData)
         .map(([city, data]) => {
-            const shipped = data.delivered + data.rejected;
             return {
                 city,
                 totalOrders: data.total,
                 delivered: data.delivered,
                 rejected: data.rejected,
-                deliveryRate: shipped > 0 ? (data.delivered / shipped) * 100 : 0,
+                deliveryRate: deliveryRatePct(data.delivered, data.rejected),
                 avgDeliveryDays: data.deliveredCount > 0 ? data.totalDeliveryDays / data.deliveredCount : 0,
                 noResponse: data.noResponse,
                 trend: 'stable' as const, // Would need historical data for actual trend
