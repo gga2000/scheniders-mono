@@ -1,6 +1,6 @@
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { isBillingExempt } from "@/lib/billing-exempt";
-import { RESERVED_SLUGS } from "@/lib/tenant-slug";
+import { looksLikePlatformHost, slugRejection } from "@/lib/tenant-slug";
 
 // =============================================
 // TYPES
@@ -88,53 +88,7 @@ export interface TenantUsage {
 // SLUG GENERATION
 // =============================================
 
-/**
- * Arabic → Latin transliteration for slugs (UX2-13).
- *
- * Without this every Arabic-named store slugged to `tenant-<timestamp>`,
- * because the `[^a-z0-9-]` strip below deleted the whole name — so the
- * merchant's public, WhatsApp-shared URL was a machine id. Iraqi
- * merchants name their store in Arabic, so this is the common path, not
- * the edge case. Mapping is intentionally simple (no diacritics, no
- * hamza forms) because the output only needs to be readable and stable.
- */
-const AR_TO_LATIN: Record<string, string> = {
-    'ا': 'a', 'أ': 'a', 'إ': 'a', 'آ': 'a', 'ب': 'b', 'ت': 't', 'ث': 'th',
-    'ج': 'j', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'dh', 'ر': 'r', 'ز': 'z',
-    'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a',
-    'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
-    'ه': 'h', 'و': 'w', 'ي': 'y', 'ى': 'a', 'ة': 'a', 'ء': '', 'ؤ': 'w',
-    'ئ': 'y', 'پ': 'p', 'چ': 'ch', 'ژ': 'zh', 'گ': 'g', 'ڵ': 'l', 'ڕ': 'r',
-    'ۆ': 'o', 'ێ': 'e',
-};
-
-function transliterateArabic(input: string): string {
-    let out = '';
-    for (const ch of input) {
-        if (ch in AR_TO_LATIN) out += AR_TO_LATIN[ch];
-        // Drop Arabic diacritics/tatweel entirely rather than turning them
-        // into separators.
-        else if (/[ً-ْـ]/.test(ch)) continue;
-        else out += ch;
-    }
-    return out;
-}
-
-/**
- * Generate a URL-safe slug from a business name.
- * "Acme Perfumes" → "acme-perfumes"
- * "متجر زهراء"    → "mtjr-zhraa"
- */
-export function generateSlug(name: string): string {
-    return transliterateArabic(name)
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        || `tenant-${Date.now()}`;
-}
+export { generateSlug } from "@/lib/tenant-slug";
 
 /**
  * Ensure the slug is unique by appending a number if needed.
@@ -148,7 +102,6 @@ export function generateSlug(name: string): string {
  * those slugs here picks a free one instead of failing the signup.
  */
 export async function ensureUniqueSlug(requested: string): Promise<string> {
-    const adminClient = createSupabaseServiceClient();
     // A store named "Support" or "Scheniders" must not become
     // support.<root> / scheniders.<root>, which read as platform pages. The
     // handle-claim route already refuses these; signup lands here instead.
@@ -156,31 +109,51 @@ export async function ensureUniqueSlug(requested: string): Promise<string> {
     let slug = baseSlug;
     let attempt = 0;
 
-    while (true) {
-        const [current, history] = await Promise.all([
-            adminClient.from('tenants').select('id').eq('slug', slug).maybeSingle(),
-            adminClient
-                .from('tenant_slug_history')
-                .select('tenant_id')
-                .eq('old_slug', slug)
-                .maybeSingle(),
-        ]);
-        const lookupError = current.error ?? history.error;
-        if (lookupError) {
-            throw new Error(`Slug availability lookup failed for "${slug}": ${lookupError.message}`);
-        }
-
-        if (!current.data && !history.data) return slug;
-
+    while (!(await isSlugFree(slug))) {
         attempt++;
         slug = `${baseSlug}-${attempt}`;
     }
+    return slug;
 }
 
-/** Reserved platform subdomains, and anything posing as the platform's name. */
-function looksLikePlatformHost(slug: string): boolean {
-    return RESERVED_SLUGS.has(slug) || slug.startsWith("schenider") || slug.startsWith("usefermi");
+/**
+ * True when no store holds this slug, now or as a renamed store's old
+ * address (see ensureUniqueSlug). Throws when the lookup fails, so a caller
+ * never takes "couldn't check" for "free".
+ */
+export async function isSlugFree(slug: string): Promise<boolean> {
+    const adminClient = createSupabaseServiceClient();
+    const [current, history] = await Promise.all([
+        adminClient.from('tenants').select('id').eq('slug', slug).maybeSingle(),
+        adminClient
+            .from('tenant_slug_history')
+            .select('tenant_id')
+            .eq('old_slug', slug)
+            .maybeSingle(),
+    ]);
+    const lookupError = current.error ?? history.error;
+    if (lookupError) {
+        throw new Error(`Slug availability lookup failed for "${slug}": ${lookupError.message}`);
+    }
+    return !current.data && !history.data;
 }
+
+/**
+ * A free address close to one the merchant wanted that is taken or
+ * reserved: "noor" → "noor-2", "store" → "store-store". Always a valid
+ * address to claim (3–30 characters), unlike ensureUniqueSlug's.
+ */
+export async function suggestFreeSlug(wanted: string): Promise<string> {
+    const start = looksLikePlatformHost(wanted) ? `store-${wanted}` : wanted;
+    // Room for "-99" within the 30-character limit.
+    const base = start.slice(0, 27).replace(/-+$/, "");
+    for (let n = 2; n < 100; n++) {
+        const candidate = `${base}-${n}`;
+        if (slugRejection(candidate) === null && (await isSlugFree(candidate))) return candidate;
+    }
+    throw new Error(`No free address near "${wanted}"`);
+}
+
 
 // =============================================
 // TENANT RESOLUTION

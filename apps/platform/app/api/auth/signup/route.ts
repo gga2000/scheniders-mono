@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
-import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
+import { generateSlug, ensureUniqueSlug, isSlugFree, suggestFreeSlug } from '@/lib/tenant';
+import { normalizeSlug, slugRejection } from '@/lib/tenant-slug';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
@@ -43,6 +44,13 @@ const signupSchema = z.object({
         .max(BUSINESS_TYPE_IDS.length)
         .optional()
         .transform((types) => [...new Set(types ?? [])]),
+    /**
+     * The store's address the merchant chose (Fermi B11). Taken exactly or
+     * refused: a store never ends up on an address its owner did not pick.
+     * A page loaded before the field existed sends none, and the address is
+     * made from the store's name as before.
+     */
+    slug: z.string().max(64).optional().transform((v) => (v === undefined ? undefined : normalizeSlug(v))),
     captcha_token: z.string().optional(),
 });
 
@@ -84,7 +92,7 @@ async function handlePOST(request: NextRequest) {
                 { status: 400 },
             );
         }
-        const { email, password, business_name, contact_phone, city, business_types, captcha_token } = parsed.data;
+        const { email, password, business_name, contact_phone, city, business_types, slug: chosenSlug, captcha_token } = parsed.data;
 
         // This route creates the account with the service role, so Supabase's
         // own CAPTCHA never sees it: check the Turnstile token here first.
@@ -106,10 +114,25 @@ async function handlePOST(request: NextRequest) {
 
         const adminClient = createSupabaseServiceClient();
 
-        // The store's slug is chosen before any account exists: ensureUniqueSlug
-        // throws when its lookup fails, and failing here leaves nothing behind.
-        const baseSlug = generateSlug(business_name);
-        const firstSlug = await ensureUniqueSlug(baseSlug);
+        // The store's slug is chosen before any account exists: the lookups
+        // throw when they fail, and failing here leaves nothing behind.
+        const baseSlug = chosenSlug ?? generateSlug(business_name);
+        if (chosenSlug !== undefined) {
+            const rejection = slugRejection(chosenSlug);
+            if (rejection) {
+                return NextResponse.json(
+                    { error: 'This store address cannot be used.', code: 'slug_invalid', reason: rejection },
+                    { status: 422 },
+                );
+            }
+            if (!(await isSlugFree(chosenSlug))) {
+                return NextResponse.json(
+                    { error: 'This store address is taken.', code: 'slug_taken', suggestion: await suggestFreeSlug(chosenSlug) },
+                    { status: 409 },
+                );
+            }
+        }
+        const firstSlug = chosenSlug ?? (await ensureUniqueSlug(baseSlug));
 
         // ── 1. Create Supabase auth user ──
         // Unconfirmed: the browser then asks Supabase to send the confirm mail, and
@@ -183,7 +206,9 @@ async function handlePOST(request: NextRequest) {
             .single();
 
         let created = await insertTenant(firstSlug);
-        for (let attempt = 1; attempt < SLUG_ATTEMPTS && created.error?.code === UNIQUE_VIOLATION; attempt++) {
+        // An address the merchant chose is never swapped for another; one made
+        // from the name moves on to the next free one.
+        for (let attempt = 1; chosenSlug === undefined && attempt < SLUG_ATTEMPTS && created.error?.code === UNIQUE_VIOLATION; attempt++) {
             // A failed lookup keeps the unique-violation error, which rolls the user back below.
             const nextSlug = await ensureUniqueSlug(baseSlug).catch((lookupErr: unknown) => {
                 reportOrderError(lookupErr, { operation: 'signup-slug-retry' });
@@ -197,6 +222,13 @@ async function handlePOST(request: NextRequest) {
         if (tenantError) {
             // Rollback: delete the auth user
             await adminClient.auth.admin.deleteUser(userId);
+            if (chosenSlug !== undefined && tenantError.code === UNIQUE_VIOLATION) {
+                // Another sign-up took the chosen address a moment ago.
+                return NextResponse.json(
+                    { error: 'This store address is taken.', code: 'slug_taken' },
+                    { status: 409 },
+                );
+            }
             return NextResponse.json(
                 { error: `Failed to create tenant: ${tenantError.message}` },
                 { status: 500 }

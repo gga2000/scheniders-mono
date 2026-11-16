@@ -8,6 +8,8 @@ const verifyTurnstile = vi.fn();
 /** Results for the tenants insert, in call order; empty means success. */
 const tenantResults: { data: unknown; error: unknown }[] = [];
 const slugs = vi.fn();
+const slugFree = vi.fn();
+const freeSuggestion = vi.fn();
 
 function table(name: string) {
     const chain: Record<string, unknown> = {};
@@ -38,6 +40,8 @@ vi.mock("@/lib/supabase-server", () => ({
 vi.mock("@/lib/tenant", () => ({
     generateSlug: () => "shop",
     ensureUniqueSlug: (...args: unknown[]) => slugs(...args),
+    isSlugFree: (...args: unknown[]) => slugFree(...args),
+    suggestFreeSlug: (...args: unknown[]) => freeSuggestion(...args),
 }));
 vi.mock("@/lib/rate-limit", () => ({
     consumeRateLimit: (...args: unknown[]) => consumeRateLimit(...args),
@@ -71,6 +75,8 @@ describe("POST /api/auth/signup", () => {
         consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: null, retryAfterSeconds: 0 });
         createUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
         verifyTurnstile.mockResolvedValue({ ok: true, skipped: false });
+        slugFree.mockResolvedValue(true);
+        freeSuggestion.mockResolvedValue("noor-2");
     });
 
     it("ignores a plan sent in the body: the server picks the trial plan", async () => {
@@ -192,5 +198,41 @@ describe("POST /api/auth/signup", () => {
         expect(tenant.store_config_v2.brand_kit.identity.name).toBe("Shop");
         const home = tenant.store_config_v2.pages.find((p) => p.page_id === "home");
         expect(home?.sections.length).toBeGreaterThan(0);
+    });
+
+    it("opens the store on the address the merchant chose (B11)", async () => {
+        const res = await POST(request({ ...base, slug: " Noor-Beauty " }));
+        expect(res.status).toBe(201);
+        expect(slugFree).toHaveBeenCalledWith("noor-beauty");
+        expect(slugs).not.toHaveBeenCalled();
+        const tenant = tableInserts.find((i) => i.table === "tenants");
+        expect(tenant?.row.slug).toBe("noor-beauty");
+    });
+
+    it("refuses a chosen address that is taken, with a free one to suggest, and creates nothing (B11)", async () => {
+        slugFree.mockResolvedValue(false);
+        const res = await POST(request({ ...base, slug: "noor" }));
+        expect(res.status).toBe(409);
+        expect(await res.json()).toMatchObject({ code: "slug_taken", suggestion: "noor-2" });
+        expect(createUser).not.toHaveBeenCalled();
+        expect(tableInserts).toHaveLength(0);
+    });
+
+    it("refuses a chosen address that is badly formed or poses as the platform, and creates nothing (B11)", async () => {
+        for (const slug of ["no", "noor--x", "admin", "usefermi-shop"]) {
+            const res = await POST(request({ ...base, slug }));
+            expect(res.status).toBe(422);
+            expect((await res.json()).code).toBe("slug_invalid");
+        }
+        expect(createUser).not.toHaveBeenCalled();
+    });
+
+    it("never swaps a chosen address for another when a concurrent sign-up took it first (B11)", async () => {
+        tenantResults.push({ data: null, error: { code: "23505", message: "duplicate key" } });
+        const res = await POST(request({ ...base, slug: "noor" }));
+        expect(res.status).toBe(409);
+        expect((await res.json()).code).toBe("slug_taken");
+        const slugsTried = tableInserts.filter((i) => i.table === "tenants").map((i) => i.row.slug);
+        expect(slugsTried).toEqual(["noor"]);
     });
 });
