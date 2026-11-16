@@ -25,6 +25,7 @@ import { MerchantTags } from "./merchant-tags";
 import { MerchantAlertFlag } from "./merchant-alert-flag";
 import { LastActorBadge } from "./last-actor-badge";
 import type { LastActor } from "@/hooks/use-last-actors";
+import { listChurnRisk } from "@/lib/merchant-health";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -44,26 +45,6 @@ function formatCompactIQD(amount: number): string {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
   return String(amount);
-}
-
-function getTrialDaysRemaining(trialEndsAt: string | null): number | null {
-  if (!trialEndsAt) return null;
-  const now = new Date();
-  const end = new Date(trialEndsAt);
-  const diff = end.getTime() - now.getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-function isChurnRisk(merchant: AdminTenant): boolean {
-  const balance = merchant.wallet?.balance_iqd ?? 0;
-  const orders = merchant.usage?.orders_count ?? 0;
-  if (merchant.status === "suspended") return true;
-  if (balance < 5000 && orders < 5) return true;
-  if (merchant.status === "trial") {
-    const days = getTrialDaysRemaining(merchant.trial_ends_at);
-    if (days !== null && days <= 3 && orders === 0) return true;
-  }
-  return false;
 }
 
 function timeAgo(dateStr: string): { text: string; color: string } {
@@ -112,7 +93,7 @@ export function MerchantCard({
   const logoChar = merchant.business_name?.charAt(0)?.toUpperCase() || "?";
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const healthScore = merchant.staff_health_score;
-  const churnRisk = isChurnRisk(merchant);
+  const churnRisk = listChurnRisk(merchant);
   const lastActive = merchant.last_active_at ? timeAgo(merchant.last_active_at) : null;
 
   const balance = merchant.wallet?.balance_iqd ?? 0;

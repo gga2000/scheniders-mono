@@ -20,16 +20,20 @@ const BALANCE_BANDS = new Map<string, ShopFilter[]>([
   ["healthy", [["staff_wallet_balance", "gt", 50_000]]],
 ]);
 
+/** A health score under this is "at risk"; from the next line up it is "healthy". The chip colours use the same two lines. */
+export const HEALTH_AT_RISK_BELOW = 40;
+export const HEALTH_HEALTHY_FROM = 70;
+
 const HEALTH_BANDS = new Map<string, ShopFilter[]>([
-  ["at_risk", [["staff_health_score", "lt", 40]]],
+  ["at_risk", [["staff_health_score", "lt", HEALTH_AT_RISK_BELOW]]],
   [
     "warning",
     [
-      ["staff_health_score", "gte", 40],
-      ["staff_health_score", "lt", 70],
+      ["staff_health_score", "gte", HEALTH_AT_RISK_BELOW],
+      ["staff_health_score", "lt", HEALTH_HEALTHY_FROM],
     ],
   ],
-  ["healthy", [["staff_health_score", "gte", 70]]],
+  ["healthy", [["staff_health_score", "gte", HEALTH_HEALTHY_FROM]]],
 ]);
 
 /** "attention" is a filter of its own, not a value of the status column. */

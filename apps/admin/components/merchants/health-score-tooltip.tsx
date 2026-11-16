@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminTenant } from "@/types/admin";
+import { healthChipClass, healthDotClass } from "@/lib/merchant-health";
 
 interface HealthScoreTooltipProps {
   merchant: AdminTenant;
@@ -28,12 +29,6 @@ function getHealthBreakdown(merchant: AdminTenant): ScoreComponent[] {
     { label: "Wallet", value: wallet, color: tone(wallet), maxBar: 15 },
     { label: "Orders", value: orders, color: orders > 0 ? "bg-blue-500" : "bg-gray-300", maxBar: 15 },
   ];
-}
-
-function getHealthColor(score: number): string {
-  if (score >= 70) return "text-green-600 bg-green-100 dark:bg-green-400/15 dark:text-green-400";
-  if (score >= 40) return "text-amber-600 bg-amber-100 dark:bg-amber-400/15 dark:text-amber-400";
-  return "text-red-600 bg-red-100 dark:bg-red-400/15 dark:text-red-400";
 }
 
 export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScoreTooltipProps) {
@@ -75,14 +70,14 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
         }}
         className={cn(
           "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all",
-          getHealthColor(score)
+          healthChipClass(score)
         )}
         title={`Health score: ${score}/100`}
       >
         <span
           className={cn(
             "w-1.5 h-1.5 rounded-full shrink-0",
-            score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"
+            healthDotClass(score)
           )}
         />
         <span className="tabular-nums">{score}</span>
@@ -101,7 +96,7 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
             </span>
             <span className={cn(
               "px-2 py-0.5 rounded-full text-[11px] font-bold",
-              getHealthColor(score)
+              healthChipClass(score)
             )}>
               {score}/100
             </span>
