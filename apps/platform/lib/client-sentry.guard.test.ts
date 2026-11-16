@@ -18,6 +18,7 @@ const SERVER_ONLY = [
     /^app\/api\//,
     /^lib\/mcp\//,
     /^lib\/job-monitor\.ts$/,
+    /^lib\/cron-budget\.ts$/,
     /^lib\/qi\/settle\.ts$/,
     /^lib\/prime\/send\.ts$/,
 ];
@@ -44,7 +45,7 @@ describe("Sentry in browser code", () => {
 
     it("server-only modules allowed above are not imported by client components", () => {
         const root = join(__dirname, "..");
-        const serverLib = ["lib/job-monitor", "lib/qi/settle", "lib/prime/send", "lib/mcp/"];
+        const serverLib = ["lib/job-monitor", "lib/cron-budget", "lib/qi/settle", "lib/prime/send", "lib/mcp/"];
         const offenders: string[] = [];
         const walk = (dir: string) => {
             for (const name of readdirSync(dir)) {
