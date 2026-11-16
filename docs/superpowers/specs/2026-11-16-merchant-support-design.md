@@ -189,3 +189,9 @@ A second person picking up a conversation should not have to read the whole chat
 - The Support page checks every minute whether 3 or more different shops wrote about the same thing in the last 30 minutes (demo store left out). Topics come from the merchants' words, with Arabic spellings folded: delivery (Prime, courier, Al-Waseet), the wallet and payments, WhatsApp messages, signing in. Shops whose screens showed the same error code count as one topic too.
 - When no notice is live, the notice bar turns amber: "4 shops wrote about delivery in the last 30 min", with a notice already written in the merchants' Arabic. "Use this notice" opens the usual notice form with that text to edit and post. "Not now" hides that topic for this page visit.
 - `GET /api/support/spike` with `apps/admin/lib/support-spike.ts`. Nothing is posted without a person pressing Post.
+
+## Wave 6, part 5: weekly report to super admins
+
+- Every Sunday at 10 AM Baghdad (cron `support-weekly-report`, `0 7 * * 0` UTC), super admins with phone alerts on get "Support this week: 42 questions · first reply 3 min · 40 solved · 2 said not solved". Tapping it opens `/support?view=scoreboard`.
+- The numbers come from `support_scoreboard(7)` (demo store left out). `support_weekly_report()` queues one push through `send-staff-push` (new kind `weekly`, kept 12 hours for a phone that is off). Support staff do not get it. Nobody with a phone means nothing is sent.
+- Migration `20261116192708_support_weekly_report.sql`. Behaviour suite `support-weekly`. Edge function `send-staff-push` v3 deployed with the weekly kind; the new and late alerts are unchanged.

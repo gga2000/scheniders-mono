@@ -39,8 +39,10 @@ export default function SupportPage() {
 
 function SupportInbox() {
   // An alert links to /support?case=<id>: open that conversation first.
-  const linkedCase = useSearchParams().get("case");
-  const [view, setView] = useState<View>("open");
+  // The weekly report links to /support?view=scoreboard.
+  const params = useSearchParams();
+  const linkedCase = params.get("case");
+  const [view, setView] = useState<View>(params.get("view") === "scoreboard" ? "scoreboard" : "open");
   const [selectedId, setSelectedId] = useState<string | null>(
     linkedCase && UUID_RE.test(linkedCase) ? linkedCase : null,
   );
