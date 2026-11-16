@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireAdminPermission } from "@/lib/api-auth";
+import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { everyRow } from "@/lib/every-row";
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
     // The cross-store wallet ledger is billing data: same gate as
     // GET /api/billing, not just export_data.
     if (type === "transactions" && !hasPermission(auth.role, "adjust_balance")) {
-      return NextResponse.json({ error: 'Forbidden: missing permission "adjust_balance"' }, { status: 403 });
+      return forbidden("adjust_balance");
     }
 
     const supabase = createAdminClient();

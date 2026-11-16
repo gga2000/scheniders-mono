@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { requireBearerAdmin } from "@/lib/api-auth";
+import { forbidden, requireBearerAdmin } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Deleting needs delete_leads; the other edits are everyday sales work.
     if (body.action === "delete" && !hasPermission(admin.role, "delete_leads")) {
-      return NextResponse.json({ error: 'Forbidden: missing permission "delete_leads"' }, { status: 403 });
+      return forbidden("delete_leads");
     }
 
     const supabase = createAdminClient();

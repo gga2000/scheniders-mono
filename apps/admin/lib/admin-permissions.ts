@@ -45,6 +45,9 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         and open it signed in as its owner. Super admins
  *                         only: a reset wipes the store, and the open link
  *                         is a sign-in.
+ *   manage_admins       — give or take away a person's console access and
+ *                         set their role. Super admins only: a support login
+ *                         that could do this could make itself super admin.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -69,6 +72,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "pause_whatsapp",
     "check_payments",
     "manage_demo_store",
+    "manage_admins",
   ]),
   support_staff: new Set([
     "extend_trial",
