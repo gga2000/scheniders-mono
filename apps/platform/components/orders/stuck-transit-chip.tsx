@@ -16,7 +16,7 @@ interface StuckTransitChipProps {
 }
 
 /**
- * "N stuck in transit": orders that left with the courier 7+ days ago and were
+ * "N stuck in transit": orders that left with the courier STUCK_TRANSIT_DAYS (15)+ days ago and were
  * never marked delivered or rejected. Shown only while there are some (or while
  * on). Turning it on opens the In transit tab across every date, because the
  * default window is today and every stuck order is older than that.

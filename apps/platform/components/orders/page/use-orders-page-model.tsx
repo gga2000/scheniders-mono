@@ -134,9 +134,17 @@ export function useOrdersPageModel() {
         const statusParam = params.get('status');
         const cityParam = params.get('city');
         const productParam = params.get('product');
+        // `?stuck=1` (the Finances page's stuck parcels): the In transit tab over
+        // every date, with the stuck filter on, as the chip's own toggle does.
+        const stuckParam = params.get('stuck') === '1';
         // The days the dashboard counted (ordersDrillQuery). Without them the
         // list kept the merchant's own date filter and opened empty.
         const days = drillDays(params);
+        if (stuckParam) {
+            setFilters(prev => ({ ...prev, status: 'in_transit', dateFrom: undefined, dateTo: undefined }));
+            useOrderStore.getState().setFilterStuckTransit(true);
+            return;
+        }
         if (!statusParam && !cityParam && !productParam && !days) return;
         setFilters(prev => ({
             ...prev,

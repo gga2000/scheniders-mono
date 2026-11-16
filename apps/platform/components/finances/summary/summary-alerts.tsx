@@ -1,5 +1,6 @@
 "use client";
 
+import { STUCK_ORDERS_HREF } from "@/lib/orders/stuck-in-transit";
 import Link from "next/link";
 import { ArrowUpRight, Clock, CopyCheck, Tag, type LucideIcon } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
@@ -41,7 +42,7 @@ export function SummaryAlerts({ summary, onOpenTab }: SummaryAlertsProps) {
             key: "stuck",
             icon: Clock,
             text: t("fin.alert.stuck", { n: formatWhole(summary.cash.stuck.count), count: summary.cash.stuck.count, amount: money(summary.cash.stuck.amount) }),
-            target: { href: "/orders?status=in_transit" },
+            target: { href: STUCK_ORDERS_HREF },
             action: t("fin.alert.stuck.open"),
         });
     }

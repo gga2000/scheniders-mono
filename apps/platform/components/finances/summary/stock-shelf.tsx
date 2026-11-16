@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { stockPurchases, type FinanceSummary } from "@/lib/finance/summary";
+import { productFilterHref } from "@/lib/product-filter-param";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 
@@ -56,6 +57,12 @@ export function StockShelf({ summary }: StockShelfProps) {
                     <p className={`${note} text-amber-700 dark:text-amber-300`} dir={dir} data-testid="stock-missing">
                         {t("fin.stock.missing", { n: formatWhole(missing), count: missing })}
                     </p>
+                )}
+                {missing > 0 && (
+                    <Link href={productFilterHref({ missingCost: true })} className={CARD_LINK} data-testid="stock-missing-fix">
+                        {t("fin.stock.missing.fix")}
+                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </Link>
                 )}
                 {bought > 0 && (
                     <p className={`${note} text-muted`} dir={dir} data-testid="stock-bought">

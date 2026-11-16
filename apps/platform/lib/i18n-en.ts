@@ -4018,6 +4018,7 @@ export const en: Record<string, string> = {
     "products.filters.withVariants": "With Variants",
     "products.filters.withoutVariants": "Without Variants",
     "products.filters.showArchived": "Show archived products",
+    "products.filters.missingCost": "In stock with no cost yet",
     "products.filters.savedPresets": "Saved Presets",
     "products.filters.saveAsPreset": "Save as preset",
     "products.filters.presetName": "Preset name...",
