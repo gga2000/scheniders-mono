@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { readDayRange, trialClock } from "@/lib/baghdad-day";
 import { fetchFees30d } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merchant-filters";
@@ -54,8 +55,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const balance = searchParams.get("balance");
     const health = searchParams.get("health");
-    const dateFrom = searchParams.get("date_from");
-    const dateTo = searchParams.get("date_to");
+    // Sign-up days, on the Baghdad calendar.
+    const days = readDayRange(searchParams);
+    if ("error" in days) return NextResponse.json({ error: days.error }, { status: 400 });
 
     const supabase = createAdminClient();
 
@@ -77,8 +79,8 @@ export async function GET(request: NextRequest) {
         query = query.filter(column, operator, value);
       }
       if (search) query = query.or(merchantSearchFilter(search));
-      if (dateFrom) query = query.gte("created_at", dateFrom);
-      if (dateTo) query = query.lte("created_at", dateTo);
+      if (days.gte) query = query.gte("created_at", days.gte);
+      if (days.lt) query = query.lt("created_at", days.lt);
 
       return query.order("id", { ascending: true }).range(from, to);
     });
@@ -162,11 +164,10 @@ export async function GET(request: NextRequest) {
       if (s === "suspended") buckets.suspended++;
       if (s === "cancelled") buckets.cancelled++;
       if (s === "trial" && trialEnd) {
-        const daysLeft = Math.ceil(
-          (new Date(trialEnd).getTime() - now) / (1000 * 60 * 60 * 24)
-        );
-        if (daysLeft <= 0) buckets.trials_expired++;
-        else if (daysLeft <= 1) buckets.trials_today++;
+        // Baghdad calendar days: a trial ending at 06:00 tomorrow ends tomorrow.
+        const clock = trialClock(trialEnd, now);
+        if (clock.ended) buckets.trials_expired++;
+        else if (clock.days === 0) buckets.trials_today++;
       }
       if (balanceVal < ATTENTION_WALLET_IQD && s !== "cancelled") buckets.low_wallet++;
 

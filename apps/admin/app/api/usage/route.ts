@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
-import { addDays, dayOfWeek, daysEnding, fetchUsageStats } from "@/lib/console-stats";
+import { addDays } from "@/lib/baghdad-day";
+import { dayOfWeek, daysEnding, fetchUsageStats } from "@/lib/console-stats";
 
 export const dynamic = "force-dynamic";
 

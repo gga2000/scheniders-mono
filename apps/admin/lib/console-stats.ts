@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
+import { addDays } from "./baghdad-day";
 
 /*
  * The staff console's totals are counted in the database (migrations
@@ -199,13 +200,6 @@ export function feesOf(month: { subscription: number; orders: number; whatsapp: 
  * clock or time zone.
  */
 
-/** The day `n` days after `day` (before, when negative). */
-export function addDays(day: string, n: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
 /** 0 = Sunday. */
 export function dayOfWeek(day: string): number {
   return new Date(`${day}T00:00:00Z`).getUTCDay();
@@ -217,7 +211,6 @@ export function daysEnding(today: string, count: number): string[] {
 }
 
 const baghdadMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit" });
-
 /** The Baghdad month an instant falls in, as '2026-11'. 00:30 on the 1st in Baghdad is still the month before in UTC. */
 export function monthOf(instant: string | Date): string {
   return baghdadMonth.format(new Date(instant));

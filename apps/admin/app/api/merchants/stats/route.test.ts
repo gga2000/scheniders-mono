@@ -145,6 +145,44 @@ describe("GET /api/merchants/stats", () => {
     expect(buckets.low_wallet).toBe(1);
   });
 
+  it("says a trial ends today only when it ends on today's Baghdad date", async () => {
+    // 22:00 Baghdad on 16 Nov. Shop 1 ends at 06:21 tomorrow: 8 hours away,
+    // but tomorrow. Shop 2 ends at 23:30 tonight. Shop 3 ended at 21:00.
+    vi.useFakeTimers({ now: Date.parse("2026-11-16T22:00:00+03:00"), toFake: ["Date"] });
+    try {
+      stub.state.tables.tenants = [
+        shop(1, { status: "trial", trial_ends_at: "2026-11-17T03:21:00Z" }),
+        shop(2, { status: "trial", trial_ends_at: "2026-11-16T20:30:00Z" }),
+        shop(3, { status: "trial", trial_ends_at: "2026-11-16T18:00:00Z" }),
+      ];
+
+      const { buckets } = await (await call()).json();
+
+      expect(buckets.trials_today).toBe(1);
+      expect(buckets.trials_expired).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts sign-ups on whole Baghdad days, the last day included", async () => {
+    await call("date_from=2026-11-16&date_to=2026-11-16");
+
+    // Every page of shops carries both bounds.
+    const pages = stub.callsTo("tenants.range").length;
+    expect(pages).toBeGreaterThan(0);
+    expect(stub.callsTo("tenants.gte")).toEqual(Array(pages).fill(["created_at", "2026-11-16T00:00:00+03:00"]));
+    expect(stub.callsTo("tenants.lt")).toEqual(Array(pages).fill(["created_at", "2026-11-17T00:00:00+03:00"]));
+  });
+
+  it("refuses a sign-up day that is not a day, and reads nothing", async () => {
+    const res = await call("date_to=16-11-2026");
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "date_to must be a day such as 2026-11-16" });
+    expect(stub.state.calls).toEqual([]);
+  });
+
   it("never reads \"attention\" as a status", async () => {
     const stats = await (await call("status=attention")).json();
 

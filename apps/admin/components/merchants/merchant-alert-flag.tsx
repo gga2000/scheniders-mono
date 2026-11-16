@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AlertCircle, Clock, Ban, XCircle } from "lucide-react";
+import { trialClock } from "@/lib/baghdad-day";
 import { cn } from "@/lib/utils";
 import type { AdminTenant } from "@/types/admin";
 
@@ -22,12 +23,6 @@ function daysSince(dateStr: string | null | undefined): number | null {
   const diff = Date.now() - new Date(dateStr).getTime();
   if (diff < 0) return null;
   return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-function daysUntil(dateStr: string | null | undefined): number | null {
-  if (!dateStr) return null;
-  const diff = new Date(dateStr).getTime() - Date.now();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
 function computeAlert(merchant: AdminTenant): AlertInfo | null {
@@ -69,26 +64,29 @@ function computeAlert(merchant: AdminTenant): AlertInfo | null {
   }
 
   if (status === "trial" && trialEnd) {
-    const remaining = daysUntil(trialEnd);
-    if (remaining !== null && remaining <= 0) {
-      const expired = daysSince(trialEnd) ?? 0;
+    // Baghdad calendar days, the same clock as the Merchants banner and the Trials page.
+    const clock = trialClock(trialEnd);
+    if (clock.ended) {
+      const ago = -clock.days;
       return {
         icon: AlertCircle,
-        label: "Trial expired",
-        detail:
-          expired === 0
-            ? "Trial expired today — convert to paid"
-            : `Trial expired ${expired} day${expired === 1 ? "" : "s"} ago`,
-        age: expired,
+        label: "Trial ended",
+        detail: ago === 0 ? "Trial ended today" : `Trial ended ${ago} day${ago === 1 ? "" : "s"} ago`,
+        age: ago,
         severity: "critical",
       };
     }
-    if (remaining !== null && remaining <= 3) {
+    if (clock.days <= 3) {
       return {
         icon: Clock,
         label: "Trial ending",
-        detail: `Trial ends in ${remaining} day${remaining === 1 ? "" : "s"}`,
-        age: remaining,
+        detail:
+          clock.days === 0
+            ? "Trial ends today"
+            : clock.days === 1
+              ? "Trial ends tomorrow"
+              : `Trial ends in ${clock.days} days`,
+        age: clock.days,
         severity: "warning",
       };
     }

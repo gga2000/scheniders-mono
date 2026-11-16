@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { trialClock } from "@/lib/baghdad-day";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -43,26 +44,27 @@ export async function GET(request: NextRequest) {
       (wallets ?? []).map((w) => [w.tenant_id, w.balance_iqd])
     );
 
-    const now = Date.now();
+    const now = new Date();
 
+    // Days on the Baghdad calendar: a trial that ends at 06:21 tomorrow has
+    // 1 day left and ends tomorrow, whatever the hour now. Once its end has
+    // passed it is expired: days_remaining is 0 on the end day, below 0 after.
     const trials = trialTenants.map((t) => {
-      const trialEnd = new Date(t.trial_ends_at).getTime();
-      const days_remaining = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
-      const is_expired = days_remaining <= 0;
+      const clock = trialClock(t.trial_ends_at, now);
       return {
         ...t,
         balance_iqd: walletMap.get(t.id) ?? 0,
-        days_remaining,
-        is_expired,
+        days_remaining: clock.days,
+        is_expired: clock.ended,
       };
     });
 
     // 4. Compute summary
     const summary = {
       total: trials.length,
-      expiringSoon: trials.filter((t) => t.days_remaining <= 3 && t.days_remaining > 0).length,
-      expired: trials.filter((t) => t.days_remaining <= 0).length,
-      healthy: trials.filter((t) => t.days_remaining > 3).length,
+      expiringSoon: trials.filter((t) => !t.is_expired && t.days_remaining <= 3).length,
+      expired: trials.filter((t) => t.is_expired).length,
+      healthy: trials.filter((t) => !t.is_expired && t.days_remaining > 3).length,
     };
 
     return NextResponse.json({ trials, summary });

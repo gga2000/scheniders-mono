@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
+import { dayOf, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
@@ -10,8 +11,6 @@ const VALID_FORMATS = ["csv", "json"] as const;
 
 type ExportType = (typeof VALID_TYPES)[number];
 type ExportFormat = (typeof VALID_FORMATS)[number];
-
-const baghdadDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" });
 
 /** A cell that starts with one of these runs as a formula when the sheet is opened. */
 const FORMULA_START = /^[=+\-@\t\r]/;
@@ -109,11 +108,10 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
 
   const now = Date.now();
 
+  // Baghdad calendar days, as on the Trials page: 0 ends today, below 0 ended.
   return data.map((row) => ({
     ...row,
-    days_remaining: row.trial_ends_at
-      ? Math.ceil((new Date(row.trial_ends_at).getTime() - now) / (1000 * 60 * 60 * 24))
-      : null,
+    days_remaining: row.trial_ends_at ? trialClock(row.trial_ends_at, now).days : null,
   }));
 }
 
@@ -165,7 +163,7 @@ export async function GET(request: NextRequest) {
 
     await logAdminAction(auth, "export_data", { details: { type, format, rows: data.length } });
 
-    const date = baghdadDay.format(new Date());
+    const date = dayOf(Date.now());
     const filename = `${type}_export_${date}`;
 
     if (format === "json") {
