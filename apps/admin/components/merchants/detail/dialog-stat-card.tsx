@@ -10,7 +10,6 @@ interface DialogStatCardProps {
   unit?: string;
   tone: "green" | "amber" | "blue" | "purple" | "rose";
   spark?: number[];
-  delta?: { value: number; suffix?: string } | null;
   onClick?: () => void;
   title?: string;
 }
@@ -76,7 +75,6 @@ export function DialogStatCard({
   unit,
   tone,
   spark,
-  delta,
   onClick,
   title,
 }: DialogStatCardProps) {
@@ -84,9 +82,6 @@ export function DialogStatCard({
   const sparkValues = spark && spark.length > 1 ? spark : null;
   const path = sparkValues ? buildSparklinePath(sparkValues, 60, 18) : null;
   const interactive = !!onClick;
-
-  const deltaPositive = delta && delta.value > 0;
-  const deltaNegative = delta && delta.value < 0;
 
   return (
     <button
@@ -114,19 +109,6 @@ export function DialogStatCard({
               <span className="text-[10px] font-normal text-foreground/50 ml-1">{unit}</span>
             )}
           </p>
-          {delta && (
-            <p
-              className={cn(
-                "text-[10px] font-semibold mt-0.5 tabular-nums",
-                deltaPositive && "text-emerald-600 dark:text-emerald-400",
-                deltaNegative && "text-rose-600 dark:text-rose-400",
-                !deltaPositive && !deltaNegative && "text-foreground/40"
-              )}
-            >
-              {deltaPositive ? "▲" : deltaNegative ? "▼" : "·"} {Math.abs(delta.value).toFixed(0)}
-              {delta.suffix ?? "%"}
-            </p>
-          )}
         </div>
         {path && (
           <svg
