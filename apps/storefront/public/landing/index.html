@@ -1,0 +1,1666 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>فيرمي | أقوى نظام طلبات بالعراق</title>
+<meta name="description" content="ما ينسى. ما يغلط. ما يكرر. فيرمي يجمع طلبات الانستا والواتساب والموقع بمكان واحد، يفحص الطلب قبل ما يطلع، ويحسبلك صافي ربحك. جرّبه 7 أيام ببلاش.">
+<meta name="theme-color" content="#111214">
+<link rel="icon" href="/landing/v4/icons/favicon.ico" sizes="48x48">
+<link rel="icon" href="/landing/v4/icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/landing/v4/icons/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Fermi">
+<meta property="og:locale" content="ar_IQ">
+<meta property="og:title" content="فيرمي | أقوى نظام طلبات بالعراق">
+<meta property="og:description" content="ما ينسى. ما يغلط. ما يكرر.">
+<meta property="og:image" content="https://usefermi.com/landing/v4/fermi-link-preview-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="/landing/v4/fonts/baloo-arabic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/landing/v4/k/k01.jpg" as="image" fetchpriority="high">
+<style>
+/* Brand fonts, self-hosted (SIL OFL, licences beside the files). Variable fonts: one file per script. */
+@font-face{font-family:'Baloo Bhaijaan 2';font-style:normal;font-weight:400 800;font-display:swap;src:url(/landing/v4/fonts/baloo-arabic.woff2) format('woff2');unicode-range:U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC}
+@font-face{font-family:'Baloo Bhaijaan 2';font-style:normal;font-weight:400 800;font-display:swap;src:url(/landing/v4/fonts/baloo-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 700;font-display:swap;src:url(/landing/v4/fonts/inter-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+</style>
+<style>
+/* Fermi scroll film v3.
+   Stage: one fixed canvas; the scroll picks the frame. Each scene holds so its words and app overlay can play.
+   Story rule: before the turn (scenes 1-4) the overlays are dark glass and messy = the merchant's chaos.
+   From the turn (scene 5) they become crisp white Fermi app cards = order. Always dark page (film). */
+:root{
+  --ink:#111214;--red:#E5243B;--gold:#ffd29a;--text:#fff;--muted:rgba(255,255,255,.74);
+  --card:#ffffff;--cink:#17181b;--cmut:#6b6e76;--cline:#ececef;
+  --c-new:#fde9cf;--c-new-t:#a1560b;--c-ok:#dcf3e3;--c-ok-t:#17733a;--c-del:#dde9fd;--c-del-t:#2754a8;
+  --c-ret:#fde2e5;--c-ret-t:#b4142b;--c-stk:#fff1bf;--c-stk-t:#8a6200;
+  --ar:"Baloo Bhaijaan 2",system-ui,sans-serif;--en:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--text)}
+body{font:15px/1.5 var(--en);-webkit-font-smoothing:antialiased}
+.film{position:relative}
+.stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#000;isolation:isolate}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.shade{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(rgba(0,0,0,.5) 0%,rgba(0,0,0,.12) 30%,rgba(0,0,0,0) 44%,rgba(0,0,0,0) 52%,rgba(0,0,0,.42) 78%,rgba(0,0,0,.66) 100%)}
+.bar{position:absolute;top:0;left:0;height:2px;background:var(--red);width:0;box-shadow:0 0 10px rgba(229,36,59,.8);z-index:5}
+
+/* top chrome */
+.chrome{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;justify-content:space-between;align-items:center;z-index:4}
+.brand{display:flex;align-items:center;gap:7px;font:800 19px var(--ar);direction:rtl}
+.brand svg{width:20px;height:auto}
+.clock{font:600 12px var(--en);letter-spacing:.1em;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.clock i{width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red)}
+.load{font:500 10px var(--en);color:rgba(255,255,255,.45);letter-spacing:.05em}
+
+/* words */
+.tx{position:absolute;left:max(22px,env(safe-area-inset-left,0px));right:max(22px,env(safe-area-inset-right,0px));
+  top:calc(54px + env(safe-area-inset-top,0px));text-align:center;direction:rtl;z-index:3;pointer-events:none;visibility:hidden}
+.tx .k{display:inline-flex;align-items:center;gap:8px;font:700 12px var(--ar);letter-spacing:.02em;color:var(--muted);
+  margin-bottom:8px;direction:rtl}
+.tx .k b{font:600 11.5px var(--en);letter-spacing:.12em;color:#fff;direction:ltr}
+.tx .k::before{content:"";width:18px;height:1px;background:rgba(255,255,255,.5)}
+.tx .k::after{content:"";width:18px;height:1px;background:rgba(255,255,255,.5)}
+.tx h1,.tx h2{margin:0;font-family:var(--ar);font-weight:800;line-height:1.16;letter-spacing:-.005em;text-wrap:balance;
+  font-size:clamp(34px,9.6vw,62px);text-shadow:0 2px 30px rgba(0,0,0,.45)}
+.tx h2.m{font-size:clamp(30px,8.4vw,54px)}
+.tx p{margin:10px auto 0;max-width:30ch;font:600 clamp(15.5px,4.3vw,20px)/1.45 var(--ar);color:rgba(255,255,255,.88);text-shadow:0 1px 16px rgba(0,0,0,.55);text-wrap:balance}
+.tx .w{display:inline-block;will-change:opacity,transform,filter;white-space:pre}
+.hl{color:var(--gold)}
+.rd{color:#fff;background:var(--red);border-radius:.16em;padding:0 .18em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.tx .proof{font:500 12.5px/1.5 var(--ar);color:rgba(255,255,255,.7);margin-top:8px}
+
+/* overlays */
+.ov{position:absolute;left:max(14px,env(safe-area-inset-left,0px));right:max(14px,env(safe-area-inset-right,0px));
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:380px;margin:0 auto;direction:rtl;z-index:3;visibility:hidden;will-change:opacity,transform}
+.glass{background:rgba(20,21,24,.58);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2);
+  border:1px solid rgba(255,255,255,.12);border-radius:20px;box-shadow:0 18px 50px rgba(0,0,0,.45);color:#fff}
+.app{background:var(--card);color:var(--cink);border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.42),0 0 0 1px rgba(0,0,0,.04)}
+.pop{opacity:0;transform:translateY(10px) scale(.97);transition:opacity .45s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1)}
+.pop.on{opacity:1;transform:none}
+/* grow: hidden rows take no space, so cards grow as items arrive */
+.gr{max-height:170px;overflow:hidden;transition:opacity .45s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1),max-height .6s cubic-bezier(.2,.8,.2,1),padding .6s cubic-bezier(.2,.8,.2,1),margin .6s cubic-bezier(.2,.8,.2,1)}
+.gr:not(.on){max-height:0;padding-top:0!important;padding-bottom:0!important;margin-top:0!important;margin-bottom:0!important;border-width:0!important}
+.ln{display:block}
+.n{font-family:var(--en);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.chip{display:inline-flex;align-items:center;gap:5px;font:700 11.5px var(--ar);padding:3px 9px;border-radius:99px;white-space:nowrap}
+.chip.new{background:var(--c-new);color:var(--c-new-t)}.chip.ok{background:var(--c-ok);color:var(--c-ok-t)}
+.chip.del{background:var(--c-del);color:var(--c-del-t)}.chip.ret{background:var(--c-ret);color:var(--c-ret-t)}
+.chip.stk{background:var(--c-stk);color:var(--c-stk-t)}
+
+/* ---------- shared icon + list helpers ---------- */
+.ico{width:16px;height:16px;flex:none;display:inline-block;vertical-align:middle}
+.o1 .bb,.o2,.evs{gap:0!important}
+
+/* 1 · messages (chaos, dark glass) */
+.o1{padding:12px 12px 10px}
+.o1 .hd{display:flex;justify-content:space-between;align-items:center;font:700 12.5px var(--ar);color:var(--muted);margin:0 2px 8px}
+.o1 .hd span:first-child{display:inline-flex;gap:6px;align-items:center}
+.o1 .badge{background:var(--red);color:#fff;font:700 12px var(--en);border-radius:99px;padding:2px 9px;min-width:34px;text-align:center}
+.o1 .bb{display:grid}
+.o1 .bub{justify-self:start;max-width:88%;background:rgba(255,255,255,.12);border-radius:16px 16px 16px 5px;padding:7px 12px;font:600 14px/1.35 var(--ar);
+  display:flex;gap:8px;align-items:baseline;margin-top:6px}
+.o1 .bub:first-child{margin-top:0}
+.o1 .bub small{font:500 10px var(--en);color:rgba(255,255,255,.5);direction:ltr}
+.o1 .bub.g{background:rgba(120,200,140,.2)}
+.o1 .bub.r{background:rgba(229,36,59,.22);outline:1.5px solid rgba(229,36,59,.85)}
+.o1 .bub.r em{font:800 10.5px var(--ar);font-style:normal;background:var(--red);color:#fff;border-radius:6px;padding:0 6px}
+.o1 .bub.r.lost{opacity:.16!important;transform:translateY(12px) scale(.94)!important;filter:blur(1.2px)}
+.o1 .lostt{font:700 12.5px var(--ar);color:#ff8a98;margin:8px 2px 0}
+
+/* 2 · the two mistakes */
+.o2{padding:12px;display:grid}
+.mis{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 11px;margin-top:8px}
+.mis:first-child{margin-top:0}
+.mh{display:flex;align-items:center;gap:7px;font:800 13px var(--ar);color:#ff8a98;margin-bottom:8px}
+.mh .x{width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font:800 11px var(--en)}
+.cmp{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.side{display:grid;justify-items:center;gap:3px;text-align:center;background:rgba(255,255,255,.06);border-radius:12px;padding:8px 6px}
+.side small{font:600 11px var(--ar);color:var(--muted)}
+.side span{font:500 10.5px var(--ar);color:rgba(255,255,255,.55)}
+.szw{font:800 20px/1.2 var(--ar);padding:2px 14px;border-radius:10px}
+.szw.ok{background:rgba(47,178,94,.22);color:#8ff0b0}
+.szw.bad{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(229,36,59,.55)}
+.side.bad{outline:1.5px solid rgba(229,36,59,.7)}
+.neq{font:800 26px var(--en);color:#ff5a6e;text-shadow:0 0 14px rgba(229,36,59,.7)}
+.twins{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lbl{background:#f4efe6;color:#2a2622;border-radius:10px;padding:7px 9px;font:800 12px var(--en);direction:rtl;display:grid;gap:1px;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.lbl b{font:700 12.5px var(--ar)}
+.lbl span{font:500 10.5px var(--ar);color:#7a736b}
+.twins .stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg);font:800 15px var(--ar);color:#fff;background:var(--red);
+  padding:3px 14px;border-radius:8px;border:2px solid #fff;box-shadow:0 6px 18px rgba(229,36,59,.6)}
+.sum{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:8px;padding:9px 10px;border-radius:14px;background:rgba(229,36,59,.16);border:1px solid rgba(229,36,59,.45);
+  font:800 13px var(--en);color:#ff8a98}
+.sum b{font:800 13px var(--ar);color:#fff}
+.sum span{font:700 12px var(--ar);color:#fff;background:rgba(255,255,255,.12);border-radius:99px;padding:2px 9px}
+
+/* 3 · what one return costs */
+.o3{padding:12px}
+.o3 .hd,.o4 .hd{display:flex;justify-content:space-between;align-items:center;font:800 13.5px var(--ar);margin:0 2px 8px}
+.tag{font:600 10.5px var(--ar);color:var(--muted);background:rgba(255,255,255,.1);border-radius:99px;padding:2px 8px}
+.cost{display:grid;grid-template-columns:96px 1fr 50px;gap:8px;align-items:center;padding:5px 2px;font:600 12px var(--ar)}
+.cost .cbar{height:8px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden}
+.cost .cbar i{display:block;height:100%;width:0;border-radius:9px;background:linear-gradient(90deg,#ff8a98,var(--red));transition:width .9s cubic-bezier(.2,.8,.2,1) .1s}
+.cost.on .cbar i{width:var(--w)}
+.cost .n{font:700 12px var(--en);text-align:left;color:#ffb3bd}
+.loss{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding:10px 12px;border-radius:14px;background:rgba(229,36,59,.16);border:1px solid rgba(229,36,59,.45)}
+.loss b{font:700 13px var(--ar)}
+.loss .v{font:700 12px var(--ar);color:#ffb3bd}
+.loss .v .n{font:800 22px var(--en);color:#ff8a98}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.stats div{background:rgba(255,255,255,.07);border-radius:12px;padding:8px 10px;display:grid;gap:1px}
+.stats b{font:800 16px var(--en);color:#fff}
+.stats span{font:500 10.5px/1.35 var(--ar);color:var(--muted)}
+.o3 .note{font:500 10px var(--ar);color:rgba(255,255,255,.45);margin:7px 2px 0}
+
+/* 4 · night count */
+.o4{padding:12px}
+.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:7px 4px;border-top:1px solid rgba(255,255,255,.08);font:600 13.5px var(--ar)}
+.o4 .row .n{font-weight:700}
+.q{color:#ff8a98;font:800 16px var(--en)}
+.o4 .tot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 12px;border-radius:14px;background:rgba(229,36,59,.14);border:1px solid rgba(229,36,59,.4)}
+.o4 .tot b{font:800 15px var(--ar)}
+.o4 .tot .q{font-size:24px;animation:flick 1.1s steps(2) infinite}
+@keyframes flick{50%{opacity:.35}}
+
+/* 5 · every channel into one list (Fermi) */
+.o5{max-width:380px}
+.srcs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sp{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 6px;border-radius:14px;background:rgba(20,21,24,.55);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);color:#fff;font:700 12px var(--ar)}
+.sp .ico{width:18px;height:18px}
+.sp i{font:700 11px var(--en);font-style:normal;background:rgba(255,255,255,.14);border-radius:99px;padding:0 6px}
+.flow{display:grid;grid-template-columns:repeat(3,1fr);height:22px}
+.flow i{position:relative;justify-self:center;width:2px;background:linear-gradient(rgba(255,255,255,.05),rgba(255,255,255,.35));overflow:visible}
+.flow i::after{content:"";position:absolute;left:50%;top:0;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff,0 0 18px var(--gold);animation:drop 1.1s linear infinite}
+.flow i:nth-child(2)::after{animation-delay:.35s}.flow i:nth-child(3)::after{animation-delay:.7s}
+@keyframes drop{from{transform:translateY(-4px);opacity:0}25%{opacity:1}to{transform:translateY(22px);opacity:0}}
+.oc{padding:12px 12px 8px;background:linear-gradient(#fff,#fbfbfc)}
+.ah{display:flex;justify-content:space-between;align-items:center;margin:2px 4px 10px}
+.ah b{font:800 16px var(--ar)}
+.live2{display:inline-flex;align-items:center;gap:6px;font:700 11px var(--ar);color:var(--c-ok-t);background:var(--c-ok);border-radius:99px;padding:2px 9px}
+.live2::before{content:"";width:6px;height:6px;border-radius:50%;background:#2fb25e;box-shadow:0 0 0 0 rgba(47,178,94,.6);animation:pg 1.4s infinite}
+@keyframes pg{70%{box-shadow:0 0 0 6px rgba(47,178,94,0)}}
+.tabs{display:flex;gap:6px;margin:0 2px 6px;overflow:hidden}
+.tab{font:700 12px var(--ar);padding:5px 10px;border-radius:99px;background:#f2f2f4;color:var(--cmut);display:flex;gap:5px;align-items:center;white-space:nowrap}
+.tab.on{background:var(--cink);color:#fff}
+.tab i{font:700 11px var(--en);font-style:normal;opacity:.75}
+.ord{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 6px;border-top:1px solid var(--cline)}
+.av{position:relative;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:800 13px var(--ar);color:#fff}
+.av .ico{position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:5px;background:#fff;padding:1px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.ord b{display:block;font:700 13.5px var(--ar)}
+.ord small{display:block;font:500 11.5px var(--ar);color:var(--cmut)}
+.ord .r{text-align:left;display:grid;gap:4px;justify-items:end}
+.ord .r .n{font:700 12.5px var(--en)}
+.ord.hot{background:#fffaf0;border-radius:12px}
+.o5 .ord.on{animation:flash 1.4s ease-out}
+@keyframes flash{from{background:#fff3d6}to{background:transparent}}
+.o5 .foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--cline);margin-top:2px;padding:9px 6px 3px;font:700 12px var(--ar);color:var(--cmut)}
+.o5 .foot b{color:var(--c-ok-t);font:800 12.5px var(--ar)}
+
+/* 6 · three promises */
+.o6{padding:12px}
+.steps3{display:flex;gap:6px;margin:0 2px 10px}
+.steps3 span{flex:1;text-align:center;font:800 12px var(--ar);padding:6px 4px;border-radius:10px;background:#f2f2f4;color:var(--cmut);transition:.35s}
+.steps3 span.on{background:var(--cink);color:#fff}
+.steps3 span.done{background:var(--c-ok);color:var(--c-ok-t)}
+.pan{display:none}
+.pan.on{display:block;animation:pin .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes pin{from{opacity:0;transform:translateY(8px)}}
+.bell{display:flex;gap:10px;align-items:center;background:var(--cink);color:#fff;border-radius:14px;padding:9px 12px;margin-top:8px}
+.bell svg{flex:none}
+.bell b{font:700 13px var(--ar);display:block}
+.bell small{font:500 11.5px var(--ar);color:rgba(255,255,255,.7)}
+/* WhatsApp chat being scanned */
+.wa{border-radius:14px;overflow:hidden;border:1px solid #e3e1dc}
+.wah{display:flex;align-items:center;gap:9px;background:#0b6b5c;color:#fff;padding:7px 10px}
+.wah .av{width:28px;height:28px;background:#d9d3c7;color:#5a5249;font-size:12px}
+.wah b{display:block;font:700 13px var(--ar)}
+.wah small{display:flex;align-items:center;gap:4px;font:500 10.5px var(--ar);color:rgba(255,255,255,.8)}
+.wah .ico{width:14px;height:14px}
+.wab{position:relative;display:grid;gap:6px;padding:9px;background:#efeae2 radial-gradient(rgba(0,0,0,.035) 1px,transparent 1.2px) 0 0/12px 12px;overflow:hidden}
+.wm{max-width:86%;font:600 13px/1.45 var(--ar);color:#222;background:#fff;border-radius:10px 10px 10px 3px;padding:6px 9px;box-shadow:0 1px 1px rgba(0,0,0,.08);justify-self:start}
+.wm.out{justify-self:end;background:#d9fdd3;border-radius:10px 10px 3px 10px}
+.wm mark{background:transparent;color:inherit;border-radius:4px;padding:0 2px;transition:background .4s,box-shadow .4s}
+.wm mark.on{background:#c9f2d6;box-shadow:0 0 0 1.5px #2fb25e inset}
+.scan{position:absolute;left:0;right:0;top:0;height:46px;pointer-events:none;
+  background:linear-gradient(rgba(47,178,94,0),rgba(47,178,94,.22) 70%,rgba(47,178,94,.9) 98%,rgba(47,178,94,0));animation:sweep 1.7s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes sweep{from{transform:translateY(-46px)}to{transform:translateY(160px)}}
+.chk{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.fld{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:7px;align-items:center;border:1px solid var(--cline);border-radius:11px;padding:5px 8px;transition:.35s}
+.fld i{grid-row:1/3;width:18px;height:18px;border-radius:50%;background:#efeff2;color:#fff;display:grid;place-items:center;font:800 10px var(--en);font-style:normal;transition:.35s}
+.fld span{font:500 10.5px var(--ar);color:var(--cmut)}
+.fld em{font:700 12px var(--ar);font-style:normal;opacity:.15;transition:opacity .4s}
+.fld.on{border-color:#bfe6cb;background:#f6fdf8}
+.fld.on i{background:#2fb25e}
+.fld.on em{opacity:1}
+.ok-line{margin-top:8px;font:700 12.5px var(--ar);color:var(--c-ok-t);display:flex;gap:6px;align-items:center}
+.dup{display:grid;gap:6px}
+.dup .ord{border:1px solid var(--cline);border-radius:12px;padding:8px}
+.dup .ord.d{border-color:#f7b9c2;background:#fff6f7}
+.dup .why{font:600 11.5px var(--ar);color:var(--cmut);text-align:center}
+.acts{display:flex;gap:6px;margin-top:6px}
+.acts span{flex:1;text-align:center;font:800 12.5px var(--ar);padding:8px;border-radius:10px;background:#f2f2f4}
+.acts span.p{background:var(--cink);color:#fff}
+
+/* 7 · shield scans a real-looking customer */
+.o7{padding:12px;display:grid;grid-template-columns:96px 1fr;column-gap:12px;row-gap:10px;align-items:center;overflow:hidden}
+.cu{grid-column:1/-1;position:relative;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:14px;background:#f7f7f9;overflow:hidden}
+.cu .av{width:38px;height:38px;font-size:15px;background:#6b6e76}
+.cu b{display:block;font:800 14px var(--ar)}
+.cu small{display:block;font:600 11.5px var(--en);color:var(--cmut);direction:ltr;text-align:right}
+.cu .meta{font:500 10.5px var(--ar);color:var(--cmut)}
+.cu .stt{margin-inline-start:auto;font:800 11px var(--ar);padding:3px 9px;border-radius:99px;background:#fff1f2;color:var(--c-ret-t);white-space:nowrap}
+.cu .stt.done{background:var(--c-ret-t);color:#fff}
+.cu .beam{position:absolute;top:0;bottom:0;width:38%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(229,36,59,.18) 60%,rgba(229,36,59,.75) 97%,transparent);animation:beam 1.5s cubic-bezier(.45,0,.55,1) infinite}
+.cu.done .beam{display:none}
+@keyframes beam{from{right:-40%}to{right:105%}}
+.cu .corner{position:absolute;width:12px;height:12px;border:2px solid var(--red)}
+.cu .c1{top:4px;right:4px;border-left:0;border-bottom:0;border-top-right-radius:6px}.cu .c2{top:4px;left:4px;border-right:0;border-bottom:0;border-top-left-radius:6px}
+.cu .c3{bottom:4px;right:4px;border-left:0;border-top:0;border-bottom-right-radius:6px}.cu .c4{bottom:4px;left:4px;border-right:0;border-top:0;border-bottom-left-radius:6px}
+.gauge{position:relative;width:96px;height:96px}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge circle{fill:none;stroke-width:12;stroke-linecap:round}
+.gauge .bg{stroke:#f0f0f2}
+.gauge .fg{stroke:var(--red);stroke-dasharray:540;stroke-dashoffset:540}
+.gauge .gn{position:absolute;inset:0;display:grid;place-items:center;align-content:center;text-align:center}
+.gauge .gn .n{font:800 26px var(--en);line-height:1}
+.gauge .gn small{font:600 10px var(--ar);color:var(--cmut)}
+.evs{display:grid;margin:0;padding:0;list-style:none}
+.evs li{font:700 12.5px var(--ar);display:flex;gap:6px;align-items:center;margin-top:5px}
+.evs li:first-child{margin-top:0}
+.evs li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--red);flex:none}
+.evs li.g::before{background:#2fb25e}
+.verd{grid-column:1/-1;display:flex;gap:8px;align-items:center;justify-content:space-between;background:#fff1f2;border:1px solid #f7b9c2;border-radius:14px;padding:9px 12px}
+.verd b{font:800 14px var(--ar);color:var(--c-ret-t)}
+.verd small{font:500 11px var(--ar);color:var(--cmut)}
+.proof2{grid-column:1/-1;font:600 11px/1.5 var(--ar);color:var(--cmut);border-top:1px solid var(--cline);padding-top:8px}
+.proof2 b{color:var(--cink)}
+
+/* 8 · tracking, one colour per status */
+.o8{padding:14px}
+.trk{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.trk b{font:800 15px var(--ar)}
+.trk .chip{transition:background .35s,color .35s}
+.trk2{font:600 11.5px var(--ar);color:var(--cmut);margin-bottom:12px}
+.line4{position:relative;display:grid;grid-template-columns:repeat(4,1fr);text-align:center}
+.line4::before{content:"";position:absolute;top:16px;right:12.5%;left:12.5%;height:4px;background:#efeff2;border-radius:4px}
+.line4 .fill{position:absolute;top:16px;right:12.5%;height:4px;border-radius:4px;width:0;transition:width .6s ease;
+  background:linear-gradient(to left,#7c4dff 0,#f08a24 33%,#2f7cf6 66%,#2fb25e 100%);background-size:300% 100%;background-position:right}
+.st{position:relative;display:grid;justify-items:center;gap:6px;font:700 11.5px var(--ar);color:var(--cmut)}
+.st i{width:34px;height:34px;border-radius:50%;background:#efeff2;color:#a9abb2;display:grid;place-items:center;transition:.4s;font-style:normal}
+.st i svg{width:17px;height:17px}
+.st.on{color:var(--c)}
+.st.on i{background:var(--c);color:#fff;box-shadow:0 6px 16px -4px var(--c)}
+.st.now i{animation:pulse2 1.4s infinite}
+@keyframes pulse2{0%{box-shadow:0 0 0 0 var(--c)}70%{box-shadow:0 0 0 11px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.cust{margin-top:12px;display:flex;gap:10px;align-items:center;background:#f6f6f8;border-radius:14px;padding:9px 11px;font:600 12.5px var(--ar)}
+.cust .av{width:28px;height:28px;font-size:12px}
+
+/* 9 · money, all in one place */
+.o9{padding:14px}
+.dl{display:flex;align-items:center;gap:8px;font:800 14px var(--ar);color:var(--c-ok-t);margin-bottom:10px}
+.dl i{width:22px;height:22px;border-radius:50%;background:#2fb25e;display:grid;place-items:center}
+.dl .lv{margin-inline-start:auto;display:inline-flex;align-items:center;gap:5px;font:700 11px var(--ar);color:var(--c-ret-t);background:#fff1f2;border-radius:99px;padding:2px 9px}
+.dl .lv::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--red);animation:flick 1.2s steps(2) infinite}
+.fin{display:grid;grid-template-columns:104px 1fr;gap:12px;align-items:center}
+.ring{position:relative;width:104px;height:104px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:13;stroke-linecap:round}
+.ring .bg{stroke:#eef0f3}
+.ring .fg{stroke:url(#rG);stroke-dasharray:540;stroke-dashoffset:540}
+.ring .rn{position:absolute;inset:0;display:grid;place-items:center;align-content:center;text-align:center}
+.ring .rn .n{font:800 24px var(--en);line-height:1;color:#17733a}
+.ring .rn small{font:600 10px var(--ar);color:var(--cmut)}
+.kpis{display:grid;gap:7px}
+.kpi{display:flex;justify-content:space-between;align-items:baseline;gap:6px;border-bottom:1px dashed var(--cline);padding-bottom:5px}
+.kpi:last-child{border:0;padding:0}
+.kpi small{font:600 11.5px var(--ar);color:var(--cmut);white-space:nowrap}
+.kpi .n{font:800 17px var(--en);letter-spacing:-.01em}
+.kpi .neg{color:#b4142b}
+.kpi.pf .n{font-size:21px;color:#17733a}
+.cuts2{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 2px}
+.cuts2 span{display:inline-flex;align-items:center;gap:5px;font:700 11.5px var(--ar);padding:3px 9px 3px 10px;border-radius:99px;background:#f2f2f4;color:var(--cmut);transition:.35s}
+.cuts2 span::before{content:"✓";font:800 10px var(--en);width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:#dcdde1;color:#fff;transition:.35s}
+.cuts2 span.on{background:var(--c-ok);color:var(--c-ok-t)}
+.cuts2 span.on::before{background:#2fb25e}
+.cuts2 em{font:600 11px var(--ar);color:var(--cmut);font-style:normal;align-self:center}
+.src{font:500 10.5px var(--ar);color:var(--cmut);margin-top:9px}
+
+/* 10 · finale, the logo motion */
+.o10{display:grid;justify-items:center;gap:4px;text-align:center;bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+.o10 canvas{position:static;inset:auto;width:156px;height:156px;display:block}
+.o10 .nm{font:800 30px/1 var(--ar);color:#fff;letter-spacing:.01em;margin-top:-10px}
+.o10 .sub{font:600 13px var(--ar);color:var(--muted);margin-top:6px}
+
+/* CTA */
+.cta{position:absolute;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));
+  bottom:calc(18px + env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;display:flex;justify-content:center;align-items:center;gap:10px;text-align:center;
+  background:var(--red);color:#fff;text-decoration:none;font:800 19px var(--ar);padding:13px 16px;border-radius:15px;z-index:4;
+  box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);direction:rtl;transition:transform .4s,box-shadow .4s}
+.cta small{font:600 12px var(--ar);opacity:.85}
+.cta.glow{transform:scale(1.03);box-shadow:0 0 0 6px rgba(229,36,59,.25),0 14px 40px rgba(229,36,59,.45)}
+.cta:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.hint{position:absolute;left:0;right:0;bottom:calc(86px + env(safe-area-inset-bottom,0px));text-align:center;font:600 13px var(--ar);color:var(--muted);direction:rtl;transition:opacity .3s;z-index:3}
+.hint i{display:block;width:2px;height:22px;margin:6px auto 0;background:linear-gradient(#fff,transparent);animation:drip 1.6s ease-in-out infinite}
+@keyframes drip{0%{transform:translateY(-6px);opacity:0}50%{opacity:1}100%{transform:translateY(8px);opacity:0}}
+
+.note{direction:ltr;font:13px/1.6 var(--en)!important;color:rgba(255,255,255,.5)!important;margin-top:28px!important;text-align:left}
+
+@media (max-height:700px){
+  .tx h1,.tx h2{font-size:clamp(28px,8vw,44px)} .tx p{font-size:15px}
+  .ov{transform-origin:bottom center;zoom:.9}
+}
+@media (prefers-reduced-motion:reduce){
+  .pop,.fld em::after,.line4 .fill,.st i,.steps3 span{transition:none} .pan.on{animation:none}
+  .hint i,.scanl::after,.o4 .tot .q,.live span::before,.st.now i{animation:none}
+}
+/* ================= THE PAGE AFTER THE FILM =================
+   Same world as the film: black, warm light, white app cards are the only bright objects, red only for action. */
+.rest{position:relative;direction:rtl;font-family:var(--ar);color:#fff;background:var(--ink);overflow-x:clip}
+.rest::before{content:"";position:absolute;inset:0 0 auto;height:260px;background:linear-gradient(rgba(0,0,0,.6),transparent);pointer-events:none}
+.rw{max-width:1080px;margin:0 auto;padding:0 max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px))}
+.rs{padding:72px 0;position:relative}
+.rs+.rs{border-top:1px solid rgba(255,255,255,.07)}
+.rk{display:inline-flex;align-items:center;gap:10px;font:700 13px var(--ar);color:var(--gold);letter-spacing:.02em;margin-bottom:12px}
+.rk::before,.rk::after{content:"";width:18px;height:1px;background:rgba(255,210,154,.55)}
+.rh{font:800 clamp(30px,8.4vw,52px)/1.18 var(--ar);margin:0 0 12px;text-wrap:balance}
+.rh .hl{color:var(--gold)}
+.rl{font:500 17px/1.75 var(--ar);color:var(--muted);margin:0;max-width:640px}
+.rest .n{font-family:var(--en)}
+[data-rv]{opacity:0;transform:translateY(22px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .9s cubic-bezier(.2,.8,.2,1)}
+[data-rv].in{opacity:1;transform:none}
+
+/* buttons */
+.rb{display:inline-flex;align-items:center;justify-content:center;gap:9px;font:800 18px var(--ar);padding:15px 24px;border-radius:15px;border:0;cursor:pointer;text-decoration:none;color:#fff;background:var(--red);
+  box-shadow:0 10px 30px rgba(229,36,59,.28),inset 0 1px 0 rgba(255,255,255,.25);transition:transform .2s,box-shadow .3s}
+.rb:active{transform:scale(.98)}
+.rb.gh{background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18)}
+.rb.ink{background:var(--cink)}
+.rb.lt{background:#f2f2f4;color:var(--cink);box-shadow:none}
+.rb svg{width:20px;height:20px}
+.notes{display:flex;flex-wrap:wrap;gap:4px 16px;font:600 14px var(--ar);color:var(--muted);margin-top:14px}
+.notes span{display:inline-flex;align-items:center;gap:7px}
+.notes span::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--red)}
+
+/* 1 · more features: swipe cards */
+.feat{display:grid;grid-auto-flow:column;grid-auto-columns:min(82%,330px);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:22px 2px 8px;margin:0 -2px;scrollbar-width:none}
+.feat::-webkit-scrollbar{display:none}
+.fc{scroll-snap-align:start;border-radius:22px;padding:18px;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:9px;min-height:250px}
+.fc .pl{align-self:flex-start;font:700 11.5px var(--ar);color:var(--muted);background:rgba(255,255,255,.08);border-radius:99px;padding:3px 10px}
+.fc .pl.t{color:var(--gold);background:rgba(255,210,154,.12)}
+.fc .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(229,36,59,.14);color:#ff8a98}
+.fc .ic svg{width:22px;height:22px}
+.fc h3{font:800 19px/1.35 var(--ar);margin:0}
+.fc p{font:500 14.5px/1.7 var(--ar);color:var(--muted);margin:0}
+.fc .pf{margin-top:auto;font:600 12.5px/1.6 var(--ar);color:rgba(255,255,255,.62);border-top:1px solid rgba(255,255,255,.08);padding-top:9px}
+.fc .pf b{color:#fff}
+.fc.wh{background:#fff;color:var(--cink);border:0;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.fc.wh p{color:var(--cmut)}.fc.wh .pf{color:var(--cmut);border-color:var(--cline)}.fc.wh .pf b{color:var(--cink)}
+.fc.wh .pl{background:var(--c-ret);color:var(--c-ret-t)}
+.swipe{font:600 13px var(--ar);color:var(--muted);display:flex;align-items:center;gap:8px;margin-top:6px}
+.swipe i{display:inline-block;width:26px;height:2px;background:linear-gradient(90deg,transparent,#fff);animation:sw 1.6s ease-in-out infinite}
+@keyframes sw{0%,100%{transform:translateX(6px);opacity:.3}50%{transform:translateX(-6px);opacity:1}}
+
+/* 2 · why now */
+.why2{display:grid;gap:14px;margin-top:26px}
+.box{border-radius:22px;padding:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+.box h3{font:800 17px var(--ar);margin:0 0 14px}
+.fx2{display:grid;gap:12px}
+.fx2 div{display:grid;gap:6px}
+.fx2 span{display:flex;justify-content:space-between;font:600 13.5px var(--ar);color:var(--muted)}
+.fx2 span b{font:800 16px var(--en);color:#fff}
+.fx2 i{display:block;height:12px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden;position:relative}
+.fx2 i::after{content:"";position:absolute;inset:0 0 0 auto;width:0;border-radius:9px;background:linear-gradient(90deg,var(--red),#ff8a98);transition:width 1.2s cubic-bezier(.2,.8,.2,1) .2s}
+.fx2 .in i::after,.in .fx2 i::after{width:var(--v)}
+.fx2 div:first-child i::after{background:linear-gradient(90deg,#6b6e76,#a2a5aa)}
+.box .sm{font:500 12.5px/1.6 var(--ar);color:rgba(255,255,255,.55);margin:12px 0 0}
+.calc label{display:flex;justify-content:space-between;gap:10px;font:600 14px var(--ar);color:var(--muted);margin:14px 0 8px}
+.calc label b{font:800 16px var(--en);color:#fff}
+.calc input[type=range]{width:100%;accent-color:var(--red);height:28px}
+.calc .out{margin-top:14px;border-radius:16px;padding:14px;background:rgba(229,36,59,.12);border:1px solid rgba(229,36,59,.35)}
+.calc .out small{display:block;font:600 13px var(--ar);color:var(--muted)}
+.calc .out b{font:800 34px var(--en);color:#ff8a98;margin-inline-end:6px}
+.calc .out em{font:700 14px var(--ar);font-style:normal;color:#ffb3bd}
+.calc .out .cmp{margin-top:8px;color:rgba(255,255,255,.6);font-size:12.5px}
+
+/* 3 · trust */
+.trust2{display:grid;gap:22px;margin-top:6px}
+.qt{font:700 clamp(21px,5.6vw,28px)/1.6 var(--ar);margin:0;color:#fff}
+.qt::before{content:"“";display:block;font:800 64px/0.6 var(--en);color:var(--red);margin-bottom:14px}
+.by{display:flex;align-items:center;gap:12px;margin-top:16px}
+.by svg{width:38px;height:auto}
+.by b{display:block;font:800 15.5px var(--ar)}
+.by span{font:500 13px var(--ar);color:var(--muted)}
+.team2{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.team2 span{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--ar);color:var(--muted);background:rgba(255,255,255,.06);border-radius:99px;padding:5px 12px 5px 6px}
+.team2 i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:800 12px var(--ar);font-style:normal;background:var(--red);color:#fff}
+.team2 b{color:#fff}
+.newb2{font:500 14.5px/1.75 var(--ar);color:var(--muted);margin-top:16px;border-inline-start:3px solid var(--red);padding-inline-start:12px}
+.newb2 b{color:#fff}
+.prom{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.prom li{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:start;border-radius:18px;padding:14px;background:#fff;color:var(--cink)}
+.prom li::before{content:"✓";grid-row:1/3;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#2fb25e;color:#fff;font:800 13px var(--en)}
+.prom b{font:800 15.5px var(--ar)}
+.prom span{font:500 13.5px/1.6 var(--ar);color:var(--cmut)}
+
+/* 4 · pricing */
+.pcalc{margin-top:24px;border-radius:20px;padding:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+.pcalc label{display:flex;justify-content:space-between;font:700 15px var(--ar)}
+.pcalc label b{font:800 20px var(--en);color:var(--gold)}
+.pcalc input{width:100%;accent-color:var(--red);height:30px;margin-top:6px}
+.pcalc small{font:500 12.5px var(--ar);color:var(--muted)}
+.plans2{display:grid;gap:14px;margin-top:16px}
+.pc{position:relative;border-radius:24px;padding:20px 18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:6px}
+.pc.star{background:#fff;color:var(--cink);border:0;box-shadow:0 30px 70px rgba(0,0,0,.5),0 0 0 2px var(--red)}
+.pc .rec{position:absolute;top:-12px;right:18px;font:800 12px var(--ar);color:#fff;background:var(--red);border-radius:99px;padding:4px 12px;box-shadow:0 6px 16px rgba(229,36,59,.4)}
+.pc h3{font:800 22px var(--ar);margin:0;display:flex;align-items:baseline;gap:8px}
+.pc h3 small{font:600 13px var(--en);color:var(--muted)}
+.pc.star h3 small{color:var(--cmut)}
+.pc .who{font:500 14px var(--ar);color:var(--muted);margin:0}
+.pc.star .who{color:var(--cmut)}
+.pc .amt{display:flex;align-items:baseline;gap:8px;margin:8px 0 0}
+.pc .amt b{font:800 38px/1 var(--en);letter-spacing:-.02em}
+.pc .amt span{font:600 14px var(--ar);color:var(--muted)}
+.pc.star .amt span{color:var(--cmut)}
+.pc .per{font:600 14px var(--ar);color:var(--muted);margin:0}
+.pc.star .per{color:var(--cmut)}
+.pc .per b{font:800 15px var(--en);color:#fff}
+.pc.star .per b{color:var(--cink)}
+.pc .tot{display:flex;justify-content:space-between;align-items:baseline;border-radius:14px;padding:10px 12px;margin:10px 0 4px;background:rgba(255,255,255,.07);font:600 13.5px var(--ar)}
+.pc.star .tot{background:#f4f4f6}
+.pc .tot b{font:800 20px var(--en)}
+.pc .tot em{font:600 12px var(--ar);font-style:normal;color:var(--muted);margin-inline-start:4px}
+.pc details{margin:4px 0 12px}
+.pc summary{font:700 14px var(--ar);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;color:var(--gold)}
+.pc.star summary{color:var(--c-ret-t)}
+.pc summary::-webkit-details-marker{display:none}
+.pc summary::after{content:"+";font:800 16px var(--en)}
+.pc details[open] summary::after{content:"–"}
+.pc ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px}
+.pc li{font:500 14px/1.55 var(--ar);display:flex;gap:8px;color:rgba(255,255,255,.85)}
+.pc.star li{color:#33353a}
+.pc li::before{content:"✓";flex:none;font:800 12px var(--en);color:#2fb25e;margin-top:2px}
+.pc li.hd{font-weight:800}.pc li.hd::before{content:""}
+.pc .rb{margin-top:auto}
+.fine2{display:grid;gap:6px;margin-top:18px;font:500 13.5px/1.65 var(--ar);color:var(--muted)}
+
+/* 5 · trial timeline */
+.tl2{list-style:none;margin:26px 0 0;padding:0;position:relative;display:grid;gap:12px}
+.tl2::before{content:"";position:absolute;top:18px;bottom:18px;right:17px;width:2px;background:linear-gradient(var(--red),rgba(229,36,59,.1))}
+.tl2 li{position:relative;display:grid;grid-template-columns:36px 1fr;gap:14px;align-items:start}
+.tl2 .d{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--ink);border:2px solid var(--red);font:800 13px var(--en);color:#fff;z-index:1}
+.tl2 li:last-child .d{background:var(--red)}
+.tl2 .c{border-radius:18px;padding:13px 15px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.tl2 .c small{font:700 12px var(--ar);color:var(--gold)}
+.tl2 .c h3{font:800 16.5px var(--ar);margin:2px 0 4px}
+.tl2 .c p{font:500 14px/1.7 var(--ar);color:var(--muted);margin:0}
+
+/* 6 · faq */
+.faq2{display:grid;gap:8px;margin-top:22px}
+.faq2 details{border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);transition:background .3s}
+.faq2 details[open]{background:rgba(255,255,255,.08)}
+.faq2 summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 16px;font:700 15.5px/1.5 var(--ar)}
+.faq2 summary::-webkit-details-marker{display:none}
+.faq2 summary::after{content:"+";flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);font:700 16px var(--en);transition:transform .3s}
+.faq2 details[open] summary::after{transform:rotate(45deg);background:var(--red)}
+.faq2 details p{margin:0;padding:0 16px 16px;font:500 14.5px/1.8 var(--ar);color:var(--muted)}
+
+/* 7 · final */
+.fin2{position:relative;text-align:center;padding:96px 0 110px;overflow:hidden;background:radial-gradient(60% 50% at 50% 38%,rgba(229,36,59,.22),transparent 70%)}
+.fin2 canvas{width:132px;height:132px;display:block;margin:0 auto 6px}
+.fin2 h2{font:800 clamp(34px,9.5vw,60px)/1.22 var(--ar);margin:0 0 14px}
+.fin2 h2 .ln{display:block}
+.fin2 h2 .dot{color:var(--red)}
+.fin2 p{font:500 17px/1.7 var(--ar);color:var(--muted);margin:0 auto 24px;max-width:460px}
+.fin2 .acts2{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.fin2 .notes{justify-content:center}
+
+/* footer */
+.foot2{border-top:1px solid rgba(255,255,255,.08);padding:34px 0 120px;font:500 14px/1.9 var(--ar);color:var(--muted)}
+.foot2 .rw{display:grid;gap:22px}
+.foot2 b{display:block;color:#fff;font:800 15px var(--ar);margin-bottom:4px}
+.foot2 .lg{display:flex;align-items:center;gap:9px;font:800 22px var(--ar);color:#fff;margin-bottom:2px}
+.foot2 .lg svg{width:26px}
+.foot2 span{display:block}
+
+/* sticky bar after the film */
+.sbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;gap:8px;padding:10px max(14px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(transparent,rgba(17,18,20,.92) 35%);transform:translateY(110%);transition:transform .45s cubic-bezier(.2,.8,.2,1);direction:rtl}
+.sbar.on{transform:none}
+.sbar .rb{flex:1;padding:13px 16px}
+.sbar .wab2{width:52px;flex:none;border-radius:15px;border:0;background:#25D366;display:grid;place-items:center;cursor:pointer}
+.sbar .wab2 svg{width:26px;height:26px}
+
+/* sign-up sheet */
+.shbg{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.shbg.on{opacity:1;pointer-events:auto}
+.sh{width:100%;max-width:480px;background:#fff;color:var(--cink);border-radius:26px 26px 0 0;padding:16px 18px calc(22px + env(safe-area-inset-bottom,0px));direction:rtl;font-family:var(--ar);
+  transform:translateY(100%);transition:transform .45s cubic-bezier(.2,.8,.2,1);max-height:92svh;overflow:auto}
+.shbg.on .sh{transform:none}
+.sh-t{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.sh-p{display:flex;gap:6px}
+.sh-p i{width:30px;height:5px;border-radius:9px;background:#e7e7ea;transition:.3s}
+.sh-p i.on{background:var(--red)}
+.sh-x{width:36px;height:36px;border-radius:50%;border:0;background:#f2f2f4;font:600 20px var(--en);cursor:pointer;color:var(--cink)}
+.sh h3{font:800 23px var(--ar);margin:0 0 4px}
+.sh .hp{font:500 14px var(--ar);color:var(--cmut);margin:0 0 14px}
+.opts2{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.opts2 button{font:700 14.5px var(--ar);padding:9px 14px;border-radius:99px;border:1.5px solid #e2e2e6;background:#fff;color:var(--cink);cursor:pointer;transition:.2s}
+.opts2 button[aria-pressed=true]{background:var(--cink);border-color:var(--cink);color:#fff}
+.sh input{width:100%;font:700 18px var(--ar);padding:14px;border-radius:14px;border:1.5px solid #e2e2e6;outline:0;color:var(--cink);background:#fff}
+.sh input:focus{border-color:var(--red)}
+.sh input[type=tel]{font-family:var(--en);direction:ltr;text-align:right}
+.sh .ad{font:500 13px var(--ar);color:var(--cmut);margin:10px 0 18px}
+.sh .ad b{display:block;font:700 15px var(--en);color:var(--cink);direction:ltr;text-align:right}
+.sh .er{font:600 13px var(--ar);color:var(--c-ret-t);min-height:20px;margin:6px 0 10px}
+.sh .rb{width:100%}
+.sh .rb[disabled]{opacity:.35;pointer-events:none}
+.sh .tn{font:500 12.5px var(--ar);color:var(--cmut);text-align:center;margin-top:10px}
+.sh .okb{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:#fff1f2;margin-bottom:12px}
+.sh .okb svg{width:34px}
+.sh ul{margin:0 0 14px;padding:0 18px 0 0;font:500 14.5px/1.9 var(--ar);color:#33353a}
+.sh .proto{font:500 12px/1.6 var(--ar);color:var(--cmut);background:#f6f6f8;border-radius:12px;padding:10px 12px;margin-bottom:14px}
+.toast2{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);z-index:90;font:700 14px var(--ar);color:#fff;background:var(--cink);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:10px 18px;opacity:0;transition:.35s;pointer-events:none;direction:rtl;white-space:nowrap}
+.toast2.on{opacity:1;transform:translate(-50%,0)}
+
+@media (min-width:760px){
+  .rs{padding:110px 0}
+  .feat{grid-auto-flow:row;grid-template-columns:repeat(4,1fr);grid-auto-columns:auto;overflow:visible}
+  .swipe{display:none}
+  .why2{grid-template-columns:1fr 1fr}
+  .trust2{grid-template-columns:1.2fr 1fr;gap:48px}
+  .plans2{grid-template-columns:repeat(3,1fr);align-items:stretch}
+  .faq2{grid-template-columns:1fr 1fr;align-items:start}
+  .foot2 .rw{grid-template-columns:repeat(3,1fr)}
+  .sbar{display:none}
+}
+@media (prefers-reduced-motion:reduce){[data-rv]{opacity:1;transform:none;transition:none}.swipe i{animation:none}}
+</style>
+</head>
+<body>
+
+<section class="film" id="film" aria-label="Fermi film: a merchant's day">
+  <div class="stage">
+    <canvas id="cv" role="img" aria-label="Film of a merchant's day in a Baghdad home, from morning chaos to a delivered order at sunset"></canvas>
+    <div class="shade"></div>
+    <div class="bar" id="bar"></div>
+    <div class="chrome">
+      <div class="clock" id="clock"><i></i><span>08:30</span><em class="load" id="load"></em></div>
+      <div class="brand"><svg viewBox="0 0 114.02 100" aria-hidden="true"><path fill="#E5243B" d="M113.39 78.35 102.24 97.65C100.95 99.9 98.08 100.67 95.83 99.37L74.49 87.05C72.25 85.75 71.48 82.88 72.77 80.64L83.92 61.33C85.22 59.09 88.09 58.32 90.33 59.62L111.67 71.93C113.92 73.23 114.69 76.1 113.39 78.35ZM45.86 0H68.16C70.75 0 72.85 2.1 72.85 4.69V29.33C72.85 31.93 70.75 34.03 68.16 34.03H45.86C43.27 34.03 41.17 31.93 41.17 29.33V4.69C41.17 2.1 43.27 0 45.86 0ZM11.78 97.65 0.63 78.35C-0.67 76.1 0.1 73.23 2.35 71.93L23.69 59.62C25.93 58.32 28.8 59.09 30.1 61.33L41.24 80.64C42.54 82.88 41.77 85.75 39.53 87.05L18.19 99.37C15.94 100.67 13.07 99.9 11.78 97.65ZM57.01 43.41C65.43 43.41 72.26 50.24 72.26 58.67C72.26 67.09 65.43 73.92 57.01 73.92C48.58 73.92 41.76 67.09 41.76 58.67C41.76 50.24 48.58 43.41 57.01 43.41Z"/></svg>فيرمي</div>
+    </div>
+
+    <!-- ===== WORDS (data-s = scene, data-a/data-b = local time window; 0..1 is the scene's pause) ===== -->
+    <div class="tx" data-s="1" data-a="-1" data-b=".5">
+      <div class="k">يوم بحياة صاحب بيج</div>
+      <h1 class="kt">إذا عندك بيج، <span class="hl">هاليوم مو غريب عليك.</span></h1>
+    </div>
+    <div class="tx" data-s="1" data-a=".42" data-b="1.25">
+      <div class="k"><b>08:30</b> الصبح</div>
+      <h2 class="kt m">وبين السلام والسعر والمتوفر، <span class="rd">ضاعن طلبين.</span></h2>
+      <p class="kt">طلب ضاع بين المحادثات، وطلب نساه الموظف مالتك.</p>
+    </div>
+    <div class="tx" data-s="2">
+      <div class="k"><b>15:00</b> العصر</div>
+      <h2 class="kt">طلبت لارج، <span class="hl">إجاها ميديم.</span></h2>
+      <p class="kt">وبنص الهوسة، غير طلب تجهّز مرتين بالغلط.</p>
+    </div>
+    <div class="tx" data-s="3">
+      <div class="k"><b>18:00</b> المغرب</div>
+      <h2 class="kt">رجع الطرد.</h2>
+      <p class="kt">ورجعت وياه فلوس التوصيل والإعلان والتغليف… <span class="hl">بس مو لجيبك.</span></p>
+    </div>
+    <div class="tx" data-s="4">
+      <div class="k"><b>23:30</b> آخر الليل</div>
+      <h2 class="kt m">الوصولات من جهة، وكشف شركة التوصيل من جهة.</h2>
+      <p class="kt">والسؤال نفسه يومية: <span class="rd">وين فلوسي؟</span> <span class="rd">شكد ربحت؟!</span></p>
+    </div>
+    <div class="tx" data-s="5">
+      <div class="k"><b>06:00</b> يوم جديد</div>
+      <h1 class="kt">كل طلباتك. <span class="hl">بشاشة وحدة.</span></h1>
+      <p class="kt">من الإنستا والواتساب والموقع مالتك، كل طلباتك صارت بمكان واحد مرتّب.</p>
+    </div>
+    <div class="tx" data-s="6" data-a="-1" data-b=".36">
+      <div class="k"><b>10:00</b> وعد 1 من 3</div>
+      <h1 class="kt">ما ينسى.</h1>
+      <p class="kt">ينبّهك على الطلب قبل لا تنساه ويزعل الزبون.</p>
+    </div>
+    <div class="tx" data-s="6" data-a=".3" data-b=".69">
+      <div class="k"><b>10:00</b> وعد 2 من 3</div>
+      <h1 class="kt">ما يغلط.</h1>
+      <p class="kt">خوارزمية معقدة وميزات ما تنعد، تتأكد من المنتج والعنوان وكلشي ثاني قبل لا يطلع الطلب.</p>
+    </div>
+    <div class="tx" data-s="6" data-a=".63" data-b="1.25">
+      <div class="k"><b>10:00</b> وعد 3 من 3</div>
+      <h1 class="kt">ما يكرر.</h1>
+      <p class="kt">نفس الزبون طلب مرتين؟ ينبّهك قبل الشحن.</p>
+    </div>
+    <div class="tx" data-s="7">
+      <div class="k"><b>11:00</b> الدرع</div>
+      <h2 class="kt">ميزة الدرع <span class="hl">تفحص الزبون.</span></h2>
+      <p class="kt">خاصية كلش معقدة، تعتمد على بيانات آلاف التجار وشركات التوصيل داير ما دار العراق، حتى تصيد الزبون المتلاعب واللي دايماً يرفض، وتنبّهك قبل لا يطلع له الطلب.</p>
+    </div>
+    <div class="tx" data-s="8">
+      <div class="k"><b>17:00</b> بالطريق</div>
+      <h2 class="kt">زبونك يتابع طلبه بنفسه.</h2>
+      <p class="kt">وانت ترتاح من سؤال: «وين طلبي؟»</p>
+    </div>
+    <div class="tx" data-s="9">
+      <div class="k"><b>18:00</b> وصل</div>
+      <h1 class="kt">وصل. <span class="hl">والفلوس محسوبة.</span></h1>
+      <p class="kt">تشوف كل فلوسك، كل مصاريفك، وكل أرباحك بمكان واحد.</p>
+    </div>
+    <div class="tx" data-s="10" data-b="9">
+      <div class="k"><b>18:30</b> نفس اليوم، بلا فوضى</div>
+      <h1 class="kt"><span class="ln">ما ينسى.</span><span class="ln">ما يغلط.</span><span class="ln hl">ما يكرر.</span></h1>
+      <p class="kt">أقوى نظام طلبات بالعراق.</p>
+    </div>
+
+    <!-- ===== OVERLAYS ===== -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <symbol id="fsym" viewBox="0 0 114.02 100"><path fill="#E5243B" d="M113.39 78.35 102.24 97.65C100.95 99.9 98.08 100.67 95.83 99.37L74.49 87.05C72.25 85.75 71.48 82.88 72.77 80.64L83.92 61.33C85.22 59.09 88.09 58.32 90.33 59.62L111.67 71.93C113.92 73.23 114.69 76.1 113.39 78.35ZM45.86 0H68.16C70.75 0 72.85 2.1 72.85 4.69V29.33C72.85 31.93 70.75 34.03 68.16 34.03H45.86C43.27 34.03 41.17 31.93 41.17 29.33V4.69C41.17 2.1 43.27 0 45.86 0ZM11.78 97.65 0.63 78.35C-0.67 76.1 0.1 73.23 2.35 71.93L23.69 59.62C25.93 58.32 28.8 59.09 30.1 61.33L41.24 80.64C42.54 82.88 41.77 85.75 39.53 87.05L18.19 99.37C15.94 100.67 13.07 99.9 11.78 97.65ZM57.01 43.41C65.43 43.41 72.26 50.24 72.26 58.67C72.26 67.09 65.43 73.92 57.01 73.92C48.58 73.92 41.76 67.09 41.76 58.67C41.76 50.24 48.58 43.41 57.01 43.41Z"/></symbol>
+        <linearGradient id="igG" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".35" stop-color="#fa7e1e"/><stop offset=".65" stop-color="#d62976"/><stop offset="1" stop-color="#4f5bd5"/></linearGradient>
+        <linearGradient id="rG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2fb25e"/><stop offset="1" stop-color="#17733a"/></linearGradient>
+        <symbol id="iIG" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igG)"/><rect x="6.6" y="6.6" width="10.8" height="10.8" rx="5.4" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.2" cy="6.8" r="1.25" fill="#fff"/></symbol>
+        <symbol id="iWA" viewBox="0 0 24 24"><path fill="#25D366" d="M12 2a10 10 0 0 0-8.66 15l-1.3 4.8 4.94-1.27A10 10 0 1 0 12 2z"/><path fill="#fff" d="M9.1 7.2c-.2-.45-.42-.46-.62-.47h-.53c-.18 0-.48.07-.73.34s-.96.94-.96 2.29.98 2.66 1.12 2.84c.14.18 1.9 3.04 4.7 4.14 2.32.92 2.8.73 3.3.69.5-.05 1.63-.67 1.86-1.31.23-.65.23-1.2.16-1.32-.07-.11-.25-.18-.53-.32l-1.86-.92c-.25-.09-.43-.14-.62.14l-.85 1.06c-.16.18-.32.2-.6.07a7.6 7.6 0 0 1-3.77-3.3c-.28-.49.29-.45.8-1.5.09-.18.04-.34-.02-.48L9.1 7.2z"/></symbol>
+        <symbol id="iWeb" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#17181b"/><g fill="none" stroke="#fff" stroke-width="1.5"><circle cx="12" cy="12" r="6.5"/><path d="M5.5 12h13M12 5.5c2 2 2 11 0 13M12 5.5c-2 2-2 11 0 13"/></g></symbol>
+      </defs>
+    </svg>
+
+    <!-- 1 chaos: 40 chats, two orders get lost -->
+    <div class="ov glass o1" data-s="1" data-a=".2" data-b="1.25" data-p0=".3" data-p1="1.05">
+      <div class="hd"><span><svg class="ico"><use href="#iWA"/></svg>محادثات اليوم</span><span class="badge n" data-count="40" data-c0="0" data-c1=".7">0</span></div>
+      <div class="bb">
+        <div class="bub pop gr" data-at=".02">السلام عليكم، بكم هذا؟ <small>8:31</small></div>
+        <div class="bub g pop gr" data-at=".11">متوفر أسود؟ <small>8:33</small></div>
+        <div class="bub r pop gr" data-at=".2" data-lost=".66"><em>طلب</em> أريد الفستان الأسود، لارج، للكرادة <small>8:36</small></div>
+        <div class="bub pop gr" data-at=".3">التوصيل للبصرة شكد؟ <small>8:38</small></div>
+        <div class="bub r pop gr" data-at=".4" data-lost=".76"><em>طلب</em> دزولي ثنين من العطر، البصرة <small>8:40</small></div>
+        <div class="bub g pop gr" data-at=".5">وين طلبي؟؟ <small>8:44</small></div>
+        <div class="bub pop gr" data-at=".58">صورة المنتج رجاءً <small>8:45</small></div>
+      </div>
+      <div class="lostt pop gr" data-at=".82">طلبين حقيقيين، نزلن تحت المحادثات وما رجعلهن أحد.</div>
+    </div>
+
+    <!-- 2 chaos: the wrong size, and the order packed twice -->
+    <div class="ov glass o2" data-s="2">
+      <div class="mis pop gr" data-at="0">
+        <div class="mh"><span class="x">✕</span>غلط بالقياس</div>
+        <div class="cmp">
+          <div class="side"><small>الزبونة طلبت</small><b class="szw ok">لارج</b><span>فستان أسود · زينب</span></div>
+          <div class="neq">≠</div>
+          <div class="side bad"><small>انحط بالكيس</small><b class="szw bad">ميديم</b><span>بالعجلة، بنص الهوسة</span></div>
+        </div>
+      </div>
+      <div class="mis pop gr" data-at=".3">
+        <div class="mh"><span class="x">✕</span>طلب تجهّز مرتين</div>
+        <div class="twins">
+          <div class="lbl"><span class="n">#1042</span><b>حسين · عطر</b><span>البصرة · إنستغرام</span></div>
+          <div class="lbl"><span class="n">#1047</span><b>حسين · عطر</b><span>البصرة · واتساب</span></div>
+          <span class="stamp">مكرر</span>
+        </div>
+      </div>
+      <div class="sum pop gr" data-at=".62"><b>غلط بالقياس =</b><span>راجع</span>+<span>زبونة زعلانة</span>+<span>وقت وفلوس ضايعة</span></div>
+    </div>
+
+    <!-- 3 chaos: what one return really costs -->
+    <div class="ov glass o3" data-s="3">
+      <div class="hd"><span>شكد يكلفك الراجع الواحد؟</span><span class="tag">معدل تقريبي</span></div>
+      <div class="cost pop gr" data-at="0"><span>توصيل الراجع</span><div class="cbar"><i style="--w:100%"></i></div><b class="n">5,000</b></div>
+      <div class="cost pop gr" data-at=".1"><span>إعلان محروق</span><div class="cbar"><i style="--w:60%"></i></div><b class="n">3,000</b></div>
+      <div class="cost pop gr" data-at=".2"><span>بضاعة تتضرر</span><div class="cbar"><i style="--w:40%"></i></div><b class="n">2,000</b></div>
+      <div class="cost pop gr" data-at=".3"><span>تغليف</span><div class="cbar"><i style="--w:20%"></i></div><b class="n">1,000</b></div>
+      <div class="cost pop gr" data-at=".38"><span>وقت الموظف</span><div class="cbar"><i style="--w:20%"></i></div><b class="n">1,000</b></div>
+      <div class="loss pop gr" data-at=".5"><b>كل راجع يكلفك</b><span class="v"><span class="n" data-count="12000" data-c0=".5" data-c1=".75" data-neg="1">0</span> د.ع</span></div>
+      <div class="stats pop gr" data-at=".7">
+        <div><b class="n">15–40%</b><span>نسبة الراجع بالسوق العراقي</span></div>
+        <div><b class="n">480,000</b><span>د.ع بالشهر، إذا يرجعلك <span class="n">10</span> بالأسبوع</span></div>
+      </div>
+      <div class="note pop gr" data-at=".8">أرقام تقريبية لكل راجع بالسوق العراقي، تختلف من متجر لمتجر.</div>
+    </div>
+
+    <!-- 4 chaos: the night count never adds up -->
+    <div class="ov glass o4" data-s="4">
+      <div class="hd"><span>كشف شركة التوصيل · اليوم</span><span class="n" style="color:var(--muted);font-size:12px">23:30</span></div>
+      <div class="row pop gr" data-at=".0"><div>طلبات انطت للمندوب</div><span class="n">27</span></div>
+      <div class="row pop gr" data-at=".14"><div>واصلة</div><span class="n">19</span></div>
+      <div class="row pop gr" data-at=".28"><div>راجعة</div><span class="n">5</span></div>
+      <div class="row pop gr" data-at=".42"><div>ما معروف وين</div><span class="q">؟</span></div>
+      <div class="tot pop gr" data-at=".58"><b>صافي الربح والمصاريف</b><span class="q">؟؟؟</span></div>
+    </div>
+
+    <!-- 5 order: Instagram, WhatsApp and the website pour into one list -->
+    <div class="ov o5" data-s="5" data-p0="-.1" data-p1=".95">
+      <div class="srcs">
+        <div class="sp pop" data-at="0"><svg class="ico"><use href="#iIG"/></svg>إنستا<i class="n" data-count="18" data-c0=".05" data-c1=".7">0</i></div>
+        <div class="sp pop" data-at=".05"><svg class="ico"><use href="#iWA"/></svg>واتساب<i class="n" data-count="23" data-c0=".1" data-c1=".75">0</i></div>
+        <div class="sp pop" data-at=".1"><svg class="ico"><use href="#iWeb"/></svg>موقعك<i class="n" data-count="7" data-c0=".15" data-c1=".7">0</i></div>
+      </div>
+      <div class="flow" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="app oc">
+        <div class="ah"><b>الطلبات</b><span class="live2">مباشر</span></div>
+        <div class="tabs">
+          <span class="tab on">الكل <i class="n" data-count="48" data-c0=".1" data-c1=".75">0</i></span>
+          <span class="tab">جديد <i class="n">12</i></span>
+          <span class="tab">عالقة <i class="n">2</i></span>
+          <span class="tab">بالتوصيل <i class="n">21</i></span>
+        </div>
+        <div class="ord pop gr" data-at=".18"><span class="av" style="background:#f08a24">س<svg class="ico"><use href="#iIG"/></svg></span><div><b>سارة · أربيل</b><small>حقيبة جلد · من الإنستا</small></div><div class="r"><span class="n">42,000</span><span class="chip new">جديد</span></div></div>
+        <div class="ord pop gr" data-at=".32"><span class="av" style="background:#2fb25e">م<svg class="ico"><use href="#iWA"/></svg></span><div><b>مريم · النجف</b><small>شال صوف · من الواتساب</small></div><div class="r"><span class="n">15,000</span><span class="chip new">جديد</span></div></div>
+        <div class="ord pop gr" data-at=".46"><span class="av" style="background:#17181b">ع<svg class="ico"><use href="#iWeb"/></svg></span><div><b>عباس · كربلاء</b><small>ساعة · من موقعك</small></div><div class="r"><span class="n">55,000</span><span class="chip ok">مؤكد</span></div></div>
+        <div class="ord pop gr" data-at=".6"><span class="av" style="background:#2f6fd6">ي<svg class="ico"><use href="#iWA"/></svg></span><div><b>يوسف · الموصل</b><small>حذاء 43 · من الواتساب</small></div><div class="r"><span class="n">38,000</span><span class="chip del">بالتوصيل</span></div></div>
+        <div class="foot pop gr" data-at=".74"><span>اليوم: <span class="n">48</span> طلب، من <span class="n">3</span> أماكن</span><b>ولا طلب ضايع</b></div>
+      </div>
+    </div>
+
+    <!-- 6 order: three promises, one card that changes -->
+    <div class="ov app o6" data-s="6" data-b="1.2">
+      <div class="steps3"><span data-pan="0">ما ينسى</span><span data-pan="1">ما يغلط</span><span data-pan="2">ما يكرر</span></div>
+      <div class="pan" data-pan="0">
+        <div class="ord hot"><span class="av" style="background:#c9a100">م</span><div><b>مريم · النجف</b><small>شال صوف · بلا رد من 6 ساعات</small></div><div class="r"><span class="n">15,000</span><span class="chip stk">عالق</span></div></div>
+        <div class="ord"><span class="av" style="background:#c9a100">ي</span><div><b>يوسف · الموصل</b><small>عند المندوب من 4 أيام</small></div><div class="r"><span class="n">38,000</span><span class="chip stk">عالق</span></div></div>
+        <div class="bell pop" data-at=".12"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><div><b>عندك طلبين عالقين</b><small>مريم تنتظر ردك من 6 ساعات</small></div></div>
+      </div>
+      <div class="pan" data-pan="1">
+        <div class="wa">
+          <div class="wah"><span class="av">ز</span><div><b>زينب</b><small>واتساب · متصلة</small></div><svg class="ico"><use href="#iWA"/></svg></div>
+          <div class="wab">
+            <div class="wm">أريد الفستان الأسود، <mark data-at=".41">قياس لارج</mark></div>
+            <div class="wm"><mark data-at=".45">زينب كاظم</mark>، <mark data-at=".49">بغداد الكرادة</mark>، قرب ساحة الواثق</div>
+            <div class="wm out">تدللين 🌷 هسه نجهزه</div>
+            <div class="scan" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="chk">
+          <div class="fld" data-at=".43"><i>✓</i><span>المنتج</span><em>فستان أسود · متوفر</em></div>
+          <div class="fld" data-at=".46"><i>✓</i><span>القياس</span><em>لارج</em></div>
+          <div class="fld" data-at=".5"><i>✓</i><span>العنوان</span><em>بغداد · الكرادة</em></div>
+          <div class="fld" data-at=".53"><i>✓</i><span>الزبون</span><em>زينب كاظم</em></div>
+        </div>
+        <div class="ok-line pop" data-at=".57">✓ تأكد من كلشي. الطلب جاهز يطلع.</div>
+      </div>
+      <div class="pan" data-pan="2">
+        <div class="dup">
+          <div class="ord"><span class="av" style="background:#2fb25e">ح</span><div><b>#1042 · حسين</b><small>عطر 50 مل · إنستغرام · 2:10</small></div><div class="r"><span class="chip ok">مؤكد</span></div></div>
+          <div class="ord d pop" data-at=".72"><span class="av" style="background:#E5243B">ح</span><div><b>#1047 · حسين</b><small>عطر 50 مل · واتساب · 5:25</small></div><div class="r"><span class="chip ret">مكرر؟</span></div></div>
+          <div class="why pop" data-at=".76">نفس الرقم ونفس المنتج، وبينهم 3 ساعات</div>
+          <div class="acts pop" data-at=".8"><span class="p">ادمجهم بطلب واحد</span><span>فعلاً طلبين</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 order: Shield scans a customer -->
+    <div class="ov app o7" data-s="7">
+      <div class="cu pop" data-at="0" data-done=".58">
+        <span class="av">أ</span>
+        <div><b>أحمد ع. · بغداد</b><small>0780 ••• 2291</small><span class="meta">أول طلب عندك · من الواتساب</span></div>
+        <span class="stt" data-done=".58" data-t0="يفحص…" data-t1="انفحص">يفحص…</span>
+        <i class="beam" aria-hidden="true"></i><i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+      </div>
+      <div class="gauge"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="bg" cx="100" cy="100" r="86"/><circle class="fg" id="gFg" cx="100" cy="100" r="86"/></svg>
+        <div class="gn"><b class="n" data-count="32" data-c0=".08" data-c1=".55">0</b><small>نقاط الثقة</small></div></div>
+      <ul class="evs">
+        <li class="pop gr" data-at=".16">رفض <span class="n">3</span> طلبات بمتاجر ثانية</li>
+        <li class="pop gr" data-at=".27">تلفونه مسدود آخر مرة</li>
+        <li class="pop gr" data-at=".38">العنوان «بغداد» بس</li>
+        <li class="g pop gr" data-at=".48">رقم عراقي صحيح</li>
+      </ul>
+      <div class="verd pop gr" data-at=".62"><div><b>اتصل بيه قبل الشحن</b><br><small>مثال توضيحي. فيرمي ينبّهك، والقرار إلك.</small></div><span class="chip ret">خطر عالي</span></div>
+      <div class="proof2 pop gr" data-at=".76">بمتجر عطور حقيقي على فيرمي: نبّه على <b class="n">6</b> طلبات خطرة بـ <span class="n">90</span> يوم، و<b class="n">3</b> منها انوگفت قبل لا تطلع.</div>
+    </div>
+
+    <!-- 8 order: tracking, one colour per status -->
+    <div class="ov app o8" data-s="8">
+      <div class="trk"><b>طلب #1042</b><span class="chip" id="trkChip">تم التأكيد</span></div>
+      <div class="trk2">صفحة التتبع عند زبونك</div>
+      <div class="line4"><div class="fill" id="trkFill"></div>
+        <div class="st" data-st=".02" style="--c:#7c4dff" data-bg="#ece5ff"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>تم التأكيد</div>
+        <div class="st" data-st=".25" style="--c:#f08a24" data-bg="#fdebd7"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></i>انشحن</div>
+        <div class="st" data-st=".5" style="--c:#2f7cf6" data-bg="#dde9fd"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h12v10H2zM14 10h4l3 3v3h-7"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></i>بالطريق</div>
+        <div class="st" data-st="9" style="--c:#2fb25e" data-bg="#dcf3e3"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7v9H3z"/><path d="m9 15 2 2 4-4"/></svg></i>وصل</div>
+      </div>
+      <div class="cust pop" data-at=".55"><span class="av" style="background:#2fb25e">ح</span>حسين فتح الرابط وشاف طلبه. ولا اتصال.</div>
+    </div>
+
+    <!-- 9 order: all the money in one place -->
+    <div class="ov app o9" data-s="9">
+      <div class="dl pop" data-at="0"><i><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>تم التوصيل · طلب #1042<span class="lv">لايف</span></div>
+      <div class="fin">
+        <div class="ring"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="bg" cx="100" cy="100" r="86"/><circle class="fg" id="rFg" cx="100" cy="100" r="86"/></svg>
+          <div class="rn"><b class="n"><span data-count="30" data-c0=".45" data-c1=".85">0</span>%</b><small>هامش ربحك</small></div></div>
+        <div class="kpis">
+          <div class="kpi"><small>المبيعات</small><b class="n" data-count="13000000" data-c0=".08" data-c1=".45">0</b></div>
+          <div class="kpi"><small>المصاريف</small><b class="n neg" data-count="9100000" data-c0=".25" data-c1=".6">0</b></div>
+          <div class="kpi pf"><small>صافي الربح</small><b class="n" data-count="3900000" data-c0=".45" data-c1=".85">0</b></div>
+        </div>
+      </div>
+      <div class="cuts2"><em>محسوبة:</em><span data-at=".3">البضاعة</span><span data-at=".38">التوصيل</span><span data-at=".46">الإعلان</span><span data-at=".54">الراجع</span><span data-at=".62">التغليف</span><span data-at=".7">مصاريف ثانية</span></div>
+      <div class="src">متجر عطور حقيقي على فيرمي، آخر <span class="n">30</span> يوم لحد <span class="n">8/11/2026</span> · المبالغ بالدينار</div>
+    </div>
+
+    <!-- 10 finale: the Fermi logo motion, scrubbed by scroll -->
+    <div class="ov o10" data-s="10" data-b="9">
+      <canvas id="lg" width="360" height="360" aria-hidden="true"></canvas>
+      <div class="nm">فيرمي</div>
+      <div class="sub">جرّبه على طلباتك الحقيقية. <span class="n">7</span> أيام مجاناً بالكامل.</div>
+    </div>
+
+    <div class="hint" id="hint">مرّر للأسفل<i></i></div>
+    <a class="cta" id="cta" href="#pricing" data-signup>جرّب 7 أيام مجاناً</a>
+  </div>
+</section>
+
+<main class="rest" id="after">
+
+  <!-- 1 · more than orders -->
+  <section class="rs" id="more">
+    <div class="rw">
+      <div class="rk">وبعد أكثر</div>
+      <h2 class="rh" data-rv>مو بس طلبات. <span class="hl">شغلك كله بمكان واحد.</span></h2>
+      <p class="swipe"><i></i>8 ميزات، اسحب وشوفهن</p>
+      <div class="feat">
+        <article class="fc wh" data-rv>
+          <span class="pl">بكل الباقات</span>
+          <span class="ic" style="background:#fff1f2;color:#E5243B"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <h3>الدرع: يحمي متجرك من الزبون اللي يرفض</h3>
+          <p>ينبّهك على الطلب الخطر قبل الشحن. وما ينطفي أبداً، حتى لو خلصت تجربتك.</p>
+          <p class="pf"><b>بمتجر عطور حقيقي:</b> نبّه على <span class="n">6</span> طلبات خطرة بـ <span class="n">90</span> يوم، و<span class="n">3</span> منها انوگفت قبل لا تطلع.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl">بكل الباقات</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v9h16v-9M3 6l1.5-2h15L21 6l-1 4H4zM9 19v-5h6v5"/></svg></span>
+          <h3>متجرك جاهز بدقايق</h3>
+          <p><span class="n">6</span> إطلالات جاهزة، بالعربي والإنگليزي والكردي، دومين باسمك، وفورم طلب بنفس صفحة المنتج بالدفع عند الاستلام.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl t">باقة فريق</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg></span>
+          <h3>صافي ربحك الحقيقي</h3>
+          <p>المبيعات مو ربح. فيرمي يطرح البضاعة والراجع والتوصيل والمصاريف، ويطلعلك اللي بقى بجيبك.</p>
+          <p class="pf"><b>نفس المتجر، آخر <span class="n">30</span> يوم:</b> مبيعات <span class="n">13,000,000</span>، صافي <span class="n">3,900,000</span> د.ع.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl t">باقة فريق</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.3 3.3-5 6.5-5s5.7 1.7 6.5 5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 15.3c1.8.7 3 2.3 3.5 4.7"/></svg></span>
+          <h3>فريقك قدام عينك</h3>
+          <p>منو أكّد شكد طلب اليوم، ومنو گاعد. أهداف يومية وصلاحيات لكل موظف.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl">إضافة لباقة فريق · مشمول بأعمال</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 8h4M7 11h7"/></svg></span>
+          <h3>الكاشير: محلك وصفحتك بنظام واحد</h3>
+          <p>نقطة بيع برمز لكل موظف، وسجل لكل خصم وحذف وتغيير سعر. تعرف شنو صار بالمحل وانت بالبيت.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl t">باقة فريق</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></span>
+          <h3>إعلاناتك بالرقم الصح</h3>
+          <p>شكد يكلفك الطلب <b style="color:#fff">الواصل</b>، مو الطلب اللي انكتب بس. وشكد تتحمل تدفع إعلان على الطلب قبل لا تخسر.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl">بكل الباقات</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg></span>
+          <h3>السلات المتروكة</h3>
+          <p>الزبون كتب رقمه وما كمّل؟ الرقم ينحفظ وتگدر تراسله بضغطة.</p>
+          <p class="pf"><b>نفس المتجر:</b> النظام لگى <span class="n">156</span> زبون ما كمّل طلبه، ورقم كل واحد محفوظ.</p>
+        </article>
+        <article class="fc" data-rv>
+          <span class="pl">بكل الباقات</span>
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5V7M15.5 12H17"/></svg></span>
+          <h3>خزينة بياناتك</h3>
+          <p>زبائنك وطلباتك ومنتجاتك تنزل Excel بأي وقت، بدون ما تطلب من أحد. وبباقة فريق نسخة احتياطية كل ليلة. بياناتك إلك، مو إلنا.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · why now -->
+  <section class="rs" id="why">
+    <div class="rw">
+      <div class="rk">ليش هسه</div>
+      <h2 class="rh" data-rv>الإعلان غلى. <span class="hl">الطلب اللي يضيع صار أغلى.</span></h2>
+      <p class="rl" data-rv>الدولار اللي تدفعه للإعلان چان ينحسب <span class="n">1,320</span> دينار، وصار <span class="n">1,520</span>. نفس الإعلان، نفس الطلبات، وفاتورة أكبر. فكل طلب يوصلك لازم يوصل للزبون.</p>
+      <div class="why2">
+        <div class="box" data-rv>
+          <h3>دولار الإعلان بالدينار</h3>
+          <div class="fx2">
+            <div><span>قبل <b class="n">1,320</b></span><i style="--v:86.8%"></i></div>
+            <div><span>هسه <b class="n">1,520</b></span><i style="--v:100%"></i></div>
+          </div>
+          <p class="sm">يعني تقريباً <span class="n">15%</span> زيادة على كل دينار تصرفه بالإعلان، قبل لا يتغير أي شي ثاني.</p>
+        </div>
+        <div class="box calc" data-rv>
+          <h3>احسبها بأرقامك انت</h3>
+          <label for="lossN">طلبات تضيع أو تطلع غلط أو تتكرر بالأسبوع <b class="n" id="lossNv">5</b></label>
+          <input type="range" id="lossN" min="1" max="40" value="5">
+          <label for="lossC">كلفة الطلب الواحد من الإعلان (دينار) <b class="n" id="lossCv">3,000</b></label>
+          <input type="range" id="lossC" min="500" max="12000" step="250" value="3000">
+          <div class="out"><small>فلوس إعلانات تروح بالشهر على طلبات ما كمّلت:</small><b class="n" id="lossOut">64,500</b><em>د.ع</em>
+            <small class="cmp">للمقارنة: باقة فريق <span class="n">25,000</span> د.ع بالشهر + <span class="n">55</span> على الطلب الواصل.</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · who is behind it -->
+  <section class="rs" id="trust">
+    <div class="rw trust2">
+      <div data-rv>
+        <div class="rk">منو ورا فيرمي</div>
+        <p class="qt">خمس سنين وآني تاجر. كل ليلة أطابق الكشف، وكل أسبوع يضيع مني طلب أو يتكرر. فبنيت النظام اللي چنت أحتاجه، وهسه متجري كله يشتغل عليه.</p>
+        <div class="by"><svg viewBox="0 0 114.02 100" aria-hidden="true"><use href="#fsym"/></svg><div><b>علي، مؤسس فيرمي</b><span>تاجر عطور أونلاين، بغداد</span></div></div>
+        <div class="team2">
+          <span><i>م</i><span><b>محمد</b> · يجهّز متجرك وياك</span></span>
+          <span><i>ن</i><span><b>نور</b> · ترد عليك بالواتساب</span></span>
+          <span><i>ك</i><span><b>كرار</b> · يتابع تجربتك</span></span>
+        </div>
+        <p class="newb2"><b>فيرمي جديد، وما نخبّي.</b> وهذا لصالحك: أول التجار ويانا نجهّز متاجرهم بإيدنا، ونسمع منهم كل يوم، واللي يطلبوه ينبني.</p>
+      </div>
+      <ul class="prom" data-rv>
+        <li><b>ولا طلب ينمسح.</b><span>حتى لو خلصت تجربتك وما اشتركت، طلباتك محفوظة وتگدر تشوفها وتشحنها وتصدّرها.</span></li>
+        <li><b>بياناتك تطلع وياك.</b><span>Excel بأي وقت، بدون ما تستأذن.</span></li>
+        <li><b>ما تدفع شي مقدم.</b><span>تسجل برقمك وتبدي. ما اقتنعت؟ ما تدفع ولا دينار.</span></li>
+        <li><b>ما ناخذ على الراجع.</b><span>الـ <span class="n">55</span> دينار على الطلب اللي وصل للزبون بس.</span></li>
+        <li><b>إنسان يرد عليك.</b><span>فريق عراقي بالواتساب، مو روبوت.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 4 · pricing -->
+  <section class="rs" id="pricing">
+    <div class="rw">
+      <div class="rk">الأسعار</div>
+      <h2 class="rh" data-rv>سعر واضح. <span class="hl">تدفع أكثر بس لما تبيع أكثر.</span></h2>
+      <p class="rl" data-rv>اشتراك شهري، و<span class="n">55</span> دينار على كل طلب يوصل للزبون. الراجع عليه صفر.</p>
+      <div class="pcalc" data-rv>
+        <label for="ordN">كم طلب يوصل عندك بالشهر؟ <b class="n" id="ordNv">300</b></label>
+        <input type="range" id="ordN" min="0" max="3000" step="10" value="300">
+        <small>حرّكه، والمجموع الشهري يتحدث تحت كل باقة.</small>
+      </div>
+      <div class="plans2">
+        <article class="pc" data-rv>
+          <h3>بداية <small>Start</small></h3>
+          <p class="who">تبيع وحدك وتريد ترتب شغلك</p>
+          <p class="amt"><b class="n">9,000</b><span>د.ع بالشهر</span></p>
+          <p class="per">+ <b class="n">55</b> د.ع على الطلب الواصل</p>
+          <p class="tot"><span>مجموعك التقريبي</span><span><b class="n" id="totS">25,500</b><em>د.ع</em></span></p>
+          <details><summary>شنو بيها؟</summary><ul>
+            <li>عضوين</li><li>متجر ودومين باسمك</li><li>صفحة الطلبات كاملة، وفلاتر عالقة ومكررين وخطر</li>
+            <li>صوّر المحادثة، والطلب يتعبّى</li><li>الدرع ينبّهك على الطلب الخطر</li><li>ربط برايم وملصقات وتصدير للشحن</li><li>تصدير Excel بأي وقت</li>
+          </ul></details>
+          <button class="rb lt" data-signup>جرّب 7 أيام مجاناً</button>
+        </article>
+        <article class="pc star" data-rv>
+          <span class="rec">ننصح بيها</span>
+          <h3>فريق <small>Team</small></h3>
+          <p class="who">عندك موظفين وتعلن، وتريد تسيطر</p>
+          <p class="amt"><b class="n">25,000</b><span>د.ع بالشهر</span></p>
+          <p class="per">+ <b class="n">55</b> د.ع على الطلب الواصل</p>
+          <p class="tot"><span>مجموعك التقريبي</span><span><b class="n" id="totT">41,500</b><em>د.ع</em></span></p>
+          <details open><summary>شنو بيها؟</summary><ul>
+            <li class="hd">كلشي بباقة بداية، وفوگها:</li><li><span class="n">6</span> أعضاء، وتشوف نشاط كل واحد</li><li>تأكيد وتذكير واتساب تلقائي</li>
+            <li>الدرع يوگّف الطلب الخطر وحده قبل الشحن</li><li>صافي الربح بالتفصيل</li><li>فلوسك عند المندوب وكشوفات برايم</li>
+            <li>كلفة الطلب الواصل من إعلاناتك</li><li>نسخة احتياطية كل ليلة</li>
+          </ul></details>
+          <button class="rb" data-signup>جرّب 7 أيام مجاناً</button>
+        </article>
+        <article class="pc" data-rv>
+          <h3>أعمال <small>Business</small></h3>
+          <p class="who">فريق كبير، أو عندك محل ويا الصفحة</p>
+          <p class="amt"><b class="n">89,000</b><span>د.ع بالشهر</span></p>
+          <p class="per">+ <b class="n">40</b> د.ع على الطلب الواصل</p>
+          <p class="tot"><span>مجموعك التقريبي</span><span><b class="n" id="totB">101,000</b><em>د.ع</em></span></p>
+          <details><summary>شنو بيها؟</summary><ul>
+            <li class="hd">كلشي بباقة فريق، وفوگها:</li><li><span class="n">20</span> عضو</li><li>الكاشير، وأول فرع مشمول</li>
+            <li>رواتب وأهداف وتوقعات الشهر</li><li>مدير حساب، وننقل بياناتك عنك</li>
+          </ul></details>
+          <button class="rb lt" data-signup>جرّب 7 أيام مجاناً</button>
+        </article>
+      </div>
+      <div class="fine2">
+        <p>التجربة على باقة فريق كاملة، حتى تشوف كلشي قبل لا تختار.</p>
+        <p>رسائل الواتساب التلقائية تنخصم من محفظتك بسعر الرسالة. بالتجربة علينا.</p>
+        <p>إضافات: عضو زيادة <span class="n">5,000</span> بالشهر. فرع كاشير <span class="n">15,000</span> بالشهر.</p>
+        <p>الدفع بتحويل كي كارد. تحوّل، ترسل الوصل، ونفعّل باقتك.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · the 7 days -->
+  <section class="rs" id="trial">
+    <div class="rw">
+      <div class="rk">شنو يصير بعد ما تسجل</div>
+      <h2 class="rh" data-rv><span class="n">7</span> أيام. <span class="hl">وهذا اللي يصير بيها.</span></h2>
+      <ol class="tl2">
+        <li data-rv><span class="d">1</span><div class="c"><small>اليوم · دقيقتين</small><h3>تسجل ومتجرك يفتح</h3><p>شنو تبيع، اسم متجرك، ورقم واتسابك. بس. بدون أي دفع.</p></div></li>
+        <li data-rv><span class="d">2</span><div class="c"><small>أول يوم · ويانا أو وحدك</small><h3>نجهّزه وياك</h3><p>تريد مساعدة؟ محمد ينقل منتجاتك وياك ويربط شركة التوصيل. تريد تسويها وحدك؟ عادي.</p></div></li>
+        <li data-rv><span class="d">3</span><div class="c"><small>اليوم 1 لـ 7 · بدون حد طلبات</small><h3>تشتغل عليه صدگ</h3><p>طلباتك الحقيقية، بكل ميزات باقة فريق. بدون عمولة على أي طلب بالتجربة.</p></div></li>
+        <li data-rv><span class="d">4</span><div class="c"><small>اليوم 5 · تقرير</small><h3>تشوف شنو تغيّر</h3><p>كم طلب دخل، كم واحد طلّعه فلتر «عالقة»، وكم مكرر نبّهك عليه. بأرقام متجرك انت.</p></div></li>
+        <li data-rv><span class="d">5</span><div class="c"><small>اليوم 7 · القرار إلك</small><h3>تختار باقة، أو توگف</h3><p>ما اشتركت؟ طلباتك كلها محفوظة، وتگدر تشوفها وتشحنها وتصدّرها. ومتجرك يبقى يستقبل <span class="n">50</span> طلب بعد.</p></div></li>
+      </ol>
+      <div style="margin-top:26px">
+        <button class="rb" data-signup>ابدي تجربتك المجانية</button>
+        <p class="notes"><span>7 أيام كاملة</span><span>بدون دفع مقدم</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · questions -->
+  <section class="rs" id="faq">
+    <div class="rw">
+      <div class="rk">أسئلة</div>
+      <h2 class="rh" data-rv>اللي يسأله كل تاجر <span class="hl">قبل لا يسجل.</span></h2>
+      <div class="faq2">
+        <details><summary>شنو يصير بعد الـ 7 أيام إذا ما اشتركت؟</summary><p>لوحة التحكم تنقفل، بس تبقى تگدر تشوف طلباتك وتشحنها وتصدّرها. ومتجرك يبقى يستقبل 50 طلب إضافي. ولا طلب ينمسح. أول ما تشترك، كلشي يرجع مثل ما چان.</p></details>
+        <details><summary>الـ 55 دينار على شنو بالضبط؟</summary><p>على الطلب اللي وصل للزبون واستلمه. الراجع والملغي عليهم صفر. يعني ندفع وياك لما تربح.</p></details>
+        <details><summary>بياناتي وزبائني آمنة؟ وإذا ردت أطلع؟</summary><p>بياناتك ملكك. تنزّل زبائنك وطلباتك ومنتجاتك Excel بأي وقت من خزينة البيانات، بدون ما تطلب من أحد. وتلغي اشتراكك بأي شهر.</p></details>
+        <details><summary>رسائل الواتساب منو يدفعها؟</summary><p>بالتجربة علينا. بعدها كل رسالة تلقائية (تأكيد، تذكير) تنخصم من محفظتك بسعر الرسالة، وتشوف كل رسالة وين راحت. القوالب اليدوية بزر واحد تبقى ببلاش.</p></details>
+        <details><summary>آني ما أفتهم بالتقنية. يصعب عليّ؟</summary><p>إذا تعرف تستخدم الواتساب، تعرف تستخدم فيرمي. أول ما تفتح، دليل بصوت عراقي يمشّيك خطوة بخطوة، وثلاث طلبات تجريبية تتمرن عليها. وإذا تريد، فريقنا يجهّز المتجر وياك وينقل منتجاتك، بدون مقابل.</p></details>
+        <details><summary>شلون أدفع؟</summary><p>بتحويل كي كارد. تحوّل المبلغ، ترسل صورة الوصل، والفريق يفعّل باقتك.</p></details>
+        <details><summary>عندي صفحة إنستا وواتساب بس، ما عندي موقع.</summary><p>هذا أغلب تجارنا. طلبات المحادثات تدخل بصورة: تصوّر المحادثة والطلب يتعبّى. وفوگها يجيك متجر جاهز برابطك، إذا ردت تستخدمه.</p></details>
+        <details><summary>عندي محل. يفيدني؟</summary><p>إي. الكاشير يخلي محلك وصفحتك بنظام واحد: نفس المخزون، ونفس الزبائن، وسجل لكل حركة يسويها الموظف.</p></details>
+        <details><summary>أكو تطبيق لازم أنزّله؟</summary><p>ما تحتاج تنزّل شي. فيرمي يفتح من متصفح موبايلك أو حاسبتك، وتگدر تثبّته على الشاشة الرئيسية مثل أي تطبيق.</p></details>
+        <details><summary>منو انتو؟ ووين مكانكم؟</summary><p>فريق عراقي ببغداد. المؤسس تاجر يبيع أونلاين من 5 سنين، وفيرمي يشتغل على متجره كل يوم. تراسلنا واتساب بأي وقت ونرد عليك بنفسنا.</p></details>
+        <details><summary>أشتغل ويا شركة توصيل غير برايم.</summary><p>تگدر. تصدّر طلباتك للشحن بالصيغة اللي تطلبها شركتك، وتسجل الواصل والراجع بفيرمي. الربط المباشر بزر واحد هسه ويا برايم.</p></details>
+        <details><summary>زبائني يوصلهم واتساب من رقم منو؟</summary><p>من رقم فيرمي، والرسالة مكتوب بيها اسم متجرك ورقمك للتواصل. إذا تريد رقمك الخاص، هذي إضافة مدفوعة.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · final -->
+  <section class="fin2">
+    <div class="rw">
+      <canvas id="lg2" width="300" height="300" aria-hidden="true"></canvas>
+      <h2 data-rv><span class="ln">ما ينسى<span class="dot">.</span></span><span class="ln">ما يغلط<span class="dot">.</span></span><span class="ln">ما يكرر<span class="dot">.</span></span></h2>
+      <p data-rv>جرّبه أسبوع على طلباتك الحقيقية. إذا ما فرق وياك، لا تدفع.</p>
+      <div class="acts2">
+        <button class="rb" data-signup>ابدي تجربتك المجانية</button>
+        <button class="rb gh" data-wa><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#iWA"/></svg>احچي ويانا واتساب</button>
+      </div>
+      <p class="notes"><span>7 أيام كاملة</span><span>بدون دفع مقدم</span><span>طلباتك ما تنمسح</span></p>
+    </div>
+  </section>
+
+  <footer class="foot2">
+    <div class="rw">
+      <div><span class="lg"><svg viewBox="0 0 114.02 100" aria-hidden="true"><use href="#fsym"/></svg>فيرمي</span><span>أقوى نظام طلبات بالعراق</span><span>بغداد، زيونة</span></div>
+      <div><b>تواصل ويانا</b><span>واتساب الشركة</span><span>إنستغرام <span class="n">@fermi.iq</span></span><span>فيسبوك Fermi - فيرمي</span></div>
+      <div><b>للاطمئنان</b><span>شروط الاستخدام</span><span>سياسة الخصوصية</span><span>سياسة الاسترجاع</span></div>
+    </div>
+  </footer>
+</main>
+
+<div class="sbar" id="sbar">
+  <button class="rb" data-signup>جرّب 7 أيام مجاناً</button>
+  <button class="wab2" data-wa aria-label="واتساب"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#iWA"/></svg></button>
+</div>
+
+<div class="shbg" id="shbg" aria-hidden="true">
+  <div class="sh" role="dialog" aria-modal="true" aria-labelledby="shT1">
+    <div class="sh-t"><div class="sh-p" id="shp"><i class="on"></i><i></i><i></i></div><button class="sh-x" id="shx" aria-label="إغلاق">×</button></div>
+    <section data-st="0">
+      <h3 id="shT1">شنو تبيع؟</h3>
+      <p class="hp">حتى نجهّز متجرك على شغلك. تگدر تختار أكثر من وحدة.</p>
+      <div class="opts2" id="types">
+        <button aria-pressed="false">ملابس وأحذية</button><button aria-pressed="false">عطور</button><button aria-pressed="false">تجميل وعناية</button><button aria-pressed="false">إكسسوارات</button>
+        <button aria-pressed="false">بيت وأثاث</button><button aria-pressed="false">إلكترونيات</button><button aria-pressed="false">هدايا وألعاب</button><button aria-pressed="false">شي ثاني</button>
+      </div>
+      <button class="rb" id="go0" disabled>التالي</button>
+    </section>
+    <section data-st="1" hidden>
+      <h3>شنو اسم متجرك؟</h3>
+      <p class="hp">تگدر تغيّره بعدين.</p>
+      <input type="text" id="sName" placeholder="مثلاً: ليالي" autocomplete="off" maxlength="30">
+      <p class="ad">عنوان متجرك راح يكون<b id="sAddr">metjarak.usefermi.com</b></p>
+      <button class="rb" id="go1" disabled>التالي</button>
+    </section>
+    <section data-st="2" hidden>
+      <h3>رقم واتسابك</h3>
+      <p class="hp">نرسلك رمز تأكيد بالواتساب. وهو الرقم اللي نرد عليك منه.</p>
+      <input type="tel" id="sPhone" placeholder="07XX XXX XXXX" inputmode="numeric" autocomplete="tel" maxlength="13">
+      <p class="er" id="sErr"></p>
+      <button class="rb" id="go2">افتح متجري</button>
+      <p class="tn">بدون أي دفع. تجربتك 7 أيام تبدي من هسه.</p>
+    </section>
+  </div>
+</div>
+<div class="toast2" id="toast2" role="status"></div>
+
+
+<script>/* Fermi logo motion engine v2.4 (brand kit) */
+/* Fermi logo motion engine (v2.4): deterministic render(t) on a 2D canvas.
+   Story: a spark ignites the core, a shockwave starts a chain reaction across the lattice,
+   three blocks spin out of the core and lock in place, light sweeps the mark, the name is revealed. */
+function FermiMotion(canvas, o) {
+  o = Object.assign({ layout: 'symbol', bg: true, lattice: true, tagline: true }, o || {});
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const RED = [229, 36, 59], HOT = [255, 242, 236], DIM = [36, 37, 41];
+  const mkc = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w)); c.height = Math.max(1, Math.ceil(h)); return c; };
+  const latinBody = new Path2D(o.latinBodyD || o.latinD), arabicBody = new Path2D(o.arabicBodyD || o.arabicD);
+  // Latin centre-line strokes (polylines, in writing order) with cumulative length and a slot on the write timeline
+  const strokes = (o.latinStrokes || []).map(pts => { const L = [0]; for (let i = 2; i < pts.length; i += 2) L.push(L[L.length - 1] + Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1])); return { pts, L, len: L[L.length - 1] }; });
+  const totalLen = strokes.reduce((a, s) => a + s.len, 0), OV = .24; { let acc = 0; for (const s of strokes) { const a = acc / totalLen, b = (acc + s.len) / totalLen; s.s = a * (1 - OV); s.e = s.s + (b - a) * (1 - OV) + OV; acc += s.len; } }
+  const lDots = (o.latinDots || []).map(([cx, cy, r]) => { let best = null; for (const s of strokes) if (!best || Math.abs(s.pts[0] - cx) < Math.abs(best.pts[0] - cx)) best = s; return { cx, cy, r, at: best ? best.e : 1 }; });
+  const arDots = (o.arabicDots || []).map(d => ({ p: new Path2D(d.d), cx: d.cx, cy: d.cy, r: d.r }));
+  const ink = (o.arabicInk || []).map((v, i, a) => { let n = 0, sum = 0; for (let j = -2; j <= 2; j++) if (a[i + j] != null) { sum += a[i + j]; n++; } return sum / n; });
+  const LVB = o.latinVB, AVB = o.arabicVB; // [w,h]
+
+  // ---------- easing helpers
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const eOutCubic = x => 1 - Math.pow(1 - x, 3);
+  const eInOutCubic = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const eOutBack = (x, s = 1.9) => 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2);
+  const eOutExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+  const spring = x => x <= 0 ? 0 : 1 - Math.exp(-6 * x) * Math.cos(7 * x);
+  const bump = (t, a, b) => { const x = prog(t, a, b); return Math.sin(Math.PI * x); };
+  const mix = (a, b, x) => a.map((v, i) => Math.round(v + (b[i] - v) * x));
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const WHITE = [255, 255, 255];
+  const eSine = x => (1 - Math.cos(Math.PI * clamp(x))) / 2;
+  const invEIO = p => p < .5 ? Math.cbrt(p / 4) : 1 - Math.cbrt(2 * (1 - p)) / 2; // inverse of eInOutCubic
+  const inkY = x => { if (!ink.length) return AVB[1] / 2; const f = clamp(x / AVB[0] * ink.length - .5, 0, ink.length - 1), i = Math.floor(f), j = Math.min(ink.length - 1, i + 1); return ink[i] + (ink[j] - ink[i]) * (f - i); };
+  // how long the names take to appear: longer names get a little more time
+  const DL = o.writeDur || clamp(.62 + totalLen / 1700, .8, 1.4), DA = clamp(.5 + AVB[0] / 400, .7, 1.0);
+
+  // ---------- layout
+  let k, cx0, cy0, cx1, cy1, text = null;
+  if (o.layout === 'symbol') { k = Math.min(W, H) / 330; cx0 = cx1 = W / 2; cy0 = cy1 = H / 2 + 10.5 * k; }
+  else if (o.layout === 'lockup') {
+    const u = H / 1080; k = H / 540;
+    let ls = 150 / 66 * u, as = 140 / 60 * u, gap = 64 * u, rowGap = 30 * u;   // px per viewBox unit: same optical size for every name
+    const fit = (196 * k + gap + Math.max(LVB[0] * ls, AVB[0] * as)) / (W * .84);
+    if (fit > 1) { k /= fit; ls /= fit; as /= fit; gap /= fit; rowGap /= fit; }   // long names: shrink the whole lockup to fit the frame
+    const symW = 196 * k, lw = LVB[0] * ls, lh = LVB[1] * ls, aw = AVB[0] * as, ah = AVB[1] * as;
+    const total = symW + gap + Math.max(lw, aw), left = W / 2 - total / 2;
+    cx0 = W / 2; cy0 = H / 2 + 10.5 * k - 20 * u; cx1 = left + 98 * k; cy1 = cy0;
+    const tx = left + symW + gap, ty = cy1 - 10.5 * k - (lh + rowGap + ah) / 2;
+    text = { u, lat: [tx, ty, ls], ar: [tx, ty + lh + rowGap, as], lw, aw, lh, ah, tag: [W / 2, H * 0.8, Math.round(54 * u)] };
+  } else { // story 9:16
+    const u = W / 1080; k = W / 400; cx0 = cx1 = W / 2; cy0 = cy1 = H * 0.36;
+    let as = 150 / 60 * u, ls = 96 / 66 * u;
+    const fit = Math.max(LVB[0] * ls, AVB[0] * as) / (W * .8); if (fit > 1) { as /= fit; ls /= fit; }
+    const aw = AVB[0] * as, ah = AVB[1] * as, lw = LVB[0] * ls, lh = LVB[1] * ls, top = cy1 + 100 * k;
+    text = { u, stacked: true, ar: [W / 2 - aw / 2, top, as], lat: [W / 2 - lw / 2, top + ah + 40 * u, ls], lw, aw, lh, ah,
+             tag: [W / 2, top + ah + lh + 170 * u, Math.round(58 * u)] };
+  }
+
+  // ---------- small off-screen layers: only as big as the mark and the names, so a frame stays cheap on a phone
+  const SR = Math.ceil(150 * k), off = mkc(2 * SR, 2 * SR), oc = off.getContext('2d');           // the symbol (for the light sweep)
+  const TP = text ? Math.ceil(Math.max(text.lh, text.ah) * .6) + 2 : 0;                          // padding around a name
+  const tcv = text ? mkc(Math.max(text.lw, text.aw) + 2 * TP, Math.max(text.lh, text.ah) + 2 * TP) : null, tc = tcv && tcv.getContext('2d');
+  const maxDist = Math.hypot(W, H);
+  let bgc = null;                                                                                // background, painted once
+  if (o.bg) { bgc = mkc(W, H); const b = bgc.getContext('2d'); b.fillStyle = '#0A0A0B'; b.fillRect(0, 0, W, H);
+    const v = b.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, maxDist * .6);
+    v.addColorStop(0, 'rgba(24,25,28,1)'); v.addColorStop(1, 'rgba(5,5,6,1)'); b.fillStyle = v; b.fillRect(0, 0, W, H); }
+
+  // ---------- lattice (honeycomb of tiny symbols)
+  const nodes = []; let armsP = null, arm1 = null, coreP = null, glowSpr = null, GS = 0, latBase = null, latFinal = null;
+  const wv = 110 * Math.max(W, H) / 1920, latR = t => 26 * k + eOutCubic(prog(t, .4, 2.1)) * maxDist * .62;
+  const lit = (n, R) => clamp(Math.exp(-Math.pow((n.dist - R) / wv, 2)) + (n.dist < R ? .18 * Math.exp(-(R - n.dist) / (maxDist * .35)) : 0));
+  if (o.lattice) {
+    const m = Math.max(W, H) / 1920 * 0.32, d = 300 * m; // same lattice as the brand pattern (bond = 300 symbol units)
+    const a1 = [Math.sqrt(3) * d, 0], a2 = [Math.sqrt(3) / 2 * d, 1.5 * d];
+    for (let i = -30; i < 30; i++) for (let j = -20; j < 20; j++) {
+      const x = W / 2 + i * a1[0] + j * a2[0], y = H / 2 + j * a2[1];
+      for (const [nx, ny, rot] of [[x, y, 0], [x, y - d, Math.PI / 3]])
+        if (nx > -d && nx < W + d && ny > -d && ny < H + d) { const dist = Math.hypot(nx - cx0, ny - cy0);
+          nodes.push({ x: nx, y: ny, rot, cs: Math.cos(rot), sn: Math.sin(rot), dist, vis: 1 - .55 * clamp(dist / maxDist * 1.4) }); }
+    }
+    coreP = new Path2D(); coreP.arc(0, 0, 26 * m, 0, Math.PI * 2); arm1 = new Path2D(); arm1.roundRect(-27 * m, -100 * m, 54 * m, 58 * m, 8 * m);
+    try { armsP = new Path2D(); for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3; armsP.addPath(arm1, new DOMMatrix([Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a), 0, 0])); } }
+    catch (e) { armsP = null; } // older browsers: the three arms are drawn one by one instead
+    GS = Math.ceil(150 * m); glowSpr = mkc(2 * GS, 2 * GS); { const g = glowSpr.getContext('2d'), gr = g.createRadialGradient(GS, GS, 0, GS, GS, 144 * m);
+      gr.addColorStop(0, 'rgba(229,36,59,1)'); gr.addColorStop(1, 'rgba(229,36,59,0)'); g.fillStyle = gr; g.fillRect(0, 0, 2 * GS, 2 * GS); }
+  }
+  // one lattice node: a = how lit it is (0..1), mul = overall visibility, over = only the extra light on top of the unlit layer
+  function node(c, n, a, mul, over) {
+    c.setTransform(n.cs, n.sn, -n.sn, n.cs, n.x, n.y);
+    c.fillStyle = `rgba(255,255,255,${((over ? 0 : .035) + .06 * a) * n.vis * mul})`;
+    if (armsP) c.fill(armsP); else for (let i = 0; i < 3; i++) { const r = n.rot + i * 2 * Math.PI / 3, cs = Math.cos(r), sn = Math.sin(r); c.setTransform(cs, sn, -sn, cs, n.x, n.y); c.fill(arm1); }
+    c.fillStyle = rgba(mix(DIM, RED, a), n.vis * mul * (.55 + .45 * a)); c.fill(coreP);
+    if (a > .25) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = .35 * a * n.vis * mul; c.drawImage(glowSpr, n.x - GS, n.y - GS); c.globalAlpha = 1; }
+  }
+  function bake(R) { const cv = mkc(W, H), c = cv.getContext('2d'); for (const n of nodes) node(c, n, R == null ? 0 : lit(n, R), 1, false); return cv; }
+  // ---------- name timing
+  const T0 = text && text.stacked ? 1.25 : 1.75, tAr = text && text.stacked ? T0 : T0 + .2, tLat = text && text.stacked ? T0 + .18 : T0;
+  const tNamesEnd = Math.max(tLat + DL, tAr + DA), tTag = tNamesEnd - .22, tGl = tNamesEnd + .3;
+  const TAG = ['ما ينسى.', 'ما يغلط.', 'ما يكرر.'];
+  // ask for the tagline font now, so it is ready long before the tagline rises (no fallback-font flash)
+  if (text && o.tagline) { ctx.font = `600 ${text.tag[2]}px "Baloo Bhaijaan 2"`; ctx.measureText(TAG.join(' ')); }
+
+  // ---------- sparks (seeded)
+  let seed = 7; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const sparks = Array.from({ length: 34 }, () => ({ a: rnd() * Math.PI * 2, v: 160 + rnd() * 330, life: .45 + rnd() * .55, s: 1.2 + rnd() * 2.4, d: rnd() * .08 }));
+
+  function symbolShapes(c, cx, cy, kk, t, withFx) {
+    // core
+    const core = prog(t, .30, .78), coreS = (t < .30 ? 0 : (4 / 26) + (1 - 4 / 26) * eOutBack(core, 2.2)) * (1 - .1 * bump(t, .62, .8));
+    const heat = prog(t, .35, 1.25), coreCol = mix(HOT, RED, eOutCubic(heat));
+    if (coreS > 0) { c.fillStyle = rgba(coreCol, 1); c.beginPath(); c.arc(cx, cy, 26 * kk * coreS, 0, Math.PI * 2); c.fill(); }
+    // arms
+    for (let i = 0; i < 3; i++) {
+      const start = .60 + i * .06, dur = .78;
+      const samples = withFx ? [0, .008, .016, .024, .032] : [0];
+      for (let sIdx = samples.length - 1; sIdx >= 0; sIdx--) {
+        const tt = t - samples[sIdx], x = prog(tt, start, start + dur);
+        if (x <= 0) continue;
+        const r = 71 * spring(x), spin = (1 - eOutCubic(clamp(x * 1.25))) * -2.2, sc = .35 + .65 * eOutCubic(clamp(x * 1.6));
+        const alpha = clamp(x * 6) * (sIdx === 0 ? 1 : .16 * (1 - sIdx / samples.length) * clamp((1 - x) * 3));
+        if (alpha <= 0.002) continue;
+        const flash = sIdx === 0 ? Math.exp(-Math.pow((x - .25) / .07, 2)) : 0;
+        const col = mix(mix(HOT, RED, eOutCubic(clamp(x * 2))), HOT, flash * .75);
+        c.save(); c.translate(cx, cy); c.rotate(i * 2 * Math.PI / 3); c.translate(0, -r * kk); c.rotate(spin); c.scale(sc, sc);
+        c.fillStyle = rgba(col, alpha); c.beginPath(); c.roundRect(-27 * kk, -29 * kk, 54 * kk, 58 * kk, 8 * kk); c.fill(); c.restore();
+      }
+    }
+  }
+
+  function render(t) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    if (bgc) ctx.drawImage(bgc, 0, 0); else ctx.clearRect(0, 0, W, H);
+    // symbol position (lockup slides left after blocks lock)
+    const slide = eInOutCubic(prog(t, 1.35, 2.05));
+    const cx = cx0 + (cx1 - cx0) * slide, cy = cy0 + (cy1 - cy0) * slide;
+
+    // lattice chain reaction
+    if (nodes.length) {
+      const fade = prog(t, .2, .6) * (1 - .6 * prog(t, 1.9, 2.8));
+      if (fade > 0) {
+        if (t >= 2.1) { if (!latFinal) latFinal = bake(latR(2.1)); ctx.globalAlpha = fade; ctx.drawImage(latFinal, 0, 0); ctx.globalAlpha = 1; }
+        else { if (!latBase) latBase = bake(null); ctx.globalAlpha = fade; ctx.drawImage(latBase, 0, 0); ctx.globalAlpha = 1;
+          const R = latR(t); for (const n of nodes) { const a = lit(n, R); if (a > .01) node(ctx, n, a, fade, true); }
+          ctx.setTransform(1, 0, 0, 1, 0, 0); }
+      }
+      // soften the lattice around the logo so the mark stays clean (it comes in with the spark, so the empty first frame is even)
+      const ha = eOutCubic(prog(t, .05, .45)), hr = 190 * k;
+      if (ha > 0) { const hole = ctx.createRadialGradient(cx, cy, 0, cx, cy, hr);
+        hole.addColorStop(0, `rgba(10,10,11,${.96 * ha})`); hole.addColorStop(.7, `rgba(10,10,11,${.75 * ha})`); hole.addColorStop(1, 'rgba(10,10,11,0)');
+        ctx.fillStyle = hole; ctx.fillRect(cx - hr, cy - hr, 2 * hr, 2 * hr); }
+      const al = .9 * prog(t, 1.3, 1.9);
+      if (text && al > 0) { const tcx = text.stacked ? W / 2 : text.lat[0] + text.lw / 2, tcy = text.stacked ? (text.ar[1] + text.tag[1]) / 2 : text.lat[1] + (text.lh + text.ah) / 2;
+        const rr = (text.stacked ? W * .55 : text.lw * .9), e = ctx.createRadialGradient(tcx, tcy, 0, tcx, tcy, rr);
+        e.addColorStop(0, `rgba(10,10,11,${al})`); e.addColorStop(.6, `rgba(10,10,11,${al * .7})`); e.addColorStop(1, 'rgba(10,10,11,0)'); ctx.fillStyle = e; ctx.fillRect(tcx - rr, tcy - rr, 2 * rr, 2 * rr); }
+    }
+
+    // spark: pre-ignition flicker + bloom
+    const spark = prog(t, .0, .34);
+    if (t < .9) {
+      const fl = (.6 + .4 * Math.sin(t * 90)) * (t < .34 ? eOutCubic(spark) : 1) * (1 - prog(t, .5, .9));
+      const sr = 70 * k * (.4 + spark), g = ctx.createRadialGradient(cx, cy, 0, cx, cy, sr);
+      g.addColorStop(0, `rgba(255,236,230,${.9 * fl})`); g.addColorStop(.25, `rgba(255,70,90,${.45 * fl})`); g.addColorStop(1, 'rgba(229,36,59,0)');
+      ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(cx - sr, cy - sr, 2 * sr, 2 * sr); ctx.globalCompositeOperation = 'source-over';
+    }
+    // shockwaves
+    for (const [st, a0, w0] of [[.38, .9, 7], [.47, .45, 3]]) {
+      const x = prog(t, st, st + .75); if (x <= 0 || x >= 1) continue;
+      const r = (26 + 230 * eOutCubic(x)) * k;
+      ctx.strokeStyle = `rgba(255,${Math.round(90 - 60 * x)},${Math.round(100 - 50 * x)},${a0 * (1 - x)})`; ctx.lineWidth = w0 * (1 - x) * k * .5 + .5;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    // sparks
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of sparks) {
+      const x = (t - .38 - p.d) / p.life; if (x <= 0 || x >= 1) continue;
+      const dist = (24 + p.v * (1 - Math.pow(1 - x, 2.4)) * .9) * k / 2.4 * 1.4;
+      const prev = (24 + p.v * (1 - Math.pow(1 - Math.max(0, x - .06), 2.4)) * .9) * k / 2.4 * 1.4;
+      const c = mix(HOT, RED, x);
+      ctx.strokeStyle = rgba(c, 1 - x); ctx.lineWidth = p.s * k * .45 * (1 - x * .6); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(p.a) * prev, cy + Math.sin(p.a) * prev); ctx.lineTo(cx + Math.cos(p.a) * dist, cy + Math.sin(p.a) * dist); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // core glow (behind the mark), breathing after it settles
+    if (t > .3) {
+      const settle = prog(t, .9, 1.8);
+      const breathe = t > 2.4 ? .06 * Math.sin((t - 2.4) * 2.2) : 0;
+      const ga = (1 - .7 * settle) * clamp((t - .3) * 4) + .22 * settle + breathe;
+      const gr = (90 + 50 * bump(t, 1.2, 1.9)) * k;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, gr);
+      g.addColorStop(0, `rgba(229,36,59,${.55 * ga})`); g.addColorStop(.45, `rgba(229,36,59,${.16 * ga})`); g.addColorStop(1, 'rgba(229,36,59,0)');
+      ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(cx - gr, cy - gr, gr * 2, gr * 2); ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // the mark, drawn off-screen so the light sweep only touches it
+    const ix = Math.floor(cx), iy = Math.floor(cy), sx = SR + cx - ix, sy = SR + cy - iy;
+    oc.clearRect(0, 0, 2 * SR, 2 * SR);
+    symbolShapes(oc, sx, sy, k, t, true);
+    const sw = prog(t, 1.45, 2.1);
+    if (sw > 0 && sw < 1) {
+      oc.globalCompositeOperation = 'source-atop';
+      const span = 260 * k, px = sx - span + sw * span * 2;
+      const lg = oc.createLinearGradient(px - 60 * k, sy - 60 * k, px + 60 * k, sy + 60 * k);
+      lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(.5, 'rgba(255,255,255,.55)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+      oc.fillStyle = lg; oc.fillRect(0, 0, 2 * SR, 2 * SR); oc.globalCompositeOperation = 'source-over';
+    }
+    ctx.drawImage(off, ix - SR, iy - SR);
+
+    // names: the Latin name is written with light, the Arabic name flows in right to left, the dots land last
+    if (text) {
+      const U = text.u, gl = prog(t, tGl, tGl + .55), bx0 = Math.min(text.lat[0], text.ar[0]), bx1 = Math.max(text.lat[0] + text.lw, text.ar[0] + text.aw);
+      const by0 = Math.min(text.lat[1], text.ar[1]), by1 = Math.max(text.lat[1] + text.lh, text.ar[1] + text.ah), byc = (by0 + by1) / 2;
+      const glint = (c, ox, oy) => { // one leaning red glint crosses both names, edge to edge, once they are written
+        if (gl <= 0 || gl >= 1) return; const gw = 46 * U, tilt = .3, reach = tilt * (by1 - by0) / 2 + 2 * gw;
+        const gx = bx0 - reach + (bx1 - bx0 + 2 * reach) * eInOutCubic(gl);
+        c.save(); c.translate(-ox, -oy);
+        const g = c.createLinearGradient(gx - gw, byc - tilt * gw, gx + gw, byc + tilt * gw); g.addColorStop(0, 'rgba(229,36,59,0)'); g.addColorStop(.5, 'rgba(255,60,84,.88)'); g.addColorStop(1, 'rgba(229,36,59,0)');
+        c.globalCompositeOperation = 'source-atop'; c.fillStyle = g; c.fillRect(gx - reach, by0 - TP, 2 * reach, by1 - by0 + 2 * TP); c.restore(); };
+      if (text.stacked) { flowArabic(t, text.ar, tAr, glint); writeLatin(t, text.lat, tLat, glint); }
+      else { writeLatin(t, text.lat, tLat, glint); flowArabic(t, text.ar, tAr, glint); }
+      if (o.tagline && t > tTag) {
+        const [tx, ty, fs] = text.tag; ctx.font = `600 ${fs}px "Baloo Bhaijaan 2"`; ctx.textBaseline = 'middle'; ctx.direction = 'rtl'; ctx.textAlign = 'right';
+        const words = TAG, sp = fs * .5;
+        const ws = words.map(w => ctx.measureText(w).width), tot = ws.reduce((a, b) => a + b) + sp * 2;
+        let x = tx + tot / 2;
+        words.forEach((w, i) => { // each phrase rises from behind an invisible line; the red one lands last with a soft pulse
+          const a = tTag + i * .2, p = eOutExpo(prog(t, a, a + .6));
+          if (p > 0) {
+            if (i === 2) { const pulse = bump(t, a + .1, a + 1.1); if (pulse > 0) bloom(x - ws[i] / 2, ty, ws[i] * .95, .2 * pulse, true); }
+            ctx.save(); ctx.beginPath(); ctx.rect(x - ws[i] - fs * .2, ty - fs * .8, ws[i] + fs * .4, fs * 1.6); ctx.clip();
+            ctx.fillStyle = rgba(i === 2 ? RED : WHITE, clamp(p * 1.6)); ctx.fillText(w, x, ty + (1 - p) * fs * 1.1); ctx.restore();
+          }
+          x -= ws[i] + sp;
+        });
+      }
+    }
+  }
+
+  // ---------- name reveal helpers
+  function bloom(x, y, r, a, red) { // additive glow: a white-hot pen tip, or a plain red pulse
+    if (a <= 0) return; const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    if (red) { g.addColorStop(0, `rgba(229,36,59,${a})`); g.addColorStop(1, 'rgba(229,36,59,0)'); }
+    else { g.addColorStop(0, `rgba(255,240,234,${.95 * a})`); g.addColorStop(.2, `rgba(255,90,100,${.55 * a})`); g.addColorStop(1, 'rgba(229,36,59,0)'); }
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.globalCompositeOperation = 'source-over';
+  }
+  function heat(c, x, y, r, a) { // freshly written ink is red-hot near the tip and cools to white behind it
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(255,150,130,${a})`); g.addColorStop(.3, `rgba(229,36,59,${.9 * a})`); g.addColorStop(1, 'rgba(229,36,59,0)');
+    c.globalCompositeOperation = 'source-atop'; c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); c.globalCompositeOperation = 'source-over';
+  }
+  function landDot(t, tHit, px, py, pr, draw) { // a dot lands: overshoot, flash, shock ring, then it cools from red to white
+    const q = (t - tHit) / .38; if (q <= 0) return;
+    const sc = q >= 1 ? 1 : Math.max(0, eOutBack(q, 2.8)), cool = prog(t, tHit + .14, tHit + .8);
+    const col = cool <= 0 ? mix(HOT, RED, clamp(q * 2.5)) : mix(RED, WHITE, eInOutCubic(cool));
+    ctx.save(); ctx.translate(px, py); ctx.scale(sc, sc); ctx.translate(-px, -py); ctx.fillStyle = rgba(col, 1); draw(); ctx.restore();
+    const rq = prog(t, tHit, tHit + .5);
+    if (rq > 0 && rq < 1) { ctx.strokeStyle = `rgba(255,70,90,${.8 * (1 - rq)})`; ctx.lineWidth = Math.max(1, pr * .22 * (1 - rq));
+      ctx.beginPath(); ctx.arc(px, py, pr * (1 + 2.4 * eOutCubic(rq)), 0, Math.PI * 2); ctx.stroke(); bloom(px, py, pr * 5, .6 * (1 - rq)); }
+  }
+  function writeLatin(t, [x, y, s], t0, glint) {
+    const u = prog(t, t0, t0 + DL); if (u <= 0) return;
+    const ox = Math.floor(x) - TP, oy = Math.floor(y) - TP;
+    tc.clearRect(0, 0, tcv.width, tcv.height); tc.save(); tc.translate(x - ox, y - oy); tc.scale(s, s);
+    const tips = [];
+    if (u < 1 && strokes.length) {
+      tc.lineWidth = o.latinStrokeW + 1.5; tc.lineJoin = 'round'; tc.strokeStyle = '#fff';
+      for (const st of strokes) { // 1. draw each centre-line as far as the pen has travelled (this is only a mask)
+        const v = clamp((u - st.s) / (st.e - st.s)); if (v <= 0) continue;
+        const Lr = st.len * eSine(v), n = st.L.length; let i = 1;
+        tc.lineCap = v >= 1 ? 'round' : 'butt'; tc.beginPath(); tc.moveTo(st.pts[0], st.pts[1]);
+        while (i < n && st.L[i] <= Lr) { tc.lineTo(st.pts[2 * i], st.pts[2 * i + 1]); i++; }
+        let px = st.pts[2 * i - 2], py = st.pts[2 * i - 1];
+        if (i < n) { const f = (Lr - st.L[i - 1]) / (st.L[i] - st.L[i - 1]); px += (st.pts[2 * i] - px) * f; py += (st.pts[2 * i + 1] - py) * f; tc.lineTo(px, py); }
+        tc.stroke();
+        if (v < 1) tips.push([px, py, Math.pow(Math.sin(Math.PI * v), .6)]);
+      }
+      tc.globalCompositeOperation = 'source-in'; tc.fillStyle = '#fff'; tc.fill(latinBody); tc.globalCompositeOperation = 'source-over'; // 2. keep only the real letter shapes
+      for (const [px, py, a] of tips) heat(tc, px, py, 34, a);                                                                        // 3. heat near each tip
+    } else { tc.fillStyle = '#fff'; tc.fill(latinBody); }
+    tc.restore(); glint(tc, ox, oy); ctx.drawImage(tcv, ox, oy);
+    for (const [px, py, a] of tips) bloom(x + px * s, y + py * s, 24 * s, a);
+    for (const d of lDots) landDot(t, t0 + DL * d.at - .04, x + d.cx * s, y + d.cy * s, d.r * s, () => { ctx.beginPath(); ctx.arc(x + d.cx * s, y + d.cy * s, d.r * s, 0, Math.PI * 2); ctx.fill(); });
+  }
+  function flowArabic(t, [x, y, s], t0, glint) {
+    const u = prog(t, t0, t0 + DA); if (u <= 0) return;
+    const vw = AVB[0], f = vw * .06 + 5, p = eInOutCubic(u), edge = (vw + 2 * f) * (1 - p) - f;
+    const ox = Math.floor(x) - TP, oy = Math.floor(y) - TP;
+    tc.clearRect(0, 0, tcv.width, tcv.height); tc.save(); tc.translate(x - ox, y - oy); tc.scale(s, s); tc.fillStyle = '#fff'; tc.fill(arabicBody);
+    let tip = null;
+    if (u < 1) { // soft right-to-left reveal; the tip follows the ink like a pen
+      const g = tc.createLinearGradient(edge - f, 0, edge + f, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+      tc.globalCompositeOperation = 'destination-in'; tc.fillStyle = g; tc.fillRect(-40, -AVB[1], vw + 80, AVB[1] * 3); tc.globalCompositeOperation = 'source-over';
+      const ex = clamp(edge + f * .5, 0, vw); tip = [ex, inkY(ex), Math.pow(Math.sin(Math.PI * u), .6)];
+      heat(tc, tip[0], tip[1], 38, tip[2]);
+    }
+    tc.restore(); glint(tc, ox, oy); ctx.drawImage(tcv, ox, oy);
+    if (tip) bloom(x + tip[0] * s, y + tip[1] * s, 24 * s, tip[2]);
+    for (const d of arDots) { const th = t0 + DA * invEIO(clamp(1 - (d.cx + f) / (vw + 2 * f))) + .07;
+      landDot(t, th, x + d.cx * s, y + d.cy * s, d.r * s, () => { ctx.translate(x, y); ctx.scale(s, s); ctx.fill(d.p); }); }
+  }
+  const duration = o.layout === 'symbol' ? 3.0 : Math.max(4.6, Math.ceil((tTag + 1.9) * 10) / 10);
+  // the beats of the animation, in seconds, so a sound track can follow them exactly
+  const marks = { duration, spark: [0, .34], hit: .38, blocks: [0, 1, 2].map(i => .60 + i * .06 + .78 * .25), lock: 1.38, sweep: [1.45, 2.1] };
+  if (text) { const vw = AVB[0], f = vw * .06 + 5;
+    marks.latin = [tLat, tLat + DL]; marks.arabic = [tAr, tAr + DA]; marks.tag = [0, 1, 2].map(i => tTag + i * .2); marks.glint = [tGl, tGl + .55];
+    marks.dots = lDots.map(d => tLat + DL * d.at - .04).concat(arDots.map(d => tAr + DA * invEIO(clamp(1 - (d.cx + f) / (vw + 2 * f))) + .07)).sort((x, y) => x - y); }
+  return { render, duration, marks };
+}
+if (typeof module !== 'undefined') module.exports = FermiMotion;
+
+</script>
+<script>
+(function(){
+  var CLIPS=9, PER=72, SHEET=24, COLS=6, FW=480, FH=852;
+  var HOLDS=[1.15,.7,.7,.75,.85,2.1,1.25,.85,1.05,1.0];   /* pause length per scene, in clip units */
+  var VH_PER_UNIT=74;
+  var times=['08:30','15:00','18:00','23:30','06:00','10:00','11:00','17:00','18:00','18:30'];
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var film=$('#film'), cv=$('#cv'), cx=cv.getContext('2d'), bar=$('#bar'), clockT=$('#clock span'), load=$('#load'), hint=$('#hint'), cta=$('#cta');
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function p2(n){return (n<10?'0':'')+n}
+  function cl(v,a,b){return v<a?a:v>b?b:v}
+  function fmt(n){return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+
+  /* ---- timeline: hold1 clip1 hold2 ... clip9 hold10 ---- */
+  var segs=[],u0=0;
+  for(var i=0;i<10;i++){segs.push({hold:true,scene:i+1,a:u0,len:HOLDS[i]});u0+=HOLDS[i];if(i<CLIPS){segs.push({hold:false,clip:i,a:u0,len:1});u0+=1}}
+  var total=u0;
+  film.style.height=CSS.supports('height','1svh')?'calc('+(total*VH_PER_UNIT)+'svh + 100svh)':(total*VH_PER_UNIT+100)+'vh';
+
+  /* local time of scene k: -1..0 incoming clip, 0..1 its pause, 1..2 outgoing clip */
+  function localT(u,k){
+    var h=segs[(k-1)*2];
+    if(u>=h.a&&u<h.a+h.len) return (u-h.a)/h.len;
+    if(u<h.a){var c=segs[(k-1)*2-1];return c&&u>=c.a?-(1-(u-c.a)):-9}
+    var o=segs[(k-1)*2+1];return o&&u<o.a+1?1+(u-o.a):9;
+  }
+
+  /* ---- split headline/sub text into words for the kinetic reveal ---- */
+  function split(el){
+    var out=[];
+    (function walk(node){
+      [].slice.call(node.childNodes).forEach(function(ch){
+        if(ch.nodeType===3){
+          var parts=ch.textContent.split(/(\s+)/);var frag=document.createDocumentFragment();
+          parts.forEach(function(p){if(!p)return;if(/^\s+$/.test(p)){frag.appendChild(document.createTextNode(p));return}
+            var s=document.createElement('span');s.className='w';s.textContent=p;frag.appendChild(s);out.push(s)});
+          node.replaceChild(frag,ch);
+        } else if(ch.nodeType===1){
+          if(ch.classList.contains('n')||ch.classList.contains('rd')){ch.classList.add('w');out.push(ch)} else walk(ch);
+        }
+      });
+    })(el);
+    return out;
+  }
+  var texts=$$('.tx').map(function(el){
+    var words=[];$$('.kt',el).forEach(function(k){words=words.concat(split(k))});
+    return {el:el,s:+el.dataset.s,a:el.dataset.a?+el.dataset.a:-.35,b:el.dataset.b?+el.dataset.b:1.22,words:words,kick:$('.k',el),extra:$$('.proof',el)};
+  });
+  var ovs=$$('.ov').map(function(el){
+    return {el:el,s:+el.dataset.s,a:el.dataset.a?+el.dataset.a:-.3,b:el.dataset.b?+el.dataset.b:1.2,
+      p0:el.dataset.p0?+el.dataset.p0:0,p1:el.dataset.p1?+el.dataset.p1:1,
+      pops:$$('[data-at]',el),dones:$$('[data-done]',el),counts:$$('[data-count]',el),lost:$$('[data-lost]',el),pans:$$('.pan',el),tabs:$$('.steps3 span',el),sts:$$('[data-st]',el)};
+  });
+
+  /* visibility envelope: fade in over 0.22 after a, fade out over 0.22 before b */
+  function env(t,a,b){var f=.22;if(t<=a||t>=b)return 0;return Math.min(1,(t-a)/f,(b-t)/f)}
+
+  /* ---- images: 10 keyframe stills first, then 4 sprite sheets per clip, one clip ahead ---- */
+  var keys=[],sheets=[],ready=0,need=CLIPS*3,curClip=0;
+  for(var k=1;k<=10;k++){var im=new Image();im.src='/landing/v4/k/k'+p2(k)+'.jpg';im.onload=function(){draw(true)};keys.push(im)}
+  function loadClip(c){if(c<0||c>=CLIPS||sheets[c])return;sheets[c]=[];
+    for(var s=1;s<=3;s++){(function(s){var im=new Image();im.decoding='async';
+      im.onload=function(){ready++;status();draw(true);if(ready%3===0)loadClip(nextNeeded())};
+      im.src='/landing/v4/w/c'+p2(c+1)+'-'+s+'.webp';sheets[c][s-1]=im})(s)}}
+  function nextNeeded(){for(var c=curClip;c<CLIPS;c++)if(!sheets[c])return c;for(c=0;c<CLIPS;c++)if(!sheets[c])return c;return -1}
+  function status(){load.textContent=ready<need?(' · '+Math.round(ready/need*100)+'%'):''}
+  function ok(im){return im&&im.complete&&im.naturalWidth>0}
+  function size(){var d=Math.min(window.devicePixelRatio||1,2);cv.width=Math.round(cv.clientWidth*d);cv.height=Math.round(cv.clientHeight*d);draw(true)}
+  function cover(img,sx,sy,sw,sh){var cw=cv.width,ch=cv.height,s=Math.max(cw/sw,ch/sh),w=sw*s,h=sh*s;cx.drawImage(img,sx,sy,sw,sh,(cw-w)/2,(ch-h)/2,w,h)}
+
+  var FM=null,lastLg=-1;
+  try{FM=FermiMotion($('#lg'),{layout:'symbol',bg:false,lattice:false,tagline:false,latinVB:[100,30],arabicVB:[100,30]})}catch(e){FM=null}
+  var lastKey='';
+  function draw(force){
+    var span=film.offsetHeight-window.innerHeight, p=cl(-film.getBoundingClientRect().top/span,0,1), u=p*total;
+    var seg=segs[segs.length-1];for(var i=0;i<segs.length;i++){if(u<segs[i].a+segs[i].len){seg=segs[i];break}}
+    var sceneNow=seg.hold?seg.scene:seg.clip+1+(u-seg.a);
+    bar.style.width=(p*100).toFixed(2)+'%';hint.style.opacity=p>.006?0:1;
+
+    /* picture */
+    var clip,frame,useKey=-1;
+    if(seg.hold){ if(seg.scene===1)useKey=0; else if(seg.scene===10){clip=8;frame=PER-1} else {clip=seg.scene-1;frame=0} }
+    else {clip=seg.clip;frame=Math.min(PER-1,Math.floor((u-seg.a)*PER))}
+    if(clip!==undefined){curClip=clip;if(!reduce){loadClip(clip);loadClip(clip+1)}}
+    var key=useKey+':'+clip+':'+frame;
+    if(force||key!==lastKey){
+      var done=false;
+      if(useKey<0&&!reduce){var sh=sheets[clip],sIm=sh&&sh[Math.floor(frame/SHEET)];if(ok(sIm)){var j=frame%SHEET;cover(sIm,(j%COLS)*FW,Math.floor(j/COLS)*FH,FW,FH);done=true}}
+      if(!done){var kk=keys[useKey>=0?useKey:Math.min(9,Math.round(sceneNow)-1)];if(ok(kk))cover(kk,0,0,kk.naturalWidth,kk.naturalHeight)}
+      lastKey=key;
+    }
+    clockT.textContent=times[Math.min(9,Math.max(0,Math.round(sceneNow)-1))];
+
+    /* words */
+    texts.forEach(function(T){
+      var t=localT(u,T.s), e=env(t,T.a,T.b);
+      if(e<=0){if(T.el.style.visibility!=='hidden')T.el.style.visibility='hidden';return}
+      T.el.style.visibility='visible';
+      var leaving=t>(T.a+T.b)/2, n=T.words.length;
+      T.kick.style.opacity=e.toFixed(3);
+      T.extra.forEach(function(x){x.style.opacity=e.toFixed(3)});
+      T.words.forEach(function(w,i){
+        var k=leaving?(n-1-i):i, v=cl((e*(n+3)-k)/3,0,1);
+        if(reduce){w.style.opacity=e.toFixed(3);return}
+        var d=(1-v);
+        w.style.opacity=v.toFixed(3);
+        w.style.transform='translateY('+(d*(leaving?-.32:.42)).toFixed(3)+'em)';
+        w.style.filter=d>.01?'blur('+(d*9).toFixed(1)+'px)':'none';
+      });
+    });
+
+    /* overlays */
+    ovs.forEach(function(O){
+      var t=localT(u,O.s), e=env(t,O.a,O.b);
+      if(e<=0){if(O.el.style.visibility!=='hidden')O.el.style.visibility='hidden';return}
+      O.el.style.visibility='visible';
+      O.el.style.opacity=e.toFixed(3);
+      O.el.style.transform=reduce?'none':'translateY('+((1-e)*26).toFixed(1)+'px) scale('+(.97+.03*e).toFixed(4)+')';
+      var q=cl((t-O.p0)/(O.p1-O.p0),0,1);       /* inner progress, mostly during the pause */
+      O.pops.forEach(function(el){var on=q>=+el.dataset.at;if(el.classList.contains('on')!==on)el.classList.toggle('on',on)});
+      O.lost.forEach(function(el){el.classList.toggle('lost',q>=+el.dataset.lost)});
+      O.counts.forEach(function(el){var a=+el.dataset.c0,b=+el.dataset.c1,v=cl((q-a)/(b-a),0,1);v=1-Math.pow(1-v,3);
+        el.textContent=(el.dataset.neg&&v>0?'−':'')+fmt(v*+el.dataset.count)});
+      if(O.pans.length){var idx=q<.36?0:q<.69?1:2;
+        O.pans.forEach(function(pn,i){pn.classList.toggle('on',i===idx)});
+        O.tabs.forEach(function(tb,i){tb.classList.toggle('on',i===idx);tb.classList.toggle('done',i<idx)})}
+      O.dones.forEach(function(el){var d=q>=+el.dataset.done;el.classList.toggle('done',d);if(el.dataset.t0)el.textContent=d?el.dataset.t1:el.dataset.t0});
+      if(O.s===9){var rv=cl((q-.45)/.4,0,1);$('#rFg').style.strokeDashoffset=(540-540*.30*(1-Math.pow(1-rv,3))).toFixed(1)}
+      if(O.s===10&&FM){var lt=reduce?1:cl((t+.3)/.95,0,1);lt=Math.round(lt*200)/200;if(lt!==lastLg){lastLg=lt;FM.render(lt*FM.duration)}}
+      if(O.s===7){var fg=$('#gFg');var v=cl((q-.05)/.5,0,1);fg.style.strokeDashoffset=(540-540*.32*(1-Math.pow(1-v,3))).toFixed(1)}
+      if(O.sts.length){var last=-1;O.sts.forEach(function(st,i){var on=q>=+st.dataset.st;st.classList.toggle('on',on);if(on)last=i});
+        O.sts.forEach(function(st,i){st.classList.toggle('now',i===last&&i<3)});
+        var fw=Math.max(0,last)/3*75,fl=$('#trkFill');fl.style.width=fw+'%';fl.style.backgroundSize=(fw>0?75/fw*100:100)+'% 100%';
+        if(last>=0){var cs=O.sts[last],chip=$('#trkChip');chip.textContent=cs.textContent.trim();chip.style.background=cs.dataset.bg;chip.style.color=cs.style.getPropertyValue('--c')}}
+    });
+    cta.classList.toggle('glow',sceneNow>=9.6);
+  }
+  var tick=false;function onScroll(){if(!tick){tick=true;requestAnimationFrame(function(){tick=false;draw()})}}
+  window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',size);
+  if(!reduce)loadClip(0);
+  status();size();
+})();
+</script>
+<script>
+/* page after the film: reveals, calculators, sticky bar, sign-up sheet (hands over to the real sign-up page) */
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return [].slice.call((r||document).querySelectorAll(s))};
+  var SIGNUP_URL='https://app.usefermi.com/signup';
+  var fmt=function(n){return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',')};
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* reveal on scroll */
+  var rv=$$('[data-rv]');
+  if('IntersectionObserver' in window&&!reduce){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px',threshold:.12});
+    rv.forEach(function(el){io.observe(el)});
+  } else rv.forEach(function(el){el.classList.add('in')});
+
+  /* loss calculator */
+  var lN=$('#lossN'),lC=$('#lossC');
+  function loss(){ $('#lossNv').textContent=lN.value; $('#lossCv').textContent=fmt(+lC.value); $('#lossOut').textContent=fmt(lN.value*lC.value*4.3) }
+  lN.addEventListener('input',loss); lC.addEventListener('input',loss); loss();
+
+  /* pricing calculator */
+  var oN=$('#ordN');
+  function price(){ var n=+oN.value; $('#ordNv').textContent=fmt(n);
+    $('#totS').textContent=fmt(9000+55*n); $('#totT').textContent=fmt(25000+55*n); $('#totB').textContent=fmt(89000+40*n) }
+  oN.addEventListener('input',price); price();
+
+  /* final logo: play the brand motion once when it comes into view */
+  var c2=$('#lg2'),FM2=null,played=false;
+  try{FM2=FermiMotion(c2,{layout:'symbol',bg:false,lattice:false,tagline:false,latinVB:[100,30],arabicVB:[100,30]})}catch(e){}
+  if(FM2){
+    FM2.render(reduce?FM2.duration:0);
+    var io2=new IntersectionObserver(function(es){if(es[0].isIntersecting&&!played){played=true;io2.disconnect();
+      if(reduce){FM2.render(FM2.duration);return}
+      var t0=null;(function step(ts){if(t0===null)t0=ts;var t=(ts-t0)/1000;FM2.render(Math.min(t,FM2.duration));if(t<FM2.duration)requestAnimationFrame(step)})(performance.now());}},{threshold:.5});
+    io2.observe(c2);
+  }
+
+  /* sticky bar once the film has scrolled away */
+  var film=$('#film'),sbar=$('#sbar'),fin=$('.fin2');
+  function bar(){var past=film.getBoundingClientRect().bottom<window.innerHeight*.6;var r=fin.getBoundingClientRect();var atFin=r.top<window.innerHeight&&r.bottom>0;
+    sbar.classList.toggle('on',past&&!atFin)}
+  window.addEventListener('scroll',bar,{passive:true}); bar();
+
+  /* toast */
+  var tt;function toast(m){var t=$('#toast2');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2600)}
+  $$('[data-wa]').forEach(function(b){b.addEventListener('click',function(){toast('رقم واتساب فيرمي ينضاف قبل الإطلاق')})});
+
+  /* sign-up sheet */
+  var bg=$('#shbg'),steps=$$('.sh section'),dots=$$('#shp i'),cur=0,last=null;
+  function show(i){cur=i;steps.forEach(function(s,k){s.hidden=k!==i});dots.forEach(function(d,k){d.classList.toggle('on',k<=Math.min(i,2))})}
+  function open(e){if(e)e.preventDefault();last=document.activeElement;show(0);bg.classList.add('on');bg.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';setTimeout(function(){$('#types button').focus()},50)}
+  function close(){bg.classList.remove('on');bg.setAttribute('aria-hidden','true');document.body.style.overflow='';if(last)last.focus()}
+  $$('[data-signup]').forEach(function(b){b.addEventListener('click',open)});
+  $('#shx').addEventListener('click',close); bg.addEventListener('click',function(e){if(e.target===bg)close()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&bg.classList.contains('on'))close()});
+  $$('#types button').forEach(function(b){b.addEventListener('click',function(){b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');
+    $('#go0').disabled=!$$('#types button[aria-pressed=true]').length})});
+  $('#go0').addEventListener('click',function(){show(1);setTimeout(function(){$('#sName').focus()},50)});
+  var tr={'ا':'a','أ':'a','إ':'e','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'th','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','گ':'g','ل':'l','م':'m','ن':'n','ه':'h','ة':'a','و':'w','ي':'y','ى':'a','ئ':'e','ء':'','ؤ':'o','چ':'ch','پ':'p'};
+  function slug(v){var s=v.trim().toLowerCase().split('').map(function(ch){return tr[ch]!==undefined?tr[ch]:ch}).join('').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');return s||'metjarak'}
+  $('#sName').addEventListener('input',function(){var v=this.value;$('#sAddr').textContent=slug(v)+'.usefermi.com';$('#go1').disabled=!v.trim()});
+  $('#go1').addEventListener('click',function(){show(2);setTimeout(function(){$('#sPhone').focus()},50)});
+  $('#go2').addEventListener('click',function(){var p=$('#sPhone').value.replace(/\D/g,'');
+    if(!/^07\d{9}$/.test(p)){$('#sErr').textContent='اكتب الرقم مثل 07XX XXX XXXX';return}
+    $('#sErr').textContent='';
+    /* Hand over to the real sign-up page with what was typed here, plus the ad and referral
+       parameters this page was opened with (utm_*, pain, ref, fbclid), so attribution survives. */
+    var q=new URLSearchParams(),here=new URLSearchParams(location.search);
+    here.forEach(function(v,k){if(/^(utm_[a-z]+|pain|ref|fbclid)$/.test(k))q.set(k,v)});
+    q.set('type',$$('#types button[aria-pressed=true]').map(function(x){return x.textContent}).join('،'));
+    q.set('name',$('#sName').value.trim());q.set('slug',slug($('#sName').value));q.set('phone',p);
+    location.href=SIGNUP_URL+'?'+q.toString()});
+})();
+</script>
+</body>
+</html>

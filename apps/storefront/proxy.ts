@@ -175,6 +175,13 @@ const TENANT_ROOT_FILES: ReadonlySet<string> = new Set([
  */
 const STORE_PATH_HEADER = "x-store-path";
 
+/**
+ * Fermi's own landing page (C2), a static document in public/landing. The
+ * root domain's home serves it; its images, fonts and icons live under a
+ * versioned folder (/landing/v4/) so they can be cached for good.
+ */
+const LANDING_PAGE = "/landing/index.html";
+
 /** "1" when the hub's live preview asked for a page view that tracks nothing. */
 function quietFlag(request: NextRequest): string {
   return request.nextUrl.searchParams.get(QUIET_VIEW_PARAM) === "1" ? "1" : "0";
@@ -225,6 +232,14 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  // www.<root> is not a store: it is the landing page's second address, so it
+  // moves to the bare root with the same path and query.
+  if (!ROOT_IS_LOCAL && (request.method === "GET" || request.method === "HEAD")) {
+    if (host.split(":")[0].trim().toLowerCase() === `www.${ROOT_DOMAIN}`) {
+      return NextResponse.redirect(`https://${ROOT_DOMAIN}${storePath}`, 308);
+    }
+  }
+
   if (!slug && !isCustom) {
     // Root domain — path-based access (/s/[tenant]/...) or landing page
     // Set x-store-base so tenant layout knows to use path-based links
@@ -253,6 +268,17 @@ export function proxy(request: NextRequest) {
         ensureMetaCookies(request, response);
         return response;
       }
+    }
+    // The root domain's home is Fermi's landing page; /pricing is its
+    // pricing section.
+    if (url.pathname === "/") {
+      url.pathname = LANDING_PAGE;
+      return NextResponse.rewrite(url);
+    }
+    if (url.pathname === "/pricing") {
+      url.pathname = "/";
+      url.hash = "pricing";
+      return NextResponse.redirect(url, 307);
     }
     return NextResponse.next();
   }
