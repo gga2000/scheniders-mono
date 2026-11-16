@@ -112,7 +112,7 @@ export function PeakHoursHeatmap({ data }: PeakHoursHeatmapProps) {
                     <>
                         <span className="font-semibold text-foreground">{dayLabels[tooltip.day]}</span> {t("dashboard.heatmap.at")}{' '}
                         <span className="font-semibold text-foreground">{HOUR_LABELS[tooltip.hour]}</span>
-                        {' '}— <span className="font-semibold text-foreground">{tooltip.count} {t("dashboard.heatmap.orders")}</span>
+                        {' '}— <bdi className="font-semibold text-foreground">{tooltip.count} {t("dashboard.heatmap.orders", { count: tooltip.count })}</bdi>
                     </>
                 )}
             </div>

@@ -3,7 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { CityPerformanceMetrics } from "@/lib/analytics/reports-calculations";
-import { MapPin, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Medal } from "lucide-react";
+import { MapPin, ChevronDown, ChevronUp, Medal } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -123,12 +123,15 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                             <div className="relative z-10">
                                 <span className="text-xs font-bold text-muted">#{index + 1}</span>
                                 <h4 className="text-lg font-bold mt-1 text-foreground">{city.city}</h4>
-                                <div className="flex items-baseline gap-2 mt-2">
-                                    <span className="text-2xl font-bold text-foreground tabular-nums">{city.totalOrders}</span>
-                                    <span className="text-xs text-muted">{t("reports.common.orders")}</span>
+                                {/* Count and word in one isolate so an Arabic reader meets the number first. */}
+                                <div className="mt-2">
+                                    <bdi>
+                                        <span className="text-2xl font-bold text-foreground tabular-nums">{city.totalOrders}</span>{" "}
+                                        <span className="text-xs text-muted">{t("reports.channels.orders", { count: city.totalOrders })}</span>
+                                    </bdi>
                                 </div>
                                 <div className="text-xs mt-1 text-muted">
-                                    {t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) })}
+                                    <bdi>{t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) })}</bdi>
                                 </div>
                             </div>
                         </motion.div>
@@ -190,7 +193,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                             </span>
                                         </td>
                                         <td className="py-3 px-4 text-muted">
-                                            {city.avgDeliveryDays > 0 ? t("reports.unit.days", { n: city.avgDeliveryDays.toFixed(1) }) : '-'}
+                                            {city.avgDeliveryDays > 0 ? <bdi>{t("reports.unit.days", { n: city.avgDeliveryDays.toFixed(1) })}</bdi> : '-'}
                                         </td>
                                     </motion.tr>
                                 );

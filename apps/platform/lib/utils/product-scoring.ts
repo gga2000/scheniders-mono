@@ -201,8 +201,10 @@ export function calculateProductScore(
         flags: {
             isDeadStock,
             isSlowMover: rate < 1 / 7 && rate > 0 && !(daysSinceLastSale >= 60),
-            // Nothing on the shelf is never a surplus, even with no recent sales.
-            isOverstocked: availableStock > 0 && daysOfSupply > 90,
+            // Nothing on the shelf is never a surplus, even with no recent sales, and
+            // neither is stock at or under the low-stock line: one card said both
+            // «مخزون منخفض (2)» and «فائض».
+            isOverstocked: availableStock > input.low_stock_threshold && daysOfSupply > 90,
             isUnderstocked: daysOfSupply < 7 && daysOfSupply > 0,
             isNegativeMargin: marginPct < 0,
         },

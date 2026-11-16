@@ -55,7 +55,7 @@ export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-muted font-medium truncate pr-2">{translatedLabel}</span>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-sm font-bold text-foreground whitespace-nowrap">{formatHours(m.avgHours, t)}</span>
+                                    <bdi className="text-sm font-bold text-foreground whitespace-nowrap">{formatHours(m.avgHours, t)}</bdi>
                                     <span className="text-[10px] text-muted whitespace-nowrap">{t("dashboard.avgTime.sample", { count: m.sampleSize })}</span>
                                     {/* DQ-D1: say when rows were dropped rather than
                                         letting the sample quietly shrink. */}

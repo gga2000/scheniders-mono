@@ -206,4 +206,4 @@ export type {
     StockStatus,
 } from '@/types/product';
 
-export { getStockStatus } from '@/types/product';
+export { getStockStatus, getAvailableStock, formatStockCount } from '@/types/product';

@@ -112,7 +112,7 @@ export function BillingSettings() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {exempt ? (
                     <div className="pastel-card p-6">
-                        <p className="text-sm text-muted-foreground">{t("billing.exempt")}</p>
+                        <p className="text-sm text-muted-foreground"><bdi>{t("billing.exempt")}</bdi></p>
                     </div>
                 ) : (
                     <PlanCard

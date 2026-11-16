@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
@@ -13,8 +12,8 @@ import {
     BarChart3,
     Edit,
 } from "lucide-react";
-import { Product, ProductPriceHistory, getStockStatus } from "@/lib/supabase";
-import { formatIQD, formatDate, maskIQD, FINANCIAL_MASK } from "@/lib/utils";
+import { Product, ProductPriceHistory, getAvailableStock, getStockStatus } from "@/lib/supabase";
+import { cn, formatIQD, formatDate, maskIQD, FINANCIAL_MASK } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -50,6 +49,8 @@ export function ProductDetailModal({
     if (!isOpen || !product) return null;
 
     const stockStatus = getStockStatus(product);
+    const available = getAvailableStock(product);
+    const oversold = available < 0 ? -available : 0;
     const profitMargin = product.cost
         ? (((product.price - product.cost) / product.price) * 100).toFixed(1)
         : null;
@@ -285,12 +286,13 @@ export function ProductDetailModal({
                                     </p>
                                     <p className="text-xs text-muted mt-1">{t("products.detail.reservedHint")}</p>
                                 </div>
+                                {/* Below zero is an oversell: named as one, never «متاح 0» under a «مباع بالزيادة» chip. */}
                                 <div className="border-l border-[var(--card-border)] pl-4">
-                                    <p className="text-sm text-muted">{t("products.detail.available")}</p>
-                                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
-                                        {t("products.detail.units", { count: Math.max(0, product.stock_quantity - (product.reserved_quantity || 0)) })}
+                                    <p className="text-sm text-muted">{t(oversold > 0 ? "products.detail.oversold" : "products.detail.available")}</p>
+                                    <p className={cn("text-lg font-bold", oversold > 0 ? "text-red-600 dark:text-red-300" : "text-green-600 dark:text-green-300")}>
+                                        {t("products.detail.units", { count: oversold > 0 ? oversold : available })}
                                     </p>
-                                    <p className="text-xs text-muted mt-1">{t("products.detail.availableHint")}</p>
+                                    <p className="text-xs text-muted mt-1">{t(oversold > 0 ? "products.detail.oversoldHint" : "products.detail.availableHint")}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.lowStockAt")}</p>

@@ -487,6 +487,7 @@ export const en: Record<string, string> = {
     "dashboard.today.sameAsYesterday": "Same as yesterday",
     "dashboard.today.vsYesterday": "vs yesterday:",
     "dashboard.today.ordersCount": "orders",
+    "dashboard.today.ordersCount.one": "order",
 
     // Date Range Filter
     "dashboard.dateRange.today": "Today",
@@ -509,6 +510,8 @@ export const en: Record<string, string> = {
     "dashboard.pipeline.confirmed": "Confirmed",
     "dashboard.pipeline.inTransit": "In Transit",
     "dashboard.pipeline.delivered": "Delivered",
+    "dashboard.pipeline.other": "Other",
+    "dashboard.pipeline.otherHint": "Cancelled, rejected, returned or no answer · {count}",
 
     // Revenue Trend Chart
 
@@ -542,6 +545,7 @@ export const en: Record<string, string> = {
     "dashboard.heatmap.more": "More",
     "dashboard.heatmap.at": "at",
     "dashboard.heatmap.orders": "orders",
+    "dashboard.heatmap.orders.one": "order",
 
     // Avg Time Per Stage
     "dashboard.avgTime.title": "Avg Time Per Stage",
@@ -573,8 +577,7 @@ export const en: Record<string, string> = {
     "dashboard.forecast.projectedRevenue": "Projected Revenue",
     "dashboard.forecast.soFar": "so far",
     "dashboard.forecast.perDay": "/day",
-    "dashboard.forecast.linearProjection": "Linear projection based on",
-    "dashboard.forecast.daySample": "-day sample",
+    "dashboard.forecast.basis": "Linear projection based on a {count}-day sample",
 
     // Rejection Breakdown
     "dashboard.rejection.title": "Rejection by City",
@@ -3300,6 +3303,7 @@ export const en: Record<string, string> = {
     "products.delete.usedByOthersMany": "Used {count} times in other products' bundles, add-ons, related lists or website collections. They will disappear from them.",
     "products.alert.review": "Review",
     "products.alert.leftCount": "{count} left",
+    "products.alert.oversoldCount": "{count} oversold",
     "products.alert.showInList": "Show in the list",
     "products.status.daysShort": "{days}d",
     "products.stock.reservedCount": "{count} reserved",
@@ -4124,6 +4128,8 @@ export const en: Record<string, string> = {
     "products.detail.reservedHint": "In open orders",
     "products.detail.available": "Available",
     "products.detail.availableHint": "Free to sell",
+    "products.detail.oversold": "Oversold",
+    "products.detail.oversoldHint": "Sold more than is on the shelf",
     "products.detail.lowStockAt": "Low-stock alert at",
     "products.actions.menuTooltip": "Product actions",
     "products.variants.addValue": "Add value",
@@ -7068,6 +7074,7 @@ export const en: Record<string, string> = {
     "map.title": "Governorate Map",
     "map.description": "Order distribution across Iraqi governorates",
     "map.orders": "orders",
+    "map.orders.one": "order",
     "map.less": "Less",
     "map.more": "More",
     "map.governorate": "Governorate",
