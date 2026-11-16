@@ -12,6 +12,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
+import { shopFormHref } from "@/lib/shop-actions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -331,7 +332,7 @@ export default function HealthPage() {
                       </td>
                       <td className="p-3 text-center">
                         <Link
-                          href="/billing"
+                          href={shopFormHref(w.tenant_id, "money")}
                           className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-xs font-semibold transition-all border border-[var(--card-border)]"
                         >
                           <Wallet className="w-3 h-3" />

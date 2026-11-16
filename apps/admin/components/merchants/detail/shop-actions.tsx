@@ -6,7 +6,7 @@ import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { freeDaysKind, moreActions, type MoreAction, type ShopFacts } from "@/lib/shop-actions";
+import { freeDaysKind, moreActions, type MoreAction, type ShopFacts, type ShopForm } from "@/lib/shop-actions";
 import type { AdminAction } from "@/types/admin";
 import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
@@ -39,6 +39,8 @@ interface ShopActionsProps {
   /** The lock card holds the store-orders tool; this brings it into view. */
   onGiveOrders: () => void;
   onAddNote: () => void;
+  /** The form a link asked for (shopFormHref), open when the page loads. */
+  startOpen?: ShopForm | null;
 }
 
 /**
@@ -47,10 +49,19 @@ interface ShopActionsProps {
  * will happen, so the press is the confirm. A staff member sees only what
  * their login may do.
  */
-export function ShopActions({ shopId, facts, plan, balance, freeDaysFrom, onGiveOrders, onAddNote }: ShopActionsProps) {
+export function ShopActions({
+  shopId,
+  facts,
+  plan,
+  balance,
+  freeDaysFrom,
+  onGiveOrders,
+  onAddNote,
+  startOpen = null,
+}: ShopActionsProps) {
   const { role } = useAdminAuth();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState<"money" | "days" | "more" | null>(null);
+  const [open, setOpen] = useState<ShopForm | "more" | null>(startOpen);
   const [view, setView] = useState<MoreAction | null>(null);
 
   if (!role) return null;

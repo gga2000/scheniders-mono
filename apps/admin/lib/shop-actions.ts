@@ -73,3 +73,25 @@ export function typedAmount(text: string): number | null {
   const amount = Number(digits);
   return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
 }
+
+/** The two shop page forms a link elsewhere can open: Add money and Give free days. */
+export type ShopForm = "money" | "days";
+
+const FORM_PARAM: Record<ShopForm, string> = { money: "add-money", days: "free-days" };
+
+/**
+ * A link that opens a shop's page with one of its forms ready. The card's
+ * right-click menu and Shops at risk sent "/billing?topup=<id>" and
+ * "?action=extend-trial", which nothing read: staff landed on Billing or the
+ * shop page with no shop or no form, and had to find the shop again.
+ */
+export function shopFormHref(shopId: string, form: ShopForm): string {
+  return `/merchants/${shopId}?action=${FORM_PARAM[form]}`;
+}
+
+/** The form a shop page link asks for. "extend-trial" is the menu's old word for free days. */
+export function shopFormFrom(value: string | null): ShopForm | null {
+  if (value === FORM_PARAM.money) return "money";
+  if (value === FORM_PARAM.days || value === "extend-trial") return "days";
+  return null;
+}

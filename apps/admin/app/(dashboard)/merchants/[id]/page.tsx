@@ -22,7 +22,7 @@ import { RecentOrdersSection } from "@/components/merchants/detail/recent-orders
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopStatusLine } from "@/lib/shop-status";
 import { ShopStatus } from "@/components/merchants/detail/shop-status";
-import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { isSubscriptionRunning, shopFormFrom } from "@/lib/shop-actions";
 import { PLAN_LABELS, PLAN_TIERS, type TenantRestrictions } from "@/types/admin";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
@@ -55,6 +55,8 @@ export default function MerchantDetailPage() {
   const searchParams = useSearchParams();
   const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
+  // "Top Up Wallet" or "Extend Trial" from a card's menu, or "Top Up" on Shops at risk.
+  const [startForm] = useState(() => shopFormFrom(searchParams.get("action")));
   // "Add a note" opens the Timeline with the note box ready to type in.
   const [focusNote, setFocusNote] = useState(false);
   // "View as merchant" opens the merchant's own app; the server only allows it with handle_support.
@@ -217,6 +219,7 @@ export default function MerchantDetailPage() {
           setFocusNote(true);
           setActiveTab("Timeline");
         }}
+        startOpen={startForm}
       />
 
       {tenant.status === "limited" && (
