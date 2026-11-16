@@ -5,12 +5,13 @@ import { Hourglass } from "lucide-react";
 import { useTenant } from "@/hooks/use-tenant";
 import { useLanguage } from "@/hooks/use-language";
 import { isBillingExempt } from "@/lib/billing-exempt";
-import { BILLING_SETTINGS_PATH } from "@/lib/billing/lock-routes";
+import { BILLING_PAY_PATH } from "@/lib/billing/lock-routes";
 import { daysUntil } from "@/components/settings/billing/billing-format";
 
 /**
  * The trial countdown in the top bar (handoff A1): always in view while the
- * free trial runs, so its end is never a surprise. Opens the billing page.
+ * free trial runs, so its end is never a surprise. Opens the billing page
+ * with the top-up form open (Fermi B3 pay screen).
  * Once the trial has ended the lock line takes over.
  */
 export function TrialChip() {
@@ -21,7 +22,7 @@ export function TrialChip() {
     if (daysLeft === null) return null;
     return (
         <Link
-            href={BILLING_SETTINGS_PATH}
+            href={BILLING_PAY_PATH}
             data-testid="trial-chip"
             className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
         >

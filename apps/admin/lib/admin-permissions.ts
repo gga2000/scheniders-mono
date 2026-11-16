@@ -33,6 +33,14 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         messages. Super admins only: every shop sends from
  *                         one number, and resuming a shop whose messages
  *                         mostly fail risks that number for all of them.
+ *   check_payments      — approve or refuse a shop's transfer receipt (Fermi
+ *                         B3): approving adds what really arrived to the
+ *                         shop's wallet, refusing tells the shop why. Open to
+ *                         support_staff on purpose: the handoff gives transfers
+ *                         to Karrar (Mohammed backs up). Each request credits
+ *                         once, under its own key, and every decision is in
+ *                         the staff log. A top-up without a receipt stays
+ *                         `top_up_wallet`, super admins only.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -56,6 +64,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "link_prime",
     "handle_support",
     "pause_whatsapp",
+    "check_payments",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -67,6 +76,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "convert_lead",
     "link_prime",
     "handle_support",
+    "check_payments",
   ]),
 };
 

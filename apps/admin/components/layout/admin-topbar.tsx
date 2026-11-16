@@ -10,6 +10,7 @@ import { usePageHeader } from "@/store/use-page-header";
 const PAGE_TITLES: Record<string, string> = {
   "/": "Command Center",
   "/merchants": "Merchants",
+  "/payments": "Payments to check",
   "/leads": "Prospects",
   "/team": "Team",
   "/billing": "Billing",

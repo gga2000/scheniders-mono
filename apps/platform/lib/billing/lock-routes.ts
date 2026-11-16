@@ -14,3 +14,6 @@ export function isOpenWhileLocked(pathname: string | null | undefined, settingsS
 
 /** The billing page, where a locked shop pays or tops up its wallet. */
 export const BILLING_SETTINGS_PATH = "/settings?section=billing";
+
+/** The billing page with the top-up form already open (Fermi B3 pay screen). */
+export const BILLING_PAY_PATH = "/settings?section=billing&pay=1";

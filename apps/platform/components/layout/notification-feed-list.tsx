@@ -145,8 +145,13 @@ export function NotificationFeedList({
                 return t("notifications.msgWalletLow", "Wallet is running low");
             case "wallet.topup_approved":
                 return t("notifications.wallet.topupApproved", { amount: money(payloadNumber(n, "amount")) });
-            case "wallet.topup_rejected":
-                return t("notifications.wallet.topupRejected", { amount: money(payloadNumber(n, "amount")) });
+            case "wallet.topup_rejected": {
+                // Our team's reason, when they gave one (every refusal since Fermi B3 has one).
+                const reason = payloadText(n, "reason");
+                return reason
+                    ? t("notifications.wallet.topupRejectedReason", { amount: money(payloadNumber(n, "amount")), reason })
+                    : t("notifications.wallet.topupRejected", { amount: money(payloadNumber(n, "amount")) });
+            }
             case "wallet.auto_refill_failed":
                 return t(
                     n.payload.card_removed === true

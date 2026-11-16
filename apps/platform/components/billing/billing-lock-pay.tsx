@@ -6,7 +6,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { usePayBillingLock, type BillingLock } from "@/hooks/use-billing-lock";
-import { BILLING_SETTINGS_PATH } from "@/lib/billing/lock-routes";
+import { BILLING_PAY_PATH } from "@/lib/billing/lock-routes";
 
 /**
  * The one action a locked shop needs: pay the month from the wallet when it
@@ -31,7 +31,7 @@ export function BillingLockPay({ lock, compact = false }: { lock: BillingLock; c
         return (
             <button
                 type="button"
-                onClick={() => router.push(BILLING_SETTINGS_PATH)}
+                onClick={() => router.push(BILLING_PAY_PATH)}
                 className={cn(base, "inline-flex items-center justify-center gap-2 bg-foreground text-background hover:opacity-90 transition-opacity")}
             >
                 <Wallet className="w-4 h-4" />

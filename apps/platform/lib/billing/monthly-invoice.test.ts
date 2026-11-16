@@ -146,5 +146,12 @@ describe("monthlyInvoiceDocument", () => {
         expect(html).toContain("كي كارد");
         expect(html).toContain("16,000 د.ع");
         expect(html).toContain("لا توجد ضريبة");
+        // Until our team sets the legal name, the brand heads the page.
+        expect(html).toContain('<div class="brand">شنايدر</div>');
+    });
+
+    it("is headed by the legal name our team set", () => {
+        const inv = buildMonthlyInvoice({ month: "2026-11", storeName: "s", displayId: 1, openingBalance: 0, transactions: [] });
+        expect(monthlyInvoiceDocument(inv, "شركة فيرمي")).toContain('<div class="brand">شركة فيرمي</div>');
     });
 });

@@ -7,7 +7,7 @@ import type { PlanLimitsData, SubscriptionData, WalletTransaction } from "@/hook
 import type { TenantSummary } from "@/hooks/use-tenant";
 import type { TopupPaymentDetails, TopupRequest } from "@/hooks/use-wallet-topup";
 import type { QiSavedCard } from "@/hooks/use-qi-topup";
-import { hasRoomForTopup, receiptProblem } from "@/hooks/use-wallet-topup";
+import { hasRoomForTopup, receiptProblem, receiptSha256, suggestedTopup } from "@/hooks/use-wallet-topup";
 import type { BillingLock } from "@/hooks/use-billing-lock";
 import type { AddonChangeResult, AddonKind, PlanChangeResult } from "@/hooks/use-plan-change";
 import type { WhatsAppUsage } from "@/hooks/use-whatsapp-usage";
@@ -28,6 +28,7 @@ const state: {
     planQuote: PlanChangeResult | undefined;
     addonQuote: AddonChangeResult | undefined;
     whatsapp: WhatsAppUsage | undefined;
+    search: string;
 } = {} as never;
 
 const SAVED_CARD: QiSavedCard = {
@@ -148,6 +149,7 @@ vi.mock("@/hooks/use-whatsapp-usage", () => ({
     useWhatsAppUsage: () => ({ data: state.whatsapp }),
 }));
 
+const submitTopup = vi.fn();
 vi.mock("@/hooks/use-wallet-topup", async (importOriginal) => {
     const real = await importOriginal<typeof import("@/hooks/use-wallet-topup")>();
     return {
@@ -156,7 +158,7 @@ vi.mock("@/hooks/use-wallet-topup", async (importOriginal) => {
             paymentDetails: state.payment,
             paymentDetailsLoading: false,
             requests: state.requests,
-            submit: { isPending: false, mutate: vi.fn() },
+            submit: { isPending: false, mutate: submitTopup },
         }),
     };
 });
@@ -179,7 +181,7 @@ vi.mock("@/hooks/use-qi-topup", async (importOriginal) => {
 });
 
 vi.mock("next/navigation", () => ({
-    useSearchParams: () => new URLSearchParams(""),
+    useSearchParams: () => new URLSearchParams(state.search),
     useRouter: () => ({ replace: vi.fn() }),
     usePathname: () => "/settings",
 }));
@@ -204,6 +206,21 @@ function tx(partial: Partial<WalletTransaction>): WalletTransaction {
     };
 }
 
+function request(partial: Partial<TopupRequest>): TopupRequest {
+    return {
+        id: "r",
+        amount_iqd: 25_000,
+        method: "zain_cash",
+        created_at: "2026-11-08T10:00:00Z",
+        decided_at: null,
+        outcome: null,
+        credited_iqd: null,
+        reject_reason: null,
+        receipt_no: null,
+        ...partial,
+    };
+}
+
 function show() {
     return render(<LanguageProvider><BillingSettings /></LanguageProvider>);
 }
@@ -213,7 +230,16 @@ beforeEach(() => {
     state.balance = 20_000;
     state.transactions = [];
     state.trialOrders = 0;
-    state.payment = { zain_cash: "07701234567", qi_card: null };
+    state.payment = {
+        zain_cash: "07701234567",
+        qi_card: null,
+        qi_card_name: null,
+        support_whatsapp: null,
+        working_hours: null,
+        legal_name: null,
+    };
+    state.search = "";
+    submitTopup.mockReset();
     state.requests = [];
     state.qiEnabled = false;
     state.qiCanSaveCard = true;
@@ -363,13 +389,80 @@ describe("BillingSettings", () => {
 
     it("lists the shop's receipts with their state", () => {
         state.requests = [
-            { id: "r1", amount_iqd: 50_000, method: "qi_card", created_at: "2026-11-09T10:00:00Z", decided_at: null, outcome: null },
-            { id: "r2", amount_iqd: 25_000, method: "zain_cash", created_at: "2026-11-08T10:00:00Z", decided_at: "2026-11-08T11:00:00Z", outcome: "approved" },
+            request({ id: "r1", amount_iqd: 50_000, method: "qi_card", created_at: "2026-11-09T10:00:00Z" }),
+            request({ id: "r2", outcome: "approved", decided_at: "2026-11-08T11:00:00Z", credited_iqd: 25_000, receipt_no: 3 }),
         ];
         show();
         const list = screen.getByTestId("topup-requests").textContent ?? "";
         expect(list).toContain("قيد المراجعة");
         expect(list).toContain("أُضيف");
+    });
+
+    it("an approved receipt shows what really arrived and offers its printed receipt", () => {
+        state.requests = [request({ id: "r2", amount_iqd: 10_000, outcome: "approved", decided_at: "2026-11-08T11:00:00Z", credited_iqd: 9000, receipt_no: 3 })];
+        show();
+        const row = screen.getByTestId("topup-request-r2");
+        expect(row.textContent).toMatch(/أرسلت IQD\s10,000، ووصلنا IQD\s9,000/);
+        expect(within(row).getByText("طباعة الوصل")).toBeTruthy();
+    });
+
+    it("a refused receipt says why, and the newest one opens the form to send again", () => {
+        state.requests = [
+            request({ id: "r3", outcome: "rejected", decided_at: "2026-11-09T11:00:00Z", reject_reason: "الوصل مقطوع" }),
+            request({ id: "r4", outcome: "rejected", decided_at: "2026-11-08T11:00:00Z", reject_reason: "حساب آخر" }),
+        ];
+        show();
+        expect(screen.getByTestId("topup-request-r3").textContent).toContain("السبب: الوصل مقطوع");
+        expect(screen.getByTestId("topup-request-r4").textContent).toContain("السبب: حساب آخر");
+        expect(screen.getAllByText("أرسل الوصل مرة ثانية")).toHaveLength(1);
+        expect(screen.queryByTestId("topup-form")).toBeNull();
+        fireEvent.click(screen.getByText("أرسل الوصل مرة ثانية"));
+        expect(screen.getByTestId("topup-form")).toBeTruthy();
+    });
+
+    it("the Qi transfer shows the account name, so the shop can check it before sending", () => {
+        state.payment = { ...state.payment, qi_card: "7111 2222 3333", qi_card_name: "شركة فيرمي" };
+        show();
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        fireEvent.click(screen.getByText("كي كارد"));
+        expect(screen.getByTestId("topup-number").textContent).toBe("7111 2222 3333");
+        expect(screen.getByTestId("topup-account-name").textContent).toBe("باسم: شركة فيرمي");
+        fireEvent.click(screen.getByText("زين كاش"));
+        expect(screen.queryByTestId("topup-account-name")).toBeNull();
+    });
+
+    it("a locked shop opened from the lock screen lands on the form with what its plan still needs", () => {
+        state.search = "section=billing&pay=1";
+        state.balance = 1200;
+        state.lock = { ...LOCK, locked: true, reason: "unpaid", balance_iqd: 1200 };
+        show();
+        expect(screen.getByTestId("topup-form")).toBeTruthy();
+        expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("8000");
+        expect(screen.getByTestId("topup-suggested").textContent).toMatch(/^يكفي IQD\s8,000 لتفعيل باقتك$/);
+    });
+
+    it("a paying shop gets no suggestion and the usual amount", () => {
+        show();
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        expect((screen.getByLabelText("المبلغ الذي حوّلته") as HTMLInputElement).value).toBe("50000");
+        expect(screen.queryByTestId("topup-suggested")).toBeNull();
+    });
+
+    it("after sending, says when we activate it, our working hours and how to reach us", () => {
+        state.payment = { ...state.payment, working_hours: "السبت إلى الخميس، 10 إلى 6", support_whatsapp: "+964 770 123 4567" };
+        submitTopup.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess());
+        show();
+        fireEvent.click(screen.getByText("شحن المحفظة"));
+        const receipt = new File(["x"], "receipt.jpg", { type: "image/jpeg" });
+        fireEvent.change(screen.getByTestId("topup-file"), { target: { files: [receipt] } });
+        fireEvent.click(screen.getByText("إرسال للمراجعة"));
+        expect(submitTopup).toHaveBeenCalledWith({ amount: 50_000, method: "zain_cash", file: receipt }, expect.anything());
+        const sent = screen.getByTestId("topup-sent");
+        expect(sent.textContent).toContain("تم الإرسال، نفعّل خلال ساعة بأوقات الدوام");
+        expect(sent.textContent).toContain("أوقات الدوام: السبت إلى الخميس، 10 إلى 6");
+        expect((within(sent).getByText("راسلنا على واتساب").closest("a") as HTMLAnchorElement).href).toBe("https://wa.me/9647701234567");
+        fireEvent.click(within(sent).getByText("تمام"));
+        expect(screen.queryByTestId("topup-sent")).toBeNull();
     });
 });
 
@@ -579,6 +672,18 @@ describe("receiptProblem", () => {
         const done = { outcome: "approved" as const };
         expect(hasRoomForTopup([waiting, waiting, done, done])).toBe(true);
         expect(hasRoomForTopup([waiting, waiting, waiting, done])).toBe(false);
+    });
+
+    it("hashes the receipt file so staff see the same file sent twice", async () => {
+        expect(await receiptSha256(new Blob(["abc"]))).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    });
+
+    it("suggests what the plan still needs, in whole thousands, never below the smallest top-up", () => {
+        expect(suggestedTopup(9000, 0)).toBe(9000);
+        expect(suggestedTopup(9000, 1200)).toBe(8000);
+        expect(suggestedTopup(9000, 8500)).toBe(1000);
+        expect(suggestedTopup(9000, 9000)).toBeNull();
+        expect(suggestedTopup(null, 0)).toBeNull();
     });
 
     it("takes photos and PDFs up to 5 MB only", () => {

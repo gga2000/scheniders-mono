@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Check, Copy, FileUp, Loader2, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, CheckCircle2, Copy, FileUp, Loader2, MessageCircle, Send } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
@@ -21,25 +21,36 @@ import { ContactSupportButton } from "@/components/support/contact-support-butto
 const AMOUNT_PRESETS = [25_000, 50_000, 100_000, 250_000];
 
 /**
- * Top-up by receipt: the shop sends money by Zain Cash (or Qi, while Qi card
- * payments are not switched on) to our number, uploads the receipt, and our
- * team adds the balance after checking it. With Qi switched on, Qi is paid on
- * Qi's own card page instead (QiPay) and the wallet fills by itself.
+ * Top-up by receipt (Fermi B3): the shop sends money by Qi or Zain Cash
+ * transfer to our number, uploads the receipt, and our team adds the balance
+ * after checking it; a top-up that covers the plan unlocks a locked shop. With
+ * Qi card payments switched on, Qi is paid on Qi's own card page instead
+ * (QiPay) and the wallet fills by itself. `suggestedAmount` is what a locked
+ * shop, or one in its trial, still needs for its plan.
  */
-export function TopupForm({ onDone }: { onDone: () => void }) {
+export function TopupForm({ onDone, suggestedAmount = null }: { onDone: () => void; suggestedAmount?: number | null }) {
     const { t } = useLanguage();
     const { paymentDetails, paymentDetailsLoading, submit } = useWalletTopup();
+    const formRef = useRef<HTMLDivElement>(null);
+    // Opened from a refused receipt or the lock screen: bring the form into view.
+    useEffect(() => {
+        formRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    }, []);
+    const [sent, setSent] = useState(false);
     const { enabled: qiEnabled } = useQiTopup();
     const [picked, setMethod] = useState<TopupMethod | null>(null);
     // Qi by card page when it is switched on; otherwise every method is by receipt.
     const method: TopupMethod = picked ?? (qiEnabled ? "qi_card" : "zain_cash");
     const qiOnline = method === "qi_card" && qiEnabled;
-    const [amount, setAmount] = useState<number>(50_000);
+    const [amount, setAmount] = useState<number>(suggestedAmount ?? 50_000);
     const [file, setFile] = useState<File | null>(null);
     const [copied, setCopied] = useState(false);
     const fileInput = useRef<HTMLInputElement>(null);
 
     const number = paymentDetails?.[method] ?? null;
+    const accountName = method === "qi_card" ? (paymentDetails?.qi_card_name ?? null) : null;
+    // What the plan needs comes first, so one tap picks it.
+    const presets = suggestedAmount !== null && !AMOUNT_PRESETS.includes(suggestedAmount) ? [suggestedAmount, ...AMOUNT_PRESETS] : AMOUNT_PRESETS;
     const amountOk = Number.isInteger(amount) && amount >= TOPUP_MIN_IQD && amount <= TOPUP_MAX_IQD;
     const canSend = !!number && amountOk && !!file && !submit.isPending;
 
@@ -66,10 +77,7 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
         submit.mutate(
             { amount, method, file },
             {
-                onSuccess: () => {
-                    toast.success(t("billing.topup.sent"));
-                    onDone();
-                },
+                onSuccess: () => setSent(true),
                 onError: (err) =>
                     err instanceof TopupWaitingLimitError
                         ? toast.error(t("billing.topup.tooManyWaiting"))
@@ -78,8 +86,44 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
         );
     };
 
+    if (sent) {
+        const hours = paymentDetails?.working_hours ?? null;
+        const whatsapp = paymentDetails?.support_whatsapp?.replace(/\D/g, "") || null;
+        return (
+            <div ref={formRef} className="space-y-3 rounded-xl border border-green-200 bg-green-50/60 p-4 dark:border-green-900 dark:bg-green-950/20" data-testid="topup-sent">
+                <div className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">{t("billing.topup.sent")}</p>
+                        {hours && <p className="text-xs text-muted-foreground"><bdi>{t("billing.topup.hours", { hours })}</bdi></p>}
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    {whatsapp && (
+                        <a
+                            href={`https://wa.me/${whatsapp}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-(--card-border) bg-background py-2 text-sm font-medium hover:bg-muted/30"
+                        >
+                            <MessageCircle className="h-4 w-4" />
+                            {t("billing.topup.whatsapp")}
+                        </a>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onDone}
+                        className="flex-1 rounded-xl bg-green-600 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                    >
+                        {t("billing.topup.done")}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-4 rounded-xl border border-(--card-border) bg-muted/10 p-4" data-testid="topup-form">
+        <div ref={formRef} className="space-y-4 rounded-xl border border-(--card-border) bg-muted/10 p-4" data-testid="topup-form">
             <p className="text-sm font-semibold text-foreground">{t("billing.topup.title")}</p>
 
             <div className="grid grid-cols-2 gap-2">
@@ -109,7 +153,8 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                 {paymentDetailsLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                 ) : number ? (
-                    <div className="flex items-center justify-between rounded-lg border border-(--card-border) bg-background px-3 py-2">
+                    <div className="rounded-lg border border-(--card-border) bg-background px-3 py-2">
+                    <div className="flex items-center justify-between">
                         <span className="text-lg font-bold tabular-nums tracking-wide text-foreground" dir="ltr" data-testid="topup-number">
                             {number}
                         </span>
@@ -121,6 +166,12 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                             {t(copied ? "billing.topup.copied" : "billing.topup.copy")}
                         </button>
+                    </div>
+                    {accountName && (
+                        <p className="mt-1 text-xs text-muted-foreground" data-testid="topup-account-name">
+                            <bdi>{t("billing.topup.accountName", { name: accountName })}</bdi>
+                        </p>
+                    )}
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -135,7 +186,7 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
             <div>
                 <label htmlFor="topup-amount" className="mb-1 block text-xs text-muted-foreground">{t("billing.topup.amount")}</label>
                 <div className="mb-2 flex flex-wrap gap-2">
-                    {AMOUNT_PRESETS.map((a) => (
+                    {presets.map((a) => (
                         <button
                             key={a}
                             type="button"
@@ -161,6 +212,11 @@ export function TopupForm({ onDone }: { onDone: () => void }) {
                     className="w-full rounded-lg border border-(--card-border) bg-background px-3 py-2 text-sm tabular-nums"
                 />
                 {!amountOk && <p className="mt-1 text-xs text-red-600">{t("billing.topup.amountRange")}</p>}
+                {amountOk && suggestedAmount !== null && (
+                    <p className="mt-1 text-xs text-muted-foreground" data-testid="topup-suggested">
+                        {t("billing.topup.suggested", { amount: formatIQD(suggestedAmount) })}
+                    </p>
+                )}
             </div>
 
             <div>
