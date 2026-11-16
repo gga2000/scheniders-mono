@@ -174,7 +174,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                     </span>
                                 )}
                                 {lineChange === null && newCosts.includes(line) && (
-                                    <span className="whitespace-nowrap text-[12px] font-semibold text-rose-600 dark:text-rose-400" dir={dir} data-change={line.id} data-new-cost>
+                                    <span className="whitespace-nowrap text-[12px] font-medium text-muted" dir={dir} data-change={line.id} data-new-cost>
                                         {t("fin.line.newCost")}
                                     </span>
                                 )}
