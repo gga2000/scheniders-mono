@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { refusedShare, type FinanceSummary } from "@/lib/finance/summary";
 import { LOSS_COLOR } from "./colors";
-import { Money, formatWhole } from "./money";
-import { SummaryCard } from "./summary-card";
+import { Money, formatWhole, useMoneyText } from "./money";
+import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 
 interface ReturnedParcelsProps {
     summary: FinanceSummary;
@@ -22,65 +22,77 @@ function returnedSquares(count: number): Set<number> {
 }
 
 /**
- * Parcels refused at the door, drawn as a hundred parcels: the ones that came
- * back in rose. Under it what they cost: the sales that never arrived and the
- * courier's fee on the way back.
+ * Parcels refused at the door: how many of every hundred came back, what that
+ * was worth, then the hundred parcels drawn with the returned ones in rose,
+ * and the courier's fee on the way back when there is one.
  */
 export function ReturnedParcels({ summary }: ReturnedParcelsProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
+    const money = useMoneyText();
     const { refused_orders: refused, refused_value: value, prime_returned_parcels: returnedParcels, prime_returned_fee: fee } = summary.failed;
     const share = refusedShare(summary);
     const ofHundred = share === null ? 0 : Math.round(share * SQUARES);
     const rose = returnedSquares(ofHundred);
 
     return (
-        <SummaryCard title={t("fin.failed.title")} sub={t("fin.failed.sub")} textDir={dir} testId="returned-parcels" className="h-full">
+        <SummaryCard
+            title={t("fin.failed.title")}
+            sub={t("fin.failed.sub")}
+            textDir={dir}
+            testId="returned-parcels"
+            className="h-full"
+            footer={
+                refused > 0 && (
+                    <Link href="/orders?status=rejected" className={CARD_LINK}>
+                        {t("fin.failed.open")}
+                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </Link>
+                )
+            }
+        >
             {refused === 0 ? (
                 <p className="py-2 text-left text-[14px] text-muted" dir={dir}>{t("fin.failed.none")}</p>
             ) : (
                 <>
-                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5">
-                        <div className="grid grid-cols-[repeat(10,13px)] gap-[5px]" role="img" aria-label={t("fin.failed.share", { n: formatWhole(ofHundred) })}>
-                            {Array.from({ length: SQUARES }, (_, i) => (
-                                <span
-                                    key={i}
-                                    className={cn("size-[13px] rounded-[4px]", !rose.has(i) && "bg-emerald-500/25 dark:bg-emerald-400/20")}
-                                    style={rose.has(i) ? { background: LOSS_COLOR } : undefined}
-                                />
-                            ))}
-                        </div>
-                        <div>
-                            <div className="whitespace-nowrap text-left text-[30px] font-bold leading-none tracking-[-0.02em] text-foreground" dir={dir} data-testid="failed-share">
-                                <span className="text-rose-600 dark:text-rose-400" dir="ltr">
-                                    {ofHundred === 0 ? t("fin.failed.lessThanOne") : formatWhole(ofHundred)}
-                                </span>{" "}
-                                {t("fin.failed.back")}
-                            </div>
-                            <p className="mt-2 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
-                                {t("fin.failed.kept", { kept: formatWhole(SQUARES - ofHundred), refused: formatWhole(refused), count: refused })}
-                            </p>
-                        </div>
+                    <div className={cn(CARD_FIGURE, "whitespace-nowrap text-left")} dir={dir} data-testid="failed-share">
+                        <span className="text-rose-600 dark:text-rose-400" dir="ltr">
+                            {ofHundred === 0 ? t("fin.failed.lessThanOne") : formatWhole(ofHundred)}
+                        </span>{" "}
+                        {t("fin.failed.ofHundred")}
                     </div>
-                    <dl className={cn("mt-5 grid gap-3", fee > 0 ? "grid-cols-2" : "grid-cols-1")}>
-                        <div className="rounded-[14px] bg-[var(--background-soft)] px-3.5 py-3">
-                            <dt className="text-left text-[12.5px] text-muted" dir={dir}>{t("fin.failed.value")}</dt>
-                            <dd className="mt-0.5"><Money value={value} className="text-[18px] font-bold text-foreground" /></dd>
-                        </div>
-                        {fee > 0 && (
-                            <div className="rounded-[14px] bg-[var(--background-soft)] px-3.5 py-3" data-testid="failed-fee">
-                                <dt className="text-left text-[12.5px] text-muted" dir={dir}>{t("fin.failed.fee", { n: formatWhole(returnedParcels), count: returnedParcels })}</dt>
-                                <dd className="mt-0.5"><Money value={fee} className="text-[18px] font-bold text-foreground" /></dd>
-                            </div>
-                        )}
-                    </dl>
-                    <Link
-                        href="/orders?status=rejected"
-                        className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current"
+                    <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="failed-cost">
+                        {t("fin.failed.cost", { refused: formatWhole(refused), count: refused, value: money(value) })}
+                    </p>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-[12.5px] text-muted">
+                        <span className="flex items-center gap-1.5">
+                            <span className="size-2.5 rounded-[3px]" style={{ background: LOSS_COLOR }} aria-hidden="true" />
+                            <span dir={dir}>{t("fin.failed.legend.back", { n: formatWhole(ofHundred) })}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <span className="size-2.5 rounded-[3px] bg-emerald-500/25 dark:bg-emerald-400/20" aria-hidden="true" />
+                            <span dir={dir}>{t("fin.failed.legend.kept", { n: formatWhole(SQUARES - ofHundred) })}</span>
+                        </span>
+                    </div>
+                    <div
+                        className="mt-2 grid grid-cols-[repeat(20,minmax(0,1fr))] gap-[4px]"
+                        role="img"
+                        aria-label={t("fin.failed.share", { n: formatWhole(ofHundred) })}
                     >
-                        {t("fin.failed.open")}
-                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                    </Link>
+                        {Array.from({ length: SQUARES }, (_, i) => (
+                            <span
+                                key={i}
+                                className={cn("aspect-square rounded-[3px]", !rose.has(i) && "bg-emerald-500/25 dark:bg-emerald-400/20")}
+                                style={rose.has(i) ? { background: LOSS_COLOR } : undefined}
+                            />
+                        ))}
+                    </div>
+                    {fee > 0 && (
+                        <div className="mt-4 flex items-baseline justify-between gap-4 text-[13px]" data-testid="failed-fee">
+                            <span className="text-left text-muted" dir={dir}>{t("fin.failed.fee", { n: formatWhole(returnedParcels), count: returnedParcels })}</span>
+                            <Money value={fee} className="font-semibold text-foreground" />
+                        </div>
+                    )}
                 </>
             )}
         </SummaryCard>

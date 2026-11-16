@@ -8,15 +8,24 @@ interface SummaryCardProps {
     textDir: "rtl" | "ltr";
     action?: ReactNode;
     children: ReactNode;
+    /** Where to go next: links kept at the bottom of the card, so cards in one row end on one line. */
+    footer?: ReactNode;
     className?: string;
     testId?: string;
 }
 
+/** The one big figure a small card leads with, before its sentence. */
+export const CARD_FIGURE = "text-[30px] font-bold leading-none tracking-[-0.02em] text-foreground";
+
+/** A link at the foot of a card. */
+export const CARD_LINK =
+    "inline-flex items-center gap-1 text-[13px] font-semibold text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current";
+
 /** A white card of the summary page: a plain title, one quiet line under it, then the content. */
-export function SummaryCard({ title, sub, textDir, action, children, className, testId }: SummaryCardProps) {
+export function SummaryCard({ title, sub, textDir, action, children, footer, className, testId }: SummaryCardProps) {
     return (
         <section
-            className={cn("rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 lg:p-6", className)}
+            className={cn("flex flex-col rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 lg:p-6", className)}
             data-testid={testId}
         >
             <header className="mb-4 flex items-start justify-between gap-4">
@@ -27,6 +36,7 @@ export function SummaryCard({ title, sub, textDir, action, children, className, 
                 {action && <div className="shrink-0">{action}</div>}
             </header>
             {children}
+            {footer && <div className="mt-auto flex flex-wrap gap-x-5 gap-y-1 pt-4">{footer}</div>}
         </section>
     );
 }
