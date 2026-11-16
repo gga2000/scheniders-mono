@@ -464,7 +464,7 @@ export function CompetitorsContent({
                 className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-10 h-10 rounded-xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-sm">
                     {name.charAt(0).toUpperCase()}
                   </div>
                   <div>

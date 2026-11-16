@@ -515,7 +515,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
           {/* Header */}
           <div className="flex items-center justify-between gap-3 border-b border-[var(--card-border)] px-5 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF8899]/20 to-[#A78BFA]/20">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground/[0.05]">
                 <UserPlus className="h-5 w-5 text-[#FF8899]" />
               </div>
               <div>
@@ -716,8 +716,8 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || !analyzeHandle.trim()}
                         className={cn(
-                          "flex h-11 items-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-bold text-white transition-all",
-                          "bg-gradient-to-r from-[#FF8899] to-[#A78BFA] hover:brightness-105",
+                          "flex h-11 items-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-bold transition-all",
+                          "bg-foreground text-background hover:opacity-90",
                           (isAnalyzing || !analyzeHandle.trim()) && "cursor-not-allowed opacity-50",
                         )}
                       >
@@ -1264,8 +1264,8 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                 onClick={() => submit(false)}
                 disabled={submitting}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all",
-                  "bg-gradient-to-r from-[#FF8899] to-[#A78BFA] hover:brightness-105",
+                  "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition-all",
+                  "bg-foreground text-background hover:opacity-90",
                   submitting && "cursor-not-allowed opacity-70",
                 )}
               >

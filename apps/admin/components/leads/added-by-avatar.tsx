@@ -77,7 +77,7 @@ export function AddedByAvatar({
           className={cn(
             dimensions,
             text,
-            "rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 ring-2 ring-[var(--card-bg)] flex items-center justify-center text-white font-black shrink-0"
+            "rounded-full bg-foreground/10 ring-2 ring-[var(--card-bg)] flex items-center justify-center text-foreground font-bold shrink-0"
           )}
         >
           {initial}
@@ -101,7 +101,7 @@ export function AddedByAvatar({
                 className="w-7 h-7 rounded-full object-cover shrink-0"
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-black shrink-0">
+              <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold shrink-0">
                 {initial}
               </div>
             )}

@@ -192,7 +192,7 @@ export function LeadsMobileView() {
         </div>
       ) : leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF8899]/15 to-[#A78BFA]/15">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/[0.05]">
             <UserPlus className="h-7 w-7 text-[#FF8899]" />
           </div>
           <p className="text-sm font-bold text-[var(--foreground)]">
@@ -201,7 +201,7 @@ export function LeadsMobileView() {
           <button
             type="button"
             onClick={() => setRegisterOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#FF8899] to-[#A78BFA] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:brightness-105"
+            className="flex items-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm transition-all hover:opacity-90"
           >
             <UserPlus className="h-4 w-4" />
             Add Lead
@@ -243,7 +243,7 @@ export function LeadsMobileView() {
       <button
         type="button"
         onClick={() => setRegisterOpen(true)}
-        className="fixed bottom-6 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF8899] to-[#A78BFA] text-white shadow-lg active:scale-95 transition-transform"
+        className="fixed bottom-6 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background shadow-lg active:scale-95 transition-transform"
         aria-label="Add lead"
       >
         <Plus className="h-7 w-7" />

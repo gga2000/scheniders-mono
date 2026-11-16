@@ -275,7 +275,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                   </span>
                 )}
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FBE38E] to-[#F4C7CF] flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-[var(--primary)]/20 shadow-sm">
+              <div className="w-9 h-9 rounded-full bg-[#FBE38E] flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-[var(--primary)]/20 shadow-sm">
                 {user.avatar_url ? (
                   <img
                     src={user.avatar_url}

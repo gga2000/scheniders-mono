@@ -62,7 +62,7 @@ export function LeadsTableEditBar({
         type="button"
         onClick={onSave}
         disabled={!isDirty || isSaving}
-        className="text-sm px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#FF8899] to-[#A78BFA] font-bold text-white transition-all hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+        className="text-sm px-4 py-1.5 rounded-lg bg-foreground font-bold text-background transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
       >
         {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
         Save for everyone

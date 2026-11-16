@@ -129,7 +129,7 @@ export function LeadMobileDetail() {
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5">
         {/* Avatar + name */}
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF8899] to-[#A78BFA] flex items-center justify-center text-white font-bold text-2xl shrink-0 shadow-lg">
+          <div className="w-14 h-14 rounded-2xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-2xl shrink-0">
             {lead.merchant_name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">

@@ -117,7 +117,7 @@ export default function LeadAnalyticsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#60A5FA]/20 to-[#A78BFA]/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-foreground/[0.05] flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-[#60A5FA]" />
             </div>
             Lead Analytics
@@ -511,7 +511,7 @@ function AnalyticsDashboard({
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#A78BFA] flex items-center justify-center text-xs font-bold text-white">
+                        <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center text-xs font-bold text-foreground">
                           {(emp.display_name ?? "?").charAt(0).toUpperCase()}
                         </div>
                         <span className="font-semibold text-[var(--foreground)]">

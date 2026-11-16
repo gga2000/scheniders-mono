@@ -140,7 +140,7 @@ export function TeamAchievementWall({ employees }: TeamAchievementWallProps) {
                       ) : (
                         <div
                           key={emp.id}
-                          className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white text-xs font-bold"
+                          className="w-6 h-6 rounded-full border-2 border-[var(--card-bg)] bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold"
                           title={emp.display_name ?? emp.email}
                         >
                           {initial}

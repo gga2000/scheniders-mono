@@ -143,7 +143,7 @@ export function LeadDetailDesktop() {
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
           {/* Left: Avatar + name */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF8899] to-[#A78BFA] flex items-center justify-center text-white font-bold text-2xl shrink-0 shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-2xl shrink-0">
               {lead.merchant_name.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -293,7 +293,7 @@ export function LeadDetailDesktop() {
       </div>
 
       {/* ── Prediction Card ──────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-[#A78BFA]/10 to-[#34D399]/10 border border-[#A78BFA]/20 rounded-2xl p-5 md:p-6">
+      <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 md:p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">

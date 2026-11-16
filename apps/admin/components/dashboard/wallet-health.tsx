@@ -132,7 +132,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
 
           {/* Stats row */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="rounded-2xl bg-gradient-to-br from-green-50/80 to-green-100/40 dark:from-green-950/20 dark:to-green-900/10 border border-green-200/50 dark:border-green-800/30 p-3">
+            <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-3">
               <p className="text-xs text-foreground/50 uppercase tracking-wider mb-0.5">
                 Avg Balance
               </p>
@@ -140,7 +140,7 @@ export function WalletHealth({ health }: WalletHealthProps) {
                 {formatIQD(health.avgBalance)}
               </p>
             </div>
-            <div className="rounded-2xl bg-gradient-to-br from-purple-50/80 to-purple-100/40 dark:from-purple-950/20 dark:to-purple-900/10 border border-purple-200/50 dark:border-purple-800/30 p-3">
+            <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-3">
               <p className="text-xs text-foreground/50 uppercase tracking-wider mb-0.5">
                 Median Balance
               </p>

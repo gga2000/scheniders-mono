@@ -106,7 +106,7 @@ export default function TeamMemberDetailPage() {
               className="w-14 h-14 rounded-2xl object-cover shrink-0"
             />
           ) : (
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-purple-600 flex items-center justify-center text-white font-bold text-xl shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-foreground/10 flex items-center justify-center text-foreground font-bold text-xl shrink-0">
               {initial}
             </div>
           )}
