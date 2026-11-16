@@ -56,30 +56,30 @@ const json = (status: number, body: unknown) =>
 
 describe("withCronMonitor", () => {
     beforeEach(() => vi.clearAllMocks());
-    const request = new Request("https://schenidersapp.xyz/api/cron/trial-suspend");
+    const request = new Request("https://schenidersapp.xyz/api/cron/subscription-renew");
 
     it("checks in ok on success and raises nothing", async () => {
-        const handler = withCronMonitor(CRON_MONITORS.trialSuspend, async () => json(200, { success: true }));
+        const handler = withCronMonitor(CRON_MONITORS.subscriptionRenew, async () => json(200, { success: true }));
         const res = await handler(request);
         expect(res.status).toBe(200);
         expect(sentry.captureCheckIn).toHaveBeenCalledWith(
-            expect.objectContaining({ monitorSlug: "trial-suspend", status: "ok" }),
-            expect.objectContaining({ schedule: { type: "crontab", value: "0 6 * * *" }, timezone: "Etc/UTC" }),
+            expect.objectContaining({ monitorSlug: "subscription-renew", status: "ok" }),
+            expect.objectContaining({ schedule: { type: "crontab", value: "0 3 * * *" }, timezone: "Etc/UTC" }),
         );
         expect(sentry.captureMessage).not.toHaveBeenCalled();
         expect(sentry.flush).toHaveBeenCalled();
     });
 
     it("checks in error and raises one grouped issue on a handled 500", async () => {
-        const handler = withCronMonitor(CRON_MONITORS.trialSuspend, async () => json(500, { error: "db down" }));
+        const handler = withCronMonitor(CRON_MONITORS.subscriptionRenew, async () => json(500, { error: "db down" }));
         await handler(request);
         expect(sentry.captureCheckIn).toHaveBeenCalledWith(
-            expect.objectContaining({ monitorSlug: "trial-suspend", status: "error" }),
+            expect.objectContaining({ monitorSlug: "subscription-renew", status: "error" }),
             expect.anything(),
         );
         expect(sentry.captureMessage).toHaveBeenCalledWith(
-            "Job trial-suspend failed (HTTP 500): db down",
-            expect.objectContaining({ fingerprint: ["job-failed", "trial-suspend", "500", "db down"], tags: { job: "trial-suspend" } }),
+            "Job subscription-renew failed (HTTP 500): db down",
+            expect.objectContaining({ fingerprint: ["job-failed", "subscription-renew", "500", "db down"], tags: { job: "subscription-renew" } }),
         );
     });
 
@@ -97,7 +97,7 @@ describe("withCronMonitor", () => {
     });
 
     it("sends no check-in for an unauthenticated call", async () => {
-        const handler = withCronMonitor(CRON_MONITORS.trialSuspend, async () => json(401, { error: "Unauthorized" }));
+        const handler = withCronMonitor(CRON_MONITORS.subscriptionRenew, async () => json(401, { error: "Unauthorized" }));
         await handler(request);
         expect(sentry.captureCheckIn).not.toHaveBeenCalled();
         expect(sentry.captureMessage).not.toHaveBeenCalled();

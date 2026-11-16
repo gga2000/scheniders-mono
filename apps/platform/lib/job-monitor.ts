@@ -43,7 +43,7 @@ const frequent = (slug: string, schedule: string, maxRuntime: number): CronMonit
 export const CRON_MONITORS = {
     backup: daily("backup", "0 0 * * *", 5),
     waseetSync: daily("waseet-sync", "0 12 * * *", 1),
-    trialSuspend: daily("trial-suspend", "0 6 * * *", 1),
+    billingLock: frequent("billing-lock", "17 * * * *", 1),
     subscriptionRenew: daily("subscription-renew", "0 3 * * *", 1),
     cleanupDeletedOrders: daily("cleanup-deleted-orders", "0 1 * * *", 5),
     abandonedCartRecovery: frequent("abandoned-cart-recovery", "*/10 * * * *", 1),
@@ -59,7 +59,7 @@ export const CRON_MONITORS = {
 export const VERCEL_CRON_PATHS: Record<keyof typeof CRON_MONITORS, string | null> = {
     backup: "/api/cron/backup",
     waseetSync: "/api/cron/waseet-sync",
-    trialSuspend: "/api/cron/trial-suspend",
+    billingLock: "/api/cron/billing-lock",
     subscriptionRenew: "/api/cron/subscription-renew",
     cleanupDeletedOrders: "/api/cron/cleanup-deleted-orders",
     abandonedCartRecovery: "/api/cron/abandoned-cart-recovery",

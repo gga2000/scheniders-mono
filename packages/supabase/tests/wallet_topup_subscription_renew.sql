@@ -16,8 +16,8 @@
 --     * calling again with the same expected period end (a retry / an
 --       overlapping cron run) charges nothing and reports already_processed;
 --     * a pending plan change is applied and priced at the new plan;
---     * insufficient balance suspends (past_due + tenant suspended) and a retry
---       does not charge either;
+--     * a month the wallet cannot cover LOCKS the shop (past_due, tenant stays
+--       active, no overdraft: 20261116014641) and a retry does not charge either;
 --     * a second ledger row for the same subscription period is rejected by
 --       uq_wallet_tx_subscription_period;
 --     * anon / authenticated cannot execute renew_subscription_atomic.
@@ -210,22 +210,24 @@ BEGIN
     -- Plan change.
     _e := public.renew_subscription_atomic(pg_temp.id('s1'), _end1);
     PERFORM pg_temp.check('plan change outcome',
-        _e->>'outcome' = CASE WHEN _price_g > 0 AND 30000 - _price_g < -10000 THEN 'suspended' ELSE 'plan_changed' END);
+        _e->>'outcome' = CASE WHEN _price_g > 30000 THEN 'locked' ELSE 'plan_changed' END);
     PERFORM pg_temp.check('pending plan not applied',
         (SELECT plan = 'growth' AND pending_plan IS NULL FROM public.subscriptions WHERE id = pg_temp.id('s1'))
         AND (SELECT plan = 'growth' FROM public.tenants WHERE id = pg_temp.id('t1')));
 
-    -- Insufficient balance: t3 starts at -5,000 IQD, so any starter price above
-    -- 5,000 IQD crosses charge_wallet_atomic's -10,000 IQD overdraft floor.
-    IF -5000 - _price < -10000 THEN
+    -- Insufficient balance: t3 starts at -5,000 IQD. The month is paid only
+    -- from money in the wallet (the overdraft is for per-order fees), so any
+    -- price locks the shop: past_due, tenant still active, nothing charged.
+    IF _price > 0 THEN
         _c := public.renew_subscription_atomic(pg_temp.id('s3'), _end3);
         _d := public.renew_subscription_atomic(pg_temp.id('s3'), _end3);
-        PERFORM pg_temp.check('empty wallet not suspended', _c->>'outcome' = 'suspended');
-        PERFORM pg_temp.check('suspended retry not a no-op', _d->>'outcome' = 'already_processed');
-        PERFORM pg_temp.check('suspension state wrong',
+        PERFORM pg_temp.check('empty wallet not locked', _c->>'outcome' = 'locked');
+        PERFORM pg_temp.check('locked retry not a no-op', _d->>'outcome' = 'already_processed');
+        PERFORM pg_temp.check('lock state wrong',
             (SELECT status = 'past_due' FROM public.subscriptions WHERE id = pg_temp.id('s3'))
-            AND (SELECT status = 'suspended' FROM public.tenants WHERE id = pg_temp.id('t3')));
-        PERFORM pg_temp.check('suspended tenant charged',
+            AND (SELECT status = 'active' FROM public.tenants WHERE id = pg_temp.id('t3'))
+            AND EXISTS (SELECT 1 FROM public.tenant_billing_lock(pg_temp.id('t3')) l WHERE l.reason = 'unpaid'));
+        PERFORM pg_temp.check('locked tenant charged',
             NOT EXISTS (SELECT 1 FROM public.wallet_transactions WHERE tenant_id = pg_temp.id('t3')));
     END IF;
 

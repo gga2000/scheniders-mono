@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tenantOrderBlock } from "./tenant-order-gate";
+import { billingPausedMessage, tenantOrderBlock } from "./tenant-order-gate";
 
 const live = { status: "trial", is_prospect: false, restrictions: null };
 
@@ -19,5 +19,16 @@ describe("tenantOrderBlock", () => {
     expect(tenantOrderBlock(paused)).toBe("المتجر متوقف مؤقتاً عن استقبال الطلبات");
     const ended = { ...paused, restrictions: { ...paused.restrictions, paused_until: "2020-01-01T00:00:00Z" } };
     expect(tenantOrderBlock(ended)).toBeNull();
+  });
+});
+
+describe("billingPausedMessage", () => {
+  it("gives the shopper the store's WhatsApp so the sale is not lost", () => {
+    expect(billingPausedMessage(" 07701112222 ")).toContain("واتساب 07701112222");
+  });
+
+  it("still reads kindly when the store has no WhatsApp number", () => {
+    expect(billingPausedMessage(null)).toBe("المتجر ما يستقبل طلبات جديدة هسه. حاول مرة ثانية بعدين.");
+    expect(billingPausedMessage("  ")).not.toContain("واتساب");
   });
 });

@@ -49,3 +49,16 @@ export function tenantOrderBlock(tenant: TenantOrderGateRow, nowMs: number = Dat
   }
   return null;
 }
+
+/** The hint create_storefront_order raises when an unpaid store has used its
+ *  lock allowance (20261116014641_billing_lock_instead_of_suspend.sql). */
+export const BILLING_PAUSED_HINT = "BILLING_PAUSED";
+
+/** The shopper's line when the store has paused new orders for billing: kind,
+ *  with the store's WhatsApp so the sale is not lost. Never says why. */
+export function billingPausedMessage(whatsappNumber: string | null | undefined): string {
+  const wa = whatsappNumber?.trim();
+  return wa
+    ? `المتجر ما يستقبل طلبات جديدة هسه. راسل المتجر على واتساب ${wa} حتى يكمل طلبك.`
+    : "المتجر ما يستقبل طلبات جديدة هسه. حاول مرة ثانية بعدين.";
+}
