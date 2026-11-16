@@ -102,10 +102,11 @@ describe("GET /api/merchants/stats", () => {
   });
 
   it("searches the way the list does, shop number included", async () => {
-    await call("search=100095");
+    const response = await call("search=100095");
 
+    expect(response.status).toBe(200);
     expect(stub.callsTo("tenants.or")[0]).toEqual([
-      "business_name.ilike.%100095%,slug.ilike.%100095%,contact_email.ilike.%100095%,display_id::text.ilike.100095%",
+      'business_name.ilike."%100095%",slug.ilike."%100095%",contact_email.ilike."%100095%",merchant_code.ilike."%100095%"',
     ]);
   });
 });

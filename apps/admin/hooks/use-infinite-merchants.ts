@@ -3,11 +3,6 @@
 import { useInfiniteQuery, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import type { AdminTenant } from "@/types/admin";
 import { useAdminStore } from "@/store/use-admin-store";
-import {
-  getMerchantCode,
-  isMerchantCodeQuery,
-  normalizeMerchantCodeQuery,
-} from "@scheniders/shared";
 import { useMemo } from "react";
 
 interface MerchantsPage {
@@ -53,10 +48,6 @@ export function useInfiniteMerchants(limit = 50) {
     ? sortConfig.map((s) => `${s.column}:${s.direction}`).join(",")
     : "created_at:desc";
 
-  const isCodeSearch = isMerchantCodeQuery(searchQuery);
-  const codePrefix = isCodeSearch ? normalizeMerchantCodeQuery(searchQuery) : null;
-  const apiSearch = isCodeSearch ? "" : searchQuery;
-
   const query = useInfiniteQuery<MerchantsPage>({
     queryKey: [
       "admin",
@@ -86,7 +77,8 @@ export function useInfiniteMerchants(limit = 50) {
       if (cityFilter) params.set("city", cityFilter);
       if (balanceFilter) params.set("balance", balanceFilter);
       if (healthFilter) params.set("health", healthFilter);
-      if (apiSearch) params.set("search", apiSearch);
+      // The server searches every shop, by name, slug, email or shop number.
+      if (searchQuery) params.set("search", searchQuery);
       if (dateRange.from) params.set("date_from", dateRange.from);
       if (dateRange.to) params.set("date_to", dateRange.to);
 
@@ -102,14 +94,9 @@ export function useInfiniteMerchants(limit = 50) {
     staleTime: 30_000,
   });
 
-  // Flatten pages, apply the merchant-code prefix filter (client-only since
-  // codes are derived from ids), then float starred to top.
+  // Flatten pages, then float starred to top.
   const merchants = useMemo(() => {
-    let flat = query.data?.pages.flatMap((p) => p.merchants) ?? [];
-
-    if (codePrefix) {
-      flat = flat.filter((m) => getMerchantCode(m).includes(codePrefix));
-    }
+    const flat = query.data?.pages.flatMap((p) => p.merchants) ?? [];
 
     if (starredMerchants.length === 0) return flat;
 
@@ -117,10 +104,9 @@ export function useInfiniteMerchants(limit = 50) {
     const starred = flat.filter((m) => starredSet.has(m.id));
     const unstarred = flat.filter((m) => !starredSet.has(m.id));
     return [...starred, ...unstarred];
-  }, [query.data?.pages, starredMerchants, codePrefix]);
+  }, [query.data?.pages, starredMerchants]);
 
-  const rawTotal = query.data?.pages[0]?.total ?? 0;
-  const total = codePrefix ? merchants.length : rawTotal;
+  const total = query.data?.pages[0]?.total ?? 0;
 
   return {
     ...query,

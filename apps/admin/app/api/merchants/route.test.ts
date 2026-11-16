@@ -168,8 +168,17 @@ describe("GET /api/merchants", () => {
     await call("search=%23100095");
 
     expect(stub.callsTo("tenants.or")).toEqual([
-      ["business_name.ilike.%#100095%,slug.ilike.%#100095%,contact_email.ilike.%#100095%,display_id::text.ilike.100095%"],
+      ['business_name.ilike."%#100095%",slug.ilike."%#100095%",contact_email.ilike."%#100095%",merchant_code.ilike."%100095%"'],
     ]);
+  });
+
+  it("answers a search by shop number, which the API must be able to read", async () => {
+    stub.state.tables.tenants = [shop(1)];
+
+    const response = await call("search=95");
+
+    expect(response.status).toBe(200);
+    expect(stub.callsTo("tenants.or")[0]?.[0]).toContain('merchant_code.ilike."%95%"');
   });
 
   describe("the Needs attention filter", () => {

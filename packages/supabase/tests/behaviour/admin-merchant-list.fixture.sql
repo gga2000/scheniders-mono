@@ -20,6 +20,10 @@ CREATE TYPE public.commission_status AS ENUM ('pending', 'approved', 'paid');
 
 ALTER TABLE public.tenants ADD COLUMN trial_ends_at timestamptz;
 
+-- The shop number, as live: six digits from a sequence that starts at 100000.
+CREATE SEQUENCE public.tenant_display_id_seq AS bigint START WITH 100000 MINVALUE 100000;
+ALTER TABLE public.tenants ADD COLUMN display_id bigint NOT NULL DEFAULT nextval('public.tenant_display_id_seq');
+
 CREATE TABLE public.subscriptions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id uuid NOT NULL REFERENCES public.tenants (id) ON DELETE CASCADE,

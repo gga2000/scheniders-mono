@@ -1,5 +1,5 @@
 -- =============================================================================
--- admin_merchant_list_stats, admin_fees_30d, admin_team_counts: behaviour test
+-- admin_merchant_list_stats, admin_fees_30d, admin_team_counts, merchant_code: behaviour test
 -- =============================================================================
 --
 -- WHAT THIS PROVES (after the admin_merchant_list_stats migration)
@@ -33,8 +33,12 @@
 --     * paid commissions are earned, pending ones are pending, approved ones
 --       are neither;
 --     * a member of staff with nothing still gets a row of zeros.
+--   Search by shop number (merchant_code):
+--     * the number reads as six digits, padded when shorter and never cut when
+--       longer, and a search finds a shop by digits from the middle of it;
+--     * only the service role can use it.
 --
--- Runs in CI through run.sh: admin-merchant-list.fixture.sql, the two
+-- Runs in CI through run.sh: admin-merchant-list.fixture.sql, the
 -- migrations named in admin-merchant-list.migrations, then the newest
 -- definition of each function in admin-merchant-list.functions (the real
 -- tenant_billing_lock among them).
@@ -320,6 +324,58 @@ BEGIN
     END;
     RESET ROLE;
     PERFORM pg_temp.check('authenticated: ran the team counts', _n = 0);
+END $$;
+
+-- Search by shop number -------------------------------------------------------
+DO $$
+DECLARE
+    _short uuid := gen_random_uuid();
+    _six uuid := gen_random_uuid();
+    _seven uuid := gen_random_uuid();
+    _found bigint[];
+    _n integer;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, slug, display_id) VALUES
+        (_short, 'Number 42', 'number-42', 42),
+        (_six, 'Number 870095', 'number-870095', 870095),
+        (_seven, 'Number 1000000', 'number-1000000', 1000000);
+
+    PERFORM pg_temp.check('shop number: six digits as they are',
+        (SELECT t.merchant_code FROM public.tenants t WHERE t.id = _six) = '870095');
+    PERFORM pg_temp.check('shop number: a short one is padded to six digits',
+        (SELECT t.merchant_code FROM public.tenants t WHERE t.id = _short) = '000042');
+    PERFORM pg_temp.check('shop number: a seventh digit is kept',
+        (SELECT t.merchant_code FROM public.tenants t WHERE t.id = _seven) = '1000000');
+
+    -- The way the staff console's search asks: the digits anywhere in the number.
+    SELECT array_agg(t.display_id ORDER BY t.display_id) INTO _found
+    FROM public.tenants t WHERE t.merchant_code ILIKE '%7009%';
+    PERFORM pg_temp.check('shop number: digits from the middle find the shop, and only it', _found = ARRAY[870095]::bigint[]);
+
+    SET LOCAL ROLE service_role;
+    SELECT count(*) INTO _n FROM public.tenants t WHERE t.merchant_code ILIKE '%0042%';
+    RESET ROLE;
+    PERFORM pg_temp.check('service role: could not search by shop number', _n = 1);
+
+    SET LOCAL ROLE authenticated;
+    BEGIN
+        PERFORM 1 FROM public.tenants t WHERE t.merchant_code ILIKE '%0042%';
+        _n := 1;
+    EXCEPTION WHEN insufficient_privilege THEN
+        _n := 0;
+    END;
+    RESET ROLE;
+    PERFORM pg_temp.check('authenticated: ran merchant_code', _n = 0);
+
+    SET LOCAL ROLE anon;
+    BEGIN
+        PERFORM 1 FROM public.tenants t WHERE t.merchant_code ILIKE '%0042%';
+        _n := 1;
+    EXCEPTION WHEN insufficient_privilege THEN
+        _n := 0;
+    END;
+    RESET ROLE;
+    PERFORM pg_temp.check('anon: ran merchant_code', _n = 0);
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1
