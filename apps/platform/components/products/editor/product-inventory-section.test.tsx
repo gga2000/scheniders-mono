@@ -9,7 +9,7 @@ vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) =>
 afterEach(cleanup);
 
 function form(storefront_stock: number | null): ProductEditorFormData {
-    return { stock_quantity: 7, low_stock_threshold: 5, is_supply: false, storefront_stock, storefront_sold_out: false } as ProductEditorFormData;
+    return { stock_quantity: 7, low_stock_threshold: 5, is_supply: false, storefront_stock, storefront_sold_out: false, variants: [] as ProductEditorFormData["variants"] } as ProductEditorFormData;
 }
 
 describe("ProductInventorySection storefront stock toggle", () => {
@@ -54,5 +54,19 @@ describe("ProductInventorySection stock field", () => {
         expect(stock.value).toBe("");
         fireEvent.change(stock, { target: { value: "20" } });
         expect(updateField).toHaveBeenCalledWith("stock_quantity", 20);
+    });
+
+    it("a product sold in sizes shows the sizes' total and is not typed into (B10)", () => {
+        const updateField = vi.fn();
+        const variants = [
+            { name: "M", price: 0, cost: 0, stock_quantity: 12, sku: "" },
+            { name: "L", price: 0, cost: 0, stock_quantity: 3, sku: "" },
+            { name: "XL", price: 0, cost: 0, stock_quantity: 50, sku: "", is_enabled: false },
+        ];
+        render(<ProductInventorySection formData={{ ...form(null), stock_quantity: 0, variants }} updateField={updateField} />);
+        const stock = screen.getByLabelText("products.ed.stock") as HTMLInputElement;
+        expect(stock.value).toBe("15");
+        expect(stock.readOnly).toBe(true);
+        expect(screen.getByText("products.ed.stockBySize")).toBeTruthy();
     });
 });

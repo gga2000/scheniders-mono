@@ -4,6 +4,7 @@ import type { Product, ProductSupplier, ProductVariant, ProductPriceHistory } fr
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
 import { fetchAllPages } from "./fetch-all-pages";
+import { withSizeStock } from "@/lib/products/size-stock";
 import { PRODUCT_DETAIL_COLUMNS, PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
 
 /**
@@ -90,18 +91,20 @@ function costMaps(rows: ProductCostRow[]) {
     return { productCost, variantCost };
 }
 
-/** Joins the cost rows (what this member may see) onto product rows. */
+/** Joins the cost rows (what this member may see) onto product rows, and reads a sized product's stock from its sizes. */
 function withCosts(rows: Product[], costs: ProductCostRow[]): Product[] {
     const { productCost, variantCost } = costMaps(costs);
-    return rows.map((product) => ({
-        ...product,
-        cost: productCost.get(product.id)?.cost ?? null,
-        cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
-        variants: (product.variants ?? []).map((variant) => ({
-            ...variant,
-            cost: variantCost.get(variant.id) ?? null,
-        })),
-    })) as Product[];
+    return rows.map((product) =>
+        withSizeStock({
+            ...product,
+            cost: productCost.get(product.id)?.cost ?? null,
+            cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
+            variants: (product.variants ?? []).map((variant) => ({
+                ...variant,
+                cost: variantCost.get(variant.id) ?? null,
+            })),
+        } as Product),
+    );
 }
 
 /** Rows of per-product history the editor loads (newest first). */

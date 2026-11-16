@@ -243,7 +243,9 @@ export const ProductListRow = React.memo(function ProductListRow({
                             <button
                                 type="button"
                                 onClick={(e) => e.stopPropagation()}
-                                disabled={!quickEditable}
+                                // A product sold in sizes changes stock size by size, on its page.
+                                disabled={!quickEditable || product.stock_by_size}
+                                title={product.stock_by_size ? t("products.stock.bySizeHint") : undefined}
                                 aria-label={t("products.actions.adjustStock")}
                                 className="rounded-lg disabled:cursor-default"
                             >
@@ -402,7 +404,8 @@ export const ProductListRow = React.memo(function ProductListRow({
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                     onChangePrice={() => setPriceEditOpen(true)}
-                    onAdjustStock={() => setStockAdjustOpen(true)}
+                    // A product sold in sizes changes stock size by size, on its page.
+                    onAdjustStock={product.stock_by_size ? undefined : () => setStockAdjustOpen(true)}
                 />
             </div>
         </div>

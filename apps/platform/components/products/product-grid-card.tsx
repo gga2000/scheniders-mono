@@ -159,7 +159,8 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
                     onChangePrice={() => setPriceEditOpen(true)}
-                    onAdjustStock={() => setStockAdjustOpen(true)}
+                    // A product sold in sizes changes stock size by size, on its page.
+                    onAdjustStock={product.stock_by_size ? undefined : () => setStockAdjustOpen(true)}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
                 />
@@ -355,7 +356,9 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         onPointerUp={(e) => e.stopPropagation()}
                         className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pastel-yellow)] disabled:cursor-default"
                         aria-label={t("products.stockAdjust.title")}
-                        disabled={!canEdit}
+                        // A product sold in sizes changes stock size by size, on its page.
+                        disabled={!canEdit || product.stock_by_size}
+                        title={product.stock_by_size ? t("products.stock.bySizeHint") : undefined}
                     >
                         <StockIndicator
                             status={stockStatus}
