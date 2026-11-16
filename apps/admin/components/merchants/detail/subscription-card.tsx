@@ -9,6 +9,7 @@ import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
+import { formatDay } from "@/lib/format";
 
 interface SubscriptionCardProps {
   merchantId: string;
@@ -49,15 +50,6 @@ function formatFineCountdown(c: ReturnType<typeof fineCountdown>): string {
   if (c.hours >= 1) return `${c.hours}h ${c.minutes}m`;
   if (c.minutes >= 1) return `${c.minutes}m ${c.seconds}s`;
   return `${c.seconds}s`;
-}
-
-function fmtDate(d: Date | string): string {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function SubscriptionCard({
@@ -237,11 +229,11 @@ export function SubscriptionCard({
                 )}
               </p>
               <p className="text-[11px] text-foreground/55 mt-2 font-medium">
-                Ends {fmtDate(trialEnd)}
+                Ends {formatDay(trialEnd)}
                 {tenant.created_at && (
                   <>
                     <span className="mx-1.5 text-foreground/30">·</span>
-                    Started {fmtDate(tenant.created_at)}
+                    Started {formatDay(tenant.created_at)}
                   </>
                 )}
               </p>
@@ -365,7 +357,7 @@ export function SubscriptionCard({
                     : "text-violet-900 dark:text-violet-200"
                 )}
               >
-                {fmtDate(periodEnd)}
+                {formatDay(periodEnd)}
               </p>
               <p className="text-[11px] text-foreground/55 mt-2 font-medium flex items-center gap-1.5">
                 <Clock className={cn("w-3 h-3", periodCritical && "text-rose-500")} />
@@ -384,7 +376,7 @@ export function SubscriptionCard({
                   "Renewal due"
                 )}
                 <span className="text-foreground/30">·</span>
-                {fmtDate(periodStart)} — {fmtDate(periodEnd)}
+                {formatDay(periodStart)} — {formatDay(periodEnd)}
               </p>
             </div>
             <span

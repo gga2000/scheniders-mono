@@ -15,19 +15,7 @@ import {
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LockedChip } from "./locked-chip";
 import { healthChipClass } from "@/lib/merchant-health";
-import { formatCount, formatIQD } from "@/lib/format";
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
-}
+import { formatCount, formatDay, formatIQD, formatWhen } from "@/lib/format";
 
 const STATUS_PILL: Record<string, string> = {
   active:
@@ -338,7 +326,7 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/55 text-[10px] font-medium border-r border-[var(--card-border)]/30">
-                  {m.last_active_at ? timeAgo(m.last_active_at) : <span className="text-foreground/25">—</span>}
+                  {m.last_active_at ? formatWhen(m.last_active_at) : <span className="text-foreground/25">—</span>}
                 </div>
 
                 <div className="min-w-[160px] shrink-0 px-2 flex items-center gap-1 border-r border-[var(--card-border)]/30">
@@ -364,11 +352,7 @@ export function MerchantSheetView({
                 </div>
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center text-foreground/45 text-[10px] font-medium tabular-nums">
-                  {new Date(m.created_at).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "2-digit",
-                  })}
+                  {formatDay(m.created_at)}
                 </div>
               </div>
             );

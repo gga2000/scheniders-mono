@@ -18,15 +18,7 @@ import {
   type TrialCheckDecisionInput,
   type TrialChecksResponse,
 } from "@/lib/trial-checks";
-
-const dayFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Baghdad",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
+import { formatDayTime } from "@/lib/format";
 
 const GIVE_BACK_DAYS = [3, 7];
 
@@ -35,8 +27,8 @@ function trialState(check: TrialCheck): string {
   const store = check.store;
   if (!store) return "Store deleted";
   if (store.status !== "trial") return `Now ${store.status}`;
-  if (check.trial_withheld_at) return `Trial ended ${dayFormat.format(new Date(check.trial_withheld_at))}`;
-  if (store.trial_ends_at) return `Trial until ${dayFormat.format(new Date(store.trial_ends_at))}`;
+  if (check.trial_withheld_at) return `Trial ended ${formatDayTime(check.trial_withheld_at)}`;
+  if (store.trial_ends_at) return `Trial until ${formatDayTime(store.trial_ends_at)}`;
   return "On trial";
 }
 
@@ -181,7 +173,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
         {check.staff_decision && check.decided_at && (
           <p className="text-[11px] text-foreground/50 pt-1">
             {DECISION_LABEL[check.staff_decision]}
-            {check.decided_by_email ? ` by ${check.decided_by_email}` : ""}, {dayFormat.format(new Date(check.decided_at))}
+            {check.decided_by_email ? ` by ${check.decided_by_email}` : ""}, {formatDayTime(check.decided_at)}
             {check.staff_reason ? `: ${check.staff_reason}` : ""}
           </p>
         )}

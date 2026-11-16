@@ -19,26 +19,9 @@ import {
   Building2,
   Mail,
 } from "lucide-react";
+import { formatDay, formatWhen } from "@/lib/format";
 
 // ── Helpers ────────────────────────────────────────────────────────────
-
-export function relativeTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return "Never";
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return "Just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 30) return `${diffDay}d ago`;
-  const diffMonth = Math.floor(diffDay / 30);
-  if (diffMonth < 12) return `${diffMonth}mo ago`;
-  return `${Math.floor(diffMonth / 12)}y ago`;
-}
 
 export function daysBetween(from: string, to: Date = new Date()): number {
   return Math.floor((to.getTime() - new Date(from).getTime()) / 86_400_000);
@@ -336,7 +319,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: stalenessColor(lead.last_contacted_at) }}
               />
-              <span className="text-[var(--foreground)]">{relativeTime(lead.last_contacted_at)}</span>
+              <span className="text-[var(--foreground)]">{lead.last_contacted_at ? formatWhen(lead.last_contacted_at) : "Never"}</span>
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -352,7 +335,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
                     }}
                   />
                   <span className="text-[var(--foreground)]">
-                    {new Date(lead.next_follow_up_at).toLocaleDateString()}
+                    {formatDay(lead.next_follow_up_at)}
                   </span>
                 </>
               ) : (
@@ -556,7 +539,7 @@ export function StoreContent({ lead }: { lead: Lead }) {
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--muted)]">Built At</span>
               <span className="text-sm font-medium text-[var(--foreground)]">
-                {new Date(lead.store_built_at).toLocaleDateString()} ({relativeTime(lead.store_built_at)})
+                {formatDay(lead.store_built_at)}
               </span>
             </div>
           )}

@@ -19,7 +19,7 @@ import {
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LockedChip } from "./locked-chip";
 import { healthChipClass, listChurnRisk } from "@/lib/merchant-health";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatWhen } from "@/lib/format";
 
 const DENSITY_CONFIG: Record<TableDensity, { rowHeight: number; cellPy: string; fontSize: string }> = {
   compact: { rowHeight: 52, cellPy: "py-1.5", fontSize: "text-[11px]" },
@@ -396,7 +396,7 @@ function renderCell(
     case "lastActive":
       return (
         <span className="text-foreground/55 text-[10px] font-medium">
-          {m.last_active_at ? timeAgo(m.last_active_at) : <span className="text-foreground/25">—</span>}
+          {m.last_active_at ? formatWhen(m.last_active_at) : <span className="text-foreground/25">—</span>}
         </span>
       );
 
@@ -438,18 +438,6 @@ function renderCell(
     default:
       return null;
   }
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
 }
 
 function MiniSparkline({ data }: { data: number[] }) {

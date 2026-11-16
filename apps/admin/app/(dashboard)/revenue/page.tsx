@@ -22,6 +22,7 @@ import {
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
+import { formatCount } from "@/lib/format";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -183,7 +184,7 @@ export default function RevenuePage() {
                               backgroundColor: rev > 0 ? `rgba(134, 239, 172, ${0.1 + intensity * 0.6})` : undefined,
                             }}
                           >
-                            {rev > 0 ? `${(rev / 1000).toFixed(0)}K` : "\u2014"}
+                            {rev > 0 ? formatCount(rev) : "\u2014"}
                           </td>
                         );
                       })}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
+import { formatIQD } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import {
   LEAD_STATUS_CONFIG,

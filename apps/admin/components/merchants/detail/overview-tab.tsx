@@ -4,6 +4,7 @@ import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { SubscriptionCard } from "./subscription-card";
 import { BillingLockCard } from "./billing-lock-card";
 import { CopyableText } from "@/components/shared/copyable-text";
+import { formatDay } from "@/lib/format";
 
 interface OverviewTabProps {
   merchantId: string;
@@ -29,8 +30,8 @@ export function OverviewTab({
     { label: "Contact Phone", value: tenant.contact_phone, copyable: true },
     { label: "Address", value: tenant.address, copyable: true },
     { label: "City", value: tenant.city, copyable: true },
-    { label: "Created", value: tenant.created_at ? new Date(tenant.created_at).toLocaleDateString() : null },
-    { label: "Trial Ends", value: tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toLocaleDateString() : null },
+    { label: "Created", value: tenant.created_at ? formatDay(tenant.created_at) : null },
+    { label: "Trial Ends", value: tenant.trial_ends_at ? formatDay(tenant.trial_ends_at) : null },
     {
       label: "Subscription Status",
       value: subscription ? `${subscription.status} (${subscription.plan})` : null,
@@ -38,7 +39,7 @@ export function OverviewTab({
     {
       label: "Current Period",
       value: subscription
-        ? `${new Date(subscription.current_period_start).toLocaleDateString()} - ${new Date(subscription.current_period_end).toLocaleDateString()}`
+        ? `${formatDay(subscription.current_period_start)} to ${formatDay(subscription.current_period_end)}`
         : null,
     },
   ];

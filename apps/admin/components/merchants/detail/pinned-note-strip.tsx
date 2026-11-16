@@ -3,23 +3,11 @@
 import { Pin } from "lucide-react";
 import { useMemo } from "react";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
+import { formatWhen } from "@/lib/format";
 
 interface PinnedNoteStripProps {
   notes: MerchantDetail["notes"];
   onOpenNotes: () => void;
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d}d ago`;
-  const mo = Math.floor(d / 30);
-  return `${mo}mo ago`;
 }
 
 export function PinnedNoteStrip({ notes, onOpenNotes }: PinnedNoteStripProps) {
@@ -48,7 +36,7 @@ export function PinnedNoteStrip({ notes, onOpenNotes }: PinnedNoteStripProps) {
             Pinned note
           </span>
           <span className="text-[10px] text-amber-700/60 dark:text-amber-300/60 font-medium">
-            · {timeAgo(top.updated_at)}
+            · {formatWhen(top.updated_at)}
           </span>
           {extra > 0 && (
             <span className="ml-auto text-[10px] font-bold text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded-full bg-amber-200/50 dark:bg-amber-400/15">

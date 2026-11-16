@@ -24,6 +24,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDay, formatWhen } from "@/lib/format";
 
 interface AuditEntry {
   id: string;
@@ -139,26 +140,6 @@ const CATEGORIES = [
   { value: "config", label: "Config" },
 ] as const;
 
-function fmtRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-function dayKey(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 function summarize(entry: AuditEntry): string {
   const d = entry.details ?? {};
   const parts: string[] = [];
@@ -234,7 +215,7 @@ export function AuditLogTab({ merchantId }: AuditLogTabProps) {
   const grouped = useMemo(() => {
     const map = new Map<string, AuditEntry[]>();
     for (const e of filtered) {
-      const k = dayKey(e.created_at);
+      const k = formatDay(e.created_at);
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(e);
     }
@@ -408,7 +389,7 @@ export function AuditLogTab({ merchantId }: AuditLogTabProps) {
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-foreground/45">
                             <span title={new Date(e.created_at).toLocaleString()}>
-                              {fmtRelative(e.created_at)}
+                              {formatWhen(e.created_at)}
                             </span>
                             {e.ip_address && (
                               <>
