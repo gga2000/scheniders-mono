@@ -49,6 +49,10 @@ async function adminGate(caller: Caller, tenantId: string): Promise<NextResponse
     return null;
 }
 
+function alreadyInvited() {
+    return NextResponse.json({ error: "هذا الشخص مدعو من قبل. اضغط «إرسال من جديد» على دعوته." }, { status: 409 });
+}
+
 /** The link to send, and for a phone invite the WhatsApp chat that carries it. */
 async function shareFor(
     admin: ServiceClient,
@@ -147,6 +151,18 @@ async function handlePOST(request: Request) {
             }
         }
 
+        // One pending invite per email or phone. Look for it first: a live one
+        // is answered with "use resend" even when the team is full (the seat
+        // check runs before the unique index would). One that expired holds no
+        // seat and no longer works, so inviting the person again renews it.
+        const pendingFor = admin
+            .from("team_invites")
+            .select("id, expires_at")
+            .eq("tenant_id", tenantId)
+            .eq("status", "pending");
+        const { data: existing } = await (phone ? pendingFor.eq("phone", phone) : pendingFor.eq("email", email)).maybeSingle();
+        if (existing && new Date(existing.expires_at).getTime() > Date.now()) return alreadyInvited();
+
         const { token, hash } = newInviteToken();
         const fields = {
             role,
@@ -155,36 +171,24 @@ async function handlePOST(request: Request) {
             token_hash: hash,
             expires_at: inviteExpiry(),
         };
-        let { data: invite, error: insertErr } = await admin
-            .from("team_invites")
-            .insert({ tenant_id: tenantId, email: email || null, phone: phone || null, status: "pending", ...fields })
-            .select(INVITE_COLUMNS)
-            .single();
-
-        // One pending invite per email or phone. One that expired holds no seat
-        // and no longer works, so inviting the person again renews it.
-        if (insertErr?.code === "23505") {
-            const pending = admin
-                .from("team_invites")
-                .select("id, expires_at")
-                .eq("tenant_id", tenantId)
-                .eq("status", "pending");
-            const { data: existing } = await (phone ? pending.eq("phone", phone) : pending.eq("email", email)).maybeSingle();
-            if (existing && new Date(existing.expires_at).getTime() > Date.now()) {
-                return NextResponse.json({ error: "This person is already invited. Use resend." }, { status: 409 });
-            }
-            if (existing) {
-                ({ data: invite, error: insertErr } = await admin
-                    .from("team_invites")
-                    .update({ ...fields, updated_at: new Date().toISOString() })
-                    .eq("id", existing.id)
-                    .select(INVITE_COLUMNS)
-                    .single());
-            }
-        }
-        if (isTeamLimitError(insertErr)) return teamLimitResponse();
-        if (insertErr || !invite) {
-            return NextResponse.json({ error: insertErr?.message ?? "Could not create the invite" }, { status: 400 });
+        const { data: invite, error: writeErr } = existing
+            ? await admin
+                  .from("team_invites")
+                  .update({ ...fields, updated_at: new Date().toISOString() })
+                  .eq("id", existing.id)
+                  .select(INVITE_COLUMNS)
+                  .single()
+            : await admin
+                  .from("team_invites")
+                  .insert({ tenant_id: tenantId, email: email || null, phone: phone || null, status: "pending", ...fields })
+                  .select(INVITE_COLUMNS)
+                  .single();
+        // Two admins inviting the same person at the same moment: the unique
+        // index lets one through.
+        if (writeErr?.code === "23505") return alreadyInvited();
+        if (isTeamLimitError(writeErr)) return teamLimitResponse();
+        if (writeErr || !invite) {
+            return NextResponse.json({ error: writeErr?.message ?? "Could not create the invite" }, { status: 400 });
         }
 
         const share = await shareFor(admin, request, tenantId, phone || null, token);
