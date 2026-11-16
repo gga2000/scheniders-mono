@@ -288,7 +288,40 @@ function ProductGridRender({
 
   // On a category page the grid is the full category catalogue (filterable +
   // paginated client-side); on the home/curated case it's the limited query.
-  if ((category ? ctx.products.length : items.length) === 0) return null;
+  // An empty category still answers the shopper who followed a link to it:
+  // its name and a way on to everything else, never a blank page.
+  if (category && ctx.products.length === 0) {
+    return (
+      <Section>
+        <div
+          data-category-empty
+          className="flex flex-col items-center justify-center gap-bk-sm p-bk-lg text-center sm:p-bk-xl"
+          style={{
+            backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
+            borderRadius: "var(--bk-radius-card, 1.5rem)",
+          }}
+        >
+          <h1
+            className="text-bk-h1 font-black text-balance"
+            style={{ color: "var(--bk-ink, #1a1a1a)", fontFamily: "var(--bk-font-display, inherit)" }}
+          >
+            {category.name}
+          </h1>
+          <p className="text-sm" style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.6))" }}>
+            {chromeString("category_empty", locale)}
+          </p>
+          <StoreLink
+            href="/products"
+            className={cn("inline-flex min-h-11 items-center px-4 font-bold underline underline-offset-4", PRESSABLE)}
+            style={{ color: "var(--bk-ink, #1a1a1a)" }}
+          >
+            {chromeString("shop_all", locale)}
+          </StoreLink>
+        </div>
+      </Section>
+    );
+  }
+  if (!category && items.length === 0) return null;
 
   // ---- row branch (opt-in) ----------------------------------------------
   // An early return like price_pill's, so every stored config without

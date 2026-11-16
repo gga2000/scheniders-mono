@@ -42,7 +42,7 @@ export interface DrawerCategory {
 }
 
 const COPY = {
-  search: { ar: "دوّر على عطر", en: "Find a perfume" },
+  search: { ar: "دوّر على منتج", en: "Find a product" },
   shop: { ar: "تسوّق", en: "Shop" },
   track: { ar: "تتبّع طلبك", en: "Track your order" },
   whatsapp: { ar: "كلّمنا واتساب", en: "WhatsApp us" },
@@ -54,11 +54,11 @@ function copy(key: keyof typeof COPY, locale: LocaleCode): string {
 
 function countLabel(n: number, locale: LocaleCode): string {
   return formatCount(n, locale, {
-    one: locale === "en" ? "1 perfume" : "عطر واحد",
-    two: locale === "en" ? "2 perfumes" : "عطران",
-    few: locale === "en" ? "{count} perfumes" : "{count} عطور",
-    many: locale === "en" ? "{count} perfumes" : "{count} عطراً",
-    other: locale === "en" ? "{count} perfumes" : "{count} عطر",
+    one: locale === "en" ? "1 product" : "منتج واحد",
+    two: locale === "en" ? "2 products" : "منتجان",
+    few: locale === "en" ? "{count} products" : "{count} منتجات",
+    many: locale === "en" ? "{count} products" : "{count} منتجاً",
+    other: locale === "en" ? "{count} products" : "{count} منتج",
   });
 }
 

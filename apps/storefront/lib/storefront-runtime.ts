@@ -161,8 +161,8 @@ export const CATALOG_EYEBROW = {
 export const CATALOG_SUBHEADING = {
   // No trailing full stop: the page is LTR, so a sentence-final "."
   // on Arabic text lands at the LEFT edge and reads as a stray mark.
-  ar: "كل عطورنا بمكان واحد — اختار حسب الفئة أو السعر",
-  en: "Every perfume in one place — browse by category or by price",
+  ar: "كل منتجاتنا بمكان واحد — اختار حسب الفئة أو السعر",
+  en: "Everything we sell in one place — browse by category or by price",
 } as const;
 
 const CATALOG_SECTION_ID = "__catalog_all_products__";

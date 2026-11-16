@@ -81,8 +81,9 @@ const STRINGS = {
   phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
   phoneInvalid: {
     en: "Enter a valid Iraqi mobile number, e.g. 0770 123 4567.",
-    ar: "أدخل رقم هاتف عراقي صحيح، مثال: 0770 123 4567.",
-    ku: "ژمارەیەکی مۆبایلی عێراقی دروست بنووسە، نموونە: 0770 123 4567.",
+    // The example number sits in an LTR isolate, or the Arabic line shows it as «4567 123 0770».
+    ar: "أدخل رقم هاتف عراقي صحيح، مثال: \u20660770 123 4567\u2069.",
+    ku: "ژمارەیەکی مۆبایلی عێراقی دروست بنووسە، نموونە: \u20660770 123 4567\u2069.",
   },
   welcomeBack: { en: "Welcome back — we filled in your details from your last order.", ar: "رجعتلنا؟ عبّينا معلوماتك من آخر طلب.", ku: "بەخێربێیتەوە — زانیارییەکانت لە داواکاری پێشووت پڕکردەوە." },
   notYou: { en: "Not you? Clear", ar: "مو انت؟ امسح", ku: "تۆ نیت؟ بیسڕەوە" },

@@ -27,6 +27,10 @@ const CHROME_STRINGS = {
   // ---- navigation -----------------------------------------------------
   home: { ar: "الرئيسية", en: "Home", ku: "سەرەکی" },
   see_all: { ar: "شوفهم كلهم", en: "See all", ku: "هەمووی ببینە" },
+  /** A category page with nothing in it yet. */
+  category_empty: { ar: "بعد ماكو منتجات بهذا القسم", en: "Nothing in this section yet" },
+  /** The way on from an empty category: the whole catalogue. */
+  shop_all: { ar: "شوف كل المنتجات", en: "See all products" },
   /** Prefix for the money a sale actually saves: "وفّر ١١,٧٥٠ د.ع". */
   save_prefix: { ar: "وفّر", en: "Save", ku: "پاشەکەوت" },
   /** Word above the figure inside the discount seal. */

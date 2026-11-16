@@ -270,7 +270,7 @@ describe("CatalogGrid — search", () => {
     expect(cards(container)).toEqual(["p3"]);
     // One result reads as the Arabic singular, with no digit in it at all.
     expect(container.querySelector("[data-result-count]")?.textContent).toBe(
-      "عطر واحد",
+      "منتج واحد",
     );
   });
 
@@ -366,8 +366,8 @@ describe("CatalogGrid — search", () => {
     const { container } = mount(12, true);
     type(container, "zzzz");
     expect(cards(container)).toEqual([]);
-    expect(container.textContent).toContain("ما لكينا عطر بهذا الاسم");
-    expect(container.textContent).not.toContain("ما لكينا عطور بهذا الفلتر");
+    expect(container.textContent).toContain("ما لكينا منتج بهذا الاسم");
+    expect(container.textContent).not.toContain("ما لكينا منتجات بهذا الفلتر");
   });
 });
 
@@ -475,6 +475,6 @@ describe("CatalogGrid — attribute facets", () => {
     const apply = container.querySelector("[data-catalog-filter-apply]");
     // Two oriental perfumes: Arabic says it with the dual, not a numeral.
     expect(cards(container)).toHaveLength(2);
-    expect(apply?.textContent).toBe("اعرض عطران");
+    expect(apply?.textContent).toBe("اعرض منتجان");
   });
 });

@@ -116,7 +116,7 @@ describe("OverlayHeader menu drawer", () => {
     const drawer = container.querySelector('[role="dialog"]');
     expect(drawer?.querySelector('form[role="search"] input[name="q"]')).not.toBeNull();
     expect(drawer?.querySelector("[data-drawer-category]")?.getAttribute("href")).toBe("/categories/men");
-    expect(drawer?.textContent).toContain("5 عطور");
+    expect(drawer?.textContent).toContain("5 منتجات");
     for (const l of links) expect(drawer?.textContent).toContain(l.label);
     expect(drawer?.querySelector("[data-drawer-track]")?.getAttribute("href")).toBe("/track");
     expect(drawer?.querySelector("[data-drawer-whatsapp]")?.getAttribute("href")).toBe(
