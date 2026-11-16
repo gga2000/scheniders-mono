@@ -12,15 +12,15 @@ interface StatementDetailProps {
     line: CostLine;
     summary: FinanceSummary;
     onOpenTab: (tab: FinanceTab) => void;
-    /** Reads a part's amount the way the statement is being read (total, per order, per 1,000); null when that has no answer. */
-    read: (amount: number) => number | null;
+    /** The statement is being read as an average (per order, per 1,000). The parts stay totals, and say so. */
+    averaged: boolean;
 }
 
 const linkClass =
     "inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline decoration-[var(--card-border)] underline-offset-4 hover:decoration-current";
 
 /** What is inside one cost line of the statement, and where to go to change it. */
-export function StatementDetail({ line, summary, onOpenTab, read }: StatementDetailProps) {
+export function StatementDetail({ line, summary, onOpenTab, averaged }: StatementDetailProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const sentence = (text: string) => <p className="text-left text-[13px] leading-relaxed text-muted" dir={dir}>{text}</p>;
@@ -36,15 +36,15 @@ export function StatementDetail({ line, summary, onOpenTab, read }: StatementDet
             <ArrowUpRight className="size-3.5" aria-hidden="true" />
         </Link>
     );
-    const part = (key: string, label: string, amount: number) => {
-        const shown = read(amount);
-        return (
-            <div key={key} className="flex items-baseline justify-between gap-4 text-[13px]">
-                <span className="text-left text-muted" dir={dir}>{label}</span>
-                {shown === null ? <span className="text-muted">—</span> : <Money value={shown} className="font-medium text-foreground" />}
-            </div>
-        );
-    };
+    // A part is always its real total: "Prime's fee on 66 parcels" spread over every order of the shop reads as a wrong fee.
+    const part = (key: string, label: string, amount: number) => (
+        <div key={key} className="flex items-baseline justify-between gap-4 text-[13px]">
+            <span className="text-left text-muted" dir={dir}>{label}</span>
+            <Money value={amount} className="font-medium text-foreground" />
+        </div>
+    );
+    const totalsNote = (parts: number) =>
+        averaged && parts > 0 ? <p className="text-left text-[12.5px] text-muted" dir={dir} data-testid="detail-totals">{t("fin.detail.totals")}</p> : null;
 
     let body: ReactNode;
     switch (line.id) {
@@ -75,13 +75,21 @@ export function StatementDetail({ line, summary, onOpenTab, read }: StatementDet
             body = (
                 <>
                     {line.parts.length === 0 && sentence(t("fin.detail.delivery.none"))}
+                    {totalsNote(line.parts.length)}
                     {line.parts.map((p) =>
                         part(
                             p.key,
                             p.key === "prime_fee"
-                                ? t("fin.detail.delivery.prime", { n: formatWhole(summary.courier.prime_parcels) })
+                                ? t("fin.detail.delivery.prime", {
+                                      n: formatWhole(summary.courier.prime_parcels),
+                                      count: summary.courier.prime_parcels,
+                                      orders: formatWhole(summary.sales.orders),
+                                  })
                                 : p.key === "prime_returned_fee"
-                                  ? t("fin.detail.delivery.prime_returned", { n: formatWhole(summary.failed.prime_returned_parcels) })
+                                  ? t("fin.detail.delivery.prime_returned", {
+                                        n: formatWhole(summary.failed.prime_returned_parcels),
+                                        count: summary.failed.prime_returned_parcels,
+                                    })
                                   : t("fin.detail.delivery.bills"),
                             p.amount,
                         ),
@@ -102,6 +110,7 @@ export function StatementDetail({ line, summary, onOpenTab, read }: StatementDet
             body = (
                 <>
                     {line.parts.length === 0 && sentence(t("fin.detail.other.none"))}
+                    {totalsNote(line.parts.length)}
                     {line.parts.map((p) => part(p.key, t(`finances.expense.cat.${p.key}`, p.key), p.amount))}
                     {tabLink("expenses", t("fin.detail.other.open"))}
                 </>

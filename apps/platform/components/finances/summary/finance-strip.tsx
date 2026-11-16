@@ -93,7 +93,7 @@ export function FinanceStrip({ summary, statement, previous }: FinanceStripProps
                     hint={t("fin.strip.sales.hint")}
                     value={iqd(statement.sales)}
                     change={previous ? changePct(statement.sales, previous.statement.sales) : null}
-                    note={t("fin.strip.sales.note", { n: formatWhole(orders) })}
+                    note={t("fin.strip.sales.note", { n: formatWhole(orders), count: orders })}
                 />
                 <StripCell
                     order={2}
@@ -117,7 +117,7 @@ export function FinanceStrip({ summary, statement, previous }: FinanceStripProps
                     label={t("fin.strip.onRoad")}
                     hint={t("fin.strip.onRoad.hint")}
                     value={iqd(summary.cash.in_transit.amount)}
-                    note={t("fin.strip.onRoad.note", { n: formatWhole(summary.cash.in_transit.count) })}
+                    note={t("fin.strip.onRoad.note", { n: formatWhole(summary.cash.in_transit.count), count: summary.cash.in_transit.count })}
                 />
                 <StripCell
                     order={5}

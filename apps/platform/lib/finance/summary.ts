@@ -60,6 +60,8 @@ export const FinanceSummarySchema = z.object({
         units: z.number(),
         product_cost: z.number(),
         missing_cost_units: z.number(),
+        /** Delivered orders of the period a courier payment already covers. */
+        paid_orders: z.number(),
     }),
     refunds: CountAmountSchema,
     expenses: z.array(z.object({ category: z.string(), amount: z.number() })),
@@ -68,6 +70,8 @@ export const FinanceSummarySchema = z.object({
     cash: z.object({
         in_transit: CountAmountSchema,
         stuck: CountAmountSchema,
+        /** Parcels Prime is bringing back: still "in transit" in the app, but goods, not money. */
+        returning: CountAmountSchema,
         prime_linked: z.boolean(),
         prime_held: z.object({ parcels: z.number(), collected: z.number(), fee: z.number() }),
         /** Courier payments dated in the period: each payment file once, net of the courier's fee. */
@@ -352,6 +356,18 @@ export function productRows(summary: FinanceSummary): ProductProfitRow[] {
             };
         })
         .sort((a, b) => b.profit - a.profit);
+}
+
+/** How many times the sales before a period may fit into it and still be a fair base: past this, every arrow is noise. */
+const COMPARABLE_SALES_RATIO = 11;
+
+/**
+ * Whether the period before sold enough to compare a statement against. When
+ * it did not (nothing sold, or a tenth of today's sales), no line is compared:
+ * one arrow alone on a line that happens to pass reads as a mistake.
+ */
+export function isComparablePeriod(statement: ProfitStatement, before: ProfitStatement): boolean {
+    return before.sales > 0 && statement.sales < before.sales * COMPARABLE_SALES_RATIO;
 }
 
 export interface BreakEven {

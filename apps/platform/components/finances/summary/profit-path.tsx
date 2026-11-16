@@ -192,7 +192,7 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                                 dir="ltr"
                             >
                                 +{formatWhole(profit)}
-                                <span className="ml-1.5 font-medium opacity-70" dir={dir}>{t("fin.path.orders", { n: formatWhole(points[i].orders) })}</span>
+                                <span className="ml-1.5 font-medium opacity-70" dir={dir}>{t("fin.path.orders", { n: formatWhole(points[i].orders), count: points[i].orders })}</span>
                             </span>
                         );
                     })}

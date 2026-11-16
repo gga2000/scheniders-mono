@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronDown, Check, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FinancePeriod, PresetKey } from "@/hooks/use-finance-period";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { baghdadDayKey } from "@/lib/order-window";
 
 interface PeriodPickerProps {
@@ -19,6 +19,7 @@ const PRESETS: PresetKey[] = ["today", "yesterday", "last7", "last30", "mtd", "y
 
 export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCompareMode }: PeriodPickerProps) {
     const { t, language } = useLanguage();
+    const dir = useTextDir();
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(formatISO(period.start));
     const [end, setEnd] = useState(formatISO(period.end));
@@ -57,7 +58,8 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                 className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] hover:border-[var(--ink)] transition-colors"
             >
                 <Calendar className="w-4 h-4 text-muted" />
-                <span className="text-[13px] font-medium text-foreground whitespace-nowrap">{label}</span>
+                {/* An Arabic range starts with a number: laid out left to right, the first day lands on the far side of the second month. */}
+                <span className="text-[13px] font-medium text-foreground whitespace-nowrap" dir={dir}>{label}</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 text-muted transition-transform", open && "rotate-180")} />
             </button>
 

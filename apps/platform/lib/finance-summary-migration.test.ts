@@ -71,6 +71,26 @@ describe("get_finance_summary gate", () => {
         );
     });
 
+    it("keeps the road to parcels still out for delivery, and names the ones Prime is bringing back", () => {
+        expect(core).toMatch(/LEFT JOIN public\.prime_shipments ps\s+ON ps\.order_id = o\.id AND ps\.tenant_id = _tenant_id AND ps\.cancelled_at IS NULL/);
+        expect(core).toMatch(/road AS \([\s\S]*?t\.prime_status NOT IN \('FAILED_DELIVER_RETURNED_TO_SENDER', 'DELIVERED', 'PART_DELIVERED', 'DELIVERED_CHANGE_PRICE'\)/);
+        expect(core).toMatch(/'in_transit', \(SELECT jsonb_build_object\('count', count\(\*\), 'amount', COALESCE\(sum\(price\), 0\)\) FROM road\)/);
+        expect(core).toMatch(/FROM road WHERE since <= now\(\) - interval '15 days'/);
+        expect(core).toMatch(/'returning', [\s\S]{0,120}FROM transit WHERE prime_status = 'FAILED_DELIVER_RETURNED_TO_SENDER'/);
+    });
+
+    it("counts a parcel refused on Prime once, on the day Prime marked it", () => {
+        // the shop's own "refused" leaves out an order whose Prime parcel came back
+        expect(core).toMatch(/o\.status = 'rejected'[\s\S]*?AND NOT EXISTS \(\s*SELECT 1 FROM public\.prime_shipments ps\s+WHERE ps\.order_id = o\.id AND ps\.tenant_id = _tenant_id\s+AND ps\.shipment_status = 'FAILED_DELIVER_RETURNED_TO_SENDER'\)/);
+        expect(core).toMatch(/UNION ALL[\s\S]*?JOIN public\.orders o ON o\.id = ps\.order_id AND o\.tenant_id = _tenant_id, w\s+WHERE ps\.tenant_id = _tenant_id\s+AND ps\.shipment_status = 'FAILED_DELIVER_RETURNED_TO_SENDER'\s+AND ps\.status_changed_at >= w\.ts_from AND ps\.status_changed_at < w\.ts_to/);
+    });
+
+    it("calls a delivered order paid when a confirmed payment file of the shop, or a Prime payment, names it", () => {
+        expect(core).toMatch(/paid_ids AS \([\s\S]*?FROM public\.delivery_import_items i\s+JOIN public\.delivery_imports di ON di\.id = i\.import_id\s+WHERE di\.tenant_id = _tenant_id\s+AND di\.status IN \('confirmed', 'completed'\)/);
+        expect(core).toMatch(/SELECT ps\.order_id\s+FROM public\.prime_shipments ps\s+WHERE ps\.tenant_id = _tenant_id AND ps\.payment_id IS NOT NULL/);
+        expect(core).toMatch(/'paid_orders', \(SELECT count\(\*\) FROM sold s WHERE s\.id IN \(SELECT id FROM paid_ids\)\)/);
+    });
+
     it("scopes every table it reads to the shop", () => {
         for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc", "delivery_imports di"]) {
             const alias = table.split(" ")[1];

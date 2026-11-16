@@ -22,7 +22,7 @@ export function StockShelf({ summary }: StockShelfProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { pieces, cost_value: value, missing_cost_products: missing } = summary.stock;
+    const { pieces, costed_pieces: costed, cost_value: value, missing_cost_products: missing } = summary.stock;
     const bought = stockPurchases(summary);
 
     return (
@@ -46,12 +46,18 @@ export function StockShelf({ summary }: StockShelfProps) {
                 <p className="text-left text-[14px] leading-relaxed text-muted" dir={dir}>{t("fin.stock.none")}</p>
             ) : (
                 <p className="text-left text-[19px] font-medium leading-normal text-foreground" dir={dir} data-testid="stock-say">
-                    <Emphasis text={t("fin.stock.say", { n: formatWhole(pieces), value: formatWhole(value) })} />
+                    <Emphasis
+                        text={
+                            costed < pieces
+                                ? t("fin.stock.sayPart", { costed: formatWhole(costed), n: formatWhole(pieces), value: formatWhole(value) })
+                                : t("fin.stock.say", { n: formatWhole(pieces), value: formatWhole(value) })
+                        }
+                    />
                 </p>
             )}
             {missing > 0 && (
                 <p className="text-left text-[13px] leading-relaxed text-amber-700 dark:text-amber-300" dir={dir} data-testid="stock-missing">
-                    {t("fin.stock.missing", { n: formatWhole(missing) })}
+                    {t("fin.stock.missing", { n: formatWhole(missing), count: missing })}
                 </p>
             )}
             {bought > 0 && (

@@ -79,14 +79,19 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                             )}
                                         </div>
                                     </div>
-                                    <span className="h-2.5 overflow-hidden rounded-full bg-[var(--background-soft)]" aria-hidden="true">
-                                        <motion.span
-                                            className="block h-full rounded-full"
-                                            style={{ background: PROFIT_COLOR }}
-                                            initial={reduceMotion ? false : { width: 0 }}
-                                            animate={{ width: `${row.profitShare * 100}%` }}
-                                            transition={{ duration: 0.7, delay: Math.min(i, 6) * 0.04, ease: [0.16, 1, 0.3, 1] }}
-                                        />
+                                    <span className="flex items-center gap-3">
+                                        <span className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--background-soft)]" aria-hidden="true">
+                                            <motion.span
+                                                className="block h-full rounded-full"
+                                                style={{ background: PROFIT_COLOR }}
+                                                initial={reduceMotion ? false : { width: 0 }}
+                                                animate={{ width: `${row.profitShare * 100}%` }}
+                                                transition={{ duration: 0.7, delay: Math.min(i, 6) * 0.04, ease: [0.16, 1, 0.3, 1] }}
+                                            />
+                                        </span>
+                                        <span className="w-9 shrink-0 text-right text-[12.5px] font-semibold tabular-nums text-muted" dir="ltr" data-share={row.key}>
+                                            {Math.round(row.profitShare * 100)}%
+                                        </span>
                                     </span>
                                     <div className="text-right">
                                         <Money

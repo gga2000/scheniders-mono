@@ -6,6 +6,7 @@ import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import {
+    isComparablePeriod,
     lensChange,
     throughLens,
     waterfall,
@@ -45,7 +46,8 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
  * the dark band. The switch re-reads every figure per order or per 1,000 IQD
  * sold. A cost line opens to show what is inside it; lines with nothing in
  * them fold into one quiet sentence. With a period to compare against, each
- * line carries an arrow: the figure on screen against the same figure before.
+ * line carries an arrow beside its amount: the figure on screen against the
+ * same figure before.
  */
 export function ProfitStatement({ summary, statement, previous, onOpenTab }: ProfitStatementProps) {
     const { t, language } = useLanguage();
@@ -61,7 +63,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const empty = statement.lines.filter((line) => line.amount === 0);
     /** The change of a figure against the period before, through the chosen lens; null when it is not worth showing. */
     const change = (value: number, before: number | undefined) => {
-        if (!previous || before === undefined) return null;
+        if (!previous || before === undefined || !isComparablePeriod(statement, previous)) return null;
         const pctChange = lensChange(value, statement, before, previous, lens);
         return isShownChange(pctChange) ? pctChange : null;
     };
@@ -87,15 +89,17 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
             <div className={cn(ROW, "py-[11px]")} data-line="sales">
                 <span className="text-left text-[15px] font-bold text-foreground" dir={dir}>{t("fin.line.sales")}</span>
                 <span className="h-[30px] rounded-[9px] bg-stone-900 dark:bg-stone-100" />
-                <span className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[13px] tabular-nums text-muted">
-                    <span dir={dir}>{t("fin.strip.sales.note", { n: formatWhole(statement.orders) })}</span>
+                <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
+                    {t("fin.strip.sales.note", { n: formatWhole(statement.orders), count: statement.orders })}
+                </span>
+                <span className="flex items-baseline justify-end gap-3">
                     {salesChange !== null && (
                         <span data-change="sales">
                             <ChangeChip value={salesChange} surface="card" />
                         </span>
                     )}
+                    {amount(statement.sales, "text-[20px] font-bold text-foreground")}
                 </span>
-                {amount(statement.sales, "text-[20px] font-bold text-foreground")}
             </div>
 
             {shown.map((line) => {
@@ -135,15 +139,17 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                     </>
                                 )}
                             </span>
-                            <span className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[13px] tabular-nums text-muted">
-                                <span dir={dir}>{statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}</span>
+                            <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
+                                {statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}
+                            </span>
+                            <span className="flex items-baseline justify-end gap-3">
                                 {lineChange !== null && (
                                     <span data-change={line.id}>
                                         <ChangeChip value={lineChange} lowerIsBetter surface="card" />
                                     </span>
                                 )}
+                                {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
                             </span>
-                            {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
                         </button>
                         <AnimatePresence initial={false}>
                             {expanded && (
@@ -154,7 +160,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                     transition={{ duration: 0.2 }}
                                     className="overflow-hidden"
                                 >
-                                    <StatementDetail line={line} summary={summary} onOpenTab={onOpenTab} read={(value) => throughLens(value, statement, lens)} />
+                                    <StatementDetail line={line} summary={summary} onOpenTab={onOpenTab} averaged={lens !== "total"} />
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -168,7 +174,8 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     data-testid="statement-quiet"
                 >
                     <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.none", { lines: empty.map((line) => t(`fin.line.${line.id}`)).join(language === "ar" ? "، " : ", ") })}
+                        {t("fin.statement.none", { lines: empty.map((line) => t(`fin.line.${line.id}`)).join(language === "ar" ? "، " : ", ") })}{" "}
+                        <span className="font-medium text-foreground">{t("fin.statement.noneMeans")}</span>
                     </span>
                     <button
                         type="button"

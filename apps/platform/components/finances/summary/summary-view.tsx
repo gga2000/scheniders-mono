@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { PackageOpen } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,11 @@ import { ReturnedParcels } from "./returned-parcels";
 import { StockShelf } from "./stock-shelf";
 import { SummaryAlerts } from "./summary-alerts";
 import { SummarySkeleton } from "./summary-skeleton";
+
+const DeliveryImportModal = dynamic(
+    () => import("@/components/delivery-import/delivery-import-modal").then((m) => ({ default: m.DeliveryImportModal })),
+    { ssr: false },
+);
 
 interface SummaryViewProps {
     current: UseQueryResult<FinanceSummary>;
@@ -39,6 +45,7 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
     const dir = useTextDir();
     const summary = current.data;
     const before = previous?.data;
+    const [importOpen, setImportOpen] = useState(false);
 
     const statement = useMemo(() => (summary ? buildStatement(summary) : null), [summary]);
     const beforeFigures = useMemo(() => (before ? { summary: before, statement: buildStatement(before) } : null), [before]);
@@ -81,7 +88,7 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]")}>
                 {!nothingDelivered && <ProfitPath daily={summary.daily} />}
-                <MoneyRoute summary={summary} />
+                <MoneyRoute summary={summary} onAddPayment={() => setImportOpen(true)} />
             </div>
 
             {!nothingDelivered && <ProductRanking rows={products} />}
@@ -92,6 +99,17 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
                 <BreakEven summary={summary} statement={statement} onOpenTab={onOpenTab} />
                 <StockShelf summary={summary} />
             </div>
+
+            {importOpen && (
+                <DeliveryImportModal
+                    open
+                    onClose={() => {
+                        setImportOpen(false);
+                        // A confirmed (or removed) payment file changes what reached the shop and which orders are delivered.
+                        void current.refetch();
+                    }}
+                />
+            )}
         </div>
     );
 }
