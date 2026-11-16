@@ -35,7 +35,6 @@ import { useSidebar } from "@/components/layout/dashboard-layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { useEdgeOverflow } from "@/hooks/use-edge-overflow";
 import { dropFirstLoadHold, raiseFirstLoadHold } from "@/lib/first-load-hold";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -422,7 +421,24 @@ export function useOrdersPageModel() {
     // Toolbar scroller edge fades — only shown while content actually
     // overflows on that side, so nothing ever hard-clips at the seam.
     const toolbarScrollRef = useRef<HTMLDivElement>(null);
-    const toolbarFade = useEdgeOverflow(toolbarScrollRef);
+    const [toolbarFade, setToolbarFade] = useState({ left: false, right: false });
+    useEffect(() => {
+        const el = toolbarScrollRef.current;
+        if (!el) return;
+        const update = () => {
+            const left = el.scrollLeft > 4;
+            const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+            setToolbarFade(prev => (prev.left === left && prev.right === right) ? prev : { left, right });
+        };
+        update();
+        el.addEventListener("scroll", update, { passive: true });
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => {
+            el.removeEventListener("scroll", update);
+            ro.disconnect();
+        };
+    }, []);
 
     // Update date picker position when opened
     useEffect(() => {
