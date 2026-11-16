@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { useSaveShop, type Shop, type TillMember } from "@/hooks/use-shops";
+import { isBranchLimitError, useSaveShop, type Shop, type TillMember } from "@/hooks/use-shops";
 import { shopFormSchema, type ShopFormInput } from "@/lib/till/shop-forms";
 import { supabase } from "@/lib/supabase";
 import { formatIqdNumber } from "@scheniders/shared";
@@ -132,7 +132,8 @@ export function ShopDialog({ shop, members, onClose }: Props) {
                 onError: (err) => {
                     // 23505 = the store already has a shop with this name.
                     const duplicate = typeof err === "object" && err !== null && "code" in err && err.code === "23505";
-                    toast({ title: t(duplicate ? "till.shops.nameTaken" : "till.shops.saveFailed"), variant: "error" });
+                    const title = isBranchLimitError(err) ? "shops.branchLimit" : duplicate ? "till.shops.nameTaken" : "till.shops.saveFailed";
+                    toast({ title: t(title), variant: "error" });
                 },
             },
         );

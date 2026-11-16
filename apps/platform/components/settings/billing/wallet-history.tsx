@@ -4,12 +4,18 @@ import { ArrowDownRight, ArrowUpRight, CreditCard } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { WalletTransaction } from "@/hooks/use-billing";
+import { planName } from "@scheniders/shared/plans";
 import { formatBillingDate } from "./billing-format";
 
 type Translate = ReturnType<typeof useLanguage>["t"];
+type Locale = ReturnType<typeof useLanguage>["language"];
 
 /** A wallet movement in the shop's words. The database stores English notes. */
-export function transactionLabel(tx: Pick<WalletTransaction, "type" | "description" | "payment_method">, t: Translate): string {
+export function transactionLabel(
+    tx: Pick<WalletTransaction, "type" | "description" | "payment_method">,
+    t: Translate,
+    locale: Locale,
+): string {
     if (tx.type === "topup") {
         return tx.payment_method
             ? `${t("billing.tx.topup")} · ${t(`billing.method.${tx.payment_method}`, tx.payment_method)}`
@@ -18,6 +24,12 @@ export function transactionLabel(tx: Pick<WalletTransaction, "type" | "descripti
     const description = tx.description ?? "";
     const delivered = /^Delivered order (\S+)$/.exec(description);
     if (delivered) return t("billing.tx.delivered", { id: delivered[1] });
+    const undone = /^Delivered order (\S+) undone$/.exec(description);
+    if (undone) return t("billing.tx.deliveredUndone", { id: undone[1] });
+    const upgrade = /^Plan upgrade to (\S+) plan/.exec(description);
+    if (upgrade) return t("billing.tx.planUpgrade", { plan: planName(upgrade[1], locale) });
+    const addon = /^Add-on (extra_member|pos_branch) x(\d+)/.exec(description);
+    if (addon) return t("billing.tx.addon", { name: t(`addons.${addon[1]}`), count: addon[2] });
     const waTyped = /^WhatsApp (confirmation|offer) (\S*)$/.exec(description);
     if (waTyped) return t(waTyped[1] === "offer" ? "billing.tx.whatsappOffer" : "billing.tx.whatsappConfirm", { id: waTyped[2] });
     const whatsapp = /^WhatsApp message (\S*)$/.exec(description);
@@ -57,7 +69,7 @@ export function WalletHistory({ transactions }: { transactions: WalletTransactio
                                             : <ArrowDownRight className="h-4 w-4 text-red-500" />}
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium text-foreground">{transactionLabel(tx, t)}</p>
+                                        <p className="truncate text-sm font-medium text-foreground">{transactionLabel(tx, t, language)}</p>
                                         <p className="text-xs text-muted-foreground">{formatBillingDate(tx.created_at, language)}</p>
                                     </div>
                                 </div>

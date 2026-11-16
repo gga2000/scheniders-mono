@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, PackageCheck } from "lucide-react";
+import { ArrowLeftRight, Lock, PackageCheck } from "lucide-react";
+import { planName } from "@scheniders/shared/plans";
 import { formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { BillingLock } from "@/hooks/use-billing-lock";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
+import { BILLING_SETTINGS_PATH } from "@/lib/billing/lock-routes";
 import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
 
 /**
@@ -15,8 +17,9 @@ import { BillingLockPay, billingLockMessage } from "./billing-lock-pay";
  * or deleted.
  */
 export function BillingLockScreen({ lock }: { lock: BillingLock }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { title, body } = billingLockMessage(t, lock);
+    const amount = formatIQD(lock.price_iqd);
 
     return (
         <div className="flex min-h-[70vh] items-center justify-center p-6" data-testid="billing-lock-screen">
@@ -26,9 +29,22 @@ export function BillingLockScreen({ lock }: { lock: BillingLock }) {
                 </div>
                 <h2 className="mb-2 text-xl font-bold text-foreground">{title}</h2>
                 <p className="mb-2 text-sm text-muted-foreground">{body}</p>
-                <p className="mb-6 text-sm font-medium tabular-nums text-foreground">
-                    {t("billing.lock.price", { amount: formatIQD(lock.price_iqd) })}
+                <p className="mb-1 text-sm font-medium tabular-nums text-foreground" data-testid="billing-lock-price">
+                    {lock.plan
+                        ? t("billing.lock.planPrice", { plan: planName(lock.plan, language), amount })
+                        : t("billing.lock.price", { amount })}
                 </p>
+                {lock.can_pay ? (
+                    <Link
+                        href={BILLING_SETTINGS_PATH}
+                        className="mb-6 inline-flex items-center gap-1.5 text-xs font-semibold text-purple-700 hover:underline dark:text-purple-300"
+                    >
+                        <ArrowLeftRight className="h-3.5 w-3.5" />
+                        {t("billing.lock.changePlan")}
+                    </Link>
+                ) : (
+                    <div className="mb-6" />
+                )}
                 <BillingLockPay lock={lock} />
                 <Link
                     href="/orders"

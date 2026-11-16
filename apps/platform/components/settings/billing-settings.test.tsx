@@ -1,13 +1,15 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi, beforeEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import type { PlanLimitsData, SubscriptionData, WalletTransaction } from "@/hooks/use-billing";
 import type { TenantSummary } from "@/hooks/use-tenant";
 import type { TopupPaymentDetails, TopupRequest } from "@/hooks/use-wallet-topup";
 import type { QiSavedCard } from "@/hooks/use-qi-topup";
 import { hasRoomForTopup, receiptProblem } from "@/hooks/use-wallet-topup";
+import type { BillingLock } from "@/hooks/use-billing-lock";
+import type { AddonChangeResult, AddonKind, PlanChangeResult } from "@/hooks/use-plan-change";
 
 const state: {
     tenant: TenantSummary;
@@ -19,6 +21,11 @@ const state: {
     qiEnabled: boolean;
     qiCanSaveCard: boolean;
     qiCard: QiSavedCard | null;
+    sub: SubscriptionData;
+    lock: BillingLock;
+    addons: Record<AddonKind, number>;
+    planQuote: PlanChangeResult | undefined;
+    addonQuote: AddonChangeResult | undefined;
 } = {} as never;
 
 const SAVED_CARD: QiSavedCard = {
@@ -34,7 +41,7 @@ const SAVED_CARD: QiSavedCard = {
 const PLAN: PlanLimitsData = {
     plan: "starter",
     max_orders_per_month: -1,
-    max_team_members: -1,
+    max_team_members: 2,
     order_price_iqd: 55,
     overage_price_iqd: 0,
     base_price_iqd: 9000,
@@ -43,6 +50,45 @@ const PLAN: PlanLimitsData = {
     whatsapp_message_price_iqd: 30,
     whatsapp_marketing_price_iqd: 80,
     features: {},
+    self_serve: true,
+    sort_order: 1,
+    recommended: false,
+    max_stores: 1,
+    extra_member_price_iqd: null,
+    pos_branch_price_iqd: null,
+    pos_branches_included: 0,
+};
+
+// The plans as plan_limits holds them after Fermi B1 (sort_order order).
+const PLANS: PlanLimitsData[] = [
+    PLAN,
+    { ...PLAN, plan: "growth", base_price_iqd: 25_000, max_team_members: 6, sort_order: 2, recommended: true, extra_member_price_iqd: 5000, pos_branch_price_iqd: 15_000 },
+    {
+        ...PLAN,
+        plan: "professional",
+        base_price_iqd: 89_000,
+        order_price_iqd: 40,
+        max_team_members: 20,
+        max_stores: 3,
+        sort_order: 3,
+        extra_member_price_iqd: 5000,
+        pos_branch_price_iqd: 15_000,
+        pos_branches_included: 1,
+    },
+    { ...PLAN, plan: "enterprise", base_price_iqd: 100_000, order_price_iqd: 100, max_team_members: -1, max_stores: -1, self_serve: false, sort_order: 4, pos_branches_included: -1 },
+    { ...PLAN, plan: "internal", base_price_iqd: 0, order_price_iqd: 0, max_team_members: -1, max_stores: -1, self_serve: false, sort_order: 4, pos_branches_included: -1 },
+];
+
+const LOCK: BillingLock = {
+    locked: false,
+    reason: null,
+    since: null,
+    orders_left: null,
+    allowance: 50,
+    plan: "starter",
+    price_iqd: 9000,
+    balance_iqd: 20_000,
+    can_pay: true,
 };
 
 const SUB: SubscriptionData = {
@@ -64,14 +110,37 @@ vi.mock("@/hooks/use-tenant", () => ({
 vi.mock("@/hooks/use-billing", () => ({
     useBilling: () => ({
         wallet: { balance_iqd: state.balance, threshold_iqd: 5000, total_charged_iqd: 0, total_topped_up_iqd: 0 },
-        subscription: SUB,
-        allPlans: [PLAN],
+        subscription: state.sub,
+        allPlans: PLANS,
         transactions: state.transactions,
         isLoading: false,
         refetch: () => undefined,
     }),
     useTrialOrderCount: (enabled: boolean) => ({ data: enabled ? state.trialOrders : undefined }),
 }));
+
+vi.mock("@/hooks/use-billing-lock", async (importOriginal) => {
+    const real = await importOriginal<typeof import("@/hooks/use-billing-lock")>();
+    return { ...real, useBillingLock: () => ({ data: state.lock }) };
+});
+
+const applyPlan = vi.fn();
+const applyAddon = vi.fn();
+const quotedPlans: (string | null)[] = [];
+vi.mock("@/hooks/use-plan-change", async (importOriginal) => {
+    const real = await importOriginal<typeof import("@/hooks/use-plan-change")>();
+    return {
+        ...real,
+        useTenantAddons: () => ({ data: state.addons }),
+        usePlanQuote: (plan: string | null) => {
+            quotedPlans.push(plan);
+            return { data: plan ? state.planQuote : undefined, isLoading: false, isError: false };
+        },
+        useAddonQuote: () => ({ data: state.addonQuote, isLoading: false, isError: false }),
+        useApplyPlanChange: () => ({ isPending: false, mutate: applyPlan }),
+        useApplyAddonChange: () => ({ isPending: false, mutate: applyAddon }),
+    };
+});
 
 vi.mock("@/hooks/use-wallet-topup", async (importOriginal) => {
     const real = await importOriginal<typeof import("@/hooks/use-wallet-topup")>();
@@ -143,6 +212,15 @@ beforeEach(() => {
     state.qiEnabled = false;
     state.qiCanSaveCard = true;
     state.qiCard = null;
+    // A paid month that is still running whenever the tests run.
+    state.sub = { ...SUB, current_period_end: new Date(Date.now() + 15 * 86_400_000).toISOString() };
+    state.lock = { ...LOCK };
+    state.addons = { extra_member: 0, pos_branch: 0 };
+    state.planQuote = undefined;
+    state.addonQuote = undefined;
+    quotedPlans.length = 0;
+    applyPlan.mockReset();
+    applyAddon.mockReset();
     qiPay.mockReset();
     qiCardUpdate.mockReset();
     qiCardRemove.mockReset();
@@ -285,6 +363,152 @@ describe("BillingSettings", () => {
         const list = screen.getByTestId("topup-requests").textContent ?? "";
         expect(list).toContain("قيد المراجعة");
         expect(list).toContain("أُضيف");
+    });
+});
+
+describe("BillingSettings plans (Fermi B1)", () => {
+    const UPGRADE: PlanChangeResult = {
+        success: true,
+        kind: "upgrade",
+        plan: "growth",
+        current_plan: "starter",
+        pending_plan: null,
+        monthly_iqd: 25_000,
+        order_fee_iqd: 55,
+        charge_now_iqd: 8000,
+        effective_at: "2026-11-16T00:00:00Z",
+        period_end: "2026-12-01T00:00:00Z",
+        seat_limit: 6,
+        seats_used: 2,
+        balance_iqd: 20_000,
+        balance_ok: true,
+    };
+
+    it("shows the three plans with their prices, Team as the most chosen, Custom as contact us, and no Internal", () => {
+        show();
+        const picker = screen.getByTestId("plan-picker").textContent ?? "";
+        expect(picker).toContain("البداية");
+        expect(picker).toContain("الفريق");
+        expect(picker).toContain("الأعمال");
+        expect(picker).not.toContain("داخلي");
+        const team = screen.getByTestId("plan-option-growth").textContent ?? "";
+        expect(team).toContain("الأكثر اختياراً");
+        expect(team).toMatch(/IQD\s25,000 بالشهر/);
+        expect(team).toContain("+ 55 دينار على كل طلب واصل، والراجع ببلاش");
+        expect(team).toContain("رسائل الواتساب من محفظتك");
+        expect(screen.getByTestId("plan-option-starter").textContent).not.toContain("الأكثر اختياراً");
+        expect(screen.getByTestId("plan-option-starter").textContent).toContain("باقتك الحالية");
+        expect(screen.getByTestId("plan-option-professional").textContent).toContain("+ 40 دينار على كل طلب واصل");
+        expect(screen.getByTestId("plan-option-professional").textContent).toContain("فروع كاشير مشمولة: 1");
+        expect(screen.getByTestId("plan-option-custom").textContent).toContain("خاص");
+        expect(screen.getByTestId("billing-plan-card").textContent).toContain("باقتك: البداية");
+    });
+
+    it("the calculator adds the fee on delivered orders to each plan", () => {
+        show();
+        fireEvent.change(screen.getByTestId("plan-calc-orders"), { target: { value: "1000" } });
+        expect(screen.getByTestId("plan-calc-starter").textContent).toMatch(/IQD\s64,000/);
+        expect(screen.getByTestId("plan-calc-growth").textContent).toMatch(/IQD\s80,000/);
+        expect(screen.getByTestId("plan-calc-professional").textContent).toMatch(/IQD\s129,000/);
+    });
+
+    it("an admin choosing a bigger plan sees what is taken now, and confirms it", () => {
+        state.planQuote = UPGRADE;
+        show();
+        fireEvent.click(screen.getByText("اختر الفريق"));
+        expect(quotedPlans).toContain("growth");
+        const dialog = screen.getByTestId("plan-change-dialog").textContent ?? "";
+        expect(dialog).toMatch(/تبدأ الفريق الآن. ينخصم IQD\s8,000 من محفظتك عن باقي هذا الشهر./);
+        expect(dialog).toContain("أعضاء الفريق: 2 من 6");
+        fireEvent.click(screen.getByTestId("plan-change-confirm"));
+        expect(applyPlan).toHaveBeenCalledWith("growth", expect.anything());
+    });
+
+    it("a wallet that cannot pay the upgrade cannot confirm it", () => {
+        state.planQuote = { ...UPGRADE, balance_iqd: 3000, balance_ok: false };
+        show();
+        fireEvent.click(screen.getByText("اختر الفريق"));
+        expect(screen.getByTestId("plan-change-dialog").textContent).toMatch(/محفظتك ناقصها IQD\s5,000/);
+        expect((screen.getByTestId("plan-change-confirm") as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("a smaller plan the team does not fit in is refused with the numbers", () => {
+        state.sub = { ...state.sub, plan: "growth" };
+        state.planQuote = { success: false, error: "too_many_members", seats_used: 4, seat_limit: 2, plan: "starter" };
+        show();
+        fireEvent.click(screen.getByText("اختر البداية"));
+        expect(screen.getByTestId("plan-change-dialog").textContent).toContain("عندك 4 أعضاء بالفريق، والبداية تسمح بـ 2.");
+        expect((screen.getByTestId("plan-change-confirm") as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("in the trial the pick is what the payment buys, and the plan card says so", () => {
+        state.tenant = tenant("trial", new Date(Date.now() + 3 * 86_400_000).toISOString());
+        state.sub = { ...state.sub, plan: "growth", status: "trialing", pending_plan: "starter" };
+        state.lock = { ...LOCK, plan: "starter", price_iqd: 9000 };
+        show();
+        expect(screen.getByTestId("plan-pending").textContent).toContain("بعد التجربة: البداية");
+        expect(screen.getByTestId("plan-option-starter").textContent).toContain("اخترتها");
+        expect(screen.getByText("اختر الفريق")).toBeTruthy();
+        expect(screen.getByTestId("billing-plan-card").textContent).toMatch(/يُخصم IQD\s9,000/);
+    });
+
+    it("a smaller plan waiting for the renewal shows its date, and the admin can stay", () => {
+        state.sub = { ...state.sub, plan: "growth", pending_plan: "starter", plan_change_at: state.sub.current_period_end };
+        show();
+        expect(screen.getByTestId("plan-pending").textContent).toContain("تصير باقتك البداية");
+        expect(screen.getByTestId("plan-option-starter").textContent).toContain("تبدأ");
+        expect(screen.getByText("ابقَ على الفريق")).toBeTruthy();
+    });
+
+    it("staff who are not the admin see the plans and cannot change them", () => {
+        state.lock = { ...LOCK, can_pay: false };
+        show();
+        expect(screen.queryByText("اختر الفريق")).toBeNull();
+        expect(screen.getByText("صاحب المتجر يقدر يغيّر الباقة.")).toBeTruthy();
+    });
+
+    it("Start sells no add-ons", () => {
+        show();
+        expect(screen.queryByTestId("addons-card")).toBeNull();
+    });
+
+    it("on Team, an extra member is reviewed with its cost before it is bought", () => {
+        state.sub = { ...state.sub, plan: "growth" };
+        state.addons = { extra_member: 1, pos_branch: 0 };
+        state.addonQuote = {
+            success: true,
+            kind: "extra_member",
+            plan: "growth",
+            quantity_from: 1,
+            quantity_to: 2,
+            unit_price_iqd: 5000,
+            monthly_iqd: 35_000,
+            charge_now_iqd: 2500,
+            balance_iqd: 20_000,
+            balance_ok: true,
+        };
+        show();
+        expect(screen.getByTestId("addons-card").textContent).toContain("فروع الكاشير");
+        expect(screen.getByTestId("addon-extra_member-qty").textContent).toBe("1");
+        fireEvent.click(within(screen.getByTestId("addon-extra_member")).getByLabelText("أكثر"));
+        fireEvent.click(screen.getByText("راجع وأكّد"));
+        const dialog = screen.getByTestId("addon-change-dialog").textContent ?? "";
+        expect(dialog).toContain("أعضاء إضافيين بالفريق: من 1 إلى 2");
+        expect(dialog).toMatch(/ينخصم IQD\s2,500 من محفظتك/);
+        fireEvent.click(screen.getByTestId("addon-change-confirm"));
+        expect(applyAddon).toHaveBeenCalledWith({ kind: "extra_member", quantity: 2 }, expect.anything());
+    });
+
+    it("wallet history names plan upgrades, add-ons and fees given back", () => {
+        state.transactions = [
+            tx({ type: "refund", amount_iqd: 55, description: "Delivered order 4370 undone" }),
+            tx({ amount_iqd: -8000, description: "Plan upgrade to growth plan (rest of this month)" }),
+            tx({ amount_iqd: -2500, description: "Add-on extra_member x2 (rest of this month)" }),
+        ];
+        show();
+        expect(screen.getByText("رجعنا رسم الطلب #4370")).toBeTruthy();
+        expect(screen.getByText("ترقية إلى الفريق (باقي الشهر)")).toBeTruthy();
+        expect(screen.getByText("أعضاء إضافيين بالفريق +2 (باقي الشهر)")).toBeTruthy();
     });
 });
 

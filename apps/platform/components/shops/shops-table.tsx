@@ -3,7 +3,7 @@
 import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { useSetShopActive, type Shop, type TillMember } from "@/hooks/use-shops";
+import { isBranchLimitError, useSetShopActive, type Shop, type TillMember } from "@/hooks/use-shops";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -21,7 +21,7 @@ export function ShopsTable({ shops, members, onEdit }: Props) {
     const toggle = (shop: Shop) =>
         setActive.mutate(
             { id: shop.id, active: !shop.is_active },
-            { onError: () => toast({ title: t("till.shops.saveFailed"), variant: "error" }) },
+            { onError: (err) => toast({ title: t(isBranchLimitError(err) ? "shops.branchLimit" : "till.shops.saveFailed"), variant: "error" }) },
         );
 
     return (

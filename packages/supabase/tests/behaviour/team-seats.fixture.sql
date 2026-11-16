@@ -31,10 +31,27 @@ CREATE TABLE public.tenants (
 
 CREATE TABLE public.plan_limits (
     plan public.plan_tier PRIMARY KEY,
-    max_team_members integer NOT NULL
+    max_team_members integer NOT NULL,
+    extra_member_price_iqd integer
 );
 INSERT INTO public.plan_limits (plan, max_team_members) VALUES
     ('starter', -1), ('growth', 8), ('professional', 20), ('enterprise', -1), ('internal', -1);
+
+-- Since Fermi B1 the seat limit also reads a smaller plan waiting for the next
+-- payment and extra members bought (20261116042723).
+CREATE TABLE public.subscriptions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL,
+    plan public.plan_tier NOT NULL,
+    pending_plan public.plan_tier,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.tenant_addons (
+    tenant_id uuid NOT NULL,
+    kind text NOT NULL,
+    quantity integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (tenant_id, kind)
+);
 
 CREATE TABLE public.user_profiles (
     id uuid PRIMARY KEY,

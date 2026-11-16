@@ -150,6 +150,15 @@ function useInvalidate() {
     return (which: keyof typeof keys) => qc.invalidateQueries({ queryKey: keys[which](tenantId) });
 }
 
+/**
+ * The plan has no room for another open POS branch: shop_branch_guard raises
+ * PT402 with hint BRANCH_LIMIT when a shop is added or switched back on
+ * (Fermi B1). More branches are an add-on on the billing page.
+ */
+export function isBranchLimitError(err: unknown): boolean {
+    return typeof err === "object" && err !== null && "hint" in err && err.hint === "BRANCH_LIMIT";
+}
+
 /** Adds a shop, or edits one when `id` is given, and sets who works there. */
 export function useSaveShop() {
     const { tenantId } = useAuth();

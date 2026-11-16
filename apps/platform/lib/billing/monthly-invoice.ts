@@ -16,7 +16,7 @@ export interface InvoiceTransaction {
     created_at: string;
 }
 
-export type InvoiceLineKind = "monthly" | "delivered" | "whatsappConfirm" | "whatsappOffer" | "whatsapp" | "orderCharge" | "other";
+export type InvoiceLineKind = "monthly" | "planChange" | "delivered" | "whatsappConfirm" | "whatsappOffer" | "whatsapp" | "orderCharge" | "other";
 
 export interface InvoiceLine {
     kind: InvoiceLineKind;
@@ -40,7 +40,9 @@ export interface MonthlyInvoice {
     lines: InvoiceLine[];
     charged: number;
     topups: InvoiceTopup[];
-    /** Credits that are not top-ups, such as an admin correction. */
+    /** Fees given back for deliveries that were undone (returned after delivery). */
+    feeRefunds: { count: number; total: number };
+    /** Credits that are not top-ups or fee refunds, such as an admin correction. */
     otherCredits: number;
     openingBalance: number;
     closingBalance: number;
@@ -79,6 +81,7 @@ export function recentMonths(now: Date, count: number): string[] {
 export function chargeKind(description: string | null): InvoiceLineKind {
     const d = description ?? "";
     if (d.startsWith("Monthly subscription")) return "monthly";
+    if (d.startsWith("Plan upgrade to ") || d.startsWith("Add-on ")) return "planChange";
     if (d.startsWith("Delivered order ")) return "delivered";
     if (d.startsWith("WhatsApp confirmation")) return "whatsappConfirm";
     if (d.startsWith("WhatsApp offer")) return "whatsappOffer";
@@ -87,7 +90,10 @@ export function chargeKind(description: string | null): InvoiceLineKind {
     return "other";
 }
 
-const LINE_ORDER: InvoiceLineKind[] = ["monthly", "delivered", "whatsappConfirm", "whatsappOffer", "whatsapp", "orderCharge", "other"];
+/** The note charge_delivered_order writes when it gives a delivery's fee back. */
+const DELIVERY_UNDONE = /^Delivered order \S+ undone$/;
+
+const LINE_ORDER: InvoiceLineKind[] = ["monthly", "planChange", "delivered", "whatsappConfirm", "whatsappOffer", "whatsapp", "orderCharge", "other"];
 
 /**
  * Sums one month of wallet rows. `before` is the shop's balance when the month
@@ -103,6 +109,7 @@ export function buildMonthlyInvoice(input: {
     const rows = [...input.transactions].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const byKind = new Map<InvoiceLineKind, InvoiceLine>();
     const topups: InvoiceTopup[] = [];
+    const feeRefunds = { count: 0, total: 0 };
     let otherCredits = 0;
 
     for (const tx of rows) {
@@ -115,6 +122,9 @@ export function buildMonthlyInvoice(input: {
             line.count += 1;
             line.total += -amount;
             byKind.set(kind, line);
+        } else if (tx.type === "refund" && DELIVERY_UNDONE.test(tx.description ?? "")) {
+            feeRefunds.count += 1;
+            feeRefunds.total += amount;
         } else {
             otherCredits += amount;
         }
@@ -130,6 +140,7 @@ export function buildMonthlyInvoice(input: {
         lines,
         charged: lines.reduce((s, l) => s + l.total, 0),
         topups,
+        feeRefunds,
         otherCredits,
         openingBalance: input.openingBalance,
         closingBalance: last ? Number(last.balance_after_iqd) : input.openingBalance,
@@ -161,6 +172,8 @@ function lineLabel(line: InvoiceLine): string {
     switch (line.kind) {
         case "monthly":
             return "الاشتراك الشهري";
+        case "planChange":
+            return `ترقية الباقة والإضافات، باقي الشهر (${n})`;
         case "delivered":
             return `طلبات مُسلَّمة (${n})`;
         case "whatsappConfirm":
@@ -195,6 +208,9 @@ export function monthlyInvoiceDocument(inv: MonthlyInvoice): string {
         ...inv.topups.map((t) =>
             row(`شحن المحفظة${t.method ? ` (${escapeHtml(METHOD_AR[t.method] ?? t.method)})` : ""}، ${dayAr(t.at)}`, iqd(t.amount)),
         ),
+        inv.feeRefunds.count > 0
+            ? row(`رسوم طلبات رجعت بعد التسليم (${inv.feeRefunds.count.toLocaleString("en-US")})`, iqd(inv.feeRefunds.total))
+            : "",
         inv.otherCredits > 0 ? row("إضافات أخرى للرصيد", iqd(inv.otherCredits)) : "",
     ].join("");
     const store = inv.displayId ? `${escapeHtml(inv.storeName)} (#${inv.displayId})` : escapeHtml(inv.storeName);

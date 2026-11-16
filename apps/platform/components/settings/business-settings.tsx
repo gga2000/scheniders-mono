@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { isPlanKey, planName, type PlanKey } from "@scheniders/shared/plans";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Building2,
@@ -55,13 +56,13 @@ interface TenantData {
     created_at: string;
 }
 
-const PLAN_LABELS: Record<string, { label: string; color: string }> = {
-    starter: { label: "settings.biz.plan.starter", color: "bg-blue-100 text-blue-700" },
-    growth: { label: "settings.biz.plan.growth", color: "bg-green-100 text-green-700" },
-    professional: { label: "settings.biz.plan.professional", color: "bg-purple-100 text-purple-700" },
-    enterprise: { label: "settings.biz.plan.enterprise", color: "bg-amber-100 text-amber-700" },
-    // The house tier (never billed). Without its own entry it fell back to "Starter".
-    internal: { label: "settings.biz.plan.internal", color: "bg-gray-100 text-gray-700" },
+// The names come from @scheniders/shared/plans, the one list merchants and staff see.
+const PLAN_COLORS: Record<PlanKey, string> = {
+    starter: "bg-blue-100 text-blue-700",
+    growth: "bg-green-100 text-green-700",
+    professional: "bg-purple-100 text-purple-700",
+    enterprise: "bg-amber-100 text-amber-700",
+    internal: "bg-gray-100 text-gray-700",
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -125,7 +126,7 @@ export function BusinessSettings() {
 
 function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenantId: string }) {
     const queryClient = useQueryClient();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     // Initialize form state from tenant data (no useEffect needed)
     const [businessName, setBusinessName] = useState(tenant.business_name || "");
@@ -208,7 +209,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
         },
     });
 
-    const planInfo = PLAN_LABELS[tenant.plan] || PLAN_LABELS.starter;
+    const planColor = isPlanKey(tenant.plan) ? PLAN_COLORS[tenant.plan] : PLAN_COLORS.internal;
     const statusInfo = STATUS_LABELS[tenant.status] || STATUS_LABELS.trial;
     const trialDaysLeft = tenant.status === "trial" ? computeTrialDays(tenant.trial_ends_at) : null;
 
@@ -242,8 +243,8 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     <h3 className="text-base font-semibold text-foreground">{t("settings.biz.subscription")}</h3>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", planInfo.color)}>
-                        {t("settings.biz.planName", { plan: t(planInfo.label) })}
+                    <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", planColor)}>
+                        {t("settings.biz.planName", { plan: planName(tenant.plan, language) })}
                     </span>
                     <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", statusInfo.color)}>
                         {t(statusInfo.label)}
