@@ -42,7 +42,18 @@ CREATE TABLE public.plan_limits (
     base_price_iqd integer NOT NULL DEFAULT 0,
     order_price_iqd integer,
     trial_order_cap integer NOT NULL DEFAULT 0,
-    lock_order_allowance integer NOT NULL DEFAULT 50
+    lock_order_allowance integer NOT NULL DEFAULT 50,
+    extra_member_price_iqd integer,
+    pos_branch_price_iqd integer,
+    extra_brand_price_iqd integer
+);
+
+-- Add-ons a shop bought (Fermi B1, 20261116042723): part of the monthly price.
+CREATE TABLE public.tenant_addons (
+    tenant_id uuid NOT NULL,
+    kind text NOT NULL,
+    quantity integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (tenant_id, kind)
 );
 
 CREATE TABLE public.subscriptions (

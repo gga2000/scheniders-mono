@@ -90,6 +90,33 @@ describe("buildMonthlyInvoice", () => {
         expect(inv.closingBalance).toBe(45);
     });
 
+    it("shows plan upgrades and add-ons on their own line, and fees given back for undone deliveries apart", () => {
+        const inv = buildMonthlyInvoice({
+            month: "2026-11",
+            storeName: "s",
+            displayId: 1,
+            openingBalance: 50_000,
+            transactions: [
+                tx({ amount_iqd: -8000, balance_after_iqd: 42_000, description: "Plan upgrade to growth plan (rest of this month)" }),
+                tx({ amount_iqd: -2500, balance_after_iqd: 39_500, description: "Add-on extra_member x1 (rest of this month)" }),
+                tx({ amount_iqd: -55, balance_after_iqd: 39_445, description: "Delivered order 4370", reference_id: "delivered:o1" }),
+                tx({ type: "refund", amount_iqd: 55, balance_after_iqd: 39_500, description: "Delivered order 4370 undone", reference_id: "delivered:o1#1" }),
+                tx({ type: "adjustment", amount_iqd: 1000, balance_after_iqd: 40_500, description: "Staff correction" }),
+            ],
+        });
+        expect(inv.lines).toEqual([
+            { kind: "planChange", count: 2, total: 10_500 },
+            { kind: "delivered", count: 1, total: 55 },
+        ]);
+        expect(inv.feeRefunds).toEqual({ count: 1, total: 55 });
+        expect(inv.otherCredits).toBe(1000);
+        // Opening + credits − fees = closing.
+        expect(inv.openingBalance + inv.feeRefunds.total + inv.otherCredits - inv.charged).toBe(inv.closingBalance);
+        const html = monthlyInvoiceDocument(inv);
+        expect(html).toContain("ترقية الباقة والإضافات، باقي الشهر (2)");
+        expect(html).toContain("رسوم طلبات رجعت بعد التسليم (1)");
+    });
+
     it("files unknown charges under other fees instead of dropping them", () => {
         expect(chargeKind("Something new")).toBe("other");
         expect(chargeKind(null)).toBe("other");

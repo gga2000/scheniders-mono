@@ -8,6 +8,7 @@ import { shieldTranslations } from "@/lib/i18n-shield";
 import { tillTranslations } from "@/lib/i18n-till";
 import { guideTranslations } from "@/lib/i18n-guide";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
+import { planTranslations } from "@/lib/i18n-plans";
 
 export const ar: Record<string, string> = {
     ...orderStatusTranslations("ar"),
@@ -17,6 +18,7 @@ export const ar: Record<string, string> = {
     ...tillTranslations("ar"),
     ...guideTranslations("ar"),
     ...financeSummaryTranslations("ar"),
+    ...planTranslations("ar"),
     // ── Navigation ──
     "nav.dashboard": "لوحة التحكم",
     "nav.orders": "الطلبات",
@@ -5826,11 +5828,6 @@ export const ar: Record<string, string> = {
     "settings.print.byCity": "حسب المحافظة",
     "settings.print.single": "دفعة وحدة",
     "settings.print.save": "احفظ إعدادات الطباعة",
-    "settings.biz.plan.starter": "المبتدئة",
-    "settings.biz.plan.growth": "النمو",
-    "settings.biz.plan.professional": "الاحترافية",
-    "settings.biz.plan.enterprise": "الشركات",
-    "settings.biz.plan.internal": "داخلية",
     "settings.biz.status.trial": "تجربة",
     "settings.biz.status.active": "فعّال",
     "settings.biz.status.suspended": "موقوف",
@@ -6017,7 +6014,7 @@ export const ar: Record<string, string> = {
     "billing.plan.title": "باقتك",
     "billing.plan.monthly": "{amount} شهرياً",
     "billing.plan.perOrder": "+ {amount} لكل طلب مُسلَّم",
-    "billing.plan.included": "الطلبات الراجعة مجانية. كل الميزات مشمولة وبلا حدود.",
+    "billing.plan.included": "الطلبات الراجعة مجانية. بلا حد للطلبات.",
     "billing.plan.unpaid": "لم يُدفع الاشتراك الشهري. اشحن محفظتك حتى يبقى متجرك مفتوحاً.",
     "billing.status.trial": "تجربة مجانية",
     "billing.status.trial_ended": "التجربة خلصت",

@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, Crown, ShoppingBag } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, CalendarClock, Crown, ShoppingBag } from "lucide-react";
+import { planName } from "@scheniders/shared/plans";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PlanLimitsData, SubscriptionData } from "@/hooks/use-billing";
@@ -20,12 +21,18 @@ export function PlanCard({
     tenantStatus,
     trialEndsAt,
     trialOrders,
+    nextPrice,
+    paidMonth,
 }: {
     plan: PlanLimitsData | null;
     subscription: SubscriptionData | null;
     tenantStatus: string;
     trialEndsAt: string | null;
     trialOrders: number | null;
+    /** What the next payment takes: the plan it buys plus add-ons (billing_lock_status.price_iqd). */
+    nextPrice: number | null;
+    /** In a paid month a waiting plan starts at the renewal; otherwise it is what the payment buys. */
+    paidMonth: boolean;
 }) {
     const { t, language } = useLanguage();
     const inTrial = tenantStatus === "trial";
@@ -33,6 +40,8 @@ export function PlanCard({
     const trialEnded = inTrial && !!trialEndsAt && hasPassed(trialEndsAt);
     const status = trialEnded ? "trial_ended" : inTrial ? "trial" : subscription?.status === "past_due" ? "past_due" : tenantStatus;
     const base = plan?.base_price_iqd ?? 0;
+    const next = nextPrice ?? base;
+    const pending = subscription?.pending_plan && subscription.pending_plan !== subscription.plan ? subscription.pending_plan : null;
     const perOrder = plan?.order_price_iqd ?? 0;
     const trialDays = plan?.trial_days ?? 7;
     // 0 = no order cap: the trial ends on its date only (handoff A1).
@@ -47,7 +56,9 @@ export function PlanCard({
                     <div className="w-8 h-8 rounded-lg bg-(--pastel-purple) flex items-center justify-center">
                         <Crown className="h-4 w-4 text-purple-700" />
                     </div>
-                    <h3 className="text-base font-semibold text-foreground">{t("billing.plan.title")}</h3>
+                    <h3 className="text-base font-semibold text-foreground">
+                        {plan ? t("billing.plan.named", { plan: planName(plan.plan, language) }) : t("billing.plan.title")}
+                    </h3>
                 </div>
                 <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", STATUS_STYLE[status] ?? STATUS_STYLE.active)}>
                     {t(`billing.status.${status}`, t("billing.status.active"))}
@@ -83,8 +94,8 @@ export function PlanCard({
                         )}
                         <p className="text-xs text-muted-foreground leading-relaxed">
                             {trialCap > 0
-                                ? t("billing.trial.note", { days: trialDays, cap: trialCap, amount: formatIQD(base) })
-                                : t("billing.trial.noteNoCap", { days: trialDays, amount: formatIQD(base) })}
+                                ? t("billing.trial.note", { days: trialDays, cap: trialCap, amount: formatIQD(next) })
+                                : t("billing.trial.noteNoCap", { days: trialDays, amount: formatIQD(next) })}
                         </p>
                     </div>
                 ) : subscription ? (
@@ -94,13 +105,27 @@ export function PlanCard({
                             <p className="text-xs text-muted-foreground">{t("billing.period.next")}</p>
                             <p className="text-sm font-medium text-foreground">
                                 {t("billing.period.nextNote", {
-                                    amount: formatIQD(base),
+                                    amount: formatIQD(next),
                                     date: formatBillingDate(subscription.current_period_end, language),
                                 })}
                             </p>
                         </div>
                     </div>
                 ) : null}
+
+                {pending && (
+                    <div className="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 p-3 dark:border-purple-900 dark:bg-purple-950/30" data-testid="plan-pending">
+                        <ArrowLeftRight className="w-4 h-4 text-purple-600 shrink-0" />
+                        <p className="text-xs font-medium text-purple-800 dark:text-purple-200">
+                            {paidMonth && subscription?.plan_change_at
+                                ? t("billing.plan.changesOn", {
+                                      date: formatBillingDate(subscription.plan_change_at, language),
+                                      plan: planName(pending, language),
+                                  })
+                                : t(inTrial ? "billing.plan.afterTrial" : "billing.plan.whenPaid", { plan: planName(pending, language) })}
+                        </p>
+                    </div>
+                )}
 
                 {(status === "past_due" || status === "suspended") && (
                     <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">

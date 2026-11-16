@@ -8,6 +8,7 @@ import { shieldTranslations } from "@/lib/i18n-shield";
 import { tillTranslations } from "@/lib/i18n-till";
 import { guideTranslations } from "@/lib/i18n-guide";
 import { financeSummaryTranslations } from "@/lib/i18n-finance-summary";
+import { planTranslations } from "@/lib/i18n-plans";
 
 export const en: Record<string, string> = {
     ...orderStatusTranslations("en"),
@@ -17,6 +18,7 @@ export const en: Record<string, string> = {
     ...tillTranslations("en"),
     ...guideTranslations("en"),
     ...financeSummaryTranslations("en"),
+    ...planTranslations("en"),
     // ── Navigation ──
     "nav.dashboard": "Dashboard",
     "nav.orders": "Orders",
@@ -5451,11 +5453,6 @@ export const en: Record<string, string> = {
     "settings.print.byCity": "Group by city",
     "settings.print.single": "One single batch",
     "settings.print.save": "Save print settings",
-    "settings.biz.plan.starter": "Starter",
-    "settings.biz.plan.growth": "Growth",
-    "settings.biz.plan.professional": "Professional",
-    "settings.biz.plan.enterprise": "Enterprise",
-    "settings.biz.plan.internal": "Internal",
     "settings.biz.status.trial": "Trial",
     "settings.biz.status.active": "Active",
     "settings.biz.status.suspended": "Suspended",
@@ -5642,7 +5639,7 @@ export const en: Record<string, string> = {
     "billing.plan.title": "Your plan",
     "billing.plan.monthly": "{amount} a month",
     "billing.plan.perOrder": "+ {amount} for each delivered order",
-    "billing.plan.included": "Returned orders cost nothing. Every feature is included, with no limits.",
+    "billing.plan.included": "Returned orders cost nothing. No limit on orders.",
     "billing.plan.unpaid": "The monthly payment did not go through. Top up your wallet to keep your store open.",
     "billing.status.trial": "Free trial",
     "billing.status.trial_ended": "Trial ended",

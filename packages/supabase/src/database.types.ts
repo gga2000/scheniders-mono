@@ -4615,13 +4615,22 @@ export type Database = {
         Row: {
           base_price_iqd: number
           created_at: string
+          extra_brand_price_iqd: number | null
+          extra_member_price_iqd: number | null
           features: Json
           id: string
+          lock_order_allowance: number
           max_orders_per_month: number
+          max_stores: number
           max_team_members: number
           order_price_iqd: number
           overage_price_iqd: number
           plan: Database["public"]["Enums"]["plan_tier"]
+          pos_branch_price_iqd: number | null
+          pos_branches_included: number
+          recommended: boolean
+          self_serve: boolean
+          sort_order: number
           trial_days: number
           trial_order_cap: number
           updated_at: string
@@ -4631,13 +4640,22 @@ export type Database = {
         Insert: {
           base_price_iqd?: number
           created_at?: string
+          extra_brand_price_iqd?: number | null
+          extra_member_price_iqd?: number | null
           features?: Json
           id?: string
+          lock_order_allowance?: number
           max_orders_per_month: number
+          max_stores?: number
           max_team_members: number
           order_price_iqd?: number
           overage_price_iqd?: number
           plan: Database["public"]["Enums"]["plan_tier"]
+          pos_branch_price_iqd?: number | null
+          pos_branches_included?: number
+          recommended?: boolean
+          self_serve?: boolean
+          sort_order?: number
           trial_days?: number
           trial_order_cap?: number
           updated_at?: string
@@ -4647,13 +4665,22 @@ export type Database = {
         Update: {
           base_price_iqd?: number
           created_at?: string
+          extra_brand_price_iqd?: number | null
+          extra_member_price_iqd?: number | null
           features?: Json
           id?: string
+          lock_order_allowance?: number
           max_orders_per_month?: number
+          max_stores?: number
           max_team_members?: number
           order_price_iqd?: number
           overage_price_iqd?: number
           plan?: Database["public"]["Enums"]["plan_tier"]
+          pos_branch_price_iqd?: number | null
+          pos_branches_included?: number
+          recommended?: boolean
+          self_serve?: boolean
+          sort_order?: number
           trial_days?: number
           trial_order_cap?: number
           updated_at?: string
@@ -7791,6 +7818,38 @@ export type Database = {
           },
         ]
       }
+      tenant_addons: {
+        Row: {
+          kind: string
+          quantity: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          kind: string
+          quantity?: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          kind?: string
+          quantity?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_addons_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_capi_secrets: {
         Row: {
           meta_capi_token: string | null
@@ -8918,6 +8977,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      change_plan: {
+        Args: {
+          p_apply?: boolean
+          p_plan: Database["public"]["Enums"]["plan_tier"]
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       charge_wallet_atomic: {
         Args: {
           _amount: number
@@ -9769,6 +9836,15 @@ export type Database = {
       seed_store_config_v2_draft: {
         Args: { p_config: Json; p_tenant_id: string }
         Returns: boolean
+      }
+      set_addon_quantity: {
+        Args: {
+          p_apply?: boolean
+          p_kind: string
+          p_quantity: number
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
       settle_qi_payment: {

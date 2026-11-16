@@ -38,6 +38,19 @@ export interface PlanLimitsData {
     /** Per delivered marketing message (reminder, offer). */
     whatsapp_marketing_price_iqd: number;
     features: Record<string, boolean>;
+    /** A merchant can pick it on the billing page (Start, Team, Business). */
+    self_serve: boolean;
+    sort_order: number;
+    /** The plan the page steers to (Team). */
+    recommended: boolean;
+    /** Stores (brands) included; -1 = no limit. */
+    max_stores: number;
+    /** Monthly price of one extra team member; null = not sold on this plan. */
+    extra_member_price_iqd: number | null;
+    /** Monthly price of one POS branch; null = not sold on this plan. */
+    pos_branch_price_iqd: number | null;
+    /** POS branches included; -1 = no limit. */
+    pos_branches_included: number;
 }
 
 export interface WalletTransaction {
@@ -90,7 +103,7 @@ export function useBilling() {
             const { data, error } = await supabase
                 .from("plan_limits")
                 .select("*")
-                .order("base_price_iqd", { ascending: true });
+                .order("sort_order", { ascending: true });
             if (error) throw error;
             return data as PlanLimitsData[];
         },

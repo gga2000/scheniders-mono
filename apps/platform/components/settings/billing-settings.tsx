@@ -5,11 +5,16 @@ import { AlertTriangle, Loader2, Plus, Wallet } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useBilling, useTrialOrderCount } from "@/hooks/use-billing";
+import { useBillingLock } from "@/hooks/use-billing-lock";
 import { useTenant } from "@/hooks/use-tenant";
 import { useWalletTopup } from "@/hooks/use-wallet-topup";
 import { useQiSavedCard } from "@/hooks/use-qi-topup";
 import { isBillingExempt } from "@/lib/billing-exempt";
 import { PlanCard } from "./billing/plan-card";
+import { PlanPicker, type PlanMode } from "./billing/plan-picker";
+import { PlanChangeDialog } from "./billing/plan-change-dialog";
+import { AddonsCard } from "./billing/addons-card";
+import { hasPassed } from "./billing/billing-format";
 import { TopupForm } from "./billing/topup-form";
 import { QiAutoRefill } from "./billing/qi-auto-refill";
 import { QiReturnCheck } from "./billing/qi-return-check";
@@ -26,6 +31,10 @@ export function BillingSettings() {
     const inTrial = tenant?.status === "trial";
     const { data: trialOrders } = useTrialOrderCount(inTrial);
     const [showTopUp, setShowTopUp] = useState(false);
+    const [choosing, setChoosing] = useState<string | null>(null);
+    // The lock read also says who may pay and change plans (the shop's admins)
+    // and what the next payment takes, add-ons included.
+    const { data: lock } = useBillingLock();
 
     if (isLoading || tenantLoading) {
         return (
@@ -42,6 +51,17 @@ export function BillingSettings() {
     const threshold = wallet?.threshold_iqd ?? 0;
     // During the free trial nothing is charged yet, so a low balance is not a problem.
     const showLowBalance = !exempt && !inTrial && balance <= threshold;
+    // As change_plan decides it: in a paid month a switch happens now (or at the
+    // renewal); in the trial or a lock it picks what the next payment buys.
+    const paidMonth =
+        tenant?.status === "active" &&
+        subscription?.status === "active" &&
+        !hasPassed(subscription.current_period_end) &&
+        !lock?.locked;
+    const mode: PlanMode = inTrial ? "trial" : paidMonth ? "paid" : "locked";
+    const canChange = lock?.can_pay ?? false;
+    const addonPlanKey = subscription ? (paidMonth ? subscription.plan : (subscription.pending_plan ?? subscription.plan)) : null;
+    const addonPlan = allPlans.find((p) => p.plan === addonPlanKey) ?? null;
 
     return (
         <div className="space-y-4">
@@ -80,6 +100,8 @@ export function BillingSettings() {
                         tenantStatus={tenant?.status ?? "active"}
                         trialEndsAt={tenant?.trial_ends_at ?? null}
                         trialOrders={trialOrders ?? null}
+                        nextPrice={lock?.price_iqd ?? null}
+                        paidMonth={paidMonth}
                     />
                 )}
 
@@ -133,6 +155,22 @@ export function BillingSettings() {
                     </div>
                 </div>
             </div>
+
+            {!exempt && subscription && (
+                <>
+                    <PlanPicker
+                        plans={allPlans}
+                        currentPlan={subscription.plan}
+                        pendingPlan={subscription.pending_plan}
+                        pendingAt={subscription.plan_change_at}
+                        mode={mode}
+                        canChange={canChange}
+                        onChoose={setChoosing}
+                    />
+                    {addonPlan && <AddonsCard plan={addonPlan} paidMonth={paidMonth} canChange={canChange} />}
+                    <PlanChangeDialog plan={choosing} mode={mode} onClose={() => setChoosing(null)} />
+                </>
+            )}
 
             <TopupRequests requests={requests} />
             {!exempt && tenant && <MonthlyInvoices tenantId={tenant.id} displayId={tenant.display_id} />}

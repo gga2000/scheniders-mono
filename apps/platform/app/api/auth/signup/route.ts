@@ -10,11 +10,12 @@ import { DEFAULT_PACK_ID } from '@/lib/store-templates/content-packs';
 import { withFailureReport } from "@/lib/job-monitor";
 
 /**
- * Every self-serve signup starts a trial on the one plan (Ali, 9 Nov): 7 days
- * or 50 orders, whichever comes first. The 50-order end is enforced in the
- * database (end_trial_at_order_cap). The plan is never taken from the request.
+ * Every self-serve signup starts a 7-day trial on Team, with no order cap
+ * (Fermi handoff A1 and Q6). The merchant picks the plan they will pay for on
+ * the billing page (change_plan stores it as the subscription's pending plan);
+ * one who does not pick pays for Team. The plan is never taken from the request.
  */
-const TRIAL_PLAN = 'starter';
+const TRIAL_PLAN = 'growth';
 const TRIAL_DAYS = 7;
 
 // Each signup creates an auth user, a tenant and four supporting rows with the
