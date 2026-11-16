@@ -226,7 +226,7 @@ export function useNotificationFeed(
      * English to everyone.
      */
     useEffect(() => {
-        if (!userId || !tenantId) return;
+        if (!userId || !tenantId || held) return;
         if (language !== "ar" && language !== "en") return;
         const scope = `${userId}:${tenantId}`;
         if (localeAlreadySynced(scope, language)) return;
@@ -245,7 +245,7 @@ export function useNotificationFeed(
             }
             rememberSyncedLocale(scope, language);
         })();
-    }, [userId, tenantId, language]);
+    }, [userId, tenantId, language, held]);
 
     const invalidateAll = useCallback(() => {
         void queryClient.invalidateQueries({ queryKey: notificationKeys.all });

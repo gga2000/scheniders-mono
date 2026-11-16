@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { getPrimeClient, primeConfigFromEnv } from "@/lib/prime/client";
 import { handlePrimeTicketMessage, type PrimeTicketReplyOutcome } from "@/lib/prime/ticket-reply";
@@ -39,7 +38,9 @@ async function handlePost(request: NextRequest) {
         for (const event of events) outcomes.push(await handlePrimeTicketMessage(db, client, event));
         return NextResponse.json({ success: true, noticed: outcomes.filter((o) => o === "noticed").length });
     } catch (err) {
-        Sentry.captureException(err, { extra: { job: "prime-ticket-webhook" } });
+        // One report with the stack (console errors reach Sentry); withFailureReport
+        // adds the grouped job issue for the 500. No second captureException.
+        console.error("[prime-ticket-webhook]", err);
         return NextResponse.json({ success: false, error: "failed" }, { status: 500 });
     }
 }
