@@ -78,6 +78,18 @@ CREATE TABLE public.admin_employee_tracking (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- What staff did: one row per step, under the staff member's id.
+CREATE TABLE public.admin_activity_logs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id uuid,
+    admin_label text,
+    actor_email text,
+    tenant_id uuid,
+    action text NOT NULL,
+    details jsonb DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE public.admin_employee_commissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_user_id uuid NOT NULL,

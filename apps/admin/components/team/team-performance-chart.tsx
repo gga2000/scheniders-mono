@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { BarChart3 } from "lucide-react";
-import type { AdminEmployeeTracking } from "@/types/leads";
+import type { StaffAction } from "@/types/leads";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 
 interface TeamPerformanceChartProps {
   employeeId?: string;
-  actions?: AdminEmployeeTracking[];
+  actions?: StaffAction[];
 }
 
 function formatShortDate(date: Date): string {

@@ -327,15 +327,15 @@ export interface AdminEmployee {
   achievements: string[];
 }
 
-export interface AdminEmployeeTracking {
+/** One step a member of staff took, from the staff log (lib/staff-actions.ts). */
+export interface StaffAction {
   id: string;
-  admin_user_id: string;
   action: string;
-  entity_type: string | null;
-  entity_id: string | null;
-  metadata: Record<string, unknown>;
+  /** What the step did, in plain words. */
+  text: string;
+  /** The shop it was about; the name is null when the shop is gone. */
+  shop: { id: string; name: string | null } | null;
   created_at: string;
-  admin_user?: { display_name: string | null; email: string; avatar_url: string | null } | null;
 }
 
 export interface CommissionConfig {
