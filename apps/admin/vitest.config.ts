@@ -20,6 +20,7 @@ export default defineConfig({
       "hooks/**/*.test.ts",
       "lib/**/*.test.ts",
       "store/**/*.test.ts",
+      "middleware.test.ts",
       // Root-document test: renders app/layout.tsx to static markup.
       "app/*.test.tsx",
     ],
