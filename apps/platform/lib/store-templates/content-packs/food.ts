@@ -75,7 +75,7 @@ export const foodPack: ContentPack = {
                 en: "Delivered today",
             },
             body_i18n: {
-                ar: "داخل بغداد يوصل بنفس اليوم، والمحافظات خلال ١–٢ يوم.",
+                ar: "داخل بغداد يوصل بنفس اليوم، والمحافظات خلال 1–2 يوم.",
                 en: "Same-day inside Baghdad, 1–2 days for other governorates.",
             },
         },
@@ -147,7 +147,7 @@ export const foodPack: ContentPack = {
                 en: "How do I cancel an order?",
             },
             a_i18n: {
-                ar: "تكدر تلغي خلال أول ١٢ ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
+                ar: "تكدر تلغي خلال أول 12 ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
                 en: "You can cancel within the first 12 hours over WhatsApp. After that the order has usually shipped.",
             },
         },
@@ -157,7 +157,7 @@ export const foodPack: ContentPack = {
                 en: "When will my order arrive?",
             },
             a_i18n: {
-                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب.",
+                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال 1–3 أيام من تثبيت الطلب.",
                 en: "Baghdad usually within a day; other governorates within 1–3 days of confirmation.",
             },
         },
@@ -174,7 +174,7 @@ export const foodPack: ContentPack = {
     ],
     delivery: {
         sla_i18n: {
-            ar: "بغداد بنفس اليوم، والمحافظات خلال ١–٢ يوم",
+            ar: "بغداد بنفس اليوم، والمحافظات خلال 1–2 يوم",
             en: "Same-day in Baghdad, 1–2 days elsewhere",
         },
         inspection_i18n: {
@@ -203,7 +203,7 @@ export const foodPack: ContentPack = {
                 en: "Delivery",
             },
             body_i18n: {
-                ar: "داخل بغداد بنفس اليوم، والمحافظات خلال ١–٢ يوم. المبرّدات بصناديق مبرّدة.",
+                ar: "داخل بغداد بنفس اليوم، والمحافظات خلال 1–2 يوم. المبرّدات بصناديق مبرّدة.",
                 en: "Same-day inside Baghdad, 1–2 days elsewhere. Chilled items in cool boxes.",
             },
         },

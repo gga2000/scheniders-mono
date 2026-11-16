@@ -197,10 +197,10 @@ export function OrderItemsEditor({
                         )
                     )}
                 </div>
-                {/* Total: edited here; read from the window's footer otherwise, where it stays in view */}
-                {isEditing && (
-                    <div className="flex items-center justify-between px-4 py-3 bg-[var(--background)]">
-                        <span className="font-semibold text-foreground">{t("orderDetail.grandTotal")}</span>
+                {/* Total */}
+                <div className="flex items-center justify-between px-4 py-3 bg-[var(--background)]">
+                    <span className="font-semibold text-foreground">{t("orderDetail.grandTotal")}</span>
+                    {isEditing ? (
                         <div className="flex items-center gap-2">
                             <input
                                 type="number"
@@ -215,10 +215,14 @@ export function OrderItemsEditor({
                                 className="w-28 px-3 py-1.5 text-right bg-white border border-[var(--card-border)] rounded-lg text-foreground font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-200"
                                 placeholder="0"
                             />
-                            <span className="text-xs text-muted">{t("common.iqd")}</span>
+                            <span className="text-xs text-muted">IQD</span>
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <span className="text-lg font-bold text-foreground font-mono">
+                            {formatIQD(Number(order.price))}
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );

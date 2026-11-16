@@ -115,7 +115,7 @@ export const generalPack: ContentPack = {
                 en: "How long does delivery take?",
             },
             a_i18n: {
-                ar: "بغداد خلال يوم، وبقية المحافظات خلال ١–٣ أيام",
+                ar: "بغداد خلال يوم، وبقية المحافظات خلال 1–3 أيام",
                 en: "Baghdad within a day, other governorates in 1–3 days",
             },
         },
@@ -137,7 +137,7 @@ export const generalPack: ContentPack = {
                 en: "How do I cancel an order?",
             },
             a_i18n: {
-                ar: "تكدر تلغي خلال أول ١٢ ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
+                ar: "تكدر تلغي خلال أول 12 ساعة من الطلب عبر واتساب. بعدها الطلب غالباً انشحن.",
                 en: "You can cancel within the first 12 hours over WhatsApp. After that the order has usually shipped.",
             },
         },
@@ -147,7 +147,7 @@ export const generalPack: ContentPack = {
                 en: "When will my order arrive?",
             },
             a_i18n: {
-                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب.",
+                ar: "بغداد عادة خلال يوم، وبقية المحافظات خلال 1–3 أيام من تثبيت الطلب.",
                 en: "Baghdad usually within a day; other governorates within 1–3 days of confirmation.",
             },
         },
@@ -164,7 +164,7 @@ export const generalPack: ContentPack = {
     ],
     delivery: {
         sla_i18n: {
-            ar: "بغداد خلال يوم، وبقية المحافظات خلال ١–٣ أيام",
+            ar: "بغداد خلال يوم، وبقية المحافظات خلال 1–3 أيام",
             en: "Baghdad within a day, other governorates in 1–3 days",
         },
         inspection_i18n: {
@@ -193,7 +193,7 @@ export const generalPack: ContentPack = {
                 en: "Delivery",
             },
             body_i18n: {
-                ar: "بغداد خلال يوم، وبقية المحافظات خلال ١–٣ أيام من تثبيت الطلب. أجرة التوصيل تنعرض قبل ما تأكد.",
+                ar: "بغداد خلال يوم، وبقية المحافظات خلال 1–3 أيام من تثبيت الطلب. أجرة التوصيل تنعرض قبل ما تأكد.",
                 en: "Baghdad within a day, other governorates in 1–3 days of confirmation. The delivery fee shows before you confirm.",
             },
         },

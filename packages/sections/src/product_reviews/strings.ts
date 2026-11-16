@@ -67,9 +67,9 @@ export const REVIEW_STRINGS = {
   readMoreInline: { en: "More", ar: "كمّل", ku: "زیاتر" },
   storeReply: { en: "Reply from {store}", ar: "رد {store}", ku: "وەڵامی {store}" },
   emptyHighlights: {
-    en: "No reviews on this perfume yet",
-    ar: "بعد ماكو تقييمات على هذا العطر",
-    ku: "هێشتا هیچ هەڵسەنگاندنێک لەسەر ئەم بۆنە نییە",
+    en: "No reviews on this product yet",
+    ar: "بعد ماكو تقييمات على هذا المنتج",
+    ku: "هێشتا هیچ هەڵسەنگاندنێک لەسەر ئەم بەرهەمە نییە",
   },
 } as const;
 

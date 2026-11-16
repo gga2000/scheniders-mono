@@ -5,8 +5,9 @@ import { Check, QrCode, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
+import { useTenant } from "@/hooks/use-tenant";
 import { toast } from "@/hooks/use-toast";
-import { isBranchLimitError, useSaveShop, type Shop, type TillMember } from "@/hooks/use-shops";
+import { branchLimitMessageKey, isBranchLimitError, useSaveShop, type Shop, type TillMember } from "@/hooks/use-shops";
 import { shopFormSchema, type ShopFormInput } from "@/lib/till/shop-forms";
 import { supabase } from "@/lib/supabase";
 import { formatIqdNumber } from "@scheniders/shared";
@@ -30,6 +31,7 @@ const QR_MAX_BYTES = 1024 * 1024;
 /** Add or edit one shop: its name, address, phone, receipt footer and who works there. */
 export function ShopDialog({ shop, members, onClose }: Props) {
     const { t } = useLanguage();
+    const { data: tenant } = useTenant();
     const save = useSaveShop();
     const [form, setForm] = useState<ShopFormInput>({
         name: shop?.name ?? "",
@@ -132,7 +134,7 @@ export function ShopDialog({ shop, members, onClose }: Props) {
                 onError: (err) => {
                     // 23505 = the store already has a shop with this name.
                     const duplicate = typeof err === "object" && err !== null && "code" in err && err.code === "23505";
-                    const title = isBranchLimitError(err) ? "shops.branchLimit" : duplicate ? "till.shops.nameTaken" : "till.shops.saveFailed";
+                    const title = isBranchLimitError(err) ? branchLimitMessageKey(tenant?.plan) : duplicate ? "till.shops.nameTaken" : "till.shops.saveFailed";
                     toast({ title: t(title), variant: "error" });
                 },
             },

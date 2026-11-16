@@ -38,7 +38,7 @@ export function ShopInsightsCard({ shops }: { shops: Shop[] }) {
                                 days === d ? "bg-[var(--ink)] text-white dark:bg-[#EFFF00] dark:text-[#121212]" : "text-foreground",
                             )}
                         >
-                            {t("till.insights.days", { n: d })}
+                            {t("till.insights.days", { count: d })}
                         </button>
                     ))}
                 </div>

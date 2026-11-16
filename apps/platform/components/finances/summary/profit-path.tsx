@@ -274,7 +274,12 @@ export function ProfitPath({ daily }: ProfitPathProps) {
                                             )}
                                             dir={dir}
                                         >
-                                            {step === "month" ? monthFormat.format(new Date(`${point.from}T00:00:00Z`)) : dayLabel(point.from)}
+                                            {step === "month"
+                                                ? monthFormat.format(new Date(`${point.from}T00:00:00Z`))
+                                                : // Arabic month names are long: a label in the same month as the one before it shows only the day.
+                                                  i >= every && points[i - every].from.slice(0, 7) === point.from.slice(0, 7)
+                                                  ? String(Number(point.from.slice(8, 10)))
+                                                  : dayLabel(point.from)}
                                         </span>
                                     )}
                                 </span>

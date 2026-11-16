@@ -18,6 +18,7 @@ import { useOrderDetailsState } from "@/hooks/use-order-details-state";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useStartOrderConversation } from "@/hooks/chat/use-conversations";
 import { useChatStore } from "@/store/use-chat-store";
+import { CheckCircle, PhoneCall, Truck, XCircle, Clock, RotateCcw, ShoppingCart, PhoneOff, Pause, CheckCheck } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useStatusLabel } from "@/hooks/use-status-label";
@@ -52,6 +53,7 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
 } = props;
     const [order, setOrder] = useState<Order | null>(propOrder);
     const [isSendingTemplate, setIsSendingTemplate] = useState(false);
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const governorates = getAllGovernorateCodes();
     const isMobile = useIsMobile();
     const { t } = useLanguage();
@@ -145,6 +147,118 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         handleStatusChangeForm(newStatus, setOrder);
     };
 
+    // Quick action buttons config - Complete status list
+    const quickActions = [
+        {
+            status: "new" as Order["status"],
+            label: orderStatusLabel("new"),
+            icon: Clock,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+            borderColor: "border-orange-200",
+        },
+        {
+            status: "pending_checkout" as Order["status"],
+            label: orderStatusLabel("pending_checkout"),
+            icon: ShoppingCart,
+            bgColor: "bg-pink-100",
+            textColor: "text-pink-900",
+            hoverColor: "hover:bg-pink-200",
+            borderColor: "border-pink-200",
+        },
+        {
+            status: "contacted" as Order["status"],
+            label: orderStatusLabel("contacted"),
+            icon: PhoneCall,
+            bgColor: "bg-[var(--pastel-yellow)]",
+            textColor: "text-amber-900",
+            hoverColor: "hover:bg-[var(--pastel-yellow-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "confirmed" as Order["status"],
+            label: orderStatusLabel("confirmed"),
+            icon: CheckCircle,
+            bgColor: "bg-[var(--pastel-green)]",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-[var(--pastel-green-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "in_transit" as Order["status"],
+            label: orderStatusLabel("in_transit"),
+            icon: Truck,
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-900",
+            hoverColor: "hover:bg-blue-200",
+            borderColor: "border-blue-200",
+        },
+        {
+            status: "delivered" as Order["status"],
+            label: orderStatusLabel("delivered"),
+            icon: CheckCheck,
+            bgColor: "bg-[var(--pastel-mint)]",
+            textColor: "text-teal-900",
+            hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "completed" as Order["status"],
+            label: orderStatusLabel("completed"),
+            icon: CheckCircle,
+            bgColor: "bg-green-100",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-green-200",
+            borderColor: "border-green-200",
+        },
+        {
+            status: "cancelled" as Order["status"],
+            label: orderStatusLabel("cancelled"),
+            icon: XCircle,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+            borderColor: "border-gray-200",
+        },
+        {
+            status: "rejected" as Order["status"],
+            label: orderStatusLabel("rejected"),
+            icon: XCircle,
+            bgColor: "bg-[var(--pastel-pink)]",
+            textColor: "text-rose-900",
+            hoverColor: "hover:bg-[var(--pastel-pink-dark)]",
+            borderColor: "border-transparent",
+        },
+        {
+            status: "no_response" as Order["status"],
+            label: orderStatusLabel("no_response"),
+            icon: PhoneOff,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+            borderColor: "border-gray-200",
+        },
+        {
+            status: "return_pending" as Order["status"],
+            label: orderStatusLabel("return_pending"),
+            icon: RotateCcw,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+            borderColor: "border-orange-200",
+        },
+        {
+            status: "suspended" as Order["status"],
+            label: orderStatusLabel("suspended"),
+            icon: Pause,
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-900",
+            hoverColor: "hover:bg-purple-200",
+            borderColor: "border-purple-200",
+        },
+    ];
+
     // Reorder functionality
     const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
     // ARCH-3: was Record<string, unknown>, which forced an `as any` at the
@@ -199,6 +313,8 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         setOrder,
         isSendingTemplate,
         setIsSendingTemplate,
+        showStatusDropdown,
+        setShowStatusDropdown,
         governorates,
         isMobile,
         t,
@@ -265,6 +381,7 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         setShowSplitDialog,
         handleSplitOrder,
         handleStatusChange,
+        quickActions,
         showCreateOrderModal,
         setShowCreateOrderModal,
         orderInitialData,
@@ -275,11 +392,11 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
 }
 
 /**
- * The part of the details model that needs a loaded order: its handlers.
- * Called by OrderDetailsModal after its "no order" guard.
+ * The part of the details model that needs a loaded order: handlers and the
+ * status action rows. Called by OrderDetailsModal after its "no order" guard.
  */
 export function buildOrderDetailsActions(m: OrderDetailsModel, order: Order) {
-    const { onOpenTemplatePanel, messageTemplates, setIsSendingTemplate, isMobile, t, recordContact, startOrderConv, openChat } = m;
+    const { onOpenTemplatePanel, messageTemplates, setIsSendingTemplate, isMobile, t, orderStatusLabel, recordContact, startOrderConv, openChat } = m;
 
 
 
@@ -352,6 +469,122 @@ export function buildOrderDetailsActions(m: OrderDetailsModel, order: Order) {
         }
     };
 
+    // ROW 1: abandoned/new/contacted | separator | confirmed/in_transit | separator | pending_refund
+    const row1Group1 = [
+        {
+            status: "pending_checkout" as Order["status"],
+            label: orderStatusLabel("pending_checkout"),
+            icon: ShoppingCart,
+            bgColor: "bg-pink-100",
+            textColor: "text-pink-900",
+            hoverColor: "hover:bg-pink-200",
+        },
+        {
+            status: "new" as Order["status"],
+            label: orderStatusLabel("new"),
+            icon: Clock,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+        },
+        {
+            status: "contacted" as Order["status"],
+            label: orderStatusLabel("contacted"),
+            icon: PhoneCall,
+            bgColor: "bg-[var(--pastel-yellow)]",
+            textColor: "text-amber-900",
+            hoverColor: "hover:bg-[var(--pastel-yellow-dark)]",
+        },
+    ];
+
+    const row1Group2 = [
+        {
+            status: "confirmed" as Order["status"],
+            label: orderStatusLabel("confirmed"),
+            icon: CheckCircle,
+            bgColor: "bg-[var(--pastel-green)]",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-[var(--pastel-green-dark)]",
+        },
+        {
+            status: "in_transit" as Order["status"],
+            label: orderStatusLabel("in_transit"),
+            icon: Truck,
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-900",
+            hoverColor: "hover:bg-blue-200",
+        },
+    ];
+
+    const row1Group3 = [
+        {
+            status: "return_pending" as Order["status"],
+            label: orderStatusLabel("return_pending"),
+            icon: RotateCcw,
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-900",
+            hoverColor: "hover:bg-orange-200",
+        },
+    ];
+
+    // ROW 2: cancelled/rejected/didn't_respond | separator | delivered/completed | separator | pending_order
+    const row2Group1 = [
+        {
+            status: "cancelled" as Order["status"],
+            label: orderStatusLabel("cancelled"),
+            icon: XCircle,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+        },
+        {
+            status: "rejected" as Order["status"],
+            label: orderStatusLabel("rejected"),
+            icon: XCircle,
+            bgColor: "bg-[var(--pastel-pink)]",
+            textColor: "text-rose-900",
+            hoverColor: "hover:bg-[var(--pastel-pink-dark)]",
+        },
+        {
+            status: "no_response" as Order["status"],
+            label: orderStatusLabel("no_response"),
+            icon: PhoneOff,
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-700",
+            hoverColor: "hover:bg-gray-200",
+        },
+    ];
+
+    const row2Group2 = [
+        {
+            status: "delivered" as Order["status"],
+            label: orderStatusLabel("delivered"),
+            icon: CheckCheck,
+            bgColor: "bg-[var(--pastel-mint)]",
+            textColor: "text-teal-900",
+            hoverColor: "hover:bg-[var(--pastel-mint-dark)]",
+        },
+        {
+            status: "completed" as Order["status"],
+            label: orderStatusLabel("completed"),
+            icon: CheckCircle,
+            bgColor: "bg-green-100",
+            textColor: "text-green-900",
+            hoverColor: "hover:bg-green-200",
+        },
+    ];
+
+    const row2Group3 = [
+        {
+            status: "suspended" as Order["status"],
+            label: orderStatusLabel("suspended"),
+            icon: Pause,
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-900",
+            hoverColor: "hover:bg-purple-200",
+        },
+    ];
+
     // Choose content wrapper based on device
     const ContentWrapper = isMobile ? BottomSheetContent : DialogContent;
 
@@ -361,6 +594,12 @@ export function buildOrderDetailsActions(m: OrderDetailsModel, order: Order) {
         handleWhatsApp,
         handleSendTemplate,
         getStatusBadgeStyle,
+        row1Group1,
+        row1Group2,
+        row1Group3,
+        row2Group1,
+        row2Group2,
+        row2Group3,
         ContentWrapper,
     };
 }

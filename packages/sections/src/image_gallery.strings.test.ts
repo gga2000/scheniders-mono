@@ -7,23 +7,23 @@ import { GALLERY_STRINGS, gs, proofCountLabel } from "./image_gallery.strings";
 
 describe("proofCountLabel", () => {
   it.each([
-    [1, "تعليق واحد، على عطورنا بشكل عام"],
-    [2, "تعليقين، على عطورنا بشكل عام"],
-    [9, "9 تعليقات، على عطورنا بشكل عام"],
-    [11, "11 تعليق، على عطورنا بشكل عام"],
+    [1, "تعليق واحد، على منتجاتنا بشكل عام"],
+    [2, "تعليقين، على منتجاتنا بشكل عام"],
+    [9, "9 تعليقات، على منتجاتنا بشكل عام"],
+    [11, "11 تعليق، على منتجاتنا بشكل عام"],
   ])("ar %i → %s", (count, expected) => {
     expect(proofCountLabel(count, "ar")).toBe(expected);
   });
 
   it.each([
-    [1, "1 comment, about our perfumes in general"],
-    [9, "9 comments, about our perfumes in general"],
+    [1, "1 comment, about our products in general"],
+    [9, "9 comments, about our products in general"],
   ])("en %i → %s", (count, expected) => {
     expect(proofCountLabel(count, "en")).toBe(expected);
   });
 
   it("ku uses its own table", () => {
-    expect(proofCountLabel(9, "ku")).toBe("9 لێدوان، دەربارەی بۆنەکانمان بە گشتی");
+    expect(proofCountLabel(9, "ku")).toBe("9 لێدوان، دەربارەی بەرهەمەکانمان بە گشتی");
   });
 });
 
