@@ -20,7 +20,6 @@ import { TimeToFirstOrder } from "@/components/dashboard/time-to-first-order";
 import { MerchantLTV } from "@/components/dashboard/merchant-ltv";
 import { TopUpPatterns } from "@/components/dashboard/topup-patterns";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { MerchantWatchlistWidget } from "@/components/merchants/merchant-watchlist-widget";
 import { Loader2 } from "lucide-react";
 import { SeedAutomationToggle } from "@/components/dashboard/seed-automation-toggle";
 import { LoadError } from "@/components/shared/load-error";
@@ -180,7 +179,6 @@ export default function CommandCenterPage() {
             isLoading={false}
           />
           </div>
-          <MerchantWatchlistWidget />
         </motion.div>
       </motion.div>
     </div>

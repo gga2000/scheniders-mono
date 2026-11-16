@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 import type { ShopStatusLine, ShopTone } from "@/lib/shop-status";
 
-const DOT: Record<ShopTone, string> = {
+/** The dot beside a status word, one colour per kind of shop; the list uses the same. */
+export const TONE_DOT: Record<ShopTone, string> = {
   paying: "bg-emerald-600",
   trial: "bg-amber-500",
   locked: "bg-rose-600",
@@ -17,7 +18,7 @@ export function ShopStatus({ line, planLabel }: { line: ShopStatusLine; planLabe
     <div className="min-w-0" data-testid="shop-status">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-foreground">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-2.5 py-0.5 text-[13px] font-semibold">
-          <span aria-hidden className={cn("h-2 w-2 rounded-full", DOT[line.tone])} />
+          <span aria-hidden className={cn("h-2 w-2 rounded-full", TONE_DOT[line.tone])} />
           {line.label}
         </span>
         <span className="text-[13px] text-foreground/60">{planLabel}</span>
