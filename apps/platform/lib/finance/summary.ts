@@ -117,7 +117,8 @@ export const FinanceSummarySchema = z.object({
         /**
          * The period's courier payments against what they paid for this period's orders (`split.reached_now`):
          * return parcels charged back (negative), prepaid orders the courier collected nothing on, and orders
-         * collected at another price. The rest is shown as one remainder, so the parts add up to the payments.
+         * collected at another price, and orders it paid for that the shop has not marked delivered. The rest is
+         * shown as one remainder, so the parts add up to the payments.
          */
         statement: z
             .object({
@@ -127,8 +128,23 @@ export const FinanceSummarySchema = z.object({
                 prepaid_orders: z.number(),
                 price_gap: z.number(),
                 price_gap_orders: z.number(),
+                undelivered: z.number().catch(0),
+                undelivered_orders: z.number().catch(0),
             })
-            .catch({ returns: 0, returns_orders: 0, prepaid_gap: 0, prepaid_orders: 0, price_gap: 0, price_gap_orders: 0 }),
+            .catch({
+                returns: 0,
+                returns_orders: 0,
+                prepaid_gap: 0,
+                prepaid_orders: 0,
+                price_gap: 0,
+                price_gap_orders: 0,
+                undelivered: 0,
+                undelivered_orders: 0,
+            }),
+        /** Orders a courier payment in the period paid for that are not marked delivered (up to 10). */
+        undelivered_list: z
+            .array(z.object({ id: z.string(), code: z.string().nullable(), amount: z.number() }))
+            .catch([]),
         /** The unpaid delivered orders with money owed on them, oldest first (up to 20). Empty from a server older than the field. */
         unpaid_list: z
             .array(

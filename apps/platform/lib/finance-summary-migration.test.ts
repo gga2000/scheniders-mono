@@ -146,6 +146,13 @@ describe("get_finance_summary gate", () => {
         expect(core).toMatch(/'statement', \(SELECT jsonb_build_object\('returns', returns/);
     });
 
+    it("names the orders a courier paid for that are not marked delivered", () => {
+        expect(core).toMatch(/AND o\.status NOT IN \('delivered', 'completed'\)\) AS undelivered/);
+        expect(core).toMatch(/sum\(si\.net\) FILTER \(WHERE si\.undelivered\), 0\) AS undelivered/);
+        expect(core).toMatch(/undelivered_list AS \(\s*SELECT si\.order_id AS id, si\.code, si\.net AS amount\s+FROM stmt_items si\s+WHERE si\.undelivered[\s\S]*?LIMIT 10/);
+        expect(core).toMatch(/'undelivered_list', COALESCE\(/);
+    });
+
     it("scopes every table it reads to the shop", () => {
         for (const table of ["orders o", "prime_shipments ps", "expenses e", "payroll_records pr", "products pr", "prime_connections pc", "delivery_imports di"]) {
             const alias = table.split(" ")[1];
