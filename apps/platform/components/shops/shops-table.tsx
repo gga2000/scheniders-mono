@@ -2,8 +2,9 @@
 
 import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { useTenant } from "@/hooks/use-tenant";
 import { toast } from "@/hooks/use-toast";
-import { isBranchLimitError, useSetShopActive, type Shop, type TillMember } from "@/hooks/use-shops";
+import { branchLimitMessageKey, isBranchLimitError, useSetShopActive, type Shop, type TillMember } from "@/hooks/use-shops";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -15,13 +16,14 @@ interface Props {
 /** One row per shop: name, who works there, phone, and edit / switch off. */
 export function ShopsTable({ shops, members, onEdit }: Props) {
     const { t } = useLanguage();
+    const { data: tenant } = useTenant();
     const setActive = useSetShopActive();
     const nameOf = new Map(members.map((m) => [m.user_id, m.display_name]));
 
     const toggle = (shop: Shop) =>
         setActive.mutate(
             { id: shop.id, active: !shop.is_active },
-            { onError: (err) => toast({ title: t(isBranchLimitError(err) ? "shops.branchLimit" : "till.shops.saveFailed"), variant: "error" }) },
+            { onError: (err) => toast({ title: t(isBranchLimitError(err) ? branchLimitMessageKey(tenant?.plan) : "till.shops.saveFailed"), variant: "error" }) },
         );
 
     return (
