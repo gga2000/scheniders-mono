@@ -35,6 +35,22 @@ describe("t() singular forms", () => {
         expect(t("customers.banner.rateBase", { count: 5 })).toBe("نسبة التوصيل · 5 طلبات منتهية");
     });
 
+    it("agrees order, piece and day counts across the app with their numbers", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        const t = result.current.t;
+        expect(t("printing.shipTitle", { count: 2 })).toBe("شحن طلبين مع برايم");
+        expect(t("printing.shipTitle", { count: 5 })).toBe("شحن 5 طلبات مع برايم");
+        expect(t("printing.shipTitle", { count: 12 })).toBe("شحن 12 طلباً مع برايم");
+        expect(t("printing.shipTitle", { count: 100 })).toBe("شحن 100 طلب مع برايم");
+        expect(t("orders.export.scopeSelectedSub", { count: 4 })).toBe("4 طلبات محددة");
+        expect(t("till.cart.items", { count: 3 })).toBe("3 قطع");
+        expect(t("till.cart.items", { count: 11 })).toBe("11 قطعة");
+        expect(t("orders.card.inTransitDays", { count: 2 })).toBe("يومين بالتوصيل");
+        expect(t("orders.card.inTransitDays", { count: 14 })).toBe("14 يوماً بالتوصيل");
+        expect(t("ads.coverage", { with: 3, count: 7, pct: 43 })).toBe("3 من 7 طلبات إعلانية في هذه الفترة يحمل معرّف الإعلان (43%).");
+    });
+
     it("says the order cadence with the Arabic form its number takes", () => {
         localStorage.setItem("schneiders_language", "ar");
         const { result } = renderHook(() => useLanguage(), { wrapper });

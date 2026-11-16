@@ -37,4 +37,21 @@ describe("i18n dictionaries are in parity", () => {
                 .map((k) => `${loc}:${k}`);
         expect([...orphans("en"), ...orphans("ar")]).toEqual([]);
     });
+
+    it("a plural form has no blank its plain entry lacks", () => {
+        // The caller fills the plain entry's blanks; a form may drop some
+        // ("طلبين" says the 2 in the word) but never ask for a new one.
+        const blanks = (s: string) => new Set([...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]));
+        const mismatched = (loc: "en" | "ar") =>
+            Object.entries(translations[loc])
+                .filter(([k]) => !required(k))
+                .filter(([k, v]) => {
+                    const plain = translations[loc][k.replace(/\.(one|two|few|many|zero)$/, "")];
+                    const a = blanks(v);
+                    const b = blanks(plain ?? "");
+                    return [...a].some((x) => !b.has(x));
+                })
+                .map(([k]) => `${loc}:${k}`);
+        expect([...mismatched("en"), ...mismatched("ar")]).toEqual([]);
+    });
 });

@@ -115,10 +115,14 @@ export function TrialBanner() {
     if (isTrialWarning || isOrdersWarning) {
         const urgent = (isTrialWarning && daysLeft !== null && daysLeft <= 1) || (ordersLeft !== null && ordersLeft <= 3);
         const message = isOrdersWarning && ordersLeft !== null
-            ? t("billing.trialOrdersLeft").replace("{n}", String(ordersLeft)).replace("{cap}", String(orderCap))
-            : daysLeft === 1
-                ? t("billing.trialEndsTomorrow")
-                : t("billing.trialDaysLeft").replace("{n}", String(daysLeft));
+            ? t("billing.trialOrdersLeft", { count: ordersLeft, cap: orderCap })
+            : daysLeft === null
+                ? null
+                : daysLeft === 1
+                    ? t("billing.trialEndsTomorrow")
+                    : t("billing.trialDaysLeft", { count: daysLeft });
+        // Unreachable: without the order warning, isTrialWarning fired, and it needs a day count.
+        if (message === null) return null;
         return (
             <div className={cn(
                 "px-4 py-2 flex items-center justify-center gap-3 text-sm",

@@ -14,7 +14,7 @@ export function describeVaultProgress(progress: VaultProgress, t: Translate): st
         case "security": return t("vault.progress.security", "Checking your store...");
         case "syncing": return t("vault.progress.syncing", "Syncing to the secure cloud...");
         case "restoring": return t(`vault.progress.restoring.${progress.table}`, RESTORING_FALLBACKS[progress.table], { count: progress.count });
-        case "restoredOrders": return t("vault.progress.restoredOrders", "Restored {written} of {total} orders...", { written: progress.written, total: progress.total });
+        case "restoredOrders": return t("vault.progress.restoredOrders", "Restored {written} of {count} orders...", { written: progress.written, count: progress.total });
     }
 }
 

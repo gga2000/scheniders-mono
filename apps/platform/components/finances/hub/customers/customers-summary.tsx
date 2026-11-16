@@ -21,7 +21,7 @@ export function CustomersSummary({ data }: Props) {
     return (
         <SectionCard
             title={t("finances.cust.title")}
-            subtitle={t("finances.cust.sub", { total: data.total_customers, new: data.new_customers, returning: data.returning_customers })}
+            subtitle={t("finances.cust.sub", { count: data.total_customers, new: data.new_customers, returning: data.returning_customers })}
             icon={Users}
             accent="violet"
         >

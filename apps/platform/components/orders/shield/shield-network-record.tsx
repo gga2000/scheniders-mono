@@ -51,7 +51,7 @@ export function ShieldNetworkRecord({ network, failed, phone, detail = false }: 
                                         <b className="text-right font-mono text-lg tabular-nums">{r.count}</b>
                                         <span>{t(`shield.cat.${r.cat}`)}</span>
                                         <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                            {r.stores === 1 ? t("shield.network.inOneStore") : t("shield.network.inStores", { stores: r.stores })}
+                                            {r.stores === 1 ? t("shield.network.inOneStore") : t("shield.network.inStores", { count: r.stores })}
                                         </span>
                                     </li>
                                 ))}
@@ -59,7 +59,7 @@ export function ShieldNetworkRecord({ network, failed, phone, detail = false }: 
                                     <b className="text-right font-mono text-lg tabular-nums">{network.delivered ?? 0}</b>
                                     <span>{t("shield.network.delivered")}</span>
                                     <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                        {(network.delivered_stores ?? 0) === 1 ? t("shield.network.inOneStore") : t("shield.network.inStores", { stores: network.delivered_stores ?? 0 })}
+                                        {(network.delivered_stores ?? 0) === 1 ? t("shield.network.inOneStore") : t("shield.network.inStores", { count: network.delivered_stores ?? 0 })}
                                     </span>
                                 </li>
                             </ul>
@@ -74,7 +74,7 @@ export function ShieldNetworkRecord({ network, failed, phone, detail = false }: 
                                         </div>
                                         {detail && (
                                             <span className="whitespace-nowrap text-muted-foreground">
-                                                {r.stores === 1 ? t("shield.network.inOneStore") : t("shield.network.inStores", { stores: r.stores })}
+                                                {r.stores === 1 ? t("shield.network.inOneStore") : t("shield.network.inStores", { count: r.stores })}
                                             </span>
                                         )}
                                         <span className="text-right font-mono tabular-nums">{r.count}</span>
@@ -100,7 +100,7 @@ export function ShieldNetworkRecord({ network, failed, phone, detail = false }: 
                     <p className="mt-2 text-xs text-muted-foreground">
                         {network.trend && t(`shield.trend.${network.trend}`)}
                         {network.last_bad_orders_ago !== null && (
-                            <> · {network.last_bad_orders_ago === 0 ? t("shield.network.lastBadNow") : t("shield.network.lastBad", { n: network.last_bad_orders_ago })}</>
+                            <> · {network.last_bad_orders_ago === 0 ? t("shield.network.lastBadNow") : t("shield.network.lastBad", { count: network.last_bad_orders_ago })}</>
                         )}
                     </p>
                 </section>

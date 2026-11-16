@@ -188,7 +188,7 @@ function ForgotPasswordForm() {
                                 className="h-11 px-3 rounded-2xl font-semibold text-[14px] text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                             >
                                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                                {cooldown > 0 ? t("pwreset.sent.resendIn", { s: cooldown }) : t("pwreset.sent.resend")}
+                                {cooldown > 0 ? t("pwreset.sent.resendIn", { count: cooldown }) : t("pwreset.sent.resend")}
                             </button>
                             <button
                                 type="button"

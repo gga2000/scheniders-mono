@@ -65,7 +65,7 @@ export function DaysOfSupplyPill({
                 t.ring,
                 className
             )}
-            title={days === null ? tr("supplies.dos.none") : tr("supplies.dos.approx", { days })}
+            title={days === null ? tr("supplies.dos.none") : tr("supplies.dos.approx", { count: days })}
         >
             <span
                 className={cn(

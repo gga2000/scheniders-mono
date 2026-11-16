@@ -88,8 +88,8 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
                     </div>
                     <p dir={dir} className="text-left text-[13px] leading-relaxed text-foreground/80">
                         {latest.summary.diff === 0
-                            ? t("prime.page.statementPlainSame", { parcels: latest.summary.parcels, matched: latest.summary.matched })
-                            : t("prime.page.statementPlain", { parcels: latest.summary.parcels, matched: latest.summary.matched, amount: amount.format(Math.abs(latest.summary.diff)) })}
+                            ? t("prime.page.statementPlainSame", { count: latest.summary.parcels, matched: latest.summary.matched })
+                            : t("prime.page.statementPlain", { count: latest.summary.parcels, matched: latest.summary.matched, amount: amount.format(Math.abs(latest.summary.diff)) })}
                     </p>
                     {paidNotDelivered > 0 && (
                         <p data-paid-not-delivered role="alert" dir={dir} className="text-left text-xs font-semibold text-[#B42318] dark:text-rose-300">

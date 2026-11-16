@@ -85,7 +85,7 @@ export function AfterSaleIntakePanel({ onOpenOrder }: { onOpenOrder?: (orderId: 
                         <span>{statusLabel(item.child.status)}</span>
                         <span className="tabular-nums">{formatIQD(item.amount)}</span>
                         <span className={cn("tabular-nums", late && "font-semibold text-rose-700 dark:text-rose-300")}>
-                            {t("intake.daysWaiting", { days })}
+                            {t("intake.daysWaiting", { count: days })}
                         </span>
                     </p>
                 </div>

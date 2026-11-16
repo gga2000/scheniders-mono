@@ -252,7 +252,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     {trialDaysLeft !== null && (
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Calendar className="w-3.5 h-3.5" />
-                            {t("settings.biz.trialLeft", { days: String(trialDaysLeft) })}
+                            {t("settings.biz.trialLeft", { count: trialDaysLeft })}
                         </span>
                     )}
                     <span className="text-xs text-muted-foreground ml-auto">

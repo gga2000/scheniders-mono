@@ -75,7 +75,7 @@ export function PrimeParcelList({
                         const since = view.statusChangedAt ?? view.sentAt;
                         const days = Math.floor((data.readAt - Date.parse(since)) / DAY_MS);
                         const primeSays = primeReasonText(primeReasonNote(view), t);
-                        const detail = reason === "stuck" ? t("prime.page.stuckFor", { days }) : (primeSays ?? view.stepName ?? primeWhen(since, t, language));
+                        const detail = reason === "stuck" ? t("prime.page.stuckFor", { count: days }) : (primeSays ?? view.stepName ?? primeWhen(since, t, language));
                         const isOpen = open?.orderId === orderId;
                         return (
                             <li key={orderId} data-prime-parcel={orderId} className="border-t border-[#F0EDE7] first:border-t-0 dark:border-white/10">

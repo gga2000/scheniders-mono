@@ -371,7 +371,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 <div className="flex items-end justify-between">
                     <span className="text-sm font-semibold text-muted">
                         {t("till.cart.total")}
-                        {ticket.cart.length > 0 && <span className="block text-xs font-normal">{t("till.cart.items", { n: itemCount(ticket.cart) })}</span>}
+                        {ticket.cart.length > 0 && <span className="block text-xs font-normal">{t("till.cart.items", { count: itemCount(ticket.cart) })}</span>}
                     </span>
                     <span className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
                         {formatIqdNumber(total)} <span className="text-lg font-semibold text-muted">{t("till.iqd")}</span>
@@ -518,7 +518,7 @@ function CustomerCard({
     const { t, language } = useLanguage();
     const last = c.last_at ? new Date(c.last_at).toLocaleDateString(dateLocale(language), { day: "numeric", month: "short", timeZone: "Asia/Baghdad" }) : null;
     const facts = [
-        t("till.cart.custOrders", { n: c.orders }),
+        t("till.cart.custOrders", { count: c.orders }),
         c.spent > 0 ? t("till.cart.custSpent", { amount: formatIqdNumber(c.spent) }) : null,
         last ? t("till.cart.custLast", { date: last }) : null,
     ].filter((f): f is string => f !== null);

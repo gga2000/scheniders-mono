@@ -357,7 +357,7 @@ export function EmployeePayrollCard({
                         <button
                             onClick={() => setBreakdownOpen(true)}
                             className="w-full block rounded-lg -mx-1 px-1 py-0.5 hover:bg-[var(--background)] transition-colors"
-                            aria-label={t("payroll.card.qualityAria", { payable: calculation.completedOrdersCount, total: breakdown.completedTotal, pct: qualityPct })}
+                            aria-label={t("payroll.card.qualityAria", { payable: calculation.completedOrdersCount, count: breakdown.completedTotal, pct: qualityPct })}
                             title={t("payroll.card.qualityHint")}
                         >
                             <div className="flex items-baseline justify-between mb-1.5">
@@ -558,7 +558,7 @@ export function EmployeePayrollCard({
                                     {calculation.absenceDeduction > 0 && (
                                         <CompactLineItem
                                     unit={iqd}
-                                            label={t("payroll.card.absenceLine", { days: calculation.absenceDays })}
+                                            label={t("payroll.card.absenceLine", { count: calculation.absenceDays })}
                                             value={calculation.absenceDeduction}
                                             type="negative"
                                         />

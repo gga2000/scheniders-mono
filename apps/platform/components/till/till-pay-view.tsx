@@ -430,7 +430,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     </p>
                 )}
                 <div className="flex flex-col gap-1.5 border-b border-[var(--card-border)] p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.cart.items", { n: ticket.cart.reduce((s, l) => s + l.quantity, 0) })}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.cart.items", { count: ticket.cart.reduce((s, l) => s + l.quantity, 0) })}</p>
                     {ticket.cart.map((l) => (
                         <p key={l.key} className="flex justify-between gap-3 text-sm text-foreground">
                             <span className="truncate" dir="auto">

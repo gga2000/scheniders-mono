@@ -56,7 +56,7 @@ export function PeakHoursHeatmap({ data, employeeName, className }: PeakHoursHea
                     {employeeName && <span className="text-[#6B6B6B] dark:text-gray-400"> · <bdi>{employeeName}</bdi></span>}
                 </p>
                 <p className="text-xs text-[#6B6B6B] dark:text-gray-400 tabular-nums">
-                    {t("team.charts.activitiesPlural", { count: total.toLocaleString("en-US") })}
+                    {t("team.charts.activitiesPlural", { count: total })}
                 </p>
             </div>
 

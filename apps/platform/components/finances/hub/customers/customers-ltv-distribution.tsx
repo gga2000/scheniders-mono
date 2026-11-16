@@ -38,8 +38,8 @@ export function CustomersLtvDistribution({ buckets }: Props) {
             subtitle={(() => {
                 const filled = buckets.filter((b) => b.count > 0).length;
                 return filled === 1
-                    ? t("finances.cust.ltvDist.subOne", { total })
-                    : t("finances.cust.ltvDist.sub", { total, filled });
+                    ? t("finances.cust.ltvDist.subOne", { count: total })
+                    : t("finances.cust.ltvDist.sub", { count: total, filled });
             })()}
             icon={BarChart3}
             accent="violet"

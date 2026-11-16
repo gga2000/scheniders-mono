@@ -144,7 +144,7 @@ export function TillCustomerScreen() {
                     <div className="mt-auto flex flex-col gap-3">
                         {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqdNumber(state.saved) })} />}
                         <p className="text-xl text-white/60" dir="auto">
-                            {t("till.customer.total")} · {t("till.cart.items", { n: state.lines.reduce((n, l) => n + l.quantity, 0) })}
+                            {t("till.customer.total")} · {t("till.cart.items", { count: state.lines.reduce((n, l) => n + l.quantity, 0) })}
                         </p>
                         <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqdNumber(state.total)))}>
                             {formatIqdNumber(state.total)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>

@@ -219,7 +219,7 @@ export function PrimeProblemsTab({
                     <b className="text-base text-foreground">{t("prime.page.calmTitle")}</b>
                     <p className="text-sm text-muted">
                         {calm?.checkedMinutesAgo != null && t("prime.page.calmChecked", { count: calm.checkedMinutesAgo })}
-                        {calm?.oldest && <> · {t("prime.page.calmOldest", { order: calm.oldest.orderNumber, days: calm.oldest.days })}</>}
+                        {calm?.oldest && <> · {t("prime.page.calmOldest", { order: calm.oldest.orderNumber, count: calm.oldest.days })}</>}
                     </p>
                 </div>
             ) : (

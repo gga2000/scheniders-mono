@@ -135,7 +135,7 @@ function ShieldImpactCard({ impact, score, days }: { impact: ShieldImpact; score
                         </p>
                     )}
                     <p dir={dir} className="text-left text-xs text-muted">
-                        {t("shield.home.shipped", { shipped: impact.shipped, delivered: impact.shipped_delivered, refused: impact.shipped_refused })}
+                        {t("shield.home.shipped", { count: impact.shipped, delivered: impact.shipped_delivered, refused: impact.shipped_refused })}
                         {refusedRate !== null && <> · <span className={cn("font-semibold", refusedRate >= 30 && SHIELD_TONE.red.text)}>{t("shield.home.refusedRate", { rate: refusedRate })}</span></>}
                     </p>
                 </>
@@ -145,7 +145,7 @@ function ShieldImpactCard({ impact, score, days }: { impact: ShieldImpact; score
                     <span className="font-semibold text-foreground">{t("shield.home.ownRate", { rate: ownRate })}</span>
                     {" · "}
                     {score.network_rate !== null
-                        ? t("shield.home.networkRate", { rate: score.network_rate, stores: score.network_stores ?? 0 })
+                        ? t("shield.home.networkRate", { rate: score.network_rate, count: score.network_stores ?? 0 })
                         : t("shield.home.networkRateSoon")}
                 </p>
             )}

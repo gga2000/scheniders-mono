@@ -324,7 +324,7 @@ export function CategoryRow({
                     // A category with products cannot be deleted: say so here
                     // instead of offering Delete and refusing it afterwards.
                     disabledReason={
-                      productCount > 0 ? t("categories.row.deleteBlocked", { n: productCount }) : undefined
+                      productCount > 0 ? t("categories.row.deleteBlocked", { count: productCount }) : undefined
                     }
                     onClick={() => {
                       setMenuOpen(false);

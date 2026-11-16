@@ -63,13 +63,13 @@ describe("TrialBanner", () => {
     it("warns on orders when the order cap is about to run out", () => {
         state.used = 45;
         render(<TrialBanner />);
-        expect(screen.getByText("billing.trialOrdersLeft")).toBeTruthy();
+        expect(screen.getByText('billing.trialOrdersLeft:{"count":5,"cap":50}')).toBeTruthy();
     });
 
     it("warns on days in the last three days", () => {
         state.tenant = { status: "trial", plan: "starter", trial_ends_at: inDays(2.5) };
         render(<TrialBanner />);
-        expect(screen.getByText("billing.trialDaysLeft")).toBeTruthy();
+        expect(screen.getByText(/^billing\.trialDaysLeft:\{"count":\d\}$/)).toBeTruthy();
     });
 
     it("says the trial ended, how many store orders are left, and how to pay", () => {

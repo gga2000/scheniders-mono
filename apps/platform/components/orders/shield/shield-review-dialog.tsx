@@ -215,7 +215,7 @@ function pathRows(steps: TrustStep[], t: (key: string, vars?: Record<string, num
     if (fold > 0) {
         const from = at;
         for (const s of steps.slice(0, fold)) at += s.pts;
-        rows.push({ key: "earlier", label: t("shield.report.earlier", { n: fold }), from, to: at, pts: at - from });
+        rows.push({ key: "earlier", label: t("shield.report.earlier", { count: fold }), from, to: at, pts: at - from });
     }
     steps.slice(fold).forEach((s, i) => {
         const from = at;

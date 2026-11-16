@@ -82,7 +82,7 @@ export function RecoveryBoard({ carts, isLoading, isError, autoReminders = null 
                         )}
                         <span>
                             {autoReminders.enabled
-                                ? t("recovery.auto.on", { minutes: autoReminders.delayMinutes })
+                                ? t("recovery.auto.on", { count: autoReminders.delayMinutes })
                                 : t("recovery.auto.off")}
                         </span>
                         <Link href="/store/edit?screen=cart_recovery" className="font-semibold underline-offset-2 hover:underline">

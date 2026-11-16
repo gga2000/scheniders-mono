@@ -414,7 +414,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                                     ? "bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200"
                                     : (customerOrderCount > 1 ? "bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200" : "bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200")
                             )}
-                            title={previousOrder ? t("orders.card.previousOrderTip", { id: previousOrder.order_id }) : t("orders.card.totalOrdersTip", { total: customerOrderCount + archivedOrderCount, archived: archivedOrderCount })}
+                            title={previousOrder ? t("orders.card.previousOrderTip", { id: previousOrder.order_id }) : t("orders.card.totalOrdersTip", { count: customerOrderCount + archivedOrderCount, archived: archivedOrderCount })}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (onShowDuplicates) {

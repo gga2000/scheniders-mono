@@ -286,7 +286,7 @@ export function BatchAnalytics({
                             <div>
                                 <p className="font-semibold text-violet-900 dark:text-violet-300">{t("reports.batch.insights")}</p>
                                 <p className="text-sm text-violet-700 dark:text-violet-300">
-                                    {t("reports.batch.avgLine", { orders: summary.avgOrdersPerBatch.toFixed(1), value: formatIQD(summary.avgBatchValue) })}
+                                    {t("reports.batch.avgLine", { count: summary.avgOrdersPerBatch.toFixed(1), value: formatIQD(summary.avgBatchValue) })}
                                 </p>
                             </div>
                         </div>

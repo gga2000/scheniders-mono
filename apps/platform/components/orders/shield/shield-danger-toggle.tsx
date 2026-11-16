@@ -98,7 +98,7 @@ export function DangerSlider({ band, counts, onChange }: { band: DangerBand | nu
     const num = (n: number) => n.toLocaleString("en-US");
     const shown = (b: DangerBand) => (counts ? num(counts[b]) : "—");
     const canPick = (b: DangerBand) => band === b || (counts !== null && counts[b] > 0);
-    const status = band === null ? t("shield.slider.all") : t("shield.slider.showing", { n: shown(band) });
+    const status = band === null ? t("shield.slider.all") : t("shield.slider.showing", { count: shown(band) });
 
     return (
         <>

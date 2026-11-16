@@ -293,7 +293,7 @@ export function BulkActionsBar({
                                 {totalCount ? " " : null}
                                 {totalCount ? (
                                     <span className="text-white/40">
-                                        {t("products.bulk.totalProducts", { total: totalCount })}
+                                        {t("products.bulk.totalProducts", { count: totalCount })}
                                     </span>
                                 ) : null}
                             </span>

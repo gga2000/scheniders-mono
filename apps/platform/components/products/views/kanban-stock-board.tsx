@@ -178,7 +178,7 @@ function MiniCard({
                     {product.stock_quantity > 0 && (
                         <p className="text-[11px] text-muted">
                             {days
-                                ? t("products.views.kanban.daysSupply", { days })
+                                ? t("products.views.kanban.daysSupply", { count: days })
                                 : t("products.views.kanban.noSales")}
                         </p>
                     )}

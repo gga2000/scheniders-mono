@@ -51,10 +51,10 @@ export const StockStatusBadges = React.memo(function StockStatusBadges({
   const neverSold = !Number.isFinite(daysSinceLastSale);
   const deadSuffix = neverSold
     ? t("products.status.neverSold")
-    : t("products.status.daysShort", { days: daysSinceLastSale });
+    : t("products.status.daysShort", { count: daysSinceLastSale });
   // With no sales to divide by, days of supply has no number: the chip says
   // only what it is, not "فائض · —".
-  const supplySuffix = Number.isFinite(daysOfSupply) ? t("products.status.daysShort", { days: daysOfSupply }) : null;
+  const supplySuffix = Number.isFinite(daysOfSupply) ? t("products.status.daysShort", { count: daysOfSupply }) : null;
 
   const badges: BadgeConfig[] = [
     {

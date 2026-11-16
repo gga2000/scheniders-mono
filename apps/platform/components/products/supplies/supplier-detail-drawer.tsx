@@ -348,7 +348,7 @@ function SuppliesTab({
                                 </div>
                                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted">
                                     {leadTimeDays != null && (
-                                        <span>{t("supplies.sd.leadD", { n: leadTimeDays })}</span>
+                                        <span>{t("supplies.sd.leadD", { count: leadTimeDays })}</span>
                                     )}
                                     {moq != null && moq > 1 && <span>{t("supplies.sd.moq", { n: moq })}</span>}
                                     {unitCost != null && (

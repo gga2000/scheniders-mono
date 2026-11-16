@@ -11,9 +11,9 @@ export function refusalMessage(refusal: BillingRefusal, t: Translate, locale: Lo
     const plan = planName(refusal.plan, locale);
     switch (refusal.error) {
         case "too_many_members":
-            return t("plans.refuse.too_many_members", { used: refusal.seats_used ?? 0, limit: refusal.seat_limit ?? 0, plan });
+            return t("plans.refuse.too_many_members", { count: refusal.seats_used ?? 0, limit: refusal.seat_limit ?? 0, plan });
         case "too_many_branches":
-            return t("plans.refuse.too_many_branches", { used: refusal.branches_used ?? 0, limit: refusal.branch_limit ?? 0, plan });
+            return t("plans.refuse.too_many_branches", { count: refusal.branches_used ?? 0, limit: refusal.branch_limit ?? 0, plan });
         case "in_use":
             return t("plans.refuse.in_use", { used: refusal.in_use ?? 0, limit: refusal.limit ?? 0 });
         case "insufficient_balance":
