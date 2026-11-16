@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryCacheNotifyEvent } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
@@ -32,6 +32,21 @@ const METRICS_REFRESH_DEBOUNCE_MS = 1_500;
  * RLS-scoped per tenant via SECURITY INVOKER (the function runs as the caller),
  * so each tenant only ever aggregates its own orders.
  */
+/**
+ * True when an orders list in the cache took on new data after it had already
+ * loaded: a realtime row, an optimistic write, a delta sync or a refetch.
+ *
+ * A list's first load is not a change, and neither is a fetch starting. Both
+ * used to count, so the dashboard's own first orders read refetched every
+ * metrics query it had just loaded.
+ */
+export function isOrdersListChange(event: QueryCacheNotifyEvent): boolean {
+    if (event.type !== "updated" || event.action.type !== "success") return false;
+    const key = event.query.queryKey;
+    if (!Array.isArray(key) || key[0] !== "orders" || key[1] !== "list") return false;
+    return event.query.state.dataUpdateCount > 1;
+}
+
 export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
     const { session, clientReady, tenantId } = useAuth();
     const queryClient = useQueryClient();
@@ -41,19 +56,21 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
     // user who had just changed the order. Watch the orders cache instead of
     // wiring into one specific writer: this covers realtime, optimistic mutations
     // and delta-sync alike, debounced so a burst of events costs one refetch.
+    //
+    // Each instance refreshes only its own range: with the "all" and the period
+    // query both mounted, invalidating the whole prefix from both made four
+    // calls where two were needed.
     useEffect(() => {
         const cache = queryClient.getQueryCache();
         let timer: ReturnType<typeof setTimeout> | null = null;
 
         const unsubscribe = cache.subscribe((event) => {
-            if (event.type !== "updated") return;
-            const key = event.query.queryKey;
-            if (!Array.isArray(key) || key[0] !== "orders" || key[1] !== "list") return;
+            if (!isOrdersListChange(event)) return;
 
             if (timer) clearTimeout(timer);
             timer = setTimeout(() => {
                 diag.log("[Diag:RQ:Metrics] orders changed — refreshing dashboard metrics");
-                queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-metrics", range] });
             }, METRICS_REFRESH_DEBOUNCE_MS);
         });
 
@@ -61,7 +78,7 @@ export function useDashboardMetricsQuery(range: DateRangeKey = "all") {
             unsubscribe();
             if (timer) clearTimeout(timer);
         };
-    }, [queryClient]);
+    }, [queryClient, range]);
 
     return useQuery<DashboardMetrics>({
         queryKey: ["dashboard-metrics", range, tenantId],
