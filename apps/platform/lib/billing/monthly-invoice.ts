@@ -68,13 +68,17 @@ export function monthRange(month: string): { start: string; end: string } {
     };
 }
 
-/** The last `count` months up to and including the one containing `now`, newest first. */
-export function recentMonths(now: Date, count: number): string[] {
+/**
+ * The last `count` months up to and including the one containing `now`, newest first.
+ * With `since` (when the shop was made), months before the shop existed are left out.
+ */
+export function recentMonths(now: Date, count: number, since?: Date): string[] {
     const [y, m] = baghdadMonth(now).split("-").map(Number);
+    const first = since ? baghdadMonth(since) : null;
     return Array.from({ length: count }, (_, i) => {
         const total = y * 12 + (m - 1) - i;
         return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
-    });
+    }).filter((month) => first === null || month >= first);
 }
 
 /** Which fee a charge row is, read from the description the billing functions write. */

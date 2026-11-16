@@ -20,10 +20,21 @@ function monthName(month: string, language: string): string {
     });
 }
 
-export function MonthlyInvoices({ tenantId, displayId, legalName }: { tenantId: string; displayId: number | null; legalName: string | null }) {
+export function MonthlyInvoices({
+    tenantId,
+    displayId,
+    legalName,
+    createdAt,
+}: {
+    tenantId: string;
+    displayId: number | null;
+    legalName: string | null;
+    /** When the shop was made: no invoice rows for months before it. */
+    createdAt: string;
+}) {
     const { t, language } = useLanguage();
     const [printing, setPrinting] = useState<string | null>(null);
-    const months = recentMonths(new Date(), MONTHS_SHOWN);
+    const months = recentMonths(new Date(), MONTHS_SHOWN, new Date(createdAt));
 
     async function print(month: string) {
         setPrinting(month);

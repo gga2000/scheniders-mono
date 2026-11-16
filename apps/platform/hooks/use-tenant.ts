@@ -28,6 +28,7 @@ export interface TenantSummary {
     display_id: number | null;
     /** The demo store (Fermi B13): invented data for screen recordings. */
     is_demo: boolean;
+    created_at: string;
 }
 
 export function useTenant() {
@@ -42,7 +43,7 @@ export function useTenant() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("tenants")
-                .select("id, status, trial_ends_at, plan, restrictions, display_id, is_demo")
+                .select("id, status, trial_ends_at, plan, restrictions, display_id, is_demo, created_at")
                 .eq("id", tenantId!)
                 .maybeSingle();
             if (error) throw error;
