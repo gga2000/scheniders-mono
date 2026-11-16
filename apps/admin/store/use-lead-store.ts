@@ -5,6 +5,12 @@ import type { LeadStatus, LeadPriority, LeadSourcePlatform, LeadTier } from "@/t
 export type LeadViewMode = "table" | "kanban" | "cards";
 
 interface LeadStoreState {
+  // The page of the list on screen. Changing what the list shows (view, sort,
+  // a filter, the search) goes back to page 1: an old page number past the
+  // end of the new list showed no rows and no pager to get back.
+  page: number;
+  setPage: (page: number) => void;
+
   // View
   viewMode: LeadViewMode;
   setViewMode: (mode: LeadViewMode) => void;
@@ -58,24 +64,27 @@ const DEFAULT_FILTERS = {
 export const useLeadStore = create<LeadStoreState>()(
   persist(
     (set) => ({
+      page: 1,
+      setPage: (page) => set({ page: Math.max(1, page) }),
+
       viewMode: "table",
-      setViewMode: (mode) => set({ viewMode: mode }),
+      setViewMode: (mode) => set({ viewMode: mode, page: 1 }),
 
       sortBy: "created_at:desc",
-      setSortBy: (v) => set({ sortBy: v }),
+      setSortBy: (v) => set({ sortBy: v, page: 1 }),
 
       ...DEFAULT_FILTERS,
 
-      setStatusFilter: (v) => set({ statusFilter: v }),
-      setPlatformFilter: (v) => set({ platformFilter: v }),
-      setPriorityFilter: (v) => set({ priorityFilter: v }),
-      setTierFilter: (v) => set({ tierFilter: v }),
-      setIndustryFilter: (v) => set({ industryFilter: v }),
-      setAssigneeFilter: (v) => set({ assigneeFilter: v }),
-      setHasStoreFilter: (v) => set({ hasStoreFilter: v }),
-      setScoreRange: (v) => set({ scoreRange: v }),
-      setSearchQuery: (v) => set({ searchQuery: v }),
-      clearFilters: () => set(DEFAULT_FILTERS),
+      setStatusFilter: (v) => set({ statusFilter: v, page: 1 }),
+      setPlatformFilter: (v) => set({ platformFilter: v, page: 1 }),
+      setPriorityFilter: (v) => set({ priorityFilter: v, page: 1 }),
+      setTierFilter: (v) => set({ tierFilter: v, page: 1 }),
+      setIndustryFilter: (v) => set({ industryFilter: v, page: 1 }),
+      setAssigneeFilter: (v) => set({ assigneeFilter: v, page: 1 }),
+      setHasStoreFilter: (v) => set({ hasStoreFilter: v, page: 1 }),
+      setScoreRange: (v) => set({ scoreRange: v, page: 1 }),
+      setSearchQuery: (v) => set({ searchQuery: v, page: 1 }),
+      clearFilters: () => set({ ...DEFAULT_FILTERS, page: 1 }),
 
       selectedLeads: new Set<string>(),
       toggleLead: (id) =>

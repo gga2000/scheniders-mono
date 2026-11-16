@@ -41,7 +41,6 @@ import { formatCount } from "@/lib/format";
 
 export function LeadsDesktopView() {
   const router = useRouter();
-  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [draftLead, setDraftLead] = useState<Lead | null>(null);
@@ -52,14 +51,14 @@ export function LeadsDesktopView() {
   const { role } = useAdminAuth();
   const canEditLayout = role === "super_admin";
 
-  const { viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
+  const { page, setPage, viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
     useLeadStore();
 
   // Leave edit mode if the table view is no longer active.
   useEffect(() => {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
-  const { data, isLoading, isError } = useLeads(page, viewMode === "kanban" ? 100 : 20);
+  const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : 20);
   const { data: analytics } = useLeadAnalytics();
   const lastTrend = analytics?.monthly_trends?.[analytics.monthly_trends.length - 1];
   const createLead = useCreateLead();
@@ -232,7 +231,7 @@ export function LeadsDesktopView() {
               Something went wrong while fetching leads. Please try again.
             </p>
             <button
-              onClick={() => setPage(1)}
+              onClick={() => void refetch()}
               className="px-6 py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] text-sm font-bold hover:brightness-110 transition-all"
             >
               Retry
@@ -343,7 +342,7 @@ export function LeadsDesktopView() {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => setPage(page - 1)}
                 disabled={page === 1}
                 className="w-9 h-9 rounded-xl flex items-center justify-center border border-[var(--card-border)] disabled:opacity-30 hover:bg-[var(--background)] transition-colors"
               >
@@ -353,7 +352,7 @@ export function LeadsDesktopView() {
                 {page} / {totalPages}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 className="w-9 h-9 rounded-xl flex items-center justify-center border border-[var(--card-border)] disabled:opacity-30 hover:bg-[var(--background)] transition-colors"
               >
