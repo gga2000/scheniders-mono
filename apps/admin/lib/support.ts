@@ -177,3 +177,22 @@ export function formatWait(since: string, now: number): string {
   }
   return `${Math.floor(hours / 24)} d`;
 }
+
+/**
+ * A browser push subscription, as `PushSubscription.toJSON()` sends it. The
+ * endpoint must be https: push services only issue https endpoints, and the
+ * table refuses anything else.
+ */
+export const StaffPushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2000).startsWith("https://"),
+  keys: z.object({
+    p256dh: z.string().min(1).max(200),
+    auth: z.string().min(1).max(100),
+  }),
+});
+
+export const StaffPushRemoveSchema = z.object({
+  endpoint: z.string().url().max(2000),
+});
+
+export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
