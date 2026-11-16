@@ -338,14 +338,17 @@ describe("SummaryView", () => {
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
-            "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». حتى ذلك الحين صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
-            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً. الطلب 1261030001 كتب الكشف أن شركة التوصيل قبضت عنه 1 د.ع، فخصمت منه 4,999 د.ع بدل 5,000 د.ع.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً. في الكشف قبضت شركة التوصيل 1 د.ع عن الطلب 1261030001، فخصمت 4,999 د.ع بدل 5,000 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
             "فروق أخرى−28,001د.ع",
         ]);
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
+        // the profit card says its net profit is too high until the open refund is marked, and links to it
+        expect(byTestId("statement-refunds-open")?.textContent).toBe("لم يُسجَّل بعد مبلغ مسترد واحد دفعته شركة التوصيل (20,000 د.ع)، فصافي الربح أدناه أعلى من الحقيقي بهذا المبلغ.اعرضها");
+        expect(byTestId("statement-refunds-open")?.querySelector("a")?.getAttribute("href")).toBe("#courier-payments");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
         expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
@@ -378,7 +381,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
-        expect(byTestId("money-returning")?.textContent).toContain("5 طرود مرفوضة في طريق العودة إليك الآن");
+        expect(byTestId("money-returning")?.textContent).toContain("وهناك 5 طرود مرفوضة تعيدها برايم إليك الآن");
     });
 
     it("leaves the stuck parcels to the strip and the banner: the money card does not say them a third time", () => {
@@ -399,7 +402,7 @@ describe("SummaryView", () => {
         expect(byTestId("failed-cost")?.textContent).toContain("80,000");
         // the hundred squares are named: 17 came back, 83 were accepted
         expect(byTestId("returned-parcels")?.textContent).toContain("رُفض: 17 من 100");
-        expect(byTestId("returned-parcels")?.textContent).toContain("سُلِّم للزبون: 83 من 100");
+        expect(byTestId("returned-parcels")?.textContent).toContain("وصل للزبون: 83 من 100");
         // every refused order, whatever date filter the merchant left on Orders
         expect(byTestId("returned-parcels")?.querySelector("a")?.getAttribute("href")).toBe("/orders?status=rejected&dates=all");
         expect(byTestId("failed-fee")).toBeNull();
@@ -434,7 +437,7 @@ describe("SummaryView", () => {
         expect(document.querySelector('[data-cell="sales"]')?.textContent).toContain("27 طلباً");
         expect(document.querySelector('[data-cell="on_road"]')?.textContent).toContain("27 طرداً");
         expect(byTestId("returned-parcels")?.textContent).toContain("36 طلباً مرفوضاً");
-        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً أرجعتها برايم (ضمن بند التوصيل)");
+        expect(byTestId("returned-parcels")?.textContent).toContain("أجرة برايم عن 13 طرداً مرفوضاً من طرودها (ضمن بند التوصيل)");
         expect(byTestId("stock-shelf")?.textContent).toContain("29 منتجاً");
         expect(document.querySelector('[data-product="p1"]')?.textContent).toContain("5 قطع ·");
         expect(document.body.textContent).toContain("4 قطع مسلّمة بلا كلفة");
