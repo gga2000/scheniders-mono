@@ -99,6 +99,7 @@ function fieldOf(row: Row, column: string): unknown {
 function matches(field: unknown, operator: string, value: unknown): boolean {
   if (operator === "eq") return field === value;
   if (operator === "neq") return field !== value;
+  if (operator === "is") return String(field) === String(value);
   // PostgREST writes a list as "(a,b)".
   if (operator === "in" && typeof value === "string") return value.slice(1, -1).split(",").includes(String(field));
   if (typeof field !== "number" || typeof value !== "number") return false;

@@ -14,7 +14,7 @@ vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => stub.client })
 const { GET } = await import("./route");
 const call = () => GET(new NextRequest("http://admin.test/api/merchants/tabs"));
 
-const shop = (n: number, status: string, plan = "starter", extra: Row = {}): Row => ({ id: `shop-${n}`, is_demo: false, status, plan, ...extra });
+const shop = (n: number, status: string, plan = "starter", extra: Row = {}): Row => ({ id: `shop-${n}`, is_demo: false, status, plan, staff_locked: false, ...extra });
 
 beforeEach(() => {
   stub = supabaseStub();
@@ -25,17 +25,17 @@ describe("GET /api/merchants/tabs", () => {
   it("counts each tab as the list fills it, without the demo store", async () => {
     stub.state.tables.tenants = [
       shop(1, "trial"),
-      shop(2, "trial"),
+      shop(2, "trial", "starter", { staff_locked: true }),
       shop(3, "active"),
       shop(4, "active", "internal"),
       shop(5, "suspended"),
       shop(6, "cancelled"),
-      shop(7, "active", "growth", { is_demo: true }),
+      shop(7, "active", "growth", { is_demo: true, staff_locked: true }),
     ];
     const response = await call();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      counts: { all: 6, trial: 2, paying: 1, stopped: 1, cancelled: 1, internal: 1 },
+      counts: { all: 6, locked: 1, trial: 2, paying: 1, stopped: 1, cancelled: 1, internal: 1 },
     });
   });
 

@@ -50,7 +50,7 @@ beforeEach(() => {
   role = "super_admin";
   search = new URLSearchParams();
   list = { merchants: [karrada], total: 8, isLoading: false, isError: false, hasNextPage: true, isFetchingNextPage: false };
-  counts = { data: { all: 8, trial: 3, paying: 3, stopped: 0, cancelled: 0, internal: 1 } };
+  counts = { data: { all: 8, locked: 1, trial: 3, paying: 3, stopped: 0, cancelled: 0, internal: 1 } };
 });
 
 describe("the Merchants page", () => {
@@ -65,6 +65,7 @@ describe("the Merchants page", () => {
   it("carries the count on each tab and leaves out a tab with no shops", () => {
     const html = render();
     expect(html).toMatch(/All<span[^>]*>8<\/span>/);
+    expect(html).toMatch(/Locked<span[^>]*>1<\/span>/);
     expect(html).toMatch(/Trial<span[^>]*>3<\/span>/);
     expect(html).toMatch(/Internal<span[^>]*>1<\/span>/);
     expect(html).not.toContain("On hold");
