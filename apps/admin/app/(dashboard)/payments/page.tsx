@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { AlertTriangle, Check, ExternalLink, FileText, Landmark, Loader2, Lock, X } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, FileText, Loader2, Lock, X } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
@@ -277,11 +277,8 @@ export default function PaymentsPage() {
   return (
     <div className="p-4 md:p-6 space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Landmark className="w-6 h-6" />
-          Payments to check
-        </h1>
-        <p className="text-foreground-muted mt-1 max-w-2xl">
+        <h1 className="text-[22px] font-semibold text-foreground">Payments to check</h1>
+        <p className="text-[13px] text-foreground/70 max-w-2xl">
           Shops paid us by transfer and sent the receipt. Check the money arrived, then add what came in. A payment that
           covers the plan opens a locked shop at once. Refuse with a reason and the shop can send again.
         </p>

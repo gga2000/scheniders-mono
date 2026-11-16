@@ -55,8 +55,10 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { title: pageHeaderTitle, subtitle: pageHeaderSubtitle, tab } = usePageHeader();
-  const pageTitle = pageHeaderTitle ?? menuPageTitle(pathname ?? "/") ?? "Admin";
+  // Each page names itself once, in its own heading (board n3). The top bar
+  // names the browser tab only.
+  const tab = usePageHeader((s) => s.tab);
+  const pageTitle = menuPageTitle(pathname ?? "/") ?? "Admin";
 
   // The browser tab says where you are, in the menu's words or the shop's name.
   // React puts this <title> in the document head, on the server and after every
@@ -141,7 +143,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   return (
     <header className="h-16 flex items-center justify-between px-6 gap-4">
       <title>{tabTitle}</title>
-      {/* Left: Mobile menu + Page title */}
+      {/* Left: mobile menu */}
       <div className="flex items-center gap-3">
         {isMobile && (
           <button
@@ -151,22 +153,6 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           >
             <Menu className="w-5 h-5 text-foreground" />
           </button>
-        )}
-        {pageTitle && (
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground leading-tight truncate">
-              {pageTitle}
-            </h1>
-            {pageHeaderSubtitle && (
-              <p className="hidden sm:flex items-center gap-1.5 text-xs text-foreground-muted leading-tight mt-0.5">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                </span>
-                {pageHeaderSubtitle}
-              </p>
-            )}
-          </div>
         )}
       </div>
 

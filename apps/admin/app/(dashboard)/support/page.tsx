@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Headset, Loader2, MessageSquareText } from "lucide-react";
+import { Loader2, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSupportCase, useSupportCases, useSupportNeedsUs, useSupportTasks } from "@/hooks/use-support-cases";
 import { SupportCaseList } from "@/components/support/support-case-list";
@@ -61,11 +61,8 @@ function SupportInbox() {
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-            <Headset className="h-6 w-6" />
-            Support
-          </h1>
-          <p className="mt-1 text-foreground-muted">
+          <h1 className="text-[22px] font-semibold text-foreground">Support</h1>
+          <p className="text-[13px] text-foreground/70">
             {list.isLoading
               ? "Loading..."
               : waiting === 0

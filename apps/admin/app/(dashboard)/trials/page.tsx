@@ -197,11 +197,8 @@ export default function TrialsPage() {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Clock className="w-6 h-6" />
-          Trial Management
-        </h1>
-        <p className="text-foreground-muted mt-1">
+        <h1 className="text-[22px] font-semibold text-foreground">Trials</h1>
+        <p className="text-[13px] text-foreground/70">
           {isLoading
             ? "Loading..."
             : `${summary.total} active trial${summary.total !== 1 ? "s" : ""}`}

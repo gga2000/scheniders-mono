@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
-  Activity,
   AlertTriangle,
   Wallet,
   CheckCircle2,
@@ -114,15 +113,7 @@ export default function HealthPage() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Activity className="w-6 h-6" />
-          Platform Health
-        </h1>
-        <p className="text-foreground-muted mt-1">
-          {isLoading
-            ? "Loading..."
-            : "Real-time monitoring and risk assessment"}
-        </p>
+        <h1 className="text-[22px] font-semibold text-foreground">Shops at risk</h1>
       </div>
 
       {/* Platform Status Bar */}

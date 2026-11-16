@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import { useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
-import { usePageHeader } from "@/store/use-page-header";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
@@ -39,17 +38,6 @@ export function LeadsMobileView() {
 
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
   const total = data?.pages[0]?.total ?? 0;
-
-  // Publish the page header (title + live count) to the global topbar.
-  const setPageHeader = usePageHeader((s) => s.setHeader);
-  const clearPageHeader = usePageHeader((s) => s.clearHeader);
-  useEffect(() => {
-    setPageHeader({
-      title: "Leads",
-      subtitle: `${total.toLocaleString()} ${total === 1 ? "lead" : "leads"} in the pipeline`,
-    });
-    return () => clearPageHeader();
-  }, [total, setPageHeader, clearPageHeader]);
 
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } =
     useLeadStore();
@@ -90,7 +78,12 @@ export function LeadsMobileView() {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      {/* Title + count live in the global topbar (see usePageHeader) */}
+      <div>
+        <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
+        <p className="text-[13px] text-foreground/70">
+          {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+        </p>
+      </div>
 
       {/* Sticky search */}
       <div className="sticky top-0 z-20 -mx-4 bg-[var(--background)]/85 px-4 py-2 backdrop-blur">

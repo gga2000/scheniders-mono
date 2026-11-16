@@ -144,11 +144,8 @@ export default function ActivityLogPage() {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <FileText className="w-6 h-6" />
-          Activity Log
-        </h1>
-        <p className="text-foreground-muted mt-1">
+        <h1 className="text-[22px] font-semibold text-foreground">Activity log</h1>
+        <p className="text-[13px] text-foreground/70">
           {isLoading ? "Loading..." : `${total} log entr${total !== 1 ? "ies" : "y"}`}
         </p>
       </div>

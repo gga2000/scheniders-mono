@@ -12,7 +12,6 @@ import {
   useBulkLeadAction,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
-import { usePageHeader } from "@/store/use-page-header";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
@@ -72,17 +71,6 @@ export function LeadsDesktopView() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
 
-  // Publish the page header (title + live pipeline count) to the global topbar.
-  const setPageHeader = usePageHeader((s) => s.setHeader);
-  const clearPageHeader = usePageHeader((s) => s.clearHeader);
-  useEffect(() => {
-    setPageHeader({
-      title: "Leads",
-      subtitle: `${total.toLocaleString()} ${total === 1 ? "lead" : "leads"} in the pipeline`,
-    });
-    return () => clearPageHeader();
-  }, [total, setPageHeader, clearPageHeader]);
-
   const handleCreateLead = (formData: LeadFormData) =>
     new Promise<boolean>((resolve) => {
       createLead.mutate(formData, {
@@ -133,8 +121,13 @@ export function LeadsDesktopView() {
 
   return (
     <div className="space-y-5 p-5 sm:p-6">
-      {/* Toolbar — title + "prospects in pipeline" now live in the global topbar */}
-      <div className="flex items-center justify-end gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
+          <p className="text-[13px] text-foreground/70">
+            {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+          </p>
+        </div>
         <div className="flex items-center gap-2.5">
           {/* View Toggle */}
           <div className="flex items-center bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-1">

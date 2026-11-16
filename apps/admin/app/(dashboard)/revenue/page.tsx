@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  TrendingUp,
   Loader2,
 } from "lucide-react";
 import {
@@ -83,11 +82,8 @@ export default function RevenuePage() {
     <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <TrendingUp className="w-6 h-6" />
-          Revenue Analytics
-        </h1>
-        <p className="text-foreground-muted mt-1">
+        <h1 className="text-[22px] font-semibold text-foreground">Our fees</h1>
+        <p className="text-[13px] text-foreground/70">
           Fees shops paid us: monthly plan, delivered orders and paid messages. Months on Baghdad time.
         </p>
       </div>
