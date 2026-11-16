@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInfiniteMerchants } from "@/hooks/use-infinite-merchants";
 import { useAdminStore } from "@/store/use-admin-store";
@@ -28,6 +29,7 @@ import { MerchantCardGridSkeleton } from "@/components/merchants/merchant-card-s
 import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortcuts-overlay";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { LoadError } from "@/components/shared/load-error";
+import { downloadSelectedShops } from "@/lib/download-export";
 import { useRealtimePulse } from "@/store/use-realtime-pulse";
 import {
   EASE_CROSSFADE,
@@ -149,7 +151,8 @@ export default function MerchantsPage() {
   // ── Bulk actions ─────────────────────────────────────────────────────
   function handleBulkAction(action: string) {
     if (action === "export") {
-      window.open("/api/export?type=merchants&format=csv");
+      // Only the ticked shops: the whole list has its own Export button.
+      downloadSelectedShops([...selectedMerchants]).catch(() => toast.error("The export failed. Try again."));
       return;
     }
     if (action === "compare") {

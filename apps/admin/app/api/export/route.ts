@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { forbidden, requireAdminPermission } from "@/lib/api-auth";
+import { forbidden, requireAdminPermission, type AdminContext } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
@@ -33,19 +34,35 @@ function toCSV(data: Record<string, unknown>[]): string {
   return [headers.join(","), ...rows].join("\n");
 }
 
-async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>) {
-  const data = await everyRow((from, to) =>
-    supabase
-      .from("tenants")
-      .select(
-        "id, business_name, slug, plan, status, city, contact_email, contact_phone, created_at, wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd)"
-      )
-      // The demo store (Fermi B13) is no customer.
-      .eq("is_demo", false)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, to)
-  );
+/** Shop ids asked for in one read: each id goes into the request's address. */
+const IDS_PER_READ = 200;
+
+/** Every shop, or only the shops named in `ids` (the ones ticked on the Merchants page). */
+async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>, ids?: readonly string[]) {
+  const read = (only?: readonly string[]) =>
+    everyRow((from, to) => {
+      let query = supabase
+        .from("tenants")
+        .select(
+          "id, business_name, slug, plan, status, city, contact_email, contact_phone, created_at, wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd)"
+        )
+        // The demo store (Fermi B13) is no customer.
+        .eq("is_demo", false);
+      if (only) query = query.in("id", [...only]);
+      return query.order("created_at", { ascending: true }).order("id", { ascending: true }).range(from, to);
+    });
+
+  let data: Awaited<ReturnType<typeof read>>;
+  if (ids) {
+    data = [];
+    for (let start = 0; start < ids.length; start += IDS_PER_READ) {
+      data.push(...(await read(ids.slice(start, start + IDS_PER_READ))));
+    }
+    // Each read is in order; the file is in one order, oldest shop first.
+    data.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+  } else {
+    data = await read();
+  }
 
   return data.map((row) => {
     const wallet = Array.isArray(row.wallet) ? row.wallet[0] : row.wallet;
@@ -115,43 +132,70 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
   }));
 }
 
+/** GET /api/export?type=…&format=… — the whole list as a file. */
 export async function GET(request: NextRequest) {
   const auth = await requireAdminPermission(request, "export_data");
   if (auth instanceof NextResponse) return auth;
 
+  const { searchParams } = request.nextUrl;
+
+  const type = searchParams.get("type") as ExportType | null;
+  const format = (searchParams.get("format") ?? "csv") as ExportFormat;
+
+  if (!type || !VALID_TYPES.includes(type)) {
+    return NextResponse.json(
+      { error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  if (!VALID_FORMATS.includes(format)) {
+    return NextResponse.json(
+      { error: `Invalid format. Must be one of: ${VALID_FORMATS.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  // The cross-store wallet ledger is billing data: same gate as
+  // GET /api/billing, not just export_data.
+  if (type === "transactions" && !hasPermission(auth.role, "adjust_balance")) {
+    return forbidden("adjust_balance");
+  }
+
+  return exportFile(auth, type, format);
+}
+
+/**
+ * The shops ticked on the Merchants page. Sent in the body: thousands of ids
+ * do not fit in an address.
+ */
+const SelectedShopsSchema = z.object({
+  type: z.literal("merchants"),
+  format: z.enum(VALID_FORMATS).default("csv"),
+  ids: z.array(z.string().uuid()).min(1).max(5000),
+});
+
+/** POST /api/export {type: "merchants", format, ids} — only the ticked shops, as a file. */
+export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, "export_data");
+  if (auth instanceof NextResponse) return auth;
+
+  const parsed = SelectedShopsSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+  }
+  return exportFile(auth, parsed.data.type, parsed.data.format, [...new Set(parsed.data.ids)]);
+}
+
+async function exportFile(auth: AdminContext, type: ExportType, format: ExportFormat, ids?: string[]) {
   try {
-    const { searchParams } = request.nextUrl;
-
-    const type = searchParams.get("type") as ExportType | null;
-    const format = (searchParams.get("format") ?? "csv") as ExportFormat;
-
-    if (!type || !VALID_TYPES.includes(type)) {
-      return NextResponse.json(
-        { error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    if (!VALID_FORMATS.includes(format)) {
-      return NextResponse.json(
-        { error: `Invalid format. Must be one of: ${VALID_FORMATS.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // The cross-store wallet ledger is billing data: same gate as
-    // GET /api/billing, not just export_data.
-    if (type === "transactions" && !hasPermission(auth.role, "adjust_balance")) {
-      return forbidden("adjust_balance");
-    }
-
     const supabase = createAdminClient();
 
     let data: Record<string, unknown>[];
 
     switch (type) {
       case "merchants":
-        data = await fetchMerchants(supabase);
+        data = await fetchMerchants(supabase, ids);
         break;
       case "transactions":
         data = await fetchTransactions(supabase);
@@ -161,7 +205,9 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    await logAdminAction(auth, "export_data", { details: { type, format, rows: data.length } });
+    await logAdminAction(auth, "export_data", {
+      details: { type, format, rows: data.length, ...(ids ? { selected: ids.length } : {}) },
+    });
 
     const date = dayOf(Date.now());
     const filename = `${type}_export_${date}`;
