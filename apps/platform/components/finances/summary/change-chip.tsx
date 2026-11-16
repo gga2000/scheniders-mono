@@ -5,7 +5,7 @@ interface ChangeChipProps {
     value: number;
     /** A drop is the good direction (a cost): flips the colours. */
     lowerIsBetter?: boolean;
-    /** What the chip sits on: the dark strip and band (default), or a card that follows the theme. */
+    /** What the chip sits on: the dark strip (default), or a card that follows the theme. */
     surface?: "dark" | "card";
 }
 

@@ -7,6 +7,7 @@ import {
     buildStatement,
     changePct,
     dayProfit,
+    deliveryOverlap,
     isComparablePeriod,
     lensChange,
     perOrder,
@@ -15,6 +16,7 @@ import {
     profitBars,
     profitPath,
     refusedShare,
+    scaleMarks,
     stockPurchases,
     throughLens,
     waterfall,
@@ -23,7 +25,7 @@ import {
 } from "./summary";
 
 const day = (d: string, over: Partial<FinanceSummaryDay> = {}): FinanceSummaryDay => ({
-    day: d, orders: 0, revenue: 0, product_cost: 0, courier: 0, refunds: 0, expenses: 0, salaries: 0, ...over,
+    day: d, orders: 0, revenue: 0, product_cost: 0, courier: 0, courier_file: 0, refunds: 0, expenses: 0, salaries: 0, ...over,
 });
 
 /** A shop's month, shaped like get_finance_summary()'s answer. */
@@ -40,7 +42,7 @@ function summary(over: Partial<FinanceSummary> = {}): FinanceSummary {
             { category: "other", amount: 15_000 },
         ],
         salaries_paid: 20_000,
-        courier: { prime_fee: 30_000, prime_parcels: 6 },
+        courier: { prime_fee: 30_000, prime_parcels: 6, file_fee: 0, file_orders: 0 },
         cash: {
             in_transit: { count: 4, amount: 160_000 },
             stuck: { count: 1, amount: 40_000 },
@@ -100,6 +102,15 @@ describe("buildStatement", () => {
         expect(none.netProfit).toBe(70_000);
     });
 
+    it("counts what the courier kept in the payment files as delivery, ahead of the other parts", () => {
+        const s = summary();
+        const withFiles = buildStatement({ ...s, courier: { ...s.courier, file_fee: 25_000, file_orders: 5 } });
+        const delivery = withFiles.lines.find((l) => l.id === "delivery");
+        expect(delivery?.amount).toBe(70_000);
+        expect(delivery?.parts[0]).toEqual({ key: "file_fee", amount: 25_000 });
+        expect(withFiles.netProfit).toBe(statement.netProfit - 25_000);
+    });
+
     it("subtracts every cost from sales exactly once", () => {
         // 400,000 - 150,000 - 60,000 - 45,000 - 40,000 - 20,000 - 20,000
         expect(statement.totalCosts).toBe(335_000);
@@ -124,6 +135,41 @@ describe("the days and the statement agree", () => {
         const s = summary();
         const total = s.daily.reduce((sum, d) => sum + dayProfit(d), 0);
         expect(total).toBe(buildStatement(s).netProfit);
+    });
+
+    it("still agree when the courier kept a fee in the payment files", () => {
+        const base = summary();
+        const s = summary({
+            courier: { ...base.courier, file_fee: 25_000, file_orders: 5 },
+            daily: base.daily.map((d, i) => (i === 0 ? { ...d, courier_file: 15_000 } : i === 1 ? { ...d, courier_file: 10_000 } : d)),
+        });
+        expect(dayProfit(s.daily[0])).toBe(dayProfit(base.daily[0]) - 15_000);
+        expect(s.daily.reduce((sum, d) => sum + dayProfit(d), 0)).toBe(buildStatement(s).netProfit);
+    });
+});
+
+describe("deliveryOverlap", () => {
+    it("speaks up only when the payment files and typed courier bills both carry a fee", () => {
+        const s = summary();
+        expect(deliveryOverlap(s)).toBeNull();
+        expect(deliveryOverlap({ ...s, courier: { ...s.courier, file_fee: 25_000, file_orders: 5 } })).toEqual({ fileFee: 25_000, bills: 10_000 });
+        expect(deliveryOverlap({ ...s, expenses: [], courier: { ...s.courier, file_fee: 25_000, file_orders: 5 } })).toBeNull();
+    });
+});
+
+describe("scaleMarks", () => {
+    it("marks zero and round steps up to the highest value, never fewer than three marks", () => {
+        expect(scaleMarks(0, 6_600_000)).toEqual([0, 2_500_000, 5_000_000]);
+        expect(scaleMarks(0, 9_000_000)).toEqual([0, 2_500_000, 5_000_000, 7_500_000]);
+        expect(scaleMarks(0, 2_700_000)).toEqual([0, 1_000_000, 2_000_000]);
+        expect(scaleMarks(0, 450_000)).toEqual([0, 200_000, 400_000]);
+        expect(scaleMarks(0, 115_000)).toEqual([0, 50_000, 100_000]);
+    });
+
+    it("goes under zero for a period that dipped into a loss, and stays at zero when nothing moved", () => {
+        expect(scaleMarks(-1_100_000, 1_995_756)).toEqual([-1_000_000, 0, 1_000_000]);
+        expect(scaleMarks(-300_000, 700_000)).toEqual([-250_000, 0, 250_000, 500_000]);
+        expect(scaleMarks(0, 0)).toEqual([0]);
     });
 });
 
@@ -152,18 +198,15 @@ describe("stock purchases", () => {
 describe("throughLens", () => {
     const statement = buildStatement(summary());
 
-    it("reads a figure as a total, per delivered order, or per 1,000 IQD sold", () => {
+    it("reads a figure as a total or per delivered order", () => {
         expect(throughLens(60_000, statement, "total")).toBe(60_000);
         expect(throughLens(60_000, statement, "order")).toBe(6_000);
-        expect(throughLens(60_000, statement, "thousand")).toBe(150);
-        expect(throughLens(statement.sales, statement, "thousand")).toBe(1_000);
     });
 
-    it("has no per-order or per-1,000 answer when nothing was delivered", () => {
+    it("has no per-order answer when nothing was delivered", () => {
         const empty = buildStatement(summary({ sales: { orders: 0, revenue: 0, units: 0, product_cost: 0, missing_cost_units: 0, paid_orders: 0 } }));
         expect(throughLens(60_000, empty, "total")).toBe(60_000);
         expect(throughLens(60_000, empty, "order")).toBeNull();
-        expect(throughLens(60_000, empty, "thousand")).toBeNull();
     });
 });
 
@@ -308,10 +351,9 @@ describe("lensChange", () => {
     const before = buildStatement(summary({ sales: { orders: 20, revenue: 320_000, units: 22, product_cost: 120_000, missing_cost_units: 0, paid_orders: 0 } }));
 
     it("compares the figure on screen with the same figure before", () => {
-        // 150,000 against 120,000 in total; 15,000 an order against 6,000; 375 of each 1,000 both times
+        // 150,000 against 120,000 in total; 15,000 an order against 6,000
         expect(lensChange(150_000, now, 120_000, before, "total")).toBe(25);
         expect(lensChange(150_000, now, 120_000, before, "order")).toBe(150);
-        expect(lensChange(150_000, now, 120_000, before, "thousand")).toBe(0);
         // ads: 6,000 an order now, 3,000 before
         expect(lensChange(60_000, now, 60_000, before, "order")).toBe(100);
     });
@@ -320,7 +362,6 @@ describe("lensChange", () => {
         const thin = buildStatement(summary({ sales: { orders: 8, revenue: 320_000, units: 9, product_cost: 120_000, missing_cost_units: 0, paid_orders: 0 } }));
         expect(lensChange(150_000, now, 120_000, thin, "total")).toBe(25);
         expect(lensChange(150_000, now, 120_000, thin, "order")).toBeNull();
-        expect(lensChange(150_000, now, 120_000, thin, "thousand")).toBeNull();
     });
 
     it("has no answer when the period before delivered nothing", () => {

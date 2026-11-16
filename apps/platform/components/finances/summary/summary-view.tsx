@@ -7,8 +7,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { buildStatement, productRows, type FinanceSummary } from "@/lib/finance/summary";
-import { AdReturn } from "./ad-return";
-import { BreakEven } from "./break-even";
+import { DailyCosts } from "./daily-costs";
 import { FinanceStrip } from "./finance-strip";
 import type { FinanceTab } from "./finance-tabs";
 import { MoneyRoute } from "./money-route";
@@ -34,10 +33,10 @@ interface SummaryViewProps {
 
 /**
  * The Summary tab, in the order a shop owner asks: did I make money (the dark
- * strip), where did my sales go (the statement), is the period building and
- * where is my cash (the path beside the money route), which product earns,
- * then what returns cost, whether the ads pay, how many orders cover the
- * costs, and the money sitting in stock.
+ * strip), where did my sales go (the statement), where is my cash and is the
+ * period building (the money route, then the path beside it), which product
+ * earns, then three cards in one style: what returns cost, what the ads and
+ * the daily costs ask of each day, and the money sitting in stock.
  * Every figure comes from one database answer (useFinanceSummary).
  */
 export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) {
@@ -72,7 +71,7 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
     return (
         <div className={cn("space-y-5 transition-opacity", current.isPlaceholderData && "opacity-60")} data-testid="finance-summary">
             <FinanceStrip summary={summary} statement={statement} previous={beforeFigures} />
-            <SummaryAlerts summary={summary} />
+            <SummaryAlerts summary={summary} onOpenTab={onOpenTab} />
 
             {nothingDelivered && (
                 <div className="flex items-center gap-3.5 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-5 py-4" data-testid="summary-empty">
@@ -87,16 +86,15 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
             <ProfitStatement summary={summary} statement={statement} previous={beforeFigures?.statement ?? null} onOpenTab={onOpenTab} />
 
             <div className={cn("grid grid-cols-1 gap-5", !nothingDelivered && "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]")}>
-                {!nothingDelivered && <ProfitPath daily={summary.daily} />}
                 <MoneyRoute summary={summary} onAddPayment={() => setImportOpen(true)} />
+                {!nothingDelivered && <ProfitPath daily={summary.daily} />}
             </div>
 
             {!nothingDelivered && <ProductRanking rows={products} />}
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                 <ReturnedParcels summary={summary} />
-                <AdReturn statement={statement} />
-                <BreakEven summary={summary} statement={statement} onOpenTab={onOpenTab} />
+                <DailyCosts summary={summary} statement={statement} onOpenTab={onOpenTab} />
                 <StockShelf summary={summary} />
             </div>
 

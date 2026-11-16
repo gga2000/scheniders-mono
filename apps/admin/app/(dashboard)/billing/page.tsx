@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
+import { createRequestIds } from "@/lib/request-ids";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,12 +110,14 @@ export default function BillingPage() {
   const [topupTenantId, setTopupTenantId] = useState("");
   const [topupAmount, setTopupAmount] = useState<number | "">("");
   const [topupDescription, setTopupDescription] = useState("");
+  const [requestIds] = useState(createRequestIds);
 
   const topupMutation = useMutation({
     mutationFn: async (payload: {
       tenant_id: string;
       amount: number;
       description?: string;
+      request_id: string;
     }) => {
       const res = await fetch("/api/billing/topup", {
         method: "POST",
@@ -129,6 +132,7 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "billing"] });
+      requestIds.done();
       setTopupTenantId("");
       setTopupAmount("");
       setTopupDescription("");
@@ -138,10 +142,13 @@ export default function BillingPage() {
   function handleTopup(e: React.FormEvent) {
     e.preventDefault();
     if (!topupTenantId || !topupAmount || topupAmount <= 0) return;
+    const description = topupDescription || undefined;
     topupMutation.mutate({
       tenant_id: topupTenantId,
       amount: topupAmount,
-      description: topupDescription || undefined,
+      description,
+      // Same shop, amount and note asked again (a retry) reuses the id.
+      request_id: requestIds.idFor(`${topupTenantId}:${topupAmount}:${description ?? ""}`),
     });
   }
 

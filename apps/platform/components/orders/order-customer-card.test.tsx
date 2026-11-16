@@ -59,8 +59,8 @@ const renderCard = (
 };
 
 const openOrderDatePicker = () => {
-    // The order-date picker is the first one in the card and shows September.
-    const trigger = screen.getAllByRole("button").find((b) => /سبتمبر/.test(b.textContent || ""));
+    // The order-date picker is the first one in the card and shows September (أيلول in Iraqi Arabic).
+    const trigger = screen.getAllByRole("button").find((b) => /أيلول/.test(b.textContent || ""));
     expect(trigger).toBeTruthy();
     fireEvent.click(trigger as HTMLElement);
     return { trigger: trigger as HTMLElement, dialog: screen.getByRole("dialog") };

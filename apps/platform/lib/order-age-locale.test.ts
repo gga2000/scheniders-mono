@@ -40,12 +40,17 @@ describe("getOrderAge", () => {
 describe("order timestamps", () => {
     it("writes the day before the month, and in Baghdad", () => {
         // 21:30 UTC on the 3rd is 00:30 on the 4th in Baghdad (UTC+3, no DST).
-        expect(formatOrderDateTime("2026-09-03T21:30:00Z")).toBe("04/09/2026, 12:30 am");
+        expect(formatOrderDateTime("2026-09-03T21:30:00Z")).toBe("04/09/2026, 12:30am");
         expect(formatOrderNamedDate("2026-09-03T21:30:00Z")).toBe("4 Sept 2026");
     });
 
+    it("writes the time in the reader's language", () => {
+        expect(formatOrderDateTime("2026-09-03T21:30:00Z", "ar")).toBe("04/09/2026, 12:30 ص");
+        expect(formatOrderDateTime("2026-09-03T15:05:00Z", "ar")).toBe("03/09/2026, 06:05 م");
+    });
+
     it("does not shift a mid-day timestamp", () => {
-        expect(formatOrderDateTime("2026-09-03T09:00:00Z")).toBe("03/09/2026, 12:00 pm");
+        expect(formatOrderDateTime("2026-09-03T09:00:00Z")).toBe("03/09/2026, 12:00pm");
     });
 
     it("renders midnight and noon as 12, on every runtime", () => {
@@ -53,8 +58,8 @@ describe("order timestamps", () => {
         // versions, where midnight is hour 0 — so this read "00:30 am" on the
         // CI runner (Node 20 / ICU 78) while passing on the machine it was
         // written on. Pinning `hourCycle: "h12"` makes it the same everywhere.
-        expect(formatOrderDateTime("2026-09-03T21:00:00Z")).toContain("12:00 am");
-        expect(formatOrderDateTime("2026-09-03T09:00:00Z")).toContain("12:00 pm");
+        expect(formatOrderDateTime("2026-09-03T21:00:00Z")).toContain("12:00am");
+        expect(formatOrderDateTime("2026-09-03T09:00:00Z")).toContain("12:00pm");
         expect(formatOrderDateTime("2026-09-03T21:00:00Z")).not.toContain("00:");
     });
 

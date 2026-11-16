@@ -9,7 +9,7 @@ interface LensSwitchProps {
     onChange: (lens: Lens) => void;
 }
 
-/** Total, per order, or per 1,000 IQD sold: one switch that re-reads every figure of the statement. */
+/** Total or per order: one switch that re-reads every figure of the statement. */
 export function LensSwitch({ value, onChange }: LensSwitchProps) {
     const { t } = useLanguage();
     return (

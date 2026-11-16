@@ -42,10 +42,11 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /**
  * The profit statement as a staircase: sales as one full bar, then each cost
- * biting its share off what the lines above left, down to the net profit in
- * the dark band. The switch re-reads every figure per order or per 1,000 IQD
- * sold. A cost line opens to show what is inside it; lines with nothing in
- * them fold into one quiet sentence. With a period to compare against, each
+ * biting its share off what the lines above left, down to the net profit as a
+ * ruled total, the way a receipt ends (the dark strip above is the page's one
+ * dark block). The switch re-reads every figure per order. A cost line opens
+ * to show what is inside it; lines with nothing in them fold into one quiet
+ * sentence. With a period to compare against, each
  * line carries an arrow beside its amount: the figure on screen against the
  * same figure before.
  */
@@ -71,6 +72,9 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const netChange = change(statement.netProfit, previous?.netProfit);
     const lineChanges = new Map(shown.map((line) => [line.id, change(line.amount, previous?.lines.find((l) => l.id === line.id)?.amount)]));
     const compared = salesChange !== null || netChange !== null || [...lineChanges.values()].some((value) => value !== null);
+    /** A comparison is on, but the period before sold too little to be a fair base: say why no arrow shows. */
+    const tooThinBefore = previous !== null && !isComparablePeriod(statement, previous);
+    const compareNote = compared ? t("fin.statement.compare") : tooThinBefore ? t("fin.statement.noCompare") : null;
     /** A figure through the chosen lens; a dash when the lens has no base (no order delivered). */
     const amount = (value: number, className: string, options: { minus?: boolean; unitClassName?: string } = {}) => {
         const read = throughLens(value, statement, lens);
@@ -81,7 +85,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     return (
         <SummaryCard
             title={t("fin.statement.title")}
-            sub={compared ? `${t("fin.statement.sub")} ${t("fin.statement.compare")}` : t("fin.statement.sub")}
+            sub={compareNote ? `${t("fin.statement.sub")} ${compareNote}` : t("fin.statement.sub")}
             textDir={dir}
             testId="profit-statement"
             action={<LensSwitch value={lens} onChange={setLens} />}
@@ -188,29 +192,28 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                 </div>
             )}
 
-            <div
-                className="mt-4 grid grid-cols-[190px_minmax(0,1fr)_auto] items-center gap-x-[22px] rounded-2xl bg-stone-900 px-6 py-5 text-stone-50 dark:bg-black/45 dark:ring-1 dark:ring-white/10"
-                data-line="net"
-            >
-                <div>
-                    <div className="text-left text-[17px] font-bold" dir={dir}>{t("fin.line.net")}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-stone-400">
-                        {statement.margin !== null && <span dir={dir}>{t("fin.line.ofSales", { pct: pct(statement.margin) })}</span>}
-                        {netChange !== null && (
-                            <span data-change="net">
-                                <ChangeChip value={netChange} />
-                            </span>
-                        )}
-                    </div>
+            <div className="mt-3 flex items-end justify-between gap-6 border-t-2 border-foreground pt-4" data-line="net">
+                <div className="min-w-0">
+                    <div className="text-left text-[17px] font-bold text-foreground" dir={dir}>{t("fin.line.net")}</div>
+                    <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-plain">
+                        {statement.margin !== null && `${t("fin.line.ofSales", { pct: pct(statement.margin) })}. `}
+                        {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
+                    </p>
                 </div>
-                <p className="text-left text-[14px] leading-relaxed text-stone-200" dir={dir} data-testid="statement-plain">
-                    {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
-                </p>
-                {amount(
-                    statement.netProfit,
-                    cn("text-[32px] font-bold leading-none tracking-[-0.02em]", loss ? "text-rose-400" : "text-[#dcfb3a]"),
-                    { unitClassName: "text-stone-400 opacity-100" },
-                )}
+                <span className="flex shrink-0 items-baseline gap-3">
+                    {netChange !== null && (
+                        <span data-change="net">
+                            <ChangeChip value={netChange} surface="card" />
+                        </span>
+                    )}
+                    {amount(
+                        statement.netProfit,
+                        cn(
+                            "text-[30px] font-bold leading-none tracking-[-0.02em]",
+                            loss ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400",
+                        ),
+                    )}
+                </span>
             </div>
         </SummaryCard>
     );

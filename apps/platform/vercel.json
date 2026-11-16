@@ -20,8 +20,8 @@
             "schedule": "0 12 * * *"
         },
         {
-            "path": "/api/cron/trial-suspend",
-            "schedule": "0 6 * * *"
+            "path": "/api/cron/billing-lock",
+            "schedule": "17 * * * *"
         },
         {
             "path": "/api/cron/subscription-renew",

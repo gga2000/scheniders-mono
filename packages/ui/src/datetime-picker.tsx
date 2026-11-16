@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -28,14 +28,80 @@ interface DateTimePickerProps {
     maxDate?: Date | "now" | null;
     /** Earliest selectable instant. Accepts "now" on the same terms as maxDate. */
     minDate?: Date | "now" | null;
+    /** The reader's language. Arabic uses Iraqi month names and starts the week on Saturday. */
+    language?: "en" | "ar";
 }
 
-const MONTHS_AR = [
-    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
-];
+type Copy = {
+    /** One letter per weekday, starting on the language's first day of the week. */
+    weekdays: string[];
+    /** Day the week starts on, as Date.getDay() numbers it (0 = Sunday). */
+    weekStart: number;
+    /** Intl locale for month names; Arabic keeps Latin digits like the rest of the app. */
+    intl: string;
+    pick: string;
+    pickTitle: string;
+    date: string;
+    time: string;
+    today: string;
+    confirm: string;
+    selected: string;
+    hour: string;
+    minute: string;
+    am: string;
+    pm: string;
+    amShort: string;
+    pmShort: string;
+    cancel: string;
+};
 
-const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const COPY: Record<"en" | "ar", Copy> = {
+    en: {
+        weekdays: ["S", "M", "T", "W", "T", "F", "S"],
+        weekStart: 0,
+        intl: "en-US",
+        pick: "Pick a date",
+        pickTitle: "Pick date and time",
+        date: "Date",
+        time: "Time",
+        today: "Today",
+        confirm: "Confirm",
+        selected: "Selected date",
+        hour: "Hour",
+        minute: "Minute",
+        am: "AM",
+        pm: "PM",
+        amShort: "am",
+        pmShort: "pm",
+        cancel: "Cancel",
+    },
+    ar: {
+        // Saturday first, as the week runs in Iraq: السبت، الأحد ... الجمعة.
+        weekdays: ["س", "ح", "ن", "ث", "ر", "خ", "ج"],
+        weekStart: 6,
+        intl: "ar-IQ-u-nu-latn",
+        pick: "اختر التاريخ",
+        pickTitle: "اختر التاريخ والوقت",
+        date: "التاريخ",
+        time: "الوقت",
+        today: "اليوم",
+        confirm: "تأكيد",
+        selected: "التاريخ المحدد",
+        hour: "الساعة",
+        minute: "الدقيقة",
+        am: "صباحاً",
+        pm: "مساءً",
+        amShort: "ص",
+        pmShort: "م",
+        cancel: "إلغاء",
+    },
+};
+
+/** Month names as the language writes them: "تشرين الثاني" in Iraqi Arabic, "November" in English. */
+function monthNames(intl: string): string[] {
+    const format = new Intl.DateTimeFormat(intl, { month: "long", timeZone: "UTC" });
+    return Array.from({ length: 12 }, (_, m) => format.format(new Date(Date.UTC(2026, m, 1))));
+}
 
 export function DateTimePicker({
     value,
@@ -43,8 +109,11 @@ export function DateTimePicker({
     showTime = true,
     className,
     maxDate = null,
-    minDate = null
+    minDate = null,
+    language = "en",
 }: DateTimePickerProps) {
+    const copy = COPY[language];
+    const months = useMemo(() => monthNames(copy.intl), [copy.intl]);
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<"date" | "time">("date");
 
@@ -86,7 +155,7 @@ export function DateTimePicker({
 
     // Build calendar grid
     const calendarDays: (number | null)[] = [];
-    for (let i = 0; i < firstDay; i++) calendarDays.push(null);
+    for (let i = 0; i < (firstDay - copy.weekStart + 7) % 7; i++) calendarDays.push(null);
     for (let i = 1; i <= daysInMonth; i++) calendarDays.push(i);
 
     // Navigation handlers
@@ -203,15 +272,15 @@ export function DateTimePicker({
 
     // Format display value
     const formatDisplayValue = () => {
-        if (!value) return "اختر التاريخ";
+        if (!value) return copy.pick;
         const date = new Date(value);
         const day = date.getDate();
-        const month = MONTHS_AR[date.getMonth()];
+        const month = months[date.getMonth()];
         const year = date.getFullYear();
         if (showTime) {
             const hours = date.getHours();
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'م' : 'ص';
+            const ampm = hours >= 12 ? copy.pmShort : copy.amShort;
             const displayHour = hours % 12 || 12;
             return `${day} ${month} ${year} - ${displayHour}:${minutes} ${ampm}`;
         }
@@ -274,10 +343,10 @@ export function DateTimePicker({
                                         </div>
                                         <div>
                                             <DialogPrimitive.Title className="font-bold text-foreground">
-                                                اختر التاريخ والوقت
+                                                {copy.pickTitle}
                                             </DialogPrimitive.Title>
                                             <DialogPrimitive.Description className="text-xs text-muted">
-                                                {selectedDay} {MONTHS_AR[viewMonth]} {viewYear}
+                                                {selectedDay} {months[viewMonth]} {viewYear}
                                                 {showTime && ` - ${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`}
                                             </DialogPrimitive.Description>
                                         </div>
@@ -306,7 +375,7 @@ export function DateTimePicker({
                                             )}
                                         >
                                             <Calendar className="w-4 h-4" />
-                                            التاريخ
+                                            {copy.date}
                                         </button>
                                         <button
                                             type="button"
@@ -319,7 +388,7 @@ export function DateTimePicker({
                                             )}
                                         >
                                             <Clock className="w-4 h-4" />
-                                            الوقت
+                                            {copy.time}
                                         </button>
                                     </div>
                                 )}
@@ -337,7 +406,7 @@ export function DateTimePicker({
                                                 <ChevronLeft className="w-4 h-4" />
                                             </button>
                                             <div className="text-center">
-                                                <span className="font-bold text-foreground">{MONTHS_AR[viewMonth]}</span>
+                                                <span className="font-bold text-foreground">{months[viewMonth]}</span>
                                                 <span className="text-muted ml-2">{viewYear}</span>
                                             </div>
                                             <button
@@ -351,7 +420,7 @@ export function DateTimePicker({
 
                                         {/* Day Labels */}
                                         <div className="grid grid-cols-7 gap-1 mb-2">
-                                            {DAYS.map((day, i) => (
+                                            {copy.weekdays.map((day, i) => (
                                                 <div key={i} className="text-center text-xs font-medium text-muted py-1">
                                                     {day}
                                                 </div>
@@ -392,7 +461,7 @@ export function DateTimePicker({
                                                 onClick={selectToday}
                                                 className="text-xs text-blue-600 font-medium hover:text-blue-700"
                                             >
-                                                اليوم
+                                                {copy.today}
                                             </button>
                                             {!showTime && (
                                                 <button
@@ -401,7 +470,7 @@ export function DateTimePicker({
                                                     className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
                                                 >
                                                     <Check className="w-3.5 h-3.5" />
-                                                    تأكيد
+                                                    {copy.confirm}
                                                 </button>
                                             )}
                                         </div>
@@ -413,9 +482,9 @@ export function DateTimePicker({
                                     <div className="p-4">
                                         {/* Selected Date Display */}
                                         <div className="text-center mb-4 pb-3 border-b border-gray-100">
-                                            <p className="text-sm text-muted">التاريخ المحدد</p>
+                                            <p className="text-sm text-muted">{copy.selected}</p>
                                             <p className="font-bold text-foreground">
-                                                {selectedDay} {MONTHS_AR[viewMonth]} {viewYear}
+                                                {selectedDay} {months[viewMonth]} {viewYear}
                                             </p>
                                         </div>
 
@@ -423,7 +492,7 @@ export function DateTimePicker({
                                         <div className="flex items-center justify-center gap-4">
                                             {/* Hour (12-hour format) */}
                                             <div className="flex flex-col items-center">
-                                                <label className="text-xs text-muted mb-2">الساعة</label>
+                                                <label className="text-xs text-muted mb-2">{copy.hour}</label>
                                                 <select
                                                     value={selectedHour % 12 || 12}
                                                     onChange={(e) => {
@@ -454,7 +523,7 @@ export function DateTimePicker({
 
                                             {/* Minute */}
                                             <div className="flex flex-col items-center">
-                                                <label className="text-xs text-muted mb-2">الدقيقة</label>
+                                                <label className="text-xs text-muted mb-2">{copy.minute}</label>
                                                 <select
                                                     value={selectedMinute}
                                                     onChange={(e) => setSelectedMinute(parseInt(e.target.value))}
@@ -481,7 +550,7 @@ export function DateTimePicker({
                                                         : "bg-gray-100 text-muted hover:bg-gray-200"
                                                 )}
                                             >
-                                                صباحاً
+                                                {copy.am}
                                             </button>
                                             <button
                                                 type="button"
@@ -493,7 +562,7 @@ export function DateTimePicker({
                                                         : "bg-gray-100 text-muted hover:bg-gray-200"
                                                 )}
                                             >
-                                                مساءً
+                                                {copy.pm}
                                             </button>
                                         </div>
                                     </div>
@@ -506,7 +575,7 @@ export function DateTimePicker({
                                             type="button"
                                             className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
                                         >
-                                            إلغاء
+                                            {copy.cancel}
                                         </button>
                                     </DialogPrimitive.Close>
                                     <button
@@ -515,7 +584,7 @@ export function DateTimePicker({
                                         className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
                                     >
                                         <Check className="w-4 h-4" />
-                                        تأكيد
+                                        {copy.confirm}
                                     </button>
                                 </div>
                             </motion.div>

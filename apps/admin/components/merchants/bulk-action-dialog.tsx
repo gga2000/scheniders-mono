@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle, Bell, MessageSquare, Mail, Sparkles } from "lucide-react";
+import { createRequestIds } from "@/lib/request-ids";
 
 const NOTIFICATION_TEMPLATES: Array<{
   key: string;
@@ -80,6 +81,22 @@ interface BulkActionDialogProps {
   onSuccess: () => void;
 }
 
+/** What the server did, per shop. `failed` is empty when everything went through. */
+type BulkOutcome = { done: number; failed: { tenant_id: string; error: string }[] };
+
+function isFailureList(value: unknown): value is BulkOutcome["failed"] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (f) =>
+        typeof f === "object" &&
+        f !== null &&
+        typeof (f as { tenant_id?: unknown }).tenant_id === "string" &&
+        typeof (f as { error?: unknown }).error === "string",
+    )
+  );
+}
+
 const PLAN_OPTIONS = PLAN_TIERS.map((value) => ({ value, label: PLAN_LABELS[value] }));
 
 const DAY_PRESETS = [3, 7, 14, 30];
@@ -130,6 +147,9 @@ export function BulkActionDialog({
   const [topUpCustom, setTopUpCustom] = useState("");
   const [topUpDescription, setTopUpDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Set when the server did the action for some shops and not for others.
+  const [partial, setPartial] = useState<BulkOutcome | null>(null);
+  const [requestIds] = useState(createRequestIds);
 
   // Reset form state when switching actions
   useEffect(() => {
@@ -142,6 +162,7 @@ export function BulkActionDialog({
     setTopUpCustom("");
     setTopUpDescription("");
     setError(null);
+    setPartial(null);
   }, [action]);
 
   const mutation = useMutation({
@@ -155,14 +176,24 @@ export function BulkActionDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data: unknown = await res.json().catch(() => null);
+      const body = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to execute bulk action");
+        // Done for some shops, not for others: report it, do not offer a blind retry.
+        if (Array.isArray(body.succeeded) && isFailureList(body.failed)) {
+          return { done: body.succeeded.length, failed: body.failed } satisfies BulkOutcome;
+        }
+        throw new Error(typeof body.error === "string" ? body.error : "Failed to execute bulk action");
       }
-      return res.json();
+      return { done: payload.tenant_ids.length, failed: [] } satisfies BulkOutcome;
     },
-    onSuccess: () => {
+    onSuccess: (outcome) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      if (outcome.failed.length > 0) {
+        setPartial(outcome);
+        return;
+      }
+      requestIds.done();
       onSuccess();
       onClose();
     },
@@ -172,6 +203,13 @@ export function BulkActionDialog({
   });
 
   if (!action) return null;
+
+  function close() {
+    // The action already ran for some shops: drop the selection so the same
+    // shops are not picked up again by the next action.
+    if (partial) onSuccess();
+    onClose();
+  }
 
   function handleConfirm() {
     setError(null);
@@ -207,9 +245,15 @@ export function BulkActionDialog({
           setError("Amount cannot exceed 10,000,000 IQD");
           return;
         }
+        const description = topUpDescription.trim();
         params = {
           amount_iqd: amount,
-          ...(topUpDescription.trim() && { description: topUpDescription.trim() }),
+          ...(description && { description }),
+          // Same amount, note and shops asked again (a retry) reuses the id,
+          // so a wallet this request already credited is not credited twice.
+          request_id: requestIds.idFor(
+            `${amount}:${description}:${[...selectedIds].sort().join(",")}`,
+          ),
         };
         break;
       }
@@ -229,7 +273,7 @@ export function BulkActionDialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !mutation.isPending) onClose();
+        if (e.target === e.currentTarget && !mutation.isPending) close();
       }}
     >
       <div className="bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-[var(--card-border)] p-6 w-full max-w-md">
@@ -244,7 +288,7 @@ export function BulkActionDialog({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={close}
             className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -501,6 +545,29 @@ export function BulkActionDialog({
           )}
         </div>
 
+        {/* Partly done: say what happened, per reason */}
+        {partial && (
+          <div className="mb-4 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900 space-y-1.5">
+            <p className="font-semibold flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              Done for {partial.done} of {partial.done + partial.failed.length}{" "}
+              {partial.done + partial.failed.length === 1 ? "merchant" : "merchants"}
+            </p>
+            <ul className="list-disc pl-5 space-y-0.5">
+              {Object.entries(
+                partial.failed.reduce<Record<string, number>>((acc, f) => {
+                  acc[f.error] = (acc[f.error] ?? 0) + 1;
+                  return acc;
+                }, {}),
+              ).map(([reason, count]) => (
+                <li key={reason}>
+                  {count} not done: {reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Error */}
         {error && (
           <div className="mb-4 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
@@ -511,21 +578,25 @@ export function BulkActionDialog({
         {/* Footer */}
         <div className="flex items-center justify-end gap-3">
           <button
-            onClick={onClose}
+            onClick={close}
             className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/60 hover:text-foreground border border-[var(--card-border)] transition-all"
           >
-            Cancel
+            {partial ? "Close" : "Cancel"}
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={mutation.isPending}
-            className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#1E1E1E] text-white hover:bg-[#2D2D2D] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {mutation.isPending && (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            )}
-            Confirm
-          </button>
+          {/* After a partial result there is nothing left to confirm: a second
+              press would run the action again for the shops already done. */}
+          {!partial && (
+            <button
+              onClick={handleConfirm}
+              disabled={mutation.isPending}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#1E1E1E] text-white hover:bg-[#2D2D2D] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {mutation.isPending && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              Confirm
+            </button>
+          )}
         </div>
       </div>
     </div>

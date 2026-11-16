@@ -235,6 +235,24 @@ describe("retryable failures", () => {
     expect(res.retryable).toBe(false);
   });
 
+  it("answers a store paused for billing kindly, with its WhatsApp, and not as retryable", async () => {
+    const t = tables();
+    t.tenants[0].status = "trial";
+    t.tenants[0].store_config = { contact: { whatsapp_number: "07701112222" } };
+    install(t, {
+      create_storefront_order: () => ({
+        data: null,
+        error: { message: "This store is not taking new orders right now", code: "P0001", hint: "BILLING_PAUSED" },
+      }),
+    });
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 35000, 1)] });
+    expect(res).toMatchObject({ success: false, paused: true });
+    expect(res.error).toContain("07701112222");
+    expect(res.error).not.toContain("فشل");
+    expect(res.retryable).toBeUndefined();
+    expect(queueOrderConfirmation).not.toHaveBeenCalled();
+  });
+
   it("does not flag a store that does not exist", async () => {
     const t = tables();
     t.tenants = [];

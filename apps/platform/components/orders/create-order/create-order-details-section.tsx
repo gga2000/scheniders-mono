@@ -11,7 +11,7 @@ import type { CreateOrderModel } from "./use-create-order-model";
 
 /** One section of CreateOrderModal. */
 export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
-    const { t, orderType, formData, orderIdStatus, isCheckingId, isAnalyzingImage, uploadedImage, setShowBulkUpload, customCreatedAt, setCustomCreatedAt, postponeTo, handleOrderTypeChange, handleOrderIdChange, updateField, handleRemoveImage, handleImageUpload } = m;
+    const { t, language, orderType, formData, orderIdStatus, isCheckingId, isAnalyzingImage, uploadedImage, setShowBulkUpload, customCreatedAt, setCustomCreatedAt, postponeTo, handleOrderTypeChange, handleOrderIdChange, updateField, handleRemoveImage, handleImageUpload } = m;
     return (
         <>
             {/* Row 1: Order Type + Date/Time Picker */}
@@ -61,6 +61,7 @@ export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
                     value={customCreatedAt}
                     onChange={(iso) => setCustomCreatedAt(iso)}
                     showTime={true}
+                    language={language}
                 />
             </div>
             {/* A future date postpones the order (scheduled_date); the

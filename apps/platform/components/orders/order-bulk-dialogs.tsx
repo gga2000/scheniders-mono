@@ -260,7 +260,7 @@ function RescheduleDialog({
     /** `null` clears the postponement. */
     onConfirm: (day: string | null) => void;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     // undefined = nothing picked yet; null = "clear postponement" chosen.
     const [day, setDay] = useState<string | null | undefined>(undefined);
     const { reschedulable, skipped } = partitionForReschedule(resolved.orders);
@@ -301,6 +301,7 @@ function RescheduleDialog({
                             {t("orders.bulk.reschedule.pick")}
                         </span>
                         <DateTimePicker
+                            language={language}
                             value={typeof day === "string" ? `${day}T00:00:00` : null}
                             onChange={(iso) => setDay(new Date(iso).toLocaleDateString("en-CA"))}
                             showTime={false}

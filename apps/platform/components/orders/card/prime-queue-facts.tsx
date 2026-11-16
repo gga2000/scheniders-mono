@@ -44,7 +44,7 @@ export function PrimeQueueFacts({ entry }: { entry: PrimeQueueEntry }) {
     const { problem, view } = entry;
     const note = primeReasonNote(view);
     const answer = [note?.reason ?? null, note?.until ? t("orders.prime.postponedUntil", { date: note.until }) : null].filter((p): p is string => p !== null).join(" · ");
-    const when = primeWhen(problem.since, t);
+    const when = primeWhen(problem.since, t, language);
     const step = view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : (view.stepName ?? view.status);
     const none = <span className="text-muted dark:text-white/40">{t("orders.primeQueue.field.none")}</span>;
 

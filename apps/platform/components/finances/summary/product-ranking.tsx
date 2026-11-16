@@ -19,12 +19,14 @@ interface ProductRankingProps {
 const FOLD = 8;
 /** The database sends at most this many products. */
 const SERVER_LIMIT = 50;
-const COLUMNS = "grid grid-cols-[22px_52px_minmax(0,1.15fr)_minmax(160px,1fr)_176px_60px] items-center gap-x-3.5";
+const COLUMNS = "grid grid-cols-[52px_minmax(0,1.15fr)_minmax(160px,1fr)_176px_60px] items-center gap-x-3.5";
 
 /**
- * The products of the period, ranked by what they earned: picture, full name,
- * pieces and profit on one piece, then the product's part of all the profit as
- * a bar, its profit, and what share of its sales that profit is.
+ * The products of the period, the one that earned most first: picture, full
+ * name, pieces and profit on one piece, then the product's part of all the
+ * profit as a bar, its profit, and what share of its sales that profit is.
+ * The order is the rank, so no rank number is printed; the margin is a plain
+ * number, because a pill that is green on every row says nothing.
  */
 export function ProductRanking({ rows }: ProductRankingProps) {
     const { t } = useLanguage();
@@ -43,7 +45,6 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                 <>
                     <div className={cn(COLUMNS, "border-b border-[var(--card-border)] pb-2")} aria-hidden="true">
                         <span />
-                        <span />
                         <span className={cn(head, "text-left")}>{t("fin.products.col.product")}</span>
                         <span className={cn(head, "text-left")}>{t("fin.products.col.part")}</span>
                         <span className={cn(head, "text-right")}>{t("fin.products.col.profit")}</span>
@@ -59,7 +60,6 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                     className={cn(COLUMNS, "border-b border-[var(--card-border)] py-3 last:border-b-0")}
                                     data-product={row.key}
                                 >
-                                    <span className="text-center text-[13px] font-bold tabular-nums text-muted">{i + 1}</span>
                                     <span className="relative flex size-[52px] items-center justify-center overflow-hidden rounded-[14px] bg-[var(--background-soft)] text-muted">
                                         {row.imageUrl ? <ProductThumb src={row.imageUrl} alt="" sizes="52px" /> : <Package className="size-6" aria-hidden="true" />}
                                     </span>
@@ -68,13 +68,13 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
                                             <span dir={dir}>
                                                 {row.profitPerPiece === null
-                                                    ? t("fin.products.pieces", { n: formatWhole(row.units) })
-                                                    : t("fin.products.piecesEach", { n: formatWhole(row.units), each: money(row.profitPerPiece) })}
+                                                    ? t("fin.products.pieces", { n: formatWhole(row.units), count: row.units })
+                                                    : t("fin.products.piecesEach", { n: formatWhole(row.units), count: row.units, each: money(row.profitPerPiece) })}
                                             </span>
                                             {row.missingUnits > 0 && (
                                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-800 dark:text-amber-200">
                                                     <TriangleAlert className="size-3" aria-hidden="true" />
-                                                    <span dir={dir}>{t("fin.products.missing", { n: formatWhole(row.missingUnits) })}</span>
+                                                    <span dir={dir}>{t("fin.products.missing", { n: formatWhole(row.missingUnits), count: row.missingUnits })}</span>
                                                 </span>
                                             )}
                                         </div>
@@ -100,20 +100,8 @@ export function ProductRanking({ rows }: ProductRankingProps) {
                                         />
                                         <div className="text-[12px] text-muted" dir={dir}>{t("fin.products.ofSales", { amount: money(row.sales) })}</div>
                                     </div>
-                                    <span className="justify-self-end">
-                                        {row.margin !== null && (
-                                            <span
-                                                className={cn(
-                                                    "rounded-full px-2 py-0.5 text-[12.5px] font-bold tabular-nums",
-                                                    losing
-                                                        ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
-                                                        : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
-                                                )}
-                                                dir="ltr"
-                                            >
-                                                {losing ? "−" : ""}{Math.round(Math.abs(row.margin) * 100)}%
-                                            </span>
-                                        )}
+                                    <span className="justify-self-end text-[13.5px] font-semibold tabular-nums text-muted" dir="ltr" data-margin={row.key}>
+                                        {row.margin !== null && `${losing ? "−" : ""}${Math.round(Math.abs(row.margin) * 100)}%`}
                                     </span>
                                 </li>
                             );
