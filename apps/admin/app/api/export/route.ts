@@ -9,39 +9,60 @@ const VALID_FORMATS = ["csv", "json"] as const;
 type ExportType = (typeof VALID_TYPES)[number];
 type ExportFormat = (typeof VALID_FORMATS)[number];
 
+const PAGE_SIZE = 1000;
+const baghdadDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" });
+
+/** A cell that starts with one of these runs as a formula when the sheet is opened. */
+const FORMULA_START = /^[=+\-@\t\r]/;
+const PLAIN_NUMBER = /^[+-]?\d+(\.\d+)?$/;
+
+function toCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  // Names, notes and cities are typed by merchants. A leading quote makes the sheet show them as text.
+  const safe = typeof value === "string" && FORMULA_START.test(text) && !PLAIN_NUMBER.test(text) ? `'${text}` : text;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
 function toCSV(data: Record<string, unknown>[]): string {
   if (data.length === 0) return "";
 
   const headers = Object.keys(data[0]);
-  const headerRow = headers.join(",");
+  const rows = data.map((row) => headers.map((key) => toCell(row[key])).join(","));
 
-  const rows = data.map((row) =>
-    headers
-      .map((key) => {
-        const value = row[key];
-        if (value === null || value === undefined) return "";
-        const str = String(value);
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      })
-      .join(",")
-  );
+  return [headers.join(","), ...rows].join("\n");
+}
 
-  return [headerRow, ...rows].join("\n");
+/**
+ * The API answers with a capped number of rows and does not say when it cut
+ * the list, so one request cannot be trusted to hold everything. This asks for
+ * the next rows until none come back, whatever the cap is.
+ */
+async function everyRow<Row>(
+  page: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: unknown }>
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  for (;;) {
+    const { data, error } = await page(rows.length, rows.length + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) return rows;
+    rows.push(...data);
+  }
 }
 
 async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>) {
-  const { data, error } = await supabase
-    .from("tenants")
-    .select(
-      "id, business_name, slug, plan, status, city, contact_email, contact_phone, created_at, wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd)"
-    );
+  const data = await everyRow((from, to) =>
+    supabase
+      .from("tenants")
+      .select(
+        "id, business_name, slug, plan, status, city, contact_email, contact_phone, created_at, wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd)"
+      )
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
 
-  if (error) throw error;
-
-  return (data ?? []).map((row) => {
+  return data.map((row) => {
     const wallet = Array.isArray(row.wallet) ? row.wallet[0] : row.wallet;
     return {
       id: row.id,
@@ -61,17 +82,18 @@ async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>) {
 }
 
 async function fetchTransactions(supabase: ReturnType<typeof createAdminClient>) {
-  const { data, error } = await supabase
-    .from("wallet_transactions")
-    .select(
-      "id, tenant_id, type, amount_iqd, balance_after_iqd, description, created_at, tenants(business_name)"
-    )
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  const data = await everyRow((from, to) =>
+    supabase
+      .from("wallet_transactions")
+      .select(
+        "id, tenant_id, type, amount_iqd, balance_after_iqd, description, created_at, tenants(business_name)"
+      )
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to)
+  );
 
-  if (error) throw error;
-
-  return (data ?? []).map((row) => {
+  return data.map((row) => {
     const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants;
     return {
       id: row.id,
@@ -87,25 +109,26 @@ async function fetchTransactions(supabase: ReturnType<typeof createAdminClient>)
 }
 
 async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
-  const { data, error } = await supabase
-    .from("tenants")
-    .select(
-      "id, business_name, slug, plan, trial_ends_at, city, contact_email, created_at"
-    )
-    .eq("status", "trial");
-
-  if (error) throw error;
+  const data = await everyRow((from, to) =>
+    supabase
+      .from("tenants")
+      .select(
+        "id, business_name, slug, plan, trial_ends_at, city, contact_email, created_at"
+      )
+      .eq("status", "trial")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
 
   const now = Date.now();
 
-  return (data ?? []).map((row) => {
-    const trialEnd = new Date(row.trial_ends_at).getTime();
-    const days_remaining = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
-    return {
-      ...row,
-      days_remaining,
-    };
-  });
+  return data.map((row) => ({
+    ...row,
+    days_remaining: row.trial_ends_at
+      ? Math.ceil((new Date(row.trial_ends_at).getTime() - now) / (1000 * 60 * 60 * 24))
+      : null,
+  }));
 }
 
 export async function GET(request: NextRequest) {
@@ -154,7 +177,7 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    const date = new Date().toISOString().split("T")[0];
+    const date = baghdadDay.format(new Date());
     const filename = `${type}_export_${date}`;
 
     if (format === "json") {
@@ -167,9 +190,10 @@ export async function GET(request: NextRequest) {
 
     const csvString = toCSV(data);
 
-    return new NextResponse(csvString, {
+    // The byte-order mark tells Excel the file is UTF-8, so Arabic names open as typed.
+    return new NextResponse(`\uFEFF${csvString}`, {
       headers: {
-        "Content-Type": "text/csv",
+        "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${filename}.csv"`,
       },
     });
