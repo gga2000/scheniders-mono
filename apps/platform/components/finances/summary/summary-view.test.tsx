@@ -134,7 +134,7 @@ describe("SummaryView", () => {
         expect(byTestId("profit-path-end")?.textContent).toContain("95,000");
         const toggle = line("delivery")?.querySelector("button");
         if (toggle) fireEvent.click(toggle);
-        expect(line("delivery")?.textContent).toContain("أجرة المندوب في كشوف التوصيل عن 4 طلبات");
+        expect(line("delivery")?.textContent).toContain("أجرة التوصيل في الكشوف عن 4 طلبات");
         expect(line("delivery")?.textContent).toContain("20,000");
         // no courier bill is typed: nothing can be counted twice
         expect(document.querySelector('[data-alert="delivery_twice"]')).toBeNull();
@@ -218,7 +218,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-fee-statement")).toBeNull();
         expect(byTestId("money-unpaid")?.textContent).toContain("40,000");
         // the note counts the orders that still owe money, as the list names them
-        expect(byTestId("money-unpaid")?.textContent).toContain("طلبان: واحد عند برايم وواحد عند المندوب");
+        expect(byTestId("money-unpaid")?.textContent).toContain("طلبان: واحد عند برايم وواحد عند شركة التوصيل");
         expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
         // the road is not a sale yet: it sits under the line, apart from the three parts
         expect(byTestId("money-road")?.textContent).toContain("160,000");
@@ -248,7 +248,7 @@ describe("SummaryView", () => {
         expect(links[0]?.textContent).toBe("4260905001");
         expect(list?.textContent).toContain("محمد كاظم");
         expect(list?.textContent).toContain("25,000");
-        expect(list?.textContent).toContain("عند المندوب");
+        expect(list?.textContent).toContain("عند شركة التوصيل");
         expect(list?.textContent).toContain("عند برايم");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
         expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا يبقى لك منه شيء بعد أجرة التوصيل.");
@@ -334,18 +334,18 @@ describe("SummaryView", () => {
         const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في الكشوف380,000د.ع",
-            "مبلغان مستردان دفعهما المندوب لزبونين عنك (2)سجّلتها «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في كشف الربح. يظهر ذلك البند هناك 40,000 د.ع، بفرق 10,000 د.ع، لأنه يأخذ سعر الطلب نفسه لا المبلغ المكتوب في الكشف، ويشمل كل استرجاع دُفع في الفترة.−30,000د.ع",
-            "مبلغ مسترد دفعه المندوب ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». حتى ذلك الحين صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
-            "أجرة توصيل خصمها المندوب عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم يقبض المندوب منها شيئاً.1261030001−10,000د.ع",
-            "طلب قُبض فيه سعر مختلف (1)42611010045,000د.ع",
-            "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)42611020123,000د.ع",
+            "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في كشف الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل ولم تسجّله بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». حتى ذلك الحين صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فلم تقبض شركة التوصيل منها شيئاً.1261030001−4,999د.ع−10,000د.ع",
+            "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
+            "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
             "فروق أخرى−28,000د.ع",
         ]);
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
-        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعه المندوب لزبونك ولم تغيّر حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
+        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
         expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
         expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
         expect(byTestId("money-payments-link")?.textContent).toBe(
