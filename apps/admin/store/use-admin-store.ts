@@ -144,6 +144,13 @@ const DEFAULT_SAVED_VIEWS: SavedView[] = [
 
 // ── Store ──────────────────────────────────────────────────────────────
 
+/**
+ * What the list shows has changed. A tick on a shop the new search or filter
+ * hides would still reach a bulk money, plan or trial action that names no
+ * shop, so every change of what is shown drops the ticks.
+ */
+const noTicks = () => ({ selectedMerchants: new Set<string>(), lastSelectedIndex: null });
+
 export const useAdminStore = create<AdminStore>()(
   persist(
     (set, get) => ({
@@ -161,15 +168,19 @@ export const useAdminStore = create<AdminStore>()(
       healthFilter: null,
       searchQuery: "",
       dateRange: { from: null, to: null },
-      setPlanFilter: (plan) => set({ planFilter: plan }),
-      setStatusFilter: (status) => set({ statusFilter: status }),
-      setCityFilter: (city) => set({ cityFilter: city }),
-      setBalanceFilter: (balance) => set({ balanceFilter: balance }),
-      setHealthFilter: (health) => set({ healthFilter: health }),
-      setSearchQuery: (query) => set({ searchQuery: query }),
-      setDateRange: (range) => set({ dateRange: range }),
+      setPlanFilter: (plan) => set((s) => (s.planFilter === plan ? s : { planFilter: plan, ...noTicks() })),
+      setStatusFilter: (status) => set((s) => (s.statusFilter === status ? s : { statusFilter: status, ...noTicks() })),
+      setCityFilter: (city) => set((s) => (s.cityFilter === city ? s : { cityFilter: city, ...noTicks() })),
+      setBalanceFilter: (balance) => set((s) => (s.balanceFilter === balance ? s : { balanceFilter: balance, ...noTicks() })),
+      setHealthFilter: (health) => set((s) => (s.healthFilter === health ? s : { healthFilter: health, ...noTicks() })),
+      setSearchQuery: (query) => set((s) => (s.searchQuery === query ? s : { searchQuery: query, ...noTicks() })),
+      setDateRange: (range) =>
+        set((s) =>
+          s.dateRange.from === range.from && s.dateRange.to === range.to ? s : { dateRange: range, ...noTicks() },
+        ),
       clearFilters: () =>
         set({
+          ...noTicks(),
           planFilter: null,
           statusFilter: null,
           cityFilter: null,
