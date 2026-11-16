@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
@@ -117,18 +118,26 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     // What the same statements took off the price of these orders: said as one figure, so 6,810,500 above
     // and what actually reached the shop are never two unexplained amounts.
     const nowGap = split.reached_now - cashForNow;
-    const nowNote =
+    // Laid out as small lines with their amounts, not one paragraph of four figures.
+    const nowLines =
         nowGap <= 0
-            ? null
-            : withUndelivered
-              ? t("fin.money.from.nowNoteUndelivered", {
-                    gap: money(nowGap),
-                    paid: money(cashForNow),
-                    extra: money(statement.undelivered),
-                    total: money(payments.amount),
-                    count: statement.undelivered_orders,
-                })
-              : t("fin.money.from.nowNote", { gap: money(nowGap), paid: money(cashForNow) });
+            ? []
+            : [
+                  { key: "gap", label: t("fin.money.from.nowGap"), amount: -nowGap, sign: true, strong: false },
+                  { key: "paid", label: t("fin.money.from.nowPaid"), amount: cashForNow, sign: false, strong: !withUndelivered },
+                  ...(withUndelivered
+                      ? [
+                            {
+                                key: "undelivered",
+                                label: t("fin.money.from.nowUndelivered", { count: statement.undelivered_orders }),
+                                amount: statement.undelivered,
+                                sign: true,
+                                strong: false,
+                            },
+                            { key: "total", label: t("fin.money.from.nowTotal"), amount: payments.amount, sign: false, strong: true },
+                        ]
+                      : []),
+              ];
     // "Paid to you" by where its money came from, listed under it so the parts visibly add up.
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
@@ -138,7 +147,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                   label: t("fin.money.from.now"),
                   // The statements' price of these orders is not the cash: the refunds, prepaid fees and price
                   // differences on the same statements come off it (the payments card lists each one).
-                  note: nowNote,
+                  note: null,
+                  lines: nowLines,
                   amount: split.reached_now,
                   href: `#${COURIER_PAYMENTS_ID}`,
               },
@@ -201,7 +211,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             {sources.length > 0 && (
                                 <dl className="mt-2 space-y-1 border-s-2 border-[var(--card-border)] ps-3" data-testid="money-reached-parts">
                                     {sources.map((source) => (
-                                        <div key={source.key} className="flex items-baseline justify-between gap-4 text-[13px]">
+                                        <div key={source.key}>
+                                        <div className="flex items-baseline justify-between gap-4 text-[13px]">
                                             <dt className="min-w-0 text-left text-muted" dir={dir}>
                                                 {source.label}
                                                 {source.note && <span className="block text-[12px]">{source.note}</span>}
@@ -215,6 +226,22 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                             <dd className="shrink-0">
                                                 <Money value={source.amount} className="font-semibold text-foreground" />
                                             </dd>
+                                        </div>
+                                        {source.lines && source.lines.length > 0 && (
+                                            <ul className="mb-1 mt-1 space-y-0.5 ps-3 text-[12px] text-muted" data-testid="money-from-now-lines">
+                                                {source.lines.map((line) => (
+                                                    <li key={line.key} className="flex items-baseline justify-between gap-4" data-line={line.key}>
+                                                        <span className={cn("min-w-0 text-left", line.strong && "font-semibold text-foreground")} dir={dir}>
+                                                            {line.label}
+                                                        </span>
+                                                        <span className={cn("shrink-0 whitespace-nowrap tabular-nums", line.strong && "font-semibold text-foreground")} dir="ltr">
+                                                            {line.sign && line.amount > 0 && "+"}
+                                                            <Money value={line.amount} />
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                         </div>
                                     ))}
                                 </dl>
