@@ -4,6 +4,7 @@ import React, {
   createContext,
   useContext,
   useState,
+  useSyncExternalStore,
   useEffect,
   useCallback,
 } from "react";
@@ -49,18 +50,39 @@ function metadataName(metadata: Record<string, unknown> | undefined): string | n
   return typeof name === "string" && name ? name : null;
 }
 
+// ---------------------------------------------------------------------------
+// Saved sidebar choice (browser storage, read without a hydration mismatch)
+// ---------------------------------------------------------------------------
+
+const SIDEBAR_KEY = "adminSidebarCollapsed";
+const sidebarListeners = new Set<() => void>();
+
+function subscribeSidebar(listener: () => void) {
+  sidebarListeners.add(listener);
+  return () => {
+    sidebarListeners.delete(listener);
+  };
+}
+
+function readSidebarCollapsed() {
+  return localStorage.getItem(SIDEBAR_KEY) !== "false";
+}
+
+function setSidebarCollapsed(collapsed: boolean) {
+  localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+  for (const listener of sidebarListeners) listener();
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, profile, role, signOut } = useAdminAuth();
   const commandPalette = useCommandPalette();
 
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("adminSidebarCollapsed");
-      return saved !== "false";
-    }
-    return true;
-  });
+  // The server renders the sidebar collapsed; the saved choice is read once
+  // the page is live. Reading it during the first render drew a different
+  // sidebar than the server sent (React error 418) on every page load for
+  // anyone who keeps the sidebar open.
+  const isCollapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => true);
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -73,12 +95,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem("adminSidebarCollapsed", String(isCollapsed));
-    }
-  }, [isCollapsed, mounted]);
 
   useEffect(() => {
     if (!isMobile && mobileMenuOpen) {
@@ -120,7 +136,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <AdminSidebarContext.Provider
       value={{
         isCollapsed,
-        setIsCollapsed,
+        setIsCollapsed: setSidebarCollapsed,
         isMobileMenuOpen: mobileMenuOpen,
         setMobileMenuOpen: handleSetMobileMenuOpen,
       }}
@@ -128,7 +144,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen bg-background text-foreground">
         <AdminSidebar
           collapsed={isCollapsed}
-          setCollapsed={setIsCollapsed}
+          setCollapsed={setSidebarCollapsed}
           isMobile={isMobile}
           mobileMenuOpen={mobileMenuOpen}
           setMobileMenuOpen={handleSetMobileMenuOpen}
