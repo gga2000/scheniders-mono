@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { pausedShop } from "@/lib/tenant-pause";
+import { notAnId } from "@/lib/route-id";
 
 const PauseSchema = z.object({
   duration_days: z.number().int().positive().max(365).optional(),
@@ -28,6 +29,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const body = await request.json().catch(() => ({}));

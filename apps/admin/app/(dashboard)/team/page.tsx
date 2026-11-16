@@ -9,7 +9,7 @@ import { TeamAchievementWall } from "@/components/team/team-achievement-wall";
 import { AddEmployeeDialog } from "@/components/team/add-employee-dialog";
 import { LoadError } from "@/components/shared/load-error";
 import { cn } from "@/lib/utils";
-import { Users, Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 
 const tabs = ["Leaderboard", "Commissions", "Achievements"] as const;
 type Tab = (typeof tabs)[number];
@@ -39,11 +39,8 @@ export default function TeamPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Users className="w-6 h-6" />
-            Team Management
-          </h1>
-          <p className="text-foreground/70 mt-1">
+          <h1 className="text-[22px] font-semibold text-foreground">Team</h1>
+          <p className="text-[13px] text-foreground/70">
             {team.length} employee{team.length !== 1 ? "s" : ""}
           </p>
         </div>

@@ -35,7 +35,7 @@ vi.mock("@/lib/admin-supabase", () => ({
 const { GET } = await import("./route");
 
 const call = () =>
-  GET(new NextRequest("http://admin.test/api/merchants/t1/orders"), { params: Promise.resolve({ id: "t1" }) });
+  GET(new NextRequest("http://admin.test/api/merchants/22222222-2222-4222-8222-222222222222/orders"), { params: Promise.resolve({ id: "22222222-2222-4222-8222-222222222222" }) });
 
 beforeEach(() => {
   selectSpy.mockClear();

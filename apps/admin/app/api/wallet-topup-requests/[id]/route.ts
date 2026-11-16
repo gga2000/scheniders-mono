@@ -5,8 +5,7 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { topupDecisionSchema } from "@/lib/topup-queue";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { notAnId } from "@/lib/route-id";
 
 const resultSchema = z.object({
   success: z.boolean(),
@@ -45,7 +44,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
-  if (!UUID_RE.test(id)) return NextResponse.json({ error: "Invalid request id" }, { status: 400 });
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   const parsed = topupDecisionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

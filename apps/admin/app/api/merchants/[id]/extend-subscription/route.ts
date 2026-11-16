@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
+import { notAnId } from "@/lib/route-id";
 
 const bodySchema = z.object({
   days: z.number().int().positive().max(365),
@@ -44,6 +45,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));

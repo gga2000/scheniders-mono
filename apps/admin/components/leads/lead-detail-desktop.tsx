@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
+import { loadFailureKind } from "@/lib/load-failure";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
@@ -55,7 +56,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadDetailDesktop() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError } = useLeadDetail(id);
+  const { data, isLoading, isError, error } = useLeadDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [buildStoreOpen, setBuildStoreOpen] = useState(false);
@@ -73,7 +74,8 @@ export function LeadDetailDesktop() {
   }
 
   // Error
-  if (isError) {
+  // A lead that does not exist (404) falls through to "not found" below.
+  if (isError && loadFailureKind(error) !== "missing") {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Link

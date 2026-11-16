@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { pausedShop } from "@/lib/tenant-pause";
+import { notAnId } from "@/lib/route-id";
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,8 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
+  const missing = notAnId(id);
+  if (missing) return missing;
 
   try {
     const supabase = createAdminClient();

@@ -24,17 +24,19 @@ interface Part {
     note?: string;
     amount: number;
     orders?: StatementOrder[];
+    /** Show what the statement gave each order beside its code (when the amounts can differ). */
+    amounts?: boolean;
 }
 
 /** The order codes behind one line, each opening its order. */
-function OrderLinks({ orders }: { orders: StatementOrder[] }) {
+function OrderLinks({ orders, withAmounts = false }: { orders: StatementOrder[]; withAmounts?: boolean }) {
     const { t } = useLanguage();
     return (
         <span className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5" dir="ltr">
             {orders.map((order) => {
                 // An order made before codes existed has none: its short id still opens it.
                 const code = order.code ?? order.id.slice(0, 8);
-                return (
+                const link = (
                     <Link
                         key={order.id}
                         href={`/orders?order=${order.id}`}
@@ -43,6 +45,14 @@ function OrderLinks({ orders }: { orders: StatementOrder[] }) {
                     >
                         {code}
                     </Link>
+                );
+                return withAmounts ? (
+                    <span key={order.id} className="inline-flex items-baseline gap-1.5">
+                        {link}
+                        <Money value={order.amount} className="text-[12px] text-muted" />
+                    </span>
+                ) : (
+                    link
                 );
             })}
         </span>
@@ -65,6 +75,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const gap = payments.amount - split.reached_now;
     const refundsDone = statement.returns - statement.returns_open;
+    const refundsDoneOrders = statement.returns_orders - statement.returns_open_orders;
     const other = gap - statement.returns - statement.prepaid_gap - statement.price_gap - statement.undelivered;
     const ordersOf = (kind: StatementOrder["kind"]) => orders.filter((order) => order.kind === kind);
     const counted = (key: string, n: number) => t(key, { n: formatWhole(n), count: n });
@@ -74,16 +85,18 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                   { key: "now", label: t("fin.money.cash.part.now"), amount: split.reached_now },
                   {
                       key: "refunds",
-                      label: counted("fin.money.cash.part.refunds", statement.returns_orders - statement.returns_open_orders),
+                      label: counted("fin.money.cash.part.refunds", refundsDoneOrders),
                       // "Refunds" in the profit statement takes each refund's order price, and every refund paid
-                      // in the period: say why it differs from what the statements took off, when it does.
+                      // in the period: when it differs from what the statements took off, name the one cause.
                       note:
                           summary.refunds.amount === -refundsDone
                               ? t("fin.money.cash.part.refundsNote")
-                              : t("fin.money.cash.part.refundsNoteDiff", {
-                            amount: money(summary.refunds.amount),
-                            diff: money(Math.abs(summary.refunds.amount + refundsDone)),
-                        }),
+                              : summary.refunds.count === refundsDoneOrders
+                                ? t("fin.money.cash.part.refundsNotePrice", {
+                                      amount: money(summary.refunds.amount),
+                                      diff: money(Math.abs(summary.refunds.amount + refundsDone)),
+                                  })
+                                : t("fin.money.cash.part.refundsNoteMore", { amount: money(summary.refunds.amount) }),
                       amount: refundsDone,
                   },
                   {
@@ -100,11 +113,22 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                       note: statement.prepaid_gap < 0 ? t("fin.money.cash.part.prepaidNote") : undefined,
                       amount: statement.prepaid_gap,
                       orders: ordersOf("prepaid"),
+                      // One odd row (a statement listing an order at 1 dinar) explains an odd total.
+                      amounts: true,
                   },
-                  { key: "price", label: counted("fin.money.cash.part.price", statement.price_gap_orders), amount: statement.price_gap, orders: ordersOf("price") },
+                  {
+                      key: "price",
+                      label: counted("fin.money.cash.part.price", statement.price_gap_orders),
+                      note: t(statement.price_gap > 0 ? "fin.money.cash.part.priceMore" : "fin.money.cash.part.priceLess", {
+                          amount: money(Math.abs(statement.price_gap)),
+                      }),
+                      amount: statement.price_gap,
+                      orders: ordersOf("price"),
+                  },
                   {
                       key: "undelivered",
                       label: counted("fin.money.cash.part.undelivered", statement.undelivered_orders),
+                      note: t("fin.money.cash.part.undeliveredNote"),
                       amount: statement.undelivered,
                       orders: ordersOf("undelivered"),
                   },
@@ -147,10 +171,14 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                             <dt className="min-w-0 text-left text-foreground" dir={dir}>
                                 {part.label}
                                 {part.note && <span className="block text-[12px] leading-relaxed text-muted">{part.note}</span>}
-                                {part.orders && part.orders.length > 0 && <OrderLinks orders={part.orders} />}
+                                {part.orders && part.orders.length > 0 && <OrderLinks orders={part.orders} withAmounts={part.amounts} />}
                             </dt>
                             <dd className="shrink-0">
-                                <Money value={part.amount} className="font-semibold text-foreground" />
+                                {/* A difference that adds to the payments carries its sign, like the ones that take away. */}
+                                <span className="whitespace-nowrap font-semibold text-foreground" dir="ltr">
+                                    {part.key !== "now" && part.amount > 0 && "+"}
+                                    <Money value={part.amount} />
+                                </span>
                             </dd>
                         </div>
                     ))}

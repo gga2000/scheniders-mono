@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { AdminEmployee, AdminEmployeeTracking, EmployeeCommission } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { okOrLoadFailure } from "@/lib/load-failure";
 
 interface EmployeeDetailResponse {
   employee: AdminEmployee;
@@ -16,7 +17,7 @@ export function useAdminEmployeeDetail(id: string | null) {
     queryKey: ["admin-employee", id],
     queryFn: async () => {
       const res = await adminFetch(`/api/team/${id}`);
-      if (!res.ok) throw new Error("Failed to fetch employee");
+      okOrLoadFailure(res, "employee");
       return res.json();
     },
     enabled: !!id,
@@ -29,7 +30,7 @@ export function useEmployeeActions(id: string | null, page = 1) {
     queryKey: ["admin-employee-actions", id, page],
     queryFn: async () => {
       const res = await adminFetch(`/api/team/${id}/actions?page=${page}&limit=50`);
-      if (!res.ok) throw new Error("Failed to fetch actions");
+      okOrLoadFailure(res, "actions");
       return res.json();
     },
     enabled: !!id,

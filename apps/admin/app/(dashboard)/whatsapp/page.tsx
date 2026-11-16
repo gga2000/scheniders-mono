@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, Loader2, MessageCircle, MessageCircleOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, MessageCircleOff } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -135,11 +135,8 @@ export default function WhatsAppPage() {
     <div className="p-4 md:p-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <MessageCircle className="w-6 h-6" />
-            WhatsApp
-          </h1>
-          <p className="text-foreground-muted mt-1 max-w-2xl">
+          <h1 className="text-[22px] font-semibold text-foreground">WhatsApp costs</h1>
+          <p className="text-[13px] text-foreground/70 max-w-2xl">
             Every shop sends from our one number. Shops pay each delivered message from their wallet; we pay during the
             free trial. A shop whose messages mostly fail is paused so the number stays healthy. Months on Baghdad time.
           </p>
