@@ -11,6 +11,7 @@ import {
     type SupportCallBack,
     type SupportCase,
     type SupportMessage,
+    type SupportNotice,
     type SupportThread,
 } from "@/lib/support/schema";
 
@@ -95,12 +96,25 @@ async function shopPhone(db: ServiceDb, tenantId: string): Promise<string | null
     return normalizeIraqiMobile((data as { contact_phone: string | null } | null)?.contact_phone);
 }
 
+/** The notice support posted for every merchant, while it runs (one at most). */
+async function liveNotice(db: ServiceDb): Promise<SupportNotice | null> {
+    const { data, error } = await db
+        .from("support_notices")
+        .select("id, body, created_at, ends_at")
+        .is("ended_at", null)
+        .gt("ends_at", new Date().toISOString())
+        .maybeSingle();
+    if (error) throw new Error(`Support notice read failed: ${error.message}`);
+    return (data as SupportNotice | null) ?? null;
+}
+
 /** What the chat shows about the shop, beside the conversation itself. */
 async function shopSide(db: ServiceDb, tenantId: string) {
     const owner = await ownerName(db, tenantId);
     const callBack = await openCallBack(db, tenantId);
     const contactPhone = await shopPhone(db, tenantId);
-    return { owner, callBack, contactPhone };
+    const notice = await liveNotice(db);
+    return { owner, callBack, contactPhone, notice };
 }
 
 /**

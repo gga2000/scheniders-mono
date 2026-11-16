@@ -797,3 +797,83 @@ describe("support view as merchant", () => {
     });
   });
 });
+
+describe("support notices", () => {
+  const NOTICE = {
+    id: "88888888-8888-4888-8888-888888888888",
+    body: "برايم متأخر اليوم",
+    created_by_name: "Noor",
+    created_at: "2026-11-16T12:00:00+00:00",
+    ends_at: "2026-11-16T18:00:00+00:00",
+  };
+
+  async function call(method: "GET" | "POST" | "DELETE", token: string | null, body?: unknown): Promise<Response> {
+    const route = await import("../notices/route");
+    return route[method](req("/api/support/notices", method, token, body));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await call("GET", null)).status).toBe(401);
+    expect((await call("POST", null, { body: "x", hours: 2 })).status).toBe(401);
+    expect((await call("DELETE", null)).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("reads only a notice that is still running", async () => {
+    dbResult = { data: NOTICE, error: null };
+    const res = await call("GET", "support");
+    expect(await res.json()).toEqual({ notice: NOTICE });
+    expect(dbCalls.find((c) => c.method === "is")?.args).toEqual(["ended_at", null]);
+    expect(dbCalls.find((c) => c.method === "gt")?.args[0]).toBe("ends_at");
+  });
+
+  it.each([
+    ["no body", undefined],
+    ["an empty text", { body: "   ", hours: 6 }],
+    ["a text over 300 letters", { body: "x".repeat(301), hours: 6 }],
+    ["no length", { body: "hi" }],
+    ["more than 3 days", { body: "hi", hours: 73 }],
+    ["part of an hour", { body: "hi", hours: 1.5 }],
+  ])("refuses %s", async (_name, body) => {
+    expect((await call("POST", "support", body)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("posts as me, whatever the body claims, and logs it", async () => {
+    dbQueue.push({ data: { display_name: "Noor", email: null }, error: null }, { data: NOTICE, error: null });
+    const res = await call("POST", "support", { body: "  برايم متأخر اليوم ", hours: 6, adminId: "someone" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).notice).toEqual(NOTICE);
+    expect(rpcCall()?.args).toEqual([
+      "support_notice_post",
+      { p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_body: "برايم متأخر اليوم", p_hours: 6 },
+    ]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      action: "support_notice_posted",
+      details: { notice_id: NOTICE.id, hours: 6, body: NOTICE.body },
+    });
+  });
+
+  it("maps a database refusal to its words", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: null, error: { code: "P0001", message: "support_notice_bad_hours" } },
+    );
+    const res = await call("POST", "support", { body: "hi", hours: 6 });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "A notice runs for 1 to 72 hours." });
+  });
+
+  it("ends the live notice and logs it", async () => {
+    dbResult = { data: 1, error: null };
+    const res = await call("DELETE", "support");
+    expect(await res.json()).toEqual({ ended: 1 });
+    expect(rpcCall()?.args).toEqual(["support_notice_end", { p_admin_id: SUPPORT_ID }]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      action: "support_notice_ended",
+      details: { ended: 1 },
+    });
+  });
+});

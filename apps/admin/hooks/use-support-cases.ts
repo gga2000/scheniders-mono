@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CaseAction,
   NeedsUsShop,
+  NoticePostInput,
   ScoreboardDays,
   StartConversation,
   SupportCaseDetailResponse,
   SupportCasesResponse,
+  SupportNotice,
   SupportScoreboard,
   SupportTask,
   TaskLogInput,
@@ -174,5 +176,40 @@ export function useSupportViewStart() {
 export function useSupportViewEnd() {
   return useMutation({
     mutationFn: async () => readJson<{ success: true }>(await fetch("/api/support/view", { method: "DELETE" })),
+  });
+}
+
+/** The notice merchants see now at the top of their Help chat. */
+export function useSupportNotice() {
+  return useQuery<SupportNotice | null>({
+    queryKey: ["admin", "support", "notice"],
+    queryFn: async () =>
+      (await readJson<{ notice: SupportNotice | null }>(await fetch("/api/support/notices"))).notice,
+    refetchInterval: 60_000,
+  });
+}
+
+/** Post a notice to every merchant (replaces the live one). */
+export function useSupportNoticePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: NoticePostInput) =>
+      readJson<{ notice: SupportNotice }>(
+        await fetch("/api/support/notices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support", "notice"] }),
+  });
+}
+
+/** End the live notice now. */
+export function useSupportNoticeEnd() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => readJson<{ ended: number }>(await fetch("/api/support/notices", { method: "DELETE" })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support", "notice"] }),
   });
 }

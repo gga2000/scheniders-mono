@@ -89,7 +89,7 @@ describe("GET /api/support", () => {
         const res = await GET(request("GET"));
         expect(await res.json()).toEqual({
             success: true,
-            data: { case: null, messages: [], unread: 0, owner: null, callBack: null, contactPhone: null },
+            data: { case: null, messages: [], unread: 0, owner: null, callBack: null, contactPhone: null, notice: null },
         });
         expect(eqCalls()).toEqual([
             ["tenant_id", TENANT],
@@ -113,6 +113,24 @@ describe("GET /api/support", () => {
         expect(body.data.contactPhone).toBe("07801112222");
         const tasks = state.calls.findIndex((c) => c.method === "from" && c.args[0] === "support_tasks");
         expect(state.calls.slice(tasks).find((c) => c.method === "is")?.args).toEqual(["done_at", null]);
+    });
+
+    it("shows the notice support posted for everyone, only while it runs", async () => {
+        const notice = { id: "n1", body: "برايم متأخر اليوم", created_at: "2026-11-16T12:00:00Z", ends_at: "2026-11-16T18:00:00Z" };
+        state.queue.push(
+            { data: [], error: null },
+            { data: null, error: null },
+            { data: null, error: null },
+            { data: null, error: null },
+            { data: notice, error: null },
+        );
+        const body = await (await GET(request("GET"))).json();
+        expect(body.data.notice).toEqual(notice);
+        const from = state.calls.findIndex((c) => c.method === "from" && c.args[0] === "support_notices");
+        expect(from).toBeGreaterThan(-1);
+        const after = state.calls.slice(from);
+        expect(after.find((c) => c.method === "is")?.args).toEqual(["ended_at", null]);
+        expect(after.find((c) => c.method === "gt")?.args[0]).toBe("ends_at");
     });
 
     it("offers no number when the shop's contact phone is not an Iraqi mobile", async () => {

@@ -112,6 +112,15 @@ export interface SupportThread {
     callBack: SupportCallBack | null;
     /** The shop's own mobile, to fill the call-back form. */
     contactPhone: string | null;
+    /** What support has told every merchant right now ("Prime is slow today"), if anything. */
+    notice: SupportNotice | null;
+}
+
+export interface SupportNotice {
+    id: string;
+    body: string;
+    created_at: string;
+    ends_at: string;
 }
 
 export interface SupportCallBack {

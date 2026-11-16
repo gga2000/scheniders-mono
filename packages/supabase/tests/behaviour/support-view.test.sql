@@ -163,6 +163,9 @@ SELECT pg_temp.check('service: writes', NOT pg_temp.blocked($q$UPDATE public.ord
 
 -- A table made later is locked as it is made.
 CREATE TABLE public.made_later (id int);
+-- A table with a foreign key is reported twice by the event (CREATE and the
+-- ALTER that adds the key); it must still get the lock once.
+CREATE TABLE public.made_later_linked (id int PRIMARY KEY, tenant_id uuid REFERENCES public.tenants (id), CHECK (id > 0));
 SELECT pg_temp.check('lock: new table gets the lock', cardinality(public.support_view_unguarded_tables()) = 0);
 SELECT pg_temp.as_user('30000000-0000-4000-8000-000000000001', '{"app_metadata":{"support_viewer":true}}');
 SELECT pg_temp.check('lock: new table refuses the viewer', pg_temp.blocked($q$INSERT INTO public.made_later VALUES (1)$q$));
