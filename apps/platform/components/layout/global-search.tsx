@@ -30,7 +30,7 @@ import { useServerOrderSearch } from "@/hooks/use-server-order-search";
 import { useProductNameSearch } from "@/hooks/use-product-name-search";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { foldDigits, MAX_SEARCH_RESULTS } from "@/lib/order-server-search";
-import { normalizePhoneForSearch } from "@/lib/order-utils";
+import { formatPhoneGrouped, normalizePhoneForSearch } from "@/lib/order-utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import type { Order } from "@/types/order";
@@ -117,7 +117,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                     type: "order",
                     id: order.id,
                     title: `#${getBaseOrderId(order.order_id)} - ${order.customer_name ?? ""}`,
-                    subtitle: order.phone ?? "",
+                    subtitle: formatPhoneGrouped(order.phone),
                     meta: formatIQD(Number(order.price)),
                     // The orders page honours ?search= and ranks the exact order
                     // number first, without touching its date filter.
@@ -148,7 +148,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                         type: "customer",
                         id: order.phone,
                         title: order.customer_name,
-                        subtitle: order.phone,
+                        subtitle: formatPhoneGrouped(order.phone),
                         meta: `${customerOrders.length} orders`,
                         href: `/customers?search=${order.phone}`,
                     });
@@ -327,7 +327,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                                                     {result.title}
                                                 </p>
                                                 <p className="text-sm text-muted truncate flex items-center gap-2">
-                                                    <Phone className="w-3 h-3" />
+                                                    {result.type !== "product" && <Phone className="w-3 h-3" />}
                                                     {result.subtitle}
                                                     {result.status && (
                                                         <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold", getStatusBadgeStyle(result.status))}>

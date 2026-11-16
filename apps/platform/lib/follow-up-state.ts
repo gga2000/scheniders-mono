@@ -8,6 +8,8 @@
 // =============================================
 
 import type { Order } from "@/types/order";
+import type { Locale } from "@/lib/i18n";
+import { getOrderAge } from "@/lib/order-format-utils";
 
 /** Name recorded for sends no person made — the webhook confirmation and the cron. */
 export const AUTOMATION_SENDER_NAME = "الإرسال التلقائي";
@@ -149,18 +151,14 @@ export function senderDisplayName(profile: { display_name?: string | null } | nu
 /** Translate a key with `{var}` interpolation — `useLanguage().t` fits. */
 export type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-/** Short "how long ago it was sent", for the badge tooltip and label. */
-export function sentAgoLabel(at: string | null | undefined, t: Translate, now: Date = new Date()): string | undefined {
+/**
+ * Short "how long ago it was sent", for the badge tooltip and label.
+ *
+ * Uses the same helper as the order's own age on the card, so one card never
+ * says «قبل يوم واحد» in one place and «قبل 1 يوم» in another.
+ */
+export function sentAgoLabel(at: string | null | undefined, locale: Locale, now: Date = new Date()): string | undefined {
     if (!at) return undefined;
-    const sentAt = new Date(at).getTime();
-    if (Number.isNaN(sentAt)) return undefined;
-
-    const minutes = Math.max(0, Math.round((now.getTime() - sentAt) / 60000));
-    if (minutes < 1) return t("orders.timeline.justNow");
-    if (minutes < 60) return t("orders.timeline.minsAgo", { mins: minutes });
-
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return t("orders.timeline.hoursAgo", { hours });
-
-    return t("orders.timeline.daysAgo", { days: Math.floor(hours / 24) });
+    if (Number.isNaN(new Date(at).getTime())) return undefined;
+    return getOrderAge(at, locale, now);
 }

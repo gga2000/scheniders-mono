@@ -87,12 +87,13 @@ const justNow: Record<Locale, string> = {
 export const getOrderAge = (
     dateStr: string | Date | undefined | null,
     locale: Locale = "ar",
+    now: Date = new Date(),
 ) => {
     if (!dateStr) return "";
-    const now = new Date();
     const orderDate = new Date(dateStr);
     if (isNaN(orderDate.getTime())) return "";
-    const diffMs = now.getTime() - orderDate.getTime();
+    // Small clock skew can put a fresh timestamp a few seconds in the future.
+    const diffMs = Math.max(0, now.getTime() - orderDate.getTime());
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);

@@ -4,9 +4,9 @@ import { motion } from "framer-motion";
 import { Clock3 } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
-import type { AgingBucket } from "@/hooks/use-cash-position";
+import { dayRange, type AgingBucket } from "@/hooks/use-cash-position";
 
 interface Props {
     buckets: AgingBucket[];
@@ -15,6 +15,7 @@ interface Props {
 
 export function CODAgingBuckets({ buckets, oldestStuckDays }: Props) {
     const { t } = useLanguage();
+    const dir = useTextDir();
     const unit = t("finances.cash.daysUnit");
     const totalCount = buckets.reduce((s, b) => s + b.count, 0);
     const totalValue = buckets.reduce((s, b) => s + b.value, 0);
@@ -51,7 +52,7 @@ export function CODAgingBuckets({ buckets, oldestStuckDays }: Props) {
                                         <span className={cn("text-[13px] font-semibold", toneText(b.tone))}>
                                             {t(`finances.cash.bucket.${b.id}`)}
                                         </span>
-                                        <span className="text-[11px] text-muted tabular-nums">{b.minDays}{b.maxDays === null ? "+" : `-${b.maxDays}`}&nbsp;{unit}</span>
+                                        <span dir={dir} className="text-[11px] text-muted tabular-nums whitespace-nowrap">{dayRange(t, b)}</span>
                                     </div>
                                     <div className="flex items-baseline gap-3 shrink-0 tabular-nums">
                                         <span className="text-[12px] text-muted">

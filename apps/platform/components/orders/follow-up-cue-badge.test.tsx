@@ -157,7 +157,7 @@ describe("FollowUpCueBadge with nothing due", () => {
         });
 
         expect(container.querySelector('img[alt="علي"]')).toBeTruthy();
-        expect(screen.getByText("قبل 1 ساعة")).toBeTruthy();
+        expect(screen.getByText("قبل ساعة واحدة")).toBeTruthy();
         // Not a cue: no hours-passed copy, no pulse.
         expect(screen.queryByText(/مرت 61 ساعة/)).toBeNull();
         expect(container.querySelector(".animate-pulse")).toBeNull();
@@ -170,7 +170,7 @@ describe("FollowUpCueBadge with nothing due", () => {
             last_followup_at: "2026-09-11T11:00:00.000Z",
         });
         expect(container.querySelector('[data-followup-kind="none"]')?.getAttribute("title"))
-            .toBe("تم التواصل بواسطة علي · قبل 1 ساعة");
+            .toBe("تم التواصل بواسطة علي · قبل ساعة واحدة");
     });
 
     it("says confirmation when that is what went out", () => {

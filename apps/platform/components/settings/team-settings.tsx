@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
-import { formatTime } from "@/lib/order-format-utils";
+import { formatTime, getOrderAge } from "@/lib/order-format-utils";
 import { UserRole, isAdminRole, PERMISSION_CATEGORIES } from "@/lib/permissions";
 import { activityLogger, ActivityLogEntry } from "@/lib/activity-logger";
 import { toast } from "@/hooks/use-toast";
@@ -29,7 +29,7 @@ import { AccessRequestsCard } from "./access-requests-card";
 import { toggleRolePermissionAction } from "@/app/actions/permissions";
 import { EditUserModal } from "./team/edit-user-modal";
 import { InviteUserModal } from "./team/invite-user-modal";
-import { ROLE_CONFIG, UserProfile, formatActivityDescription, formatRelativeTime, isUserOnline } from "./team/team-shared";
+import { ROLE_CONFIG, UserProfile, formatActivityDescription, isUserOnline } from "./team/team-shared";
 
 
 export function TeamSettings() {
@@ -482,7 +482,7 @@ export function TeamSettings() {
                                                 <div className="flex items-center justify-between gap-2">
                                                     <p className="font-medium text-sm text-foreground truncate">{title}</p>
                                                     <span className="text-[10px] text-muted-foreground shrink-0">
-                                                        {formatRelativeTime(log.created_at, t)}
+                                                        {getOrderAge(log.created_at, language)}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1">

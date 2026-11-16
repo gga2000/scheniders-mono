@@ -95,21 +95,6 @@ export function isUserOnline(lastLogin: string | null): boolean {
     return new Date(lastLogin).getTime() > fifteenMinutesAgo;
 }
 
-// Helper to format relative time
-export function formatRelativeTime(date: string, t: Translate): string {
-    const now = Date.now();
-    const then = new Date(date).getTime();
-    const diffMs = now - then;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return t("team.time.justNow");
-    if (diffMins < 60) return t("team.time.minutes", { n: diffMins });
-    if (diffHours < 24) return t("team.time.hours", { n: diffHours });
-    return t("team.time.days", { n: diffDays });
-}
-
 // Photo rules: a 2MB image in a format the avatars bucket accepts.
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 export const AVATAR_TYPES: Record<string, string> = {

@@ -116,6 +116,7 @@ const en: Record<string, string> = {
     "shield.excuse.status.no_response": "No answer",
 
     "shield.home.callTitle": "{count} open orders from the last 14 days: call before you confirm",
+    "shield.home.callTitle.one": "1 open order from the last 14 days: call before you confirm",
     "shield.home.callSub": "{red} high risk. Trust under 80: their customer refused or did not answer here or in other stores.",
     "shield.home.callSubNoRed": "Their customer refused or did not answer here or in other stores before.",
     "shield.home.callNoneTitle": "No risky open orders",
@@ -257,7 +258,11 @@ const ar: Record<string, string> = {
     "shield.excuse.status.cancelled": "ملغي",
     "shield.excuse.status.no_response": "لا يرد",
 
-    "shield.home.callTitle": "{count} طلبات مفتوحة من آخر 14 يوم: اتصل قبل التأكيد",
+    "shield.home.callTitle": "{count} طلب مفتوح من آخر 14 يومًا: اتصل قبل التأكيد",
+    "shield.home.callTitle.one": "طلب مفتوح واحد من آخر 14 يومًا: اتصل قبل التأكيد",
+    "shield.home.callTitle.two": "طلبان مفتوحان من آخر 14 يومًا: اتصل قبل التأكيد",
+    "shield.home.callTitle.few": "{count} طلبات مفتوحة من آخر 14 يومًا: اتصل قبل التأكيد",
+    "shield.home.callTitle.many": "{count} طلبًا مفتوحًا من آخر 14 يومًا: اتصل قبل التأكيد",
     "shield.home.callSub": "{red} خطر عالي. زبائنها رفضوا أو لم يردوا هنا أو في متاجر أخرى.",
     "shield.home.callSubNoRed": "زبائنها رفضوا أو لم يردوا هنا أو في متاجر أخرى سابقاً.",
     "shield.home.callNoneTitle": "لا توجد طلبات مفتوحة خطرة",
