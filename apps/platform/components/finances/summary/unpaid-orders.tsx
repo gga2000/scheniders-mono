@@ -13,6 +13,8 @@ interface UnpaidOrdersProps {
     orders: readonly UnpaidOrder[];
     /** Every unpaid delivered order of the period, the listed ones included. */
     total: number;
+    /** Of `total`, the orders Prime holds: the rest are at the ordinary delivery company. */
+    totalPrime: number;
 }
 
 /** The server lists at most this many: past it, the rest are only counted. */
@@ -35,7 +37,7 @@ function daysSince(day: string, now: Date): number {
  * leaves out owe nothing after the delivery fee (a free replacement), unless
  * the list is full, in which case the rest are simply not shown.
  */
-export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
+export function UnpaidOrders({ orders, total, totalPrime }: UnpaidOrdersProps) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const dayFormat = useMemo(
@@ -57,7 +59,11 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
             ? null
             : orders.length >= UNPAID_LIST_CAP
               ? t("fin.money.unpaid.more", { shown: formatWhole(orders.length), n: formatWhole(rest), count: orders.length })
-              : t("fin.money.unpaid.rest", { n: formatWhole(rest), count: rest });
+              : // The ordinary delivery company's fee is unknown until its statement, so an order of its own
+                // is left off the list only when it is free; Prime's fee is known, so a cheap one can be too.
+                totalPrime - orders.filter((order) => order.prime).length > 0
+                ? t("fin.money.unpaid.rest", { n: formatWhole(rest), count: rest })
+                : t("fin.money.unpaid.restFree", { n: formatWhole(rest), count: rest });
 
     return (
         <div className="mt-2.5" data-testid="money-unpaid-list">

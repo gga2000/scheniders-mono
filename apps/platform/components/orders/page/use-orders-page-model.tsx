@@ -137,12 +137,19 @@ export function useOrdersPageModel() {
         // `?stuck=1` (the Finances page's stuck parcels): the In transit tab over
         // every date, with the stuck filter on, as the chip's own toggle does.
         const stuckParam = params.get('stuck') === '1';
+        // `?queue=back` (the Finances page's refused parcels Prime is bringing
+        // back): the «راجع» queue, which already spans every date.
+        const backParam = params.get('queue') === 'back';
         // The days the dashboard counted (ordersDrillQuery). Without them the
         // list kept the merchant's own date filter and opened empty.
         const days = drillDays(params);
         if (stuckParam) {
             setFilters(prev => ({ ...prev, status: 'in_transit', dateFrom: undefined, dateTo: undefined }));
             useOrderStore.getState().setFilterStuckTransit(true);
+            return;
+        }
+        if (backParam) {
+            useOrderStore.getState().setPrimeQueue('back');
             return;
         }
         if (!statusParam && !cityParam && !productParam && !days) return;

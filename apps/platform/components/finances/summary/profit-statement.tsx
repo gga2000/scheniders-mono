@@ -39,7 +39,12 @@ function pct(share: number): string {
     return value >= 1 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, "");
 }
 
-const ROW = "grid w-full grid-cols-[190px_minmax(0,1fr)_minmax(104px,auto)_minmax(150px,auto)] items-center gap-x-[18px]";
+/**
+ * Fixed side columns: every row is its own grid, so an `auto` column sized by one row's text (a long
+ * change label) shrank only that row's bar track and broke the staircase. Fixed widths keep every
+ * track the same length, so the bars line up to the pixel.
+ */
+const ROW = "grid w-full grid-cols-[190px_minmax(0,1fr)_112px_200px] items-center gap-x-[18px]";
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /**
@@ -167,18 +172,21 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                             <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
                                 {statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}
                             </span>
-                            <span className="flex items-baseline justify-end gap-3">
-                                {lineChange !== null && (
-                                    <span data-change={line.id}>
-                                        <ChangeChip value={lineChange} lowerIsBetter surface="card" />
-                                    </span>
-                                )}
+                            <span className="flex flex-col items-end">
+                                <span className="flex items-baseline justify-end gap-3">
+                                    {lineChange !== null && (
+                                        <span data-change={line.id}>
+                                            <ChangeChip value={lineChange} lowerIsBetter surface="card" />
+                                        </span>
+                                    )}
+                                    {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
+                                </span>
+                                {/* Under the amount, not beside it: beside it the label would need a wider column. */}
                                 {lineChange === null && newCosts.includes(line) && (
-                                    <span className="whitespace-nowrap text-[12px] font-medium text-muted" dir={dir} data-change={line.id} data-new-cost>
+                                    <span className="whitespace-nowrap text-right text-[12px] font-medium text-muted" dir={dir} data-change={line.id} data-new-cost>
                                         {t("fin.line.newCost")}
                                     </span>
                                 )}
-                                {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
                             </span>
                         </button>
                         <AnimatePresence initial={false}>

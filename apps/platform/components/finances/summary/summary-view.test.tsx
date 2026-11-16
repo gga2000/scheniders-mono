@@ -256,6 +256,12 @@ describe("SummaryView", () => {
         expect(list?.textContent).toContain("عند شركة التوصيل");
         expect(list?.textContent).toContain("عند برايم، بعد أجرتها");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
+        // the third is at the ordinary delivery company, whose fee is not known yet: it is left off only when free
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر مجاني عند شركة التوصيل، لا تنتظر عنه مالاً.");
+        cleanup();
+        // when the one left off is Prime's, its known fee can eat a cheap price too, and the line says so
+        const p = summary();
+        renderView(query(summary({ cash: { ...p.cash, split: { ...p.cash.split, unpaid_prime: 2 } } })));
         expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر لا تنتظر عنه مالاً: مجاني، أو سعره لا يزيد على أجرة برايم.");
         cleanup();
         const s = summary();
@@ -367,7 +373,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000, reached_prepaid: 20_000, reached_prepaid_orders: 2, reached_other: 10_000 } } })));
         const parts = byTestId("money-reached-parts")?.textContent ?? "";
-        expect(parts).toContain("من كشوف هذه الفترةاعرض الدفعات وفروقها100,000");
+        expect(parts).toContain("من كشوف مؤرَّخة في هذه الفترةاعرض الدفعات وفروقها100,000");
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
         expect(parts).toContain("طلبات دُفع ثمنها لك سابقاً، وسجّلتها «مُسلَّمة» متأخراً في هذه الفترة200,000");
         expect(parts).toContain("دفعها الزبون لك مسبقاً (طلبان)20,000");
@@ -376,6 +382,20 @@ describe("SummaryView", () => {
         // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 }, statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1 } } })));
         expect(byTestId("money-reached-parts")?.textContent).toContain("وصلك منها فعلاً 80,000 د.ع بعد المبالغ المستردة والفروق في الكشوف.");
+        cleanup();
+        // the same statements also paid 3,000 for an order not marked delivered: the note names it, so 80,000 + 3,000
+        // meets the payments card's 83,000
+        renderView(query(summary({
+            cash: {
+                ...s.cash,
+                reached: { ...s.cash.reached, payments: 2, amount: 83_000 },
+                split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 },
+                statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1, undelivered: 3_000, undelivered_orders: 1 },
+            },
+        })));
+        expect(byTestId("money-reached-parts")?.textContent).toContain(
+            "وصلك منها فعلاً 80,000 د.ع بعد المبالغ المستردة والفروق في الكشوف. ودفعت الكشوف أيضاً 3,000 د.ع عن طلب لم تجعله «مُسلَّماً» بعد، فالمجموع 83,000 د.ع كما في الدفعات.",
+        );
         cleanup();
         renderView(query(summary()));
         expect(byTestId("money-reached-parts")).toBeNull();
@@ -389,6 +409,9 @@ describe("SummaryView", () => {
         renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
         expect(byTestId("money-returning")?.textContent).toContain("وهناك 5 طرود مرفوضة تعيدها برايم إليك الآن");
+        // and opens them: the Orders page's «راجع» queue
+        expect(byTestId("money-returning-link")?.getAttribute("href")).toBe("/orders?queue=back");
+        expect(byTestId("money-returning-link")?.textContent).toBe("افتح «راجع» في الطلبات");
     });
 
     it("says the stuck parcels are part of the road, so the strip's two parcel counts are not added up", () => {
@@ -643,7 +666,7 @@ describe("SummaryView", () => {
         const ads = document.querySelector('[data-change="ads"]');
         expect(ads?.hasAttribute("data-new-cost")).toBe(true);
         expect(ads?.textContent).toBe("شبه صفر في الفترة السابقة");
-        expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب هذا الانخفاض من «الإعلانات»: 60,000 د.ع في هذه الفترة، وشبه لا شيء في الفترة السابقة.");
+        expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب هذا الانخفاض من «الإعلانات»: 60,000 د.ع في هذه الفترة، وكانت شبه صفر في الفترة السابقة.");
         cleanup();
         // the same ads both times: no words, no cause
         renderView(query(s), query(summary()));

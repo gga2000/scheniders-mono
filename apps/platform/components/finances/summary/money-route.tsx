@@ -11,6 +11,9 @@ import { COURIER_PAYMENTS_ID } from "./courier-payments";
 import { CARD_LINK, SummaryCard } from "./summary-card";
 import { UnpaidOrders } from "./unpaid-orders";
 
+/** The Orders page's «راجع» queue: the refused parcels Prime is bringing back. */
+const RETURNING_ORDERS_HREF = "/orders?queue=back";
+
 interface MoneyRouteProps {
     summary: FinanceSummary;
     /** The statement's Delivery line: it also counts what this card leaves out (returned parcels, courier bills). */
@@ -108,6 +111,20 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                   total: money(delivery.amount),
                   extra: money(returnedFee + bills),
               });
+    // The statements also paid for orders not marked delivered (outside this card): when that is all
+    // that is left, name it, so the cash here and the payments card's total visibly agree.
+    const withUndelivered = statement.undelivered > 0 && cashForNow + statement.undelivered === payments.amount;
+    const nowNote =
+        cashForNow === split.reached_now
+            ? null
+            : withUndelivered
+              ? t("fin.money.from.nowNoteUndelivered", {
+                    paid: money(cashForNow),
+                    extra: money(statement.undelivered),
+                    total: money(payments.amount),
+                    count: statement.undelivered_orders,
+                })
+              : t("fin.money.from.nowNote", { paid: money(cashForNow) });
     // "Paid to you" by where its money came from, listed under it so the parts visibly add up.
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
@@ -117,7 +134,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                   label: t("fin.money.from.now"),
                   // The statements' price of these orders is not the cash: the refunds, prepaid fees and price
                   // differences on the same statements come off it (the payments card lists each one).
-                  note: cashForNow !== split.reached_now ? t("fin.money.from.nowNote", { paid: money(cashForNow) }) : null,
+                  note: nowNote,
                   amount: split.reached_now,
                   href: `#${COURIER_PAYMENTS_ID}`,
               },
@@ -213,7 +230,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             )}
                         </PartRow>
                         <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
-                            <UnpaidOrders orders={summary.cash.unpaid_list} total={split.unpaid_orders} />
+                            <UnpaidOrders orders={summary.cash.unpaid_list} total={split.unpaid_orders} totalPrime={split.unpaid_prime} />
                             {/* Shown whenever Prime holds unpaid orders, link row or not (the demo store has none). */}
                             {split.unpaid_prime > 0 && (
                                 <Link href="/prime" className={`${CARD_LINK} mt-1.5`}>
@@ -248,6 +265,12 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
                             </p>
+                        )}
+                        {returning.count > 0 && (
+                            <Link href={RETURNING_ORDERS_HREF} className={`${CARD_LINK} mt-1.5`} data-testid="money-returning-link">
+                                {t("fin.money.returning.open")}
+                                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                            </Link>
                         )}
                     </PartRow>
                 </ul>
