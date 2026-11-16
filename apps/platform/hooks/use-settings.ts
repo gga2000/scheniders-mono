@@ -35,7 +35,7 @@ type Loose<T> = T & { [field: string]: unknown };
 interface SettingValues {
     store_profile: Loose<{ name?: string; currency?: string; timezone?: string }>;
     inventory_rules: Loose<{ low_stock_threshold?: number; enable_stock_alerts?: boolean }>;
-    print_settings: Loose<{ label_size?: string; show_price?: boolean; show_phone?: boolean; batch_grouping?: string; fragile_warning?: boolean }>;
+    print_settings: Loose<{ label_size?: string; show_price?: boolean; show_phone?: boolean; batch_grouping?: string; fragile_warning?: boolean; perfume_warning?: boolean }>;
     auto_archive: Loose<{ enabled?: boolean; days?: number; archive_canceled?: boolean; archive_delivered?: boolean }>;
     quick_actions: Loose<{ show_cancel?: boolean; show_reject?: boolean; show_whatsapp?: boolean; show_print?: boolean }>;
     notification_settings: Loose<{ toast_enabled?: boolean }>;
@@ -43,7 +43,7 @@ interface SettingValues {
 const SETTING_SCHEMAS: { [K in keyof SettingValues]: z.ZodType<SettingValues[K]> } = {
     store_profile: z.looseObject({ name: str, currency: str, timezone: str }).catch({}),
     inventory_rules: z.looseObject({ low_stock_threshold: num, enable_stock_alerts: flag }).catch({}),
-    print_settings: z.looseObject({ label_size: str, show_price: flag, show_phone: flag, batch_grouping: str, fragile_warning: flag }).catch({}),
+    print_settings: z.looseObject({ label_size: str, show_price: flag, show_phone: flag, batch_grouping: str, fragile_warning: flag, perfume_warning: flag }).catch({}),
     auto_archive: z.looseObject({ enabled: flag, days: num, archive_canceled: flag, archive_delivered: flag }).catch({}),
     quick_actions: z.looseObject({ show_cancel: flag, show_reject: flag, show_whatsapp: flag, show_print: flag }).catch({}),
     notification_settings: z.looseObject({ toast_enabled: flag }).catch({}),
