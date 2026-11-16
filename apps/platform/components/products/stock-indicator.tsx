@@ -99,11 +99,7 @@ export function StockIndicator({
         : 1;
 
     // Build accessible label
-    const accessibleLabel = [
-        t(config.key),
-        quantity !== undefined ? `${quantity}` : "",
-        threshold ? `/ ${threshold}` : "",
-    ].filter(Boolean).join(" ");
+    const accessibleLabel = [t(config.key), quantity !== undefined ? `${quantity}` : ""].filter(Boolean).join(" ");
 
     // Tooltip data
     const total = quantity !== undefined ? quantity + (reserved ?? 0) : undefined;
@@ -145,11 +141,8 @@ export function StockIndicator({
             {showLabel && (
                 <span className={sizeStyles.text}>
                     {t(config.key)}
-                    {quantity !== undefined && threshold ? (
-                        <span className="opacity-75"> {quantity}/{threshold}</span>
-                    ) : quantity !== undefined ? (
-                        <span className="opacity-75"> ({quantity})</span>
-                    ) : null}
+                    {/* The count alone: "53/10" read as 53 out of 10. The alert level lives in the tooltip. */}
+                    {quantity !== undefined && <span className="opacity-75"> ({quantity})</span>}
                 </span>
             )}
         </div>

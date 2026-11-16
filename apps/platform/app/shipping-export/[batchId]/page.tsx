@@ -13,6 +13,7 @@ import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-u
 import { computeCodAmount } from "@/lib/order-money";
 import { COURIER_LABELS, COURIER_SHEET_COLUMNS, type CourierCompany } from "@/lib/shipping/courier-sheets";
 import { reportOrderError } from "@/lib/order-telemetry";
+import { runTitle } from "@/lib/print-runs";
 import { formatIQD } from "@/lib/utils";
 
 type Batch = { id: string; name: string; order_ids: string[] | null; invoice_template: string | null; created_at: string | null };
@@ -106,7 +107,7 @@ export default function ShippingExportPage({ params }: { params: Promise<{ batch
             <div className="flex items-center gap-3">
                 <Truck className="h-6 w-6 text-primary" aria-hidden="true" />
                 <div>
-                    <h1 className="text-lg font-semibold">{data.batch.name}</h1>
+                    <h1 className="text-lg font-semibold">{runTitle(data.batch, t)}</h1>
                     <p className="text-sm text-muted">
                         {t("shippingExport.summary", {
                             count: data.orders.length,

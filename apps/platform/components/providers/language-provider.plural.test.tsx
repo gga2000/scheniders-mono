@@ -45,6 +45,17 @@ describe("t() singular forms", () => {
         expect(cadence(100)).toBe("يطلب كل ~100 يوم");
     });
 
+    it("agrees the dashboard per-day and comparison words with their numbers", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        const t = result.current.t;
+        expect(t("dashboard.bento.perDay", { count: 5 })).toBe("طلبات يومياً");
+        expect(t("dashboard.bento.perDay", { count: 12 })).toBe("طلباً يومياً");
+        expect(t("dashboard.bento.perDay", { count: 100 })).toBe("طلب يومياً");
+        expect(t("dashboard.bento.vsPrevious", { count: 7 })).toBe("مقارنة بالـ 7 أيام السابقة");
+        expect(t("dashboard.bento.vsPrevious", { count: 30 })).toBe("مقارنة بالـ 30 يوماً السابقة");
+    });
+
     it("uses the .zero entry for a count of 0 in both languages", async () => {
         localStorage.setItem("schneiders_language", "ar");
         const ar = renderHook(() => useLanguage(), { wrapper });
