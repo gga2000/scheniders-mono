@@ -55,7 +55,7 @@ export function ReprintWarningModal({
                             <div>
                                 <h3 className="text-lg font-bold text-amber-900">{t("printing.reprintTitle")}</h3>
                                 <p className="text-sm text-amber-700">
-                                    {t("printing.reprintSubtitle").replace("{count}", String(reprintOrders.length))}
+                                    {t("printing.reprintSubtitle", { count: reprintOrders.length })}
                                 </p>
                             </div>
                         </div>

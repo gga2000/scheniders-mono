@@ -59,7 +59,7 @@ function statusLabel(status: string, t: (key: string, fallback: string) => strin
 /** Centered muted pill rendered for system-generated events (no avatar, no bubble). */
 function SystemEventPill({ event, t, memberMap }: {
     event: ChatSystemEvent;
-    t: (key: string, fallback: string, params?: Record<string, string>) => string;
+    t: (key: string, fallback: string, params?: Record<string, string | number>) => string;
     memberMap: Map<string, { display_name: string }>;
 }) {
     let text: string;
@@ -78,8 +78,8 @@ function SystemEventPill({ event, t, memberMap }: {
         }
     } else if (event.type === "thread_resolved") {
         text = event.auto
-            ? t("chat.event.autoResolved", "Closed automatically after {hours}h with no activity", {
-                  hours: String(event.after_hours ?? 24),
+            ? t("chat.event.autoResolved", "Closed automatically after {count}h with no activity", {
+                  count: event.after_hours ?? 24,
               })
             : t("chat.event.resolved", "{actor} closed this thread", {
                   actor: event.actor_name ?? t("chat.system", "System"),

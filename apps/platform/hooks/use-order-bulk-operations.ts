@@ -90,9 +90,7 @@ export function useOrderBulkOperations() {
 
             if (result.failures.length === 0) {
                 toast({
-                    title: t("toast.statusUpdatedDescCount")
-                        .replace("{count}", String(result.count))
-                        .replace("{status}", getStatusLabel(status)),
+                    title: t("toast.statusUpdatedDescCount", { count: result.count, status: getStatusLabel(status) }),
                     variant: "success",
                 });
             } else {
@@ -160,7 +158,7 @@ export function useOrderBulkOperations() {
             dismissToast(toastId);
 
             const skippedNote = skipped.length > 0
-                ? t("orders.bulk.rescheduleSkipped").replace("{count}", String(skipped.length))
+                ? t("orders.bulk.rescheduleSkipped", { count: skipped.length })
                 : undefined;
 
             if (result.failures.length === 0) {
@@ -311,7 +309,7 @@ export function useOrderBulkOperations() {
                 t("orders.bulk.partialDeleteTitle"),
                 shipped.length > 0
                     ? t("orders.trash.shipped", { numbers: shipped.join(", ") })
-                    : t("orders.bulk.partialDeleteBody", { done: deletedCount, total: ids.length }),
+                    : t("orders.bulk.partialDeleteBody", { done: deletedCount, count: ids.length }),
             );
             return;
         }

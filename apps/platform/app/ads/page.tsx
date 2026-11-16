@@ -140,10 +140,11 @@ export default function AdsPage() {
                     <AdsNetProfit profit={profit} breakEven={breakEven} />
 
                     <p className="rounded-xl bg-[var(--card-bg)] px-4 py-3 text-sm text-foreground">
-                        {t("ads.honestNote")
-                            .replace("{meta}", data.results.toLocaleString("en-US"))
-                            .replace("{orders}", data.orders.toLocaleString("en-US"))
-                            .replace("{delivered}", data.deliveredOrders.toLocaleString("en-US"))}
+                        {t("ads.honestNote", {
+                            meta: data.results.toLocaleString("en-US"),
+                            count: data.orders,
+                            delivered: data.deliveredOrders.toLocaleString("en-US"),
+                        })}
                     </p>
 
                     {data.daily.length > 1 ? (
@@ -167,7 +168,7 @@ export default function AdsPage() {
                         )}
                         {data.campaigns.length > 0 ? (
                             <p className="mt-3 text-xs text-muted">
-                                {t("ads.matchNote").replace("{unmatched}", String(data.unmatched.orders))}
+                                {t("ads.matchNote", { count: data.unmatched.orders })}
                             </p>
                         ) : null}
                     </section>

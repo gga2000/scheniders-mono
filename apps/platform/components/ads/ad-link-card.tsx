@@ -44,10 +44,7 @@ export function AdLinkCard({ coverage }: { coverage: AttributionCoverage }) {
             <p className="mt-3 text-sm text-foreground">
                 {coverage.pct === null
                     ? t("ads.coverageNone")
-                    : t("ads.coverage")
-                          .replace("{with}", String(coverage.withAdId))
-                          .replace("{total}", String(coverage.adOrders))
-                          .replace("{pct}", String(coverage.pct))}
+                    : t("ads.coverage", { with: coverage.withAdId, count: coverage.adOrders, pct: coverage.pct })}
             </p>
         </section>
     );

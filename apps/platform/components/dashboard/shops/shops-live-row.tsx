@@ -69,8 +69,8 @@ type Translate = ReturnType<typeof useLanguage>["t"];
 function sinceLabel(at: string, asOf: number, t: Translate): string {
     const minutes = Math.max(0, Math.floor((asOf - Date.parse(at)) / 60_000));
     if (minutes < 1) return t("till.live.justNow");
-    if (minutes < 60) return t("till.live.minAgo", { n: minutes });
-    return t("till.live.hoursAgo", { n: Math.floor(minutes / 60) });
+    if (minutes < 60) return t("till.live.minAgo", { count: minutes });
+    return t("till.live.hoursAgo", { count: Math.floor(minutes / 60) });
 }
 
 function ShopLine({ shop, asOf }: { shop: LiveShop; asOf: number }) {

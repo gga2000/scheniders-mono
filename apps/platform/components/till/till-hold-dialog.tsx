@@ -91,7 +91,7 @@ export function TillHoldDialog({
                             {t("till.hold.title")}
                         </DialogTitle>
                         <DialogDescription className="text-left" dir="auto">
-                            {t("till.hold.subtitle", { n: pieces })}
+                            {t("till.hold.subtitle", { count: pieces })}
                         </DialogDescription>
                     </DialogHeader>
 

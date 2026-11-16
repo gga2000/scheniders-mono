@@ -20,7 +20,7 @@ export function LeadQualityStrip({ quality, campaign, className }: { quality: Le
     return (
         <div className={cn("flex flex-wrap items-center gap-2", className)} data-testid="lead-quality-strip">
             <span className="text-xs font-bold text-foreground" dir="auto">{campaign}</span>
-            <span className="text-xs text-muted-foreground">{t("orders.leadQuality.finished").replace("{n}", String(quality.finished))}</span>
+            <span className="text-xs text-muted-foreground">{t("orders.leadQuality.finished", { count: quality.finished })}</span>
             {pill(t("orders.leadQuality.delivered"), quality.deliveredPct, "bg-emerald-500/15 text-emerald-700")}
             {pill(t("orders.leadQuality.noAnswer"), quality.noAnswerPct, "bg-amber-500/15 text-amber-700")}
             {pill(t("orders.leadQuality.rejected"), quality.rejectedPct, "bg-red-500/15 text-red-600")}

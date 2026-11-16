@@ -98,7 +98,7 @@ export function FollowUpCueBadge({ state, hoursSinceCreated, className }: Follow
             }
         >
             {isDiscount ? <Gift className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
-            <span>{t(isDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder", { hours: hoursSinceCreated })}</span>
+            <span>{t(isDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder", { count: hoursSinceCreated })}</span>
 
             {sender && (
                 <span className="mr-0.5 flex items-center gap-1 border-r border-emerald-300/70 pr-1.5 dark:border-emerald-500/30">

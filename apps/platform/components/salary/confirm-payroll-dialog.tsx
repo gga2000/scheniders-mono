@@ -116,7 +116,7 @@ export function ConfirmPayrollDialog({
                             {calculation.orderBreakdown.replacements + calculation.orderBreakdown.refunds > 0 && (
                                 <p className="text-xs text-muted pt-1 border-t border-[var(--card-border)]">
                                     {t("payroll.confirm.excluded", {
-                                        total: calculation.orderBreakdown.completedTotal,
+                                        count: calculation.orderBreakdown.completedTotal,
                                         replacements: calculation.orderBreakdown.replacements,
                                         refunds: calculation.orderBreakdown.refunds,
                                     })}

@@ -228,7 +228,7 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
             const skipped = findUnaffectedIds(orderIds, archivedIds);
             if (skipped.length > 0) {
                 toast.warning(
-                    tRef.current("orders.toast.notArchived", { skipped: skipped.length, total: orderIds.length }),
+                    tRef.current("orders.toast.notArchived", { skipped: skipped.length, count: orderIds.length }),
                     tRef.current("orders.toast.notArchivedDesc", { list: formatFailedOrderList(skipped, orders) }),
                 );
             }
@@ -268,7 +268,7 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
             const skipped = findUnaffectedIds(orderIds, unarchivedIds);
             if (skipped.length > 0) {
                 toast.warning(
-                    tRef.current("orders.toast.notUnarchived", { skipped: skipped.length, total: orderIds.length }),
+                    tRef.current("orders.toast.notUnarchived", { skipped: skipped.length, count: orderIds.length }),
                     tRef.current("orders.toast.notUnarchivedDesc", { list: formatFailedOrderList(skipped, orders) }),
                 );
             }

@@ -124,7 +124,7 @@ export function StockIndicator({
                 <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.reorderTo")}</span><span className="font-semibold">{reorderSuggestion}</span></div>
             )}
             {daysToStockout !== null && (
-                <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.stockoutIn")}</span><span className="font-semibold">{t("products.stock.tip.days", { days: String(daysToStockout) })}</span></div>
+                <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.stockoutIn")}</span><span className="font-semibold">{t("products.stock.tip.days", { count: daysToStockout })}</span></div>
             )}
         </div>
     ) : null;

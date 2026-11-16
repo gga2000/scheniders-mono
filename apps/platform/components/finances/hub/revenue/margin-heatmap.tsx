@@ -49,7 +49,7 @@ export function MarginHeatmap({ data }: Props) {
     return (
         <SectionCard
             title={t("finances.heatmap.title")}
-            subtitle={t("finances.heatmap.sub", { products: products.length, periods: buckets.length })}
+            subtitle={t("finances.heatmap.sub", { count: products.length, periods: buckets.length })}
             icon={Grid3x3}
             accent="violet"
         >

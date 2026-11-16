@@ -214,7 +214,7 @@ function DormantHighValueTable({ rows }: { rows: DormantCustomer[] }) {
                                             ? "text-rose-600 dark:text-rose-400"
                                             : "text-amber-600 dark:text-amber-400"
                                     )}>
-                                        {t("finances.cust.dormant.silent", { days: c.days_since_last_order })}
+                                        {t("finances.cust.dormant.silent", { count: c.days_since_last_order })}
                                     </div>
                                 </div>
                                 <Link

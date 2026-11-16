@@ -45,7 +45,7 @@ export function ReminderSettingsForm() {
                 <Label htmlFor="reminder-enabled" className="flex flex-col gap-1">
                     <span>{t("settings.reminder.auto")}</span>
                     <span className="text-xs font-normal text-muted-foreground">
-                        {t("settings.reminder.hint", { hours: String(REMINDER_DELAY_HOURS) })}
+                        {t("settings.reminder.hint", { count: REMINDER_DELAY_HOURS })}
                     </span>
                 </Label>
                 <Switch

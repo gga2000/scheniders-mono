@@ -727,7 +727,7 @@ function RecipeTab({
             <p className="text-[11px] text-muted">
                 {data.length === 1
                     ? t("supplies.sp.usedByOne")
-                    : t("supplies.sp.usedByMany", { n: data.length })}
+                    : t("supplies.sp.usedByMany", { count: data.length })}
             </p>
             {data.map((row) => (
                 <RecipeRow key={row.productId} row={row} onClick={onSelectProduct} />

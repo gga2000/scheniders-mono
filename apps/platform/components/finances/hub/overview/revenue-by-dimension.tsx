@@ -31,8 +31,8 @@ export function RevenueByDimension({ data }: RevenueByDimensionProps) {
             return <TimeChart data={data} />;
         }
         if (dim === "channel") return <BarRows rows={data.by_channel.map((c) => ({ label: c.label, value: c.revenue, secondary: t("finances.overview.dim.orders", { count: c.orders }) }))} />;
-        if (dim === "city") return <BarRows rows={data.by_city.slice(0, 12).map((c) => ({ label: c.label, value: c.revenue, secondary: t("finances.overview.dim.ordersDelivered", { orders: c.orders, delivered: c.delivered }) }))} />;
-        if (dim === "product") return <BarRows rows={data.by_product.slice(0, 12).map((p) => ({ label: p.label, value: p.revenue, secondary: t("finances.overview.dim.units", { units: p.units, margin: p.margin.toFixed(0) }) }))} />;
+        if (dim === "city") return <BarRows rows={data.by_city.slice(0, 12).map((c) => ({ label: c.label, value: c.revenue, secondary: t("finances.overview.dim.ordersDelivered", { count: c.orders, delivered: c.delivered }) }))} />;
+        if (dim === "product") return <BarRows rows={data.by_product.slice(0, 12).map((p) => ({ label: p.label, value: p.revenue, secondary: t("finances.overview.dim.units", { count: p.units, margin: p.margin.toFixed(0) }) }))} />;
         if (dim === "payment") return <BarRows rows={data.by_payment.map((p) => ({ label: p.label, value: p.revenue, secondary: t("finances.overview.dim.orders", { count: p.orders }) }))} />;
         return null;
     }, [dim, data, t]);

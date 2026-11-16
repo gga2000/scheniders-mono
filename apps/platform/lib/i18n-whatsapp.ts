@@ -31,7 +31,13 @@ const en: Record<string, string> = {
 const ar: Record<string, string> = {
     "whatsapp.usage.title": "رسائل الواتساب",
     "whatsapp.usage.month": "هالشهر: {count} رسالة = {amount}",
+    "whatsapp.usage.month.two": "هالشهر: رسالتين = {amount}",
+    "whatsapp.usage.month.few": "هالشهر: {count} رسائل = {amount}",
+    "whatsapp.usage.month.many": "هالشهر: {count} رسالة = {amount}",
     "whatsapp.usage.monthCount": "هالشهر: {count} رسالة",
+    "whatsapp.usage.monthCount.two": "هالشهر: رسالتين",
+    "whatsapp.usage.monthCount.few": "هالشهر: {count} رسائل",
+    "whatsapp.usage.monthCount.many": "هالشهر: {count} رسالة",
     "whatsapp.usage.none": "بعد ما وصلت رسائل هالشهر.",
     "whatsapp.usage.paid": "كل رسالة تنقص من محفظتك لما توصل للزبون. الرسالة اللي ما توصل ما تنحسب.",
     "whatsapp.usage.paused": "رصيدك ما يكفي لرسالة، فوقفت الرسائل التلقائية. الطلبات الجديدة تبقى توصلك. اشحن المحفظة حتى ترجع الرسائل.",

@@ -27,7 +27,7 @@ function StuckTransitPill({ orderId }: { orderId: string }) {
             title={t("orders.filter.stuckTransitTip", { days: STUCK_TRANSIT_DAYS })}
         >
             <Hourglass className="w-3 h-3" aria-hidden="true" />
-            {t("orders.card.inTransitDays", { days })}
+            {t("orders.card.inTransitDays", { count: days })}
         </span>
     );
 }

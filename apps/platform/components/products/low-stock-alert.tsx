@@ -180,7 +180,7 @@ export function LowStockAlert({ products, onViewProduct, onShowInList }: LowStoc
                                                         : "text-[var(--foreground-muted)]"
                                                 )}
                                             >
-                                                {t("products.alert.daysUntilStockout", { days: product.daysOfSupply })}
+                                                {t("products.alert.daysUntilStockout", { count: product.daysOfSupply })}
                                             </span>
                                         )}
                                     </button>

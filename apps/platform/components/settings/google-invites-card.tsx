@@ -321,7 +321,7 @@ export function GoogleInvitesCard({
                                         )}
                                     >
                                         <Clock className="w-3.5 h-3.5" />
-                                        {expired ? t("team.invite.expired") : t("team.invite.daysLeft", { n: daysLeft })}
+                                        {expired ? t("team.invite.expired") : t("team.invite.daysLeft", { count: daysLeft })}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">

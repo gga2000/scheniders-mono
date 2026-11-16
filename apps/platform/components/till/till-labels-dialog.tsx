@@ -77,7 +77,7 @@ export function TillLabelsDialog({
                     }));
                     printReceipt(labelSheetHtml(storeName, stickers.filter((s) => s.barcode)));
                     const created = rows.filter((r) => r.created).length;
-                    toast({ title: created ? t("till.labels.printedNew", { n: total, codes: created }) : t("till.labels.printed", { n: total }), variant: "success" });
+                    toast({ title: created ? t("till.labels.printedNew", { count: total, codes: created }) : t("till.labels.printed", { count: total }), variant: "success" });
                     setCopies(new Map());
                 },
                 onError: () => toast({ title: t("till.labels.failed"), variant: "error" }),
@@ -94,7 +94,7 @@ export function TillLabelsDialog({
                             {t("till.labels.title")}
                         </DialogTitle>
                         <DialogDescription className="text-left" dir="auto">
-                            {missing ? t("till.labels.subtitleMissing", { n: missing }) : t("till.labels.subtitle")}
+                            {missing ? t("till.labels.subtitleMissing", { count: missing }) : t("till.labels.subtitle")}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -195,7 +195,7 @@ export function TillLabelsDialog({
 
                     <footer className="flex flex-wrap items-center gap-3 border-t border-[var(--card-border)] pt-4">
                         <p className="min-w-0 flex-1 text-left text-sm text-muted" dir="auto">
-                            {total ? (newCodes ? t("till.labels.sumNew", { n: total, codes: newCodes }) : t("till.labels.sum", { n: total })) : t("till.labels.pick")}
+                            {total ? (newCodes ? t("till.labels.sumNew", { count: total, codes: newCodes }) : t("till.labels.sum", { count: total })) : t("till.labels.pick")}
                         </p>
                         <button
                             type="button"

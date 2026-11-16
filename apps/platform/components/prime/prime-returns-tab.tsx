@@ -80,7 +80,7 @@ export function PrimeReturnsTab() {
                     <b className="text-[30px] leading-tight tabular-nums text-foreground">{summary.hoursToDeliver === null ? "—" : count.format(Math.round(summary.hoursToDeliver))}</b>
                     <span dir={dir} className="text-left text-xs text-muted">
                         {summary.hoursToDeliver !== null && summary.previousHoursToDeliver !== null
-                            ? t("prime.returns.hoursBefore", { n: count.format(Math.round(summary.previousHoursToDeliver)) })
+                            ? t("prime.returns.hoursBefore", { count: Math.round(summary.previousHoursToDeliver) })
                             : t("prime.returns.hoursHint")}
                     </span>
                 </div>

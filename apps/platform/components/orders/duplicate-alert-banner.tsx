@@ -20,14 +20,14 @@ type Translate = ReturnType<typeof useLanguage>["t"];
 export function gapLabel(alert: DuplicateWindowAlert, t: Translate): string {
     if (alert.sameDay) {
         if (alert.gapMinutes < 60) {
-            return t("orders.duplicate.sameDayMinutes", "Same day · {minutes} min apart",
-                { minutes: alert.gapMinutes });
+            return t("orders.duplicate.sameDayMinutes", "Same day · {count} min apart",
+                { count: alert.gapMinutes });
         }
-        return t("orders.duplicate.sameDayHours", "Same day · {hours}h apart",
-            { hours: Math.round(alert.gapMinutes / 60) });
+        return t("orders.duplicate.sameDayHours", "Same day · {count}h apart",
+            { count: Math.round(alert.gapMinutes / 60) });
     }
     const hours = Math.round(alert.gapMinutes / 60);
-    if (hours < 24) return t("orders.duplicate.hoursApart", "{hours}h apart", { hours });
+    if (hours < 24) return t("orders.duplicate.hoursApart", "{count}h apart", { count: hours });
     return t("orders.duplicate.daysHoursApart", "{days}d {hours}h apart",
         { days: Math.floor(hours / 24), hours: hours % 24 });
 }

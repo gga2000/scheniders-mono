@@ -364,8 +364,8 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                                     : "bg-amber-50 text-amber-700 border-amber-300"
                             )}>
                                 {needsDiscount ? <Gift className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                                {t(needsDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder")
-                                    .replace("{hours}", String(Math.floor(hoursSinceCreated)))}
+                                {t(needsDiscount ? "orders.card.followUpDiscount" : "orders.card.followUpReminder",
+                                    { count: Math.floor(hoursSinceCreated) })}
                             </div>
                         )}
 

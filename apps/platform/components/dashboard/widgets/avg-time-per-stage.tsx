@@ -13,7 +13,7 @@ interface AvgTimePerStageProps {
 
 function formatHours(hours: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
     if (hours === 0) return '—';
-    if (hours < 1) return t("dashboard.avgTime.minutes", { n: Math.round(hours * 60) });
+    if (hours < 1) return t("dashboard.avgTime.minutes", { count: Math.round(hours * 60) });
     if (hours < 24) return t("reports.unit.hours", { n: hours.toFixed(1) });
     return t("reports.unit.days", { n: (hours / 24).toFixed(1) });
 }

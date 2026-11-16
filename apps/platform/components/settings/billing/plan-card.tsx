@@ -88,7 +88,7 @@ export function PlanCard({
                             <TrialMeter
                                 icon={<ShoppingBag className="w-3.5 h-3.5" />}
                                 label={t("billing.trial.orders")}
-                                value={t("billing.trial.ordersUsed", { used: Math.min(trialOrders ?? 0, trialCap), cap: trialCap })}
+                                value={t("billing.trial.ordersUsed", { used: Math.min(trialOrders ?? 0, trialCap), count: trialCap })}
                                 percent={((trialOrders ?? 0) / trialCap) * 100}
                             />
                         )}

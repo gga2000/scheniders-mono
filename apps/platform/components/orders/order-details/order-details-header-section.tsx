@@ -191,7 +191,7 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                                             className="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all relative overflow-hidden"
                                         >
                                             {idCountdown > 0 ? (
-                                                <span>{t("orderDetail.waitConfirm").replace("{n}", String(idCountdown))}</span>
+                                                <span>{t("orderDetail.waitConfirm", { count: idCountdown })}</span>
                                             ) : isSavingId ? (
                                                 <span>{t("orderDetail.saving")}</span>
                                             ) : (

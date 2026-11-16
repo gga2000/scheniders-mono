@@ -45,7 +45,7 @@ export function AbandonedCartRecoveryStrip() {
             className="rounded-2xl border border-border bg-card p-4"
         >
             <h2 id="abandoned-cart-recovery-title" className="text-xs font-bold text-muted-foreground">
-                {t("orders.recovery.title", { days: data.days })}
+                {t("orders.recovery.title", { count: data.days })}
             </h2>
             <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat label={t("orders.recovery.open")} value={data.open}>

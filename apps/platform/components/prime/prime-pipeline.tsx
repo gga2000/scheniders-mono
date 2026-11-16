@@ -73,7 +73,7 @@ export function PrimePipeline({
                     <span className="text-[28px] font-bold leading-tight tabular-nums">{lists[list].length}</span>
                     {age !== null && age > 0 && lists[list].length > 0 && (
                         <span data-prime-age={primeAgeTone(age)} className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", AGE_TONE[primeAgeTone(age)])}>
-                            {t("prime.page.oldestAge", { days: age })}
+                            {t("prime.page.oldestAge", { count: age })}
                         </span>
                     )}
                 </span>
