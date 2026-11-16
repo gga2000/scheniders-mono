@@ -780,8 +780,8 @@ export function OrderCustomerCard({
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
                                     <Calendar className="w-3 h-3" />
                                     {isScheduledToday(scheduledDate)
-                                        ? `${t("orderDetail.scheduledToday")} · ${formatScheduledDate(scheduledDate)}`
-                                        : formatScheduledDate(scheduledDate)}
+                                        ? `${t("orderDetail.scheduledToday")} · ${formatScheduledDate(scheduledDate, language)}`
+                                        : formatScheduledDate(scheduledDate, language)}
                                 </span>
                             ) : (
                                 <span className="text-sm text-muted">{t("orderDetail.notScheduled")}</span>

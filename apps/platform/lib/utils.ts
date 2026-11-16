@@ -13,6 +13,16 @@ export function formatCount(value: number): string {
     return COUNT_FORMAT.format(value);
 }
 
+const CHANGE_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+
+/** A change with its sign in every language: "+12", "−1,250", "+2.5%", "0".
+ * The minus is the true minus sign (U+2212), as the counts in translated text
+ * use, never a hyphen. */
+export function formatSigned(value: number, suffix = ""): string {
+    const sign = value > 0 ? "+" : value < 0 ? "\u2212" : "";
+    return `${sign}${CHANGE_FORMAT.format(Math.abs(value))}${suffix}`;
+}
+
 /**
  * Mask string shown in place of currency values when the user has hidden
  * financial data via RevealToggle.

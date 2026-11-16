@@ -9,12 +9,13 @@ import {
     baghdadDayOfWeek,
     parseUtcNaiveTimestamp,
     ordersDrillQuery,
-    periodWindow,
-    rangeCutoff,
+    daysOrderWindow,
+    periodOrderWindow,
     trendWindowStart,
     calculateRevenueTrend,
     type RealizableOrder,
 } from "./dashboard-calculations";
+import { orderInDateWindow, windowFromDateFilter } from "@/lib/order-window";
 
 /**
  * The dashboard's numbers come from `get_dashboard_metrics` alone (ORD-2); its
@@ -130,47 +131,61 @@ describe("COR-D1 — revenue is what was collected, not what was promised", () =
     });
 });
 
-describe("rangeCutoff — the same window boundaries as get_dashboard_metrics(p_range)", () => {
+describe("periodOrderWindow — the days get_dashboard_metrics(p_range) and the Orders list count", () => {
     // 2026-10-13 09:30 Baghdad (06:30Z).
     const now = new Date("2026-10-13T06:30:00.000Z");
+    const startOf = (range: "today" | "7d" | "30d", at: Date = now) =>
+        new Date(periodOrderWindow(range, at)?.fromInstant ?? NaN).toISOString();
 
     it("today is the Baghdad calendar day, not the browser's", () => {
-        expect(rangeCutoff("today", now)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+        expect(startOf("today")).toBe("2026-10-12T21:00:00.000Z");
+        expect(periodOrderWindow("today", now)).toMatchObject({ fromDay: "2026-10-13", toDay: "2026-10-13" });
     });
 
     it("at 00:30 Baghdad, today has just begun — it is not still yesterday", () => {
         // 21:30Z on the 12th is 00:30 on the 13th in Baghdad.
-        const justAfterMidnight = new Date("2026-10-12T21:30:00.000Z");
-        expect(rangeCutoff("today", justAfterMidnight)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+        expect(startOf("today", new Date("2026-10-12T21:30:00.000Z"))).toBe("2026-10-12T21:00:00.000Z");
     });
 
     it("at 23:30 Baghdad, today is still the same Baghdad day", () => {
         // 20:30Z on the 13th is 23:30 on the 13th in Baghdad.
-        const lateEvening = new Date("2026-10-13T20:30:00.000Z");
-        expect(rangeCutoff("today", lateEvening)?.toISOString()).toBe("2026-10-12T21:00:00.000Z");
+        expect(startOf("today", new Date("2026-10-13T20:30:00.000Z"))).toBe("2026-10-12T21:00:00.000Z");
     });
 
     it("7d and 30d are 7 and 30 Baghdad calendar days, today included, as the SQL and the Orders picker count them", () => {
-        // 7 Oct 00:00 Baghdad through now on the 13th: 7 days.
-        expect(rangeCutoff("7d", now)?.toISOString()).toBe("2026-10-06T21:00:00.000Z");
+        // 7 Oct 00:00 Baghdad through the 13th: 7 days.
+        expect(startOf("7d")).toBe("2026-10-06T21:00:00.000Z");
+        expect(periodOrderWindow("7d", now)).toMatchObject({ fromDay: "2026-10-07", toDay: "2026-10-13" });
         // 14 Sep 00:00 Baghdad: 30 days.
-        expect(rangeCutoff("30d", now)?.toISOString()).toBe("2026-09-13T21:00:00.000Z");
+        expect(startOf("30d")).toBe("2026-09-13T21:00:00.000Z");
+        // The same window the Orders date filter builds for those days.
+        expect(periodOrderWindow("7d", now)).toEqual(windowFromDateFilter("2026-10-07", "2026-10-13"));
+    });
+
+    it("an order scheduled for one of the days belongs to them, as it does in the Orders list (16 Nov: 7 against 9)", () => {
+        const week = daysOrderWindow(7, now);
+        const scheduledIn = { created_at: "2026-10-01T10:00:00.000Z", scheduled_date: "2026-10-10" };
+        const scheduledAfter = { created_at: "2026-10-01T10:00:00.000Z", scheduled_date: "2026-10-14" };
+        const arrivedBefore = { created_at: "2026-10-06T20:59:59.000Z", scheduled_date: null };
+        expect(orderInDateWindow(scheduledIn, week)).toBe(true);
+        expect(orderInDateWindow(scheduledAfter, week)).toBe(false);
+        expect(orderInDateWindow(arrivedBefore, week)).toBe(false);
     });
 
     it("compares each period with the same stretch of time one period earlier", () => {
-        const week = periodWindow("7d", now);
-        expect(week.previousStart.toISOString()).toBe("2026-09-29T21:00:00.000Z");
+        const week = daysOrderWindow(7, now, 1);
+        expect(new Date(week.fromInstant).toISOString()).toBe("2026-09-29T21:00:00.000Z");
         // Up to 09:30 on the 6th, not the end of that day: six days and nine and a
         // half hours against six days and nine and a half hours.
-        expect(week.previousEnd.toISOString()).toBe("2026-10-06T06:30:00.000Z");
-        const today = periodWindow("today", now);
-        expect(today.start.toISOString()).toBe("2026-10-12T21:00:00.000Z");
-        expect(today.previousStart.toISOString()).toBe("2026-10-11T21:00:00.000Z");
-        expect(today.previousEnd.toISOString()).toBe("2026-10-12T06:30:00.000Z");
+        expect(new Date(week.toInstant + 1).toISOString()).toBe("2026-10-06T06:30:00.000Z");
+        expect(week).toMatchObject({ fromDay: "2026-09-30", toDay: "2026-10-06" });
+        const today = daysOrderWindow(1, now, 1);
+        expect(new Date(today.fromInstant).toISOString()).toBe("2026-10-11T21:00:00.000Z");
+        expect(new Date(today.toInstant + 1).toISOString()).toBe("2026-10-12T06:30:00.000Z");
     });
 
-    it("all has no cutoff", () => {
-        expect(rangeCutoff("all", now)).toBeNull();
+    it("all has no window", () => {
+        expect(periodOrderWindow("all", now)).toBeNull();
     });
 });
 
@@ -224,6 +239,24 @@ describe("calculateRevenueTrend — one point per Baghdad day", () => {
         ], 7, "en", now);
         expect(points[6]).toMatchObject({ orders: 1, revenue: 50000 });
         expect(points.slice(0, 6).every(p => p.orders === 0 && p.revenue === 0)).toBe(true);
+    });
+
+    it("given the period, an order that belongs to it only by its scheduled day is counted on that day, once", () => {
+        const week = daysOrderWindow(7, now);
+        const orders = [
+            // arrived 1 Oct, scheduled for the 10th: the 10th's bar, as in the Orders list
+            order({ status: "in_transit", created_at: "2026-10-01T09:00:00Z", scheduled_date: "2026-10-10" }),
+            // arrived the 8th, scheduled for the 11th: still the 8th's bar, never both
+            order({ status: "confirmed", created_at: "2026-10-08T09:00:00Z", scheduled_date: "2026-10-11" }),
+            // scheduled for tomorrow: not in the period yet
+            order({ status: "confirmed", created_at: "2026-10-01T09:00:00Z", scheduled_date: "2026-10-14" }),
+        ];
+        const points = calculateRevenueTrend(orders, 7, "en", now, week);
+        // 7 Oct … 13 Oct: the 8th is index 1, the 10th index 3.
+        expect(points.map(p => p.orders)).toEqual([0, 1, 0, 1, 0, 0, 0]);
+        expect(points.reduce((n, p) => n + p.orders, 0)).toBe(orders.filter(o => orderInDateWindow(o, week)).length);
+        // Without the period, bars stay by arrival.
+        expect(calculateRevenueTrend(orders, 7, "en", now).map(p => p.orders)).toEqual([0, 1, 0, 0, 0, 0, 0]);
     });
 
     it("a viewer sent no prices sees revenue 0, never NaN", () => {

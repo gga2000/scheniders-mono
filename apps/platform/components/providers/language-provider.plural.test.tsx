@@ -49,9 +49,15 @@ describe("t() singular forms", () => {
         localStorage.setItem("schneiders_language", "ar");
         const { result } = renderHook(() => useLanguage(), { wrapper });
         const t = result.current.t;
-        expect(t("dashboard.bento.perDay", { count: 5 })).toBe("طلبات يومياً");
-        expect(t("dashboard.bento.perDay", { count: 12 })).toBe("طلباً يومياً");
-        expect(t("dashboard.bento.perDay", { count: 100 })).toBe("طلب يومياً");
+        expect(t("dashboard.bento.perDay", { count: 1 })).toBe("طلب واحد يومياً");
+        expect(t("dashboard.bento.perDay", { count: 2 })).toBe("طلبان يومياً");
+        expect(t("dashboard.bento.perDay", { count: 5 })).toBe("5 طلبات يومياً");
+        expect(t("dashboard.bento.perDay", { count: 12 })).toBe("12 طلباً يومياً");
+        expect(t("dashboard.bento.perDay", { count: 100 })).toBe("100 طلب يومياً");
+        expect(t("dashboard.wow.points", { n: "+2", count: 2 })).toBe("+2 نقطتان");
+        expect(t("dashboard.today.ordersCount", { count: 0 })).toBe("طلبات");
+        expect(t("finances.cash.dayRange", { min: 0, max: 3, count: 3 })).toBe("0-3 أيام");
+        expect(t("finances.cash.dayRangeOpen", { min: 15, count: 15 })).toBe("15+ يوماً");
         expect(t("dashboard.bento.vsPrevious", { count: 7 })).toBe("مقارنة بالـ 7 أيام السابقة");
         expect(t("dashboard.bento.vsPrevious", { count: 30 })).toBe("مقارنة بالـ 30 يوماً السابقة");
     });

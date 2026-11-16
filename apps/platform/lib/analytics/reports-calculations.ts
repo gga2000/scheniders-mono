@@ -3,6 +3,7 @@
 import { baghdadHour, baghdadDayOfWeek } from "@/lib/analytics/dashboard-calculations";
 import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 import { deliveryRatePct } from "@/lib/analytics/delivery-rate";
+import { ORDER_CHIP_PREDICATES } from "@/lib/orders/order-chips";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -88,16 +89,31 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; order: numbe
     delivered: { label: "Delivered", color: "#22C55E", order: 4 },
     rejected: { label: "Rejected", color: "#EF4444", order: 4 },
     completed: { label: "Completed", color: "#14B8A6", order: 5 },
-    return_pending: { label: "Return Pending", color: "#F97316", order: 5 },
+    refund_or_replacement: { label: "Refunded or replaced", color: "#F97316", order: 6 },
     pending_checkout: { label: "Pending Checkout", color: "#A855F7", order: -1 },
 };
+
+/**
+ * The row a sales order counts under, by the Orders chips' rules
+ * (lib/orders/order-chips.ts), so «مكتمل» here is the «مكتمل» of Orders and the
+ * dashboard: refunded, refund-pending and replacement orders have their own row,
+ * and a return awaiting pickup is confirmed work, as on the «مؤكد» chip. Reports
+ * used to count raw statuses: «مكتمل 189» beside the dashboard's 180 for the same
+ * 30 days.
+ */
+function flowStatus(o: ReportOrder): string {
+    if (o.status === "completed" && !ORDER_CHIP_PREDICATES.completed(o)) return "refund_or_replacement";
+    if (ORDER_CHIP_PREDICATES.confirmed(o)) return "confirmed";
+    return o.status;
+}
 
 export function calculateStatusFlow(orders: ReportOrder[]): StatusFlowMetrics[] {
     const statusCounts: Record<string, number> = {};
     const total = orders.length;
 
     orders.forEach(order => {
-        statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+        const status = flowStatus(order);
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
 
     return Object.entries(STATUS_CONFIG)

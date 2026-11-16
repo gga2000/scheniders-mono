@@ -24,8 +24,9 @@ export function dayRange(
     bucket: Pick<AgingBucket, "minDays" | "maxDays">,
 ): string {
     return bucket.maxDays === null
-        ? t("finances.cash.dayRangeOpen", { min: bucket.minDays })
-        : t("finances.cash.dayRange", { min: bucket.minDays, max: bucket.maxDays });
+        // The noun agrees with the number next to it: «0-3 أيام», «15+ يوماً».
+        ? t("finances.cash.dayRangeOpen", { min: bucket.minDays, count: bucket.minDays })
+        : t("finances.cash.dayRange", { min: bucket.minDays, max: bucket.maxDays, count: bucket.maxDays });
 }
 
 export interface StuckOrder {

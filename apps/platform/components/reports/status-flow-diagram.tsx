@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
     delivered: "#22C55E",
     rejected: "#EF4444",
     completed: "#14B8A6",
-    return_pending: "#F97316",
+    refund_or_replacement: "#F97316",
     pending_checkout: "#A855F7",
 };
 
@@ -34,9 +34,10 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
     }
 
     const totalOrders = data.reduce((sum, d) => sum + d.count, 0);
-    // Delivered AND completed both count: `find` kept only the first of the two.
+    // Delivered, completed, and completed then refunded or replaced: each reached
+    // the customer. (`find` once kept only the first of these.)
     const deliveredCount = data
-        .filter(d => d.status === 'delivered' || d.status === 'completed')
+        .filter(d => d.status === 'delivered' || d.status === 'completed' || d.status === 'refund_or_replacement')
         .reduce((sum, d) => sum + d.count, 0);
     // Share of ALL orders in the period that were delivered. The KPI card's
     // delivery rate is delivered ÷ (delivered + refused); the two used to share

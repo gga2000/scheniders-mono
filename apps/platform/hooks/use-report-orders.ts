@@ -40,6 +40,8 @@ export function useReportOrders(range: ReportRange) {
                     .eq("tenant_id", tenantId)
                     .eq("is_archived", false)
                     .is("deleted_at", null)
+                    // Stock taken in person is not a sale: Orders and the dashboard leave it out too.
+                    .is("take_kind", null)
                     .neq("status", "pending_checkout")
                     .gte("created_at", from)
                     .lte("created_at", to)

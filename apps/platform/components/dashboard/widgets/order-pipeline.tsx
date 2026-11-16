@@ -12,7 +12,7 @@ const count = (n: number) => n.toLocaleString("en-US");
 
 interface OrderPipelineProps {
     stages: PipelineStage[];
-    /** The dashboard period the stages were counted over: orders created in it, by their status now. */
+    /** The dashboard period the stages were counted over: orders that arrived in it or are scheduled for one of its days, by their status now. */
     period: DateRangeKey;
     /** Opens Orders on the stage's chip for the same period, so the list holds exactly the stage's count. */
     onStageClick?: (status: string) => void;
@@ -36,13 +36,17 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
     const getLabel = (stage: PipelineStage) => PIPELINE_LABELS[stage.status] ?? stage.label;
     // 'other' gathers several statuses and the refunded and replacement orders Orders keeps out of «مكتمل»: no one chip shows it.
     const isOther = (stage: PipelineStage) => stage.status === OTHER_STAGE;
+    // An empty stage would open an empty list that blames the filters: no link.
+    const isLinked = (stage: PipelineStage) => !isOther(stage) && stage.count > 0;
     const openStage = (stage: PipelineStage) => {
-        if (!isOther(stage)) onStageClick?.(stage.status);
+        if (isLinked(stage)) onStageClick?.(stage.status);
     };
-    const stageTitle = (stage: PipelineStage) =>
-        isOther(stage)
-            ? t("dashboard.pipeline.otherHint", { count: stage.count })
-            : t("dashboard.pipeline.stageTitle", { stage: getLabel(stage), count: stage.count });
+    const stageTitle = (stage: PipelineStage) => {
+        if (isOther(stage)) return t("dashboard.pipeline.otherHint", { count: stage.count });
+        const title = t("dashboard.pipeline.stageTitle", { stage: getLabel(stage), count: stage.count });
+        // Orders' in-transit tab lists every parcel still on the road, from any day.
+        return stage.status === "in_transit" && period !== "all" ? `${title}\n${t("dashboard.pipeline.inTransitHint")}` : title;
+    };
 
     return (
         <div className="pastel-card p-4 md:p-5">
@@ -70,7 +74,7 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
                     return (
                         <div
                             key={stage.status}
-                            className={`relative flex flex-col items-center justify-center gap-0.5 overflow-hidden transition-all ${isOther(stage) ? "" : "cursor-pointer hover:brightness-95 active:scale-95"} ${i > 0 ? "border-l border-white/40" : ""}`}
+                            className={`relative flex flex-col items-center justify-center gap-0.5 overflow-hidden transition-all ${isLinked(stage) ? "cursor-pointer hover:brightness-95 active:scale-95" : ""} ${i > 0 ? "border-l border-white/40" : ""}`}
                             style={{ flexBasis: `${width}%`, minWidth: '2px', background: stage.color }}
                             onClick={() => openStage(stage)}
                             title={stageTitle(stage)}
@@ -94,7 +98,7 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
                     return (
                         <div
                             key={stage.status}
-                            className={`flex items-center gap-3 ${isOther(stage) ? "" : "cursor-pointer"}`}
+                            className={`flex items-center gap-3 ${isLinked(stage) ? "cursor-pointer" : ""}`}
                             onClick={() => openStage(stage)}
                             title={stageTitle(stage)}
                         >
@@ -115,7 +119,7 @@ export function OrderPipeline({ stages, period, onStageClick }: OrderPipelinePro
             {/* Legend row (desktop only) */}
             <div className="hidden md:flex items-center gap-4 mt-3 flex-wrap">
                 {stages.map((stage) =>
-                    isOther(stage) ? (
+                    !isLinked(stage) ? (
                         <span key={stage.status} className="flex items-center gap-1.5 text-xs text-muted" title={stageTitle(stage)}>
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
                             <span>{getLabel(stage)}</span>

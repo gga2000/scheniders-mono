@@ -28,10 +28,21 @@ export type OrderChipCounts = Record<OrderChipId, number>;
 /** The row fields a chip predicate may read. Pinned by order-chips.test.ts and order-columns.test.ts. */
 export const CHIP_PREDICATE_FIELDS = ["status", "refund_status", "is_replacement", "is_return", "order_id"] as const satisfies readonly (keyof Order)[];
 
-type ChipRow = Pick<Order, (typeof CHIP_PREDICATE_FIELDS)[number]>;
+/**
+ * What a chip predicate reads, loose enough for any row that carries those
+ * fields (an Orders row, a Reports row), so every page that counts by status
+ * applies these rules rather than its own copy.
+ */
+export interface ChipRow {
+    status: string;
+    refund_status?: string | null;
+    is_replacement?: boolean | null;
+    is_return?: boolean | null;
+    order_id?: string | null;
+}
 
 /** A replacement order: flagged, or numbered with the RPL- prefix (rows created before the flag existed). */
-export function isReplacementOrder(o: Pick<Order, "is_replacement" | "order_id">): boolean {
+export function isReplacementOrder(o: Pick<ChipRow, "is_replacement" | "order_id">): boolean {
     return o.is_replacement === true || o.order_id?.startsWith("RPL-") === true;
 }
 

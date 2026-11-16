@@ -69,7 +69,7 @@ export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
             {postponeTo && (
                 <p className="text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg -mt-2 flex items-center gap-1.5">
                     <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                    {t("orders.create.scheduledNote", { date: formatScheduledDate(postponeTo) })}
+                    {t("orders.create.scheduledNote", { date: formatScheduledDate(postponeTo, language) })}
                 </p>
             )}
             {orderType === "shop" && (

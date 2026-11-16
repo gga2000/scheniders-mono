@@ -272,7 +272,7 @@ function RescheduleDialog({
         ? null
         : day === null
             ? t("orders.bulk.reschedule.previewClear", { count: reschedulable.length })
-            : t("orders.bulk.reschedule.previewMove", { count: reschedulable.length, date: formatScheduledDate(day) });
+            : t("orders.bulk.reschedule.previewMove", { count: reschedulable.length, date: formatScheduledDate(day, language) });
 
     const quick = (label: string, value: string | null, tone: "blue" | "plain") => (
         <button

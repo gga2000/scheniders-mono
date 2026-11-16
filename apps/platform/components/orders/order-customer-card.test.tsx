@@ -81,7 +81,8 @@ describe("OrderCustomerCard scheduling", () => {
     it("shows the scheduled day when the order is parked for later", () => {
         renderCard({ scheduled_date: "2026-09-09" });
         expect(screen.queryByText("غير مجدول")).toBeNull();
-        expect(screen.getByText(/9 Sept?/)).toBeTruthy();
+        // In the page's language: «9 أيلول», not "9 Sept" (round 13).
+        expect(screen.getByText(/9 أيلول/)).toBeTruthy();
     });
 
     it("says today when the scheduled day has arrived", () => {
