@@ -10,6 +10,7 @@ import {
   calculatePlatformOrderStats,
   calculatePlatformPipeline,
   calculateRevenueBreakdown,
+  calculateGeoStats,
   calculateTimeToFirstOrder,
   calculateTopMerchants,
   calculateTopUpPatterns,
@@ -230,9 +231,54 @@ describe("smaller widgets", () => {
 
   it("labels the breakdown slices", () => {
     const stats = dashboardStats();
-    const breakdown = calculateRevenueBreakdown(incomeStats().byPlan90, stats.cities90, stats.sources90);
+    const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
+    const breakdown = calculateRevenueBreakdown(incomeStats().byPlan90, geo, stats.sources90);
     expect(breakdown.byPlan[0]).toMatchObject({ label: "Growth", value: 31_960 });
-    expect(breakdown.byCity.map((c) => c.label)).toEqual(["Baghdad", "Basra"]);
     expect(breakdown.bySource[0].label).toBe("Whatsapp");
+  });
+
+  // The map left out every order with no governorate code (a quarter of sales
+  // live), though most name the governorate in the city field, and the city
+  // tab split one city into spellings: two answers for "sales in Baghdad".
+  it("places an order with no governorate code by the city typed, and counts the rest as unknown", () => {
+    const stats = dashboardStats();
+    const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
+
+    expect(geo.governorates).toEqual([
+      { governorateCode: "BGD", orderCount: 520, revenue: 15_600_000 },
+      { governorateCode: "BAS", orderCount: 100, revenue: 3_000_000 },
+    ]);
+    expect(geo.unknown).toEqual({ orderCount: 6, revenue: 250_000 });
+
+    const sum = (n: number[]) => n.reduce((a, b) => a + b, 0);
+    const placed = sum(geo.governorates.map((g) => g.orderCount)) + geo.unknown.orderCount;
+    const fromDatabase = sum(stats.governorates90.map((g) => g.orders)) + sum(stats.uncodedPlaces90.map((p) => p.orders));
+    expect(placed).toBe(fromDatabase);
+  });
+
+  it("gives the city tab the map's numbers, with Unknown city as a bar of its own", () => {
+    const stats = dashboardStats();
+    const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
+    const { byCity } = calculateRevenueBreakdown(incomeStats().byPlan90, geo, stats.sources90);
+
+    expect(byCity.map(({ label, value }) => [label, value])).toEqual([
+      ["Baghdad", 15_600_000],
+      ["Basra", 3_000_000],
+      ["Unknown city", 250_000],
+    ]);
+  });
+
+  it("shows at most ten places, the biggest sales first", () => {
+    const governorates90 = ["BGD", "BAS", "ARB", "SMH", "NJF", "KRB", "DOH", "KRK", "MOS", "DYL", "KOT"].map((code, i) => ({
+      code,
+      orders: 10,
+      sales: (i + 1) * 1_000,
+    }));
+    const geo = calculateGeoStats(governorates90, []);
+    const { byCity } = calculateRevenueBreakdown([], geo, []);
+
+    expect(byCity).toHaveLength(10);
+    expect(byCity[0]).toMatchObject({ label: "Wasit", value: 11_000 });
+    expect(byCity.map((c) => c.label)).not.toContain("Baghdad");
   });
 });

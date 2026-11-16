@@ -52,7 +52,8 @@ export const dashboardStatsSchema = z.object({
     }),
   ),
   governorates90: z.array(z.object({ code: z.string(), orders: num, sales: num })),
-  cities90: z.array(z.object({ city: z.string(), sales: num })),
+  /** Orders with no governorate code, by the city typed ("" for none), for the console to place. */
+  uncodedPlaces90: z.array(z.object({ city: z.string(), orders: num, sales: num })),
   sources90: z.array(z.object({ source: z.string(), sales: num })),
   hours90: z.array(z.object({ dow: num, hour: num, count: num })),
 });
