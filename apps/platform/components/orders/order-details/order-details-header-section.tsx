@@ -3,8 +3,7 @@
 import { DialogTitle } from "@scheniders/ui/dialog";
 import { getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { scheduleDayFromToday } from "@/lib/order-format-utils";
-import { toBaghdadDayKey } from "@/lib/order-window";
+import { formatOrderDate, scheduleDayFromToday } from "@/lib/order-format-utils";
 import type { Order } from "@/lib/supabase";
 import { PresenceAvatarGroup } from "../presence-avatar-group";
 import { AbandonedCartBadge } from "../abandoned-cart-badge";
@@ -124,10 +123,10 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                             </button>
                         ) : null}
                     </div>
-                    {/* Arrival date (YYYY-MM-DD), Baghdad day — the UTC day is a day early after midnight */}
-                    <span className="flex items-center gap-1.5 text-xs text-muted">
+                    {/* Arrival day in Baghdad, written like the order date below it (day first) */}
+                    <span className="flex items-center gap-1.5 text-xs text-muted tabular-nums">
                         <Calendar className="h-3 w-3" />
-                        {toBaghdadDayKey(order.created_at)}
+                        {formatOrderDate(order.created_at)}
                     </span>
                     <RefundBanner order={order} />
                     <ReplacementBanner order={order} />

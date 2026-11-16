@@ -11,6 +11,7 @@ import { PageGuard } from "@/components/auth/role-guard";
 import { TrialBanner } from "@/components/billing/trial-banner";
 import { TenantPausedBanner } from "@/components/billing/tenant-paused-banner";
 import { AmbientBackdrop } from "./ambient-backdrop";
+import { usePageTabTitle } from "@/hooks/use-page-tab-title";
 
 // Sidebar state context — lets child pages know if the sidebar is expanded
 const SidebarContext = createContext<{ sidebarExpanded: boolean; setMobileMenuOpen?: (open: boolean) => void }>({ sidebarExpanded: false });
@@ -18,6 +19,7 @@ export function useSidebar() { return useContext(SidebarContext); }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    usePageTabTitle();
     // The saved preference, server-safe (hooks/use-sidebar-collapsed.ts). The
     // sidebar is keyed on `hydrated` so the saved state replaces the server's
     // default by a fresh mount, not by an animation on every page load.

@@ -1,31 +1,26 @@
 // apps/platform/hooks/chat/use-favicon-badge.ts
 import { useEffect, useRef } from "react";
+import { setTabTitlePart } from "@/lib/tab-title";
 
 /**
- * Prefixes `document.title` with `(N) ` and overlays a red count badge onto
- * the current favicon when `totalUnread > 0`. Restores both on unmount or
- * when the count drops to 0. SSR-safe.
+ * Counts unread chats in the tab title (lib/tab-title.ts) and overlays a red
+ * count badge onto the current favicon when `totalUnread > 0`. Restores both
+ * on unmount or when the count drops to 0. SSR-safe.
  */
 export function useFaviconBadge(totalUnread: number): void {
-    const originalTitleRef = useRef<string | null>(null);
     const originalHrefRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (typeof document === "undefined") return;
 
-        // Capture originals once on first mount
-        if (originalTitleRef.current === null) {
-            originalTitleRef.current = document.title;
-        }
+        setTabTitlePart("chat", totalUnread);
+        // Capture the clean icon once on first mount
         const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
         if (link && originalHrefRef.current === null) {
             originalHrefRef.current = link.href;
         }
 
         const restore = () => {
-            if (originalTitleRef.current !== null) {
-                document.title = originalTitleRef.current;
-            }
             if (link && originalHrefRef.current !== null) {
                 link.href = originalHrefRef.current;
             }
@@ -35,10 +30,6 @@ export function useFaviconBadge(totalUnread: number): void {
             restore();
             return;
         }
-
-        // Prefix the title
-        const baseTitle = originalTitleRef.current ?? document.title;
-        document.title = `(${totalUnread}) ${baseTitle}`;
 
         // Draw badge onto favicon via canvas
         if (!link) return;
@@ -80,9 +71,7 @@ export function useFaviconBadge(totalUnread: number): void {
     useEffect(() => {
         return () => {
             if (typeof document === "undefined") return;
-            if (originalTitleRef.current !== null) {
-                document.title = originalTitleRef.current;
-            }
+            setTabTitlePart("chat", 0);
             const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
             if (link && originalHrefRef.current !== null) {
                 link.href = originalHrefRef.current;

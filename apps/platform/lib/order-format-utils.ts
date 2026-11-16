@@ -106,39 +106,31 @@ export const getOrderAge = (
  * could disagree with the Baghdad day the order is bucketed into everywhere
  * else.
  */
-const baghdadDateTime = new Intl.DateTimeFormat("en-GB", {
+const baghdadDayMonthYear = new Intl.DateTimeFormat("en-GB", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h12" as const,
     timeZone: BAGHDAD_TIME_ZONE,
 });
 
-const baghdadDayMonthTime = new Intl.DateTimeFormat("en-GB", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h12" as const,
-    timeZone: BAGHDAD_TIME_ZONE,
-});
-
-/** Day, month, year and time — day first, Baghdad. */
-export const formatOrderDateTime = (dateStr: string | Date | undefined | null) => {
+/** Day, month and year — day first, Baghdad: "14/11/2026". */
+export const formatOrderDate = (dateStr: string | Date | undefined | null) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    return baghdadDateTime.format(date);
+    return baghdadDayMonthYear.format(date);
 };
 
-/** Day, month and time, no year — day first, Baghdad. */
-export const formatOrderDayMonthTime = (dateStr: string | Date | undefined | null) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return "";
-    return baghdadDayMonthTime.format(date);
+/** Day, month, year and time — day first, Baghdad: "14/11/2026, 07:01 ص". */
+export const formatOrderDateTime = (dateStr: string | Date | undefined | null, language: Locale = "en") => {
+    const day = formatOrderDate(dateStr);
+    return day ? `${day}, ${formatTime(dateStr, language)}` : "";
+};
+
+/** Day, month and time, no year — day first, Baghdad: "14/11, 07:01 ص". */
+export const formatOrderDayMonthTime = (dateStr: string | Date | undefined | null, language: Locale = "en") => {
+    const day = formatShortDate(dateStr);
+    return day ? `${day}, ${formatTime(dateStr, language)}` : "";
 };
 
 /**

@@ -6,6 +6,7 @@ import { PageSkeleton } from "@scheniders/ui/skeletons";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { AccessDenied } from "@/components/auth/access-denied";
+import { useLanguage } from "@/hooks/use-language";
 import { AccountNotProvisioned } from "@/components/auth/account-not-provisioned";
 import {
     UserRole,
@@ -72,6 +73,7 @@ export function PageGuard({
     const router = useRouter();
     const pathname = usePathname();
     const [isRetrying, setIsRetrying] = useState(false);
+    const { t } = useLanguage();
 
     // Console log removed to prevent clogging the browser console
 
@@ -126,19 +128,19 @@ export function PageGuard({
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
                 <div className="max-w-md w-full">
-                    <AccessDenied message="You do not have the required permissions to view this page." />
+                    <AccessDenied />
                     {/* Show retry button if user exists but no role (auth might have failed) */}
                     {user && !role && (
                         <div className="mt-6 text-center">
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                Authentication may have failed to complete. Try refreshing your session.
+                                {t("auth.denied.retryHint")}
                             </p>
                             <button
                                 onClick={handleRetry}
                                 disabled={isRetrying}
                                 className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isRetrying ? 'Retrying...' : 'Retry Authentication'}
+                                {isRetrying ? t("auth.denied.retrying") : t("auth.denied.retry")}
                             </button>
                         </div>
                     )}
