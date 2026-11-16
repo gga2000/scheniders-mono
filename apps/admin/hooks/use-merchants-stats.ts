@@ -19,7 +19,7 @@ export interface MerchantsStats {
     trials_expired: number;
     suspended: number;
     cancelled: number;
-    critical_balance: number;
+    low_wallet: number;
     attention: number;
   };
 }

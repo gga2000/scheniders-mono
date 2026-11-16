@@ -107,9 +107,30 @@ describe("GET /api/merchants/stats", () => {
       trials_expired: 0,
       suspended: 1,
       cancelled: 0,
-      critical_balance: 0,
+      low_wallet: 0,
       attention: 2,
     });
+  });
+
+  it("counts one shop with two reasons once, and a low wallet from under 5,000 IQD", async () => {
+    stub.state.tables.tenants = [
+      // Trial ended and wallet empty: two reasons, one shop.
+      shop(1, {
+        status: "trial",
+        trial_ends_at: "2020-01-01T00:00:00Z",
+        wallet: { balance_iqd: 0 },
+        staff_needs_attention: true,
+      }),
+      // 7,000 IQD is in the "critical" balance band (under 10,000) and not on the attention list.
+      shop(2, { wallet: { balance_iqd: 7000 }, staff_needs_attention: false }),
+      shop(3, { wallet: { balance_iqd: 5000 }, staff_needs_attention: false }),
+    ];
+
+    const { buckets } = await (await call()).json();
+
+    expect(buckets.attention).toBe(1);
+    expect(buckets.trials_expired).toBe(1);
+    expect(buckets.low_wallet).toBe(1);
   });
 
   it("never reads \"attention\" as a status", async () => {

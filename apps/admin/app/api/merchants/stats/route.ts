@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { fetchFees30d } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
-import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
+import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
 
 /** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
@@ -28,7 +28,7 @@ interface BucketCounts {
   trials_expired: number;
   suspended: number;
   cancelled: number;
-  critical_balance: number;
+  low_wallet: number;
   attention: number;
 }
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         trials_expired: 0,
         suspended: 0,
         cancelled: 0,
-        critical_balance: 0,
+        low_wallet: 0,
         attention: 0,
       },
     };
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       trials_expired: 0,
       suspended: 0,
       cancelled: 0,
-      critical_balance: 0,
+      low_wallet: 0,
       attention: 0,
     };
     let totalWallet = 0;
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
         if (daysLeft <= 0) buckets.trials_expired++;
         else if (daysLeft <= 1) buckets.trials_today++;
       }
-      if (balanceVal < 5000 && s !== "cancelled") buckets.critical_balance++;
+      if (balanceVal < ATTENTION_WALLET_IQD && s !== "cancelled") buckets.low_wallet++;
 
       if (t.staff_needs_attention) buckets.attention++;
     }
