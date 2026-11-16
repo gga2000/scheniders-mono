@@ -20,6 +20,7 @@ let failAt: number | null;
 let ranges: Array<[number, number]>;
 let limits: number[];
 let orders: string[];
+let ins: number[];
 
 /** A stand-in for the query builder: filters by eq, answers a range, never more than the server cap. */
 function query(table: string) {
@@ -33,6 +34,11 @@ function query(table: string) {
     },
     eq: (column: string, value: unknown) => {
       rows = rows.filter((row) => row[column] === value);
+      return builder;
+    },
+    in: (column: string, values: unknown[]) => {
+      ins.push(values.length);
+      rows = rows.filter((row) => values.includes(row[column]));
       return builder;
     },
     limit: (count: number) => {
@@ -59,7 +65,7 @@ vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ from: query
 const logAdminAction = vi.fn(async () => undefined);
 vi.mock("@/lib/activity-logger", () => ({ logAdminAction }));
 
-const { GET } = await import("./route");
+const { GET, POST } = await import("./route");
 const call = (params: string) => GET(new NextRequest(`http://admin.test/api/export?${params}`));
 
 const shop = (n: number, extra: Row = {}): Row => ({
@@ -97,6 +103,7 @@ beforeEach(() => {
   ranges = [];
   limits = [];
   orders = [];
+  ins = [];
   logAdminAction.mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -223,5 +230,62 @@ describe("GET /api/export", () => {
 
   it("refuses a type it does not know", async () => {
     expect((await call("type=orders")).status).toBe(400);
+  });
+});
+
+describe("POST /api/export: the ticked shops", () => {
+  const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const post = (body: unknown) =>
+    POST(new NextRequest("http://admin.test/api/export", { method: "POST", body: JSON.stringify(body) }));
+
+  beforeEach(() => {
+    tables.tenants = Array.from({ length: 5 }, (_, n) =>
+      shop(n, { id: uuid(n), created_at: `2026-10-0${n + 1}T09:00:00Z` }),
+    );
+  });
+
+  it("exports only the shops that were ticked, oldest first", async () => {
+    const rows = await (await post({ type: "merchants", format: "json", ids: [uuid(3), uuid(1)] })).json();
+
+    expect(rows.map((row: Row) => row.id)).toEqual([uuid(1), uuid(3)]);
+    expect(logAdminAction).toHaveBeenCalledWith(expect.anything(), "export_data", {
+      details: { type: "merchants", format: "json", rows: 2, selected: 2 },
+    });
+  });
+
+  it("reads many ticked shops a few hundred at a time, so the request stays short", async () => {
+    tables.tenants = Array.from({ length: 450 }, (_, n) => shop(n, { id: uuid(n) }));
+
+    const rows = await (await post({ type: "merchants", format: "json", ids: tables.tenants.map((row) => row.id) })).json();
+
+    expect(rows).toHaveLength(450);
+    expect(new Set(rows.map((row: Row) => row.id)).size).toBe(450);
+    expect(Math.max(...ins)).toBe(200);
+  });
+
+  it("never puts the demo store in the file, even when it is ticked", async () => {
+    tables.tenants[0] = { ...tables.tenants[0], is_demo: true };
+
+    const rows = await (await post({ type: "merchants", format: "json", ids: [uuid(0), uuid(1)] })).json();
+
+    expect(rows.map((row: Row) => row.id)).toEqual([uuid(1)]);
+  });
+
+  it.each([
+    ["no shops", { type: "merchants", ids: [] }],
+    ["an id that is not a shop id", { type: "merchants", ids: ["1 or 1=1"] }],
+    ["another list", { type: "transactions", ids: [uuid(1)] }],
+    ["no body", undefined],
+  ])("refuses %s", async (_name, body) => {
+    expect((await post(body)).status).toBe(400);
+    expect(logAdminAction).not.toHaveBeenCalled();
+  });
+
+  it("answers a CSV file the page can save under its name", async () => {
+    const response = await post({ type: "merchants", ids: [uuid(2)] });
+
+    expect(response.headers.get("content-type")).toBe("text/csv; charset=utf-8");
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment; filename="merchants_export_\d{4}-\d{2}-\d{2}\.csv"$/);
+    expect(linesOf(await response.text())).toHaveLength(2);
   });
 });
