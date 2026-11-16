@@ -53,7 +53,7 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
         rest === 0
             ? null
             : orders.length >= UNPAID_LIST_CAP
-              ? t("fin.money.unpaid.more", { shown: formatWhole(orders.length), n: formatWhole(rest) })
+              ? t("fin.money.unpaid.more", { shown: formatWhole(orders.length), n: formatWhole(rest), count: orders.length })
               : t("fin.money.unpaid.rest", { n: formatWhole(rest), count: rest });
 
     return (
