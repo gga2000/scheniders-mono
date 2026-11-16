@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { createAdminClient } from "./admin-supabase";
-
-/** Bounds enforced again inside `admin_topup_wallet` (whole IQD, 1..10,000,000). */
-export const TOPUP_MAX_IQD = 10_000_000;
+import { TOPUP_MAX_IQD } from "./topup-queue";
 
 export const topupAmountSchema = z.number().int().positive().max(TOPUP_MAX_IQD);
 

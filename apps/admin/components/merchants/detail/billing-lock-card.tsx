@@ -40,7 +40,8 @@ type Action = { kind: "orders"; orders: number } | { kind: "unlock"; days: numbe
  * A locked store (Fermi A1): what the lock is, how many storefront orders it
  * has left before the storefront pauses, and the staff tools to give more
  * orders or unlock it for free. Each tool needs a reason and is logged.
- * Extending an ended trial is on the trial card above.
+ * Free trial days (which also open a store locked at the end of its trial)
+ * are under Give free days at the top of the page.
  */
 export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLockCardProps) {
   const queryClient = useQueryClient();

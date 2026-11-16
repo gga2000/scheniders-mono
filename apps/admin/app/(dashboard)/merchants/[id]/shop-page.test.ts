@@ -7,14 +7,18 @@ import { LoadFailure } from "@/lib/load-failure";
 /*
  * Every link to a shop lands on this one page: the pop-up and the side panel
  * are gone. A failed read says what went wrong instead of spinning, and the
- * page's Top Up, Change Plan and Suspend are the working ones (they did
- * nothing on click before).
+ * page offers Add money, Give free days and More: only what the login may do.
  */
 
 let query: { data: unknown; isLoading: boolean; isError: boolean; error: unknown; isFetching: boolean; refetch: () => void };
 vi.mock("@/hooks/use-merchant-detail", () => ({
   useMerchantDetail: () => query,
   useMerchantRecentOrders: () => ({ data: { orders: [] }, isLoading: false }),
+}));
+
+let role: "super_admin" | "support_staff" | null = "super_admin";
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ role }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,6 +34,7 @@ const render = () =>
   renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(ShopPage)));
 
 beforeEach(() => {
+  role = "super_admin";
   query = { data: undefined, isLoading: false, isError: false, error: null, isFetching: false, refetch: () => {} };
 });
 
@@ -90,10 +95,27 @@ describe("the shop page, loaded", () => {
     expect(html).not.toContain("Lifetime");
   });
 
-  it("offers the working money, plan and status actions, once each", () => {
+  it("offers a super admin Add money first, then Give free days and More, once each", () => {
     const html = render();
-    for (const action of ["Top Up", "Change Plan", "Suspend"]) {
-      expect(html.split(`>${action}<`).length - 1).toBe(1);
-    }
+    const at = ["Add money", "Give free days", "More"].map((action) => {
+      expect(html.split(`${action}<`).length - 1).toBe(1);
+      return html.indexOf(`${action}<`);
+    });
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    for (const old of ["Top Up", "Change Plan", "Suspend"]) expect(html).not.toContain(`>${old}<`);
+  });
+
+  it("does not show support staff money buttons their login cannot use", () => {
+    role = "support_staff";
+    const html = render();
+    expect(html).not.toContain("Add money<");
+    expect(html).not.toContain("Give free days<");
+    expect(html).toContain("More<");
+  });
+
+  it("says where the shop stands and when the next charge falls", () => {
+    const html = render();
+    expect(html).toContain('data-testid="shop-status"');
+    expect(html).toContain("Paying");
   });
 });

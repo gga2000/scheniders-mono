@@ -9,6 +9,7 @@
  */
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatIQD } from "@/lib/format";
+import { isSubscriptionRunning } from "@/lib/shop-actions";
 
 export type ShopTone = "paying" | "trial" | "locked" | "paused" | "hold" | "ended" | "internal";
 
@@ -81,8 +82,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
   }
 
   // Active: the subscription says whether and when the next month is charged.
-  const running = subscription && ["trialing", "active", "past_due"].includes(subscription.status);
-  if (!subscription || !running) {
+  if (!subscription || !isSubscriptionRunning(subscription.status)) {
     return {
       tone: "ended",
       label: "Active",

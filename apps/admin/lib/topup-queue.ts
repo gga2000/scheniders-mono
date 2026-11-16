@@ -10,6 +10,7 @@ import { z } from "zod";
 export const TOPUP_QUEUE_KEY = ["admin", "wallet-topup-requests"] as const;
 
 export const TOPUP_MIN_IQD = 1_000;
+/** The most IQD staff may add to a wallet at once; admin_topup_wallet checks it again. */
 export const TOPUP_MAX_IQD = 10_000_000;
 export const REJECT_REASON_MIN = 3;
 export const REJECT_REASON_MAX = 300;

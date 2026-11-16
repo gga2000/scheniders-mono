@@ -1,0 +1,40 @@
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
+import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, WillHappen } from "./action-ui";
+
+/** Move a shop to another plan. The button names the move; nothing is charged or refunded. */
+export function PlanForm({ shopId, plan, onDone }: { shopId: string; plan: string; onDone: () => void }) {
+  const [next, setNext] = useState<PlanTier | null>(null);
+
+  const change = useMutation({
+    mutationFn: (to: PlanTier) => postJson(`/api/merchants/${shopId}`, { plan: to }, "PATCH"),
+    onSuccess: onDone,
+  });
+
+  const current = PLAN_TIERS.find((tier) => tier === plan);
+
+  return (
+    <div>
+      <PanelTitle aside={`Now ${current ? PLAN_LABELS[current] : plan}`}>Change plan</PanelTitle>
+      <div className="mb-3 flex flex-col gap-1.5">
+        {PLAN_TIERS.filter((tier) => tier !== plan).map((tier) => (
+          <Choice key={tier} selected={next === tier} onClick={() => setNext(tier)} className="text-left">
+            {PLAN_LABELS[tier]}
+          </Choice>
+        ))}
+      </div>
+      {next && (
+        <WillHappen>
+          The shop and its subscription move to {PLAN_LABELS[next]} now. Nothing is charged and nothing is refunded.
+        </WillHappen>
+      )}
+      <ErrorLine error={change.error} />
+      <ConfirmButton disabled={!next || change.isPending} onClick={() => next && change.mutate(next)}>
+        {change.isPending ? "Changing..." : next ? `Move to ${PLAN_LABELS[next]}` : "Change plan"}
+      </ConfirmButton>
+    </div>
+  );
+}

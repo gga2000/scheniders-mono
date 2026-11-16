@@ -24,24 +24,25 @@ import { UsageTab } from "@/components/merchants/detail/usage-tab";
 import { TeamTab } from "@/components/merchants/detail/team-tab";
 import { NotesTab } from "@/components/merchants/detail/notes-tab";
 import { AuditLogTab } from "@/components/merchants/detail/audit-log-tab";
-import { MerchantActionBar } from "@/components/merchants/detail/merchant-action-bar";
+import { ShopActions } from "@/components/merchants/detail/shop-actions";
 import { LimitedBanner } from "@/components/merchants/detail/limited-banner";
 import { PinnedNoteStrip } from "@/components/merchants/detail/pinned-note-strip";
 import { RecentOrdersSection } from "@/components/merchants/detail/recent-orders-section";
 import { formatCount } from "@/lib/format";
 import { shopStatusLine } from "@/lib/shop-status";
 import { ShopStatus } from "@/components/merchants/detail/shop-status";
-import { PLAN_LABELS, PLAN_TIERS, type PlanTier, type TenantRestrictions, type TenantStatus } from "@/types/admin";
+import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { PLAN_LABELS, PLAN_TIERS, type TenantRestrictions } from "@/types/admin";
+import { CopyableText } from "@/components/shared/copyable-text";
+import { LoadError } from "@/components/shared/load-error";
+import { loadFailureKind } from "@/lib/load-failure";
+import { usePageHeader } from "@/store/use-page-header";
 
 /** "Starter plan", or the plan's own word for a plan this console does not sell. */
 function planLabel(plan: string): string {
   const tier = PLAN_TIERS.find((t) => t === plan);
   return tier ? (tier === "internal" ? PLAN_LABELS.internal : `${PLAN_LABELS[tier]} plan`) : `${plan} plan`;
 }
-import { CopyableText } from "@/components/shared/copyable-text";
-import { LoadError } from "@/components/shared/load-error";
-import { loadFailureKind } from "@/lib/load-failure";
-import { usePageHeader } from "@/store/use-page-header";
 
 const tabs = ["Overview", "Billing", "Usage", "Team", "Notes", "Timeline", "Audit", "Onboarding"] as const;
 type Tab = (typeof tabs)[number];
@@ -196,12 +197,26 @@ export default function MerchantDetailPage() {
         </div>
       </div>
 
-      {/* The shop's money, plan and status actions: each one asks before it acts. */}
-      <MerchantActionBar
-        merchantId={tenant.id}
-        status={tenant.status as TenantStatus}
-        plan={tenant.plan as PlanTier}
-        walletBalance={wallet?.balance_iqd ?? 0}
+      <ShopActions
+        shopId={tenant.id}
+        facts={{
+          status: tenant.status,
+          locked: !!data.billingLock?.locked,
+          subscriptionRunning: isSubscriptionRunning(subscription?.status),
+        }}
+        plan={tenant.plan}
+        balance={wallet?.balance_iqd ?? 0}
+        freeDaysFrom={tenant.status === "trial" ? tenant.trial_ends_at : (subscription?.current_period_end ?? null)}
+        onGiveOrders={() => {
+          setActiveTab("Overview");
+          // The tab switch has rendered by the next frame, so the lock card is there.
+          requestAnimationFrame(() =>
+            document
+              .querySelector('[data-testid="billing-lock-card"]')
+              ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+          );
+        }}
+        onAddNote={() => setActiveTab("Notes")}
       />
 
       {tenant.status === "limited" && (
