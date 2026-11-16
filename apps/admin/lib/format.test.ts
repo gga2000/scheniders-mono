@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDay, formatDayTime, formatIQD, formatWhen } from "./format";
+import { formatCount, formatDay, formatDayTime, formatIQD, formatUntil, formatWhen } from "./format";
 
 describe("formatIQD", () => {
   it("writes whole dinars with commas and IQD after", () => {
@@ -61,5 +61,20 @@ describe("formatWhen", () => {
   it("writes the day for a time still to come", () => {
     expect(formatWhen("2026-11-18T10:00:00Z", now)).toBe("Wed 18 Nov");
     expect(formatWhen("2026-11-16T10:00:20Z", now)).toBe("just now");
+  });
+});
+
+describe("formatUntil", () => {
+  const now = new Date("2026-11-16T10:00:00Z");
+
+  it("counts minutes, hours, then whole days", () => {
+    expect(formatUntil("2026-11-16T10:40:00Z", now)).toBe("in 40 min");
+    expect(formatUntil("2026-11-17T01:30:00Z", now)).toBe("in 15 h");
+    expect(formatUntil("2026-11-17T12:00:00Z", now)).toBe("in 1 day");
+    expect(formatUntil("2026-11-19T10:00:00Z", now)).toBe("in 3 days");
+  });
+
+  it("says ended once the time has passed", () => {
+    expect(formatUntil("2026-11-16T09:59:00Z", now)).toBe("ended");
   });
 });

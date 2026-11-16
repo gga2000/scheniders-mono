@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lock, Plus, ShoppingBag, Unlock, Zap } from "lucide-react";
+import { Lock, ShoppingBag, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isStaffReason,
@@ -11,7 +11,7 @@ import {
   type BillingLockSnapshot,
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { formatDay } from "@/lib/format";
+import { formatDay, formatIQD } from "@/lib/format";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -31,8 +31,6 @@ const REASON_LABEL: Record<NonNullable<BillingLockSnapshot["reason"]>, string> =
   trial_ended: "Trial ended, not paid",
   unpaid: "Month not paid",
 };
-
-const fmtIqd = (n: number) => new Intl.NumberFormat("en-US").format(Math.round(n));
 
 type Action = { kind: "orders"; orders: number } | { kind: "unlock"; days: number };
 
@@ -96,53 +94,49 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
   const disabled = mutation.isPending || !reasonOk;
   const canGiveOrders = lock.reason !== "unpaid" || canForceUnlock;
 
-  return (
-    <div
-      className="relative overflow-hidden rounded-2xl p-5 border bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 dark:from-rose-400/10 dark:via-amber-400/10 dark:to-orange-400/10 border-rose-200 dark:border-rose-400/30"
-      data-testid="billing-lock-card"
-    >
-      <div aria-hidden className="absolute -top-12 -right-12 w-44 h-44 rounded-full blur-3xl opacity-30 bg-rose-300" />
+  const chip = (selected: boolean) =>
+    cn(
+      "rounded-lg px-3 py-1.5 text-[13px] font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+      selected ? "bg-foreground text-background" : "bg-foreground/[0.05] text-foreground hover:bg-foreground/10",
+    );
 
-      <div className="relative flex items-start justify-between gap-4 mb-4">
+  return (
+    <section className="pastel-card border-l-4 border-l-rose-600 p-5" data-testid="billing-lock-card" aria-label="Store locked">
+      <div className="mb-4 flex items-start justify-between gap-6">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.1em] font-black flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
-            <Lock className="w-3 h-3" />
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-rose-700 dark:text-rose-300">
+            <Lock className="h-4 w-4" aria-hidden />
             Store locked
           </p>
-          <p className="text-2xl font-black leading-none mt-2 tracking-tight text-rose-900 dark:text-rose-200">
+          <p className="mt-1 text-[22px] font-semibold text-foreground">
             {lock.reason ? REASON_LABEL[lock.reason] : "Locked"}
           </p>
-          <p className="text-[11px] text-foreground/55 mt-2 font-medium">
-            {lock.since && (
-              <>
-                Since {formatDay(lock.since)}
-                <span className="mx-1.5 text-foreground/30">·</span>
-              </>
-            )}
-            Paying {fmtIqd(lock.price_iqd)} IQD from the wallet unlocks it
+          <p className="mt-1 text-[13px] text-foreground/65">
+            {lock.since && <>Since {formatDay(lock.since)} · </>}
+            Paying {formatIQD(lock.price_iqd)} from the wallet unlocks it
           </p>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 flex items-center justify-end gap-1">
-            <ShoppingBag className="w-3 h-3" />
+        <div className="shrink-0 text-right">
+          <p className="flex items-center justify-end gap-1.5 text-[13px] text-foreground/60">
+            <ShoppingBag className="h-4 w-4" aria-hidden />
             Store orders left
           </p>
           <p
             className={cn(
-              "text-3xl font-black tabular-nums leading-none mt-2",
-              paused ? "text-rose-600 dark:text-rose-300" : "text-foreground",
+              "mt-1 text-[22px] font-semibold tabular-nums",
+              paused ? "text-rose-700 dark:text-rose-300" : "text-foreground",
             )}
           >
             {ordersLeft}
-            <span className="text-sm font-bold text-foreground/40 ml-1">/ {lock.allowance}</span>
+            <span className="ml-1 text-[15px] font-medium text-foreground/50">/ {lock.allowance}</span>
           </p>
-          <p className="text-[10px] text-foreground/50 mt-1.5 font-medium">
+          <p className="mt-1 text-[13px] text-foreground/60">
             {paused ? "Storefront paused" : "Then the storefront pauses"}
           </p>
         </div>
       </div>
 
-      <p className="relative text-[11px] text-foreground/60 mb-3">
+      <p className="mb-4 text-[13px] text-foreground/65">
         Orders, shipping, labels, export and paying stay open for the merchant. Everything else shows the lock screen.
       </p>
 
@@ -152,14 +146,12 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
             value={reason}
             onChange={setReason}
             placeholder="Why? (needed for both tools, saved in the log)"
-            className="relative mb-3"
+            className="mb-4"
           />
 
-          <div className="relative space-y-3">
+          <div className="space-y-4">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
-                Give more store orders
-              </p>
+              <p className="mb-2 text-[13px] font-medium text-foreground">Give more store orders</p>
               <div className="flex flex-wrap items-center gap-1.5">
                 {ORDER_PRESETS.map((n) => (
                   <button
@@ -167,42 +159,37 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
                     type="button"
                     disabled={disabled}
                     onClick={() => run({ kind: "orders", orders: n })}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-foreground text-[11px] font-bold ring-1 ring-foreground/10 hover:ring-foreground/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={chip(false)}
                   >
-                    <Plus className="w-3 h-3" />
-                    {n}
+                    + {n}
                   </button>
                 ))}
-                <div className="inline-flex items-center gap-1 bg-white/80 dark:bg-white/10 rounded-full ring-1 ring-foreground/10 pl-3 pr-1 py-0.5">
-                  <input
-                    type="number"
-                    min={1}
-                    max={MAX_LOCK_ORDERS_GRANT}
-                    value={customOrders}
-                    onChange={(e) => setCustomOrders(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && customOrdersOk && run({ kind: "orders", orders: customOrdersN })}
-                    placeholder="Other"
-                    aria-label="Number of store orders"
-                    className="w-14 bg-transparent outline-none text-[11px] font-bold tabular-nums"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Give these store orders"
-                    onClick={() => run({ kind: "orders", orders: customOrdersN })}
-                    disabled={disabled || !customOrdersOk}
-                    className="p-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
-                  >
-                    <Zap className="w-3 h-3" />
-                  </button>
-                </div>
+                <input
+                  type="number"
+                  min={1}
+                  max={MAX_LOCK_ORDERS_GRANT}
+                  value={customOrders}
+                  onChange={(e) => setCustomOrders(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && customOrdersOk && run({ kind: "orders", orders: customOrdersN })}
+                  placeholder="Other"
+                  aria-label="Number of store orders"
+                  className="w-24 rounded-lg border border-[var(--card-border)] bg-transparent px-3 py-1.5 text-[13px] tabular-nums outline-none focus:border-foreground/40"
+                />
+                <button
+                  type="button"
+                  aria-label="Give these store orders"
+                  onClick={() => run({ kind: "orders", orders: customOrdersN })}
+                  disabled={disabled || !customOrdersOk}
+                  className={chip(false)}
+                >
+                  Give {customOrdersOk ? customOrdersN : ""}
+                </button>
               </div>
             </div>
 
             {canForceUnlock && (
               <div>
-                <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50 mb-2">
-                  Unlock free (no charge)
-                </p>
+                <p className="mb-2 text-[13px] font-medium text-foreground">Unlock free (no charge)</p>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {UNLOCK_PRESETS.map((d) => (
                     <button
@@ -210,12 +197,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
                       type="button"
                       onClick={() => setUnlockDays(d)}
                       aria-pressed={unlockDays === d}
-                      className={cn(
-                        "px-3 py-1.5 rounded-full text-[11px] font-bold ring-1 transition-all",
-                        unlockDays === d
-                          ? "bg-foreground text-background ring-foreground"
-                          : "bg-white/80 dark:bg-white/10 text-foreground ring-foreground/10 hover:ring-foreground/30",
-                      )}
+                      className={chip(unlockDays === d)}
                     >
                       {d} days
                     </button>
@@ -224,13 +206,13 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
                     type="button"
                     disabled={disabled || unlockDays < 1 || unlockDays > MAX_FREE_UNLOCK_DAYS}
                     onClick={() => run({ kind: "unlock", days: unlockDays })}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <Unlock className="w-3 h-3" />
+                    <Unlock className="h-4 w-4" aria-hidden />
                     Unlock for {unlockDays} days
                   </button>
                 </div>
-                <p className="text-[10px] text-foreground/50 mt-1.5">
+                <p className="mt-1.5 text-[13px] text-foreground/60">
                   Opens a paid period with no wallet charge. When it ends, renewal charges the wallet as usual.
                 </p>
               </div>
@@ -238,16 +220,16 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
           </div>
         </>
       ) : (
-        <p className="relative text-[11px] font-semibold text-rose-700 dark:text-rose-300" data-testid="billing-lock-super-admin-only">
+        <p className="text-[13px] font-medium text-rose-700 dark:text-rose-300" data-testid="billing-lock-super-admin-only">
           A store locked for an unpaid month gets more orders or a free unlock from a super admin.
         </p>
       )}
 
       {mutation.isError && (
-        <div className="relative mt-3 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-400/10 border border-rose-200 dark:border-rose-400/30 text-xs text-rose-700 dark:text-rose-300 font-medium">
+        <p role="alert" className="mt-3 text-[13px] font-medium text-rose-700 dark:text-rose-300">
           {mutation.error.message}
-        </div>
+        </p>
       )}
-    </div>
+    </section>
   );
 }
