@@ -12,7 +12,7 @@ const nothing: OnboardingFacts = {
   orders: 0,
   activeMembers: 1,
   branding: null,
-  configVersion: null,
+  storePublishes: null,
   toppedUpIqd: 0,
 };
 
@@ -36,9 +36,10 @@ describe("onboardingDone", () => {
     expect(onboardingDone({ ...nothing, activeMembers: 2 }).has_team).toBe(true);
   });
 
-  it("counts the store as set up only once the store builder is published", () => {
-    expect(onboardingDone({ ...nothing, configVersion: 1 }).has_storefront).toBe(false);
-    expect(onboardingDone({ ...nothing, configVersion: 2 }).has_storefront).toBe(true);
+  it("counts the store as set up only once the merchant has published it", () => {
+    expect(onboardingDone({ ...nothing, storePublishes: null }).has_storefront).toBe(false);
+    expect(onboardingDone({ ...nothing, storePublishes: 0 }).has_storefront).toBe(false);
+    expect(onboardingDone({ ...nothing, storePublishes: 1 }).has_storefront).toBe(true);
   });
 
   it("counts a first real order", () => {
