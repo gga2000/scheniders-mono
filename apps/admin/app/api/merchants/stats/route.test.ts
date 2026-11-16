@@ -216,6 +216,27 @@ describe("GET /api/merchants/stats", () => {
     expect(stub.state.rpcCalls).toEqual([]);
   });
 
+  it("counts a city however the merchant typed it, the way the list does", async () => {
+    stub.state.tables.tenants = [
+      shop(1, { city: "بغداد" }),
+      shop(2, { city: " Baghdad " }),
+      shop(3, { city: "Basra" }),
+      shop(4, { city: null }),
+    ];
+
+    const stats = await (await call("city=baghdad")).json();
+
+    expect(stats.total).toBe(2);
+    expect(stub.callsTo("tenants.eq")).not.toContainEqual(expect.arrayContaining(["city"]));
+  });
+
+  it("refuses a city the picker does not offer", async () => {
+    const response = await call("city=atlantis");
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Unknown city" });
+  });
+
   it("searches the way the list does, shop number included", async () => {
     const response = await call("search=100095");
 

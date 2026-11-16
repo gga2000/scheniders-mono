@@ -78,6 +78,17 @@ export function governorateNamed(name: string): ShopGovernorate | undefined {
   return SHOP_GOVERNORATES.find((g) => g.name.toLowerCase() === asked);
 }
 
+/**
+ * The `city` a shops request asks for, as a governorate, or why it cannot be
+ * read. No city asks for every shop. The list and the numbers above it both
+ * read it here, so the two always count the same shops.
+ */
+export function readShopCity(asked: string | null): { governorate?: ShopGovernorate } | { error: string } {
+  if (!asked) return {};
+  const governorate = governorateNamed(asked);
+  return governorate ? { governorate } : { error: "Unknown city" };
+}
+
 /** The governorate a shop's typed city is in, or undefined when the console cannot tell. */
 export function shopGovernorate(city: string | null | undefined): ShopGovernorate | undefined {
   if (!city) return undefined;
