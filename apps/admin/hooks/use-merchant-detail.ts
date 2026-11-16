@@ -94,6 +94,8 @@ export interface MerchantDetail {
   billingLock: BillingLockSnapshot | null;
   /** Whether the viewing staff member may unlock a store for free. */
   canForceUnlock: boolean;
+  /** For a shop on hold or paused: who did it and when, from the staff log; null when the log has no such step. */
+  stoppedBy: { who: string; at: string } | null;
 }
 
 export interface RecentOrder {

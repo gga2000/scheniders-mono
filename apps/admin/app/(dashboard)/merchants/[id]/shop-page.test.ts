@@ -80,6 +80,7 @@ const shop = {
   planLimits: null,
   billingLock: null,
   canForceUnlock: false,
+  stoppedBy: null,
 };
 
 describe("the shop page, loaded", () => {
@@ -118,6 +119,26 @@ describe("the shop page, loaded", () => {
     const html = render();
     expect(html).toContain('data-testid="shop-status"');
     expect(html).toContain("Paying");
+  });
+});
+
+describe("the shop page header (board m6)", () => {
+  beforeEach(() => {
+    query = { ...query, data: shop };
+  });
+
+  it("opens the shop's own store address, not a test address", () => {
+    const html = render();
+    expect(html).toContain('href="https://scheniders-iraq.usefermi.com"');
+    expect(html).toContain("Open store<");
+    expect(html).not.toContain("Impersonate");
+    expect(html).not.toContain("localhost");
+  });
+
+  it("offers View as merchant only to a login that may handle support", () => {
+    expect(render()).toContain("View as merchant");
+    role = null;
+    expect(render()).not.toContain("View as merchant");
   });
 });
 

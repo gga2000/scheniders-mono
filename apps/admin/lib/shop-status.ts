@@ -23,7 +23,7 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
-type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "planLimits" | "billingLock">;
+type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "planLimits" | "billingLock" | "stoppedBy">;
 
 const LOCK_REASON = { trial_ended: "Trial ended, not paid", unpaid: "Month not paid" } as const;
 
@@ -39,7 +39,7 @@ function shortByThen(balance: number, price: number): string {
 }
 
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
-  const { tenant, wallet, subscription, planLimits, billingLock } = detail;
+  const { tenant, wallet, subscription, planLimits, billingLock, stoppedBy } = detail;
   const balance = wallet?.balance_iqd ?? 0;
   const price = planLimits?.base_price_iqd ?? 0;
 
@@ -60,13 +60,15 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
     return {
       tone: "paused",
       label: "Paused",
-      sentence: `Paused by staff${until ? ` until ${formatDayTime(until, now)}` : ""}.${why}`,
+      sentence: `Paused by ${stoppedBy?.who ?? "staff"}${until ? ` until ${formatDayTime(until, now)}` : ""}.${why}`,
       next: null,
     };
   }
 
   if (tenant.status === "suspended") {
-    return { tone: "hold", label: "On hold", sentence: "On hold. No monthly fee while on hold.", next: null };
+    // Board m9: who stopped it and since when, so a colleague knows whom to ask.
+    const by = stoppedBy ? ` since ${formatDay(stoppedBy.at, now)}, by ${stoppedBy.who}` : "";
+    return { tone: "hold", label: "On hold", sentence: `On hold${by}. No monthly fee while on hold.`, next: null };
   }
 
   if (tenant.status === "cancelled") {

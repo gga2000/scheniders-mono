@@ -5,12 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getMerchantCode } from "@scheniders/shared";
 import { useMerchantDetail } from "@/hooks/use-merchant-detail";
-import {
-  ArrowLeft,
-  UserCircle,
-  Loader2,
-} from "lucide-react";
-import { ImpersonateButton } from "@/components/merchants/impersonate-button";
+import { ArrowLeft, ExternalLink, UserCircle, Loader2 } from "lucide-react";
+import { storeAddress } from "@scheniders/shared/store-address";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { hasPermission } from "@/lib/admin-permissions";
+import { SupportViewButton } from "@/components/support/support-view-button";
 import { OnboardingChecklist } from "@/components/merchants/onboarding-checklist";
 import { TenantComparison } from "@/components/merchants/tenant-comparison";
 import { OverviewTab } from "@/components/merchants/detail/overview-tab";
@@ -59,6 +58,9 @@ export default function MerchantDetailPage() {
   // "Add a note" opens the Timeline with the note box ready to type in.
   const [focusNote, setFocusNote] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  // "View as merchant" opens the merchant's own app; the server only allows it with handle_support.
+  const { role } = useAdminAuth();
+  const canViewAsMerchant = role ? hasPermission(role, "handle_support") : false;
 
   // The browser tab names the shop, so ten open shops can be told apart.
   const setTab = usePageHeader((s) => s.setTab);
@@ -182,12 +184,16 @@ export default function MerchantDetailPage() {
             >
               Compare
             </button>
-            <ImpersonateButton
-              tenantId={tenant.id}
-              businessName={tenant.business_name}
-              slug={tenant.slug}
-              status={tenant.status}
-            />
+            <a
+              href={`https://${storeAddress(tenant.slug)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]"
+            >
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              Open store
+            </a>
+            {canViewAsMerchant && <SupportViewButton tenantId={tenant.id} />}
           </div>
         </div>
         <div className="mt-4 border-t border-[var(--card-border)] pt-4">
