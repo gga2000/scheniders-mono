@@ -125,9 +125,12 @@ export function OnboardingWizard({
     // words, which is exactly what shipped before this existed.
     const [sells, setSells] = useState("");
     const [copy, setCopy] = useState<StoreCopy | null>(null);
+    // The store text is being written from the description: creating now
+    // would seed the pack's words over what the merchant just typed.
+    const [copyWriting, setCopyWriting] = useState(false);
 
     const basicsValid = businessName.trim().length > 0;
-    const canCreate = basicsValid && templateId.length > 0;
+    const canCreate = basicsValid && templateId.length > 0 && !copyWriting;
 
     const handlePickVertical = (industry: WizardIndustry) => {
         const rec =
@@ -250,6 +253,7 @@ export function OnboardingWizard({
                         }}
                         copy={copy}
                         onCopy={setCopy}
+                        onCopyWriting={setCopyWriting}
                         packId={resolveContentPack(
                             vertical ? (industries.find((i) => i.id === vertical)?.name ?? vertical) : undefined,
                         ).id}
@@ -454,6 +458,7 @@ function BasicsStep({
     onSells,
     copy,
     onCopy,
+    onCopyWriting,
     packId,
     t,
 }: {
@@ -468,6 +473,7 @@ function BasicsStep({
     onSells: (v: string) => void;
     copy: StoreCopy | null;
     onCopy: (c: StoreCopy | null) => void;
+    onCopyWriting: (writing: boolean) => void;
     packId: string;
     t: TFn;
 }) {
@@ -493,6 +499,7 @@ function BasicsStep({
                 onSells={onSells}
                 copy={copy}
                 onCopy={onCopy}
+                onWriting={onCopyWriting}
                 inputCls={inputCls}
                 t={t}
             />
@@ -910,7 +917,9 @@ const storeCopyResponseSchema = z.object({
  * "In a sentence, what do you sell?" — and the copy written from it.
  *
  * Optional by design: skipping it leaves the niche pack's words in place.
- * The merchant sees the headline and story before creating the store, so
+ * Typed in, it is used (Fermi B11): the store text is written from it when
+ * the merchant leaves the box, not only when they press the button. The
+ * merchant sees the headline and story before creating the store, so
  * nothing is seeded sight-unseen, and every line stays editable afterwards.
  */
 function StoreCopyField({
@@ -920,6 +929,7 @@ function StoreCopyField({
     onSells,
     copy,
     onCopy,
+    onWriting,
     inputCls,
     t,
 }: {
@@ -929,27 +939,28 @@ function StoreCopyField({
     onSells: (v: string) => void;
     copy: StoreCopy | null;
     onCopy: (c: StoreCopy | null) => void;
+    onWriting: (writing: boolean) => void;
     inputCls: string;
     t: TFn;
 }) {
     const [writing, setWriting] = useState(false);
     const [failed, setFailed] = useState(false);
+    // The description last written from (or discarded), so leaving the box
+    // again without a change does not write it a second time.
+    const [writtenFrom, setWrittenFrom] = useState<string | null>(null);
     const ready = businessName.trim().length > 0 && sells.trim().length >= 3;
 
     const write = async () => {
         if (!ready || writing) return;
         setWriting(true);
+        onWriting(true);
+        setWrittenFrom(sells.trim());
         setFailed(false);
         try {
-            const { data } = await supabase.auth.getSession();
+            // authedFetch carries the session's token.
             const res = await authedFetch("/api/ai/store-copy", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(data.session?.access_token
-                        ? { }
-                        : {}),
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     business_name: businessName.trim(),
                     sells: sells.trim(),
@@ -974,6 +985,7 @@ function StoreCopyField({
             onCopy(null);
         } finally {
             setWriting(false);
+            onWriting(false);
         }
     };
 
@@ -983,6 +995,9 @@ function StoreCopyField({
                 rows={2}
                 value={sells}
                 onChange={(e) => onSells(e.target.value)}
+                onBlur={() => {
+                    if (!copy && sells.trim() !== writtenFrom) void write();
+                }}
                 placeholder={t("wizard.basics.sellsPlaceholder")}
                 data-testid="wizard-sells"
                 className={`${inputCls} resize-y`}
