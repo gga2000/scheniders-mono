@@ -190,24 +190,47 @@ describe("POST /api/team/invite — link and phone invites (Fermi A2)", () => {
         expect(await res.json()).toMatchObject({ code: "team_limit", error: expect.stringContaining("رقِّ الباقة") });
     });
 
-    it("a second invite for a live pending one says to resend", async () => {
+    it("a second invite for a live pending one says to resend, and writes nothing", async () => {
         setUp();
-        insertResult = { error: { message: "duplicate", code: "23505" } };
         pendingRow = { id: "invite-5", expires_at: new Date(Date.now() + 86_400_000).toISOString() };
         const res = await POST(phoneRequest({ phone: "07701234567" }));
         expect(res.status).toBe(409);
-        expect(fake.calls.some((c) => c.table === "team_invites" && c.op === "update")).toBe(false);
+        const read = fake.calls.find((c) => c.table === "team_invites" && c.op === "select");
+        expect(read?.filters).toEqual(
+            expect.arrayContaining([
+                { method: "eq", args: ["tenant_id", TENANT] },
+                { method: "eq", args: ["status", "pending"] },
+                { method: "eq", args: ["phone", "07701234567"] },
+            ]),
+        );
+        expect(fake.calls.some((c) => c.table === "team_invites" && c.op !== "select")).toBe(false);
+    });
+
+    it("says to resend, not 'team full', when the team is full and the person is already invited", async () => {
+        setUp();
+        insertResult = { error: { message: "team is full", code: "PT402", hint: "TEAM_LIMIT" } };
+        pendingRow = { id: "invite-5", expires_at: new Date(Date.now() + 86_400_000).toISOString() };
+        const res = await POST(phoneRequest({ phone: "07701234567" }));
+        expect(res.status).toBe(409);
+        expect(await res.json()).toMatchObject({ error: expect.stringContaining("إرسال من جديد") });
+    });
+
+    it("two admins inviting the same person at once: the loser is told to resend", async () => {
+        setUp();
+        insertResult = { error: { message: "duplicate", code: "23505" } };
+        const res = await POST(phoneRequest({ phone: "07701234567" }));
+        expect(res.status).toBe(409);
     });
 
     it("inviting again after the old invite expired renews it with a new link", async () => {
         setUp();
-        insertResult = { error: { message: "duplicate", code: "23505" } };
         pendingRow = { id: "invite-5", expires_at: new Date(Date.now() - 1000).toISOString() };
         const res = await POST(phoneRequest({ phone: "07701234567" }));
         expect(res.status).toBe(200);
         const update = fake.calls.find((c) => c.table === "team_invites" && c.op === "update");
         expect(update?.payload).toMatchObject({ token_hash: expect.stringMatching(/^[0-9a-f]{64}$/), expires_at: expect.any(String) });
         expect(update?.filters).toContainEqual({ method: "eq", args: ["id", "invite-5"] });
+        expect(fake.calls.some((c) => c.table === "team_invites" && c.op === "insert")).toBe(false);
     });
 
     it("a locked store cannot invite", async () => {
