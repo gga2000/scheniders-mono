@@ -1,68 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
+import { LEAD_IMPORT_MAX_ROWS, leadImportRow, type LeadImportResult } from "@/lib/lead-import";
 
+const bodySchema = z.object({ leads: z.array(z.record(z.string(), z.unknown())) });
+
+/**
+ * Save the rows of an uploaded leads file, one by one, and say what happened
+ * to each: saved, skipped (no merchant name) or failed, with the reason.
+ */
 export async function POST(request: NextRequest) {
   try {
     const admin = await requireBearerAdmin(request);
     if (admin instanceof NextResponse) return admin;
 
-    const body = await request.json();
-    const { leads: importLeads } = body;
-
-    if (!importLeads || !Array.isArray(importLeads)) {
+    const body = bodySchema.safeParse(await request.json().catch(() => null));
+    if (!body.success) {
       return NextResponse.json({ error: "leads array required" }, { status: 400 });
     }
-
-    if (importLeads.length > 500) {
-      return NextResponse.json({ error: "Max 500 leads per import" }, { status: 400 });
+    if (body.data.leads.length > LEAD_IMPORT_MAX_ROWS) {
+      return NextResponse.json(
+        {
+          error: `This file has ${body.data.leads.length} rows. One import takes up to ${LEAD_IMPORT_MAX_ROWS}: split the file and import each part.`,
+        },
+        { status: 400 },
+      );
     }
 
     const supabase = createAdminClient();
+    const result: LeadImportResult = { created: 0, skipped: 0, failed: 0, failures: [] };
+    const fail = (index: number, name: string, reason: string) => {
+      result.failed++;
+      result.failures.push({ row: index + 1, name, reason });
+    };
 
-    const results = { created: 0, skipped: 0, errors: [] as string[] };
-
-    for (const lead of importLeads) {
-      try {
-        if (!lead.merchant_name) {
-          results.skipped++;
-          continue;
-        }
-
-        const { error } = await supabase.from("leads").insert({
-          merchant_name: lead.merchant_name,
-          platform: lead.platform || "other",
-          platform_url: lead.platform_url || null,
-          handle: lead.handle ? String(lead.handle).trim().replace(/^@+/, "") : null,
-          follower_count: Number(lead.follower_count) || 0,
-          management_name: lead.management_name || null,
-          page_phone: lead.page_phone || null,
-          phone_numbers: lead.phone_numbers || [],
-          avg_view_count: Number(lead.avg_view_count) || 0,
-          avg_like_count: Number(lead.avg_like_count) || 0,
-          avg_comments_count: Number(lead.avg_comments_count) || 0,
-          avg_order_count: Number(lead.avg_order_count) || 0,
-          address: lead.address || null,
-          city: lead.city || null,
-          industry_id: lead.industry_id || null,
-          priority: lead.priority || "medium",
-          // Attribute every imported lead to the admin running the import.
-          created_by: admin.user.id,
-        });
-
-        if (error) {
-          results.errors.push(`${lead.merchant_name}: ${error.message}`);
-        } else {
-          results.created++;
-        }
-      } catch {
-        results.skipped++;
+    for (const [index, raw] of body.data.leads.entries()) {
+      const lead = leadImportRow(raw);
+      if (lead.kind === "skip") {
+        result.skipped++;
+        continue;
       }
+      if (lead.kind === "bad") {
+        fail(index, lead.name, lead.reason);
+        continue;
+      }
+
+      // Attribute every imported lead to the admin running the import.
+      const { error } = await supabase.from("leads").insert({ ...lead.row, created_by: admin.user.id });
+      if (error) fail(index, lead.row.merchant_name, error.message);
+      else result.created++;
     }
 
-    return NextResponse.json(results, { status: 201 });
+    return NextResponse.json(result, { status: result.created > 0 ? 201 : 200 });
   } catch (error) {
     console.error("Import error:", error);
-    return NextResponse.json({ error: "Failed to import leads" }, { status: 500 });
+    return NextResponse.json(
+      { error: "The import stopped part way. Some rows may be saved: check the leads list before importing again." },
+      { status: 500 },
+    );
   }
 }
