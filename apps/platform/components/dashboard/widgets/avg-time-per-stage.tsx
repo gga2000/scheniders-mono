@@ -3,9 +3,12 @@
 import { StageTimeMetric } from "@/lib/analytics/dashboard-calculations";
 import { Timer } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { PeriodTag } from "@/components/dashboard/period-tag";
 
 interface AvgTimePerStageProps {
     metrics: StageTimeMetric[];
+    /** The header period whose orders the averages read. */
+    periodLabel?: string;
 }
 
 function formatHours(hours: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
@@ -29,7 +32,7 @@ const LABEL_KEYS: Record<string, string> = {
     'In transit (avg wait)': 'dashboard.avgTime.inTransitWait',
 };
 
-export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
+export function AvgTimePerStage({ metrics, periodLabel }: AvgTimePerStageProps) {
     const maxHours = Math.max(1, ...metrics.map(m => m.avgHours));
     const { t } = useLanguage();
 
@@ -40,7 +43,7 @@ export function AvgTimePerStage({ metrics }: AvgTimePerStageProps) {
                     <Timer className="w-4 h-4 text-blue-700" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-bold text-foreground">{t("dashboard.avgTime.title")}</h3>
+                    <h3 className="text-sm font-bold text-foreground">{t("dashboard.avgTime.title")}<PeriodTag label={periodLabel} /></h3>
                     <p className="text-xs text-muted">{t("dashboard.avgTime.subtitle")}</p>
                 </div>
             </div>

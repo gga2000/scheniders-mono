@@ -3,14 +3,17 @@
 import { UrgencyMetrics } from "@/lib/analytics/dashboard-calculations";
 import { AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { PeriodTag } from "@/components/dashboard/period-tag";
 
 interface RejectionBreakdownProps {
     cityRejectionStats: UrgencyMetrics['cityRejectionStats'];
     /** DV-D2: a bad rejection rate is only useful if you can see the orders. */
     onCityClick?: (city: string) => void;
+    /** The header period the rates count. */
+    periodLabel?: string;
 }
 
-export function RejectionBreakdown({ cityRejectionStats, onCityClick }: RejectionBreakdownProps) {
+export function RejectionBreakdown({ cityRejectionStats, onCityClick, periodLabel }: RejectionBreakdownProps) {
     const { t } = useLanguage();
     // Sort by rejection rate desc, only show cities with >= 5 orders and > 0 rejections
     const rows = Object.entries(cityRejectionStats)
@@ -27,7 +30,7 @@ export function RejectionBreakdown({ cityRejectionStats, onCityClick }: Rejectio
                     <AlertTriangle className="w-4 h-4 text-rose-600" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-bold text-foreground">{t("dashboard.rejection.title")}</h3>
+                    <h3 className="text-sm font-bold text-foreground">{t("dashboard.rejection.title")}<PeriodTag label={periodLabel} /></h3>
                     <p className="text-xs text-muted">{t("dashboard.rejection.subtitle")}</p>
                 </div>
             </div>
