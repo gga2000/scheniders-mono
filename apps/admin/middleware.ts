@@ -222,6 +222,13 @@ function checkFailedPage(retryPath: string): string {
 // and the script policy: /merchants/x.png is still the console. Each skipped
 // address is matched whole (a folder with its slash, a file to its end):
 // "/favicon.icox" or "/_vercelx" is a console address like any other.
+//
+// The check runs in Frankfurt, next to the auth server and the database it
+// asks on every request, and where the pages and the API run (vercel.json).
+// Left to run at the edge nearest each visitor, each call took about 107 ms
+// for a visitor in the US (Supabase logs, 17 Nov 2026), and the request then
+// went on to Frankfurt anyway. vercel.test.ts holds the two regions together.
 export const config = {
   matcher: ["/((?!_next/static/|_next/image$|_vercel/|favicon\\.ico$|support-sw\\.js$).*)"],
+  regions: ["fra1"],
 };
