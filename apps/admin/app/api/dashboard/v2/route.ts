@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       everyRow((from, to) =>
         supabase
           .from("subscription_plan_changes")
-          .select("tenant_id, from_plan, to_plan, changed_at")
+          .select("tenant_id, from_plan, to_plan, changed_at, from_trial")
           .gte("changed_at", monthAgo)
           .order("id", { ascending: true })
           .range(from, to),

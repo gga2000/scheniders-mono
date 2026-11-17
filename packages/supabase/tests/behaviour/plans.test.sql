@@ -298,3 +298,24 @@ SELECT pg_temp.check((SELECT relrowsecurity FROM pg_class WHERE oid = 'public.su
                      AND NOT has_table_privilege('authenticated', 'public.subscription_plan_changes', 'SELECT')
                      AND has_table_privilege('service_role', 'public.subscription_plan_changes', 'SELECT'),
                      'only the staff console server reads the record');
+
+-- 16. A trial's end applies the merchant's first choice; the record says it
+-- came from the trial (20261117071812), so Plan Movements does not count it
+-- as an upgrade or a downgrade. It is on record even when the first payment
+-- fails and the shop is locked. The changes in 15 were not from a trial.
+SELECT pg_temp.as_admin('a0000000-0000-4000-8000-00000000000a');
+SELECT pg_temp.check((SELECT r->>'kind' = 'pick' FROM public.change_plan('a0000000-0000-4000-8000-00000000000a', 'professional', true) r),
+                     'the trial shop picks Business');
+UPDATE public.subscriptions SET current_period_end = now() - interval '1 minute'
+ WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a';
+SELECT pg_temp.check((SELECT r->>'outcome' = 'locked'
+                        FROM public.renew_subscription_core(
+                               (SELECT id FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a'),
+                               (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a')) r)
+                     AND pg_temp.plan_of('a0000000-0000-4000-8000-00000000000a') = 'professional',
+                     'the trial ends on Business with an empty wallet: locked');
+SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_plan || '>' || to_plan || ':' || from_trial ORDER BY id)
+                        FROM public.subscription_plan_changes)
+                     = ARRAY['0b:starter>growth:false', '0e:growth>starter:false', '10:growth>professional:false',
+                             '0a:growth>professional:true'],
+                     'the first choice is on record as from the trial; the others are not');

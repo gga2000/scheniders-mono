@@ -324,13 +324,14 @@ describe("calculatePlanMovements", () => {
     details: { status, previous_status: "active", source: "single" },
     created_at,
   });
-  const planChange = (tenant_id: string, from_plan: string, to_plan: string, changed_at: string): PlanChangeRow => ({
+  const planChange = (tenant_id: string, from_plan: string, to_plan: string, changed_at: string, from_trial = false): PlanChangeRow => ({
     tenant_id,
     from_plan,
     to_plan,
     changed_at,
+    from_trial,
   });
-  const shop = (id: string, plan: string, created_at = "2026-01-05T09:00:00Z") => ({ id, plan, created_at });
+  const shop = (id: string, plan: string, created_at = "2026-01-05T09:00:00Z", status = "active") => ({ id, plan, status, created_at });
   const shops = [shop(SHOP_A, "starter"), shop(SHOP_B, "growth"), shop(SHOP_C, "growth")];
   const lines = (moves: ReturnType<typeof calculatePlanMovements>) =>
     moves.map((m) => `${m.fromPlan}>${m.toPlan}:${m.type}:${m.count}`);
@@ -436,6 +437,38 @@ describe("calculatePlanMovements", () => {
       now,
     );
     expect(lines(moves)).toEqual(["starter>growth:waiting:1", "professional>growth:waiting:1"]);
+  });
+
+  it("does not count a trial's end onto the merchant's first choice as a move", () => {
+    // Every trial runs on Team (growth), so a shop that picks Start would read
+    // as a downgrade and one that picks Business as an upgrade, even when its
+    // first payment failed. A real change after the trial still counts.
+    const moves = calculatePlanMovements(
+      [],
+      [],
+      [
+        planChange(SHOP_A, "growth", "starter", "2026-11-03T10:00:00Z", true),
+        planChange(SHOP_B, "growth", "professional", "2026-11-02T10:00:00Z", true),
+        planChange(SHOP_B, "professional", "starter", "2026-11-12T10:00:00Z"),
+      ],
+      shops,
+      now,
+    );
+    expect(lines(moves)).toEqual(["professional>starter:downgrade:1"]);
+  });
+
+  it("lists no waiting choice in a trial, running or locked after it", () => {
+    const moves = calculatePlanMovements(
+      [
+        sub(SHOP_A, { plan: "growth", status: "trialing", pending_plan: "starter" }),
+        sub("locked-trial", { plan: "starter", status: "past_due", pending_plan: "professional" }),
+      ],
+      [],
+      [],
+      [...shops, shop("locked-trial", "starter", "2026-01-05T09:00:00Z", "trial")],
+      now,
+    );
+    expect(moves).toEqual([]);
   });
 
   it("shows no waiting change on a cancelled subscription", () => {
