@@ -11,7 +11,10 @@
 --     * a status_before sent by the caller is not believed;
 --     * pausing a paused shop again takes the new blocks and keeps the status
 --       from before the first pause;
---     * an unknown shop: no row, nothing written.
+--     * an unknown shop: no row, nothing written;
+--     * the demo store (Fermi B13) is never paused: no row, its status and
+--       restrictions as they were. admin_update_shop already refused any
+--       status change of it; this was the other way in.
 --   Lift:
 --     * a trial shop comes back on trial, a paying shop paying, a suspended
 --       shop suspended; restrictions are emptied; no date moves;
@@ -66,7 +69,8 @@ CREATE TEMP TABLE tt_shops (
     status public.tenant_status NOT NULL,
     trial_ends_at timestamptz,
     restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,
-    sub public.subscription_status
+    sub public.subscription_status,
+    is_demo boolean NOT NULL DEFAULT false
 ) ON COMMIT DROP;
 -- The checks below run as the service role, the way the console calls the functions.
 GRANT SELECT ON tt_shops TO service_role;
@@ -81,9 +85,10 @@ INSERT INTO tt_shops (name, status, trial_ends_at, restrictions, sub) VALUES
     ('old pause, still trialing',    'limited',   now() + interval '2 days', '{"reason": "old", "blocks": {"new_orders": true}}', 'trialing'),
     ('old pause, paying',            'limited',   NULL,                      '{"reason": "old", "blocks": {"new_orders": true}}', 'active'),
     ('old pause, no subscription',   'limited',   NULL,                      '{"reason": "old"}', NULL);
+INSERT INTO tt_shops (name, status, sub, is_demo) VALUES ('demo store', 'active', 'active', true);
 
-INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, restrictions)
-SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, 'starter', s.status, s.trial_ends_at, s.restrictions FROM tt_shops s;
+INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, restrictions, is_demo)
+SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, 'starter', s.status, s.trial_ends_at, s.restrictions, s.is_demo FROM tt_shops s;
 
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end)
 SELECT s.id, 'starter', s.sub, now() - interval '5 days', now() + interval '25 days' FROM tt_shops s WHERE s.sub IS NOT NULL;
@@ -168,6 +173,13 @@ BEGIN
     LOOP
         PERFORM pg_temp.check(format('%s: came back %s, wanted %s', _row.name, _row.got, _row.want), _row.got = _row.want);
     END LOOP;
+
+    -- The demo store: not paused, nothing written.
+    SELECT id INTO _id FROM tt_shops WHERE name = 'demo store';
+    SELECT count(*) INTO _n FROM public.pause_tenant(_id, _blocks);
+    PERFORM pg_temp.check('pause, demo store: answered with a row', _n = 0);
+    PERFORM pg_temp.check('pause, demo store: the demo store is no longer active as it was',
+        EXISTS (SELECT 1 FROM public.tenants t WHERE t.id = _id AND t.status = 'active' AND t.restrictions = '{}'::jsonb));
 
     -- An unknown shop: no row from either.
     SELECT count(*) INTO _n FROM public.pause_tenant(gen_random_uuid(), _blocks);

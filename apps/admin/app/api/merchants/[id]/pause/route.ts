@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { logAdminActivity } from "@/lib/activity-logger";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { pausedShop } from "@/lib/tenant-pause";
+import { DEMO_STORE_REFUSAL } from "@/lib/shop-update";
 import { notAnId } from "@/lib/route-id";
 
 const PauseSchema = z.object({
@@ -80,7 +81,17 @@ export async function POST(
 
     const data = pausedShop(rows);
     if (!data) {
-      return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
+      // No row: the shop does not exist, or it is the demo store, which the
+      // database never pauses. The read only picks the words; it writes nothing.
+      const { data: shops, error: readError } = await supabase.from("tenants").select("is_demo").eq("id", id);
+      if (readError) throw readError;
+      if (!shops || shops.length === 0) {
+        return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
+      }
+      if (shops[0].is_demo === true) {
+        return NextResponse.json({ error: DEMO_STORE_REFUSAL }, { status: 409 });
+      }
+      throw new Error("pause_tenant paused nothing for a shop that is not the demo store");
     }
 
     await logAdminActivity({
