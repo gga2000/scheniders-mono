@@ -162,11 +162,12 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
               className={cn(SELECT, industryFilter && SELECT_ACTIVE, industriesFailed && "text-[var(--ink-red)]")}
             >
               <option value="">{industriesFailed ? "Industries did not load" : "All Industries"}</option>
-              {(industries ?? [])
-                .filter((i) => i.is_active)
+              {/* Switched-off industries last, marked: leads that used one keep it, so staff can still find them. */}
+              {[...(industries ?? [])]
+                .sort((a, b) => Number(b.is_active) - Number(a.is_active))
                 .map((industry) => (
                   <option key={industry.id} value={industry.id}>
-                    {industry.name}
+                    {industry.is_active ? industry.name : `${industry.name} (off)`}
                   </option>
                 ))}
             </select>

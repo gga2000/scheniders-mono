@@ -41,9 +41,15 @@ export async function PATCH(
       .update(parsed.data)
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
 
+    // A rename onto another industry's name (industries_name_key).
+    if (error?.code === "23505") {
+      return NextResponse.json({ error: "An industry with this name already exists." }, { status: 409 });
+    }
     if (error) throw error;
+    // A colleague removed it first: said as Delete and Move say it, not a 500.
+    if (!data) return NextResponse.json({ error: "This industry no longer exists." }, { status: 404 });
 
     await logAdminAction(admin, "update_settings", {
       details: { setting: "industries", change: "edited", industry_id: id, fields: Object.keys(parsed.data) },

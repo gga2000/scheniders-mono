@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
  * Adding an industry inserted it with the column default sort_order 0, so it
  * landed first, above every other industry, in the console's lists and the
  * shop onboarding wizard. Its staff log row was written in a second request.
- * Now one database call puts it last and writes the row.
+ * Now one database call puts it just before "Other" and writes the row.
  */
 
 const ADMIN = "22222222-2222-4222-8222-222222222222";
@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/industries", () => {
-  it("adds through one database call that places it last and logs it", async () => {
+  it("adds through one database call that places it before \"Other\" and logs it", async () => {
     rpc.mockResolvedValue({ data: ROW, error: null });
 
     const res = await add({ name: " Pets ", name_ar: "حيوانات أليفة", icon: "PawPrint", color: "#336699" });
@@ -73,6 +73,15 @@ describe("POST /api/industries", () => {
 
     expect(res.status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("says so when an industry already has the name (two staff adding it at once get one)", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "23505", message: "an industry with this name already exists" } });
+
+    const res = await add({ name: "pets" });
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "An industry with this name already exists." });
   });
 
   it("answers 500 when the database fails or answers something else", async () => {

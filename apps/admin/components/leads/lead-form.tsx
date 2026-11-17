@@ -622,11 +622,12 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
                   onChange={(e) => update("industry_id", e.target.value || null)}
                 >
                   <option value="">Select industry</option>
+                  {/* A switched-off industry is not offered, except the one this lead already has: it keeps it. */}
                   {(industries ?? [])
-                    .filter((i) => i.is_active)
+                    .filter((i) => i.is_active || i.id === initialData?.industry_id)
                     .map((i) => (
                       <option key={i.id} value={i.id}>
-                        {i.name_ar || i.name}
+                        {i.is_active ? i.name_ar || i.name : `${i.name_ar || i.name} (off)`}
                       </option>
                     ))}
                 </SelectField>

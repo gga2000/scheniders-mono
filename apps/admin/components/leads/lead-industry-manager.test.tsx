@@ -17,11 +17,16 @@ const list = [
 ].map((i) => ({ ...i, name_ar: null, icon: "Building2", color: "#6B7280", avg_order_value_iqd: 25000, is_active: true, created_at: "2026-11-17T00:00:00Z" }));
 
 let requests: string[] = [];
+/** How many times the list was read. */
+let reads = 0;
 let answer: () => Response = () => new Response(JSON.stringify({ place: 2, of: 3 }));
 vi.mock("@/lib/admin-fetch", () => ({
   adminFetch: async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
-    if (method === "GET") return new Response(JSON.stringify({ industries: list }));
+    if (method === "GET") {
+      reads += 1;
+      return new Response(JSON.stringify({ industries: list }));
+    }
     requests.push(`${method} ${url} ${init?.body ?? ""}`);
     return answer();
   },
@@ -45,6 +50,7 @@ async function open() {
 
 beforeEach(() => {
   requests = [];
+  reads = 0;
   answer = () => new Response(JSON.stringify({ place: 2, of: 3 }));
   toastError.mockReset();
   toastSuccess.mockReset();
@@ -106,12 +112,58 @@ describe("LeadIndustryManager delete", () => {
     expect(toastSuccess).toHaveBeenCalledWith('"Tools" removed.');
   });
 
-  it("says why when the server refuses", async () => {
+  it("closes the confirm and reads the list again when a colleague removed it first", async () => {
     answer = () => new Response(JSON.stringify({ error: "This industry no longer exists." }), { status: 404 });
 
     await pressDelete("Perfume");
 
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith("This industry no longer exists.");
+    expect(screen.queryByText(/If leads use it, it is switched off instead/)).toBeNull();
+    expect(reads).toBe(2);
+  });
+
+  it("keeps the confirm open when the delete failed for another reason", async () => {
+    answer = () => new Response(JSON.stringify({ error: "Failed to delete industry" }), { status: 500 });
+
+    await pressDelete("Perfume");
+
+    expect(toastError).toHaveBeenCalledWith("Failed to delete industry");
+    expect(screen.getByText(/If leads use it, it is switched off instead/)).toBeTruthy();
+  });
+});
+
+/*
+ * Round 10: an edit saved after a colleague removed the industry ended in a
+ * plain 500 and left the row open. It now says the industry no longer
+ * exists and closes the row. A name another industry has is refused (one
+ * industry per name) and the row stays open with what was typed.
+ */
+describe("LeadIndustryManager edit", () => {
+  async function saveEdit(name: string) {
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: `Edit ${name}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await settle();
+  }
+
+  it("closes the row and reads the list again when a colleague removed the industry first", async () => {
+    answer = () => new Response(JSON.stringify({ error: "This industry no longer exists." }), { status: 404 });
+
+    await saveEdit("Tools");
+
+    expect(requests).toHaveLength(1);
+    expect(toastError).toHaveBeenCalledWith("This industry no longer exists.");
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(reads).toBe(2);
+  });
+
+  it("keeps the row open and says so when another industry has the name", async () => {
+    answer = () => new Response(JSON.stringify({ error: "An industry with this name already exists." }), { status: 409 });
+
+    await saveEdit("Tools");
+
+    expect(toastError).toHaveBeenCalledWith("An industry with this name already exists.");
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
   });
 });
