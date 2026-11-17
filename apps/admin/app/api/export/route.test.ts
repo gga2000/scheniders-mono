@@ -259,17 +259,12 @@ describe("GET /api/export", () => {
 
   it("starts no file and logs nothing when the request came from another site", async () => {
     tables.tenants = [shop(1)];
-    for (const site of ["cross-site", "same-site", null]) {
+    for (const site of ["cross-site", "same-site", "none", null]) {
       const res = await call("type=merchants&format=csv", site);
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: "This download did not start from the staff console, so it was refused." });
     }
     expect(logAdminAction).not.toHaveBeenCalled();
-  });
-
-  it("starts a file typed into the address bar by the person", async () => {
-    tables.tenants = [shop(1)];
-    expect((await call("type=merchants&format=csv", "none")).status).toBe(200);
   });
 
   it("refuses a type it does not know", async () => {
