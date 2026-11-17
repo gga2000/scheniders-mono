@@ -1,24 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LeadFollowUp } from "@/types/leads";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminFetch } from "@/lib/admin-fetch";
-import { okOrLoadFailure } from "@/lib/load-failure";
 import { refusal } from "@/lib/refusal";
-
-export function useLeadFollowUps(leadId: string | null) {
-  return useQuery<LeadFollowUp[]>({
-    queryKey: ["lead-follow-ups", leadId],
-    queryFn: async () => {
-      const res = await adminFetch(`/api/leads/${leadId}/follow-ups`);
-      okOrLoadFailure(res, "follow-ups");
-      const data = await res.json();
-      return data.follow_ups;
-    },
-    enabled: !!leadId,
-    staleTime: 30_000,
-  });
-}
 
 export function useCreateFollowUp() {
   const qc = useQueryClient();
@@ -42,7 +26,6 @@ export function useCreateFollowUp() {
       return res.json();
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["lead-follow-ups", vars.leadId] });
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
   });
@@ -61,7 +44,6 @@ export function useCompleteFollowUp() {
       return res.json();
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["lead-follow-ups", vars.leadId] });
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
   });

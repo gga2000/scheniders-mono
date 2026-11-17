@@ -1,24 +1,9 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LeadActivity, LeadActivityType } from "@/types/leads";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { LeadActivityType } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
-import { okOrLoadFailure } from "@/lib/load-failure";
 import { refusal } from "@/lib/refusal";
-
-export function useLeadActivities(leadId: string | null) {
-  return useQuery<LeadActivity[]>({
-    queryKey: ["lead-activities", leadId],
-    queryFn: async () => {
-      const res = await adminFetch(`/api/leads/${leadId}/activities`);
-      okOrLoadFailure(res, "activities");
-      const data = await res.json();
-      return data.activities;
-    },
-    enabled: !!leadId,
-    staleTime: 15_000,
-  });
-}
 
 export function useCreateActivity() {
   const qc = useQueryClient();
@@ -43,7 +28,6 @@ export function useCreateActivity() {
       return res.json();
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["lead-activities", vars.leadId] });
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
   });

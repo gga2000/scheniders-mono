@@ -19,8 +19,7 @@ import {
 export const LEADS_TABLE_LAYOUT_KEY = "leads_table_layout";
 export const LEADS_TABLE_LAYOUT_VERSION = 1 as const;
 
-/** Absolute width bounds (px). minWidth per column is enforced on top of MIN. */
-export const MIN_COLUMN_WIDTH = 40;
+/** The widest a column may be (px); each column's own minWidth is its floor. */
 export const MAX_COLUMN_WIDTH = 800;
 /** Defensive upper bound on stored entries (we ship 11 columns; allow some dupes). */
 const MAX_STORED_COLUMNS = 50;

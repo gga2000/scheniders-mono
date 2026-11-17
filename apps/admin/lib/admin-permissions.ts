@@ -97,7 +97,3 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
 export function hasPermission(role: AdminRole, action: AdminAction): boolean {
   return ROLE_PERMISSIONS[role]?.has(action) ?? false;
 }
-
-export function getPermissions(role: AdminRole): AdminAction[] {
-  return Array.from(ROLE_PERMISSIONS[role] ?? []);
-}

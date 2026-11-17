@@ -11,9 +11,6 @@ export const SPRING_CARD = {
   mass: 0.8,
 };
 
-// Panel reveal easing — smooth S-curve for height:0→auto collapsibles
-export const EASE_PANEL = [0.25, 0.8, 0.25, 1] as const;
-
 // Crossfade easing — standard material fade for skeleton→content blends
 export const EASE_CROSSFADE = [0.4, 0, 0.2, 1] as const;
 

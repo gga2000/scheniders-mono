@@ -127,8 +127,9 @@ describe("bearer-only CRM routes map auth failures to 401/403", () => {
   it("covers the lead, industry and team handlers", () => {
     const files = new Set(BEARER_HANDLERS.map((h) => h.file.split("/")[0]));
     expect(files).toEqual(new Set(["industries", "leads", "team"]));
-    // Writes that need a named permission moved to requireAdminPermission (route-permissions.test.ts).
-    expect(BEARER_HANDLERS.length).toBeGreaterThanOrEqual(19);
+    // Writes that need a named permission moved to requireAdminPermission (route-permissions.test.ts);
+    // the unread history and follow-up lists (GET) went in round 12.
+    expect(BEARER_HANDLERS.length).toBeGreaterThanOrEqual(17);
   });
 
   it.each(BEARER_HANDLERS)("$name — no Authorization header → 401", async (h) => {

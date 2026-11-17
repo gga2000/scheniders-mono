@@ -192,15 +192,19 @@ export function staffActionText(action: string, details: Record<string, unknown>
 
 /** A key that holds an id: a uuid in the log says nothing to a reader. */
 const ID_KEY = /(^|_)id$/;
+/** An id under any other key: an owner move logs `from` and `to` as staff ids. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Up to two of the row's plain values, "days: 7 | rows: 40", for the
- * Activity log and Home's Recent Activity. Ids (session_id, industry_id),
- * lists and empty values are left out; null when nothing is left.
+ * Activity log and Home's Recent Activity. Ids (session_id, industry_id, an
+ * owner move's from and to), lists and empty values are left out; null when
+ * nothing is left.
  */
 export function staffLogSummary(details: Record<string, unknown> | null): string | null {
   const parts = Object.entries(details ?? {})
     .filter(([key, value]) => !ID_KEY.test(key) && value !== null && value !== undefined && typeof value !== "object")
+    .filter(([, value]) => !(typeof value === "string" && UUID.test(value)))
     .slice(0, 2)
     .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value)}`);
   return parts.length > 0 ? parts.join(" | ") : null;

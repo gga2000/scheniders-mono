@@ -29,12 +29,3 @@ export function useLastActors(tenantIds: string[]) {
     staleTime: 60_000,
   });
 }
-
-export function useLastActor(tenantId: string | null) {
-  const ids = tenantId ? [tenantId] : [];
-  const { data, ...rest } = useLastActors(ids);
-  return {
-    ...rest,
-    actor: tenantId ? data?.actors[tenantId] ?? null : null,
-  };
-}
