@@ -40,7 +40,7 @@ vi.mock("@supabase/ssr", () => ({
 }));
 
 const { middleware } = await import("./middleware");
-const { CSP_HEADER } = await import("./lib/csp");
+const { CSP_HEADER, NEXT_NONCE_SOURCE } = await import("./lib/csp");
 
 const STAFF = { id: "11111111-1111-4111-8111-111111111111" };
 const call = (path: string) => middleware(new NextRequest(`https://console.test${path}`));
@@ -151,7 +151,7 @@ describe("the script policy", () => {
     expect(nonceIn(second.headers.get(CSP_HEADER))).not.toBe(nonce);
     // Forwarded to Next.js (its scripts) and to the root layout (the before-paint script).
     expect(first.headers.get("x-middleware-request-x-nonce")).toBe(nonce);
-    expect(first.headers.get(`x-middleware-request-${CSP_HEADER.toLowerCase()}`)).toBe(policy);
+    expect(first.headers.get(`x-middleware-request-${NEXT_NONCE_SOURCE}`)).toBe(policy);
   });
 
   it("replaces a nonce the browser sent", async () => {
