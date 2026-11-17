@@ -14,6 +14,7 @@ import { AdminTopbar } from "./admin-topbar";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
+import { readMenuCollapsed, writeMenuCollapsed } from "@/lib/menu-choice";
 import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
 import { PageTransition } from "@/components/shared/page-transition";
 import { WatchlistSync } from "@/components/merchants/watchlist-sync";
@@ -54,7 +55,6 @@ function metadataName(metadata: Record<string, unknown> | undefined): string | n
 // Saved sidebar choice (browser storage, read without a hydration mismatch)
 // ---------------------------------------------------------------------------
 
-const SIDEBAR_KEY = "adminSidebarCollapsed";
 const sidebarListeners = new Set<() => void>();
 
 function subscribeSidebar(listener: () => void) {
@@ -64,13 +64,8 @@ function subscribeSidebar(listener: () => void) {
   };
 }
 
-/** The menu opens with its words; only someone who chose icons gets icons. */
-function readSidebarCollapsed() {
-  return localStorage.getItem(SIDEBAR_KEY) === "true";
-}
-
 function setSidebarCollapsed(collapsed: boolean) {
-  localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+  writeMenuCollapsed(collapsed);
   for (const listener of sidebarListeners) listener();
 }
 
@@ -83,7 +78,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   // is live. Reading it during the first render drew a different sidebar than
   // the server sent (React error 418) on every page load for anyone who had
   // changed it.
-  const isCollapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => false);
+  const isCollapsed = useSyncExternalStore(subscribeSidebar, readMenuCollapsed, () => false);
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -151,9 +146,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           The room for the fixed menu is set in CSS, so the server's page
           already has it. It used to start at 0 and slide to 272px for half a
           second after every page load, pushing the whole page sideways. It
-          slides only when someone opens or closes the menu.
+          slides only when someone opens or closes the menu. For staff who
+          chose icons, data-admin-main takes the narrow room before the page
+          comes alive (lib/menu-choice.ts).
         */}
         <main
+          data-admin-main
           className={cn(
             "flex-1 min-w-0",
             isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]",

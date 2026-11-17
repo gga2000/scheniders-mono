@@ -78,6 +78,19 @@ body {
   box-shadow: var(--card-shadow);
 }
 
+/*
+ * Staff who chose an icons-only menu. Pages are built ahead of time with the
+ * full menu; lib/menu-choice.ts marks <html> before the first paint, and these
+ * rules give the page the narrow menu's room until the app comes alive and
+ * draws the icons. Without them the page jumped 184px sideways on every load.
+ * They are outside any layer, so they win over the shell's Tailwind classes.
+ */
+@media (min-width: 768px) {
+  html[data-menu="icons"] [data-admin-main] { margin-left: 88px; }
+  html[data-menu="icons"] [data-admin-menu]:not([data-collapsed]) { width: 72px; }
+  html[data-menu="icons"] [data-admin-menu]:not([data-collapsed]) > * { visibility: hidden; }
+}
+
 /* Trial countdown in dark mode */
 .dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.3); }
 

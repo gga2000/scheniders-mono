@@ -205,6 +205,8 @@ export function AdminSidebar({
   if (!isMobile) {
     return (
       <aside
+        data-admin-menu
+        data-collapsed={collapsed || undefined}
         className={cn(
           "fixed left-4 top-4 bottom-4 z-50 flex flex-col rounded-[28px] border border-white/5 bg-[#1E1E1E] py-6 text-white shadow-lg shadow-black/20",
           "transition-[width] duration-300 ease-out",
