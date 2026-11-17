@@ -129,6 +129,8 @@ describe("useLeadFormController: a save refused over a colleague's lists", () =>
 
     await act(() => result.current.submit(false));
     expect(toast.error).toHaveBeenCalledWith(CLASH, { id: CLASH_TOAST, duration: 15_000 });
+    // Closing it as the save starts would close the new one too: sonner closes a frame or two late.
+    expect(toast.dismiss).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
 
     // The lead is read again; until the colleague's copy arrives nothing moves.
@@ -140,7 +142,7 @@ describe("useLeadFormController: a save refused over a colleague's lists", () =>
     expect(result.current.form.management_name).toBe("Typed by me");
 
     // The next Save sends this person's field over the colleague's tags, and
-    // closes the clash toast first: it was about the copy this save replaces.
+    // once it went through closes the clash toast: it was about the old copy.
     toast.dismiss.mockReset();
     await act(() => result.current.submit(false));
     expect(toast.dismiss).toHaveBeenCalledWith(CLASH_TOAST);

@@ -58,8 +58,9 @@ function withLists(form: LeadFormData, from: LeadFormData, lists: readonly LeadL
 }
 
 /**
- * The clash toast's id: one clash toast at a time, closed when the next save
- * starts, so a saved lead never sits under "Nothing was saved".
+ * The clash toast's id: one clash toast at a time (a second clash updates it),
+ * closed once a later save is not refused over the lists, so a saved lead
+ * never sits under "Nothing was saved".
  */
 export const CLASH_TOAST = "lead-clash";
 
@@ -308,10 +309,13 @@ export function useLeadFormController({
 
     setSubmitting(true);
     setClash(null);
-    // The last clash's words are about the copy this save replaces.
-    toast.dismiss(CLASH_TOAST);
     try {
       const result = await onSubmit(normalized, changes, opened);
+      // The save was not refused over the lists: the last clash's words no
+      // longer hold. Closed here, not as the save starts: sonner closes a
+      // toast a frame or two late, and a quick second clash under the same id
+      // would be closed with it.
+      toast.dismiss(CLASH_TOAST);
       if (result === false) {
         toast.error("Couldn't save the lead. Please try again.");
         return;
@@ -335,6 +339,7 @@ export function useLeadFormController({
         toast.error(error.message, { id: CLASH_TOAST, duration: 15_000 });
         return;
       }
+      toast.dismiss(CLASH_TOAST);
       // A refused save rejects with the server's own words ("A lead can only
       // go to an active staff member."); "try again" would never help there.
       toast.error(error instanceof Error && error.message ? error.message : "Something went wrong while saving.");
