@@ -35,6 +35,8 @@ vi.mock("next/font/local", () => ({
   },
 }));
 vi.mock("@/components/providers", () => ({ Providers: Passthrough }));
+// The middleware's nonce for this response (lib/csp.ts).
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-nonce": "bm9uY2U=" }) }));
 
 import RootLayout, { metadata } from "./layout";
 
@@ -50,13 +52,14 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
+/** The root layout reads the request's nonce, so it is async: render what it answers. */
+async function rootMarkup(): Promise<string> {
+  return renderToStaticMarkup(await RootLayout({ children: <main>admin</main> }));
+}
+
 describe("admin root document", () => {
-  it("root layout sets <html lang> and no dir", () => {
-    const markup = renderToStaticMarkup(
-      <RootLayout>
-        <main>admin</main>
-      </RootLayout>,
-    );
+  it("root layout sets <html lang> and no dir", async () => {
+    const markup = await rootMarkup();
     const tag = markup.match(/<html\b[^>]*>/)?.[0];
     expect(tag).toBeDefined();
     expect(tag).toMatch(/\slang="en"/);
@@ -69,12 +72,13 @@ describe("admin root document", () => {
     expect(metadata.title).toBeUndefined();
   });
 
-  it("defines the Geist variables as their subset faces, then one fallback", () => {
-    const body = renderToStaticMarkup(
-      <RootLayout>
-        <main>admin</main>
-      </RootLayout>,
-    ).match(/<body\b[^>]*>/)?.[0];
+  it("gives its before-paint script the response's nonce, so the script policy lets it run", async () => {
+    const scripts = (await rootMarkup()).match(/<script\b[^>]*>/g);
+    expect(scripts).toEqual(['<script nonce="bm9uY2U=">']);
+  });
+
+  it("defines the Geist variables as their subset faces, then one fallback", async () => {
+    const body = (await rootMarkup()).match(/<body\b[^>]*>/)?.[0];
     expect(body).toContain(
       "--font-geist-sans:geist/latin, geist/latin-ext, geist/vietnamese, geist/cyrillic, geist/cyrillic-ext, geist/latin Fallback",
     );
