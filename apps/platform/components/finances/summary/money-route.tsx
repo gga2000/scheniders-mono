@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { STUCK_ORDERS_HREF } from "@/lib/orders/stuck-in-transit";
 import { cn } from "@/lib/utils";
 import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
@@ -284,7 +285,11 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                         {linesOpen && (
                                             <div className="mb-1 mt-1 ps-3">
                                                 <ul className="space-y-0.5 text-[12px] text-muted" data-testid="money-from-now-lines">
-                                                    {[{ key: "start", label: nowSource.label, amount: nowSource.amount, sign: false }, ...nowSource.lines].map((line) => (
+                                                    {[
+                                                        // The figure above, named as the start of this sum rather than read as a new one.
+                                                        { key: "start", label: t("fin.money.from.nowStart", { label: nowSource.label }), amount: nowSource.amount, sign: false },
+                                                        ...nowSource.lines,
+                                                    ].map((line) => (
                                                         <li key={line.key} className="flex items-baseline justify-between gap-4" data-line={line.key}>
                                                             <span className="min-w-0 text-left" dir={dir}>
                                                                 {line.label}
@@ -348,6 +353,12 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                     amount: money(summary.cash.stuck.amount),
                                 })}
                             </p>
+                        )}
+                        {summary.cash.stuck.count > 0 && (
+                            <Link href={STUCK_ORDERS_HREF} className={`${CARD_LINK} mt-1.5`} data-testid="money-road-stuck-link">
+                                {t("fin.money.road.stuck.open")}
+                                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                            </Link>
                         )}
                         {returning.count > 0 && (
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
