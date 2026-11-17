@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { useBulkLeadAction } from "@/hooks/use-lead-mutations";
+import { BulkLeadError, useBulkLeadAction } from "@/hooks/use-lead-mutations";
 import { hasPermission } from "@/lib/admin-permissions";
 import type { AdminRole } from "@/types/admin";
 
@@ -19,12 +19,19 @@ const BUTTON = "text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors
  * The bar under ticked leads. "Assign" sent no one to assign to, so the server
  * refused every press and nothing said so; "Delete" removed up to 100 leads
  * and their history on one click. Each button now says what it does, a
- * refusal is shown, and Delete asks once more, naming how many. The bar is
- * always dark, so its red is the light one, and it keeps one line.
+ * refusal is shown, and Delete asks once more, naming how many. "Assign to
+ * me" over leads a colleague owns asks once more too, naming how many: the
+ * server moves nothing until then. The bar is always dark, so its red is the
+ * light one, and it keeps one line.
  */
 export function LeadBulkBar({ selectedIds, role, onClear }: LeadBulkBarProps) {
   const bulkAction = useBulkLeadAction();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // How many ticked leads someone else owns, once the server said so, for the
+  // ticks it was said about: a change of ticks asks afresh.
+  const selection = selectedIds.join(",");
+  const [asked, setAsked] = useState<{ selection: string; count: number } | null>(null);
+  const othersOwn = asked?.selection === selection ? asked.count : null;
   const canDelete = role ? hasPermission(role, "delete_leads") : false;
   const count = selectedIds.length;
 
@@ -32,10 +39,16 @@ export function LeadBulkBar({ selectedIds, role, onClear }: LeadBulkBarProps) {
     bulkAction.mutate(body, {
       onSuccess: () => {
         setConfirmingDelete(false);
+        setAsked(null);
         onClear();
       },
       onError: (error) => {
         setConfirmingDelete(false);
+        if (error instanceof BulkLeadError && error.ownedByOthers) {
+          setAsked({ selection, count: error.ownedByOthers });
+          return;
+        }
+        setAsked(null);
         toast.error(error.message);
       },
     });
@@ -59,11 +72,17 @@ export function LeadBulkBar({ selectedIds, role, onClear }: LeadBulkBarProps) {
       </button>
       <button
         type="button"
-        onClick={() => run({ lead_ids: selectedIds, action: "assign_to_me" })}
+        onClick={() =>
+          run({ lead_ids: selectedIds, action: "assign_to_me", take_from_others: othersOwn !== null })
+        }
         disabled={bulkAction.isPending}
-        className={BUTTON}
+        className={`${BUTTON} ${othersOwn !== null ? "font-bold bg-white/15" : ""}`}
       >
-        Assign to me
+        {othersOwn !== null
+          ? othersOwn === 1
+            ? "1 belongs to someone else. Take it too?"
+            : `${othersOwn} belong to others. Take them too?`
+          : "Assign to me"}
       </button>
       {canDelete && (
         <button
@@ -82,6 +101,7 @@ export function LeadBulkBar({ selectedIds, role, onClear }: LeadBulkBarProps) {
         type="button"
         onClick={() => {
           setConfirmingDelete(false);
+          setAsked(null);
           onClear();
         }}
         className="text-sm text-zinc-400 hover:text-white transition-colors"

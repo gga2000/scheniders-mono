@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { notAnId } from "@/lib/route-id";
-import { leadUpdateSchema, type LeadUpdate } from "@/lib/lead-update";
+import { leadUpdateSchema } from "@/lib/lead-update";
+import { changeLeads } from "@/lib/lead-change";
 
 export async function GET(
   _request: NextRequest,
@@ -108,70 +109,34 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid lead" }, { status: 400 });
     }
-    const changes: LeadUpdate & { last_contacted_at?: string; assigned_at?: string | null } = { ...parsed.data };
-    if (Object.keys(changes).length === 0) {
+    const { status, assigned_to, ...rest } = parsed.data;
+    if (status === undefined && assigned_to === undefined && Object.keys(rest).length === 0) {
       return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
     }
     const supabase = createAdminClient();
 
-    // The status and the owner are compared with what is stored, so an edit
-    // that leaves them alone neither writes history nor restarts assigned_at.
-    let statusFrom: string | null = null;
-    let ownerMove: { from: string | null; to: string | null } | null = null;
-    if (parsed.data.status !== undefined || parsed.data.assigned_to !== undefined) {
-      const { data: current, error: readError } = await supabase
-        .from("leads")
-        .select("status, assigned_to")
-        .eq("id", id)
-        .maybeSingle();
-      if (readError) throw readError;
-      if (!current) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    // Status and owner go through the same rule as the bulk bar
+    // (lib/lead-change): compared with what is stored under a lock, so a form
+    // save that leaves them alone writes nothing, and a real change writes its
+    // history line and staff log row in the same transaction.
+    if (status !== undefined || assigned_to !== undefined) {
+      const result = await changeLeads(supabase, [id], { status, owner: assigned_to }, admin.user);
+      if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+      if (result.found === 0) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
 
-      if (parsed.data.status !== undefined && current.status !== parsed.data.status) {
-        statusFrom = current.status;
-        if (parsed.data.status === "contacted") changes.last_contacted_at = new Date().toISOString();
-      }
-      if (parsed.data.assigned_to !== undefined && current.assigned_to !== parsed.data.assigned_to) {
-        changes.assigned_at = parsed.data.assigned_to ? new Date().toISOString() : null;
-        ownerMove = { from: current.assigned_to, to: parsed.data.assigned_to };
-      }
+    if (Object.keys(rest).length > 0) {
+      const { error } = await supabase.from("leads").update(rest).eq("id", id);
+      if (error) throw error;
     }
 
     const { data: lead, error } = await supabase
       .from("leads")
-      .update(changes)
-      .eq("id", id)
       .select("*, industry:industries(*)")
-      .single();
-
+      .eq("id", id)
+      .maybeSingle();
     if (error) throw error;
-
-    // Who owns a lead decides whose work it counts as, so moving it is a
-    // staff step: the log keeps who moved it, from whom, to whom.
-    if (ownerMove) {
-      await logAdminAction(admin, "reassign_lead", {
-        details: { lead_id: id, merchant_name: lead.merchant_name, ...ownerMove },
-      });
-    }
-
-    // History is written once the change is saved: a refused change (a
-    // converted lead is locked) leaves no "Status changed" line behind.
-    if (statusFrom !== null) {
-      const { error: historyError } = await supabase.from("lead_activities").insert({
-        lead_id: id,
-        activity_type: "status_change",
-        title: `Status changed from ${statusFrom} to ${parsed.data.status}`,
-        metadata: { from: statusFrom, to: parsed.data.status },
-        created_by: admin.user.id,
-      });
-      if (historyError) {
-        console.error("Lead PATCH history error:", historyError);
-        return NextResponse.json(
-          { error: "The lead was saved, but its status change could not be added to its history." },
-          { status: 500 },
-        );
-      }
-    }
+    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
     return NextResponse.json({ lead });
   } catch (error) {
