@@ -14,6 +14,7 @@ import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopFormHref } from "@/lib/shop-actions";
 import { shopsAtRiskLine } from "@/lib/merchant-health";
+import { useCan } from "@/hooks/use-admin-auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,6 +87,7 @@ async function fetchHealth(): Promise<HealthData> {
 // ---------------------------------------------------------------------------
 
 export default function HealthPage() {
+  const canTopUp = useCan()("top_up_wallet");
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<HealthData>({
     queryKey: ["admin", "health"],
     queryFn: fetchHealth,
@@ -327,13 +329,16 @@ export default function HealthPage() {
                         -{formatIQD(deficit)}
                       </td>
                       <td className="p-3 text-center">
-                        <Link
-                          href={shopFormHref(w.tenant_id, "money")}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-xs font-semibold transition-all border border-[var(--card-border)]"
-                        >
-                          <Wallet className="w-3 h-3" />
-                          Top Up
-                        </Link>
+                        {/* The shop page's Add money form exists only for a login that may top up. */}
+                        {canTopUp && (
+                          <Link
+                            href={shopFormHref(w.tenant_id, "money")}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-xs font-semibold transition-all border border-[var(--card-border)]"
+                          >
+                            <Wallet className="w-3 h-3" />
+                            Top Up
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );

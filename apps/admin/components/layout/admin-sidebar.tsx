@@ -13,10 +13,12 @@ import {
   SETTINGS_SECTION,
   activeLink,
   activeSection,
+  linksFor,
   type MenuCount,
   type MenuSection,
 } from "@/lib/admin-menu";
 import { MENU_ICONS } from "./menu-icons";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 
 /** The pink mark of the merchant app, used for the open place. */
@@ -60,6 +62,7 @@ function MenuEntry({
   onNavigate: () => void;
 }) {
   const Icon = MENU_ICONS[section.icon];
+  const links = linksFor(section, useAdminAuth().role);
   const open = activeSection(pathname)?.href === section.href;
   const page = activeLink(pathname);
   const badge = section.count && waiting[section.count].count > 0 ? waiting[section.count] : null;
@@ -95,9 +98,9 @@ function MenuEntry({
         )}
       </Link>
 
-      {open && !collapsed && section.links.length > 1 && (
+      {open && !collapsed && links.length > 1 && (
         <div className="mt-1 mb-2 ml-[22px] space-y-0.5 border-l border-white/10 pl-3">
-          {section.links.map((link) => {
+          {links.map((link) => {
             const here = page === link.href;
             return (
               <Link

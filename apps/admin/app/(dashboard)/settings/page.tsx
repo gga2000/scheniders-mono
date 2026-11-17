@@ -25,6 +25,8 @@ import { hasPermission } from "@/lib/admin-permissions";
 
 export default function SettingsPage() {
   const { user, role, isLoading } = useAdminAuth();
+  // Every industries write needs it (api/industries): without it, Manage ended in a refusal.
+  const canEditSettings = role ? hasPermission(role, "update_settings") : false;
   const [isIndustriesOpen, setIsIndustriesOpen] = useState(false);
   // Both are read by every staff member; start them now, not after the role.
   usePrefetchQuery(paymentDetailsQuery);
@@ -53,9 +55,9 @@ export default function SettingsPage() {
         </div>
       ) : (
         <>
-          <PaymentDetailsCard canEdit={role ? hasPermission(role, "update_settings") : false} />
+          <PaymentDetailsCard canEdit={canEditSettings} />
 
-          <SignupWhatsAppCard canEdit={role ? hasPermission(role, "update_settings") : false} />
+          <SignupWhatsAppCard canEdit={canEditSettings} />
 
           {role && hasPermission(role, "manage_demo_store") && <DemoStoreCard />}
 
@@ -71,26 +73,28 @@ export default function SettingsPage() {
                     Store Industries
                   </h2>
                   <p className="text-xs text-foreground/70">
-                    Categories shown in the store-creation wizard. Add, remove, or reorder.
+                    Categories shown in the store-creation wizard.{" "}
+                    {canEditSettings ? "Add, remove, or reorder." : "Only a super admin can change them."}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsIndustriesOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold text-foreground transition-colors hover:bg-muted/50 shrink-0"
-              >
-                Manage
-              </button>
+              {canEditSettings && (
+                <button
+                  onClick={() => setIsIndustriesOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl border border-border bg-background text-xs font-semibold text-foreground transition-colors hover:bg-muted/50 shrink-0"
+                >
+                  Manage
+                </button>
+              )}
             </div>
             <p className="text-xs text-foreground/70">
               Changes take effect immediately for new merchants going through onboarding.
             </p>
           </div>
 
-          <LeadIndustryManager
-            isOpen={isIndustriesOpen}
-            onClose={() => setIsIndustriesOpen(false)}
-          />
+          {canEditSettings && (
+            <LeadIndustryManager isOpen={isIndustriesOpen} onClose={() => setIsIndustriesOpen(false)} />
+          )}
 
           {/* Admin users */}
           <div className="pastel-card p-6">
