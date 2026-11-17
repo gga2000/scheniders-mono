@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, Wallet, Building2, Clock, AlertTriangle } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import { useQuery } from "@tanstack/react-query";
 import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
 import { WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
 import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing-check-alert";
@@ -12,14 +11,7 @@ import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-req
 import { formatWhen } from "@/lib/format";
 import { staffActionText } from "@/lib/staff-actions";
 import { activityKind } from "@/lib/activity-kinds";
-
-interface Notification {
-  id: string;
-  action: string;
-  details: Record<string, unknown> | null;
-  tenant_id: string | null;
-  created_at: string;
-}
+import { useRecentSteps, type RecentStep } from "@/hooks/use-recent-steps";
 
 // Icon and tint per kind of step (lib/activity-kinds), keyed on the names the
 // console writes; the words come from staffActionText, as on the Team page.
@@ -46,19 +38,15 @@ function getActionConfig(action: string, details: Record<string, unknown> | null
   }
 }
 
-const NO_NOTIFICATIONS: Notification[] = [];
+const NO_NOTIFICATIONS: RecentStep[] = [];
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
-  // Recent steps come from Home's data once it has loaded; the bell watches
-  // that cache and never fetches it itself.
-  const { data: dashboard } = useQuery<{ recentActivity?: Notification[] }>({
-    queryKey: ["admin", "dashboard-v2"],
-    enabled: false,
-  });
-  const notifications = dashboard?.recentActivity ?? NO_NOTIFICATIONS;
+  // The bell reads the newest steps itself, so it is right on every page.
+  const recent = useRecentSteps();
+  const notifications = recent.data ?? NO_NOTIFICATIONS;
   const primeRequests = usePrimeLinkRequests();
   const openPrime = primeRequests.data ?? [];
   const openTopups = useTopupRequests().data ?? [];
@@ -148,7 +136,21 @@ export function NotificationBell() {
 
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
-              {notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed ? (
+              {recent.isError ? (
+                <div role="alert" className="px-4 py-6 text-center text-sm text-foreground/70">
+                  <p>Could not load the recent steps.</p>
+                  <button
+                    type="button"
+                    onClick={() => void recent.refetch()}
+                    disabled={recent.isFetching}
+                    className="mt-2 text-xs font-semibold text-foreground underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {recent.isFetching ? "Loading" : "Try again"}
+                  </button>
+                </div>
+              ) : recent.isLoading ? (
+                <div className="px-4 py-8 text-center text-sm text-foreground/70">Loading...</div>
+              ) : notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">
                   No notifications yet
                 </div>
