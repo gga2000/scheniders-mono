@@ -15,10 +15,14 @@ import { addToWatchlist, removeFromWatchlist, useWatchlist } from "@/hooks/use-w
 // - While the first read has failed: a star pressed then could only stay in
 //   this browser, unsaved, so it is undone, staff are told, and the read is
 //   tried again.
+// - When someone else signs in on this browser (starsPerson goes up), it
+//   starts over: the last person's stars are not the next person's changes.
 export function WatchlistSync() {
   const { data, isError, refetch } = useWatchlist();
   const starred = useAdminStore((s) => s.starredMerchants);
+  const person = useAdminStore((s) => s.starsPerson);
   const setStarred = useAdminStore.setState;
+  const personRef = useRef(person);
   const hydratedRef = useRef(false);
   const lastRemoteRef = useRef<Set<string>>(new Set());
 
@@ -26,6 +30,12 @@ export function WatchlistSync() {
   // anything: as two effects, the sync one ran in that same commit with the
   // browser's old list and took every server star off, then put it back.
   useEffect(() => {
+    if (personRef.current !== person) {
+      personRef.current = person;
+      hydratedRef.current = false;
+      lastRemoteRef.current = new Set();
+    }
+
     if (!data) {
       if (isError && starred.length > 0) {
         setStarred({ starredMerchants: [] });
@@ -66,7 +76,7 @@ export function WatchlistSync() {
     };
     added.forEach((tenantId) => void addToWatchlist(tenantId).catch(() => undo(tenantId, true)));
     removed.forEach((tenantId) => void removeFromWatchlist(tenantId).catch(() => undo(tenantId, false)));
-  }, [data, isError, refetch, starred, setStarred]);
+  }, [data, isError, refetch, starred, person, setStarred]);
 
   return null;
 }
