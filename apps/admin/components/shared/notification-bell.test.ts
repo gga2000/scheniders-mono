@@ -22,6 +22,8 @@ vi.mock("./whatsapp-health-alert", () => ({
 }));
 vi.mock("./billing-check-alert", () => ({ BillingCheckAlert: () => null, billingCheckCount: () => 0, useBillingCheck: () => ({ data: undefined }) }));
 
+vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ user: { id: "user-noor" } }) }));
+
 const { NotificationBell, uncheckedAlarms } = await import("./notification-bell");
 
 const bell = () => {

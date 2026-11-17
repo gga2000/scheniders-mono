@@ -12,6 +12,8 @@ import { formatWhen } from "@/lib/format";
 import { staffActionText } from "@/lib/staff-actions";
 import { activityKind } from "@/lib/activity-kinds";
 import { useRecentSteps, type RecentStep } from "@/hooks/use-recent-steps";
+import { isNewStep, useBellReadMark } from "@/hooks/use-bell-read-mark";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 // Icon and tint per kind of step (lib/activity-kinds), keyed on the names the
 // console writes; the words come from staffActionText, as on the Team page.
@@ -66,7 +68,8 @@ function wordList(names: string[]): string {
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  // "Mark all read" is kept per staff member in this browser, so a reload does not count the same steps again.
+  const { readUpTo, markReadUpTo } = useBellReadMark(useAdminAuth().user?.id ?? null);
   const panelRef = useRef<HTMLDivElement>(null);
   // The bell reads the newest steps itself, so it is right on every page.
   const recent = useRecentSteps();
@@ -90,11 +93,12 @@ export function NotificationBell() {
     { name: "the billing job", read: billingRead },
   ]);
   // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0) + (unchecked.names.length > 0 ? 1 : 0);
+  const unreadCount = notifications.filter((n) => isNewStep(n.created_at, readUpTo)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0) + (unchecked.names.length > 0 ? 1 : 0);
 
   const markAllRead = useCallback(() => {
-    setReadIds(new Set(notifications.map((n) => n.id)));
-  }, [notifications]);
+    // The list is newest first.
+    if (notifications.length > 0) markReadUpTo(notifications[0].created_at);
+  }, [notifications, markReadUpTo]);
 
   // Close on outside click
   useEffect(() => {
@@ -209,7 +213,7 @@ export function NotificationBell() {
               ) : (
                 notifications.map((notif) => {
                   const config = getActionConfig(notif.action, notif.details);
-                  const isRead = readIds.has(notif.id);
+                  const isRead = !isNewStep(notif.created_at, readUpTo);
 
                   return (
                     <div

@@ -68,4 +68,18 @@ describe("GET /api/activity", () => {
     ]);
     expect(logs[0]).not.toHaveProperty("tenant");
   });
+
+  it("counts the whole log for the Activity page, which pages by the total", async () => {
+    await call("limit=50");
+    expect(stub.callsTo("admin_activity_logs.select")[0][1]).toEqual({ count: "exact" });
+  });
+
+  it("does not count the log for the bell, which asks every minute and shows no total", async () => {
+    const res = await call("limit=20&count=none");
+    expect(stub.callsTo("admin_activity_logs.select")[0][1]).toBeUndefined();
+    const body = await res.json();
+    expect(body.total).toBeNull();
+    expect(body.logs).toHaveLength(2);
+  });
 });
+

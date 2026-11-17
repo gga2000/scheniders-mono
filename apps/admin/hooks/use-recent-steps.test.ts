@@ -32,7 +32,7 @@ describe("readRecentSteps", () => {
 
     const steps = await readRecentSteps(fetcher);
 
-    expect(asked).toEqual([`/api/activity?limit=${RECENT_STEPS}`]);
+    expect(asked).toEqual([`/api/activity?limit=${RECENT_STEPS}&count=none`]);
     expect(steps).toEqual([
       {
         id: "l1",
