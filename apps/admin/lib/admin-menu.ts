@@ -16,6 +16,22 @@ export type MenuIcon = "dashboard" | "merchants" | "leads" | "support" | "money"
 /** Work waiting on staff, counted beside a place on the menu. */
 export type MenuCount = "leads" | "support" | "payments";
 
+/** The badge beside a place: how many wait, or null when the count could not be read. */
+export interface MenuBadge {
+  count: number | null;
+  label: string;
+}
+
+/**
+ * One badge from its count's read. A failed count is not 0: the badge says
+ * "?" so a queue does not look empty exactly when its read is failing.
+ */
+export function waitingBadge(read: { data: number | undefined; isError: boolean }, what: string): MenuBadge {
+  if (read.isError) return { count: null, label: `Could not check ${what}` };
+  const count = read.data ?? 0;
+  return { count, label: `${count} ${what}` };
+}
+
 export interface MenuLink {
   label: string;
   href: string;

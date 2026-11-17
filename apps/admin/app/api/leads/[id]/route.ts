@@ -54,28 +54,28 @@ export async function GET(
       }
       throw leadResult.error;
     }
+    // A part that failed must fail the page: answered as [], it read as "no
+    // history", "no follow-ups" or "no owner" for a lead that has them.
+    if (activitiesResult.error) throw activitiesResult.error;
+    if (followUpsResult.error) throw followUpsResult.error;
+    if (socialLinksResult.error) throw socialLinksResult.error;
+    if (competitorsResult.error) throw competitorsResult.error;
 
-    // Fetch assigned user info if assigned_to exists
-    let assigned_user = null;
-    if (leadResult.data.assigned_to) {
-      const { data: user } = await supabase
+    // A person whose profile is gone shows no name; a failed read is an error.
+    const profile = async (userId: string | null) => {
+      if (!userId) return null;
+      const { data, error } = await supabase
         .from("user_profiles")
         .select("id, display_name, email, avatar_url")
-        .eq("id", leadResult.data.assigned_to)
-        .single();
-      assigned_user = user;
-    }
-
-    // Fetch created_by user info
-    let created_by_user = null;
-    if (leadResult.data.created_by) {
-      const { data: user } = await supabase
-        .from("user_profiles")
-        .select("id, display_name, email, avatar_url")
-        .eq("id", leadResult.data.created_by)
-        .single();
-      created_by_user = user;
-    }
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    const [assigned_user, created_by_user] = await Promise.all([
+      profile(leadResult.data.assigned_to),
+      profile(leadResult.data.created_by),
+    ]);
 
     return NextResponse.json({
       lead: {
@@ -83,10 +83,10 @@ export async function GET(
         assigned_user,
         created_by_user,
       },
-      activities: activitiesResult.data ?? [],
-      follow_ups: followUpsResult.data ?? [],
-      social_links: socialLinksResult.data ?? [],
-      competitors: competitorsResult.data ?? [],
+      activities: activitiesResult.data,
+      follow_ups: followUpsResult.data,
+      social_links: socialLinksResult.data,
+      competitors: competitorsResult.data,
     });
   } catch (error) {
     console.error("Lead GET error:", error);

@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { MENU, SETTINGS_SECTION, activeLink, activeSection, linksFor, menuPages, pageTitle } from "./admin-menu";
+import { MENU, SETTINGS_SECTION, activeLink, activeSection, linksFor, menuPages, pageTitle, waitingBadge } from "./admin-menu";
 
 /** Every page of the console, as a path ("/leads/analytics"); pages with an id are left out. */
 function consolePages(dir = join(__dirname, "..", "app", "(dashboard)"), base = ""): string[] {
@@ -77,5 +77,21 @@ describe("links each login may open", () => {
     expect(labels("super_admin")).toEqual(["Payments to check", "Wallets", "WhatsApp costs"]);
     expect(labels(null)).toEqual(labels("super_admin"));
     expect(menuPages().map((p) => p.href)).toContain("/billing");
+  });
+});
+
+describe("the count beside a place", () => {
+  it("counts what waits, and a 0 hides the badge", () => {
+    expect(waitingBadge({ data: 3, isError: false }, "receipts to check")).toEqual({ count: 3, label: "3 receipts to check" });
+    expect(waitingBadge({ data: undefined, isError: false }, "receipts to check").count).toBe(0);
+  });
+
+  it("says it could not check when the count's read failed, in place of a 0 that hides the badge", () => {
+    expect(waitingBadge({ data: undefined, isError: true }, "leads with no owner")).toEqual({
+      count: null,
+      label: "Could not check leads with no owner",
+    });
+    // A later read failed: the last count may be stale, so it is not shown as fact.
+    expect(waitingBadge({ data: 4, isError: true }, "waiting on us").count).toBeNull();
   });
 });

@@ -14,6 +14,8 @@ import {
   activeLink,
   activeSection,
   linksFor,
+  waitingBadge,
+  type MenuBadge,
   type MenuCount,
   type MenuSection,
 } from "@/lib/admin-menu";
@@ -34,16 +36,16 @@ interface AdminSidebarProps {
   onSignOut: () => void;
 }
 
-type Waiting = Record<MenuCount, { count: number; label: string }>;
+type Waiting = Record<MenuCount, MenuBadge>;
 
 function useWaiting(): Waiting {
-  const leads = useLeadsWithNoOwner().data ?? 0;
-  const support = useSupportWaitingCount().data ?? 0;
-  const payments = useTopupRequests().data?.length ?? 0;
+  const leads = useLeadsWithNoOwner();
+  const support = useSupportWaitingCount();
+  const payments = useTopupRequests();
   return {
-    leads: { count: leads, label: `${leads} leads with no owner` },
-    support: { count: support, label: `${support} waiting on us` },
-    payments: { count: payments, label: `${payments} receipts to check` },
+    leads: waitingBadge(leads, "leads with no owner"),
+    support: waitingBadge(support, "waiting on us"),
+    payments: waitingBadge({ data: payments.data?.length, isError: payments.isError }, "receipts to check"),
   };
 }
 
@@ -65,7 +67,8 @@ function MenuEntry({
   const links = linksFor(section, useAdminAuth().role);
   const open = activeSection(pathname)?.href === section.href;
   const page = activeLink(pathname);
-  const badge = section.count && waiting[section.count].count > 0 ? waiting[section.count] : null;
+  const waits = section.count ? waiting[section.count] : null;
+  const badge = waits && waits.count !== 0 ? waits : null;
 
   return (
     <div>
@@ -88,12 +91,14 @@ function MenuEntry({
         {badge && (
           <span
             aria-label={badge.label}
+            title={badge.count === null ? badge.label : undefined}
             className={cn(
-              "flex items-center justify-center rounded-full bg-red-600 font-semibold text-white tabular-nums",
+              "flex items-center justify-center rounded-full font-semibold text-white tabular-nums",
+              badge.count === null ? "bg-zinc-600" : "bg-red-600",
               collapsed ? "absolute right-2 top-2 h-2 w-2 text-[0px]" : "ml-auto h-6 min-w-6 px-1.5 text-[13px]",
             )}
           >
-            {badge.count > 99 ? "99+" : badge.count}
+            {badge.count === null ? "?" : badge.count > 99 ? "99+" : badge.count}
           </span>
         )}
       </Link>

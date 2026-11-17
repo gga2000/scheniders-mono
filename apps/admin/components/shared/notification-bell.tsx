@@ -40,6 +40,30 @@ function getActionConfig(action: string, details: Record<string, unknown> | null
 
 const NO_NOTIFICATIONS: RecentStep[] = [];
 
+interface AlarmRead {
+  name: string;
+  read: { isError: boolean; isFetching: boolean; refetch: () => Promise<unknown> };
+}
+
+/**
+ * The bell's own checks whose read failed. A failed read used to draw no
+ * alarm at all, so "the billing job missed shops" went quiet exactly when
+ * reads were failing.
+ */
+export function uncheckedAlarms(alarms: AlarmRead[]) {
+  const failed = alarms.filter((a) => a.read.isError);
+  return {
+    names: failed.map((a) => a.name),
+    retrying: failed.some((a) => a.read.isFetching),
+    retry: () => failed.forEach((a) => void a.read.refetch()),
+  };
+}
+
+/** "a", "a and b", "a, b and c" */
+function wordList(names: string[]): string {
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -49,14 +73,24 @@ export function NotificationBell() {
   const notifications = recent.data ?? NO_NOTIFICATIONS;
   const primeRequests = usePrimeLinkRequests();
   const openPrime = primeRequests.data ?? [];
-  const openTopups = useTopupRequests().data ?? [];
-  const whatsapp = useWhatsAppHealth().data;
+  const topupRead = useTopupRequests();
+  const openTopups = topupRead.data ?? [];
+  const whatsappRead = useWhatsAppHealth();
+  const whatsapp = whatsappRead.data;
   const interaktEmpty = whatsapp?.interaktEmpty === true;
   const pausedShops = whatsapp?.pausedShops ?? 0;
-  const billingCheck = useBillingCheck().data;
+  const billingRead = useBillingCheck();
+  const billingCheck = billingRead.data;
   const billingMissed = billingCheckCount(billingCheck) > 0;
+  // An alarm whose read failed is not quiet: the bell names it, and counts it once.
+  const unchecked = uncheckedAlarms([
+    { name: "receipts to check", read: topupRead },
+    { name: "Prime link requests", read: primeRequests },
+    { name: "WhatsApp", read: whatsappRead },
+    { name: "the billing job", read: billingRead },
+  ]);
   // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0);
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0) + (unchecked.names.length > 0 ? 1 : 0);
 
   const markAllRead = useCallback(() => {
     setReadIds(new Set(notifications.map((n) => n.id)));
@@ -119,6 +153,24 @@ export function NotificationBell() {
               )}
             </div>
 
+            {/* A check whose read failed: its alarm cannot show, so say so */}
+            {unchecked.names.length > 0 && (
+              <div role="alert" className="flex items-start gap-3 border-b border-[var(--card-border)] bg-red-500/5 px-4 py-3">
+                <span className="mt-0.5 text-[var(--ink-red)]"><AlertTriangle className="w-3.5 h-3.5" /></span>
+                <div className="min-w-0 text-xs">
+                  <p className="font-medium text-foreground">Could not check {wordList(unchecked.names)}.</p>
+                  <button
+                    type="button"
+                    onClick={unchecked.retry}
+                    disabled={unchecked.retrying}
+                    className="mt-1 font-semibold text-foreground underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {unchecked.retrying ? "Loading" : "Try again"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* A daily billing job missed shops: trial not paused or month not renewed */}
             {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} />}
 
@@ -150,7 +202,7 @@ export function NotificationBell() {
                 </div>
               ) : recent.isLoading ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">Loading...</div>
-              ) : notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed ? (
+              ) : notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed && unchecked.names.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">
                   No notifications yet
                 </div>
