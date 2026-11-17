@@ -117,6 +117,7 @@ export async function PATCH(
     // The status and the owner are compared with what is stored, so an edit
     // that leaves them alone neither writes history nor restarts assigned_at.
     let statusFrom: string | null = null;
+    let ownerMove: { from: string | null; to: string | null } | null = null;
     if (parsed.data.status !== undefined || parsed.data.assigned_to !== undefined) {
       const { data: current, error: readError } = await supabase
         .from("leads")
@@ -132,6 +133,7 @@ export async function PATCH(
       }
       if (parsed.data.assigned_to !== undefined && current.assigned_to !== parsed.data.assigned_to) {
         changes.assigned_at = parsed.data.assigned_to ? new Date().toISOString() : null;
+        ownerMove = { from: current.assigned_to, to: parsed.data.assigned_to };
       }
     }
 
@@ -143,6 +145,14 @@ export async function PATCH(
       .single();
 
     if (error) throw error;
+
+    // Who owns a lead decides whose work it counts as, so moving it is a
+    // staff step: the log keeps who moved it, from whom, to whom.
+    if (ownerMove) {
+      await logAdminAction(admin, "reassign_lead", {
+        details: { lead_id: id, merchant_name: lead.merchant_name, ...ownerMove },
+      });
+    }
 
     // History is written once the change is saved: a refused change (a
     // converted lead is locked) leaves no "Status changed" line behind.

@@ -42,7 +42,6 @@ const NO_STAFF_LOG: Record<string, string> = {
   "support/push/route.ts DELETE": "a person's own device for support alerts",
   "merchants/[id]/notes/route.ts POST": "the note row is the record: it names its author and the shop",
   "leads/route.ts POST": "a new sales lead; the lead row records who created it",
-  "leads/[id]/route.ts PATCH": "everyday sales edit; a status change is written to the lead's own history",
   "leads/[id]/activities/route.ts POST": "is the lead's own history",
   "leads/[id]/follow-ups/route.ts POST": "a sales reminder on a lead",
   "leads/[id]/follow-ups/[fid]/route.ts PATCH": "a sales reminder on a lead",

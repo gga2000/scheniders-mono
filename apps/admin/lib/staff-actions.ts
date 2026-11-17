@@ -34,6 +34,7 @@ const TEAM_WORDS: Record<string, string> = {
   convert_lead: "Turned a lead into a shop",
   build_store_for_lead: "Built a store for a lead",
   delete_lead: "Deleted a lead",
+  reassign_lead: "Moved a lead to another owner",
   import_leads: "Imported leads",
   bulk_leads: "Changed several leads at once",
   export_data: "Downloaded a list",
@@ -45,6 +46,9 @@ const TEAM_WORDS: Record<string, string> = {
   link_prime: "Linked a shop to Prime",
 };
 
+/** Steps on a lead, which the log names by the lead's shop name. */
+const LEAD_STEPS = new Set(["delete_lead", "reassign_lead"]);
+
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -52,8 +56,8 @@ function text(value: unknown): string | null {
 /** What the step did, in plain words: the shop's own list's words where it has them. */
 export function staffActionText(action: string, details: Record<string, unknown> | null): string {
   const words = TEAM_WORDS[action] ?? changeTitle(action, details) ?? action.replace(/_/g, " ");
-  // A deleted lead has no row left to name it; the log kept its name.
-  const lead = action === "delete_lead" ? text(details?.merchant_name) : null;
+  // The log keeps the lead's name: a deleted lead has no row left to name it.
+  const lead = LEAD_STEPS.has(action) ? text(details?.merchant_name) : null;
   return lead ? `${words}: ${lead}` : words;
 }
 
