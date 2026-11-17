@@ -8,6 +8,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TOPUP_QUEUE_KEY, topupQueueItemSchema, topupWarnings, type TopupQueueItem } from "@/lib/topup-queue";
 import { formatIQD, formatWhen } from "@/lib/format";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 const responseSchema = z.object({ requests: z.array(topupQueueItemSchema) });
 
@@ -18,6 +19,8 @@ const METHOD_LABEL: Record<TopupQueueItem["method"], string> = { zain_cash: "Zai
 export function useTopupRequests() {
   return useQuery({
     queryKey: TOPUP_QUEUE_KEY,
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async (): Promise<TopupQueueItem[]> => {
       const res = okOrLoadFailure(await adminFetch("/api/wallet-topup-requests"), "the payments");
       return responseSchema.parse(await res.json()).requests;

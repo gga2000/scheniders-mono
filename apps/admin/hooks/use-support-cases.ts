@@ -17,6 +17,7 @@ import type {
 } from "@/lib/support";
 import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -43,6 +44,8 @@ export function useSupportCases(view: "open" | "solved") {
 export function useSupportWaitingCount() {
   return useQuery<number>({
     queryKey: ["admin", "support", "waiting-count"],
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async () =>
       (await readJson<{ waitingOnUs: number }>(await fetch("/api/support/cases?view=count"))).waitingOnUs,
     refetchInterval: 30_000,

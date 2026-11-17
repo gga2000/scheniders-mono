@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatWhen } from "@/lib/format";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 const outcomeSchema = z.enum(["not_linked", "shared_account", "choose_shop", "no_shop", "prime_down"]).nullable();
 
@@ -43,6 +44,8 @@ const WAITING_ON: Record<NonNullable<PrimeLinkRequest["outcome"]> | "unchecked",
 export function usePrimeLinkRequests() {
   return useQuery({
     queryKey: PRIME_REQUESTS_KEY,
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async (): Promise<PrimeLinkRequest[]> => {
       const res = await adminFetch("/api/prime-link-requests");
       if (!res.ok) throw new Error(`Prime link requests failed: ${res.status}`);
