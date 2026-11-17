@@ -6,10 +6,11 @@
 --   Access:
 --     * anon and authenticated cannot run it; the service role can.
 --   Editing:
---     * a rename writes the name and one staff log row naming "name" only;
+--     * a rename writes the name and one staff log row naming "name" only,
+--       with the industry's new name and the name it was;
 --     * the same save again changes nothing and writes no row;
 --     * switching off with a new average order names both fields, in the
---       form's order;
+--       form's order, and the industry by name (no "was": not renamed);
 --   Refusals (nothing written, no log row):
 --     * a rename onto another industry's name, in other case and spaces:
 --       unique_violation (industries_name_key);
@@ -67,8 +68,8 @@ BEGIN
     PERFORM pg_temp.check('rename: no log row naming only the name',
         EXISTS (SELECT 1 FROM public.admin_activity_logs
                  WHERE admin_user_id = _admin AND actor_email = 'ops@example.com' AND action = 'update_settings'
-                   AND details = jsonb_build_object('setting', 'industries', 'change', 'edited',
-                                                    'industry_id', _id, 'fields', jsonb_build_array('name'))));
+                   AND details = jsonb_build_object('setting', 'industries', 'change', 'edited', 'industry_id', _id,
+                                                    'name', 'Cosmetics', 'was', 'Beauty', 'fields', jsonb_build_array('name'))));
 
     -- The same save again changes nothing and writes nothing.
     _r := public.admin_edit_industry(_id, '{"name": "Cosmetics"}', _admin, 'ops@example.com');
@@ -82,6 +83,10 @@ BEGIN
         _r -> 'changed' = '["avg_order_value_iqd", "is_active"]');
     PERFORM pg_temp.check('switch off: not written',
         (SELECT NOT is_active AND avg_order_value_iqd = 40000 FROM public.industries WHERE id = _id));
+    PERFORM pg_temp.check('switch off: the row does not name Cosmetics, not renamed',
+        EXISTS (SELECT 1 FROM public.admin_activity_logs
+                 WHERE details @> jsonb_build_object('name', 'Cosmetics', 'fields', jsonb_build_array('avg_order_value_iqd', 'is_active'))
+                   AND details -> 'was' = 'null'::jsonb));
 
     -- Refusals write nothing.
     BEGIN

@@ -140,12 +140,32 @@ describe("LeadIndustryManager delete", () => {
  * industry per name) and the row stays open with what was typed.
  */
 describe("LeadIndustryManager edit", () => {
-  async function saveEdit(name: string) {
+  /** Opens the row, renames the industry (when asked) and saves. */
+  async function saveEdit(name: string, rename: string | null = `${name} and more`) {
     await open();
     fireEvent.click(await screen.findByRole("button", { name: `Edit ${name}` }));
+    if (rename !== null) fireEvent.change(screen.getByPlaceholderText("Name (English)"), { target: { value: rename } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await settle();
   }
+
+  // Round 11: the row sent all five fields, so a rename also wrote back the
+  // color and average order it opened with, over a colleague's change.
+  it("sends only the field that was changed", async () => {
+    answer = () => new Response(JSON.stringify({ industry: {} }));
+
+    await saveEdit("Tools", "  Hardware ");
+
+    expect(requests).toEqual(["PATCH /api/industries/a0000000-0000-4000-8000-000000000002 {\"name\":\"Hardware\"}"]);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
+
+  it("closes a row saved with nothing changed, and sends nothing", async () => {
+    await saveEdit("Tools", null);
+
+    expect(requests).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
 
   it("closes the row and reads the list again when a colleague removed the industry first", async () => {
     answer = () => new Response(JSON.stringify({ error: "This industry no longer exists." }), { status: 404 });

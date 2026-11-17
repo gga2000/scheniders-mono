@@ -32,6 +32,37 @@ describe("staffActionText", () => {
     expect(staffActionText("edit_lead", {})).toBe("Edited a lead");
   });
 
+  it("names the industry a settings change touched, and what became of it", () => {
+    const industries = { setting: "industries" };
+    expect(staffActionText("update_settings", { ...industries, change: "added", name: "Perfume" })).toBe("Added industry Perfume");
+    expect(staffActionText("update_settings", { ...industries, change: "removed", name: "Perfume" })).toBe("Removed industry Perfume");
+    expect(staffActionText("update_settings", { ...industries, change: "switched_off", name: "Perfume", leads_using_it: 3 })).toBe(
+      "Switched off industry Perfume (3 leads use it)",
+    );
+    expect(staffActionText("update_settings", { ...industries, change: "switched_off", name: "Perfume", leads_using_it: 1 })).toBe(
+      "Switched off industry Perfume (1 lead uses it)",
+    );
+    expect(staffActionText("update_settings", { ...industries, change: "moved", name: "Tools", from_place: 2, to_place: 1 })).toBe(
+      "Moved industry Tools from place 2 to 1",
+    );
+    expect(
+      staffActionText("update_settings", { ...industries, change: "edited", name: "Cosmetics", was: "Beauty", fields: ["name", "color"] }),
+    ).toBe("Edited industry Cosmetics, was Beauty (name and color)");
+    expect(
+      staffActionText("update_settings", { ...industries, change: "edited", name: "Beauty", was: null, fields: ["avg_order_value_iqd", "is_active"] }),
+    ).toBe("Edited industry Beauty (average order and on or off)");
+  });
+
+  it("says an industry for edit and move rows written before they named it", () => {
+    expect(staffActionText("update_settings", { setting: "industries", change: "edited", industry_id: "x", fields: ["icon"] })).toBe(
+      "Edited an industry (icon)",
+    );
+    expect(staffActionText("update_settings", { setting: "industries", change: "moved", from_place: 3, to_place: 4 })).toBe(
+      "Moved an industry from place 3 to 4",
+    );
+    expect(staffActionText("update_settings", { setting: "seed_automation", active: true })).toBe("Changed console settings");
+  });
+
   it("says what a bulk press really changed, and names the leads it deleted", () => {
     expect(staffActionText("bulk_leads", { action: "change_status", status: "contacted", changed: 3 })).toBe(
       "Marked 3 leads as Contacted",

@@ -123,6 +123,55 @@ function editLeadText(details: Record<string, unknown> | null): string {
   return `Edited a lead${lead}${fields.length > 0 ? ` (${wordList(fields, 4)})` : ""}`;
 }
 
+/** The industry Edit row's fields, in the row's words (edited industry rows name them). */
+const INDUSTRY_FIELD_WORDS: Record<string, string> = {
+  name: "name",
+  name_ar: "Arabic name",
+  icon: "icon",
+  color: "color",
+  avg_order_value_iqd: "average order",
+  is_active: "on or off",
+};
+
+/** A whole number in the log, or null. */
+function count(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
+}
+
+/**
+ * A change to the industry list, named: "Edited industry Beauty, was
+ * Cosmetics (name and color)". Edit and move rows carry the name since round
+ * 11 (migration 20261117141316); older ones say "an industry".
+ */
+function industryText(details: Record<string, unknown> | null): string | null {
+  const name = text(details?.name);
+  const industry = name ? `industry ${name}` : "an industry";
+  switch (details?.change) {
+    case "added":
+      return `Added ${industry}`;
+    case "removed":
+      return `Removed ${industry}`;
+    case "switched_off": {
+      const leads = count(details.leads_using_it);
+      return `Switched off ${industry}${leads ? ` (${leads === 1 ? "1 lead uses" : `${leads} leads use`} it)` : ""}`;
+    }
+    case "moved": {
+      const from = count(details.from_place);
+      const to = count(details.to_place);
+      return `Moved ${industry}${from && to ? ` from place ${from} to ${to}` : ""}`;
+    }
+    case "edited": {
+      const was = text(details.was);
+      const fields = Array.isArray(details.fields)
+        ? details.fields.flatMap((field: unknown) => (typeof field === "string" ? [INDUSTRY_FIELD_WORDS[field] ?? field.replace(/_/g, " ")] : []))
+        : [];
+      return `Edited ${industry}${name && was && was !== name ? `, was ${was}` : ""}${fields.length > 0 ? ` (${wordList(fields, 4)})` : ""}`;
+    }
+    default:
+      return null;
+  }
+}
+
 /** What the step did, in plain words: the shop's own list's words where it has them. */
 export function staffActionText(action: string, details: Record<string, unknown> | null): string {
   if (action === "bulk_leads") {
@@ -130,6 +179,10 @@ export function staffActionText(action: string, details: Record<string, unknown>
     if (bulk) return bulk;
   }
   if (action === "edit_lead") return editLeadText(details);
+  if (action === "update_settings" && details?.setting === "industries") {
+    const industry = industryText(details);
+    if (industry) return industry;
+  }
   const words = TEAM_WORDS[action] ?? changeTitle(action, details) ?? action.replace(/_/g, " ");
   // The log keeps the lead's name: a deleted lead has no row left to name it.
   const lead = LEAD_STEPS.has(action) ? text(details?.merchant_name) : null;
