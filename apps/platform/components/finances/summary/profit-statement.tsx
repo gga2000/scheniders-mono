@@ -10,6 +10,7 @@ import {
     lensChange,
     throughLens,
     waterfall,
+    wholePercents,
     type CostLineId,
     type FinanceSummary,
     type Lens,
@@ -74,6 +75,12 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const perThousand = statement.margin === null ? null : Math.round(Math.abs(statement.margin) * 1000);
     const shown = statement.lines.filter((line) => line.amount !== 0);
     const empty = statement.lines.filter((line) => line.amount === 0);
+    // The share column, costs then what is left: whole percents that add up to 100 (as in the products
+    // table) when every part is a whole point or more; otherwise each one on its own, a small one with a decimal.
+    const shareParts = [...shown.map((line) => line.share), statement.margin ?? 0];
+    const wholeShares = !loss && statement.sales > 0 && shareParts.every((share) => share * 100 >= 1);
+    const sharePercents = wholeShares ? wholePercents(shareParts).map(String) : shareParts.map((share) => pct(share));
+    const sharesOfSales = { lines: new Map(shown.map((line, i) => [line.id, sharePercents[i]])), left: sharePercents[shareParts.length - 1] };
     /** The change of a figure against the period before, through the chosen lens; null when it is not worth showing. */
     const change = (value: number, before: number | undefined) => {
         if (!previous || before === undefined || !isComparablePeriod(statement, previous)) return null;
@@ -172,7 +179,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                 )}
                             </span>
                             <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
-                                {statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}
+                                {statement.sales > 0 ? t("fin.line.ofSales", { pct: sharesOfSales.lines.get(line.id) ?? pct(line.share) }) : ""}
                             </span>
                             <span className="flex flex-col items-end">
                                 <span className="flex items-baseline justify-end gap-3">
@@ -224,7 +231,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                         />
                     </span>
                     <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
-                        {statement.margin !== null && t("fin.line.ofSales", { pct: pct(statement.margin) })}
+                        {statement.margin !== null && t("fin.line.ofSales", { pct: sharesOfSales.left })}
                     </span>
                     <span className="flex justify-end">
                         {amount(statement.netProfit, "text-[18px] font-semibold text-emerald-600 dark:text-emerald-400")}
