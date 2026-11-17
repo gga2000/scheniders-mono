@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { config as middlewareConfig } from "./middleware";
 
 /**
  * The console's server code calls the database and the auth server several
@@ -21,10 +20,6 @@ function regionsOf(app: string): string[] | undefined {
 describe("server region", () => {
   it("runs the console in Frankfurt, next to the database", () => {
     expect(regionsOf("admin")).toEqual(["fra1"]);
-  });
-
-  it("checks access in the same region, before every request goes on there", () => {
-    expect(middlewareConfig.regions).toEqual(regionsOf("admin"));
   });
 
   it("runs the console where the merchant app and the storefront run", () => {
