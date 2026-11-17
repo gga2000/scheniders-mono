@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { adReturn, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { adBreakEven, adReturn, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
@@ -38,6 +38,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
     const money = useMoneyText();
     const spent = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
     const brought = adReturn(statement);
+    const evenAds = adBreakEven(statement);
     const even = breakEven(summary, statement);
     const bulk = bulkDays(summary.daily);
     // Only the daily costs this period has, so the brackets never name a cost that is zero.
@@ -150,6 +151,8 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                     </span>
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {t("fin.ads.spent", { spent: money(spent) })}
+                        {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
+                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds) })}</>}
                     </p>
                 </div>
             )}

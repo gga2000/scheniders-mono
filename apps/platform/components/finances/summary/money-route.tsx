@@ -90,8 +90,10 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     // The lines that match 6,810,500 to the payments card fold away, so the open card only shows parts that add up to "paid to you".
     const [linesOpen, setLinesOpen] = useState(false);
     const { in_transit: road, returning, split, reached: payments, statement } = summary.cash;
-    const cashForNow =
-        payments.payments > 0 ? split.reached_now + statement.returns + statement.prepaid_gap + statement.price_gap : split.reached_now;
+    // What the statements finally paid for this period's orders: their price after the refunds and price
+    // differences on the same statements. The fees they took off prepaid orders are not in it: those orders
+    // are in "paid to you" after their fee already, so taking the fee off here too would count it twice.
+    const cashForNow = payments.payments > 0 ? split.reached_now + statement.returns + statement.price_gap : split.reached_now;
     const { orders, revenue } = summary.sales;
     // The note counts every unpaid order, so paid + unpaid adds up to the period's orders; the
     // list under it names those that still owe money, and a line there counts the ones that owe nothing.
@@ -129,7 +131,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
               });
     // The statements also paid for orders not marked delivered (outside this card): when that is all
     // that is left, name it, so the cash here and the payments card's total visibly agree.
-    const withUndelivered = statement.undelivered > 0 && cashForNow + statement.undelivered === payments.amount;
+    const prepaidFees = payments.payments > 0 ? statement.prepaid_gap : 0;
+    const withRest = (statement.undelivered > 0 || prepaidFees !== 0) && cashForNow + prepaidFees + statement.undelivered === payments.amount;
     // What the same statements took off the price of these orders: said as one figure, so 6,810,500 above
     // and what actually reached the shop are never two unexplained amounts.
     const nowGap = split.reached_now - cashForNow;
@@ -140,14 +143,28 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
             : [
                   { key: "gap", label: t("fin.money.from.nowGap"), amount: -nowGap, sign: true },
                   { key: "paid", label: t("fin.money.from.nowPaid"), amount: cashForNow, sign: false },
-                  ...(withUndelivered
+                  ...(withRest
                       ? [
-                            {
-                                key: "undelivered",
-                                label: t("fin.money.from.nowUndelivered", { count: statement.undelivered_orders }),
-                                amount: statement.undelivered,
-                                sign: true,
-                            },
+                            ...(prepaidFees !== 0
+                                ? [
+                                      {
+                                          key: "prepaid",
+                                          label: t("fin.money.from.nowPrepaidFees", { n: formatWhole(statement.prepaid_orders), count: statement.prepaid_orders }),
+                                          amount: prepaidFees,
+                                          sign: true,
+                                      },
+                                  ]
+                                : []),
+                            ...(statement.undelivered > 0
+                                ? [
+                                      {
+                                          key: "undelivered",
+                                          label: t("fin.money.from.nowUndelivered", { count: statement.undelivered_orders }),
+                                          amount: statement.undelivered,
+                                          sign: true,
+                                      },
+                                  ]
+                                : []),
                             { key: "total", label: t("fin.money.from.nowTotal"), amount: payments.amount, sign: false },
                         ]
                       : []),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     FinanceSummarySchema,
+    adBreakEven,
     adReturn,
     barStep,
     breakEven,
@@ -247,6 +248,19 @@ describe("adReturn", () => {
 
     it("has no answer when nothing was spent on ads", () => {
         expect(adReturn(buildStatement(summary({ expenses: [] })))).toBeNull();
+    });
+});
+
+describe("adBreakEven", () => {
+    it("is the ads figure at which ads eat all that sales leave after goods, delivery and refunds", () => {
+        const statement = buildStatement(summary());
+        const line = (id: string) => statement.lines.find((l) => l.id === id)?.amount ?? 0;
+        const kept = statement.sales - line("product_cost") - line("delivery") - line("refunds");
+        expect(adBreakEven(statement)).toBe(Math.ceil((statement.sales / kept) * 1000));
+    });
+
+    it("has no answer when nothing was spent on ads", () => {
+        expect(adBreakEven(buildStatement(summary({ expenses: [] })))).toBeNull();
     });
 });
 
