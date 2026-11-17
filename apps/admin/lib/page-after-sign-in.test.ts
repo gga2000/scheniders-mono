@@ -46,6 +46,16 @@ describe("pageAfterSignIn", () => {
     }
   });
 
+  // Round 16 (Workflow new 1, also): the middleware sends these on to the
+  // login page or the API (lib/plain-path.ts), or "/api" is a bare 404.
+  it("never follows an encoded letter or slash, or the API's own root", () => {
+    for (const next of ["/%6Cogin", "/api%2Fexport", "/%61pi/export", "/leads%2F7f1c", "/api", "/api?x=1"]) {
+      expect(pageAfterSignIn(next), next).toBe("/");
+    }
+    expect(pageAfterSignIn("/merchants?q=%D8%A7")).toBe("/merchants?q=%D8%A7");
+    expect(pageAfterSignIn("/apiary")).toBe("/apiary");
+  });
+
   it("follows a dot segment that stays on a console page", () => {
     expect(pageAfterSignIn("/merchants/../leads?status=new")).toBe("/leads?status=new");
     expect(pageAfterSignIn("/a/../login")).toBe("/");
