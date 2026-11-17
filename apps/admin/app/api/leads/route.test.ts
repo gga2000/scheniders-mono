@@ -117,3 +117,26 @@ describe("POST /api/leads owner", () => {
     expect(inserts[0].created_by).toBe("a");
   });
 });
+
+describe("POST /api/leads industry", () => {
+  // A colleague removed the picked industry while the form was open: the answer says so.
+  it("says the industry was just removed instead of failing", async () => {
+    const builder = {
+      insert: () => builder,
+      select: () => builder,
+      single: async () => ({
+        data: null,
+        error: { code: "23503", message: 'insert or update on table "leads" violates foreign key constraint "leads_industry_id_fkey"' },
+      }),
+    };
+    stub.client.from = () => builder as unknown as ReturnType<typeof stub.client.from>;
+    const res = await POST(
+      new NextRequest("http://admin.test/api/leads", {
+        method: "POST",
+        body: JSON.stringify({ merchant_name: "Kawkab", industry_id: "2f3e4d5c-6b7a-4980-a1b2-c3d4e5f6a7b8" }),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("This industry was just removed. Pick another one and save again.");
+  });
+});

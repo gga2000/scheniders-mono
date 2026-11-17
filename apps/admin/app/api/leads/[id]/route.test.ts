@@ -29,12 +29,28 @@ let calls: Call[];
 let rpcAnswer: { data: unknown; error: unknown };
 let editAnswer: { data: unknown; error: unknown };
 let stored: Record<string, unknown> | null;
+let industries: Array<{ id: string }>;
 
-function from() {
+const CAFES = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
+const GONE = "2f3e4d5c-6b7a-4980-a1b2-c3d4e5f6a7b8";
+/** What Postgres answers when the lead names an industry that no longer exists. */
+const INDUSTRY_FK = {
+  code: "23503",
+  message: 'insert or update on table "leads" violates foreign key constraint "leads_industry_id_fkey"',
+};
+
+function from(table: string) {
+  let id: unknown;
   const builder = {
     select: () => builder,
-    eq: () => builder,
-    maybeSingle: async () => ({ data: stored, error: null }),
+    eq: (_column: string, value: unknown) => {
+      id = value;
+      return builder;
+    },
+    maybeSingle: async () =>
+      table === "industries"
+        ? { data: industries.find((row) => row.id === id) ?? null, error: null }
+        : { data: stored, error: null },
   };
   return builder;
 }
@@ -50,6 +66,7 @@ const edits = () => calls.filter((c) => c.fn === "admin_edit_lead").map((c) => c
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ from, rpc }) }));
 
 const { PATCH } = await import("./route");
+const { INDUSTRY_GONE } = await import("@/lib/lead-update");
 const patch = (body: unknown) =>
   PATCH(
     new NextRequest(`http://admin.test/api/leads/${LEAD}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -61,6 +78,7 @@ beforeEach(() => {
   rpcAnswer = { data: { success: true, found: 1, status_changed: 1, moved: 0 }, error: null };
   editAnswer = { data: { found: true, changed: ["merchant_name"] }, error: null };
   stored = { id: LEAD, merchant_name: "Kawkab", status: "store_built" };
+  industries = [{ id: CAFES }];
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -151,6 +169,34 @@ describe("PATCH /api/leads/[id]", () => {
     const res = await patch({ merchant_name: "Noor" });
 
     expect(res.status).toBe(500);
+  });
+
+  /*
+   * Round 11: a colleague removed the industry while the form was open. The
+   * status was saved, then the field save failed on the foreign key and the
+   * answer was a bare "Failed to update lead", on every press.
+   */
+  it("says the industry was just removed, and saves nothing, not even the status", async () => {
+    const res = await patch({ status: "contacted", industry_id: GONE, merchant_name: "Noor" });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(INDUSTRY_GONE);
+    expect(calls).toEqual([]);
+  });
+
+  it("says the same when the industry goes between that check and the save", async () => {
+    editAnswer = { data: null, error: INDUSTRY_FK };
+
+    const res = await patch({ industry_id: CAFES });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(INDUSTRY_GONE);
+  });
+
+  it("saves an industry that is there, and no industry at all", async () => {
+    expect((await patch({ industry_id: CAFES })).status).toBe(200);
+    expect((await patch({ industry_id: null })).status).toBe(200);
+    expect(edits()).toEqual([{ industry_id: CAFES }, { industry_id: null }]);
   });
 
   it("refuses an empty change", async () => {

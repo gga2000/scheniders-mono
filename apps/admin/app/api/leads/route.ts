@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { containsAny } from "@/lib/search-filter";
 import { DEFAULT_LEAD_SORT, readLeadSort } from "@/lib/lead-sort";
+import { INDUSTRY_GONE, isIndustryGone } from "@/lib/lead-update";
 
 /** The leads search box looks in these: name, page owner, handle, phone and city. */
 const LEAD_SEARCH_COLUMNS = ["merchant_name", "management_name", "handle", "page_phone", "city"] as const;
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ lead }, { status: 201 });
   } catch (error) {
+    if (isIndustryGone(error)) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
     console.error("Leads POST error:", error);
     return NextResponse.json({ error: "Failed to create lead" }, { status: 500 });
   }

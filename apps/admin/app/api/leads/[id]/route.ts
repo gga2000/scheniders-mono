@@ -3,7 +3,7 @@ import { convertedLeadsDeleteMessage, leadConvertedLockResponse, prospectStoreLe
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
-import { editLead, leadUpdateSchema } from "@/lib/lead-update";
+import { editLead, INDUSTRY_GONE, isIndustryGone, leadUpdateSchema } from "@/lib/lead-update";
 import { changeLeads } from "@/lib/lead-change";
 import { deleteLeads } from "@/lib/lead-delete";
 
@@ -119,6 +119,18 @@ export async function PATCH(
     }
     const supabase = createAdminClient();
 
+    // An industry a colleague removed while this form was open: say so before
+    // anything is saved, so a press does not save the status and then fail.
+    if (rest.industry_id) {
+      const { data: industry, error: industryError } = await supabase
+        .from("industries")
+        .select("id")
+        .eq("id", rest.industry_id)
+        .maybeSingle();
+      if (industryError) throw industryError;
+      if (!industry) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
+    }
+
     // Status and owner go through the same rule as the bulk bar
     // (lib/lead-change): compared with what is stored under a lock, so a form
     // save that leaves them alone writes nothing, and a real change writes its
@@ -148,6 +160,8 @@ export async function PATCH(
   } catch (error) {
     const locked = leadConvertedLockResponse(error);
     if (locked) return locked;
+    // Removed between the check above and the save.
+    if (isIndustryGone(error)) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
     console.error("Lead PATCH error:", error);
     return NextResponse.json({ error: "Failed to update lead" }, { status: 500 });
   }
