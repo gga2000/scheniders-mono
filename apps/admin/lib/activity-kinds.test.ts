@@ -48,6 +48,76 @@ function namesWrittenByTheConsole(): string[] {
   return [...names].sort();
 }
 
+const MIGRATIONS = join(ROOT, "../../packages/supabase/migrations");
+
+/** `s` cut at its commas outside brackets and quotes. */
+function splitTop(s: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quoted = false;
+  let part = "";
+  for (const ch of s) {
+    if (ch === "'") quoted = !quoted;
+    if (!quoted && ch === "(") depth += 1;
+    if (!quoted && ch === ")") depth -= 1;
+    if (!quoted && depth === 0 && ch === ",") {
+      parts.push(part.trim());
+      part = "";
+    } else part += ch;
+  }
+  return [...parts, part.trim()];
+}
+
+/** Where the bracket opened at `open` closes. */
+function closing(s: string, open: number): number {
+  let depth = 0;
+  let quoted = false;
+  for (let i = open; i < s.length; i += 1) {
+    if (s[i] === "'") quoted = !quoted;
+    if (quoted) continue;
+    if (s[i] === "(") depth += 1;
+    if (s[i] === ")" && --depth === 0) return i;
+  }
+  return -1;
+}
+
+/**
+ * What every `INSERT INTO public.admin_activity_logs` in the migrations puts
+ * in `action`: a name ('delete_lead'), a family ('trial_check_' || _decision),
+ * or the `_actions || 'name'` steps a function collects first
+ * (admin_update_shop). Anything else is returned as it is written, so a new
+ * way of writing a name fails the test below instead of passing unread.
+ */
+function namesWrittenBySql(): { names: string[]; families: string[]; unread: string[] } {
+  const names = new Set<string>();
+  const families = new Set<string>();
+  const unread: string[] = [];
+  for (const file of readdirSync(MIGRATIONS).filter((name) => /^\d{14}_.*\.sql$/.test(name))) {
+    const sql = readFileSync(join(MIGRATIONS, file), "utf8").replace(/--[^\n]*/g, "");
+    for (const insert of sql.matchAll(/INSERT INTO public\.admin_activity_logs\s*\(/gi)) {
+      const open = (insert.index ?? 0) + insert[0].length - 1;
+      const close = closing(sql, open);
+      const at = splitTop(sql.slice(open + 1, close)).indexOf("action");
+      const rest = sql.slice(close + 1);
+      const values = rest.match(/^\s*VALUES\s*\(/i);
+      const row = values
+        ? splitTop(sql.slice(close + values[0].length + 1, closing(sql, close + values[0].length)))
+        : splitTop(rest.slice(rest.search(/SELECT/i) + "SELECT".length, rest.search(/\bFROM\b/i)));
+      const action = row[at] ?? "";
+      const name = action.match(/^'([a-z_]+)'$/);
+      const family = action.match(/^'([a-z_]+)'\s*\|\|/);
+      if (name) names.add(name[1]);
+      else if (family) families.add(family[1]);
+      else if (/^e\.action$/.test(action)) {
+        const collected = [...sql.matchAll(/_actions\s*\|\|\s*'([a-z_]+)'/g)].map((m) => m[1]);
+        if (collected.length === 0) unread.push(`${file}: ${action}`);
+        for (const step of collected) names.add(step);
+      } else unread.push(`${file}: ${action}`);
+    }
+  }
+  return { names: [...names].sort(), families: [...families].sort(), unread };
+}
+
 describe("kinds of step on the Activity page", () => {
   it("finds the names the console writes", () => {
     const names = namesWrittenByTheConsole();
@@ -71,10 +141,19 @@ describe("kinds of step on the Activity page", () => {
     expect(without).toEqual([]);
   });
 
-  it("knows the steps the database functions write", () => {
-    for (const name of ["status_change", "plan_change", "auto_renew_toggle", "extend_trial", "extend_subscription", "force_unlock", "add_lock_orders", "reassign_lead", "trial_check_confirmed"]) {
-      expect(activityKind(name), name).not.toBeNull();
+  it("reads the names the database functions write, from the migrations", () => {
+    const { names, families, unread } = namesWrittenBySql();
+    expect(unread).toEqual([]);
+    for (const name of ["status_change", "plan_change", "auto_renew_toggle", "extend_trial", "force_unlock", "build_store_for_lead", "delete_lead", "bulk_leads", "reassign_lead", "update_settings", "trial_withheld"]) {
+      expect(names, name).toContain(name);
     }
+    expect(families).toContain("trial_check_");
+  });
+
+  it("gives every name the database functions write a kind, so no step hides from every filter", () => {
+    const { names, families } = namesWrittenBySql();
+    expect(names.filter((name) => activityKind(name) === null)).toEqual([]);
+    expect(families.filter((family) => activityKind(`${family}x`) === null)).toEqual([]);
   });
 
   it("puts every support step under Support", () => {
