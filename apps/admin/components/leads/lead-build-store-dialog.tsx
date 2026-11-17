@@ -423,6 +423,8 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                               <input
                                 type="url"
                                 inputMode="url"
+                                pattern="https?://.+"
+                                title="A full web link, such as https://…/photo.jpg"
                                 value={product.image_url}
                                 onChange={(e) => updateProduct(index, "image_url", e.target.value)}
                                 className="w-36 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"

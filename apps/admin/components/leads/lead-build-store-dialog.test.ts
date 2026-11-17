@@ -68,6 +68,11 @@ describe("LeadBuildStoreDialog: a refusal is seen, and a wrong image link is nev
     expect(build.mutate).not.toHaveBeenCalled();
   });
 
+  it("points at a link that is not a web link (ftp, data) and sends nothing, as the server would refuse it", () => {
+    advanced("ftp://cdn.example.com/abaya.jpg");
+    expect(build.mutate).not.toHaveBeenCalled();
+  });
+
   it("sends a full image link", () => {
     advanced("https://cdn.example.com/abaya.jpg");
     expect(build.mutate).toHaveBeenCalledTimes(1);

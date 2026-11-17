@@ -59,6 +59,16 @@ describe("shopCheckLines", () => {
     ["locked for payment", { lock_reason: "trial_ended", lock_since: ago(2) }, "broken"],
     ["paused with new orders blocked", { status: "limited", paused: true, blocks_new_orders: true }, "broken"],
     ["paused without blocking orders", { status: "limited", paused: true }, "look"],
+    [
+      "paused until tomorrow, new orders blocked",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(-1) },
+      "broken",
+    ],
+    [
+      "a pause that ended yesterday",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) },
+      "ok",
+    ],
     ["a prospect store", { is_prospect: true }, "look"],
     ["a trial ending tomorrow", { status: "trial", trial_ends_at: ago(-1) }, "look"],
     ["a trial ending in a week", { status: "trial", trial_ends_at: ago(-7) }, "ok"],
@@ -66,6 +76,14 @@ describe("shopCheckLines", () => {
     const check = healthy();
     check.store = { ...check.store, ...store };
     expect(line(check, "store").state).toBe(state);
+  });
+
+  it("says a pause has ended once its end date has passed, as the shop page does", () => {
+    const check = healthy();
+    check.store = { ...check.store, status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) };
+    expect(line(check, "store").text).toBe(
+      "Pause ended yesterday. Nothing is stopped now; it clears at the shop's next action.",
+    );
   });
 
   it("says why a store is locked, in plain words", () => {
