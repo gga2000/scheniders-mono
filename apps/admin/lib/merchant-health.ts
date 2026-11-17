@@ -11,6 +11,7 @@
 import type { AdminTenant } from "@/types/admin";
 import { trialClock } from "@/lib/baghdad-day";
 import { ATTENTION_WALLET_IQD, HEALTH_AT_RISK_BELOW, HEALTH_HEALTHY_FROM } from "@/lib/merchant-filters";
+import { formatCount } from "@/lib/format";
 
 export type HealthBand = "healthy" | "warning" | "at_risk";
 
@@ -62,9 +63,11 @@ export interface ChurnFacts {
 
 /**
  * The flame: a shop staff should call before it is gone. Suspended, or nearly
- * out of money and hardly selling, or a trial about to end with no order.
+ * out of money and hardly selling, or a trial about to end with no order. A
+ * cancelled shop is already gone, so it never has one.
  */
 export function isChurnRisk(shop: ChurnFacts, now: number = Date.now()): boolean {
+  if (shop.status === "cancelled") return false;
   if (shop.status === "suspended") return true;
   if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.orders30d < FEW_ORDERS) return true;
   if (shop.status === "trial" && shop.trialEndsAt) {
@@ -84,4 +87,15 @@ export function listChurnRisk(shop: AdminTenant, now?: number): boolean {
     },
     now,
   );
+}
+
+/**
+ * The Shops at risk banner. A shop with a low wallet is in both lists (a low
+ * balance is one of the risk reasons), so it counts shops, not list rows:
+ * "2 issues" for one shop sent staff looking for a second.
+ */
+export function shopsAtRiskLine(atRisk: { tenant_id: string }[], lowWallets: { tenant_id: string }[]): string {
+  const shops = new Set([...atRisk, ...lowWallets].map((row) => row.tenant_id)).size;
+  const plural = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
+  return `${plural(shops, "shop needs", "shops need")} a look: ${formatCount(atRisk.length)} at risk, ${plural(lowWallets.length, "low wallet", "low wallets")}`;
 }

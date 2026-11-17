@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import type { ActivityDay } from "@/types/dashboard";
+import { formatCount } from "@/lib/format";
 
 interface ActivityHeatmapProps {
   days: ActivityDay[] | undefined;
@@ -234,7 +235,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               }}
             >
               <span className="font-semibold text-foreground">
-                {tooltip.count} {tooltip.count === 1 ? "action" : "actions"}
+                {formatCount(tooltip.count)} {tooltip.count === 1 ? "order" : "orders"}
               </span>
               <span className="text-foreground/70 ml-1.5">{tooltip.date}</span>
             </div>

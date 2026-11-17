@@ -24,7 +24,7 @@ import type {
   KpiData,
   PlatformOrderStat,
 } from "@/types/dashboard";
-import { addDays } from "./baghdad-day";
+import { addDays, dayOf } from "./baghdad-day";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
 import { SHOP_GOVERNORATES, shopGovernorate } from "./shop-city";
@@ -60,6 +60,13 @@ export interface StatusChangeRow {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The middle of sorted numbers; with an even count, halfway between the two middle ones. */
+function median(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
 
 function daysBetween(a: Date, b: Date): number {
   return Math.floor(Math.abs(b.getTime() - a.getTime()) / DAY_MS);
@@ -297,7 +304,7 @@ export function calculateWalletHealth(
   const warning = balances.filter((b) => b >= 10000 && b <= 50000).length;
   const critical = balances.filter((b) => b < 10000).length;
   const avgBalance = balances.length ? balances.reduce((a, b) => a + b, 0) / balances.length : 0;
-  const medianBalance = balances.length ? balances[Math.floor(balances.length / 2)] : 0;
+  const medianBalance = median(balances);
 
   return { healthy, warning, critical, avgBalance, medianBalance, topUpRateSparkline: topUpsDaily7 };
 }
@@ -491,7 +498,12 @@ const FIRST_ORDER_BUCKETS = [
   { label: "> 1 Month", min: 29, max: Infinity },
 ];
 
-/** From signup to the shop's first real order ever (not its first in the last 90 days). */
+/**
+ * From signup to the shop's first real order ever (not its first in the last
+ * 90 days), in Baghdad calendar days: joining at 23:00 and selling at 01:00 is
+ * one day. A shop whose first order is older than its signup brought its past
+ * orders with it, so it sold from its first day: "Same Day".
+ */
 export function calculateTimeToFirstOrder(
   tenants: DashboardTenant[],
   shops: DashboardStats["shops"],
@@ -505,7 +517,7 @@ export function calculateTimeToFirstOrder(
       counts.set("Never", (counts.get("Never") ?? 0) + 1);
       continue;
     }
-    const days = daysBetween(new Date(t.created_at), new Date(first));
+    const days = Math.max(0, Math.round((Date.parse(dayOf(first)) - Date.parse(dayOf(t.created_at))) / DAY_MS));
     const bucket = FIRST_ORDER_BUCKETS.find((b) => days >= b.min && days <= b.max);
     if (bucket) counts.set(bucket.label, (counts.get(bucket.label) ?? 0) + 1);
   }

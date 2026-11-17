@@ -57,7 +57,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
               <div key={step.label} className="w-full flex flex-col items-center">
                 {/* Stage bar */}
                 <div
-                  className="rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-500"
+                  className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 transition-all duration-500"
                   style={{
                     width,
                     backgroundColor: bgColor,

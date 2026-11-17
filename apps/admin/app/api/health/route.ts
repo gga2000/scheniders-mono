@@ -93,6 +93,8 @@ export async function GET(request: NextRequest) {
     }[] = [];
 
     for (const tenant of tenants) {
+      // A cancelled shop has already left: it is no longer at risk of leaving.
+      if (tenant.status === "cancelled") continue;
       let riskScore = 0;
       const reasons: string[] = [];
 
@@ -137,11 +139,16 @@ export async function GET(request: NextRequest) {
     // Low Balance Wallets
     // ---------------------------------------------------------------------------
 
+    // Only the wallets of shops still with us: the wallet list holds every
+    // shop's, the demo store, prospect stores and cancelled shops too.
     const lowBalanceWallets = wallets
-      .filter((w) => w.balance_iqd < w.threshold_iqd)
-      .map((w) => ({
+      .flatMap((w) => {
+        const shop = tenantMap.get(w.tenant_id);
+        return shop && shop.status !== "cancelled" && w.balance_iqd < w.threshold_iqd ? [{ w, shop }] : [];
+      })
+      .map(({ w, shop }) => ({
         tenant_id: w.tenant_id,
-        business_name: tenantMap.get(w.tenant_id)?.business_name ?? "Unknown",
+        business_name: shop.business_name,
         balance_iqd: w.balance_iqd,
         threshold_iqd: w.threshold_iqd,
       }))

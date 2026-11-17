@@ -7,6 +7,7 @@ import {
   healthDotClass,
   isChurnRisk,
   listChurnRisk,
+  shopsAtRiskLine,
 } from "./merchant-health";
 
 const NOW = Date.parse("2026-11-16T09:00:00+03:00");
@@ -46,6 +47,10 @@ describe("isChurnRisk", () => {
 
   it("flames a suspended shop whatever its numbers", () => {
     expect(isChurnRisk({ ...paying, status: "suspended" }, NOW)).toBe(true);
+  });
+
+  it("never flames a cancelled shop: it has already left", () => {
+    expect(isChurnRisk({ ...paying, status: "cancelled", walletIqd: 0, orders30d: 0 }, NOW)).toBe(false);
   });
 
   it("flames a shop under 5,000 IQD that sold fewer than 5 orders", () => {
@@ -91,5 +96,18 @@ describe("the list's flame", () => {
   it("treats a list row with no wallet and no order numbers as empty, not as fine", () => {
     const row = { status: "active", trial_ends_at: null, wallet: undefined, usage: null } as unknown as AdminTenant;
     expect(listChurnRisk(row, NOW)).toBe(true);
+  });
+});
+
+describe("shopsAtRiskLine", () => {
+  it("counts one shop once when it is at risk and low on money", () => {
+    // Live on 17 Nov: "2 issues detected" for one shop.
+    expect(shopsAtRiskLine([{ tenant_id: "a" }], [{ tenant_id: "a" }])).toBe("1 shop needs a look: 1 at risk, 1 low wallet");
+  });
+
+  it("counts every shop across both lists", () => {
+    expect(shopsAtRiskLine([{ tenant_id: "a" }, { tenant_id: "b" }], [{ tenant_id: "b" }, { tenant_id: "c" }])).toBe(
+      "3 shops need a look: 2 at risk, 2 low wallets",
+    );
   });
 });

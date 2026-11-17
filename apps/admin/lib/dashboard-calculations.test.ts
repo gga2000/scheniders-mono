@@ -10,6 +10,7 @@ import {
   calculatePlatformOrderStats,
   calculatePlanMovements,
   calculatePlatformPipeline,
+  calculateWalletHealth,
   calculateRevenueBreakdown,
   calculateGeoStats,
   calculateTimeToFirstOrder,
@@ -183,8 +184,25 @@ describe("time to first order and onboarding", () => {
     const buckets = calculateTimeToFirstOrder(tenants, dashboardStats().shops);
     const count = (label: string) => buckets.find((b) => b.label === label)?.count;
     expect(count("1-3 Days")).toBe(1);
-    expect(count("> 1 Month")).toBe(1);
     expect(buckets.at(-1)).toMatchObject({ label: "Never", count: 1, isHighlight: true });
+  });
+
+  it("files a shop that brought older orders with it under Same Day, not over a month", () => {
+    // Live: a shop joined on 9 April 2026 with imported orders from January 2025.
+    const buckets = calculateTimeToFirstOrder(tenants, dashboardStats().shops);
+    const count = (label: string) => buckets.find((b) => b.label === label)?.count;
+    expect(count("Same Day")).toBe(1);
+    expect(count("> 1 Month")).toBe(0);
+  });
+
+  it("counts Baghdad calendar days, so 23:00 to 01:00 is the next day", () => {
+    const late = [tenant(SHOP_A, { created_at: "2026-04-01T20:00:00Z" })]; // 23:00 on 1 April in Baghdad
+    const shops = dashboardStats().shops.map((s) =>
+      s.tenantId === SHOP_A ? { ...s, firstOrderAt: "2026-04-01T22:00:00Z" } : s, // 01:00 on 2 April
+    );
+    const buckets = calculateTimeToFirstOrder(late, shops);
+    expect(buckets.find((b) => b.label === "1-3 Days")?.count).toBe(1);
+    expect(buckets.find((b) => b.label === "Same Day")?.count).toBe(0);
   });
 
   it("names done steps with the keys the tracker draws its ticks from", () => {
@@ -360,5 +378,17 @@ describe("calculatePlanMovements", () => {
       now,
     );
     expect(moves).toEqual([]);
+  });
+});
+
+describe("wallet health", () => {
+  const withBalances = (...balances: number[]) =>
+    balances.map((wallet_balance, n) => tenant(`${n}0000000-0000-4000-8000-000000000000`, { wallet_balance }));
+
+  it("takes the median halfway between the two middle wallets when the count is even", () => {
+    // Live on 17 Nov: wallets of 0 and 43,800 IQD showed a median of 43,800.
+    expect(calculateWalletHealth(withBalances(43_800, 0), []).medianBalance).toBe(21_900);
+    expect(calculateWalletHealth(withBalances(5, 1, 9), []).medianBalance).toBe(5);
+    expect(calculateWalletHealth([], []).medianBalance).toBe(0);
   });
 });
