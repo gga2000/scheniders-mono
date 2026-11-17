@@ -9,11 +9,12 @@ import {
   createElement,
   type ReactNode,
 } from "react";
-import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
 import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
-import { nextAccess, readAccessCheck, type AccessCheck, type KnownAccess } from "@/lib/admin-access";
+import { readAccessCheck, type AccessCheck } from "@/lib/admin-access";
+import { watchAdminSession } from "@/lib/admin-session-watch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,79 +131,41 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   // Stable reference — created once
   const [supabase] = useState(makeBrowserClient);
 
-  // ── Bootstrap: check the session & subscribe to auth changes ──
-  useEffect(() => {
-    let mounted = true;
-    // Answers can come back out of order; only the newest one counts.
-    let newest = 0;
-    // The role last read, and whose, so a failed read keeps it for that person only.
-    let known: KnownAccess | null = null;
-
-    function clear() {
-      known = null;
-      setUser(null);
-      setRole(null);
-      setProfile(null);
-      setAccessCheckFailed(false);
-      setIsLoading(false);
-    }
-
-    async function handleSession(sessionUser: User | null) {
-      const call = ++newest;
-      if (!sessionUser) {
-        clear();
-        return;
-      }
-
-      const [check, profileRow] = await Promise.all([
-        fetchAccessCheck(sessionUser.id, supabase),
-        fetchProfile(sessionUser.id, supabase),
-      ]);
-
-      if (!mounted || call !== newest) return;
-
-      const step = nextAccess(check, known, sessionUser.id);
-      if (step.kind === "sign_out") {
-        // The row answered: this login has no console access. Only this
-        // browser is signed out; the person's other sessions are not ours.
-        setError("You do not have admin access.");
-        await supabase.auth.signOut({ scope: "local" });
-        clear();
-        return;
-      }
-
-      const nextRole = step.kind === "unknown" ? null : step.role;
-      known = nextRole ? { userId: sessionUser.id, role: nextRole } : null;
-      setUser(sessionUser);
-      setRole(nextRole);
-      setProfile((previous) => profileRow ?? (step.kind === "keep" ? previous : null));
-      setAccessCheckFailed(step.kind === "unknown");
-      setError(null);
-      setIsLoading(false);
-    }
-
-    // The first event is INITIAL_SESSION, with the stored session or none, so
-    // the session is read once here and not again through getSession().
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      if (!mounted) return;
-      if (event === "SIGNED_OUT") {
-        clear();
-        return;
-      }
-      // A new token changes nobody's access, and the server checks access on
-      // every request. Reading the row at each hourly refresh only gave a
-      // blip one more chance to look like "no access".
-      if (event === "TOKEN_REFRESHED") return;
-      handleSession(session?.user ?? null);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase, recheckCount]);
+  // ── Bootstrap: follow the session and the person's access (lib/admin-session-watch) ──
+  useEffect(
+    () =>
+      watchAdminSession<AdminProfile>(
+        {
+          onAuthStateChange: (listener) => {
+            const {
+              data: { subscription },
+            } = supabase.auth.onAuthStateChange(listener);
+            return () => subscription.unsubscribe();
+          },
+          signOutHere: () => supabase.auth.signOut({ scope: "local" }),
+          readAccess: (userId) => fetchAccessCheck(userId, supabase),
+          readProfile: (userId) => fetchProfile(userId, supabase),
+        },
+        (view) => {
+          if (view.kind === "signed_in") {
+            setUser(view.user);
+            setRole(view.role);
+            setProfile((previous) => view.profile ?? (view.keepProfile ? previous : null));
+            setAccessCheckFailed(view.checkFailed);
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
+          if (view.kind === "no_access") setError("You do not have admin access.");
+          setUser(null);
+          setRole(null);
+          setProfile(null);
+          setAccessCheckFailed(false);
+          setIsLoading(false);
+        },
+      ),
+    [supabase, recheckCount],
+  );
 
   const recheckAccess = useCallback(() => setRecheckCount((n) => n + 1), []);
 

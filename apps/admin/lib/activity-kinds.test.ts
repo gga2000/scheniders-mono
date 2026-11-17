@@ -21,7 +21,20 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Every action name the console's own code writes with logAdminAction. */
+/**
+ * The `action:` of each `logAdminActivity({ ... })` in `text`, up to the
+ * call's end: a plain name, or both names of a `cond ? "a" : "b"`.
+ */
+function activityCallNames(text: string): string[] {
+  return [...text.matchAll(/logAdminActivity\(\{/g)].flatMap((call) => {
+    const rest = text.slice(call.index);
+    const body = rest.slice(0, rest.indexOf("});") + 1 || undefined);
+    const action = body.match(/\baction:\s*(?:[^",}]*\?\s*)?"([a-z_]+)"(?:\s*:\s*"([a-z_]+)")?/);
+    return action ? [action[1], ...(action[2] ? [action[2]] : [])] : [];
+  });
+}
+
+/** Every action name the console's own code writes, with logAdminAction or logAdminActivity. */
 function namesWrittenByTheConsole(): string[] {
   const names = new Set<string>();
   for (const file of [...sourceFiles(join(ROOT, "app")), ...sourceFiles(join(ROOT, "lib"))]) {
@@ -30,6 +43,7 @@ function namesWrittenByTheConsole(): string[] {
       names.add(match[1]);
       if (match[2]) names.add(match[2]);
     }
+    for (const name of activityCallNames(text)) names.add(name);
   }
   return [...names].sort();
 }
@@ -40,6 +54,16 @@ describe("kinds of step on the Activity page", () => {
     expect(names).toContain("approve_topup_request");
     expect(names).toContain("reject_topup_request");
     expect(names.length).toBeGreaterThan(15);
+  });
+
+  it("reads the names written straight through logAdminActivity too", () => {
+    const names = namesWrittenByTheConsole();
+    for (const name of ["top_up_wallet", "support_view", "pause_tenant", "pause_whatsapp", "resume_whatsapp", "convert_trial"]) {
+      expect(names, name).toContain(name);
+    }
+    expect(
+      activityCallNames('await logAdminActivity({\n  adminUserId: id,\n  details: { a: 1 },\n  action: paused ? "pause_x" : "resume_x",\n});'),
+    ).toEqual(["pause_x", "resume_x"]);
   });
 
   it("gives every name the console writes a kind, so no step hides from every filter", () => {
