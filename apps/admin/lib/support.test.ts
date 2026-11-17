@@ -11,6 +11,8 @@ import {
   type SupportTask,
   formatDuration,
   leadProblem,
+  problemOpener,
+  SHOP_PROBLEM_OPENERS,
   problemDetail,
   formatWait,
   latestOrderNumber,
@@ -187,8 +189,23 @@ describe("leadProblem", () => {
   const p = (code: Parameters<typeof problemDetail>[0]) => ({ code, since: null, detail: null });
 
   it("opens with the store being down before anything smaller", () => {
-    expect(leadProblem([p("trial_ending"), p("wallet_empty"), p("store_paused")])).toBe("store_paused");
-    expect(leadProblem([p("trial_ending"), p("orders_stopped")])).toBe("orders_stopped");
+    expect(leadProblem([p("trial_ending"), p("wallet_empty"), p("store_paused")]).code).toBe("store_paused");
+    expect(leadProblem([p("trial_ending"), p("orders_stopped")]).code).toBe("orders_stopped");
+  });
+});
+
+// Round 14 (Data new 4): a WhatsApp pause staff made opened with "most of
+// your messages did not arrive", which never happened.
+describe("problemOpener", () => {
+  it("does not blame failed messages for a WhatsApp pause staff made", () => {
+    const staff = problemOpener({ code: "whatsapp_paused", detail: "staff" });
+    expect(staff).toBe("هلا، رسائل الواتساب لزبائنك متوقفة حالياً من طرفنا. خلّينا نحجي حتى نرجّعها.");
+    expect(staff).not.toContain("ما وصل");
+  });
+
+  it("keeps each other opener as it was", () => {
+    expect(problemOpener({ code: "whatsapp_paused", detail: "failures" })).toBe(SHOP_PROBLEM_OPENERS.whatsapp_paused);
+    expect(problemOpener({ code: "store_paused", detail: null })).toBe(SHOP_PROBLEM_OPENERS.store_paused);
   });
 });
 
