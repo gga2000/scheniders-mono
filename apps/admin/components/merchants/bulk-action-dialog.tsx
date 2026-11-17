@@ -7,6 +7,7 @@ import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { isBulkFailureList, notDoneLines, type BulkFailure } from "@/lib/bulk-not-done";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,20 +22,7 @@ interface BulkActionDialogProps {
 }
 
 /** What the server did, per shop. `failed` is empty when everything went through. */
-type BulkOutcome = { done: number; failed: { tenant_id: string; error: string }[] };
-
-function isFailureList(value: unknown): value is BulkOutcome["failed"] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (f) =>
-        typeof f === "object" &&
-        f !== null &&
-        typeof (f as { tenant_id?: unknown }).tenant_id === "string" &&
-        typeof (f as { error?: unknown }).error === "string",
-    )
-  );
-}
+type BulkOutcome = { done: number; failed: BulkFailure[] };
 
 const PLAN_OPTIONS = PLAN_TIERS.map((value) => ({ value, label: PLAN_LABELS[value] }));
 
@@ -113,7 +101,7 @@ export function BulkActionDialog({
       const body = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
       if (!res.ok) {
         // Done for some shops, not for others: report it, do not offer a blind retry.
-        if (Array.isArray(body.succeeded) && isFailureList(body.failed)) {
+        if (Array.isArray(body.succeeded) && isBulkFailureList(body.failed)) {
           return { done: body.succeeded.length, failed: body.failed } satisfies BulkOutcome;
         }
         throw new Error(typeof body.error === "string" ? body.error : "Failed to execute bulk action");
@@ -389,15 +377,8 @@ export function BulkActionDialog({
               {partial.done + partial.failed.length === 1 ? "merchant" : "merchants"}
             </p>
             <ul className="list-disc pl-5 space-y-0.5">
-              {Object.entries(
-                partial.failed.reduce<Record<string, number>>((acc, f) => {
-                  acc[f.error] = (acc[f.error] ?? 0) + 1;
-                  return acc;
-                }, {}),
-              ).map(([reason, count]) => (
-                <li key={reason}>
-                  {count} not done: {reason}
-                </li>
+              {notDoneLines(partial.failed).map((line) => (
+                <li key={line}>{line}</li>
               ))}
             </ul>
           </div>

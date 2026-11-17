@@ -43,9 +43,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!result.ok) {
-    console.error("[billing/topup] Top-up failed:", tenant_id, result.error);
-    const status = result.error === "No wallet found" ? 404 : 500;
-    return NextResponse.json({ error: `Top-up failed: ${result.error}` }, { status });
+    return NextResponse.json({ error: result.error }, { status: result.noWallet ? 404 : 500 });
   }
 
   // A repeat of a request that was already credited moved no money: the first
