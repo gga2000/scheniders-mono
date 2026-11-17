@@ -31,6 +31,7 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",
   "merchants/[id]/route.ts PATCH": "admin_update_shop",
   "leads/[id]/route.ts PATCH": "admin_change_leads",
+  "leads/[id]/build-store/route.ts POST": "admin_build_prospect_store",
 };
 
 /** Handlers that write no staff log row, each with why. */
