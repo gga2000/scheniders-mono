@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -18,8 +19,8 @@ export async function GET(request: NextRequest) {
         .from("tenants")
         .select("id, business_name, slug, plan, status, trial_ends_at, city, contact_email, created_at, wallet(balance_iqd)")
         .eq("status", "trial")
-        // The demo store (Fermi B13) is no customer.
-        .eq("is_demo", false)
+        // The demo store and prospect stores (lib/customer-shops) are no customers.
+        .match(CUSTOMER_SHOP)
         .order("trial_ends_at", { ascending: true })
         .order("id", { ascending: true })
         .range(from, to),

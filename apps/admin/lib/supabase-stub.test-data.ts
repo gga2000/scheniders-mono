@@ -1,8 +1,8 @@
 /*
  * A stand-in for the Supabase client in route tests. It behaves like the API
  * where that matters for these routes: a read answers with at most 1,000 rows
- * and says nothing when it cut the list; eq(), in(), gt(), gte(), lt() and
- * lte() filter; order() sorts before range() cuts; and a function call goes
+ * and says nothing when it cut the list; eq(), match(), in(), gt(), gte(), lt()
+ * and lte() filter; order() sorts before range() cuts; and a function call goes
  * to the handler registered for it. So a wrong date window or a wrong sort
  * fails a test instead of passing unseen.
  */
@@ -61,6 +61,11 @@ export function supabaseStub() {
       in: (column: string, values: unknown[]) => {
         rows = rows.filter((row) => values.includes(fieldOf(row, column)));
         return note("in", column, values);
+      },
+      // match({ a: 1, "tenants.b": 2 }) is eq() on each column, as in the API.
+      match: (query: Record<string, unknown>) => {
+        rows = rows.filter((row) => Object.entries(query).every(([column, value]) => fieldOf(row, column) === value));
+        return note("match", query);
       },
       neq: (column: string, value: unknown) => {
         rows = rows.filter((row) => fieldOf(row, column) !== value);

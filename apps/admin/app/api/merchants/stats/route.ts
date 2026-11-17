@@ -7,6 +7,7 @@ import { everyRow } from "@/lib/every-row";
 import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
 import { readShopCity, shopGovernorate } from "@/lib/shop-city";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 /** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
 interface LiteShop {
@@ -77,8 +78,8 @@ export async function GET(request: NextRequest) {
       let query = supabase
         .from("tenants")
         .select("id, status, plan, trial_ends_at, city, wallet(balance_iqd), staff_needs_attention")
-        // The demo store (Fermi B13) is no customer: it is in no count.
-        .eq("is_demo", false);
+        // The demo store and prospect stores (lib/customer-shops) are no customers: in no count.
+        .match(CUSTOMER_SHOP);
 
       if (plan) query = query.eq("plan", plan);
       // "attention" is not a value of the status column: it is one of the computed filters below.

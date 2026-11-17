@@ -22,7 +22,7 @@ const call = () => GET(new NextRequest("http://admin.test/api/dashboard/v2"));
 
 const quietShop = (n: number): Row => ({
   id: `shop-${String(n).padStart(5, "0")}`,
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   business_name: `Shop ${n}`,
   plan: "starter",
   status: "active",
@@ -41,7 +41,7 @@ beforeEach(() => {
   stub.state.tables.tenants = [
     {
       id: SHOP_A,
-      is_demo: false,
+      is_demo: false, is_prospect: false,
       business_name: "Kut Shop",
       plan: "growth",
       status: "active",
@@ -52,7 +52,7 @@ beforeEach(() => {
     },
     {
       id: SHOP_B,
-      is_demo: false,
+      is_demo: false, is_prospect: false,
       business_name: "New Shop",
       plan: "starter",
       status: "trial",
@@ -110,7 +110,7 @@ describe("GET /api/dashboard/v2", () => {
   });
 
   it("lists plan moves of real shops only, cancellations from the staff log", async () => {
-    stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true });
+    stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true, is_prospect: false });
     stub.state.tables.subscriptions = [
       { id: "s-1", tenant_id: SHOP_A, plan: "growth", status: "active", pending_plan: "starter" },
       // The demo store is in no platform number.
