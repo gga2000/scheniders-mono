@@ -120,13 +120,22 @@ describe("GET /api/merchants", () => {
 
     const { merchants } = await (await call()).json();
 
-    expect(stub.callsTo("tenants.select")[0]?.[0]).toBe(
-      "*, wallet(*), subscriptions(*), staff_shop_tags(tags), staff_health_score, staff_health_parts",
-    );
+    expect(stub.callsTo("tenants.select")[0]?.[0]).toMatch(/, staff_health_score, staff_health_parts$/);
     expect(merchants[0]).toMatchObject({
       staff_health_score: 75,
       staff_health_parts: { status: 15, wallet: 5, orders: 5 },
     });
+  });
+
+  it("reads only the columns the list shows, never the store builder's pages", async () => {
+    // With "*" every shop on the page came with its store_config, drafts and
+    // v2 copies: 222 KB for two shops, read by no screen.
+    stub.state.tables.tenants = [shop(1)];
+    await call();
+
+    const columns = String(stub.callsTo("tenants.select")[0]?.[0]);
+    expect(columns).not.toMatch(/\*|store_config|metadata|subscriptions/);
+    expect(columns).toContain("wallet(balance_iqd, threshold_iqd, total_charged_iqd, total_topped_up_iqd)");
   });
 
   it("sends the staff tags from staff_shop_tags, and none for a shop never tagged", async () => {

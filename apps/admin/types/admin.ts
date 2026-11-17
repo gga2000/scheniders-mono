@@ -134,13 +134,6 @@ export interface AdminTenant {
   } | null;
   restrictions?: TenantRestrictions | null;
   // Joined data
-  subscription?: {
-    plan: PlanTier;
-    status: string;
-    current_period_start: string;
-    current_period_end: string;
-    pending_plan: PlanTier | null;
-  };
   wallet?: {
     balance_iqd: number;
     threshold_iqd: number;

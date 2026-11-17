@@ -16,7 +16,7 @@ function shop(over: {
   return {
     tenant: {
       id: "t1", display_id: 100048, business_name: "Dijla Watches", slug: "dijla", plan: "starter", status: "active",
-      trial_ends_at: null, branding: null, settings: null, store_config: null, store_config_rev: 2, contact_email: null, contact_phone: null,
+      trial_ends_at: null, branding: null, settings: null, store_config_rev: 2, contact_email: null, contact_phone: null,
       address: null, city: "Baghdad", created_at: "2026-10-01T00:00:00Z", restrictions: null,
       staff_health_score: 80, staff_health_parts: { status: 40, wallet: 20, orders: 20 },
       ...over.tenant,

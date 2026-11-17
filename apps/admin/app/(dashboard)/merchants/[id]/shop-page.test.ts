@@ -61,7 +61,7 @@ describe("the shop page, when the shop cannot be read", () => {
 const shop = {
   tenant: {
     id: "t1", display_id: 100012, business_name: "Scheniders Iraq", slug: "scheniders-iraq", plan: "starter",
-    status: "active", trial_ends_at: null, branding: null, settings: null, store_config: null, store_config_rev: 2,
+    status: "active", trial_ends_at: null, branding: null, settings: null, store_config_rev: 2,
     contact_email: null, contact_phone: null, address: null, city: "Baghdad", created_at: "2026-04-09T00:00:00Z",
     restrictions: null, staff_health_score: 80, staff_health_parts: { status: 40, wallet: 20, orders: 20 },
   },

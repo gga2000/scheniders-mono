@@ -9,6 +9,7 @@ import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 import { notAnId } from "@/lib/route-id";
 import { staffReasonSchema } from "@/lib/staff-reason";
+import { SHOP_COLUMNS } from "@/lib/shop-columns";
 
 const patchSchema = z
   .object({
@@ -106,7 +107,11 @@ export async function GET(
       billingLock,
     ] = await Promise.all([
       // The health score and its parts, as the list shows them.
-      supabase.from("tenants").select("*, staff_health_score, staff_health_parts").eq("id", id).single(),
+      supabase
+        .from("tenants")
+        .select(`${SHOP_COLUMNS}, store_config_rev, staff_health_score, staff_health_parts`)
+        .eq("id", id)
+        .single(),
       // A shop built from a lead may have no wallet or subscription yet: no row is not an error.
       supabase.from("wallet").select("*").eq("tenant_id", id).maybeSingle(),
       supabase.from("subscriptions").select("*").eq("tenant_id", id).maybeSingle(),

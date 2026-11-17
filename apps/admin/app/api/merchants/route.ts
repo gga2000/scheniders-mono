@@ -8,6 +8,13 @@ import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
 import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
 import { readShopCity } from "@/lib/shop-city";
+import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
+
+/**
+ * A shop's staff tags: staff_shop_tags is keyed by the shop, so the database
+ * sends one object, or null for a shop never tagged.
+ */
+const staffTagsSchema = z.object({ tags: z.array(z.string()) }).nullish();
 
 /** The "ids" query value, when it is given: shop ids. */
 const shopIdsSchema = z.array(z.string().uuid()).min(1).max(50).optional();
@@ -50,7 +57,7 @@ export async function GET(request: NextRequest) {
       .from("tenants")
       // The health score and its parts are the database's: the browser shows them and works nothing out.
       // Staff tags live in staff_shop_tags, which merchants cannot read.
-      .select("*, wallet(*), subscriptions(*), staff_shop_tags(tags), staff_health_score, staff_health_parts", {
+      .select(`${SHOP_COLUMNS}, wallet(${SHOP_WALLET_COLUMNS}), staff_shop_tags(tags), staff_health_score, staff_health_parts`, {
         count: "exact",
       })
       // The demo store (Fermi B13) has its own card, not a row among customers.
@@ -135,7 +142,7 @@ export async function GET(request: NextRequest) {
       return {
         ...tenant,
         // One row per shop, so the API gives an object, or null for a shop never tagged.
-        tags: staffTags?.tags ?? [],
+        tags: staffTagsSchema.parse(staffTags)?.tags ?? [],
         // The later of the last wallet line and the last real order.
         last_active_at: laterOf(row.last_wallet_at, row.last_order_at),
         // Our fees (monthly fee, delivered orders, messages), not every wallet charge.
