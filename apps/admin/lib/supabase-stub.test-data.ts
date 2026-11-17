@@ -3,13 +3,14 @@
  * where that matters for these routes: a read answers with at most 1,000 rows
  * and says nothing when it cut the list; eq(), match(), in(), gt(), gte(), lt(),
  * lte() and or() filter (or() also answers the API's parse error for a filter
- * it cannot read); order() sorts before range() cuts; and a function call goes
- * to the handler registered for it. So a wrong date window or a wrong sort
+ * it cannot read); order() sorts before range() cuts, and a counted read
+ * whose range starts past the last row is refused (PGRST103), as PostgREST
+ * answers 416; and a function call goes to the handler registered for it. So a wrong date window or a wrong sort
  * fails a test instead of passing unseen.
  */
 
 export type Row = Record<string, unknown>;
-type Answer = { data: unknown; error: { code?: string; message: string } | null };
+type Answer = { data: unknown; error: { code?: string; message: string; details?: string } | null };
 
 export const SERVER_MAX_ROWS = 1000;
 
@@ -28,13 +29,18 @@ export function supabaseStub() {
     let rows = state.tables[table] ?? [];
     let window: [number, number] = [0, SERVER_MAX_ROWS - 1];
     let parseError: string | null = null;
+    let counted = false;
     const sorts: Sort[] = [];
     const note = (method: string, ...args: unknown[]) => {
       state.calls.push({ on: `${table}.${method}`, args });
       return builder;
     };
     const builder = {
-      select: (...args: unknown[]) => note("select", ...args),
+      select: (...args: unknown[]) => {
+        const options = args[1];
+        counted = typeof options === "object" && options !== null && "count" in options;
+        return note("select", ...args);
+      },
       or: (filter: string) => {
         const parts = orParts(filter);
         if (parts) rows = rows.filter((row) => parts.some((part) => partHolds(row, part)));
@@ -90,6 +96,10 @@ export function supabaseStub() {
           return resolve({ data: null, error: { message: "connection lost" }, count: null });
         }
         if (parseError) return resolve({ data: null, error: { message: parseError }, count: null });
+        if (counted && window[0] > rows.length) {
+          const details = `An offset of ${window[0]} was requested, but there are only ${rows.length} rows.`;
+          return resolve({ data: null, error: { code: "PGRST103", message: "Requested range not satisfiable", details }, count: null });
+        }
         const last = Math.min(window[1], window[0] + SERVER_MAX_ROWS - 1);
         return resolve({ data: sorted().slice(window[0], last + 1), error: null, count: rows.length });
       },

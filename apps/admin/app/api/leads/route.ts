@@ -8,6 +8,9 @@ import { INDUSTRY_GONE, isIndustryGone } from "@/lib/lead-update";
 /** The leads search box looks in these: name, page owner, handle, phone and city. */
 const LEAD_SEARCH_COLUMNS = ["merchant_name", "management_name", "handle", "page_phone", "city"] as const;
 
+/** PostgREST's answer to a page that starts past the last row ("Requested range not satisfiable"). */
+const PAST_THE_END = "PGRST103";
+
 export async function GET(request: NextRequest) {
   try {
     const admin = await requireBearerAdmin(request);
@@ -34,34 +37,44 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    let query = supabase
-      .from("leads")
-      .select(
-        "*, industry:industries(*), created_by_user:user_profiles!leads_created_by_fkey(id, display_name, email, avatar_url)",
-        { count: "exact" }
-      );
+    // The filtered, sorted list, rows `from` to `to`, with the count of all of it.
+    const read = (from: number, to: number) => {
+      let query = supabase
+        .from("leads")
+        .select(
+          "*, industry:industries(*), created_by_user:user_profiles!leads_created_by_fkey(id, display_name, email, avatar_url)",
+          { count: "exact" }
+        );
 
-    if (status) query = query.eq("status", status);
-    if (platform) query = query.eq("platform", platform);
-    if (priority) query = query.eq("priority", priority);
-    if (tier) query = query.eq("tier", tier);
-    if (industryId) query = query.eq("industry_id", industryId);
-    if (assignedTo) query = query.eq("assigned_to", assignedTo);
-    if (hasStore === "true") query = query.not("prospect_tenant_id", "is", null);
-    if (hasStore === "false") query = query.is("prospect_tenant_id", null);
-    if (scoreMin) query = query.gte("lead_score", Number(scoreMin));
-    if (scoreMax) query = query.lte("lead_score", Number(scoreMax));
+      if (status) query = query.eq("status", status);
+      if (platform) query = query.eq("platform", platform);
+      if (priority) query = query.eq("priority", priority);
+      if (tier) query = query.eq("tier", tier);
+      if (industryId) query = query.eq("industry_id", industryId);
+      if (assignedTo) query = query.eq("assigned_to", assignedTo);
+      if (hasStore === "true") query = query.not("prospect_tenant_id", "is", null);
+      if (hasStore === "false") query = query.is("prospect_tenant_id", null);
+      if (scoreMin) query = query.gte("lead_score", Number(scoreMin));
+      if (scoreMax) query = query.lte("lead_score", Number(scoreMax));
 
-    if (search?.trim()) query = query.or(containsAny(LEAD_SEARCH_COLUMNS, search));
+      if (search?.trim()) query = query.or(containsAny(LEAD_SEARCH_COLUMNS, search));
 
-    for (const { column, ascending } of sort) {
-      query = query.order(column, { ascending, nullsFirst: false });
+      for (const { column, ascending } of sort) {
+        query = query.order(column, { ascending, nullsFirst: false });
+      }
+
+      return query.range(from, to);
+    };
+
+    const { data: leads, error, count } = await read(offset, offset + limit - 1);
+
+    // A page past the end (the list shrank while it was open): no rows, and
+    // the real total, so the table can move back to its last page.
+    if (error?.code === PAST_THE_END) {
+      const first = await read(0, 0);
+      if (first.error) throw first.error;
+      return NextResponse.json({ leads: [], total: first.count ?? 0, page, limit });
     }
-
-    query = query.range(offset, offset + limit - 1);
-
-    const { data: leads, error, count } = await query;
-
     if (error) throw error;
 
     return NextResponse.json({

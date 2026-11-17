@@ -24,7 +24,7 @@ import { DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
 import { useResumedDraft } from "@/components/leads/use-resumed-draft";
 import type { LeadFormData, Lead } from "@/types/leads";
 import { leadPhone, toIntlIraqi } from "./lead-phone";
-import { leadsCountLine } from "./leads-count";
+import { LEADS_PAGE_SIZE, leadsCountLine, pageAfterShrink } from "./leads-count";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -61,7 +61,7 @@ export function LeadsDesktopView() {
   useEffect(() => {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
-  const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : 20);
+  const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : LEADS_PAGE_SIZE);
   // The table's shared column layout is read with the page, beside the leads,
   // and the table waits for it: read only once the table drew, it arrived
   // seconds later and moved every column under the pointer. A failed read
@@ -80,7 +80,15 @@ export function LeadsDesktopView() {
   const leads = data?.leads ?? [];
   const resumed = useResumedDraft(leads);
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = Math.ceil(total / LEADS_PAGE_SIZE);
+
+  // The list shrank under the open page (a delete, a colleague's change): the
+  // read answers no rows and the real total, and the table moves to the new last page.
+  useEffect(() => {
+    if (!data || viewMode === "kanban") return;
+    const moveTo = pageAfterShrink(page, data.total);
+    if (moveTo !== null) setPage(moveTo);
+  }, [data, page, viewMode, setPage]);
 
   // A refused save rejects with the server's words; the form shows them.
   const handleCreateLead = (formData: LeadFormData) => createLead.mutateAsync(formData).then(() => true);
@@ -375,7 +383,7 @@ export function LeadsDesktopView() {
         {viewMode !== "kanban" && totalPages > 1 && !isLoading && !isError && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--card-border)]">
             <p className="text-sm text-[var(--muted)]">
-              Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total.toLocaleString()}
+              Showing {(page - 1) * LEADS_PAGE_SIZE + 1}–{Math.min(page * LEADS_PAGE_SIZE, total)} of {total.toLocaleString()}
             </p>
             <div className="flex items-center gap-2">
               <button

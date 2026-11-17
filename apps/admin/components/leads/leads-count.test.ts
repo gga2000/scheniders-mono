@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadsCountLine } from "./leads-count";
+import { leadsCountLine, pageAfterShrink } from "./leads-count";
 
 /*
  * Round 5 of the staff console audit: the Leads header read "0 leads in the
@@ -20,5 +20,22 @@ describe("the Leads header line", () => {
   it("says the count failed, even over an older count", () => {
     expect(leadsCountLine({ count: undefined, isError: true })).toBe("Could not count the leads");
     expect(leadsCountLine({ count: 40, isError: true })).toBe("Could not count the leads");
+  });
+});
+
+/*
+ * Round 13 (Reliability new 1). A page past the end of a list that shrank
+ * showed no rows; the table now moves to the new last page.
+ */
+describe("a page past the end", () => {
+  it("moves to the new last page", () => {
+    expect(pageAfterShrink(3, 28)).toBe(2);
+    expect(pageAfterShrink(2, 20)).toBe(1);
+    expect(pageAfterShrink(4, 0)).toBe(1);
+  });
+
+  it("stays while the page is in the list", () => {
+    expect(pageAfterShrink(2, 21)).toBeNull();
+    expect(pageAfterShrink(1, 0)).toBeNull();
   });
 });
