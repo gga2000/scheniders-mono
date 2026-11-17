@@ -290,7 +290,15 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                                         { key: "start", label: t("fin.money.from.nowStart", { label: nowSource.label }), amount: nowSource.amount, sign: false },
                                                         ...nowSource.lines,
                                                     ].map((line) => (
-                                                        <li key={line.key} className="flex items-baseline justify-between gap-4" data-line={line.key}>
+                                                        <li
+                                                            key={line.key}
+                                                            className={cn(
+                                                                "flex items-baseline justify-between gap-4",
+                                                                // The running sums under a hairline, so the steps read as one subtraction.
+                                                                (line.key === "paid" || line.key === "total") && "border-t border-[var(--card-border)] pt-0.5 font-medium text-foreground",
+                                                            )}
+                                                            data-line={line.key}
+                                                        >
                                                             <span className="min-w-0 text-left" dir={dir}>
                                                                 {line.label}
                                                             </span>

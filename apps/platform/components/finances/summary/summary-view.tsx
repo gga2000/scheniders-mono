@@ -6,7 +6,7 @@ import { PackageOpen } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { buildStatement, productRows, type FinanceSummary } from "@/lib/finance/summary";
+import { buildStatement, bulkDays, productRows, type FinanceSummary } from "@/lib/finance/summary";
 import { CourierPayments } from "./courier-payments";
 import { DailyCosts } from "./daily-costs";
 import { FinanceStrip } from "./finance-strip";
@@ -104,7 +104,13 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             <SummaryPanel testId="summary-bottom">
                 <ReturnedParcels summary={summary} />
-                <DailyCosts summary={summary} statement={statement} previous={beforeFigures?.statement ?? null} onOpenTab={onOpenTab} />
+                <DailyCosts
+                    summary={summary}
+                    statement={statement}
+                    previous={beforeFigures?.statement ?? null}
+                    bulkBefore={beforeFigures ? bulkDays(beforeFigures.summary.daily) !== null : false}
+                    onOpenTab={onOpenTab}
+                />
                 <StockShelf summary={summary} />
             </SummaryPanel>
 

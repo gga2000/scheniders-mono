@@ -164,8 +164,9 @@ describe("SummaryView", () => {
         const add = byTestId("statement-quiet")?.querySelector("button");
         if (add) fireEvent.click(add);
         expect(onOpenTab).toHaveBeenCalledWith("expenses");
-        // the empty lines are named, and so is what that means for the profit under them
-        expect(byTestId("statement-quiet")?.textContent).toContain("أكبر من الحقيقي");
+        // the empty lines are named, under one heading that says what that means for the profit above
+        expect(byTestId("statement-too-high")?.textContent).toContain("صافي الربح المعروض أعلاه قد يكون أكبر من الحقيقي:");
+        expect(byTestId("statement-quiet")?.textContent).toContain("لم تُسجِّل في هذه الفترة أي مبلغ في «الرواتب»، إن كانت لديك.");
     });
 
     it("opens a cost line to show what is inside, and its link opens the tab", () => {
@@ -357,13 +358,13 @@ describe("SummaryView", () => {
         // Lines with nothing to do fold their explanation behind the label; lines to act on stay open
         const folded = () => Array.from(byTestId("money-payments-parts")?.querySelectorAll("[data-fold]") ?? []);
         expect(folded().map((button) => button.getAttribute("data-fold"))).toEqual(["refunds", "prepaid"]);
-        expect(byTestId("money-payments-parts")?.querySelector('[data-part="refunds"]')?.textContent).toBe("مبلغان مستردان دفعتهما شركة التوصيل لزبونين وغيّرتَ أنت حالتهما إلى «تم الاسترجاع» (2)−30,000د.ع");
+        expect(byTestId("money-payments-parts")?.querySelector('[data-part="refunds"]')?.textContent).toBe("مبلغان مستردان دفعتهما شركة التوصيل لزبونين وغيّرتَ أنت حالة طلبيهما إلى «تم الاسترجاع» (2)−30,000د.ع");
         for (const button of folded()) fireEvent.click(button);
         const rows = Array.from(byTestId("money-payments-parts")?.querySelectorAll("dl > div") ?? []).map((row) => row.textContent);
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
-            "مبلغان مستردان دفعتهما شركة التوصيل لزبونين وغيّرتَ أنت حالتهما إلى «تم الاسترجاع» (2)وهذا ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
-            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالته بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أكبر من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "مبلغان مستردان دفعتهما شركة التوصيل لزبونين وغيّرتَ أنت حالة طلبيهما إلى «تم الاسترجاع» (2)وهذا ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالة طلبه بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أكبر من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
             "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء. و3 طلبات أخرى دفعها الزبون مسبقاً في «دُفع لك» لم ترد في كشوف هذه الفترة.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
@@ -372,7 +373,7 @@ describe("SummaryView", () => {
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
         // the profit card says its net profit is too high until the open refund is marked, and links to it
-        expect(byTestId("statement-refunds-open")?.textContent).toBe("دفعت شركة التوصيل مبالغ مستردة لم تغيّر أنت حالتها إلى «تم الاسترجاع» بعد، فصافي الربح المعروض أعلاه أكبر من الحقيقي بـ20,000 د.ع.اعرضها");
+        expect(byTestId("statement-refunds-open")?.textContent).toBe("مبالغ مستردة دفعتها شركة التوصيل ولم تغيّر أنت حالة طلباتها إلى «تم الاسترجاع» بعد: 20,000 د.ع.اعرضها");
         expect(byTestId("statement-refunds-open")?.querySelector("a")?.getAttribute("href")).toBe("#courier-payments");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
@@ -400,7 +401,7 @@ describe("SummaryView", () => {
         // folded until asked for, so the open card only shows parts that add up to "paid to you"; the note under
         // "paid to you" says up front that it is before what the statements took off
         expect(byTestId("money-from-now-lines")).toBeNull();
-        expect(byTestId("money-reached")?.textContent).toContain("بعد أجرة التوصيل، وقبل ما خصمته الكشوف من مبالغ مستردة وفروق (تجده في «كيف يطابق هذا الرقم دفعات شركات التوصيل»)");
+        expect(byTestId("money-reached")?.textContent).toContain("بعد أجرة التوصيل، وقبل ما خصمته الكشوف من مبالغ مستردة وفروق (تجده في «كيف يتطابق هذا الرقم مع دفعات شركات التوصيل»)");
         expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترة100,000");
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
@@ -425,7 +426,7 @@ describe("SummaryView", () => {
             "صافي هذه الطلبات في الكشوف80,000د.ع",
             "وأجرة توصيل طلب مدفوع مسبقاً خصمتها الكشوف (وهي مخصومة من «دفعها الزبون لك مسبقاً»)−5,000د.ع",
             "وثمن طلب في الكشوف لم تغيّر أنت حالته إلى «مُسلَّم» بعد+3,000د.ع",
-            "وهذا ما تجده في بطاقة الدفعات78,000د.ع",
+            "وهذا ما استلمته فعلاً، كما في «دفعات استلمتها من شركات التوصيل»78,000د.ع",
         ]);
         cleanup();
         renderView(query(summary()));
@@ -464,7 +465,7 @@ describe("SummaryView", () => {
         // 3 unpaid orders, 1 of them with Prime, whose fee is known: the other 2 wait for the company's statement
         renderView(query(s));
         expect(byTestId("statement-fee-pending")?.textContent).toBe(
-            "لم تُخصم بعد أجرة شركة التوصيل عن طلبين مسلّمين لم يصل كشفهما، فصافي الربح المعروض أعلاه أكبر من الحقيقي بقدر هذه الأجرة.",
+            "أجرة شركة التوصيل عن طلبين مسلّمين لم يصل كشفهما بعد.",
         );
         cleanup();
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, unpaid_prime: 3 } } })));
@@ -526,11 +527,11 @@ describe("SummaryView", () => {
         // 400,000 of sales on 60,000 of ads.
         const figure = byTestId("ad-return-figure")?.textContent ?? "";
         expect(figure).toContain("6,667");
-        expect(figure).toContain("دينار مبيعات لكل 1,000 دينار إعلان");
+        expect(figure).toContain("مبيعات لكل 1,000 دينار إعلان");
         expect(figure).not.toContain("د.ع");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة.");
         // the line to judge it by: 400,000 of sales leave 180,000 after goods, delivery and refunds
-        expect(byTestId("ad-return")?.textContent).toContain("لو جاءت كل مبيعاتك من الإعلان لكان الإعلان رابحاً ما دامت كل 1,000 دينار إعلان تقابلها مبيعات فوق 2,222 ديناراً، وأنت الآن عند 6,667.");
+        expect(byTestId("ad-return")?.textContent).toContain("يربح الإعلان إذا جلبت كل 1,000 دينار منه مبيعات فوق 2,222 ديناراً. أنت الآن عند 6,667، إن كانت كل مبيعاتك من الإعلان.");
         // no period before: nothing to say about whether the ads raised sales
         expect(byTestId("ads-no-lift")).toBeNull();
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
@@ -724,6 +725,15 @@ describe("SummaryView", () => {
         expect(byTestId("ads-no-lift")?.textContent).toBe("لكن في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن أقل بـ7%، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
         cleanup();
         // the same ads both times: no words, no cause
+        // the period before was mostly one day of marking orders delivered at once: the comparison is rough, so
+        // the line says so and points to new orders instead
+        const bulkDay = s.daily[0];
+        const bulkBefore = [1, 1, 1, 1, 1, 15].map((orders, i) => ({ ...bulkDay, day: `2026-10-0${i + 1}`, orders }));
+        renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 }, daily: bulkBefore })));
+        expect(byTestId("ads-no-lift")?.textContent).toBe(
+            "لكن إعلاناتك في الفترة السابقة كانت شبه صفر، ومبيعاتك الآن أقل بـ7%. والمقارنة تقريبية لأنك غيّرت حالة كثير من الطلبات إلى «مُسلَّم» دفعةً واحدة. لتعرف أثر الإعلان، أوقف أضعف حملة أسبوعاً وراقب عدد الطلبات الجديدة.",
+        );
+        cleanup();
         renderView(query(s), query(summary()));
         expect(document.querySelector("[data-new-cost]")).toBeNull();
         expect(byTestId("statement-fall-cause")).toBeNull();

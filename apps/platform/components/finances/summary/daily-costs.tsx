@@ -15,6 +15,8 @@ interface DailyCostsProps {
     statement: ProfitStatement;
     /** The period before, when a comparison is on: says when ads that were new did not raise sales. */
     previous: ProfitStatement | null;
+    /** The period before had days of marking orders delivered in bulk, so comparing sales with it is rough. */
+    bulkBefore: boolean;
     onOpenTab: (tab: FinanceTab) => void;
 }
 
@@ -35,7 +37,7 @@ function countOf(text: string): { count?: number } {
  * day pay the daily bill (ads, salaries, other costs), against how many the
  * shop delivers, as one bar drawn to scale with a name on each part.
  */
-export function DailyCosts({ summary, statement, previous, onOpenTab }: DailyCostsProps) {
+export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab }: DailyCostsProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
@@ -161,7 +163,10 @@ export function DailyCosts({ summary, statement, previous, onOpenTab }: DailyCos
                     {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
                     {noLift !== null && (
                         <p className="mt-1.5 text-left text-[13.5px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
-                            {isShownChange(-noLift) ? t("fin.ads.noLift", { pct: formatChange(noLift) }) : t("fin.ads.noLiftSame")}
+                            {/* Bulk-marked days in either period move sales between dates, so the comparison is rough: say so and point to new orders. */}
+                            {isShownChange(-noLift)
+                                ? t(bulk || bulkBefore ? "fin.ads.noLiftBulk" : "fin.ads.noLift", { pct: formatChange(noLift) })
+                                : t(bulk || bulkBefore ? "fin.ads.noLiftSameBulk" : "fin.ads.noLiftSame")}
                         </p>
                     )}
                 </div>
