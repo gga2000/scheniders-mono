@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
 import { HoldForm } from "./hold-form";
+import { PlanForm } from "./plan-form";
 
 /*
  * Each shop action is a short form whose button says what will happen, so the
@@ -70,5 +71,14 @@ describe("On hold", () => {
     const html = render(createElement(HoldForm, { shopId: "t1", mode: "reactivate", onDone: () => {} }));
     expect(html).not.toContain('aria-label="Reason"');
     expect(confirmButton(html)).not.toMatch(DISABLED);
+  });
+});
+
+describe("Change plan", () => {
+  it("asks why the plan changes, and waits for a choice and a reason", () => {
+    const html = render(createElement(PlanForm, { shopId: "t1", plan: "starter", onDone: () => {} }));
+    expect(html).toContain('aria-label="Reason"');
+    expect(html).not.toContain(">Starter<");
+    expect(confirmButton(html)).toMatch(DISABLED);
   });
 });

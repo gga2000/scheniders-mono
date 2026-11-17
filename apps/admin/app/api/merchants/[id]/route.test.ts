@@ -230,7 +230,7 @@ describe("PATCH /api/merchants/[id]", () => {
 
   it("changes status, plan and auto-renew in one database call, with the acting admin, and writes no table itself", async () => {
     rpc.mockResolvedValue(changed({ status: "suspended", auto_renew: false, changed: ["status_change", "auto_renew_toggle"] }));
-    const res = await patch({ status: "suspended", plan: "starter", auto_renew: false });
+    const res = await patch({ status: "suspended", plan: "starter", auto_renew: false, reason: "Owner closing for winter" });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
@@ -250,6 +250,7 @@ describe("PATCH /api/merchants/[id]", () => {
       _admin_user_id: "admin-1",
       _actor_email: "a@b.co",
       _source: "single",
+      _reason: "Owner closing for winter",
     });
     // The shop, its subscription and the log rows are the database call's.
     expect(writes).toEqual([]);
@@ -263,6 +264,33 @@ describe("PATCH /api/merchants/[id]", () => {
     expect(rpc).toHaveBeenCalledWith(
       "admin_update_shop",
       expect.objectContaining({ _status: "suspended", _reason: "Owner asked to stop for a month" }),
+    );
+  });
+
+  it("refuses to stop renewal without a reason, before the database", async () => {
+    const res = await patch({ auto_renew: false });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Say why renewal stops.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("turns renewal back on without asking why", async () => {
+    rpc.mockResolvedValue(changed({ auto_renew: true, changed: ["auto_renew_toggle"] }));
+    const res = await patch({ auto_renew: true });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("admin_update_shop", expect.not.objectContaining({ _reason: expect.anything() }));
+  });
+
+  it("passes staff's reason for a plan change on to the staff log", async () => {
+    rpc.mockResolvedValue(changed({ plan: "internal", changed: ["plan_change"] }));
+    const res = await patch({ plan: "internal", reason: "Our own test shop" });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith(
+      "admin_update_shop",
+      expect.objectContaining({ _plan: "internal", _reason: "Our own test shop" }),
     );
   });
 
