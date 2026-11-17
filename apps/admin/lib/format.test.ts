@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { formatCount, formatDay, formatDayTime, formatIQD, formatUntil, formatUntilDay, formatWhen } from "./format";
 
@@ -100,5 +102,43 @@ describe("formatUntilDay", () => {
     expect(formatUntilDay("2026-11-18T03:00:00Z", now)).toBe("in 8 h");
     expect(formatUntilDay("2026-11-17T19:40:00Z", now)).toBe("in 40 min");
     expect(formatUntilDay("2026-11-17T18:59:00Z", now)).toBe("ended");
+  });
+});
+
+/*
+ * Round 15 (data lane 3): Support Today's "Trial ends 21 Nov" and View as
+ * merchant's "Look only, until 14:05" used the browser's clock, so a staff
+ * member whose laptop ran another zone saw another day or hour than every
+ * other screen. Every day and time the console shows is Baghdad's: through
+ * lib/format, or with timeZone written into the call.
+ */
+const ADMIN_DIR = path.resolve(__dirname, "..");
+const BROWSER_CLOCK = [
+  /\.toLocale(?:Date|Time)String\((?![^)]*timeZone)[^)]*\)/g,
+  /\.(?:toDateString|getHours|setHours|getDate|setDate|getDay|getMonth|getFullYear)\(/g,
+];
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) return name === "node_modules" || name.startsWith(".") ? [] : sourceFiles(full);
+    return /\.tsx?$/.test(name) && !/\.test(-data)?\.tsx?$/.test(name) ? [full] : [];
+  });
+}
+
+describe("the console's days and times", () => {
+  it("never read the browser's clock zone", () => {
+    const found: string[] = [];
+    for (const dir of ["app", "components", "hooks", "lib"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const text = readFileSync(file, "utf8");
+        for (const pattern of BROWSER_CLOCK) {
+          for (const match of text.match(pattern) ?? []) {
+            found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${match}`);
+          }
+        }
+      }
+    }
+    expect(found).toEqual([]);
   });
 });

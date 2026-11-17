@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportLogTask, useSupportTakeShop, useSupportTasks } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
+import { formatDay } from "@/lib/format";
 import { SupportCallList } from "@/components/support/support-call-list";
 import {
   CALL_OUTCOMES,
@@ -178,7 +179,7 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
           {task.orders === 0 ? "No orders yet" : `${task.orders.toLocaleString("en-US")} orders`}
         </span>
         {task.shop_status === "trial" && task.trial_ends_at && (
-          <span>Trial ends {new Date(task.trial_ends_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+          <span>Trial ends {formatDay(task.trial_ends_at)}</span>
         )}
       </p>
 

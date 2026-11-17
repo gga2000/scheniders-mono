@@ -16,7 +16,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { formatDayTime } from "@/lib/format";
+import { formatDayKey, formatDayTime } from "@/lib/format";
 
 // ── Date Helpers ────────────────────────────────────────────────────────
 
@@ -24,10 +24,9 @@ function isOverdue(date: string): boolean {
   return new Date(date) < new Date();
 }
 
+/** Today on the Baghdad calendar, as every day in the console is counted. */
 function isToday(date: string): boolean {
-  const d = new Date(date);
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
+  return formatDayKey(date) === formatDayKey(new Date());
 }
 
 // ── Props ───────────────────────────────────────────────────────────────

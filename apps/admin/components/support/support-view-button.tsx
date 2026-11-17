@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Copy, Eye, Loader2, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useLiveTick } from "@/hooks/use-live-tick";
+import { formatTime } from "@/lib/format";
 import { useSupportViewEnd, useSupportViewStart } from "@/hooks/use-support-cases";
 
 /**
@@ -59,7 +60,7 @@ export function SupportViewButton({ tenantId }: { tenantId: string }) {
     );
   }
 
-  const until = new Date(link.expiresAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const until = formatTime(link.expiresAt);
   return (
     <div className="space-y-2 rounded-xl border border-red-200 bg-red-500/5 p-3 text-xs text-[var(--ink-red)]">
       <p>
