@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
 
 /**
@@ -39,7 +40,7 @@ vi.mock("@supabase/ssr", () => ({
   }),
 }));
 
-const { middleware } = await import("./middleware");
+const { middleware, config } = await import("./middleware");
 const { CSP_HEADER } = await import("./lib/csp");
 
 const STAFF = { id: "11111111-1111-4111-8111-111111111111" };
@@ -171,5 +172,34 @@ describe("the script policy", () => {
     adminRead = { data: null, error: { message: "connection lost" } };
     getUser = { data: { user: STAFF }, error: null };
     expect((await call("/merchants")).headers.get(CSP_HEADER)).toContain("script-src");
+  });
+});
+
+describe("which addresses the middleware sees", () => {
+  const sees = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+
+  it("sees every console address, even one that ends like an image", () => {
+    // An address ending in .png used to skip the access check and the script
+    // policy, while the console still rendered the page under it.
+    for (const url of ["/", "/merchants", "/merchants/abc.png", "/leads/x.svg", "/api/leads/x.jpg", "/login"]) {
+      expect(sees(url), url).toBe(true);
+    }
+  });
+
+  it("leaves out only built files, Vercel's own paths and the alerts worker", () => {
+    const skipped = ["/_next/static/chunks/app.js", "/_next/image?url=x", "/_vercel/insights/script.js", "/favicon.ico", "/support-sw.js"];
+    for (const url of skipped) expect(sees(url), url).toBe(false);
+  });
+});
+
+describe("browser cache", () => {
+  it("keeps API answers (phones, emails, wallets) out of the browser's cache", async () => {
+    expect((await call("/api/merchants")).headers.get("cache-control")).toBe("private, no-store");
+    getUser = { data: { user: null }, error: null };
+    expect((await call("/api/leads")).headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("leaves pages to Next.js, which already marks them no-store", async () => {
+    expect((await call("/merchants")).headers.get("cache-control")).toBeNull();
   });
 });

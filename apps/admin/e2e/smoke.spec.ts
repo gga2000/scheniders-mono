@@ -9,20 +9,30 @@ import { expect, open, test } from "./console";
  * tried to send.
  */
 
-test("a page comes with the script policy, and every script in it carries that answer's nonce", async ({ page, watch }) => {
-  const first = await page.request.get("/merchants");
-  const policy = first.headers()[CSP_HEADER.toLowerCase()] ?? "";
-  const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
-  expect(policy).toContain("'strict-dynamic'");
-  expect(nonce).toBeTruthy();
+// The second address ends like an image: the console still renders a page
+// under it, so it needs the policy as much as any other.
+for (const address of ["/merchants", "/merchants/abc.png"]) {
+  test(`${address} comes with the script policy, and every script in it carries that answer's nonce`, async ({ page, watch }) => {
+    const first = await page.request.get(address);
+    const policy = first.headers()[CSP_HEADER.toLowerCase()] ?? "";
+    const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+    expect(policy).toContain("'strict-dynamic'");
+    expect(nonce).toBeTruthy();
 
-  const scripts = (await first.text()).match(/<script\b[^>]*>/g) ?? [];
-  expect(scripts.length).toBeGreaterThan(0);
-  expect(scripts.filter((tag) => !tag.includes(`nonce="${nonce}"`))).toEqual([]);
+    const scripts = (await first.text()).match(/<script\b[^>]*>/g) ?? [];
+    expect(scripts.length).toBeGreaterThan(0);
+    expect(scripts.filter((tag) => !tag.includes(`nonce="${nonce}"`))).toEqual([]);
 
-  const second = await page.request.get("/merchants");
-  expect(second.headers()[CSP_HEADER.toLowerCase()]).not.toContain(`'nonce-${nonce}'`);
-  expect(watch.writes).toEqual([]);
+    const second = await page.request.get(address);
+    expect(second.headers()[CSP_HEADER.toLowerCase()]).not.toContain(`'nonce-${nonce}'`);
+    expect(watch.writes).toEqual([]);
+  });
+}
+
+test("API answers stay out of the browser's cache", async ({ page }) => {
+  const answer = await page.request.get("/api/merchants/stats");
+  expect(answer.ok()).toBe(true);
+  expect(answer.headers()["cache-control"]).toBe("private, no-store");
 });
 
 test.describe("every page on the menu opens", () => {

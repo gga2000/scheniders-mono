@@ -43,6 +43,35 @@ afterEach(async () => {
   await settle();
 });
 
+/** A breach as the browser reports it; jsdom has no SecurityPolicyViolationEvent. */
+function breach(fields: { effectiveDirective: string; blockedURI: string; sourceFile: string; lineNumber: number }) {
+  document.dispatchEvent(Object.assign(new Event("securitypolicyviolation"), fields));
+}
+
+describe("a script the policy blocked", () => {
+  it("reaches Sentry once per page, saying what was blocked and where", async () => {
+    setReadyState("loading");
+    await import("../instrumentation-client");
+    const blocked = { effectiveDirective: "script-src-elem", blockedURI: "https://evil.example/x.js", sourceFile: "https://console.test/merchants", lineNumber: 1 };
+    breach(blocked);
+    breach(blocked);
+    await settle();
+    expect(loaded.captureException).toHaveBeenCalledTimes(1);
+    const [sent] = loaded.captureException.mock.calls[0] as [Error];
+    expect(sent.name).toBe("PolicyBreach");
+    expect(sent.message).toBe("script-src-elem blocked https://evil.example/x.js at https://console.test/merchants:1");
+  });
+
+  it("leaves out a browser extension's breach", async () => {
+    setReadyState("loading");
+    await import("../instrumentation-client");
+    breach({ effectiveDirective: "script-src-elem", blockedURI: "chrome-extension://abc/inject.js", sourceFile: "", lineNumber: 0 });
+    breach({ effectiveDirective: "script-src-elem", blockedURI: "inline", sourceFile: "moz-extension://abc/content.js", lineNumber: 3 });
+    await settle();
+    expect(loaded.captureException).not.toHaveBeenCalled();
+  });
+});
+
 describe("starting Sentry in the browser", () => {
   it("waits for the load event", async () => {
     setReadyState("loading");
