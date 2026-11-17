@@ -26,7 +26,9 @@
 --       30 Baghdad days that end today (admin_order_facts): an order 30 days
 --       ago, a deleted, test or practice order, and the plan's usage counter
 --       never count;
---     * every step of the balance and orders ladders, at its edges;
+--     * every step of the balance and orders ladders, at its edges; the
+--       wallet adds 5 from exactly 10,000 IQD, the Merchants filter's and
+--       Home's "low" band (round 10);
 --     * the three parts the console shows (status, wallet, orders) are the
 --       numbers the score is made of: 50 plus the parts, kept in 0 to 100, is
 --       the score, for every shop.
@@ -95,7 +97,8 @@ INSERT INTO tt_shops (name, status, plan, trial_ends_at, balance, orders, want_a
     ('paying, 50,001 IQD, 51 orders',    'active',    'starter', NULL,                         50001,  51,   false, false, 95),
     ('paying, 50,000 IQD, 50 orders',    'active',    'starter', NULL,                         50000,  50,   false, false, 80),
     ('paying, 10,001 IQD, 11 orders',    'active',    'starter', NULL,                         10001,  11,   false, false, 80),
-    ('paying, 10,000 IQD, 10 orders',    'active',    'starter', NULL,                         10000,  10,   false, false, 60),
+    ('paying, 10,000 IQD, 10 orders',    'active',    'starter', NULL,                         10000,  10,   false, false, 75),
+    ('paying, 9,999 IQD, 10 orders',     'active',    'starter', NULL,                         9999,   10,   false, false, 60),
     ('paying, 5,000 IQD, 1 order',       'active',    'starter', NULL,                         5000,   1,    false, false, 60),
     ('paying, 4,999 IQD, 0 orders',      'active',    'starter', NULL,                         4999,   0,    true, false, 55),
     ('paying, no wallet, no usage',      'active',    'starter', NULL,                         NULL,   NULL, true, false, 55),
@@ -200,6 +203,8 @@ BEGIN
             ('paused, empty, quiet',        '{"status": -20, "wallet": -10, "orders": 0}'::jsonb),
             ('trial, ends in 4 days',       '{"status": 5, "wallet": 5, "orders": 5}'::jsonb),
             ('paying, 10,001 IQD, 11 orders', '{"status": 15, "wallet": 5, "orders": 10}'::jsonb),
+            ('paying, 10,000 IQD, 10 orders', '{"status": 15, "wallet": 5, "orders": 5}'::jsonb),
+            ('paying, 9,999 IQD, 10 orders', '{"status": 15, "wallet": -10, "orders": 5}'::jsonb),
             ('paying, no wallet, no usage', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
             ('paying, 4,999 IQD, 0 orders', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
             ('limited, full wallet',        '{"status": 0, "wallet": 15, "orders": 0}'::jsonb)
@@ -219,7 +224,12 @@ BEGIN
     RESET ROLE;
     PERFORM pg_temp.check('filter: needs attention finds 9 shops, got ' || _attention, _attention = 9);
     PERFORM pg_temp.check('filter: locked finds 2 shops, got ' || _locked, _locked = 2);
-    PERFORM pg_temp.check('filter: under 10,000 IQD finds 4 shops, got ' || _low, _low = 4);
+    PERFORM pg_temp.check('filter: under 10,000 IQD finds 5 shops, got ' || _low, _low = 5);
+    -- The wallet part and the balance filter put every shop in the same band.
+    SELECT count(*) INTO _low FROM public.tenants t
+    WHERE t.slug LIKE 'tt-%'
+      AND (t.staff_wallet_balance < 10000) <> ((public.staff_health_parts(t) ->> 'wallet')::integer = -10);
+    PERFORM pg_temp.check('wallet part and filter disagree on ' || _low || ' shops', _low = 0);
     PERFORM pg_temp.check('filter: health under 40 finds 1 shop, got ' || _at_risk, _at_risk = 1);
 
     SET LOCAL ROLE authenticated;
