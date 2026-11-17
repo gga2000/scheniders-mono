@@ -65,7 +65,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
-    auth: { getUser: async () => ({ data: { user: null }, error: null }) },
+    auth: { getClaims: async () => ({ data: null, error: null }) },
   }),
 }));
 

@@ -1,13 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
+import { SIGN_IN_ENDED } from "@/lib/staff-sign-in";
 
 // Public Cloudflare Turnstile key. Unset = no box (only while Supabase CAPTCHA is off).
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+
+/** The reason in the address the console sent staff here with, if any. */
+function sentHereFor(): string {
+  return new URLSearchParams(window.location.search).get("error") ?? "";
+}
+
+/** The address does not change while the login page is open. */
+const unwatched = () => () => {};
+
+/** Why the console sent staff here (middleware.ts), in words they can act on. */
+const SENT_HERE = new Map([
+  ["expired", SIGN_IN_ENDED],
+  ["forbidden", "This login has no access to the staff console."],
+]);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,8 +36,13 @@ export default function LoginPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaReady = TURNSTILE_SITE_KEY === "" || captchaToken !== null;
 
+  // Read from the address itself, after the server's render (no Suspense needed).
+  const sentHere = SENT_HERE.get(useSyncExternalStore(unwatched, sentHereFor, () => "")) ?? null;
+
+  // A sign-in the console just ended is not sent back in: if ending it failed,
+  // the console would send it here again, round and round.
   useEffect(() => {
-    if (user) {
+    if (user && sentHereFor() !== "expired") {
       router.push("/");
     }
   }, [user, router]);
@@ -73,9 +93,9 @@ export default function LoginPage() {
         </div>
 
         {/* Error */}
-        {error && (
-          <div className="p-3 rounded-xl bg-red-500/5 border border-red-200 text-sm text-[var(--ink-red)]">
-            {error}
+        {(error ?? sentHere) && (
+          <div role="alert" className="p-3 rounded-xl bg-red-500/5 border border-red-200 text-sm text-[var(--ink-red)]">
+            {error ?? sentHere}
           </div>
         )}
 

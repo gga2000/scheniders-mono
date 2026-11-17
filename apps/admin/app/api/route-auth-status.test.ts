@@ -50,8 +50,22 @@ vi.mock("@/lib/admin-supabase", () => ({
   resolveAdminRole: vi.fn(),
 }));
 
-/** What the cookie session's `getUser()` answers (no bearer token sent). */
-let cookieGetUser: () => Promise<{ data: { user: { id: string } | null }; error: unknown }>;
+type CookieClaims = { data: { claims: Record<string, unknown> } | null; error: unknown };
+/** What the local check of the cookie session's token answers (no bearer token sent). */
+let cookieGetClaims: () => Promise<CookieClaims>;
+const HOUR = 60 * 60 * 1000;
+/** The claims of the cookie session's token, signed in `hoursAgo` hours ago. */
+const cookieClaims = (hoursAgo = 1): CookieClaims => ({
+  data: {
+    claims: {
+      sub: ADMIN.user.id,
+      session_id: "22222222-2222-4222-8222-222222222222",
+      exp: Math.floor((Date.now() + HOUR) / 1000),
+      amr: [{ method: "password", timestamp: Math.floor((Date.now() - hoursAgo * HOUR) / 1000) }],
+    },
+  },
+  error: null,
+});
 /** The access token stored in the cookie session. */
 let cookieAccessToken = "app-session-token";
 
@@ -61,7 +75,7 @@ vi.mock("next/headers", () => ({
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
     auth: {
-      getUser: () => cookieGetUser(),
+      getClaims: () => cookieGetClaims(),
       getSession: async () => ({ data: { session: { access_token: cookieAccessToken } } }),
     },
   }),
@@ -73,7 +87,7 @@ beforeEach(() => {
   consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
   createAdminClient.mockClear();
   dbResult = { data: [], error: null };
-  cookieGetUser = async () => ({ data: { user: null }, error: null });
+  cookieGetClaims = async () => ({ data: null, error: null });
 });
 
 function req(pathname: string, method: string, authorization: string | null): NextRequest {
@@ -227,23 +241,32 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
     expect((res as NextResponse).status).toBe(401);
   });
 
-  it("cookie session the auth server rejects → 401", async () => {
-    const { AuthApiError } = await import("@supabase/supabase-js");
-    cookieGetUser = async () => ({ data: { user: null }, error: new AuthApiError("bad_jwt", 403, "bad_jwt") });
+  it("cookie session token that does not check out → 401", async () => {
+    const { AuthInvalidJwtError } = await import("@supabase/supabase-js");
+    cookieGetClaims = async () => ({ data: null, error: new AuthInvalidJwtError("Invalid JWT signature") });
     const res = await requireAdminFromRequest(req("/x", "GET", null));
     expect((res as NextResponse).status).toBe(401);
   });
 
-  it("cookie session check that cannot reach the auth server propagates", async () => {
+  it("cookie session signed in more than 16 hours ago → 401", async () => {
+    const { resolveAdminRole } = await import("@/lib/admin-supabase");
+    vi.mocked(resolveAdminRole).mockClear();
+    cookieGetClaims = async () => cookieClaims(17);
+    const res = await requireAdminFromRequest(req("/x", "GET", null));
+    expect((res as NextResponse).status).toBe(401);
+    expect(resolveAdminRole).not.toHaveBeenCalled();
+  });
+
+  it("cookie session check that cannot read the keys propagates", async () => {
     const { AuthRetryableFetchError } = await import("@supabase/supabase-js");
-    cookieGetUser = async () => ({ data: { user: null }, error: new AuthRetryableFetchError("fetch failed", 0) });
-    await expect(requireAdminFromRequest(req("/x", "GET", null))).rejects.toThrow(/Session validation failed/);
+    cookieGetClaims = async () => ({ data: null, error: new AuthRetryableFetchError("fetch failed", 0) });
+    await expect(requireAdminFromRequest(req("/x", "GET", null))).rejects.toThrow(/Access-token check failed/);
   });
 
   it("valid cookie user without admin access → 403; admin_users outage propagates", async () => {
     const { resolveAdminRole } = await import("@/lib/admin-supabase");
     const resolve = vi.mocked(resolveAdminRole);
-    cookieGetUser = async () => ({ data: { user: { id: ADMIN.user.id } }, error: null });
+    cookieGetClaims = async () => cookieClaims();
 
     resolve.mockRejectedValueOnce(new AdminAuthError(403, "No admin-console access"));
     const res = await requireAdminFromRequest(req("/x", "GET", null));
@@ -256,7 +279,7 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
   it("a Claude connector token in the session cookie is no admin session → 401", async () => {
     const { resolveAdminRole } = await import("@/lib/admin-supabase");
     vi.mocked(resolveAdminRole).mockClear();
-    cookieGetUser = async () => ({ data: { user: { id: ADMIN.user.id } }, error: null });
+    cookieGetClaims = async () => cookieClaims();
     cookieAccessToken = `h.${Buffer.from(JSON.stringify({ sub: ADMIN.user.id, client_id: "claude" })).toString("base64url")}.s`;
     try {
       const res = await requireAdminFromRequest(req("/x", "GET", null));

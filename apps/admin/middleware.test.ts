@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock, type MockInstance } from "vitest";
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
+import { AuthApiError, AuthInvalidJwtError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
 
 /**
  * The middleware decides who reaches the console. A database or auth-server
@@ -10,9 +10,17 @@ import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "
  */
 
 type GetUser = { data: { user: { id: string } | null }; error: unknown };
+type Claims = Record<string, unknown>;
+type GetClaims = { data: { claims: Claims } | null; error: unknown };
 type AdminRead = { data: { admin_role: string; is_active: boolean } | null; error: { message: string } | null };
 
 let getUser: GetUser;
+/** What the local check of the session's own token answers. */
+let sessionClaims: GetClaims;
+/** Claims of the tokens an API call sends in its Authorization header, by token. */
+let sentClaims: Record<string, Claims>;
+let signOut: Mock<(options: { scope: string }) => Promise<{ error: unknown }>>;
+let signOutError: unknown;
 let adminRead: AdminRead;
 /** Cookies the Supabase client sets, as when it refreshes the session. */
 let refreshedCookies: Array<{ name: string; value: string; options: object }>;
@@ -30,6 +38,15 @@ vi.mock("@supabase/ssr", () => ({
         if (refreshedCookies.length > 0) cookies.setAll(refreshedCookies);
         return getUser;
       },
+      getClaims: async (token?: string) => {
+        if (token === undefined) return sessionClaims;
+        const claims = sentClaims[token];
+        return claims ? { data: { claims }, error: null } : { data: null, error: new AuthInvalidJwtError("Invalid JWT signature") };
+      },
+      signOut: (options: { scope: string }) => {
+        cookies.setAll([{ name: "sb-session", value: "", options: { path: "/", maxAge: 0 } }]);
+        return signOut(options);
+      },
     },
     from: () => {
       const query = {
@@ -46,10 +63,26 @@ const { middleware, config } = await import("./middleware");
 const { CSP_HEADER } = await import("./lib/csp");
 
 const STAFF = { id: "11111111-1111-4111-8111-111111111111" };
+const SESSION = "22222222-2222-4222-8222-222222222222";
+const HOUR = 60 * 60 * 1000;
 const call = (path: string) => middleware(new NextRequest(`https://console.test${path}`));
+
+/** The claims of a token of `session`, signed in `hoursAgo` hours ago. */
+function claimsOf(session: string, hoursAgo = 1): Claims {
+  return {
+    sub: STAFF.id,
+    session_id: session,
+    exp: Math.floor((Date.now() + HOUR) / 1000),
+    amr: [{ method: "password", timestamp: Math.floor((Date.now() - hoursAgo * HOUR) / 1000) }],
+  };
+}
 
 beforeEach(() => {
   getUser = { data: { user: STAFF }, error: null };
+  sessionClaims = { data: { claims: claimsOf(SESSION) }, error: null };
+  sentClaims = {};
+  signOutError = null;
+  signOut = vi.fn<(options: { scope: string }) => Promise<{ error: unknown }>>(async () => ({ error: signOutError }));
   adminRead = { data: { admin_role: "super_admin", is_active: true }, error: null };
   refreshedCookies = [];
   errors = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -137,6 +170,75 @@ describe("middleware access check", () => {
     expect((await call("/api/leads")).cookies.get("sb-session")?.value).toBe("fresh");
     adminRead = { data: null, error: null };
     expect((await call("/merchants")).cookies.get("sb-session")?.value).toBe("fresh");
+  });
+});
+
+describe("how long a staff sign-in lasts", () => {
+  it("ends a sign-in older than 16 hours, here and on the auth server, and says why", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
+    const page = await call("/merchants");
+    expect(page.headers.get("location")).toBe("https://console.test/login?error=expired");
+    expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+    // The browser's session cookie goes with the answer.
+    expect(page.cookies.get("sb-session")?.value).toBe("");
+
+    const api = await call("/api/leads");
+    expect(api.status).toBe(401);
+    expect(await api.json()).toEqual({ error: "Your sign-in ended after 16 hours. Sign in again." });
+  });
+
+  it("lets a sign-in from the start of the support day through", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 15) }, error: null };
+    expect((await call("/merchants")).status).toBe(200);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("shows the login page to an ended sign-in instead of sending it back to the console", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
+    const login = await call("/login?error=expired");
+    expect(login.status).toBe(200);
+    expect(login.headers.get("location")).toBeNull();
+  });
+
+  it("still sends staff to sign in again when ending the old sign-in failed, and reports it", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
+    signOutError = new AuthRetryableFetchError("fetch failed", 0);
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=expired");
+    expect(errors).toHaveBeenCalledWith("[middleware] Ending an old sign-in failed", { path: "/merchants", message: "fetch failed" });
+  });
+
+  it("treats a session token that does not check out as signed out", async () => {
+    sessionClaims = { data: null, error: new AuthInvalidJwtError("Invalid JWT signature") };
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+    expect((await call("/api/leads")).status).toBe(401);
+  });
+
+  it("answers 503 when the keys to check the token cannot be read", async () => {
+    sessionClaims = { data: null, error: new AuthRetryableFetchError("fetch failed", 0) };
+    expect((await call("/merchants")).status).toBe(503);
+    expect((await call("/api/leads")).status).toBe(503);
+  });
+});
+
+describe("the API's token is the session the auth server answered for", () => {
+  const withToken = (token: string) =>
+    middleware(new NextRequest("https://console.test/api/leads", { headers: { authorization: `Bearer ${token}` } }));
+
+  it("lets the browser's own token through, even one refreshed since", async () => {
+    sentClaims = { own: claimsOf(SESSION) };
+    expect((await withToken("own")).status).toBe(200);
+  });
+
+  it("refuses a token of another session, a forged one, and an expired one", async () => {
+    sentClaims = {
+      other: claimsOf("33333333-3333-4333-8333-333333333333"),
+      expired: { ...claimsOf(SESSION), exp: Math.floor(Date.now() / 1000) - 60 },
+    };
+    for (const token of ["other", "forged", "expired"]) {
+      const response = await withToken(token);
+      expect(response.status, token).toBe(401);
+      expect(await response.json()).toEqual({ error: "Unauthorized" });
+    }
   });
 });
 

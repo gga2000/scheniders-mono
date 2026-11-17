@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./admin-env";
 import { isOAuthClientToken } from "@scheniders/shared";
-import { AdminAuthError, isCredentialRejection } from "./admin-auth-error";
+import { AdminAuthError } from "./admin-auth-error";
+import { SIGN_IN_ENDED, signInEnded, verifyStaffToken } from "./staff-sign-in";
 import type { AdminRole } from "@/types/admin";
 
 /**
@@ -69,14 +70,17 @@ export async function resolveAdminRole(userId: string): Promise<AdminRole> {
  * Validate a user's access token (bearer transport) and verify they have
  * admin-console access.
  *
- * 1. Creates a client with the user's access token to validate the JWT
- * 2. Resolves their admin-console role via `resolveAdminRole` (which reads the
+ * 1. Checks the token once (lib/staff-sign-in.ts): signature and expiry, with
+ *    the project's published keys, so no call to the auth server. The
+ *    middleware has already asked the auth server about this browser's
+ *    session on the same request.
+ * 2. Refuses a sign-in older than the staff limit (16 hours).
+ * 3. Resolves their admin-console role via `resolveAdminRole` (which reads the
  *    dedicated `admin_users` access list, decoupled from user_profiles.role)
- * 3. Returns the validated user and their admin role
  *
- * Throws `AdminAuthError` (401 bad token, 403 not an admin) for caller faults
- * and a plain error when the auth server or database fails. Routes should not
- * call this directly — use `requireBearerAdmin` / `requireAdminFromRequest`
+ * Throws `AdminAuthError` (401 bad or old token, 403 not an admin) for caller
+ * faults and a plain error when the key read or database fails. Routes should
+ * not call this directly — use `requireBearerAdmin` / `requireAdminFromRequest`
  * (lib/api-auth.ts), which map those to the right status.
  */
 export async function requireAdmin(accessToken: string) {
@@ -84,32 +88,18 @@ export async function requireAdmin(accessToken: string) {
   if (isOAuthClientToken(accessToken)) {
     throw new AdminAuthError(401, "Claude connector tokens cannot be used in the admin console");
   }
-  // Create a client authenticated as the user to validate the JWT
   const userClient = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
   });
 
-  const {
-    data: { user },
-    error: userError,
-  } = await userClient.auth.getUser();
+  const token = await verifyStaffToken(userClient.auth, accessToken);
+  if (!token) throw new AdminAuthError(401, "Invalid access token");
+  if (signInEnded(token.signedInAt)) throw new AdminAuthError(401, SIGN_IN_ENDED);
 
-  if (!user) {
-    if (isCredentialRejection(userError)) {
-      throw new AdminAuthError(401, userError?.message ?? "Invalid access token");
-    }
-    throw new Error(`Access-token validation failed: ${userError?.message}`, { cause: userError });
-  }
+  const role = await resolveAdminRole(token.userId);
 
-  const role = await resolveAdminRole(user.id);
-
-  return { user, role };
+  return { user: { id: token.userId, email: token.email }, role };
 }
