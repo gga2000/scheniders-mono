@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PlanTier, TenantStatus } from "@/types/admin";
 import type { createAdminClient } from "./admin-supabase";
+import { STILL_TRIAL_REFUSAL } from "./shop-status-choice";
 
 /**
  * What staff ask for. Any part may be left out; at least one of status, plan
@@ -41,7 +42,7 @@ const REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
   demo_store: { status: 409, error: DEMO_STORE_REFUSAL },
   use_pause: { status: 409, error: "Use Pause to limit a shop: it sets what is blocked and for how long." },
   paused: { status: 409, error: "This shop is paused. Resume it first." },
-  still_trial: { status: 409, error: "This shop is on trial. Use Convert to paid to make it a paying shop." },
+  still_trial: { status: 409, error: STILL_TRIAL_REFUSAL },
   not_trialing: { status: 409, error: "This shop's subscription is not a trial, so it cannot go back to Trial." },
   no_subscription: { status: 409, error: "This shop has no subscription yet." },
   subscription_ended: {

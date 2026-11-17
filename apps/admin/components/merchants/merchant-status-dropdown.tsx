@@ -7,6 +7,7 @@ import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
+import { canPickStatus } from "@/lib/shop-status-choice";
 import type { TenantStatus } from "@/types/admin";
 
 const STATUS_OPTIONS: Array<{
@@ -173,7 +174,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
               </div>
             </div>
           ) : (
-            STATUS_CHOICES.map((opt) => (
+            STATUS_CHOICES.filter((opt) => opt.value === status || canPickStatus(status, opt.value)).map((opt) => (
               <button
                 key={opt.value}
                 onClick={(e) => {

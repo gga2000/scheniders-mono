@@ -19,6 +19,7 @@ import type { AdminTenant, TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
+import { STILL_TRIAL_REFUSAL, canPickStatus } from "@/lib/shop-status-choice";
 
 type StageKey = TenantStatus;
 
@@ -184,6 +185,13 @@ export function MerchantsKanbanView({
       if (!merchant) return;
       const from = merchant.status;
       if (from === target || isPaused(from) || isPaused(target)) {
+        setHoverCol(null);
+        setDraggingId(null);
+        return;
+      }
+      if (!canPickStatus(from, target)) {
+        // Said before a confirm that the server would only refuse.
+        toast.error(STILL_TRIAL_REFUSAL);
         setHoverCol(null);
         setDraggingId(null);
         return;

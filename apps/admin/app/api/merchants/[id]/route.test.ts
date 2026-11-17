@@ -321,7 +321,7 @@ describe("PATCH /api/merchants/[id]", () => {
   });
 
   it.each([
-    ["still_trial", 409, "This shop is on trial. Use Convert to paid to make it a paying shop."],
+    ["still_trial", 409, 'This shop is on trial. Open its page and use "Start paid time, no charge" to make it a paying shop.'],
     ["paused", 409, "This shop is paused. Resume it first."],
     ["use_pause", 409, "Use Pause to limit a shop: it sets what is blocked and for how long."],
     ["demo_store", 409, "This is the demo store. Its status does not change."],
