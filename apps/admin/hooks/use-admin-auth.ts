@@ -13,6 +13,7 @@ import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
 import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
+import { nextAccess, readAccessCheck, type AccessCheck, type KnownAccess } from "@/lib/admin-access";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,11 +31,18 @@ interface AdminAuthState {
   profile: AdminProfile | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * The read of the person's own staff row failed and no role is known yet,
+   * so controls that need a role are hidden. Not the same as "no access".
+   */
+  accessCheckFailed: boolean;
 }
 
 interface AdminAuthContextValue extends AdminAuthState {
   signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  /** Reads the person's staff row again after a failed read. */
+  recheckAccess: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,8 +54,6 @@ const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefi
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const ALLOWED_ROLES: AdminRole[] = ["super_admin", "support_staff"];
 
 /**
  * Create a browser-side Supabase client (anon key) for auth operations.
@@ -65,29 +71,21 @@ function makeBrowserClient() {
 }
 
 /**
- * Resolve the signed-in user's admin-console role from the dedicated
- * `admin_users` table (decoupled from the main app's user_profiles.role).
- * Reads the user's own row via their session — the `admin_users_read_own`
- * RLS policy permits exactly that. Returns null when there's no active admin
- * row or the role isn't allowed.
+ * The signed-in person's admin-console role from the dedicated `admin_users`
+ * table (decoupled from the main app's user_profiles.role). Reads the user's
+ * own row via their session; the `admin_users_read_own` RLS policy permits
+ * exactly that. A failed read is its own answer (lib/admin-access).
  */
-async function fetchAdminRole(
+async function fetchAccessCheck(
   userId: string,
   supabase: ReturnType<typeof makeBrowserClient>
-): Promise<AdminRole | null> {
-  const { data, error } = await supabase
+): Promise<AccessCheck> {
+  const result = await supabase
     .from("admin_users")
     .select("admin_role, is_active")
     .eq("user_id", userId)
-    .single();
-
-  if (error || !data) return null;
-
-  const row = data as Record<string, unknown>;
-  if (row.is_active !== true) return null;
-
-  const role = row.admin_role as string;
-  return ALLOWED_ROLES.includes(role as AdminRole) ? (role as AdminRole) : null;
+    .maybeSingle();
+  return readAccessCheck(result);
 }
 
 /**
@@ -125,75 +123,88 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessCheckFailed, setAccessCheckFailed] = useState(false);
+  // Bumped by "Try again": the session is read and checked once more.
+  const [recheckCount, setRecheckCount] = useState(0);
 
   // Stable reference — created once
   const [supabase] = useState(makeBrowserClient);
 
-  // ── Bootstrap: check existing session & subscribe to auth changes ──
+  // ── Bootstrap: check the session & subscribe to auth changes ──
   useEffect(() => {
     let mounted = true;
+    // Answers can come back out of order; only the newest one counts.
+    let newest = 0;
+    // The role last read, and whose, so a failed read keeps it for that person only.
+    let known: KnownAccess | null = null;
+
+    function clear() {
+      known = null;
+      setUser(null);
+      setRole(null);
+      setProfile(null);
+      setAccessCheckFailed(false);
+      setIsLoading(false);
+    }
 
     async function handleSession(sessionUser: User | null) {
+      const call = ++newest;
       if (!sessionUser) {
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setIsLoading(false);
+        clear();
         return;
       }
 
-      const [adminRole, profileRow] = await Promise.all([
-        fetchAdminRole(sessionUser.id, supabase),
+      const [check, profileRow] = await Promise.all([
+        fetchAccessCheck(sessionUser.id, supabase),
         fetchProfile(sessionUser.id, supabase),
       ]);
 
-      if (!mounted) return;
+      if (!mounted || call !== newest) return;
 
-      if (!adminRole) {
-        // Not an admin — sign them out
+      const step = nextAccess(check, known, sessionUser.id);
+      if (step.kind === "sign_out") {
+        // The row answered: this login has no console access. Only this
+        // browser is signed out; the person's other sessions are not ours.
         setError("You do not have admin access.");
-        await supabase.auth.signOut();
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setIsLoading(false);
+        await supabase.auth.signOut({ scope: "local" });
+        clear();
         return;
       }
 
+      const nextRole = step.kind === "unknown" ? null : step.role;
+      known = nextRole ? { userId: sessionUser.id, role: nextRole } : null;
       setUser(sessionUser);
-      setRole(adminRole);
-      setProfile(profileRow);
+      setRole(nextRole);
+      setProfile((previous) => profileRow ?? (step.kind === "keep" ? previous : null));
+      setAccessCheckFailed(step.kind === "unknown");
       setError(null);
       setIsLoading(false);
     }
 
-    // 1. Check for an existing session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      if (mounted) handleSession(session?.user ?? null);
-    });
-
-    // 2. Subscribe to auth state changes
+    // The first event is INITIAL_SESSION, with the stored session or none, so
+    // the session is read once here and not again through getSession().
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       if (!mounted) return;
-      if (_event === "SIGNED_OUT") {
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setIsLoading(false);
+      if (event === "SIGNED_OUT") {
+        clear();
         return;
       }
-      if (session?.user) {
-        handleSession(session.user);
-      }
+      // A new token changes nobody's access, and the server checks access on
+      // every request. Reading the row at each hourly refresh only gave a
+      // blip one more chance to look like "no access".
+      if (event === "TOKEN_REFRESHED") return;
+      handleSession(session?.user ?? null);
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, recheckCount]);
+
+  const recheckAccess = useCallback(() => setRecheckCount((n) => n + 1), []);
 
   // ── Auth actions ──
   const signIn = useCallback(
@@ -223,6 +234,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setProfile(null);
     setError(null);
+    setAccessCheckFailed(false);
     setIsLoading(false);
   }, [supabase]);
 
@@ -232,8 +244,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     profile,
     isLoading,
     error,
+    accessCheckFailed,
     signIn,
     signOut,
+    recheckAccess,
   };
 
   return createElement(AdminAuthContext.Provider, { value }, children);
