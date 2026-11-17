@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
 import { leadChangeRefusal, type LeadChange } from "./lead-change";
-import { LEAD_LISTS, listsChangedText, type LeadList, type LeadListsAsOpened, type LeadUpdate } from "./lead-update";
+import { LEAD_GONE, LEAD_LISTS, listsChangedText, type LeadList, type LeadListsAsOpened, type LeadUpdate } from "./lead-update";
 
 /** The lead form's save: status and owner, the other fields, and the lists as the form opened them. */
 export interface LeadSave {
@@ -55,7 +55,7 @@ export async function saveLead(
   const refused = refusedSchema.safeParse(data);
   if (refused.success) {
     const { error: code, stale } = refused.data;
-    if (code === "not_found") return { ok: false, status: 404, error: "Lead not found" };
+    if (code === "not_found") return { ok: false, status: 404, error: LEAD_GONE };
     if (code === "stale") return { ok: false, status: 409, error: listsChangedText(stale ?? []), stale: stale ?? [] };
     const { status, error: words } = leadChangeRefusal(refused.data);
     return { ok: false, status, error: words };

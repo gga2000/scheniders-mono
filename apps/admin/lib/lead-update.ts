@@ -95,11 +95,22 @@ function listNames(lists: readonly string[]): string {
 }
 
 /**
- * The lead page's line when its read again finds the lead gone (404): a
- * colleague deleted it while it was open. Asking again cannot bring it back,
- * and a save answers "Lead not found".
+ * A lead a colleague deleted while it was open, in one sentence wherever it is
+ * met: the lead page's read again, a save, a resumed draft, a logged note, a
+ * conversion or Build Store (each answers 404). Asking again cannot bring it back.
  */
 export const LEAD_GONE = "This lead was deleted. Changes here can no longer be saved.";
+
+/** One toast for a deleted lead, however many saves and reads find it gone. */
+export const LEAD_GONE_TOAST = "lead-gone";
+
+/** A save refused because the lead was deleted meanwhile (404). */
+export class LeadGoneError extends Error {
+  constructor() {
+    super(LEAD_GONE);
+    this.name = "LeadGoneError";
+  }
+}
 
 /**
  * "A colleague changed this lead's tags while you had it open. ..." The form
@@ -135,6 +146,7 @@ const refusedSaveSchema = z.object({ error: z.string(), stale: z.array(z.enum(LE
 
 /** The error a refused lead save answers with: the server's words, and the lists that clashed. */
 export async function leadSaveRefusal(res: Response, fallback: string): Promise<Error> {
+  if (res.status === 404) return new LeadGoneError();
   const body = refusedSaveSchema.safeParse(await res.json().catch(() => null));
   if (!body.success) return new Error(fallback);
   return body.data.stale?.length ? new LeadListsChangedError(body.data.error, body.data.stale) : new Error(body.data.error);

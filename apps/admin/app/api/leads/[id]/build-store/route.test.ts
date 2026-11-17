@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { LEAD_GONE } from "@/lib/lead-update";
 
 /**
  * build-store is one call to admin_build_prospect_store, which writes the
@@ -141,7 +142,7 @@ describe("POST /api/leads/[id]/build-store", () => {
   });
 
   it.each([
-    ["not_found", 404, "Lead not found"],
+    ["not_found", 404, LEAD_GONE],
     ["converted", 409, "Lead already converted"],
     ["store_exists", 409, "A store already exists for this lead"],
     ["bad_input", 400, "Invalid store details"],

@@ -5,7 +5,7 @@ import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { refusal } from "@/lib/refusal";
 import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
-import { INDUSTRY_GONE, LeadListsChangedError, leadSaveRefusal, type LeadListsAsOpened } from "@/lib/lead-update";
+import { INDUSTRY_GONE, LeadGoneError, LeadListsChangedError, leadSaveRefusal, type LeadListsAsOpened } from "@/lib/lead-update";
 
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -59,11 +59,12 @@ export function useUpdateLead() {
       qc.invalidateQueries({ queryKey: ["lead-analytics"] });
     },
     // A refused save may mean this copy is out of date (a colleague changed
-    // the lead's lists, or removed its industry): read them again. A draft
-    // reopened from the list reads its copy by id too (use-resumed-draft).
+    // the lead's lists, removed its industry, or deleted the lead): read them
+    // again. A draft reopened from the list reads its copy by id too
+    // (use-resumed-draft); a deleted one leaves the list.
     onError: (error, vars) => {
       qc.invalidateQueries({ queryKey: ["lead", vars.id] });
-      if (error instanceof LeadListsChangedError) qc.invalidateQueries({ queryKey: ["leads"] });
+      if (error instanceof LeadListsChangedError || error instanceof LeadGoneError) qc.invalidateQueries({ queryKey: ["leads"] });
       if (error.message === INDUSTRY_GONE) qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });

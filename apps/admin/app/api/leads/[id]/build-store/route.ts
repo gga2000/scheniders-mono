@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
+import { LEAD_GONE } from "@/lib/lead-update";
 
 // What the Build Store form sends. Blank name: the lead's. No `slug`: the web
 // address is made from the name. The database checks each again. Each refusal
@@ -50,7 +51,7 @@ const resultSchema = z.discriminatedUnion("success", [
 
 const REFUSED = {
   bad_input: { status: 400, error: "Invalid store details" },
-  not_found: { status: 404, error: "Lead not found" },
+  not_found: { status: 404, error: LEAD_GONE },
   converted: { status: 409, error: "Lead already converted" },
   store_exists: { status: 409, error: "A store already exists for this lead" },
 } as const;

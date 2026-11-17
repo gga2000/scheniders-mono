@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
+import { LEAD_GONE } from "@/lib/lead-update";
 
 const bodySchema = z.object({
   notes: z.string().trim().max(2000).optional(),
@@ -92,7 +93,7 @@ export async function POST(
         { status: 409 }
       );
     case "not_found":
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+      return NextResponse.json({ error: LEAD_GONE }, { status: 404 });
     case "prospect_not_open":
       return NextResponse.json(
         { error: "The prospect store is no longer an open trial and cannot be converted" },

@@ -8,7 +8,7 @@ vi.mock("sonner", () => ({ toast }));
 vi.mock("@/hooks/use-industries", () => ({ useIndustries: () => ({ data: [] }) }));
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch: vi.fn() }));
 
-import { LeadListsChangedError } from "@/lib/lead-update";
+import { LEAD_GONE, LEAD_GONE_TOAST, LeadGoneError, LeadListsChangedError } from "@/lib/lead-update";
 import { CLASH_TOAST, useLeadFormController, type LeadFormSubmitResult } from "./use-lead-form-controller";
 
 type Submit = (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => Promise<LeadFormSubmitResult>;
@@ -205,5 +205,16 @@ describe("useLeadFormController: a sign-in that ends while typing", () => {
     expect(leaving()).toBe(true);
     rerender({ open: false, initialData: lead() });
     expect(leaving()).toBe(false);
+  });
+});
+
+describe("useLeadFormController: a lead a colleague deleted", () => {
+  it("says so in the lead page's words, as the one deleted-lead toast", async () => {
+    const { result } = setup(vi.fn(async () => Promise.reject(new LeadGoneError())));
+    act(() => result.current.update("management_name", "Typed by me"));
+
+    await act(() => result.current.submit(false));
+
+    expect(toast.error).toHaveBeenCalledWith(LEAD_GONE, { id: LEAD_GONE_TOAST });
   });
 });

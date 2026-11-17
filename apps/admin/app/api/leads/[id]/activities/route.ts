@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
+import { LEAD_GONE } from "@/lib/lead-update";
 
 // Staff log these by hand. The other kinds (a status change, a store built, a
 // conversion) are written by the route or function that made the change.
@@ -16,8 +17,6 @@ const activitySchema = z.object({
   title: z.string().trim().min(1, { error: "A note needs a title." }).max(200, { error: "A title can have at most 200 characters." }),
   description: z.string().trim().max(2000, { error: "A note can have at most 2,000 characters." }).optional(),
 });
-
-const LEAD_GONE = "This lead no longer exists.";
 
 /** The insert names a lead that is gone: Postgres refuses it on this key. */
 const leadGone = (error: { code?: string; message?: string } | null) =>
