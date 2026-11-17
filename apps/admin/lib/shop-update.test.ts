@@ -84,7 +84,7 @@ describe("updateShop", () => {
     ["use_pause", 409, "Use Pause to limit a shop: it sets what is blocked and for how long."],
     ["paused", 409, "This shop is paused. Lift the pause first (on its page)."],
     ["still_trial", 409, 'This shop is on trial. Open its page and use "Start paid time, no charge" to make it a paying shop.'],
-    ["not_trialing", 409, "This shop's subscription is not a trial, so it cannot go back to Trial."],
+    ["not_trialing", 409, "This shop's subscription is no longer an unpaid trial, so it cannot go back to Trial."],
     ["no_subscription", 409, "This shop has no subscription yet."],
     [
       "subscription_ended",

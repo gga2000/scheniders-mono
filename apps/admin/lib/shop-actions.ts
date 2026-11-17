@@ -64,6 +64,41 @@ export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
   return items.filter(([, shown]) => shown).map(([action]) => action);
 }
 
+/**
+ * What Reactivate does to a shop on hold. A trial that was never paid comes
+ * back as a trial (admin_update_shop), and once that trial has ended the
+ * billing lock holds it until it pays; any other shop comes back active and
+ * its monthly fee is charged as usual.
+ */
+export function reactivateWords(reopensAsTrial: boolean, trialEndsAt: string | null, now: Date): string {
+  if (!reopensAsTrial) return "The shop is active again now, and its monthly fee is charged as usual.";
+  const ended = trialEndsAt !== null && Date.parse(trialEndsAt) <= now.getTime();
+  return ended
+    ? "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays."
+    : "The shop goes back to its trial now: its trial was never paid.";
+}
+
+/**
+ * The renewal line on the shop page. renew_subscription_core charges only a
+ * shop on trial or active: one paused, on hold or cancelled answers on_hold
+ * and is not charged, so "charges the wallet each month" would say otherwise.
+ * The demo store renews each month at no charge.
+ */
+export function renewalWords(autoRenew: boolean, demo: boolean, status: string): string {
+  if (!autoRenew) return "Off: the month ends and is not renewed";
+  if (demo) return "On: renews each month, never charged (demo store)";
+  switch (status) {
+    case "limited":
+      return "On: not charged while paused, then charges the wallet each month";
+    case "suspended":
+      return "On: not charged while on hold, then charges the wallet each month";
+    case "cancelled":
+      return "On: not charged while cancelled";
+    default:
+      return "On: charges the wallet each month";
+  }
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**

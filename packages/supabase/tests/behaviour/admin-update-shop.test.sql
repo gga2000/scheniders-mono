@@ -15,7 +15,9 @@
 --     * a suspended shop whose trial was never converted comes back on trial
 --       when 'active' is asked, and the lock holds it once the trial is over;
 --     * 'trial' over a paying shop is refused (its old trial date would lock
---       it at once); 'trial' for a shop with no subscription is allowed;
+--       it at once); 'trial' for a shop with no subscription is allowed, and
+--       so is 'trial' for a held trial that was never paid (round 13: one
+--       rule for 'trial' and 'active' over it);
 --     * 'limited' is refused (pause_tenant sets it), and no status is written
 --       over a paused shop (lift_tenant_pause gives its status back);
 --     * the demo store's status does not change; its plan can;
@@ -490,16 +492,19 @@ DECLARE
     _locked constant uuid := gen_random_uuid();
     _held constant uuid := gen_random_uuid();
     _held_paying constant uuid := gen_random_uuid();
+    _held_trial constant uuid := gen_random_uuid();
     _res jsonb;
 BEGIN
     INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, is_demo) VALUES
         (_locked, 'tt locked trial', 'tt-' || _locked, 'starter', 'trial', _ended, false),
         (_held, 'tt locked trial on hold', 'tt-' || _held, 'starter', 'suspended', _ended, false),
-        (_held_paying, 'tt paying, behind, on hold', 'tt-' || _held_paying, 'starter', 'suspended', now() - interval '70 days', false);
+        (_held_paying, 'tt paying, behind, on hold', 'tt-' || _held_paying, 'starter', 'suspended', now() - interval '70 days', false),
+        (_held_trial, 'tt locked trial on hold, Trial asked', 'tt-' || _held_trial, 'starter', 'suspended', _ended, false);
     INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end) VALUES
         (_locked, 'starter', 'past_due', _ended - interval '7 days', _ended),
         (_held, 'starter', 'past_due', _ended - interval '7 days', _ended),
-        (_held_paying, 'starter', 'past_due', now() - interval '31 days', now() - interval '1 day');
+        (_held_paying, 'starter', 'past_due', now() - interval '31 days', now() - interval '1 day'),
+        (_held_trial, 'starter', 'past_due', _ended - interval '7 days', _ended);
 
     SET LOCAL ROLE service_role;
     _res := public.admin_update_shop(_locked, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
@@ -509,6 +514,13 @@ BEGIN
     _res := public.admin_update_shop(_held, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
     PERFORM pg_temp.check('locked trial on hold: did not come back on trial: ' || _res::text,
         (_res ->> 'success')::boolean AND _res ->> 'status' = 'trial');
+    -- Trial is the move it gets either way, so Trial is not refused (round 13).
+    _res := public.admin_update_shop(_held_trial, 'trial', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('locked trial on hold: Trial was refused: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res ->> 'status' = 'trial');
+    -- A shop that paid for a month cannot go back to Trial, behind or not.
+    _res := public.admin_update_shop(_held_paying, 'trial', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('paying shop on hold: Trial was not refused: ' || _res::text, _res ->> 'error' = 'not_trialing');
     _res := public.admin_update_shop(_held_paying, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
     PERFORM pg_temp.check('paying shop on hold: did not come back active: ' || _res::text,
         (_res ->> 'success')::boolean AND _res ->> 'status' = 'active');
@@ -522,6 +534,11 @@ BEGIN
         (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_locked)));
     PERFORM pg_temp.check('locked trial back from hold: the lock does not hold it as an ended trial',
         (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_held)));
+    PERFORM pg_temp.check('locked trial back as Trial: the lock does not hold it as an ended trial',
+        (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_held_trial)));
+    PERFORM pg_temp.check('locked trial back as Trial: its log row does not say trial',
+        EXISTS (SELECT 1 FROM public.admin_activity_logs
+                 WHERE tenant_id = _held_trial AND details ->> 'status' = 'trial'));
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1

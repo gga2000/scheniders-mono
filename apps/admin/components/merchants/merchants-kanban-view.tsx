@@ -19,7 +19,7 @@ import type { AdminTenant, TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
-import { STATUS_REFUSALS, statusPickRefusal } from "@/lib/shop-status-choice";
+import { STATUS_REFUSALS, statusLandedText, statusPickRefusal } from "@/lib/shop-status-choice";
 
 type StageKey = TenantStatus;
 
@@ -155,8 +155,11 @@ export function MerchantsKanbanView({
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (answer, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      // A held trial that was never paid comes back as Trial when Active is picked.
+      const landed = statusLandedText(status, answer);
+      if (landed) toast.info(landed);
     },
     // The server says why a move was refused (a trial, the demo store).
     onError: (error: Error) => {
@@ -190,7 +193,7 @@ export function MerchantsKanbanView({
         setDraggingId(null);
         return;
       }
-      const refusal = statusPickRefusal({ status: from, trial_subscription: merchant.trial_subscription ?? false }, target);
+      const refusal = statusPickRefusal({ status: from, trial_unpaid: merchant.trial_unpaid ?? false }, target);
       if (refusal) {
         // Said before a confirm that the server would only refuse.
         toast.error(STATUS_REFUSALS[refusal]);
