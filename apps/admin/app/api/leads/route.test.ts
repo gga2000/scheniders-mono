@@ -140,3 +140,39 @@ describe("POST /api/leads industry", () => {
     expect((await res.json()).error).toBe("This industry was just removed. Pick another one and save again.");
   });
 });
+
+/*
+ * Round 13 (Reliability new 1, Sentry SCHENIDERS-1A). A page that starts past
+ * the last row (the list shrank while it was open) answered 500, so the table
+ * showed an error with no way back. It now answers no rows and the real total.
+ */
+describe("GET /api/leads past the end", () => {
+  it("answers a page past the last row with no rows and the real total", async () => {
+    stub.state.tables.leads = Array.from({ length: 28 }, (_, i) => ({ id: `lead-${i}`, merchant_name: `Lead ${i}` }));
+
+    const res = await call("page=6&limit=20");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ leads: [], total: 28, page: 6, limit: 20 });
+  });
+
+  it("counts the past-the-end total with the same filters", async () => {
+    stub.state.tables.leads = [
+      { id: "a", merchant_name: "Noor", status: "new" },
+      { id: "b", merchant_name: "Kawkab", status: "lost" },
+    ];
+
+    const res = await call("page=3&limit=20&status=new");
+
+    expect(await res.json()).toMatchObject({ leads: [], total: 1 });
+  });
+
+  it("still answers the last page with its rows", async () => {
+    stub.state.tables.leads = Array.from({ length: 28 }, (_, i) => ({ id: `lead-${i}`, merchant_name: `Lead ${i}` }));
+
+    const body = await (await call("page=2&limit=20")).json();
+
+    expect(body.leads).toHaveLength(8);
+    expect(body.total).toBe(28);
+  });
+});
