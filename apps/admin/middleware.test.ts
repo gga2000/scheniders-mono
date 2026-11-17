@@ -278,6 +278,12 @@ describe("the page staff asked for", () => {
     expect(await location("/login?error=expired")).toBe("https://console.test/");
     expect(await location("/login?next=%2F%2Fexample.com")).toBe("https://console.test/");
   });
+
+  it("never sends a signed-in admin to another site through a dot segment", async () => {
+    // Round 16 (Security new 1): this went to https://example.com/.
+    expect(await location("/login?next=%2F..%2F%2Fexample.com")).toBe("https://console.test/");
+    expect(await location("/login?error=forbidden&next=%2F.%2F%2Fexample.com")).toBe("https://console.test/");
+  });
 });
 
 describe("the API's token is the session the auth server answered for", () => {
