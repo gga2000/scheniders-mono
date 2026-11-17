@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useMerchantRecentOrders } from "@/hooks/use-merchant-detail";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatWhen } from "@/lib/format";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 interface RecentOrdersSectionProps {
   merchantId: string;
@@ -35,7 +36,7 @@ const TONE: Record<Tone, string> = {
 };
 
 export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSectionProps) {
-  const { data, isLoading } = useMerchantRecentOrders(merchantId, limit);
+  const { data, isLoading, isError, error, refetch, isFetching } = useMerchantRecentOrders(merchantId, limit);
   const orders = data?.orders ?? [];
 
   return (
@@ -45,6 +46,8 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
         <div className="flex justify-center py-6 text-foreground/70">
           <Loader2 className="h-4 w-4 animate-spin" aria-label="Loading orders" />
         </div>
+      ) : isError ? (
+        <LoadFailedLine className="py-4" what="the latest orders" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       ) : orders.length === 0 ? (
         <p className="py-4 text-[13px] text-foreground/70">No orders yet.</p>
       ) : (
