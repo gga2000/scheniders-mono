@@ -109,7 +109,7 @@ describe("GET /api/dashboard/v2", () => {
     expect(body.walletHealth).toMatchObject({ healthy: 1, critical: 1 });
   });
 
-  it("lists plan moves of real shops only, cancellations from the staff log", async () => {
+  it("lists plan moves of real shops only, cancellations and plan changes from the staff log", async () => {
     stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true, is_prospect: false });
     stub.state.tables.subscriptions = [
       { id: "s-1", tenant_id: SHOP_A, plan: "growth", status: "active", pending_plan: "starter" },
@@ -120,15 +120,19 @@ describe("GET /api/dashboard/v2", () => {
     stub.state.tables.admin_activity_logs = [
       { id: "log-c", action: "status_change", tenant_id: SHOP_B, details: { status: "cancelled" }, created_at: recently },
       { id: "log-d", action: "status_change", tenant_id: "demo-shop", details: { status: "cancelled" }, created_at: recently },
+      { id: "log-e", action: "plan_change", tenant_id: SHOP_A, details: { plan: "growth", previous_plan: "starter" }, created_at: recently },
+      // Other steps are not read.
+      { id: "log-f", action: "extend_trial", tenant_id: SHOP_B, details: { status: "cancelled" }, created_at: recently },
     ];
 
     const body = await (await call()).json();
 
     expect(body.planMovements).toEqual([
       { fromPlan: "starter", toPlan: "cancelled", count: 1, type: "cancellation" },
-      { fromPlan: "growth", toPlan: "starter", count: 1, type: "downgrade" },
+      { fromPlan: "starter", toPlan: "growth", count: 1, type: "upgrade" },
+      { fromPlan: "growth", toPlan: "starter", count: 1, type: "waiting" },
     ]);
-    expect(stub.callsTo("admin_activity_logs.eq")).toContainEqual(["action", "status_change"]);
+    expect(stub.callsTo("admin_activity_logs.in")).toContainEqual(["action", ["status_change", "plan_change"]]);
   });
 
   it("answers 500 when the database totals cannot be read", async () => {

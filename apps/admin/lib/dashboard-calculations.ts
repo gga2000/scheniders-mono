@@ -53,8 +53,10 @@ export interface SubscriptionRow {
 }
 
 /** A status change on the staff log, as Home reads it for Plan Movements. */
-export interface StatusChangeRow {
+/** A staff step on a shop from the staff log: a status or a plan change. */
+export interface ShopStepRow {
   tenant_id: string | null;
+  action: string;
   details: unknown;
   created_at: string;
 }
@@ -378,39 +380,62 @@ const PLAN_RANK: Record<string, number> = {
   starter: 1, growth: 2, professional: 3, enterprise: 4,
 };
 
+/** A paid plan the card can rank; the house tier and anything unknown are left out. */
+const isRanked = (plan: unknown): plan is string => typeof plan === "string" && plan in PLAN_RANK;
+
 /**
- * The "Plan Movements (30d)" card. No table keeps a plan's history, so the
- * card shows what is on record: each shop staff cancelled in the last 30 days
- * (a status change on the staff log, the only way a shop becomes cancelled;
- * subscriptions.cancelled_at is never written), and each plan change still
- * waiting for the next payment. A cancellation counts under the shop's plan
- * today. Only shops in `shopPlans` count, so the demo store stays out.
+ * The "Plan Movements (30d)" card, one line per shop and move. No table keeps
+ * a plan's history, so the card reads what is on record: the staff log's
+ * status and plan changes of the last 30 days (subscriptions.cancelled_at is
+ * never written), and the plan changes still waiting for the next payment.
+ *
+ * - A shop counts once however often staff changed it: as cancelled when its
+ *   last status change was to cancelled (one cancelled and turned back on is
+ *   no cancellation), and as moved from its plan before the first plan change
+ *   to its plan after the last one.
+ * - A waiting change has not happened, so it is listed as "waiting" and is
+ *   not counted as an upgrade or a downgrade.
+ *
+ * Only shops in `shopPlans` count, so the demo store stays out.
  */
 export function calculatePlanMovements(
   rows: SubscriptionRow[],
-  statusChanges: StatusChangeRow[],
+  steps: ShopStepRow[],
   shopPlans: ReadonlyMap<string, string>,
   now: Date,
 ): PlanMovement[] {
   const since = now.getTime() - 30 * DAY_MS;
+  type Shop = { plan: string; status?: unknown; planBefore?: unknown; planAfter?: unknown; planChanged?: true };
+  const byShop = new Map<string, Shop>();
+  // The log's ids are random, so the steps are put in time order here.
+  const inOrder = steps
+    .filter((step) => Date.parse(step.created_at) >= since)
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  for (const step of inOrder) {
+    const plan = step.tenant_id ? shopPlans.get(step.tenant_id) : undefined;
+    if (!step.tenant_id || plan === undefined) continue;
+    const details = (step.details ?? {}) as { status?: unknown; plan?: unknown; previous_plan?: unknown };
+    const shop = byShop.get(step.tenant_id) ?? { plan };
+    if (step.action === "status_change") shop.status = details.status;
+    if (step.action === "plan_change") {
+      if (!shop.planChanged) shop.planBefore = details.previous_plan;
+      shop.planChanged = true;
+      shop.planAfter = details.plan;
+    }
+    byShop.set(step.tenant_id, shop);
+  }
+
   const moves: PlanMovement[] = [];
-  for (const change of statusChanges) {
-    const plan = change.tenant_id ? shopPlans.get(change.tenant_id) : undefined;
-    if (!plan || Date.parse(change.created_at) < since) continue;
-    const status = (change.details as { status?: unknown } | null)?.status;
-    if (status !== "cancelled") continue;
-    moves.push({ fromPlan: plan as PlanMovement["fromPlan"], toPlan: "cancelled", count: 1, type: "cancellation" });
+  for (const { plan, status, planBefore: from, planAfter: to } of byShop.values()) {
+    if (isRanked(from) && isRanked(to) && from !== to) {
+      moves.push({ fromPlan: from, toPlan: to, count: 1, type: PLAN_RANK[to] > PLAN_RANK[from] ? "upgrade" : "downgrade" });
+    }
+    if (status === "cancelled") moves.push({ fromPlan: plan, toPlan: "cancelled", count: 1, type: "cancellation" });
   }
   for (const s of rows) {
     if (!shopPlans.has(s.tenant_id) || s.status === "cancelled") continue;
-    if (s.pending_plan && s.pending_plan !== s.plan) {
-      const up = (PLAN_RANK[s.pending_plan] || 0) > (PLAN_RANK[s.plan] || 0);
-      moves.push({
-        fromPlan: s.plan as PlanMovement["fromPlan"],
-        toPlan: s.pending_plan as PlanMovement["toPlan"],
-        count: 1,
-        type: up ? "upgrade" : "downgrade",
-      });
+    if (isRanked(s.plan) && isRanked(s.pending_plan) && s.pending_plan !== s.plan) {
+      moves.push({ fromPlan: s.plan, toPlan: s.pending_plan, count: 1, type: "waiting" });
     }
   }
   return moves;

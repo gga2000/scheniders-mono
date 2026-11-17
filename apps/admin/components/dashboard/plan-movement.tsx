@@ -7,14 +7,17 @@ interface PlanMovementProps {
   movements: PlanMovement[] | undefined;
 }
 
+/** `pill` names the move on its line; `label` heads its count. */
 const TYPE_STYLES: Record<
   PlanMovement["type"],
-  { bg: string; text: string; label: string }
+  { bg: string; text: string; label: string; pill: string }
 > = {
-  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Upgrades" },
-  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Downgrades" },
-  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Cancellations" },
-  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New Signups" },
+  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Upgrades", pill: "upgrade" },
+  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Downgrades", pill: "downgrade" },
+  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Cancellations", pill: "cancellation" },
+  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New Signups", pill: "new" },
+  // Set for the next payment, not made yet: listed, not counted above.
+  waiting: { bg: "bg-amber-500/15", text: "text-[var(--ink-amber)]", label: "Waiting", pill: "at next payment" },
 };
 
 function Skeleton() {
@@ -39,12 +42,10 @@ function formatPlan(plan: string): string {
 }
 
 export function PlanMovementWidget({ movements }: PlanMovementProps) {
-  // Aggregate counts by type
+  // Moves made in the last 30 days, by type; a waiting change is not one yet.
   const summary = { upgrade: 0, downgrade: 0, cancellation: 0, new: 0 };
-  if (movements) {
-    for (const m of movements) {
-      summary[m.type] += m.count;
-    }
+  for (const m of movements ?? []) {
+    if (m.type !== "waiting") summary[m.type] += m.count;
   }
 
   return (
@@ -114,7 +115,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
                     <span
                       className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}
                     >
-                      {m.type}
+                      {style.pill}
                     </span>
                   </div>
                 </div>

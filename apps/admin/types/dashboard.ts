@@ -1,4 +1,3 @@
-import type { PlanTier } from "./admin";
 
 // ─── KPI Stats ──────────────────────────────────────────────────────────────
 export interface KpiData {
@@ -105,10 +104,12 @@ export interface RevenueBreakdown {
 
 // ─── Plan Movement ──────────────────────────────────────────────────────────
 export interface PlanMovement {
-  fromPlan: PlanTier | "new" | "cancelled";
-  toPlan: PlanTier | "cancelled";
+  /** Plan names as the database writes them (any of the plan_tier values), or "cancelled". */
+  fromPlan: string;
+  toPlan: string;
   count: number;
-  type: "upgrade" | "downgrade" | "cancellation" | "new";
+  /** "waiting": a change set for the next payment, not made yet. */
+  type: "upgrade" | "downgrade" | "cancellation" | "new" | "waiting";
 }
 
 // ─── Top-Up Patterns ────────────────────────────────────────────────────────
