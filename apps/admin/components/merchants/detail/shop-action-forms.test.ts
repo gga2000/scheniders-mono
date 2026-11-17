@@ -58,9 +58,17 @@ describe("Give free days", () => {
 });
 
 describe("On hold", () => {
-  it("says no monthly fee is charged before putting a shop on hold", () => {
+  it("says no monthly fee is charged, and waits for a reason before putting a shop on hold", () => {
     const html = render(createElement(HoldForm, { shopId: "t1", mode: "hold", onDone: () => {} }));
     expect(html).toContain("No monthly fee is charged while it is on hold.");
+    expect(html).toContain('aria-label="Reason"');
     expect(confirmButton(html)).toContain(">Put on hold<");
+    expect(confirmButton(html)).toMatch(DISABLED);
+  });
+
+  it("brings a shop back without asking why", () => {
+    const html = render(createElement(HoldForm, { shopId: "t1", mode: "reactivate", onDone: () => {} }));
+    expect(html).not.toContain('aria-label="Reason"');
+    expect(confirmButton(html)).not.toMatch(DISABLED);
   });
 });

@@ -52,6 +52,15 @@ describe("updateShop", () => {
     });
   });
 
+  it("sends staff's reason when there is one, and leaves it out when not", async () => {
+    const { rpc, supabase } = client(done());
+    await updateShop(supabase, TENANT, { status: "suspended", reason: "Owner asked to stop" }, ACTOR);
+    expect(rpc).toHaveBeenCalledWith("admin_update_shop", expect.objectContaining({ _reason: "Owner asked to stop" }));
+
+    await updateShop(supabase, TENANT, { status: "suspended" }, ACTOR);
+    expect(rpc).toHaveBeenLastCalledWith("admin_update_shop", expect.not.objectContaining({ _reason: expect.anything() }));
+  });
+
   it("sends auto-renew false as false, not as nothing asked", async () => {
     const { rpc, supabase } = client(done({ auto_renew: false, changed: ["auto_renew_toggle"] }));
     await updateShop(supabase, TENANT, { auto_renew: false }, ACTOR);

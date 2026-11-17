@@ -8,12 +8,15 @@ import { updateShop } from "@/lib/shop-update";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 import { notAnId } from "@/lib/route-id";
+import { staffReasonSchema } from "@/lib/staff-reason";
 
 const patchSchema = z
   .object({
     status: z.enum(["active", "trial", "limited", "suspended", "cancelled"]).optional(),
     plan: z.enum(PLAN_TIERS).optional(),
     auto_renew: z.boolean().optional(),
+    // Staff's words, kept on the staff log rows; the shop page's hold asks for them.
+    reason: staffReasonSchema.optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {
     message: "At least one field required",
