@@ -30,7 +30,8 @@ export type RecentStep = z.infer<typeof RecentStepsSchema>["logs"][number];
  * notifications yet" over a full log.
  */
 export async function readRecentSteps(fetcher: typeof fetch = fetch): Promise<RecentStep[]> {
-  const res = okOrLoadFailure(await fetcher(`/api/activity?limit=${RECENT_STEPS}`), "recent steps");
+  // count=none: the bell shows no total, so the server need not count the whole log.
+  const res = okOrLoadFailure(await fetcher(`/api/activity?limit=${RECENT_STEPS}&count=none`), "recent steps");
   return RecentStepsSchema.parse(await res.json()).logs;
 }
 

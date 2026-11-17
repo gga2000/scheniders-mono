@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "50")));
 
     const offset = (page - 1) * limit;
+    // The bell asks every minute on every page and shows no total: counting the
+    // whole log each time is work nobody reads. The Activity page pages by it.
+    const counted = searchParams.get("count") !== "none";
 
     const supabase = createAdminClient();
 
@@ -32,7 +35,7 @@ export async function GET(request: NextRequest) {
       .from("admin_activity_logs")
       .select(
         "id, action, details, tenant_id, admin_user_id, admin_label, actor_email, created_at, tenant:tenants(business_name)",
-        { count: "exact" },
+        counted ? { count: "exact" } : undefined,
       )
       .order("created_at", { ascending: false })
       // Steps written in the same instant need a fixed order, or a page boundary can skip or repeat one.
@@ -52,7 +55,7 @@ export async function GET(request: NextRequest) {
         const shop = Array.isArray(tenant) ? tenant[0] : tenant;
         return { ...log, business_name: shop?.business_name ?? null };
       }),
-      total: count ?? 0,
+      total: counted ? (count ?? 0) : null,
       page,
       limit,
     });
