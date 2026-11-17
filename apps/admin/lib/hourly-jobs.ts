@@ -59,7 +59,8 @@ export function jobProblems(runs: readonly JobRun[], nowMs: number): JobProblem[
  * The failed runs to send to Sentry now: runs that started within the hour
  * (HOURLY_RUN_MS, while no newer run has replaced them) that `seen` has not
  * had. The bell checks every 10 minutes while a console is open, so a failure
- * reaches Sentry by the first check after it. `seen` maps each run sent (job
+ * reaches Sentry by the first check after it; with no console open, not at all
+ * until the scheduled check runs (lib/hourly-check.ts). `seen` maps each run sent (job
  * and start) to its start, and forgets runs past the hour.
  * shortcut: `seen` lives in one server instance, so another instance, or a
  * cold start, may send the same run again within its hour (one more event on

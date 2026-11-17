@@ -39,4 +39,13 @@ describe("requireCronAuth", () => {
     expect(await answer?.json()).toEqual({ error: "Endpoint is not configured." });
     expect(errors).toHaveBeenCalledWith(expect.stringContaining("CRON_SECRET is not set"));
   });
+
+  // Round 16 (Security new 2): any bearer reaches the guard, so a stranger
+  // could make one Sentry error per call.
+  it("says the secret is missing once, however often it is called", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const guard = await guardWith(undefined);
+    for (const header of ["Bearer a", "Bearer b", "Bearer c"]) expect(guard(asked(header))?.status).toBe(503);
+    expect(errors).toHaveBeenCalledTimes(1);
+  });
 });

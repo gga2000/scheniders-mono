@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
     const check = await checkHourlyJobs(createAdminClient(), nowMs);
     for (const failed of freshFailures(check.jobs, sentToSentry, nowMs)) {
       Sentry.captureException(new Error(`Hourly job ${failed.job} failed`), {
-        fingerprint: ["hourly-job-failed", failed.job],
-        extra: { started: failed.last_run, message: failed.message },
+        // The scheduled check's fingerprint and fields: one issue per job.
+        fingerprint: ["hourly-job", "failed", failed.job],
+        extra: { last_run: failed.last_run, message: failed.message },
       });
     }
     return NextResponse.json(check);

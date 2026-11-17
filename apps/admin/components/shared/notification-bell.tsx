@@ -208,7 +208,8 @@ export function NotificationBell() {
                     {recent.isFetching ? "Loading" : "Try again"}
                   </button>
                 </div>
-              ) : recent.isLoading ? (
+              ) : recent.isPending ? (
+                // Pending, not loading: the read may still wait for the page's own reads.
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">Loading...</div>
               ) : notifications.length === 0 && openPrime.length === 0 && openTopups.length === 0 && !interaktEmpty && pausedShops === 0 && !billingMissed && unchecked.names.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/70">

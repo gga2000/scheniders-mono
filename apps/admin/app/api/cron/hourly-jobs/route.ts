@@ -19,6 +19,9 @@ const PROBLEM_WORDS: Record<JobProblem["problem"], string> = {
  * hour while it lasts: a failed run with what it said, a job that stopped or
  * was never scheduled, and paused shops the lift missed. Round 15: the bell
  * sends only failed runs, and only while someone has a console open.
+ * Not scheduled yet: Vercel calls it once CRON_SECRET is set and vercel.json
+ * has its `crons` entry. Until then only the bell's send reaches Sentry, under
+ * the same fingerprint as a failed run here, so both land on one issue.
  */
 export async function GET(request: Request) {
   const refused = requireCronAuth(request);
