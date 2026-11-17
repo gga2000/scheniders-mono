@@ -151,29 +151,6 @@ export interface AdminTenant {
   };
 }
 
-export interface AdminNote {
-  id: string;
-  tenant_id: string;
-  admin_user_id: string;
-  content: string;
-  is_pinned: boolean;
-  created_at: string;
-  updated_at: string;
-  admin_user?: { full_name: string | null; email: string };
-}
-
-export interface AdminActivityLog {
-  id: string;
-  admin_user_id: string;
-  tenant_id: string | null;
-  action: string;
-  details: Record<string, unknown>;
-  ip_address: string | null;
-  created_at: string;
-  admin_user?: { full_name: string | null; email: string };
-  tenant?: { business_name: string; slug: string };
-}
-
 export type AdminAction =
   | "top_up_wallet"
   | "adjust_balance"

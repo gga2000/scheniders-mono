@@ -218,7 +218,30 @@ describe("POST /api/admin-users when a read fails or the form is wrong", () => {
 
 // Round 11: a failed read of the admin row answered 404 "Not an admin user".
 describe("DELETE /api/admin-users", () => {
-  const remove = () => DELETE(new NextRequest("http://admin.test/api/admin-users?userId=u1", { method: "DELETE" }));
+  const STAFF_ID = "11111111-1111-4111-8111-111111111111";
+  const remove = (userId = STAFF_ID) =>
+    DELETE(new NextRequest(`http://admin.test/api/admin-users?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }));
+
+  it("removes a staff member's access and logs it", async () => {
+    const res = await remove();
+
+    expect(res.status).toBe(200);
+    expect(deleted).toBe(1);
+    expect(logged.map((entry) => entry.action)).toEqual(["remove_admin_access"]);
+  });
+
+  // Round 13: an id that is not a uuid reached the database, which refused to
+  // compare it, and the answer was a 500 "Could not read this admin".
+  it("answers 404 for an id that is not a login id, without asking the database", async () => {
+    staffReadError = { message: 'invalid input syntax for type uuid: "u1"' };
+
+    for (const id of ["u1", "1", "not-a-uuid", `${STAFF_ID}x`]) {
+      const res = await remove(id);
+      expect(res.status, id).toBe(404);
+      expect((await res.json()).error).toBe("Not an admin user");
+    }
+    expect(deleted).toBe(0);
+  });
 
   it("says the read failed, and removes nothing, when the admin row cannot be read", async () => {
     staffReadError = { message: "timeout" };

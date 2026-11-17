@@ -4,6 +4,7 @@
  * "Actions" column counts the same rows (admin_team_counts).
  */
 
+import { formatDayTime } from "@/lib/format";
 import { changeTitle } from "@/lib/shop-timeline";
 import { wordList } from "@/lib/word-list";
 import { LEAD_STATUS_CONFIG, type StaffAction } from "@/types/leads";
@@ -190,26 +191,66 @@ export function staffActionText(action: string, details: Record<string, unknown>
   return lead ? `${words}: ${lead}` : words;
 }
 
+/**
+ * The values the shop list's words for a step are made from (changeTitle in
+ * lib/shop-timeline.ts): "Gave 7 free trial days" is not followed by "days: 7".
+ */
+const SAID_BY_CHANGE_TITLE: Record<string, readonly string[]> = {
+  extend_trial: ["days"],
+  extend_subscription: ["days"],
+  convert_trial: ["days", "duration_days"],
+  add_lock_orders: ["orders"],
+  force_unlock: ["days"],
+  status_change: ["status", "previous_status"],
+  plan_change: ["plan"],
+  change_plan: ["plan"],
+  auto_renew_toggle: ["auto_renew"],
+  pause_tenant: ["duration_days"],
+  unpause_tenant: ["ended"],
+};
+
+/** What staffActionText already says about the row, by the keys it read. */
+function saidByWords(action: string, details: Record<string, unknown> | null): readonly string[] {
+  if (action === "bulk_leads") return bulkLeadsText(details) ? ["changed", "action", "status", "leads"] : [];
+  if (action === "edit_lead") return ["merchant_name", "was", "fields"];
+  if (action === "update_settings" && details?.setting === "industries" && industryText(details)) {
+    return ["setting", "change", "name", "was", "fields", "leads_using_it", "from_place", "to_place"];
+  }
+  if (LEAD_STEPS.has(action)) return ["merchant_name"];
+  if (action in TEAM_WORDS) return [];
+  return SAID_BY_CHANGE_TITLE[action] ?? [];
+}
+
 /** A key that holds an id: a uuid in the log says nothing to a reader. */
 const ID_KEY = /(^|_)id$/;
 /** An id under any other key: an owner move logs `from` and `to` as staff ids. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A time as the database writes it: "2026-11-17T03:21:24.887769+00:00". */
+const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+/** A plain value in words: a time on the console's clock, not the database's. */
+function valueText(value: string | number | boolean): string {
+  if (typeof value === "string" && TIMESTAMP.test(value) && !Number.isNaN(Date.parse(value))) return formatDayTime(value);
+  return String(value);
+}
 
 /**
- * Up to two of the row's plain values, "days: 7 | rows: 40", for the
+ * Up to two of the row's plain values, "rows: 40 | kind: leads", for the
  * Activity log and Home's Recent Activity. Ids (session_id, industry_id, an
  * owner move's from and to), lists and empty values are left out, and so is
- * the lead's name where the step's own words already give it; null when
- * nothing is left.
+ * what the step's own words already say (a lead's name, the days given, the
+ * old name); null when nothing is left.
  */
 export function staffLogSummary(action: string, details: Record<string, unknown> | null): string | null {
-  const namesLead = LEAD_STEPS.has(action) || action === "edit_lead";
+  const said = new Set(saidByWords(action, details));
   const parts = Object.entries(details ?? {})
-    .filter(([key]) => !(namesLead && key === "merchant_name"))
-    .filter(([key, value]) => !ID_KEY.test(key) && value !== null && value !== undefined && typeof value !== "object")
-    .filter(([, value]) => !(typeof value === "string" && UUID.test(value)))
+    .filter(([key]) => !said.has(key))
+    .flatMap(([key, value]) =>
+      !ID_KEY.test(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean") ? [[key, value] as const] : [],
+    )
+    .filter(([, value]) => !(typeof value === "string" && (UUID.test(value) || value.trim() === "")))
     .slice(0, 2)
-    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value)}`);
+    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${valueText(value)}`);
   return parts.length > 0 ? parts.join(" | ") : null;
 }
 
