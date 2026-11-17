@@ -27,6 +27,7 @@ let views: SessionView<string>[];
 let reads: string[];
 let access: (userId: string) => Promise<AccessCheck>;
 let signOutHere: ReturnType<typeof vi.fn>;
+let forgetPerson: ReturnType<typeof vi.fn>;
 let unsubscribe: ReturnType<typeof vi.fn>;
 let stop: () => void;
 
@@ -43,6 +44,9 @@ const start = () => {
         return access(userId);
       },
       readProfile: async (userId) => `profile of ${userId}`,
+      forgetPerson: () => {
+        forgetPerson(reads.length);
+      },
     },
     (view) => views.push(view),
   );
@@ -55,6 +59,7 @@ beforeEach(() => {
   reads = [];
   access = async () => ({ kind: "role", role: "support_staff" });
   signOutHere = vi.fn(async () => undefined);
+  forgetPerson = vi.fn();
   unsubscribe = vi.fn();
   start();
 });
@@ -153,5 +158,34 @@ describe("the console's sign-in watch", () => {
 
     expect(views).toEqual([]);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * Signing out kept what the tab had read in memory. The next person to sign
+   * in on it saw the last person's pages until each was read again, and the
+   * last person's stars went to the next one's watch list with their first
+   * star.
+   */
+  it("forgets the last person's data when someone else signs in, before reading theirs", async () => {
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+    listener("SIGNED_OUT", null);
+    listener("SIGNED_IN", session("u2"));
+    await settle();
+
+    expect(forgetPerson).toHaveBeenCalledTimes(1);
+    // Called with the reads made so far: u1's only, so before u2's first read.
+    expect(forgetPerson).toHaveBeenCalledWith(1);
+    expect(last()).toMatchObject({ kind: "signed_in", user: { id: "u2" } });
+  });
+
+  it("keeps it for the first session and when the same person signs in again", async () => {
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+    listener("SIGNED_OUT", null);
+    listener("SIGNED_IN", session("u1"));
+    await settle();
+
+    expect(forgetPerson).not.toHaveBeenCalled();
   });
 });

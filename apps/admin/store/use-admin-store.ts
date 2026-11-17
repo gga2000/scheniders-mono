@@ -302,9 +302,18 @@ export const useAdminStore = create<AdminStore>()(
         filterPresets: state.filterPresets,
         savedViews: state.savedViews,
         activeViewId: state.activeViewId,
-        starredMerchants: state.starredMerchants,
         hiddenColumns: state.hiddenColumns,
         columnOrder: state.columnOrder,
+      }),
+      // Stars are the signed-in person's own (admin_watchlist, read by
+      // WatchlistSync), so they are not kept in this browser. They used to be:
+      // every login on the browser shared them, a star taken off on another
+      // device came back from here, and the next person's first star sent the
+      // last person's to the server. A list still stored by then is ignored.
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<AdminStore>),
+        starredMerchants: current.starredMerchants,
       }),
     }
   )

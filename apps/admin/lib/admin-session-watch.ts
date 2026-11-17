@@ -26,6 +26,11 @@ export interface SessionSource<Profile> {
   signOutHere(): Promise<unknown>;
   readAccess(userId: string): Promise<AccessCheck>;
   readProfile(userId: string): Promise<Profile | null>;
+  /**
+   * Drops what this tab keeps in memory for the person signed in before (read
+   * pages, stars). Called when someone else signs in, before their first read.
+   */
+  forgetPerson(): void;
 }
 
 /**
@@ -44,6 +49,9 @@ export function watchAdminSession<Profile>(
   let newest = 0;
   // The role last read, and whose, so a failed read keeps it for that person only.
   let known: KnownAccess | null = null;
+  // The last person signed in on this tab. A sign-out keeps it: the next
+  // person to sign in here must not be shown what this tab read for them.
+  let lastPerson: string | null = null;
 
   const signedOut = () => {
     newest += 1;
@@ -75,6 +83,8 @@ export function watchAdminSession<Profile>(
       signedOut();
       return;
     }
+    if (lastPerson !== null && lastPerson !== session.user.id) source.forgetPerson();
+    lastPerson = session.user.id;
     void readSession(session.user);
   });
 

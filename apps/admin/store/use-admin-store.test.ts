@@ -61,3 +61,32 @@ describe("merchant ticks", () => {
     expect(store().selectedMerchants.size).toBe(2);
   });
 });
+
+/*
+ * Stars were kept in this browser too: every login on it shared them, and the
+ * next person's first star sent the last person's to the server. They are the
+ * signed-in person's own (admin_watchlist), so the browser keeps none.
+ */
+describe("stars", () => {
+  it("are not kept in this browser", () => {
+    store().toggleStar("shop-a");
+
+    const saved = JSON.parse(memory.get("admin-ui-store") ?? "{}");
+    expect(saved.state).toBeDefined();
+    expect(saved.state).not.toHaveProperty("starredMerchants");
+  });
+
+  it("stored by an earlier version are not read back", async () => {
+    useAdminStore.setState({ starredMerchants: [] });
+    memory.set(
+      "admin-ui-store",
+      JSON.stringify({ state: { viewMode: "table", starredMerchants: ["last-persons-shop"] }, version: 0 }),
+    );
+
+    await useAdminStore.persist.rehydrate();
+
+    expect(store().starredMerchants).toEqual([]);
+    expect(store().viewMode).toBe("table");
+  });
+});
+
