@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
 import { loadFailureKind } from "@/lib/load-failure";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
@@ -49,7 +50,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadMobileDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error } = useLeadDetail(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
   const [tab, setTab] = useState<Tab>("Overview");
   const [noteOpen, setNoteOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
@@ -66,8 +67,10 @@ export function LeadMobileDetail() {
   }
 
   // Error
-  // A lead that does not exist (404) falls through to "not found" below.
-  if (isError && loadFailureKind(error) !== "missing") {
+  // A lead that does not exist (404) falls through to "not found" below. A
+  // failed read again (after a save, or a colleague's clash) keeps the lead
+  // and any open form on screen, with a line that says so.
+  if (isError && !data && loadFailureKind(error) !== "missing") {
     return (
       <div className="p-4 space-y-4">
         <Link
@@ -125,6 +128,9 @@ export function LeadMobileDetail() {
         <ArrowLeft className="w-4 h-4" />
         Back
       </Link>
+      {isError && (
+        <LoadFailedLine what="this lead again" error={error} onRetry={() => void refetch()} retrying={isFetching} />
+      )}
 
       {/* ── Header Card ───────────────────────────────────────────── */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5">

@@ -57,6 +57,12 @@ function withLists(form: LeadFormData, from: LeadFormData, lists: readonly LeadL
   return next;
 }
 
+/**
+ * The clash toast's id: one clash toast at a time, closed when the next save
+ * starts, so a saved lead never sits under "Nothing was saved".
+ */
+export const CLASH_TOAST = "lead-clash";
+
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 /** What a host's save answered: saved, failed, or had nothing to send. */
@@ -302,6 +308,8 @@ export function useLeadFormController({
 
     setSubmitting(true);
     setClash(null);
+    // The last clash's words are about the copy this save replaces.
+    toast.dismiss(CLASH_TOAST);
     try {
       const result = await onSubmit(normalized, changes, opened);
       if (result === false) {
@@ -324,7 +332,7 @@ export function useLeadFormController({
       if (error instanceof LeadListsChangedError) {
         // Long enough to read: the form is about to show the colleague's lists.
         setClash(error.lists);
-        toast.error(error.message, { duration: 15_000 });
+        toast.error(error.message, { id: CLASH_TOAST, duration: 15_000 });
         return;
       }
       // A refused save rejects with the server's own words ("A lead can only

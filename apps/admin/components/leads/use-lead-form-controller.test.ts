@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import type { LeadFormData } from "@/types/leads";
 
-const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), dismiss: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/hooks/use-industries", () => ({ useIndustries: () => ({ data: [] }) }));
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch: vi.fn() }));
 
 import { LeadListsChangedError } from "@/lib/lead-update";
-import { useLeadFormController, type LeadFormSubmitResult } from "./use-lead-form-controller";
+import { CLASH_TOAST, useLeadFormController, type LeadFormSubmitResult } from "./use-lead-form-controller";
 
 type Submit = (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => Promise<LeadFormSubmitResult>;
 
@@ -40,6 +40,7 @@ beforeEach(() => {
   toast.success.mockReset();
   toast.error.mockReset();
   toast.info.mockReset();
+  toast.dismiss.mockReset();
 });
 
 describe("useLeadFormController: the form starts over only when it opens", () => {
@@ -127,7 +128,7 @@ describe("useLeadFormController: a save refused over a colleague's lists", () =>
     });
 
     await act(() => result.current.submit(false));
-    expect(toast.error).toHaveBeenCalledWith(CLASH, { duration: 15_000 });
+    expect(toast.error).toHaveBeenCalledWith(CLASH, { id: CLASH_TOAST, duration: 15_000 });
     expect(onClose).not.toHaveBeenCalled();
 
     // The lead is read again; until the colleague's copy arrives nothing moves.
@@ -138,8 +139,11 @@ describe("useLeadFormController: a save refused over a colleague's lists", () =>
     expect(result.current.form.tags).toEqual(["abaya", "vip"]);
     expect(result.current.form.management_name).toBe("Typed by me");
 
-    // The next Save sends this person's field over the colleague's tags.
+    // The next Save sends this person's field over the colleague's tags, and
+    // closes the clash toast first: it was about the copy this save replaces.
+    toast.dismiss.mockReset();
     await act(() => result.current.submit(false));
+    expect(toast.dismiss).toHaveBeenCalledWith(CLASH_TOAST);
     expect(onSubmit.mock.calls[1][1]).toEqual({ management_name: "Typed by me" });
     expect(onSubmit.mock.calls[1][2].tags).toEqual(["abaya", "vip"]);
     expect(onClose).toHaveBeenCalledTimes(1);
