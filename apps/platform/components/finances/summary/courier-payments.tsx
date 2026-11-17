@@ -240,7 +240,12 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                                     ) : (
                                         part.label
                                     )}
-                                    {open && part.note && <span className="block text-[12px] leading-relaxed text-muted">{part.note}</span>}
+                                    {/* A note the shop must act on reads in full colour; one that only explains stays grey. */}
+                                    {open && part.note && (
+                                        <span className={cn("block text-[12px] leading-relaxed", part.quiet ? "text-muted" : "text-foreground")} data-note={part.key}>
+                                            {part.note}
+                                        </span>
+                                    )}
                                     {open && part.orders && part.orders.length > 0 && <OrderLinks orders={part.orders} withAmounts={part.amounts} />}
                                 </dt>
                                 <dd className="shrink-0">

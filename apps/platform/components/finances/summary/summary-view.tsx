@@ -104,7 +104,7 @@ export function SummaryView({ current, previous, onOpenTab }: SummaryViewProps) 
 
             <SummaryPanel testId="summary-bottom">
                 <ReturnedParcels summary={summary} />
-                <DailyCosts summary={summary} statement={statement} onOpenTab={onOpenTab} />
+                <DailyCosts summary={summary} statement={statement} previous={beforeFigures?.statement ?? null} onOpenTab={onOpenTab} />
                 <StockShelf summary={summary} />
             </SummaryPanel>
 

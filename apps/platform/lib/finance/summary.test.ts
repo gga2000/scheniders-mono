@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     FinanceSummarySchema,
     adBreakEven,
+    adsWithoutLift,
     adReturn,
     barStep,
     breakEven,
@@ -256,11 +257,34 @@ describe("adBreakEven", () => {
         const statement = buildStatement(summary());
         const line = (id: string) => statement.lines.find((l) => l.id === id)?.amount ?? 0;
         const kept = statement.sales - line("product_cost") - line("delivery") - line("refunds");
-        expect(adBreakEven(statement)).toBe(Math.ceil((statement.sales / kept) * 1000));
+        expect(adBreakEven(statement)).toBe(Math.round((statement.sales / kept) * 1000));
     });
 
     it("has no answer when nothing was spent on ads", () => {
         expect(adBreakEven(buildStatement(summary({ expenses: [] })))).toBeNull();
+    });
+});
+
+describe("adsWithoutLift", () => {
+    const now = buildStatement(summary());
+    const withAds = (ads: number, revenue = 400_000) =>
+        buildStatement(
+            summary({
+                sales: { orders: 10, revenue, units: 12, product_cost: 150_000, missing_cost_units: 0, paid_orders: 0 },
+                expenses: summary().expenses.map((e) => (e.category === "marketing" ? { ...e, amount: ads } : e)),
+            }),
+        );
+
+    it("says how much more was sold before, when the ads are new and sales did not rise", () => {
+        expect(adsWithoutLift(now, withAds(1_000, 430_000))).toBe(8);
+        expect(adsWithoutLift(now, withAds(0, 401_000))).toBe(0);
+    });
+
+    it("says nothing when sales rose, the ads are not new, or there is no period before", () => {
+        expect(adsWithoutLift(now, withAds(1_000, 300_000))).toBeNull();
+        expect(adsWithoutLift(now, withAds(30_000, 430_000))).toBeNull();
+        expect(adsWithoutLift(now, null)).toBeNull();
+        expect(adsWithoutLift(buildStatement(summary({ expenses: [] })), withAds(0, 430_000))).toBeNull();
     });
 });
 
