@@ -1,4 +1,4 @@
-/** What pause_tenant and lift_tenant_pause answer with: the shop as the call left it. */
+/** What pause_tenant and lift_pause_and_settle answer with: the shop as the call left it. */
 export interface PausedShop {
   id: string;
   status: string;
