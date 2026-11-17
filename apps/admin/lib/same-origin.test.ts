@@ -42,13 +42,13 @@ describe("isOwnPageWrite", () => {
 });
 
 describe("a read that starts something", () => {
-  it("comes from a console page, or from the person typing the address", () => {
+  it("comes from a console page", () => {
     expect(isOwnPageRead(headers({ "sec-fetch-site": "same-origin" }))).toBe(true);
-    expect(isOwnPageRead(headers({ "sec-fetch-site": "none" }))).toBe(true);
   });
 
-  it("is refused from another site, a sibling site, or no browser page", () => {
+  it("is refused from another site, a sibling site, an app outside the browser, or no browser page", () => {
     expect(isOwnPageRead(headers({ "sec-fetch-site": "cross-site" }))).toBe(false);
+    expect(isOwnPageRead(headers({ "sec-fetch-site": "none" }))).toBe(false);
     expect(isOwnPageRead(headers({ "sec-fetch-site": "same-site" }))).toBe(false);
     expect(isOwnPageRead(headers({}))).toBe(false);
   });
