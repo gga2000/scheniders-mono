@@ -14,7 +14,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The middleware's nonce for this response (lib/csp.ts): the only inline
-  // script the policy lets run is one that carries it.
+  // script the policy lets run is one that carries it (this one, and the
+  // theme's in Providers).
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
@@ -22,7 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* Before the first paint: the desktop menu the person chose (lib/menu-choice.ts). */}
         {/* The browser hides a nonce from the page once it is read, so hydration sees none. */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: MENU_BEFORE_PAINT }} />
-        <Providers>{children}</Providers>
+        <Providers nonce={nonce}>{children}</Providers>
         <WebAnalytics />
       </body>
     </html>
