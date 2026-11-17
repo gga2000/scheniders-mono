@@ -6,9 +6,8 @@ import type { Lead } from "@/types/leads";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/use-industries", () => ({ useIndustries: () => ({ data: [] }) }));
-vi.mock("@/hooks/use-lead-mutations", () => ({
-  useBuildStore: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isError: false, error: null }),
-}));
+const build = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isError: false, error: null as Error | null }));
+vi.mock("@/hooks/use-lead-mutations", () => ({ useBuildStore: () => build }));
 
 import { LeadBuildStoreDialog } from "./lead-build-store-dialog";
 
@@ -25,7 +24,12 @@ const lead = (over: Partial<Lead> = {}): Lead =>
 const dialog = (isOpen: boolean, l: Lead) => createElement(LeadBuildStoreDialog, { isOpen, onClose: () => {}, lead: l });
 const nameBox = () => screen.getByPlaceholderText("e.g. Zara Baghdad") as HTMLInputElement;
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  build.mutate.mockClear();
+  build.isError = false;
+  build.error = null;
+});
 
 describe("LeadBuildStoreDialog: the form starts from the lead only when it opens", () => {
   it("keeps what was typed when the lead is read again while the dialog is open", () => {
@@ -46,5 +50,42 @@ describe("LeadBuildStoreDialog: the form starts from the lead only when it opens
     view.rerender(dialog(true, lead({ merchant_name: "Kawkab Store" })));
 
     expect(nameBox().value).toBe("Kawkab Store");
+  });
+});
+
+describe("LeadBuildStoreDialog: a refusal is seen, and a wrong image link is never sent", () => {
+  const advanced = (image: string) => {
+    render(dialog(true, lead()));
+    fireEvent.click(screen.getByText("Advanced"));
+    fireEvent.change(screen.getByPlaceholderText("Product name"), { target: { value: "Abaya" } });
+    fireEvent.change(screen.getByPlaceholderText("Image URL (optional)"), { target: { value: image } });
+    fireEvent.click(screen.getByText("Create Store"));
+  };
+
+  it("points at an image that is not a full link and sends nothing", () => {
+    advanced("photo.jpg");
+    expect((screen.getByPlaceholderText("Image URL (optional)") as HTMLInputElement).type).toBe("url");
+    expect(build.mutate).not.toHaveBeenCalled();
+  });
+
+  it("sends a full image link", () => {
+    advanced("https://cdn.example.com/abaya.jpg");
+    expect(build.mutate).toHaveBeenCalledTimes(1);
+    expect(build.mutate.mock.calls[0][0].data.products).toEqual([{ name: "Abaya", price: 0, image_url: "https://cdn.example.com/abaya.jpg" }]);
+  });
+
+  it("brings the server's refusal into view, as an alert", () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    build.isError = true;
+    build.error = new Error("Each product needs a name.");
+    render(dialog(true, lead()));
+    expect(screen.getByRole("alert").textContent).toBe("Each product needs a name.");
+    expect(scrolled).toHaveBeenCalledWith({ block: "nearest" });
+  });
+
+  it("holds each text to what the server takes", () => {
+    render(dialog(true, lead()));
+    expect(nameBox().maxLength).toBe(200);
   });
 });
