@@ -233,7 +233,7 @@ export default function ActivityLogPage() {
                         </span>
                       </td>
                       <td className="p-3 text-foreground/70 max-w-xs truncate">
-                        {staffLogSummary(log.details) ?? "\u2014"}
+                        {staffLogSummary(log.action, log.details) ?? "\u2014"}
                       </td>
                       <td className="p-3 text-foreground/70">
                         {log.business_name || (log.tenant_id ? shortenId(log.tenant_id) : "\u2014")}

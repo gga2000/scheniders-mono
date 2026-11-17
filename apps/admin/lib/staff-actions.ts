@@ -198,11 +198,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * Up to two of the row's plain values, "days: 7 | rows: 40", for the
  * Activity log and Home's Recent Activity. Ids (session_id, industry_id, an
- * owner move's from and to), lists and empty values are left out; null when
+ * owner move's from and to), lists and empty values are left out, and so is
+ * the lead's name where the step's own words already give it; null when
  * nothing is left.
  */
-export function staffLogSummary(details: Record<string, unknown> | null): string | null {
+export function staffLogSummary(action: string, details: Record<string, unknown> | null): string | null {
+  const namesLead = LEAD_STEPS.has(action) || action === "edit_lead";
   const parts = Object.entries(details ?? {})
+    .filter(([key]) => !(namesLead && key === "merchant_name"))
     .filter(([key, value]) => !ID_KEY.test(key) && value !== null && value !== undefined && typeof value !== "object")
     .filter(([, value]) => !(typeof value === "string" && UUID.test(value)))
     .slice(0, 2)
