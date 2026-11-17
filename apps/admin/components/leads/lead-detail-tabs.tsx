@@ -66,7 +66,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
         </h3>
         <div className="space-y-3">
           {lead.contact_via_dm && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#A78BFA]/10 text-[#A78BFA]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-500/12 text-[var(--ink-violet)]">
               <MessageCircle className="w-4 h-4 shrink-0" />
               <span className="text-xs font-semibold">Direct messages only — no phone on file</span>
             </div>
@@ -149,7 +149,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
         </h3>
         <div className="space-y-3">
           {lead.is_online_only ? (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#A78BFA]/10 text-[#A78BFA]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-500/12 text-[var(--ink-violet)]">
               <Globe className="w-4 h-4 shrink-0" />
               <span className="text-xs font-semibold">Online shop only — no physical location</span>
             </div>
@@ -493,7 +493,8 @@ export function CompetitorsContent({
 
 // ── Store Tab ──────────────────────────────────────────────────────────
 
-export function StoreContent({ lead }: { lead: Lead }) {
+/** `onBuildStore` opens the build form; without it (no form here) the button is left out. */
+export function StoreContent({ lead, onBuildStore }: { lead: Lead; onBuildStore?: () => void }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (text: string) => {
@@ -510,10 +511,16 @@ export function StoreContent({ lead }: { lead: Lead }) {
         <p className="text-sm text-[var(--muted)] mb-6 max-w-sm text-center">
           Build a prospect store to showcase what their online presence could look like.
         </p>
-        <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#A78BFA] text-white text-sm font-bold hover:brightness-110 transition-all shadow-sm">
-          <Store className="w-4 h-4" />
-          Build Store
-        </button>
+        {onBuildStore && (
+          <button
+            type="button"
+            onClick={onBuildStore}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--ink-violet)] text-[var(--card-bg)] text-sm font-bold hover:brightness-110 transition-all shadow-sm"
+          >
+            <Store className="w-4 h-4" />
+            Build Store
+          </button>
+        )}
       </div>
     );
   }

@@ -225,7 +225,7 @@ export function LeadDetailDesktop() {
               {showBuildStore && (
                 <button
                   onClick={() => setBuildStoreOpen(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#A78BFA] text-white hover:brightness-110 transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[var(--ink-violet)] text-[var(--card-bg)] hover:brightness-110 transition-all shadow-sm"
                 >
                   <Store className="w-3.5 h-3.5" />
                   Build Store
@@ -490,7 +490,9 @@ export function LeadDetailDesktop() {
           {activeTab === "Competitors" && (
             <CompetitorsContent competitors={competitors} />
           )}
-          {activeTab === "Store" && <StoreContent lead={lead} />}
+          {activeTab === "Store" && (
+            <StoreContent lead={lead} onBuildStore={showBuildStore ? () => setBuildStoreOpen(true) : undefined} />
+          )}
         </motion.div>
       </AnimatePresence>
 

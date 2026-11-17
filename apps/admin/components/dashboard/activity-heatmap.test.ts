@@ -5,6 +5,8 @@ process.env.TZ = "Asia/Baghdad";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ActivityHeatmap } from "./activity-heatmap";
 
@@ -27,13 +29,28 @@ describe("Platform Activity", () => {
     const fills = cellFills(html);
     // 17 Nov 2025 is a Monday: the grid starts on the Sunday before it.
     expect(fills).toHaveLength(1 + 365);
-    expect(fills.at(-1)).toBe("#16a34a");
-    expect(fills[1]).toBe("#bbf7d0");
+    expect(fills.at(-1)).toBe("var(--grow-4)");
+    expect(fills[1]).toBe("var(--grow-1)");
     expect(fills.filter((f) => f !== "var(--card-border, #e5e7eb)")).toHaveLength(2);
   });
 
   it("scales the year to the tile instead of a fixed width", () => {
     const html = renderToStaticMarkup(createElement(ActivityHeatmap, { days: yearEnding({}) }));
     expect(html).toMatch(/<svg[^>]*viewBox="0 0 \d+ \d+"[^>]*width="100%"/);
+  });
+});
+
+describe("Platform Activity colours", () => {
+  // Each block of app/globals.css up to its closing brace: the light theme, then .dark.
+  const css = readFileSync(join(__dirname, "..", "..", "app", "globals.css"), "utf8");
+  const block = (selector: string) => css.slice(css.indexOf(`${selector} {`)).split("}")[0];
+
+  it("climb from quiet to busy in both themes, so dark mode does not read backwards", () => {
+    for (const theme of [":root", ".dark"]) {
+      for (const level of [1, 2, 3, 4]) expect(block(theme), `${theme} --grow-${level}`).toContain(`--grow-${level}:`);
+    }
+    // Dark mode: the quiet greens are see-through over the card, the busiest is solid and bright.
+    expect(block(".dark")).toMatch(/--grow-1: rgba\(34, 197, 94, 0\.2\)/);
+    expect(block(".dark")).toMatch(/--grow-4: #4ade80/);
   });
 });

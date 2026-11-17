@@ -25,13 +25,14 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+/** Tokens in app/globals.css: the busier the day, the stronger the green, in both themes. */
 function getColorLevel(count: number, max: number): string {
   if (count === 0) return "var(--card-border, #e5e7eb)";
   const ratio = count / max;
-  if (ratio <= 0.25) return "#bbf7d0"; // pastel-green-light
-  if (ratio <= 0.5) return "var(--pastel-green, #86efac)";
-  if (ratio <= 0.75) return "#4ade80";
-  return "#16a34a";
+  if (ratio <= 0.25) return "var(--grow-1)";
+  if (ratio <= 0.5) return "var(--grow-2)";
+  if (ratio <= 0.75) return "var(--grow-3)";
+  return "var(--grow-4)";
 }
 
 function SkeletonContent() {
