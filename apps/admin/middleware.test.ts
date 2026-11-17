@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { AuthApiError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
@@ -16,6 +16,8 @@ let getUser: GetUser;
 let adminRead: AdminRead;
 /** Cookies the Supabase client sets, as when it refreshes the session. */
 let refreshedCookies: Array<{ name: string; value: string; options: object }>;
+/** What the middleware hands to Sentry (the edge config captures console.error). */
+let errors: MockInstance<typeof console.error>;
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: (
@@ -50,6 +52,8 @@ beforeEach(() => {
   getUser = { data: { user: STAFF }, error: null };
   adminRead = { data: { admin_role: "super_admin", is_active: true }, error: null };
   refreshedCookies = [];
+  errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  errors.mockClear();
 });
 
 describe("middleware access check", () => {
@@ -98,6 +102,21 @@ describe("middleware access check", () => {
     expect((await call("/api/leads")).status).toBe(503);
     getUser = { data: { user: null }, error: new AuthApiError("server error", 500, "unexpected_failure") };
     expect((await call("/api/leads")).status).toBe(503);
+  });
+
+  it("reports each failed check to Sentry with its stage, and a plain sign-out not at all", async () => {
+    adminRead = { data: null, error: { message: "connection lost" } };
+    await call("/api/leads");
+    adminRead = { data: { admin_role: "super_admin", is_active: true }, error: null };
+    getUser = { data: { user: null }, error: new AuthRetryableFetchError("fetch failed", 0) };
+    await call("/merchants");
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+    await call("/merchants");
+
+    expect(errors.mock.calls).toEqual([
+      ["[middleware] Access check failed", { stage: "staff row", path: "/api/leads", message: "connection lost" }],
+      ["[middleware] Access check failed", { stage: "sign-in", path: "/merchants", message: "fetch failed" }],
+    ]);
   });
 
   it("still shows the login page during an outage", async () => {

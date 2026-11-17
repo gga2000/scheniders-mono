@@ -81,8 +81,11 @@ async function checkAccess(request: NextRequest) {
     return withSession(NextResponse.redirect(url));
   };
   // The check itself failed: say so and keep the staff member signed in,
-  // instead of reading an outage as "signed out" or "forbidden".
-  const checkFailed = () => {
+  // instead of reading an outage as "signed out" or "forbidden". The edge
+  // Sentry turns console.error into an event, so an outage of the console's
+  // front door reaches the alerts, not only the staff who meet it.
+  const checkFailed = (stage: "sign-in" | "staff row", error: unknown) => {
+    console.error("[middleware] Access check failed", { stage, path, message: errorMessage(error) });
     if (isLoginPage) return supabaseResponse;
     const headers = { "retry-after": "5", "cache-control": "no-store" };
     if (isApi) return withSession(NextResponse.json({ error: CHECK_FAILED }, { status: 503, headers }));
@@ -103,7 +106,7 @@ async function checkAccess(request: NextRequest) {
   //  - APIs → 401 JSON (so fetch/XHR sees the error, not an HTML redirect).
   //  - Pages → redirect to /login (except /login itself).
   if (!user) {
-    if (!isCredentialRejection(userError)) return checkFailed();
+    if (!isCredentialRejection(userError)) return checkFailed("sign-in", userError);
     if (isApi) {
       return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
     }
@@ -123,7 +126,7 @@ async function checkAccess(request: NextRequest) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (adminError) return checkFailed();
+  if (adminError) return checkFailed("staff row", adminError);
 
   const isAdmin =
     !!adminRow?.admin_role && adminRow.is_active === true && ALLOWED_ROLES.has(adminRow.admin_role);
@@ -146,6 +149,15 @@ async function checkAccess(request: NextRequest) {
   }
 
   return supabaseResponse;
+}
+
+/** What went wrong, without the request or the session in it. */
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return String(error);
 }
 
 /** A plain page for a failed access check, with a link back to the page asked for. */
