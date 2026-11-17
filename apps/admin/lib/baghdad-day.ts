@@ -30,6 +30,13 @@ export function lastDaysStart(days: number, now: Date | number = Date.now()): st
   return `${addDays(dayOf(now), 1 - days)}T00:00:00+03:00`;
 }
 
+/**
+ * A trial this many Baghdad days from its end or fewer is "ending": the
+ * Trials page's count and red bars, the support card, shop health and the
+ * shop list's alert flag all read this one number.
+ */
+export const TRIAL_ENDING_DAYS = 3;
+
 export interface TrialClock {
   /** The end has passed: the trial is over (and the shop is locked until it pays). */
   ended: boolean;

@@ -10,7 +10,7 @@
  * score is in and when the flame shows.
  */
 import type { AdminTenant } from "@/types/admin";
-import { trialClock } from "@/lib/baghdad-day";
+import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
 import { ATTENTION_WALLET_IQD, HEALTH_AT_RISK_BELOW, HEALTH_HEALTHY_FROM } from "@/lib/merchant-filters";
 import { formatCount } from "@/lib/format";
 
@@ -47,8 +47,6 @@ export function healthDotClass(score: number): string {
 
 /** Fewer real orders than this in 30 days reads as "hardly selling". */
 const FEW_ORDERS = 5;
-/** A trial ending within this many Baghdad days (or already ended) with no order yet is about to be lost. */
-const TRIAL_LAST_DAYS = 3;
 
 export interface ChurnFacts {
   status: string;
@@ -72,7 +70,7 @@ export function isChurnRisk(shop: ChurnFacts, now: number = Date.now()): boolean
   if (shop.status === "suspended") return true;
   if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.orders30d < FEW_ORDERS) return true;
   if (shop.status === "trial" && shop.trialEndsAt) {
-    return trialClock(shop.trialEndsAt, now).days <= TRIAL_LAST_DAYS && shop.orders30d === 0;
+    return trialClock(shop.trialEndsAt, now).days <= TRIAL_ENDING_DAYS && shop.orders30d === 0;
   }
   return false;
 }
