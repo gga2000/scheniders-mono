@@ -346,7 +346,12 @@ export function LeadsDesktopView() {
             <LeadKanban
               leads={leads}
               onStatusChange={(leadId, newStatus) => {
-                updateLead.mutate({ id: leadId, data: { status: newStatus } });
+                // The card moves when the save lands; a refused move says why.
+                const name = leads.find((x) => x.id === leadId)?.merchant_name ?? "the lead";
+                updateLead.mutate(
+                  { id: leadId, data: { status: newStatus } },
+                  { onError: (error) => toast.error(`Could not move "${name}": ${error.message}`) },
+                );
               }}
               onLeadClick={(leadId) => {
                 const l = leads.find((x) => x.id === leadId);

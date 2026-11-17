@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -135,41 +136,40 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
           setFormData(INITIAL_FORM);
           setShowAddForm(false);
         },
+        onError: (error) => toast.error(error.message),
       }
     );
   }, [formData, createIndustry]);
 
   const handleToggleActive = useCallback(
     (industry: Industry) => {
-      updateIndustry.mutate({
-        id: industry.id,
-        data: { is_active: !industry.is_active },
-      });
+      updateIndustry.mutate(
+        { id: industry.id, data: { is_active: !industry.is_active } },
+        { onError: (error) => toast.error(`Could not turn ${industry.is_active ? "off" : "on"} "${industry.name}": ${error.message}`) },
+      );
     },
     [updateIndustry]
   );
 
-  const handleMoveUp = useCallback(
-    (index: number) => {
-      if (index <= 0) return;
-      const current = sorted[index];
-      const above = sorted[index - 1];
-      updateIndustry.mutate({ id: current.id, data: { sort_order: above.sort_order } });
-      updateIndustry.mutate({ id: above.id, data: { sort_order: current.sort_order } });
+  // Two industries trade places in two saves. Either one refused says so;
+  // the list is read again either way, so it shows where each one stands.
+  const swap = useCallback(
+    (moving: Industry, other: Industry) => {
+      void Promise.all([
+        updateIndustry.mutateAsync({ id: moving.id, data: { sort_order: other.sort_order } }),
+        updateIndustry.mutateAsync({ id: other.id, data: { sort_order: moving.sort_order } }),
+      ]).catch((error: Error) => toast.error(`Could not move "${moving.name}": ${error.message}`));
     },
-    [sorted, updateIndustry]
+    [updateIndustry]
   );
 
-  const handleMoveDown = useCallback(
-    (index: number) => {
-      if (index >= sorted.length - 1) return;
-      const current = sorted[index];
-      const below = sorted[index + 1];
-      updateIndustry.mutate({ id: current.id, data: { sort_order: below.sort_order } });
-      updateIndustry.mutate({ id: below.id, data: { sort_order: current.sort_order } });
-    },
-    [sorted, updateIndustry]
-  );
+  const handleMoveUp = (index: number) => {
+    if (index > 0) swap(sorted[index], sorted[index - 1]);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < sorted.length - 1) swap(sorted[index], sorted[index + 1]);
+  };
 
   const handleStartEdit = (industry: Industry) => {
     setEditingId(industry.id);
@@ -195,7 +195,8 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
           avg_order_value_iqd: editData.avg_order_value_iqd,
         },
       },
-      { onSuccess: () => setEditingId(null) }
+      // A refused save keeps the row open with what was typed.
+      { onSuccess: () => setEditingId(null), onError: (error) => toast.error(error.message) }
     );
   }, [editingId, editData, updateIndustry]);
 
@@ -209,6 +210,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
     if (!deleteConfirm) return;
     deleteIndustry.mutate(deleteConfirm.industry.id, {
       onSuccess: () => setDeleteConfirm(null),
+      onError: (error) => toast.error(error.message),
     });
   }, [deleteConfirm, deleteIndustry]);
 

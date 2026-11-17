@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { LeadActivity, LeadActivityType } from "@/types/leads";
+import { toast } from "sonner";
 import { useCreateActivity } from "@/hooks/use-lead-activities";
 import {
   StickyNote,
@@ -92,6 +93,8 @@ export function LeadActivityTimeline({ activities, leadId, noteRequest = 0 }: Le
       },
       {
         onSuccess: () => setDescription(""),
+        // The typing stays in the box, so the same note can be sent again.
+        onError: (error) => toast.error(error.message),
       },
     );
   };

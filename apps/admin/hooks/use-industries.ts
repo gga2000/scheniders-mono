@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Industry } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { refusal } from "@/lib/refusal";
 
 export function useIndustries() {
   return useQuery<Industry[]>({
@@ -27,7 +28,7 @@ export function useCreateIndustry() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create industry");
+      if (!res.ok) throw new Error(await refusal(res, "Could not add the industry."));
       return res.json();
     },
     onSuccess: () => {
@@ -45,7 +46,7 @@ export function useUpdateIndustry() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update industry");
+      if (!res.ok) throw new Error(await refusal(res, "Could not save the industry."));
       return res.json();
     },
     onSuccess: () => {
@@ -59,10 +60,7 @@ export function useDeleteIndustry() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await adminFetch(`/api/industries/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to delete industry");
-      }
+      if (!res.ok) throw new Error(await refusal(res, "Could not delete the industry."));
       return res.json();
     },
     onSuccess: () => {

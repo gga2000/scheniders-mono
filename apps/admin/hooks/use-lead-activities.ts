@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadActivity, LeadActivityType } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { refusal } from "@/lib/refusal";
 
 export function useLeadActivities(leadId: string | null) {
   return useQuery<LeadActivity[]>({
@@ -38,7 +39,7 @@ export function useCreateActivity() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ activity_type, title, description }),
       });
-      if (!res.ok) throw new Error("Failed to create activity");
+      if (!res.ok) throw new Error(await refusal(res, "Could not save it. Try again."));
       return res.json();
     },
     onSuccess: (_, vars) => {

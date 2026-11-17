@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import { refusal } from "@/lib/refusal";
 import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
 
 export function useCreateLead() {
@@ -35,10 +36,7 @@ export function useUpdateLead() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to update lead");
-      }
+      if (!res.ok) throw new Error(await refusal(res, "Could not save the lead."));
       return res.json();
     },
     onSuccess: (_, vars) => {
