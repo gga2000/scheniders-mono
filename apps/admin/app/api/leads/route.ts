@@ -111,8 +111,8 @@ export async function POST(request: NextRequest) {
         is_online_only: body.is_online_only ?? false,
         branches: body.branches || [],
         priority: body.priority || "medium",
-        assigned_to: body.assigned_to || null,
-        assigned_at: body.assigned_to ? new Date().toISOString() : null,
+        // A new lead has no owner: an owner is given only through admin_change_leads,
+        // which checks active staff and writes the history and reassign_lead rows.
         tags: body.tags || [],
         source_campaign: body.source_campaign || null,
         source_medium: body.source_medium || null,

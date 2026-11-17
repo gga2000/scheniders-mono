@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { LeadFollowUp } from "@/types/leads";
 import { useCreateFollowUp, useCompleteFollowUp } from "@/hooks/use-lead-follow-ups";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   CalendarPlus,
   Check,
@@ -80,12 +81,14 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
           setScheduledAt("");
           setShowForm(false);
         },
+        // The form stays open with what was typed; the toast says why.
+        onError: (error) => toast.error(error.message),
       }
     );
   }
 
   function handleComplete(followUpId: string) {
-    completeFollowUp.mutate({ leadId, followUpId });
+    completeFollowUp.mutate({ leadId, followUpId }, { onError: (error) => toast.error(error.message) });
   }
 
   // ── Empty State ─────────────────────────────────────────────────────

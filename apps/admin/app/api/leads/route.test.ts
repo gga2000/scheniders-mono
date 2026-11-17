@@ -15,7 +15,7 @@ vi.mock("@/lib/api-auth", () => ({
 let stub: ReturnType<typeof supabaseStub>;
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => stub.client }));
 
-const { GET } = await import("./route");
+const { GET, POST } = await import("./route");
 const call = (params = "") => GET(new NextRequest(`http://admin.test/api/leads?${params}`));
 
 beforeEach(() => {
@@ -85,4 +85,35 @@ describe("GET /api/leads sort", () => {
       expect(stub.tablesRead()).toEqual([]);
     },
   );
+});
+
+describe("POST /api/leads owner", () => {
+  /*
+   * A new lead took any assigned_to from the body: a lead could be created
+   * already owned by a login that is not staff, with no history line and no
+   * reassign_lead row. An owner is now given only through admin_change_leads.
+   */
+  it("creates a lead with no owner, whatever the body says", async () => {
+    const inserts: Record<string, unknown>[] = [];
+    const builder = {
+      insert: (row: Record<string, unknown>) => {
+        inserts.push(row);
+        return builder;
+      },
+      select: () => builder,
+      single: async () => ({ data: { id: "lead-2", merchant_name: "Kawkab" }, error: null }),
+    };
+    stub.client.from = () => builder as unknown as ReturnType<typeof stub.client.from>;
+    const res = await POST(
+      new NextRequest("http://admin.test/api/leads", {
+        method: "POST",
+        body: JSON.stringify({ merchant_name: "Kawkab", assigned_to: "1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d" }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).not.toHaveProperty("assigned_to");
+    expect(inserts[0]).not.toHaveProperty("assigned_at");
+    expect(inserts[0].created_by).toBe("a");
+  });
 });
