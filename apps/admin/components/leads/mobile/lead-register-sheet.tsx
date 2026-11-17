@@ -40,13 +40,17 @@ import { LeadIndustryManager } from "../lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
+  type LeadFormSubmitResult,
 } from "../use-lead-form-controller";
 
 interface LeadRegisterSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** `changes`: only the fields that differ from the form as it opened (what an edit sends). */
-  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<boolean>;
+  /**
+   * `changes`: only the fields that differ from the form as it opened (what an
+   * edit sends). Resolve "unchanged" when there was nothing to send.
+   */
+  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<LeadFormSubmitResult>;
   initialData?: Partial<LeadFormData>;
   /**
    * If provided, closing the sheet (swipe / tap-outside / back) with unsaved

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useEffectEvent, useRef, useCallback } from "react";
 import type { LeadFormData, LeadPhoneNumber, LeadBranch } from "@/types/leads";
 import { useIndustries } from "@/hooks/use-industries";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -48,10 +48,16 @@ export const ANALYZABLE_PLATFORMS = new Set(["instagram"]);
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
+/** What a host's save answered: saved, failed, or had nothing to send. */
+export type LeadFormSubmitResult = boolean | "unchanged";
+
 interface UseLeadFormControllerArgs {
   open: boolean;
   /** `data` is the whole saved form; `changes` only the fields that differ from the form as it opened. */
-  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<boolean> | boolean | void;
+  onSubmit: (
+    data: LeadFormData,
+    changes: Partial<LeadFormData>,
+  ) => Promise<LeadFormSubmitResult> | LeadFormSubmitResult | void;
   initialData?: Partial<LeadFormData>;
   /** Called after a successful single save (lets the host close the sheet/dialog). */
   onClose: () => void;
@@ -92,9 +98,15 @@ export function useLeadFormController({
   /** True when the form differs from its opened state (has unsaved content). */
   const isDirty = JSON.stringify(form) !== JSON.stringify(opened);
 
+  // The form starts from the lead as it is when the form opens, and only then.
+  // Hosts pass a new starting object on every render (a save in flight, a
+  // colleague's change read in the background); starting over on that would
+  // throw away what this person typed. A colleague's change is still safe:
+  // a save sends only the fields this person changed.
+  const resetOnOpen = useEffectEvent(() => resetForm());
   useEffect(() => {
-    if (open) resetForm();
-  }, [open, resetForm]);
+    if (open) resetOnOpen();
+  }, [open]);
 
   const update = <K extends keyof LeadFormData>(key: K, value: LeadFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -250,6 +262,11 @@ export function useLeadFormController({
       const result = await onSubmit(normalized, changes);
       if (result === false) {
         toast.error("Couldn't save the lead. Please try again.");
+        return;
+      }
+      if (result === "unchanged") {
+        toast.info("Nothing changed");
+        onClose();
         return;
       }
       toast.success(isEdit ? "Lead updated" : `${normalized.merchant_name} added to pipeline`);
