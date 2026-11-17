@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { countLine } from "@/lib/load-failure";
 
 /**
  * Merchant support cases as the staff console sees them. The tables
@@ -204,6 +205,15 @@ export interface SupportShopCard {
 export interface SupportCasesResponse {
   cases: SupportCaseRow[];
   waitingOnUs: number;
+}
+
+/** The Support header line. "No merchant is waiting" over a failed read would send staff away from a full inbox. */
+export function waitingOnUsLine(read: { count: number | undefined; isError: boolean }): string {
+  return countLine(read, {
+    loading: "Loading...",
+    failed: "Could not check who is waiting on us",
+    counted: (n) => (n === 0 ? "No merchant is waiting on us." : `${n} merchant${n === 1 ? "" : "s"} waiting on us`),
+  });
 }
 
 export interface SupportCaseDetailResponse {

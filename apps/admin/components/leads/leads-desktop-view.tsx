@@ -22,6 +22,7 @@ import { LeadsTable } from "@/components/leads/leads-table";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
 import type { LeadFormData, Lead } from "@/types/leads";
 import { leadPhone, toIntlIraqi } from "./lead-phone";
+import { leadsCountLine } from "./leads-count";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -123,7 +124,7 @@ export function LeadsDesktopView() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
           <p className="text-[13px] text-foreground/70">
-            {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+            {leadsCountLine({ count: data?.total, isError })}
           </p>
         </div>
         <div className="flex items-center gap-2.5">

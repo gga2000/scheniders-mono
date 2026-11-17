@@ -9,6 +9,7 @@ import { useLeadStore } from "@/store/use-lead-store";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
 import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
+import { leadsCountLine } from "../leads-count";
 import { LeadMobileRow } from "./lead-mobile-row";
 import { LeadRegisterSheet } from "./lead-register-sheet";
 import { AdvanceStageSheet } from "./advance-stage-sheet";
@@ -34,6 +35,7 @@ export function LeadsMobileView() {
     isFetchingNextPage,
     isLoading,
     isError,
+    refetch,
   } = useInfiniteLeads();
 
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
@@ -81,7 +83,7 @@ export function LeadsMobileView() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
         <p className="text-[13px] text-foreground/70">
-          {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+          {leadsCountLine({ count: data?.pages[0]?.total, isError })}
         </p>
       </div>
 
@@ -168,7 +170,7 @@ export function LeadsMobileView() {
           </p>
           <button
             type="button"
-            onClick={() => fetchNextPage()}
+            onClick={() => void refetch()}
             className="rounded-xl border border-[var(--card-border)] px-5 py-2 text-sm font-semibold hover:bg-[var(--card-bg)] transition-colors"
           >
             Retry
