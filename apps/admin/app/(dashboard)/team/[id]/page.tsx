@@ -141,7 +141,7 @@ export default function TeamMemberDetailPage() {
             className={cn(
               "px-4 py-2.5 text-sm font-semibold transition-colors",
               activeTab === tab
-                ? "text-foreground border-b-2 border-[#1E1E1E]"
+                ? "text-foreground border-b-2 border-foreground"
                 : "text-foreground/70 hover:text-foreground"
             )}
           >
