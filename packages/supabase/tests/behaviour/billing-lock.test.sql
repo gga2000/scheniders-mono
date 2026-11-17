@@ -644,3 +644,86 @@ BEGIN
       '20000000-0000-4000-8000-00000000001a', 'topup', _ref)) LIKE '%uq_wallet_tx_admin_topup%',
     'a second ledger row with the same top-up key is refused');
 END $$;
+
+-- 19. A staff pause is not a billing state (20261117102504). Pause writes
+--     status 'limited' and keeps what the shop was in
+--     restrictions.status_before (pause_tenant). The lock, the order stamp and
+--     the delivered-order fee read what the shop is underneath the pause.
+--     Q: a running trial, paused, with money in the wallet (a merchant who
+--        topped up early). R: a trial that ended unpaid, then paused.
+--     S: a paying shop whose month went unpaid, then paused.
+--     X: a pause written before status_before existed (counts as before: active).
+INSERT INTO public.tenants (id, plan, status, trial_ends_at, restrictions) VALUES
+  ('20000000-0000-4000-8000-0000000000a1', 'starter', 'limited', now() + interval '3 days',
+   '{"new_products": true, "new_orders": false, "status_before": "trial"}'),
+  ('20000000-0000-4000-8000-0000000000a2', 'starter', 'limited', now() - interval '1 day',
+   '{"new_orders": false, "status_before": "trial"}'),
+  ('20000000-0000-4000-8000-0000000000a3', 'starter', 'limited', now() - interval '60 days',
+   '{"new_orders": false, "status_before": "active"}'),
+  ('20000000-0000-4000-8000-0000000000a4', 'starter', 'limited', NULL, '{"new_orders": false}');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-0000000000a1', 20000),
+  ('20000000-0000-4000-8000-0000000000a2', 0),
+  ('20000000-0000-4000-8000-0000000000a3', 0),
+  ('20000000-0000-4000-8000-0000000000a4', 20000);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000a2', 'starter', 'past_due', now() - interval '8 days', now() - interval '1 day', now() - interval '8 days'),
+  ('20000000-0000-4000-8000-0000000000a3', 'starter', 'past_due', now() - interval '31 days', now() - interval '1 day', now() - interval '60 days');
+
+SELECT pg_temp.check(
+  public.tenant_effective_status('limited', '{"status_before": "trial"}') = 'trial'
+  AND public.tenant_effective_status('limited', '{"status_before": "active"}') = 'active'
+  AND public.tenant_effective_status('limited', '{"status_before": "suspended"}') = 'suspended'
+  AND public.tenant_effective_status('limited', '{"status_before": "cancelled"}') = 'cancelled'
+  AND public.tenant_effective_status('limited', '{}') = 'active'
+  AND public.tenant_effective_status('limited', NULL) = 'active'
+  AND public.tenant_effective_status('trial', '{"status_before": "active"}') = 'trial'
+  AND public.tenant_effective_status('suspended', '{}') = 'suspended',
+  'a paused shop is what it was before the pause; any other shop is its own status');
+
+-- The lock sees through the pause.
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a1') IS NULL, 'a paused running trial is not locked');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a2') = 'trial_ended', 'a paused ended trial is still locked as trial_ended');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a3') = 'unpaid', 'a paused unpaid shop is still locked as unpaid');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a4') IS NULL, 'an old pause with no status_before is not locked');
+
+-- A paused locked shop keeps its allowance: each order takes a slot (3 here).
+SELECT pg_temp.check(public.take_lock_order_slot('20000000-0000-4000-8000-0000000000a2')
+                     AND pg_temp.left_('20000000-0000-4000-8000-0000000000a2') = 2,
+                     'a paused locked trial''s order takes a lock slot');
+
+-- Orders are stamped by what the shop is underneath.
+INSERT INTO public.orders (tenant_id, order_id) VALUES
+  ('20000000-0000-4000-8000-0000000000a1', 'QP1'),
+  ('20000000-0000-4000-8000-0000000000a2', 'RP1'),
+  ('20000000-0000-4000-8000-0000000000a3', 'SP1'),
+  ('20000000-0000-4000-8000-0000000000a4', 'XP1');
+SELECT pg_temp.check(pg_temp.phase('QP1') = 'trial', 'a paused trial''s order is stamped trial');
+SELECT pg_temp.check(pg_temp.phase('RP1') = 'trial_locked', 'a paused locked trial''s order is stamped trial_locked');
+SELECT pg_temp.check(pg_temp.phase('SP1') = 'unpaid_locked', 'a paused unpaid shop''s order is stamped unpaid_locked');
+SELECT pg_temp.check(pg_temp.phase('XP1') IS NULL, 'an old pause''s order has no phase, as before');
+
+-- An order with no phase (every order before the stamp existed) is still
+-- free while its shop is a paused trial: the fee reads the shop underneath.
+ALTER TABLE public.orders DISABLE TRIGGER trg_orders_billing_phase;
+INSERT INTO public.orders (tenant_id, order_id) VALUES ('20000000-0000-4000-8000-0000000000a1', 'QP0');
+ALTER TABLE public.orders ENABLE TRIGGER trg_orders_billing_phase;
+SELECT pg_temp.check(pg_temp.phase('QP0') IS NULL, 'the old order has no phase');
+
+UPDATE public.orders SET status = 'delivered' WHERE order_id IN ('QP0', 'QP1', 'RP1', 'XP1');
+SELECT pg_temp.check(pg_temp.balance('20000000-0000-4000-8000-0000000000a1') = 20000,
+                     'a paused trial pays nothing for its delivered orders (got ' || pg_temp.balance('20000000-0000-4000-8000-0000000000a1') || ')');
+SELECT pg_temp.check(pg_temp.balance('20000000-0000-4000-8000-0000000000a2') = 0,
+                     'a paused locked trial pays nothing for its delivered lock orders');
+SELECT pg_temp.check(pg_temp.balance('20000000-0000-4000-8000-0000000000a4') = 19945,
+                     'an old pause pays the fee, as it did before');
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.wallet_transactions
+               WHERE tenant_id IN ('20000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a2')),
+  'no ledger row for a paused trial''s orders');
+
+-- Lifting the pause changes nothing in what was charged or stamped.
+UPDATE public.tenants SET status = 'trial', restrictions = '{}' WHERE id = '20000000-0000-4000-8000-0000000000a1';
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a1') IS NULL
+                     AND pg_temp.balance('20000000-0000-4000-8000-0000000000a1') = 20000,
+                     'after the pause the trial is the same trial');

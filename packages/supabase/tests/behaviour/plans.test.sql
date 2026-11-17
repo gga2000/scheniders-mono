@@ -323,8 +323,9 @@ SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_
 -- 17. Staff change the plan of a locked trial shop (20261117091510): the
 -- subscription is 'past_due' but the shop is still 'trial', so it is still
 -- the first choice, not a move. Statements in admin_update_shop's order: the
--- shop's plan, then the subscription's. Staff who first make a locked trial
--- 'active' and then change its plan have a paying shop by then: a real move.
+-- shop's plan, then the subscription's. A locked trial that became 'active'
+-- (by paying, or by convert-trial; staff can no longer set it,
+-- 20261117102504) is a paying shop by then: a plan change is a real move.
 SELECT pg_temp.check((SELECT t.status = 'trial' AND s.status = 'past_due'
                         FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id
                        WHERE t.id = 'a0000000-0000-4000-8000-00000000000a'),

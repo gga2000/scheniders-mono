@@ -24,7 +24,8 @@
 --       once at sign-up) changes nothing;
 --     * a shop whose trial ended unpaid, or whose month is unpaid, is reported
 --       locked with the reason; a paying shop and an internal shop are not;
---       admin_locked_shops (Shops at risk) lists the same locked shops;
+--       admin_locked_shops (Shops at risk) lists the same locked shops, and
+--       still lists them while staff have paused them;
 --     * a shop with no rows at all still gets a row of zeros and blanks;
 --     * a shop asked for twice comes back once; a shop not asked for never does.
 --   Merchants page header:
@@ -244,6 +245,22 @@ BEGIN
         (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
           WHERE k IN (_busy::text, _quiet::text, _trial::text, _unpaid::text, _internal::text, _other::text))
         = jsonb_build_object(_trial::text, 'trial_ended', _unpaid::text, 'unpaid'));
+
+    -- A staff pause is not a billing state (20261117102504): paused, the
+    -- ended trial and the unpaid month are still locked and still listed.
+    UPDATE public.tenants
+       SET restrictions = jsonb_build_object('new_orders', false, 'status_before', status::text),
+           status = 'limited'
+     WHERE id IN (_trial, _unpaid);
+    PERFORM pg_temp.check('locked shops: a paused locked shop drops off Shops at risk, got '
+            || coalesce((SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+                          WHERE k IN (_trial::text, _unpaid::text))::text, 'none'),
+        (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+          WHERE k IN (_trial::text, _unpaid::text))
+        = jsonb_build_object(_trial::text, 'trial_ended', _unpaid::text, 'unpaid'));
+    UPDATE public.tenants
+       SET status = (restrictions ->> 'status_before')::public.tenant_status, restrictions = '{}'
+     WHERE id IN (_trial, _unpaid);
 
     -- Page header: one number for a set of shops ----------------------------------
     PERFORM pg_temp.check('header: fees of the shops asked for are 9,085, got '

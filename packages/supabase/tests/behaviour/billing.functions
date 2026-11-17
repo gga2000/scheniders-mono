@@ -1,2 +1,2 @@
-tenant_is_demo
+tenant_effective_status tenant_is_demo
 order_is_billable charge_wallet_core charge_delivered_order refund_wallet_charge_core

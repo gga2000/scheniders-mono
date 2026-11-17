@@ -20,6 +20,9 @@ CREATE TYPE public.commission_status AS ENUM ('pending', 'approved', 'paid');
 CREATE TYPE public.member_status AS ENUM ('pending', 'active', 'suspended');
 
 ALTER TABLE public.tenants ADD COLUMN trial_ends_at timestamptz;
+-- What a pause keeps of the shop (pause_tenant); the money rules read it
+-- through tenant_effective_status.
+ALTER TABLE public.tenants ADD COLUMN restrictions jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 -- The shop number, as live: six digits from a sequence that starts at 100000.
 CREATE SEQUENCE public.tenant_display_id_seq AS bigint START WITH 100000 MINVALUE 100000;

@@ -301,3 +301,31 @@ SELECT pg_temp.check(NOT has_function_privilege('authenticated', 'public.whatsap
                      AND NOT has_function_privilege('authenticated', 'public.admin_whatsapp_pause(uuid, boolean, uuid)', 'EXECUTE')
                      AND NOT has_table_privilege('authenticated', 'public.whatsapp_sender_pauses', 'SELECT'),
                      'no grants to shops');
+
+-- 8. A staff pause is not a billing state (20261117102504). Pause writes
+--    status 'limited' and keeps what the shop was in restrictions.status_before.
+--    W: a trial shop paused for a banned product, empty wallet.
+--    V: a paying shop paused, empty wallet.
+SELECT pg_temp.as_service();
+INSERT INTO public.tenants (id, plan, status, restrictions) VALUES
+  ('70000000-0000-4000-8000-000000000071', 'starter', 'limited', '{"new_products": true, "new_orders": false, "status_before": "trial"}'),
+  ('70000000-0000-4000-8000-000000000072', 'starter', 'limited', '{"new_orders": false, "status_before": "active"}');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('70000000-0000-4000-8000-000000000071', 0),
+  ('70000000-0000-4000-8000-000000000072', 0);
+SELECT pg_temp.check(public.whatsapp_message_price('70000000-0000-4000-8000-000000000071', false) = 0
+                     AND public.whatsapp_message_price('70000000-0000-4000-8000-000000000071', true) = 0,
+                     'a paused trial''s messages cost the shop nothing');
+SELECT pg_temp.check(pg_temp.check_send('70000000-0000-4000-8000-000000000071', false) = 'ok',
+                     'a paused trial with an empty wallet still sends its customers'' order messages');
+SELECT pg_temp.sent('70000000-0000-4000-8000-000000000071', 'w1', 'cod_order_confirm_v3');
+SELECT pg_temp.receipt('70000000-0000-4000-8000-000000000071', 'w1', 'delivered', 'UTILITY');
+SELECT pg_temp.check(pg_temp.balance('70000000-0000-4000-8000-000000000071') = 0,
+                     'a paused trial is not charged for a delivered message (got ' || pg_temp.balance('70000000-0000-4000-8000-000000000071') || ')');
+SELECT pg_temp.check((SELECT paid_by = 'trial' AND charged_iqd = 0 FROM public.whatsapp_message_charges WHERE interakt_message_id = 'w1'),
+                     'a paused trial''s message is recorded as Fermi''s trial cost');
+SELECT pg_temp.sent('70000000-0000-4000-8000-000000000071', 'w-' || g, 'order_reminder_v3') FROM generate_series(2, 200) g;
+SELECT pg_temp.check(pg_temp.check_send('70000000-0000-4000-8000-000000000071', false) = 'trial_cap',
+                     'a paused trial keeps the 200-message trial cap');
+SELECT pg_temp.check(pg_temp.check_send('70000000-0000-4000-8000-000000000072', false) = 'wallet_empty',
+                     'a paused paying shop still pays for its messages');
