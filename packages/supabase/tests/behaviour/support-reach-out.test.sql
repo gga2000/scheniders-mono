@@ -13,6 +13,10 @@
 --     * leaves out healthy shops, the demo store, prospects, closed shops,
 --       a resumed WhatsApp pause, 2 Waseet failures, a quiet shop that never
 --       had orders, a trial 5 days away;
+--     * "Trial ends soon" is 3 days on the Baghdad calendar: a trial 61 and
+--       85 hours away (23:00 on the second and third day) is listed, one at
+--       00:30 on the fourth day is not; a paused trial is a trial, a paused
+--       paying shop with a trial date is not;
 --     * names the owner (admin before employee) and the open conversation.
 --   Write first:
 --     * opens a conversation with the owner, started by staff, waiting on the
@@ -216,6 +220,32 @@ BEGIN
     PERFORM pg_temp.check('board: opened only merchants ' || s::text, (s ->> 'opened')::int = 1);
     PERFORM pg_temp.check('board: answered only merchants', (s ->> 'answered')::int = 1);
     PERFORM pg_temp.check('board: reached out', (s ->> 'reached_out')::int = 1);
+END $$;
+
+-- Trial ends soon, at 10 AM on Mon 16 Nov: Baghdad days, and a paused trial.
+INSERT INTO public.tenants (id, business_name, display_id, status, restrictions, trial_ends_at) VALUES
+    ('a1000000-0000-4000-8000-000000000011', 'Trial in 61 hours', 11, 'trial', '{}', '2026-11-18 23:00+03'),
+    ('a1000000-0000-4000-8000-000000000012', 'Trial in 85 hours', 12, 'trial', '{}', '2026-11-19 23:00+03'),
+    ('a1000000-0000-4000-8000-000000000013', 'Trial on day 4', 13, 'trial', '{}', '2026-11-20 00:30+03'),
+    ('a1000000-0000-4000-8000-000000000014', 'Paused trial', 14, 'limited', '{"status_before":"trial"}', '2026-11-17 12:00+03'),
+    ('a1000000-0000-4000-8000-000000000015', 'Paused paying', 15, 'limited', '{"status_before":"active"}', '2026-11-17 12:00+03');
+
+DO $$
+DECLARE
+    v jsonb := public.support_shops_needing_us('2026-11-16 10:00+03');
+    ending text[];
+BEGIN
+    SELECT array_agg(x ->> 'business_name' ORDER BY x ->> 'business_name') INTO ending
+    FROM jsonb_array_elements(v) x
+    WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(x -> 'problems') p WHERE p ->> 'code' = 'trial_ending');
+    PERFORM pg_temp.check('trial ending: ' || coalesce(ending::text, 'none'),
+        ending = ARRAY['Basra Shoes', 'Paused trial', 'Trial in 61 hours', 'Trial in 85 hours']);
+    PERFORM pg_temp.check('trial ending: the paused trial is paused too',
+        (SELECT array_agg(p ->> 'code' ORDER BY p ->> 'code') FROM jsonb_array_elements(v) x, jsonb_array_elements(x -> 'problems') p
+         WHERE x ->> 'business_name' = 'Paused trial') = ARRAY['store_paused', 'trial_ending']);
+    PERFORM pg_temp.check('trial ending: a paused paying shop is only paused',
+        (SELECT array_agg(p ->> 'code') FROM jsonb_array_elements(v) x, jsonb_array_elements(x -> 'problems') p
+         WHERE x ->> 'business_name' = 'Paused paying') = ARRAY['store_paused']);
 END $$;
 
 DO $$
