@@ -43,12 +43,15 @@ describe("verifyStaffToken", () => {
     expect(auth.getClaims).toHaveBeenCalledWith("jwt", { allowExpired: true });
   });
 
-  it("takes the newest proof, so a second step counts from when it was made", async () => {
+  // Round 14: the session itself can add a second factor, so counting from the
+  // newest step let it restart the 16 hours every day without the password.
+  it("counts from the first proof, so a later step does not restart the limit", async () => {
+    // Newest first, as the auth server sends them.
     const amr = [
-      { method: "password", timestamp: seconds(NOW - 20 * HOUR) },
       { method: "totp", timestamp: seconds(NOW - HOUR) },
+      { method: "password", timestamp: seconds(NOW - 20 * HOUR) },
     ];
-    expect((await check(authAnswering({ claims: claims({ amr }) })))?.signedInAt).toBe(seconds(NOW - HOUR) * 1000);
+    expect((await check(authAnswering({ claims: claims({ amr }) })))?.signedInAt).toBe(seconds(NOW - 20 * HOUR) * 1000);
   });
 
   it.each([

@@ -12,6 +12,14 @@ const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
 const CHECK_FAILED = "Could not check your access. Try again in a moment.";
 
 /**
+ * Set when the console ends a sign-in past its age limit, and cleared by the
+ * next signed-in request. An open page learns of the end from an API answer
+ * and reloads; by then the session is gone, so without this mark the login
+ * page could not say why staff are there.
+ */
+const SIGN_IN_ENDED_MARK = "staff_sign_in_ended";
+
+/**
  * Every answer carries the script policy with a nonce of its own (lib/csp.ts).
  * The request carries it on to Next.js, which puts the nonce on its scripts,
  * and to the root layout as x-nonce; a nonce the browser sent is replaced.
@@ -74,7 +82,8 @@ async function checkAccess(request: NextRequest) {
   const toLogin = (error?: "forbidden" | "expired") => {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    if (error) url.searchParams.set("error", error);
+    const reason = error ?? (request.cookies.has(SIGN_IN_ENDED_MARK) ? "expired" : undefined);
+    if (reason) url.searchParams.set("error", reason);
     return withSession(NextResponse.redirect(url));
   };
   // The check itself failed: say so and keep the staff member signed in,
@@ -130,9 +139,17 @@ async function checkAccess(request: NextRequest) {
   if (signInEnded(session.signedInAt)) {
     const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
     if (signOutError) console.error("[middleware] Ending an old sign-in failed", { path, message: errorMessage(signOutError) });
+    supabaseResponse.cookies.set(SIGN_IN_ENDED_MARK, "1", {
+      path: "/",
+      maxAge: 24 * 60 * 60,
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+    });
     if (isApi) return withSession(NextResponse.json({ error: SIGN_IN_ENDED }, { status: 401 }));
     return isLoginPage ? supabaseResponse : toLogin("expired");
   }
+  if (request.cookies.has(SIGN_IN_ENDED_MARK)) supabaseResponse.cookies.delete(SIGN_IN_ENDED_MARK);
 
   // The API reads the browser's token from its Authorization header and checks
   // it only locally, so it must be the session the auth server just answered

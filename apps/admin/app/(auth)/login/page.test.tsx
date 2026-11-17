@@ -32,6 +32,8 @@ describe("the login page", () => {
     open("/login?error=expired", { id: "u1" });
     expect(screen.getByRole("alert").textContent).toBe("Your sign-in ended after 16 hours. Sign in again.");
     expect(push).not.toHaveBeenCalled();
+    // Round 14: the card is white in both themes; the dark theme's red on it was 1.76:1.
+    expect(screen.getByRole("alert").className).not.toMatch(/var\(--/);
   });
 
   it("says when a login has no access to the console", () => {

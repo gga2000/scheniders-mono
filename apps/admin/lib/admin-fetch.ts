@@ -10,6 +10,26 @@ function getBrowserClient() {
   return _client;
 }
 
+let leaving = false;
+
+/**
+ * After a failed API answer. When this browser no longer holds a session (the
+ * console ended a sign-in past its age limit, or another tab signed out), the
+ * page reloads and the middleware takes it to the login page with the reason;
+ * otherwise staff meet "Could not load" lines and "?" badges on a page that can
+ * never load again. A failure while a session is still held is the caller's to
+ * show, so this never reloads in a loop.
+ */
+export async function leaveIfSignedOut(): Promise<void> {
+  if (leaving) return;
+  const {
+    data: { session },
+  } = await getBrowserClient().auth.getSession();
+  if (session || leaving) return;
+  leaving = true;
+  window.location.reload();
+}
+
 /**
  * Fetch wrapper that automatically attaches the Supabase session token
  * as an Authorization: Bearer header. Use this for all admin API routes
@@ -29,5 +49,7 @@ export async function adminFetch(
     headers.set("Authorization", `Bearer ${session.access_token}`);
   }
 
-  return fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers });
+  if (response.status === 401) void leaveIfSignedOut();
+  return response;
 }
