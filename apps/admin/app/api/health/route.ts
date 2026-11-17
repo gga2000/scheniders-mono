@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
@@ -15,6 +16,14 @@ interface TenantRow {
   /** The health score's parts; `orders` is 0 only for a shop with no real order in 30 days. */
   staff_health_parts: { orders: number };
 }
+
+/** Billing-locked shops (admin_locked_shops), shop id to reason: their status still reads "trial" or "active". */
+const lockedShopsSchema = z.record(z.string(), z.enum(["trial_ended", "unpaid"]));
+
+const LOCK_REASON: Record<z.infer<typeof lockedShopsSchema>[string], string> = {
+  trial_ended: "Locked: trial ended",
+  unpaid: "Locked: month not paid",
+};
 
 interface WalletRow {
   tenant_id: string;
@@ -35,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Every list is read to its last row and a failed read throws: a short or
     // empty list here would say "no shops at risk" when the truth is unknown.
-    const [tenants, wallets, ordersResult] = await Promise.all([
+    const [tenants, wallets, ordersResult, locksResult] = await Promise.all([
       everyRow<TenantRow>((from, to) =>
         supabase
           .from("tenants")
@@ -59,9 +68,13 @@ export async function GET(request: NextRequest) {
         .from("admin_order_facts")
         .select("id", { count: "exact", head: true })
         .gte("created_at", twentyFourHoursAgo),
+      // The same lock rule as the Merchants list and the shop page.
+      supabase.rpc("admin_locked_shops"),
     ]);
 
     if (ordersResult.error) throw ordersResult.error;
+    if (locksResult.error) throw locksResult.error;
+    const locked = lockedShopsSchema.parse(locksResult.data);
     const ordersLast24h = ordersResult.count ?? 0;
 
     // Build lookup maps
@@ -118,6 +131,13 @@ export async function GET(request: NextRequest) {
       if (tenant.status === "suspended") {
         riskScore += 2;
         reasons.push("Suspended");
+      }
+
+      // +3 if locked: the shop cannot take orders until it pays.
+      const lock = locked[tenant.id];
+      if (lock) {
+        riskScore += 3;
+        reasons.push(LOCK_REASON[lock]);
       }
 
       if (riskScore >= 3) {
