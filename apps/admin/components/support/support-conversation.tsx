@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useSupportCaseAction, useSupportMarkSeen, useSupportTeam } from "@/hooks/use-support-cases";
 import { useSavedReplies } from "@/hooks/use-saved-replies";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { SavedRepliesDialog } from "@/components/support/saved-replies-dialog";
 import {
   NOTE_MAX_LENGTH,
@@ -280,6 +281,8 @@ interface SupportConversationProps {
 export function SupportConversation({ supportCase, messages, notes }: SupportConversationProps) {
   const [draft, setDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  // An unsent reply or note survives a sign-in that ends mid-sentence: leaving asks first.
+  useLeaveGuard(draft.trim() !== "" || noteDraft.trim() !== "");
   const [mode, setMode] = useState<"reply" | "note">("reply");
   const [solving, setSolving] = useState(false);
   const [handingOver, setHandingOver] = useState(false);
