@@ -15,6 +15,12 @@ export interface ShopFacts {
   locked: boolean;
   /** The subscription is trialing, active or past due, so it has a month to extend. */
   subscriptionRunning: boolean;
+  /**
+   * The demo store (tenants.is_demo): it is never charged, paused or put on
+   * hold, so the database refuses free days, pause and hold for it
+   * (admin_extend_subscription, pause_tenant, admin_update_shop).
+   */
+  demo: boolean;
 }
 
 export type Can = (action: AdminAction) => boolean;
@@ -30,6 +36,7 @@ export function isSubscriptionRunning(status: string | null | undefined): boolea
 export type FreeDaysKind = "trial" | "month";
 
 export function freeDaysKind(shop: ShopFacts, can: Can): FreeDaysKind | null {
+  if (shop.demo) return null;
   if (shop.status === "trial") return can("extend_trial") ? "trial" : null;
   if (shop.status === "active" && shop.subscriptionRunning) return can("manage_subscription") ? "month" : null;
   return null;
@@ -40,12 +47,14 @@ export type MoreAction = "orders" | "plan" | "pause" | "hold" | "reactivate" | "
 /** The More menu, in the order staff reach for them. */
 export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
   const stopped = shop.status === "suspended" || shop.status === "cancelled";
+  // The demo store's status never changes, so pause and hold could only be refused.
+  const canStop = can("suspend_tenant") && !shop.demo && !stopped;
   const items: Array<[MoreAction, boolean]> = [
     // The lock card says who may give more orders for which lock.
     ["orders", shop.locked],
     ["plan", can("change_plan")],
-    ["pause", can("suspend_tenant") && !stopped && shop.status !== "limited"],
-    ["hold", can("suspend_tenant") && !stopped],
+    ["pause", canStop && shop.status !== "limited"],
+    ["hold", canStop],
     ["reactivate", can("reactivate_tenant") && shop.status === "suspended"],
     ["convert", can("manage_subscription") && shop.status === "trial"],
     ["note", can("add_note")],
