@@ -25,7 +25,10 @@ const bodySchema = z.object({
           .min(0, { error: "A product price cannot be below 0." })
           .default(0),
         description: z.string().max(2000, { error: "A product description can have at most 2,000 characters." }).nullish(),
-        image_url: z.url({ error: "A product image must be a full web link, such as https://…/photo.jpg." }).nullish(),
+        // A web link only: the storefront shows it as the product's picture.
+        image_url: z
+          .url({ protocol: /^https?$/, error: "A product image must be a full web link, such as https://…/photo.jpg." })
+          .nullish(),
       }),
     )
     .max(10, { error: "A store can start with at most 10 products." })

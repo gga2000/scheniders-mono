@@ -129,6 +129,8 @@ describe("POST /api/leads/[id]/build-store", () => {
     [{ industry_id: "fashion" }, "Pick an industry from the list."],
     [{ products: [{ name: "Half", price: 1500.5 }] }, "A product price is whole dinars, with no fraction."],
     [{ products: [{ name: "Bag", price: 5000, image_url: "bag.jpg" }] }, "A product image must be a full web link, such as https://…/photo.jpg."],
+    [{ products: [{ name: "Bag", price: 5000, image_url: "ftp://x.test/bag.jpg" }] }, "A product image must be a full web link, such as https://…/photo.jpg."],
+    [{ products: [{ name: "Bag", price: 5000, image_url: "data:image/png;base64,AA" }] }, "A product image must be a full web link, such as https://…/photo.jpg."],
     [{ products: [{ name: " ", price: 5000 }] }, "Each product needs a name."],
   ])("names the field it refuses (%j)", async (details, words) => {
     // One "Invalid store details" for every case named no field.

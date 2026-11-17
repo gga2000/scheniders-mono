@@ -91,6 +91,15 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
     const since = s.lock_since ? ` since ${daysAgo(s.lock_since, nowMs)}` : "";
     return { ...base, state: "broken", text: `Locked for payment${since} (${s.lock_reason.replace(/_/g, " ")}).` };
   }
+  // A pause past its end date stops nothing; the shop's status clears at its
+  // next action. The shop page's Paused banner says the same.
+  if (s.paused && s.paused_until && Date.parse(s.paused_until) <= nowMs) {
+    return {
+      ...base,
+      state: "ok",
+      text: `Pause ended ${daysAgo(s.paused_until, nowMs)}. Nothing is stopped now; it clears at the shop's next action.`,
+    };
+  }
   if (s.paused && s.blocks_new_orders) {
     return {
       ...base,
