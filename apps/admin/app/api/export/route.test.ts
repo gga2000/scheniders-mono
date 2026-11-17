@@ -36,8 +36,11 @@ function query(table: string) {
       rows = rows.filter((row) => row[column] === value);
       return builder;
     },
+    // "tenants.is_demo" is a column of the embedded shop, as an inner join reads it.
     match: (query: Row) => {
-      rows = rows.filter((row) => Object.entries(query).every(([column, value]) => row[column] === value));
+      const field = (row: Row, column: string): unknown =>
+        column.split(".").reduce<unknown>((at, key) => (at as Row | undefined)?.[key], row);
+      rows = rows.filter((row) => Object.entries(query).every(([column, value]) => field(row, column) === value));
       return builder;
     },
     in: (column: string, values: unknown[]) => {
@@ -98,7 +101,7 @@ const ledgerLine = (n: number): Row => ({
   balance_after_iqd: 1000,
   description: "Delivered order",
   created_at: "2026-11-01T09:00:00Z",
-  tenants: { business_name: "Shop 1" },
+  tenants: { business_name: "Shop 1", is_demo: false, is_prospect: false },
 });
 
 const linesOf = (csv: string) => csv.replace(/^﻿/, "").split("\n");
@@ -232,6 +235,26 @@ describe("GET /api/export", () => {
       ["shop-1", 2],
       ["shop-2", null],
     ]);
+  });
+
+  it("lists no prospect store or demo store among the trials", async () => {
+    tables.tenants = [
+      shop(1, { status: "trial", trial_ends_at: "2026-11-18T09:00:00Z" }),
+      shop(2, { status: "trial", trial_ends_at: "2026-11-18T09:00:00Z", is_prospect: true }),
+      shop(3, { status: "trial", trial_ends_at: "2026-11-18T09:00:00Z", is_demo: true }),
+    ];
+    const rows = await (await call("type=trials&format=json")).json();
+    expect(rows.map((row: Row) => row.id)).toEqual(["shop-1"]);
+  });
+
+  it("puts no demo store or prospect store money in the transactions file", async () => {
+    tables.wallet_transactions = [
+      ledgerLine(1),
+      { ...ledgerLine(2), tenant_id: "demo", tenants: { business_name: "Demo", is_demo: true, is_prospect: false } },
+      { ...ledgerLine(3), tenant_id: "prospect", tenants: { business_name: "Lead", is_demo: false, is_prospect: true } },
+    ];
+    const rows = await (await call("type=transactions&format=json")).json();
+    expect(rows.map((row: Row) => row.id)).toEqual(["tx-1"]);
   });
 
   it("starts no file and logs nothing when the request came from another site", async () => {
