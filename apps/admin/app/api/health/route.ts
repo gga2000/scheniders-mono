@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { lockedBecause } from "@/lib/billing-lock-label";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
@@ -22,11 +23,6 @@ interface TenantRow {
 
 /** Billing-locked shops (admin_locked_shops), shop id to reason: their status still reads "trial" or "active". */
 const lockedShopsSchema = z.record(z.string(), z.enum(["trial_ended", "unpaid"]));
-
-const LOCK_REASON: Record<z.infer<typeof lockedShopsSchema>[string], string> = {
-  trial_ended: "Locked: trial ended",
-  unpaid: "Locked: month not paid",
-};
 
 interface WalletRow {
   tenant_id: string;
@@ -141,7 +137,7 @@ export async function GET(request: NextRequest) {
       const lock = locked[tenant.id];
       if (lock) {
         riskScore += 3;
-        reasons.push(LOCK_REASON[lock]);
+        reasons.push(lockedBecause(lock));
       }
 
       if (riskScore >= 3) {

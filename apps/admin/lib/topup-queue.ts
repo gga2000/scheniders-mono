@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { lockedBecause } from "@/lib/billing-lock-label";
 import { formatIQD } from "@/lib/format";
 
 /**
@@ -93,7 +94,7 @@ export function amountStillOwed(row: Pick<TopupQueueRow, "billing" | "balance_iq
  */
 export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | "tenant_status">): string | null {
   if (!row.billing?.locked) return null;
-  const why = row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended";
+  const why = lockedBecause(row.billing.reason);
   const owed = amountStillOwed(row);
   if (row.tenant_status === "limited") {
     return owed > 0

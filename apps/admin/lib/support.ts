@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { countLine } from "@/lib/load-failure";
-import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
+import { lockReasonWords } from "@/lib/billing-lock-label";
 
 /**
  * Merchant support cases as the staff console sees them. The tables
@@ -477,9 +477,6 @@ export const StartConversationSchema = z.object({
 
 export type StartConversation = z.infer<typeof StartConversationSchema>;
 
-/** A lock's reason code (`tenant_billing_lock`) in words. */
-const LOCK_REASON_WORDS_BY_CODE: ReadonlyMap<string, string> = new Map(Object.entries(LOCK_REASON_WORDS));
-
 /** Why WhatsApp sending is paused, in the WhatsApp page's words. */
 const WHATSAPP_PAUSE_WORDS: ReadonlyMap<string, string> = new Map([
   ["failures", "failures"],
@@ -497,7 +494,7 @@ export function problemDetail(code: ShopProblemCode, detail: string | null): str
     case "wallet_empty":
       return `${Number(detail).toLocaleString("en-US")} IQD`;
     case "billing_locked":
-      return LOCK_REASON_WORDS_BY_CODE.get(detail) ?? detail;
+      return lockReasonWords(detail);
     case "whatsapp_paused":
       return WHATSAPP_PAUSE_WORDS.get(detail) ?? detail;
     default:

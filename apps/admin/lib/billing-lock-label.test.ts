@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lockSentence } from "./billing-lock-label";
+import { lockedBecause, lockReasonWords, lockSentence } from "./billing-lock-label";
 
 describe("lockSentence", () => {
   it("says why and since which Baghdad day", () => {
@@ -19,5 +19,25 @@ describe("lockSentence", () => {
 
   it("leaves the date out when there is none", () => {
     expect(lockSentence({ reason: "unpaid", since: null })).toBe("Month not paid.");
+  });
+});
+
+/*
+ * Round 14 (data new 2, structure new 3): Health said "Locked: trial ended",
+ * Payments "Locked, month unpaid" and the support card "(trial ended)", while
+ * the list, the shop page and Needs us said "Trial ended, not paid". Every
+ * screen now takes the words from LOCK_REASON_WORDS.
+ */
+describe("the lock in a line among other things", () => {
+  it("uses the same words as the list, the shop page and Needs us", () => {
+    expect(lockReasonWords("trial_ended")).toBe("Trial ended, not paid");
+    expect(lockReasonWords("unpaid")).toBe("Month not paid");
+    expect(lockedBecause("trial_ended")).toBe("Locked: trial ended, not paid");
+    expect(lockedBecause("unpaid", " since yesterday")).toBe("Locked since yesterday: month not paid");
+  });
+
+  it("says Locked alone with no reason, and a reason the console does not know as written", () => {
+    expect(lockedBecause(null)).toBe("Locked");
+    expect(lockReasonWords("bank_hold")).toBe("bank hold");
   });
 });

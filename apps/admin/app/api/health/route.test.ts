@@ -119,7 +119,7 @@ describe("GET /api/health", () => {
 
     // a: locked 3 (enough alone). c: low balance 3 + no orders 2 + locked 3.
     expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score, risk.reasons])).toEqual([
-      ["c", 8, ["Low balance", "No orders in 30 days", "Locked: trial ended"]],
+      ["c", 8, ["Low balance", "No orders in 30 days", "Locked: trial ended, not paid"]],
       ["b", 7, ["Low balance", "No orders in 30 days", "Suspended"]],
       ["a", 3, ["Locked: month not paid"]],
     ]);

@@ -101,7 +101,7 @@ describe("shopCheckLines", () => {
     const check = healthy();
     check.store.lock_reason = "trial_ended";
     check.store.lock_since = ago(2);
-    expect(line(check, "store").text).toBe("Locked for payment since 2 days ago (trial ended).");
+    expect(line(check, "store").text).toBe("Locked since 2 days ago: trial ended, not paid.");
   });
 
   it("products: an empty store is broken, products with no stock are worth a look", () => {
@@ -255,6 +255,6 @@ describe("daysAgo", () => {
     check.store.lock_reason = "trial_ended";
     check.store.lock_since = "2026-11-16T20:00:00Z";
     const store = shopCheckLines(check, TENANT, Date.parse("2026-11-17T07:00:00Z")).find((l) => l.key === "store");
-    expect(store?.text).toBe("Locked for payment since yesterday (trial ended).");
+    expect(store?.text).toBe("Locked since yesterday: trial ended, not paid.");
   });
 });
