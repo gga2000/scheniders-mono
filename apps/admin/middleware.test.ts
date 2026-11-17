@@ -192,6 +192,17 @@ describe("the script policy", () => {
     expect(response.headers.get("x-middleware-request-x-nonce")).toBe(nonceIn(response.headers.get(CSP_HEADER)));
   });
 
+  it("names Sentry's security endpoint for the browser's breach reports", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "https://key@o1.ingest.us.sentry.io/42");
+    vi.stubEnv("VERCEL_ENV", "production");
+    const endpoint = "https://o1.ingest.us.sentry.io/api/42/security/?sentry_key=key&sentry_environment=production";
+    const response = await call("/merchants");
+    vi.unstubAllEnvs();
+    expect(response.headers.get(CSP_HEADER)).toContain(`report-uri ${endpoint}; report-to csp`);
+    expect(response.headers.get("reporting-endpoints")).toBe(`csp="${endpoint}"`);
+    expect((await call("/merchants")).headers.get("reporting-endpoints")).toBeNull();
+  });
+
   it("is on the answers the middleware builds itself too", async () => {
     getUser = { data: { user: null }, error: null };
     expect((await call("/merchants")).headers.get(CSP_HEADER)).toContain("script-src");

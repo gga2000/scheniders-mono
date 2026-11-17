@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
-import { CSP_HEADER, newNonce, scriptPolicy } from "@/lib/csp";
+import { sentryEnvironment } from "@scheniders/shared/sentry-scrub";
+import { CSP_HEADER, REPORT_GROUP, breachReportUrl, newNonce, scriptPolicy } from "@/lib/csp";
 
 const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
 
@@ -16,11 +17,13 @@ const CHECK_FAILED = "Could not check your access. Try again in a moment.";
  */
 export async function middleware(request: NextRequest) {
   const nonce = newNonce();
-  const policy = scriptPolicy(nonce, process.env.NODE_ENV === "development");
+  const reportUrl = breachReportUrl(process.env.NEXT_PUBLIC_SENTRY_DSN, sentryEnvironment(process.env.VERCEL_ENV));
+  const policy = scriptPolicy(nonce, { development: process.env.NODE_ENV === "development", reportUrl });
   request.headers.set("x-nonce", nonce);
   request.headers.set(CSP_HEADER, policy);
   const response = await checkAccess(request);
   response.headers.set(CSP_HEADER, policy);
+  if (reportUrl) response.headers.set("Reporting-Endpoints", `${REPORT_GROUP}="${reportUrl}"`);
   // Staff answers (phones, emails, wallets) stay out of the browser's disk
   // cache, where they would outlast a sign-out on a shared computer.
   if (request.nextUrl.pathname.startsWith("/api/")) response.headers.set("Cache-Control", "private, no-store");
