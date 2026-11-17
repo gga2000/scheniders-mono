@@ -11,7 +11,7 @@ import {
   useDeleteLead,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
 import { LeadBulkBar } from "@/components/leads/lead-bulk-bar";
@@ -50,6 +50,7 @@ export function LeadsDesktopView() {
   const [columnsEditing, setColumnsEditing] = useState(false);
 
   const { role } = useAdminAuth();
+  const can = useCan();
   const canEditLayout = role === "super_admin";
 
   const { page, setPage, viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
@@ -92,9 +93,17 @@ export function LeadsDesktopView() {
       {
         onSuccess: (res) => {
           const id = res?.lead?.id as string | undefined;
+          // Deleting needs delete_leads (api/leads/[id]): offer Discard only to a login that has it.
+          const discard = id && can("delete_leads") ? id : null;
           toast.success("Saved as draft", {
-            description: "Find it in your list — or discard it.",
-            action: id ? { label: "Discard", onClick: () => deleteLead.mutate(id) } : undefined,
+            description: discard ? "Find it in your list, or discard it." : "Find it in your list.",
+            action: discard
+              ? {
+                  label: "Discard",
+                  onClick: () =>
+                    deleteLead.mutate(discard, { onError: (e) => toast.error(`Could not discard the draft: ${e.message}`) }),
+                }
+              : undefined,
           });
         },
         onError: () => toast.error("Couldn't save the draft"),

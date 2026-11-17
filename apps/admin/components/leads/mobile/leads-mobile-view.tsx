@@ -14,6 +14,7 @@ import { LeadMobileRow } from "./lead-mobile-row";
 import { LeadRegisterSheet } from "./lead-register-sheet";
 import { AdvanceStageSheet } from "./advance-stage-sheet";
 import { toast } from "sonner";
+import { useCan } from "@/hooks/use-admin-auth";
 import {
   Search,
   X,
@@ -50,6 +51,7 @@ export function LeadsMobileView() {
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
+  const can = useCan();
   const handleCreate = (formData: LeadFormData): Promise<boolean> =>
     new Promise((resolve) => {
       createLead.mutate(formData, {
@@ -69,9 +71,17 @@ export function LeadsMobileView() {
       {
         onSuccess: (res) => {
           const id = res?.lead?.id as string | undefined;
+          // Deleting needs delete_leads (api/leads/[id]): offer Discard only to a login that has it.
+          const discard = id && can("delete_leads") ? id : null;
           toast.success("Saved as draft", {
-            description: "Find it in your list — or discard it.",
-            action: id ? { label: "Discard", onClick: () => deleteLead.mutate(id) } : undefined,
+            description: discard ? "Find it in your list, or discard it." : "Find it in your list.",
+            action: discard
+              ? {
+                  label: "Discard",
+                  onClick: () =>
+                    deleteLead.mutate(discard, { onError: (e) => toast.error(`Could not discard the draft: ${e.message}`) }),
+                }
+              : undefined,
           });
         },
         onError: () => toast.error("Couldn't save the draft"),

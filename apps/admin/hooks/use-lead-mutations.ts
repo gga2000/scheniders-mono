@@ -55,7 +55,10 @@ export function useDeleteLead() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await adminFetch(`/api/leads/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete lead");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(typeof body?.error === "string" ? body.error : "Could not delete the lead");
+      }
       return res.json();
     },
     onSuccess: () => {
