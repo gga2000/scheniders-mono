@@ -11,6 +11,7 @@ import { readShopCity } from "@/lib/shop-city";
 import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 import { shopHealth } from "@/lib/shop-health-score";
+import { isSubscriptionRunning } from "@/lib/shop-actions";
 
 /**
  * A shop's staff tags: staff_shop_tags is keyed by the shop, so the database
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
     // it never draws a busy shop as a quiet one.
     const tenantIds = tenants.map((t) => t.id);
 
-    const [stats, pinned] = await Promise.all([
+    const [stats, pinned, subscriptions] = await Promise.all([
       fetchMerchantListStats(supabase, tenantIds),
       // Most recent pinned note per tenant wins.
       supabase
@@ -123,8 +124,21 @@ export async function GET(request: NextRequest) {
         .in("tenant_id", tenantIds)
         .eq("is_pinned", true)
         .order("updated_at", { ascending: false }),
+      // The newest subscription per shop, as the billing lock reads it: whether
+      // a paying shop has a month that free days can lengthen.
+      supabase
+        .from("subscriptions")
+        .select("tenant_id, status, created_at")
+        .in("tenant_id", tenantIds)
+        .order("created_at", { ascending: false }),
     ]);
     if (pinned.error) throw pinned.error;
+    if (subscriptions.error) throw subscriptions.error;
+
+    const subscriptionStatus = new Map<string, string>();
+    for (const row of subscriptions.data ?? []) {
+      if (!subscriptionStatus.has(row.tenant_id)) subscriptionStatus.set(row.tenant_id, row.status);
+    }
 
     const pinnedNoteMap = new Map<string, { content: string; updated_at: string; admin_label: string | null }>();
     for (const note of pinned.data ?? []) {
@@ -166,6 +180,7 @@ export async function GET(request: NextRequest) {
               },
         // A locked shop still has status "trial" or "active"; this is what tells them apart.
         billing_lock: row.lock_reason ? { reason: row.lock_reason, since: row.lock_since } : null,
+        subscription_running: isSubscriptionRunning(subscriptionStatus.get(tenant.id)),
         pinned_note: pinnedNoteMap.get(tenant.id) ?? null,
       };
     });

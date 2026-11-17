@@ -127,6 +127,8 @@ export interface AdminTenant {
   staff_health_parts: HealthParts;
   /** Set when the billing lock holds the shop; its status still reads "trial" or "active". */
   billing_lock?: ListBillingLock | null;
+  /** The newest subscription is trialing, active or past due. Sent by the Merchants list. */
+  subscription_running?: boolean;
   pinned_note?: {
     content: string;
     updated_at: string;

@@ -28,6 +28,7 @@ import type { LastActor } from "@/hooks/use-last-actors";
 import { listChurnRisk } from "@/lib/merchant-health";
 import { formatCount, formatWhen } from "@/lib/format";
 import { useCan } from "@/hooks/use-admin-auth";
+import { freeDaysKind } from "@/lib/shop-actions";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -64,6 +65,15 @@ export function MerchantCard({
   onToggleStar,
 }: MerchantCardProps) {
   const can = useCan();
+  // The shop page's rule: a shop on trial gets trial days, a paying shop days on its month.
+  const freeDays = freeDaysKind(
+    {
+      status: merchant.status,
+      locked: merchant.billing_lock != null,
+      subscriptionRunning: merchant.subscription_running ?? false,
+    },
+    can,
+  );
   const logoChar = merchant.business_name?.charAt(0)?.toUpperCase() || "?";
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const healthScore = merchant.staff_health_score;
@@ -116,7 +126,7 @@ export function MerchantCard({
   };
 
   return (
-    <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug} onTrial={merchant.status === "trial"}>
+    <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug} freeDays={freeDays !== null}>
       <div
         className={cn(
           "pastel-card group relative overflow-hidden p-5 transition-all duration-200",

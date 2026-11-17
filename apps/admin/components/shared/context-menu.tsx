@@ -29,18 +29,19 @@ interface ContextMenuProps {
   merchantId: string;
   merchantSlug: string;
   /**
-   * Whether the shop can get free trial days (a shop on trial). For any other
-   * shop the shop page has no days form, so the item opened the page and did
-   * nothing more.
+   * Whether this login may give this shop free days (lib/shop-actions
+   * freeDaysKind): trial days on trial, or days on a paying shop's month.
+   * Where the shop page has no days form, the item would open the page and
+   * do nothing more.
    */
-  onTrial: boolean;
+  freeDays: boolean;
   children: ReactNode;
 }
 
 export function MerchantContextMenu({
   merchantId,
   merchantSlug,
-  onTrial,
+  freeDays,
   children,
 }: ContextMenuProps) {
   const router = useRouter();
@@ -60,13 +61,12 @@ export function MerchantContextMenu({
       action: () => router.push(shopFormHref(merchantId, "money")),
       needs: "top_up_wallet",
     },
-    ...(onTrial
+    ...(freeDays
       ? [
           {
             label: "Give free days",
             icon: <Clock className="w-3.5 h-3.5" />,
             action: () => router.push(shopFormHref(merchantId, "days")),
-            needs: "extend_trial" as const,
           },
         ]
       : []),
