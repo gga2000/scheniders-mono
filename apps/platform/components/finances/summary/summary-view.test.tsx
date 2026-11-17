@@ -252,7 +252,7 @@ describe("SummaryView", () => {
         // over two weeks is late: only the first row is marked
         expect(ages.map((age) => age.hasAttribute("data-late"))).toEqual([true, false]);
         // a late row says once what to do about it
-        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة باللون البرتقالي تسلّمها الزبائن قبل أكثر من أسبوعين ولم يُدفع لك ثمنها بعد: اسأل عنها شركة التوصيل التي أوصلتها.");
+        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات التي تسلّمها الزبائن قبل أكثر من أسبوعين ولم يُدفع لك ثمنها بعد (المعلَّمة أعلاه): اسأل عنها شركة التوصيل التي أوصلتها.");
         vi.useRealTimers();
         const list = byTestId("money-unpaid-list");
         const links = Array.from(list?.querySelectorAll("a") ?? []);
@@ -267,7 +267,7 @@ describe("SummaryView", () => {
         expect(list?.textContent).toContain("عند برايم، بعد أجرتها");
         // 3 unpaid, 2 listed: the third owes nothing after the delivery fee
         // the third is at the ordinary delivery company, whose fee is not known yet: it is left off only when free
-        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر مجاني عند شركة التوصيل: لن يصلك عنه مال، وستخصم أجرتها عنه من دفعتها لك.");
+        expect(byTestId("money-unpaid-rest")?.textContent).toBe("وطلب آخر مجاني عند شركة التوصيل: لن يصلك عنه مال، وستخصم أجرتها من دفعتها لك.");
         cleanup();
         // when the one left off is Prime's, its known fee can eat a cheap price too, and the line says so
         const p = summary();
@@ -363,7 +363,7 @@ describe("SummaryView", () => {
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين وغيّرتَ حالتهما إلى «تم الاسترجاع» (2)وهذا ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
-            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالته بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالته بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أكبر من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
             "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء. و3 طلبات أخرى دفعها الزبون مسبقاً في «دُفع لك» لم ترد في كشوف هذه الفترة.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
@@ -376,11 +376,11 @@ describe("SummaryView", () => {
         expect(byTestId("statement-refunds-open")?.querySelector("a")?.getAttribute("href")).toBe("#courier-payments");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
-        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر أنت حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
+        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر أنت حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أكبر من الحقيقي بـ20,000 د.ع.");
         expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
         expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
         expect(byTestId("money-payments-link")?.textContent).toBe(
-            "هذا ما دفعته لك شركات التوصيل فعلاً خلال الفترة: ثمن طلبات هذه الفترة في كشوف هذه الفترة (380,000 د.ع) بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
+            "هذا ما دفعته لك شركات التوصيل فعلاً في هذه الفترة، بعد الفروق أدناه. أما 1,000 د.ع في «دُفع لك» فوصلك في كشوف مؤرَّخة قبل هذه الفترة.",
         );
         expect(byTestId("money-payments")?.textContent).not.toContain("أيّاً كان تاريخ الدفعة");
     });
@@ -401,10 +401,10 @@ describe("SummaryView", () => {
         // "paid to you" says up front that it is before what the statements took off
         expect(byTestId("money-from-now-lines")).toBeNull();
         expect(byTestId("money-reached")?.textContent).toContain("بعد أجرة التوصيل، وقبل ما خصمته الكشوف من مبالغ مستردة وفروق (تجده في «كيف يطابق هذا الرقم دفعات شركات التوصيل»)");
-        expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةكيف يطابق هذا الرقم دفعات شركات التوصيل100,000");
+        expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترة100,000");
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
-        expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual(["خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع", "صافي هذه الطلبات في الكشوف80,000د.ع"]);
+        expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual(["ثمن طلبات هذه الفترة في كشوف هذه الفترة100,000د.ع", "خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع", "صافي هذه الطلبات في الكشوف80,000د.ع"]);
         cleanup();
         // the same statements also paid 3,000 for an order not marked delivered and took a 5,000 fee off a prepaid
         // order (already off "paid up front", so not in the gap): the lines name both, so 80,000 − 5,000 + 3,000
@@ -419,6 +419,8 @@ describe("SummaryView", () => {
         })));
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual([
+            // it starts again from the statements' part, so the lines read as one sum
+            "ثمن طلبات هذه الفترة في كشوف هذه الفترة100,000د.ع",
             "خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع",
             "صافي هذه الطلبات في الكشوف80,000د.ع",
             "وأجرة توصيل طلب مدفوع مسبقاً خصمتها الكشوف (وهي مخصومة من «دفعها الزبون لك مسبقاً»)−5,000د.ع",
@@ -437,7 +439,7 @@ describe("SummaryView", () => {
         const s = summary();
         renderView(query(summary({ cash: { ...s.cash, returning: { count: 5, amount: 90_000 } } })));
         // 3 to 10 take the plural noun in Arabic
-        expect(byTestId("money-returning")?.textContent).toContain("وهناك 5 طرود مرفوضة من كل التواريخ تعيدها برايم إليك الآن");
+        expect(byTestId("money-returning")?.textContent).toContain("وهناك 5 طرود مرفوضة من كل التواريخ، لا من هذه الفترة وحدها، تعيدها برايم إليك الآن");
         // and opens them: the Orders page's «راجع» queue
         expect(byTestId("money-returning-link")?.getAttribute("href")).toBe("/orders?queue=back");
         expect(byTestId("money-returning-link")?.textContent).toBe("افتح «راجع» في الطلبات");
@@ -513,7 +515,7 @@ describe("SummaryView", () => {
         expect(figure).not.toContain("د.ع");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة.");
         // the line to judge it by: 400,000 of sales leave 180,000 after goods, delivery and refunds
-        expect(byTestId("ad-return")?.textContent).toContain("إن جاءت كل مبيعاتك من الإعلان، فهو يغطي كلفته ما دامت مبيعاتك لكل 1,000 دينار إعلان فوق 2,222.");
+        expect(byTestId("ad-return")?.textContent).toContain("إن جاءت كل مبيعاتك من الإعلان، فهو يغطي كلفته ما دامت مبيعاتك لكل 1,000 دينار إعلان فوق 2,222 (أنت الآن عند 6,667).");
         // no period before: nothing to say about whether the ads raised sales
         expect(byTestId("ads-no-lift")).toBeNull();
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
@@ -701,10 +703,10 @@ describe("SummaryView", () => {
         expect(ads?.textContent).toBe("شبه صفر في الفترة السابقة");
         expect(byTestId("statement-fall-cause")?.textContent).toBe("أغلب هذا الانخفاض من «الإعلانات»: 60,000 د.ع في هذه الفترة، وكانت شبه صفر في الفترة السابقة.");
         // the ads card says the new ads did not raise sales, beside the line that assumes they made every sale
-        expect(byTestId("ads-no-lift")?.textContent).toBe("في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن قريبة منها، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
+        expect(byTestId("ads-no-lift")?.textContent).toBe("لكن في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن قريبة منها، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
         cleanup();
         renderView(query(s), query(summary({ ...before, sales: { ...before.sales, revenue: 430_000 } })));
-        expect(byTestId("ads-no-lift")?.textContent).toBe("في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن أقل بـ7%، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
+        expect(byTestId("ads-no-lift")?.textContent).toBe("لكن في الفترة السابقة كانت إعلاناتك شبه صفر، ومبيعاتك الآن أقل بـ7%، فلا يظهر أن الإعلانات رفعت مبيعاتك. جرّب إيقاف أضعف حملة وراقب مبيعاتك.");
         cleanup();
         // the same ads both times: no words, no cause
         renderView(query(s), query(summary()));
