@@ -2,8 +2,12 @@ import { z } from "zod";
 import type { PlanTier, TenantStatus } from "@/types/admin";
 import type { createAdminClient } from "./admin-supabase";
 
-/** What staff ask for. Any part may be left out; at least one is set. */
-export type ShopChange = { status?: TenantStatus; plan?: PlanTier; auto_renew?: boolean };
+/**
+ * What staff ask for. Any part may be left out; at least one of status, plan
+ * and auto_renew is set. `reason` is staff's own words, kept on each staff log
+ * row of the change (a hold from the shop page asks for one).
+ */
+export type ShopChange = { status?: TenantStatus; plan?: PlanTier; auto_renew?: boolean; reason?: string };
 
 export type ShopUpdateActor = { id: string; email?: string | null };
 
@@ -67,6 +71,7 @@ export async function updateShop(
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
     _source: source,
+    ...(change.reason ? { _reason: change.reason } : {}),
   });
   if (error) throw error;
 

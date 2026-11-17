@@ -19,6 +19,10 @@
 --       over a paused shop (lift_tenant_pause gives its status back);
 --     * the demo store's status does not change; its plan can;
 --     * the status it already has: nothing written, no log row.
+--   Reason:
+--     * staff's reason for a hold is on the log row, trimmed; with none given
+--       the row has no reason key; one under 3 characters is refused before
+--       any write. The old signature without a reason is gone.
 --   Plan:
 --     * the shop and its newest subscription get the plan together, one log
 --       row names the plan before and a change waiting for the renewal, and
@@ -63,8 +67,10 @@ END $$;
 -- Catalog ---------------------------------------------------------------------
 DO $$
 DECLARE
-    _fn constant text := 'public.admin_update_shop(uuid, public.tenant_status, public.plan_tier, boolean, uuid, text, text)';
+    _fn constant text := 'public.admin_update_shop(uuid, public.tenant_status, public.plan_tier, boolean, uuid, text, text, text)';
 BEGIN
+    PERFORM pg_temp.check('the old signature without a reason is still there',
+        to_regprocedure('public.admin_update_shop(uuid, public.tenant_status, public.plan_tier, boolean, uuid, text, text)') IS NULL);
     PERFORM pg_temp.check('access: anon can run it', NOT has_function_privilege('anon', _fn, 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated can run it', NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
     PERFORM pg_temp.check('access: the service role cannot run it', has_function_privilege('service_role', _fn, 'EXECUTE'));
@@ -88,6 +94,7 @@ INSERT INTO tt_shops (name, status, trial_ends_at, sub) VALUES
     ('trial',                      'trial',     now() + interval '3 days', 'trialing'),
     ('trial, over',                'trial',     now() - interval '1 hour', 'trialing'),
     ('paying',                     'active',    now() - interval '40 days', 'active'),
+    ('hold with a reason',         'active',    now() - interval '40 days', 'active'),
     ('suspended in its trial',     'suspended', now() - interval '1 hour', 'trialing'),
     ('suspended, paying',          'suspended', NULL,                      'active'),
     ('cancelled, paying',          'cancelled', NULL,                      'cancelled'),
@@ -171,6 +178,27 @@ BEGIN
     PERFORM pg_temp.check('money: the log row does not say what the shop went back to',
         EXISTS (SELECT 1 FROM public.admin_activity_logs l WHERE l.tenant_id = _id AND l.action = 'status_change'
                    AND l.details @> '{"status": "trial", "previous_status": "suspended", "source": "single"}'::jsonb));
+
+    -- On hold with staff's reason ---------------------------------------------------
+    SELECT id INTO _id FROM tt_shops WHERE name = 'hold with a reason';
+    _res := public.admin_update_shop(_id, 'suspended', NULL, NULL, _admin, 'ops@example.com', 'single', '  Owner asked to stop for a month  ');
+    PERFORM pg_temp.check('reason: hold refused: ' || _res::text, _res ->> 'status' = 'suspended');
+    SELECT count(*) INTO _n FROM public.admin_activity_logs l
+     WHERE l.tenant_id = _id AND l.action = 'status_change'
+       AND l.details = '{"status": "suspended", "previous_status": "active", "source": "single", "reason": "Owner asked to stop for a month"}'::jsonb;
+    PERFORM pg_temp.check('reason: wanted one log row with the trimmed reason, got ' || _n, _n = 1);
+
+    -- A reason too short is refused before any write.
+    BEGIN
+        PERFORM public.admin_update_shop(_id, 'active', NULL, NULL, _admin, 'ops@example.com', 'single', ' no ');
+        _n := 1;
+    EXCEPTION WHEN invalid_parameter_value THEN
+        _n := 0;
+    END;
+    PERFORM pg_temp.check('reason: a 2-character reason did not raise', _n = 0);
+    PERFORM pg_temp.check('reason: the refused change was written',
+        EXISTS (SELECT 1 FROM public.tenants t WHERE t.id = _id AND t.status = 'suspended')
+        AND (SELECT count(*) FROM public.admin_activity_logs l WHERE l.tenant_id = _id) = 1);
 
     -- A paying shop ---------------------------------------------------------------
     SELECT id INTO _id FROM tt_shops WHERE name = 'paying';

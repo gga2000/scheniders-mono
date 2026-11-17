@@ -255,6 +255,25 @@ describe("PATCH /api/merchants/[id]", () => {
     expect(writes).toEqual([]);
   });
 
+  it("passes staff's reason for a hold on to the staff log, trimmed", async () => {
+    rpc.mockResolvedValue(changed({ status: "suspended", changed: ["status_change"] }));
+    const res = await patch({ status: "suspended", reason: "  Owner asked to stop for a month " });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith(
+      "admin_update_shop",
+      expect.objectContaining({ _status: "suspended", _reason: "Owner asked to stop for a month" }),
+    );
+  });
+
+  it("refuses a reason too short to say anything, before the database", async () => {
+    const res = await patch({ status: "suspended", reason: "no" });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/at least 3 characters/);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("answers with the status the shop really has: a suspended trial comes back on trial", async () => {
     rpc.mockResolvedValue(changed({ status: "trial", changed: ["status_change"] }));
     const res = await patch({ status: "active" });
