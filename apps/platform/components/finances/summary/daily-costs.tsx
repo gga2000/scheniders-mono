@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { adBreakEven, adReturn, adsWithoutLift, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { formatChange, isShownChange } from "./change-chip";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
@@ -160,7 +161,7 @@ export function DailyCosts({ summary, statement, previous, onOpenTab }: DailyCos
                     {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
                     {noLift !== null && (
                         <p className="mt-1.5 text-left text-[13.5px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
-                            {noLift === 0 ? t("fin.ads.noLiftSame") : t("fin.ads.noLift", { pct: `${formatWhole(noLift)}%` })}
+                            {isShownChange(-noLift) ? t("fin.ads.noLift", { pct: formatChange(noLift) }) : t("fin.ads.noLiftSame")}
                         </p>
                     )}
                 </div>

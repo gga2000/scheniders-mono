@@ -362,16 +362,17 @@ export function adBreakEven(statement: ProfitStatement): number | null {
 /**
  * When the period before had almost no ads (a tenth of today's or less) and sold as much or more, the ads did
  * not visibly raise sales: the break-even line alone, which assumes every sale came from the ads, would then
- * say they paid off. Returns how much higher sales were before, in whole percent (0 for about the same), or
- * null when there is nothing to say (no ads, no fair base, ads not new, or sales rose).
+ * say they paid off. Returns how much sales fell against the period before, in percent of it (0 for no
+ * fall), or null when there is nothing to say (no ads, no fair base, ads not new, or sales rose).
  */
 export function adsWithoutLift(statement: ProfitStatement, before: ProfitStatement | null): number | null {
     const ads = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
     if (!before || ads <= 0 || !isComparablePeriod(statement, before)) return null;
     const adsBefore = before.lines.find((l) => l.id === "ads")?.amount ?? 0;
     if (adsBefore * 10 > ads) return null;
-    const higherBefore = Math.round(((before.sales - statement.sales) / statement.sales) * 100);
-    return higherBefore >= 0 ? higherBefore : null;
+    // The same base as the profit card's sales arrow (the period before), so both show one percent.
+    const fall = ((before.sales - statement.sales) / before.sales) * 100;
+    return fall >= 0 ? fall : null;
 }
 
 export interface ProfitBar {

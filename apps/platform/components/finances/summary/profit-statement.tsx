@@ -293,7 +293,8 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     className="flex items-center gap-4 mt-3 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
                     data-testid="statement-refunds-open"
                 >
-                    <span className="min-w-0 flex-1 text-left" dir={dir}>
+                    {/* A real overstatement, so it reads as firmly as the "if you had any" clause above. */}
+                    <span className="min-w-0 flex-1 text-left font-medium text-foreground" dir={dir}>
                         {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
                     </span>
                     <a
