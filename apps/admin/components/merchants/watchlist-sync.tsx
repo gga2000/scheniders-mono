@@ -12,8 +12,11 @@ import { addToWatchlist, removeFromWatchlist, useWatchlist } from "@/hooks/use-w
 // - On change: sends a POST/DELETE for each difference from the last server
 //   state. A refused or lost save is undone, so the star shows what the
 //   server keeps, and staff are told.
+// - While the first read has failed: a star pressed then could only stay in
+//   this browser, unsaved, so it is undone, staff are told, and the read is
+//   tried again.
 export function WatchlistSync() {
-  const { data } = useWatchlist();
+  const { data, isError, refetch } = useWatchlist();
   const starred = useAdminStore((s) => s.starredMerchants);
   const setStarred = useAdminStore.setState;
   const hydratedRef = useRef(false);
@@ -23,7 +26,14 @@ export function WatchlistSync() {
   // anything: as two effects, the sync one ran in that same commit with the
   // browser's old list and took every server star off, then put it back.
   useEffect(() => {
-    if (!data) return;
+    if (!data) {
+      if (isError && starred.length > 0) {
+        setStarred({ starredMerchants: [] });
+        toast.error("Your stars could not be loaded, so the star was not saved. Try again.");
+        void refetch();
+      }
+      return;
+    }
 
     // First read: merge the server's stars into this browser's (API wins on
     // conflict). The merged list comes back through `starred` next render.
@@ -56,7 +66,7 @@ export function WatchlistSync() {
     };
     added.forEach((tenantId) => void addToWatchlist(tenantId).catch(() => undo(tenantId, true)));
     removed.forEach((tenantId) => void removeFromWatchlist(tenantId).catch(() => undo(tenantId, false)));
-  }, [data, starred, setStarred]);
+  }, [data, isError, refetch, starred, setStarred]);
 
   return null;
 }

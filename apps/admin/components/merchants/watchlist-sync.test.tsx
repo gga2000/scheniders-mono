@@ -11,11 +11,17 @@ import { act, cleanup, render } from "@testing-library/react";
  * - A star's save was sent with `.catch(() => {})` and its answer never
  *   read, so a refused or lost save left a star the server never kept.
  * Now the first read sends nothing, and a failed save is undone and said.
+ * - When the stars read failed, a star press stayed in this browser only:
+ *   nothing was sent and nothing said. Now it is undone and said too.
  */
 
+const SERVER = { watchlist: [{ tenant_id: "kept", note: "call Friday", created_at: "2026-11-16T09:00:00Z" }] };
+const refetch = vi.fn();
+/** What the stars read gives: the server's stars, or a read that failed after its retries. */
+let read: { data?: typeof SERVER; isError: boolean } = { data: SERVER, isError: false };
 vi.mock("@/hooks/use-watchlist", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/hooks/use-watchlist")>()),
-  useWatchlist: () => ({ data: { watchlist: [{ tenant_id: "kept", note: "call Friday", created_at: "2026-11-16T09:00:00Z" }] } }),
+  useWatchlist: () => ({ ...read, refetch }),
 }));
 const toastError = vi.fn();
 vi.mock("sonner", () => ({ toast: { error: (m: string) => toastError(m) } }));
@@ -39,6 +45,8 @@ const mount = async (local: string[]) => {
 };
 
 beforeEach(() => {
+  read = { data: SERVER, isError: false };
+  refetch.mockReset();
   requests = [];
   answer = () => new Response("{}");
   toastError.mockReset();
@@ -92,5 +100,20 @@ describe("WatchlistSync", () => {
 
     expect(starred()).toEqual(["kept", "new"]);
     expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("takes a star off again and says so when the stars could not be loaded", async () => {
+    read = { isError: true };
+    await mount([]);
+    expect(toastError).not.toHaveBeenCalled();
+
+    act(() => useAdminStore.getState().toggleStar("new"));
+    await settle();
+
+    // Nothing could be saved: the star does not stay in this browser only.
+    expect(requests).toEqual([]);
+    expect(starred()).toEqual([]);
+    expect(toastError).toHaveBeenCalledWith("Your stars could not be loaded, so the star was not saved. Try again.");
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });
