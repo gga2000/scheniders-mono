@@ -1,9 +1,9 @@
 // Sentry starts once the page has loaded, in its own chunk, so the first
-// paint never waits for it. A screen that catches an error before then
-// loads it at once (lib/report-error.ts).
-export function startSentry() {
-  void import("./lib/sentry-browser");
-}
+// paint never waits for it. An error before then starts it at once and is
+// still sent (lib/sentry-start.ts).
+import { keepEarlyErrors, startSentry } from "./lib/sentry-start";
 
-if (document.readyState === "complete") startSentry();
-else window.addEventListener("load", startSentry, { once: true });
+keepEarlyErrors();
+
+if (document.readyState === "complete") void startSentry();
+else window.addEventListener("load", () => void startSentry(), { once: true });

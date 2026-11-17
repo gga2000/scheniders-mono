@@ -1,6 +1,5 @@
-// The browser half of Sentry. Nothing imports it statically: the console
-// loads it after the page has loaded (instrumentation-client.ts), or sooner
-// when a screen catches an error (report-error.ts), whichever comes first.
+// The browser half of Sentry. Nothing imports it statically: lib/sentry-start.ts
+// loads it after the page has loaded, or sooner when an error comes first.
 // Importing the two names it uses, not the whole SDK, lets the bundle drop
 // what this console never turns on, such as session replay and the
 // feedback widget.
