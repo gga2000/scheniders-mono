@@ -101,7 +101,7 @@ export function statusLandedText(picked: TenantStatus, answer: unknown): string 
  * trial has ended.
  */
 export function stageMoveNote(picked: TenantStatus, saves: TenantStatus, trialEndsAt: string | null, now: Date): string {
-  if (saves !== picked) return reactivateWords(true, trialEndsAt, now);
+  if (saves !== picked) return reactivateWords("trial", trialEndsAt, now);
   if (saves === "trial") return "Its trial end date stays as it is. To give more days, use Give free days on its page.";
   if (saves === "suspended") return "The merchant will lose dashboard access until reactivated.";
   if (saves === "cancelled") return "The merchant will be marked as churned.";

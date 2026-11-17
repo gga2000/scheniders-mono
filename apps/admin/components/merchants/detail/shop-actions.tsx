@@ -6,7 +6,7 @@ import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { freeDaysKind, moreActions, type MoreAction, type ShopFacts, type ShopForm } from "@/lib/shop-actions";
+import { freeDaysKind, moreActions, type Comeback, type MoreAction, type ShopFacts, type ShopForm } from "@/lib/shop-actions";
 import type { AdminAction } from "@/types/admin";
 import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
@@ -36,8 +36,8 @@ interface ShopActionsProps {
   balance: number;
   /** When the trial, or this month, ends: where free days start. */
   freeDaysFrom: string | null;
-  /** Back from hold it is a trial again: its trial was never paid (Reactivate says so). */
-  reopensAsTrial: boolean;
+  /** What the shop comes back as from hold (Reactivate says so). */
+  comeback: Comeback;
   trialEndsAt: string | null;
   /** The lock card holds the store-orders tool; this brings it into view. */
   onGiveOrders: () => void;
@@ -58,7 +58,7 @@ export function ShopActions({
   plan,
   balance,
   freeDaysFrom,
-  reopensAsTrial,
+  comeback,
   trialEndsAt,
   onGiveOrders,
   onAddNote,
@@ -151,13 +151,13 @@ export function ShopActions({
                 {view === "plan" && <PlanForm shopId={shopId} plan={plan} onDone={done} />}
                 {view === "pause" && <PauseForm shopId={shopId} onDone={done} />}
                 {view === "hold" && (
-                  <HoldForm shopId={shopId} mode="hold" reopensAsTrial={reopensAsTrial} trialEndsAt={trialEndsAt} onDone={done} />
+                  <HoldForm shopId={shopId} mode="hold" comeback={comeback} trialEndsAt={trialEndsAt} onDone={done} />
                 )}
                 {view === "reactivate" && (
                   <HoldForm
                     shopId={shopId}
                     mode="reactivate"
-                    reopensAsTrial={reopensAsTrial}
+                    comeback={comeback}
                     trialEndsAt={trialEndsAt}
                     onDone={done}
                   />

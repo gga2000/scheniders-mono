@@ -22,7 +22,7 @@ import { RecentOrdersSection } from "@/components/merchants/detail/recent-orders
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopStatusLine } from "@/lib/shop-status";
 import { ShopStatus } from "@/components/merchants/detail/shop-status";
-import { isSubscriptionRunning, shopFormFrom } from "@/lib/shop-actions";
+import { isSubscriptionRunning, reactivateComeback, shopFormFrom } from "@/lib/shop-actions";
 import { trialPayment } from "@/lib/shop-status-choice";
 import { PLAN_LABELS, PLAN_TIERS, type TenantRestrictions } from "@/types/admin";
 import { CopyableText } from "@/components/shared/copyable-text";
@@ -208,7 +208,7 @@ export default function MerchantDetailPage() {
         plan={tenant.plan}
         balance={wallet?.balance_iqd ?? 0}
         freeDaysFrom={tenant.status === "trial" ? tenant.trial_ends_at : (subscription?.current_period_end ?? null)}
-        reopensAsTrial={trialPayment(subscription, tenant.trial_ends_at) === "never_paid"}
+        comeback={reactivateComeback(trialPayment(subscription, tenant.trial_ends_at) === "never_paid", subscription?.status, tenant.plan)}
         trialEndsAt={tenant.trial_ends_at}
         onGiveOrders={() => {
           setActiveTab("Overview");
