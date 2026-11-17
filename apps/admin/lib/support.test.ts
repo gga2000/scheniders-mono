@@ -203,6 +203,16 @@ describe("problemOpener", () => {
     expect(staff).not.toContain("ما وصل");
   });
 
+  // Round 15 (Data new 2): the store_paused line said "we noticed your store
+  // stopped and takes no new orders". Only staff pause a store, and a pause
+  // may leave new orders on.
+  it("says we paused the store, and nothing about orders", () => {
+    const paused = problemOpener({ code: "store_paused", detail: "catalogue check" });
+    expect(paused).toBe("هلا، متجرك موقوف مؤقتاً من طرفنا. خلّينا نحجي عنه ونشوف شنو نحتاج حتى نرفع الإيقاف.");
+    expect(paused).not.toContain("لاحظنا");
+    expect(paused).not.toContain("طلبات");
+  });
+
   it("keeps each other opener as it was", () => {
     expect(problemOpener({ code: "whatsapp_paused", detail: "failures" })).toBe(SHOP_PROBLEM_OPENERS.whatsapp_paused);
     expect(problemOpener({ code: "store_paused", detail: null })).toBe(SHOP_PROBLEM_OPENERS.store_paused);

@@ -17,6 +17,10 @@
 --       85 hours away (23:00 on the second and third day) is listed, one at
 --       00:30 on the fourth day is not; a paused trial is a trial, a paused
 --       paying shop with a trial date is not;
+--     * "Store paused" only while the pause is on: a pause with no end or an
+--       end still ahead is listed (with its reason), one past its end that
+--       the hourly lift has not taken off yet is not, and new orders blocked
+--       on a shop that is not paused is not a pause;
 --     * names the owner (admin before employee) and the open conversation.
 --   Write first:
 --     * opens a conversation with the owner, started by staff, waiting on the
@@ -246,6 +250,35 @@ BEGIN
     PERFORM pg_temp.check('trial ending: a paused paying shop is only paused',
         (SELECT array_agg(p ->> 'code') FROM jsonb_array_elements(v) x, jsonb_array_elements(x -> 'problems') p
          WHERE x ->> 'business_name' = 'Paused paying') = ARRAY['store_paused']);
+END $$;
+
+-- Store paused, at 10 AM on Mon 16 Nov: only while the pause is on.
+INSERT INTO public.tenants (id, business_name, display_id, status, restrictions, trial_ends_at) VALUES
+    ('a2000000-0000-4000-8000-000000000021', 'Pause on', 21, 'limited',
+     '{"status_before":"active","reason":"catalogue check","paused_until":"2026-11-20T09:00:00Z","blocks":{"new_orders":false,"new_products":true}}', NULL),
+    ('a2000000-0000-4000-8000-000000000022', 'Pause ended, not lifted', 22, 'limited',
+     '{"status_before":"active","reason":"catalogue check","paused_until":"2026-11-16T06:59:00Z","blocks":{"new_orders":true}}', NULL),
+    ('a2000000-0000-4000-8000-000000000023', 'Pause ends this minute', 23, 'limited',
+     '{"status_before":"active","paused_until":"2026-11-16T07:00:00Z","blocks":{"new_orders":true}}', NULL),
+    ('a2000000-0000-4000-8000-000000000024', 'Blocks, not paused', 24, 'active',
+     '{"blocks":{"new_orders":true}}', NULL);
+
+DO $$
+DECLARE
+    v jsonb := public.support_shops_needing_us('2026-11-16 10:00+03');
+    paused text[];
+BEGIN
+    -- Byte order, so the expected list does not depend on the server's locale.
+    SELECT array_agg(x ->> 'business_name' ORDER BY x ->> 'business_name' COLLATE "C") INTO paused
+    FROM jsonb_array_elements(v) x
+    WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(x -> 'problems') p WHERE p ->> 'code' = 'store_paused');
+    PERFORM pg_temp.check('store paused: ' || coalesce(paused::text, 'none'),
+        paused = ARRAY['Amal', 'Pause ends this minute', 'Pause on', 'Paused paying', 'Paused trial']);
+    PERFORM pg_temp.check('store paused: the reason is the detail',
+        (SELECT p -> 'detail' FROM jsonb_array_elements(v) x, jsonb_array_elements(x -> 'problems') p
+         WHERE x ->> 'business_name' = 'Pause on') = to_jsonb('catalogue check'::text));
+    PERFORM pg_temp.check('store paused: an ended pause is not listed at all',
+        NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v) x WHERE x ->> 'business_name' IN ('Pause ended, not lifted', 'Blocks, not paused')));
 END $$;
 
 DO $$
