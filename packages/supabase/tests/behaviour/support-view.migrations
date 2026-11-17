@@ -2,3 +2,4 @@
 20261116122848_support_view_lock_once.sql
 20261117114648_support_view_logs_with_session.sql
 20261117142107_support_view_end_only_when_open.sql
+20261117160036_support_view_end_running_only.sql
