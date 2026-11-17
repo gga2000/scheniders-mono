@@ -9,6 +9,7 @@ import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wall
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { updateShop, type ShopChange, type ShopUpdateActor } from "@/lib/shop-update";
+import { tooManyShops } from "@/lib/bulk-not-done";
 
 const bulkTopupAmountSchema = topupAmountSchema.min(1000);
 
@@ -86,7 +87,7 @@ const BulkActionSchema = z.object({
     "extend_trial",
     "top_up",
   ]),
-  tenant_ids: z.array(z.string().uuid()).min(1).max(100),
+  tenant_ids: z.array(z.string().uuid()).min(1),
   params: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -106,6 +107,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { action, tenant_ids, params } = parsed.data;
+    // "Select all" can tick more shops than one action takes: say so, with the count.
+    const tooMany = tooManyShops(tenant_ids.length);
+    if (tooMany) return NextResponse.json({ error: tooMany }, { status: 400 });
     const supabase = createAdminClient();
 
     switch (action) {

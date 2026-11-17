@@ -7,7 +7,7 @@ import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { isBulkFailureList, notDoneLines, type BulkFailure } from "@/lib/bulk-not-done";
+import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,6 +134,11 @@ export function BulkActionDialog({
 
   function handleConfirm() {
     setError(null);
+    const tooMany = tooManyShops(selectedIds.length);
+    if (tooMany) {
+      setError(tooMany);
+      return;
+    }
 
     const apiAction = toApiAction(action!);
     let params: Record<string, unknown> | undefined;

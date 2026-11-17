@@ -3,6 +3,14 @@ import { wordList } from "./word-list";
 /** A shop a bulk action did not do, as /api/bulk answers it. `name` is null when it could not be read. */
 export type BulkFailure = { tenant_id: string; name?: string | null; error: string };
 
+/** The most shops one bulk action takes (/api/bulk). */
+export const BULK_MAX_SHOPS = 100;
+
+/** Why a bulk action over these shops is refused before anything runs, or null. */
+export function tooManyShops(count: number): string | null {
+  return count > BULK_MAX_SHOPS ? `Pick at most ${BULK_MAX_SHOPS} shops (${count.toLocaleString("en-US")} ticked).` : null;
+}
+
 export function isBulkFailureList(value: unknown): value is BulkFailure[] {
   return (
     Array.isArray(value) &&

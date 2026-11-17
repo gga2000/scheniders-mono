@@ -83,8 +83,8 @@ export function NotificationBell() {
   const billingMissed = billingCheckCount(billingCheck) > 0;
   // An alarm whose read failed is not quiet: the bell names it, and counts it once.
   const unchecked = uncheckedAlarms([
-    { name: "receipts to check", read: topupRead },
-    { name: "Prime link requests", read: primeRequests },
+    { name: "the receipts", read: topupRead },
+    { name: "the Prime link requests", read: primeRequests },
     { name: "WhatsApp", read: whatsappRead },
     { name: "the billing job", read: billingRead },
   ]);

@@ -423,3 +423,20 @@ describe("POST /api/bulk send_notification", () => {
     expect(from).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * "Select all" can tick more shops than one action takes. The answer was
+ * "Invalid input"; now it says the limit and the count, and does nothing.
+ */
+describe("POST /api/bulk with more than 100 shops", () => {
+  it("is refused with the limit and the count, before any shop is touched", async () => {
+    const ids = Array.from({ length: 150 }, () => crypto.randomUUID());
+    const res = await POST(req({ action: "suspend", tenant_ids: ids }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Pick at most 100 shops (150 ticked)." });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+    expect(logAdminActivityBatch).not.toHaveBeenCalled();
+  });
+});

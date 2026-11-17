@@ -102,7 +102,8 @@ export const LEAD_TIER_CONFIG: Record<LeadTier, { label: string; minFollowers: n
 export const LEAD_TIER_UI: Record<LeadTier, UiHue> = {
   bronze: uiHue("orange"),
   silver: uiHue("slate"),
-  gold: uiHue("amber"),
+  // Yellow, not amber: amber and Bronze's orange read as one colour.
+  gold: uiHue("yellow"),
   diamond: uiHue("cyan"),
   legendary: uiHue("fuchsia"),
 };

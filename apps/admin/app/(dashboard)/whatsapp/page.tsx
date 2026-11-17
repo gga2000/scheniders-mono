@@ -137,6 +137,8 @@ export default function WhatsAppPage() {
   }
 
   const canPause = role === "super_admin";
+  // The first month began on the 16th: its numbers say so where they are read.
+  const countedFrom = month === COUNTED_FROM_MONTH ? "counted from 16 Nov" : undefined;
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -180,7 +182,11 @@ export default function WhatsAppPage() {
       ) : (
         <>
           <NumberStrip columns={4} label="WhatsApp numbers">
-            <NumberCell label={`Messages delivered, ${monthLabel(month)}`} value={number(data.totals.messages)} />
+            <NumberCell
+              label={`Messages delivered, ${monthLabel(month)}`}
+              value={number(data.totals.messages)}
+              note={countedFrom}
+            />
             <NumberCell label={`Shops paid, ${monthLabel(month)}`} value={iqd(data.totals.shopPaidIqd)} />
             <NumberCell
               label={`Trial messages on us, ${monthLabel(month)}`}
@@ -205,7 +211,10 @@ export default function WhatsAppPage() {
             {data.shops.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
                 <MessageCircleOff className="w-10 h-10 mb-2" />
-                <p className="text-sm">No messages delivered in {monthLabel(month)}.</p>
+                <p className="text-sm">
+                  No messages delivered in {monthLabel(month)}
+                  {countedFrom ? `, ${countedFrom}` : ""}.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
