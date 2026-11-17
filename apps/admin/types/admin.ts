@@ -11,6 +11,13 @@ export const PLAN_LABELS: Readonly<Record<PlanTier, string>> = {
 };
 export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
 
+/**
+ * Whether a shop's trial was paid, read from its newest subscription
+ * (lib/shop-status-choice `trialPayment`): no subscription, a trial never
+ * paid, or a subscription that was paid.
+ */
+export type TrialPayment = "no_subscription" | "never_paid" | "paid";
+
 export interface TenantRestrictions {
   paused_until?: string | null;
   paused_at?: string | null;
@@ -129,8 +136,8 @@ export interface AdminTenant {
   billing_lock?: ListBillingLock | null;
   /** The newest subscription is trialing, active or past due. Sent by the Merchants list. */
   subscription_running?: boolean;
-  /** No subscription, or a trial never paid (lib/shop-status-choice): Trial can be picked. Sent by the Merchants list. */
-  trial_unpaid?: boolean;
+  /** Whether its trial was paid: Trial can be picked unless it was, and Active saves as Trial for a trial never paid. Sent by the Merchants list. */
+  trial_payment?: TrialPayment;
   pinned_note?: {
     content: string;
     updated_at: string;

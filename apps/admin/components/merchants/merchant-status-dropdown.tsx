@@ -7,8 +7,8 @@ import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
-import { statusLandedText, statusPickRefusal } from "@/lib/shop-status-choice";
-import type { TenantStatus } from "@/types/admin";
+import { statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
+import type { TenantStatus, TrialPayment } from "@/types/admin";
 
 const STATUS_OPTIONS: Array<{
   value: TenantStatus;
@@ -34,14 +34,14 @@ const statusBadgeStyle: Record<TenantStatus, string> = {
 interface MerchantStatusDropdownProps {
   merchantId: string;
   status: TenantStatus;
-  /** No subscription, or a trial never paid: only then can the shop go back to Trial. */
-  trialUnpaid: boolean;
+  /** Whether its trial was paid: which moves are offered, and what Active saves. */
+  trialPayment: TrialPayment;
 }
 
 export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   merchantId,
   status,
-  trialUnpaid,
+  trialPayment,
 }: MerchantStatusDropdownProps) {
   const [open, setOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<TenantStatus | null>(null);
@@ -76,9 +76,10 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
       return res.json();
     },
     onMutate: async (newStatus) => {
-      // Optimistic update
+      // Optimistic update, with the status the server will save.
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      return { restore: patchMerchantInCache(queryClient, merchantId, { status: newStatus }) };
+      const saves = statusPickSaves({ status, trial_payment: trialPayment }, newStatus);
+      return { restore: patchMerchantInCache(queryClient, merchantId, { status: saves }) };
     },
     // A held trial that was never paid comes back as Trial when Active is
     // picked: the card says so and shows Trial at once.
@@ -130,7 +131,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   // is set by Pause on the shop page, and a paused shop has no move at all
   // until its pause is lifted.
   const menu = STATUS_OPTIONS.filter(
-    (o) => o.value === status || statusPickRefusal({ status, trial_unpaid: trialUnpaid }, o.value) === null,
+    (o) => o.value === status || statusPickRefusal({ status, trial_payment: trialPayment }, o.value) === null,
   );
 
   // A status change goes through the same PATCH as a plan change, which needs
