@@ -14,9 +14,59 @@
 --   a second build, a converted lead and a lead with a shop already are
 --   refused and write nothing;
 --   a product the database refuses undoes the whole build;
---   only the service role may call it.
+--   only the service role may call it;
+--   the build passes the live triggers on the rows it writes, and they do
+--   their part: each priced product gets its first price line and a
+--   "created" line, and the lead's score counts its new store (round 7).
 
 \set ON_ERROR_STOP 1
+
+-- The live triggers that fire on what the build writes (pg_trigger,
+-- 2026-11-17), bound to the newest trigger functions. Triggers that fire only
+-- on an update or delete of shops, products or wallets are left out: the
+-- build only inserts those rows.
+CREATE TRIGGER tenants_slug_not_in_foreign_history BEFORE INSERT OR UPDATE OF slug ON public.tenants
+    FOR EACH ROW EXECUTE FUNCTION public.tenants_slug_not_in_foreign_history();
+CREATE TRIGGER tenants_strip_capi_keys BEFORE INSERT OR UPDATE OF store_config_v2, store_config_v2_draft ON public.tenants
+    FOR EACH ROW EXECUTE FUNCTION public.tenants_strip_capi_keys();
+CREATE TRIGGER trg_refuse_new_restarting_clocks BEFORE INSERT OR UPDATE OF store_config_v2, store_config_v2_draft ON public.tenants
+    FOR EACH ROW EXECUTE FUNCTION public.refuse_new_restarting_clocks('store_config_v2', 'store_config_v2_draft');
+CREATE TRIGGER trg_tenants_is_demo_guard BEFORE INSERT OR UPDATE OF is_demo ON public.tenants
+    FOR EACH ROW EXECUTE FUNCTION public.tenants_is_demo_guard();
+CREATE TRIGGER trg_trial_check AFTER INSERT OR UPDATE OF contact_phone, contact_email ON public.tenants
+    FOR EACH ROW EXECUTE FUNCTION public.trial_check_on_change();
+CREATE TRIGGER guard_products_category_same_tenant BEFORE INSERT OR UPDATE OF category_id, tenant_id ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.guard_category_same_tenant();
+CREATE TRIGGER guard_products_cost BEFORE INSERT OR UPDATE ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.guard_cost_writes('cost', 'cost_breakdown_json');
+CREATE TRIGGER log_product_price_change AFTER INSERT OR UPDATE OF price ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.log_product_price_change();
+CREATE TRIGGER same_tenant_products_category_id_fkey BEFORE INSERT OR UPDATE OF category_id, tenant_id ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.enforce_parent_same_tenant('category_id', 'categories', 'id', 'uuid');
+CREATE TRIGGER trg_enforce_product_block BEFORE INSERT OR UPDATE ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.enforce_product_block();
+CREATE TRIGGER trg_log_product_activity AFTER INSERT OR UPDATE OF name, sku, price, compare_at_price, website_price, status, is_visible, is_archived, image_url, category_id ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.log_product_activity();
+CREATE TRIGGER trg_products_sync_archive_state BEFORE INSERT OR UPDATE OF is_archived, status ON public.products
+    FOR EACH ROW EXECUTE FUNCTION public.products_sync_archive_state();
+CREATE TRIGGER trg_leads_before_upsert BEFORE INSERT OR UPDATE ON public.leads
+    FOR EACH ROW EXECUTE FUNCTION public.leads_before_upsert();
+CREATE TRIGGER trg_leads_after_upsert AFTER INSERT OR UPDATE ON public.leads
+    FOR EACH ROW EXECUTE FUNCTION public.leads_after_upsert();
+CREATE TRIGGER trg_leads_freeze_conversion_attribution BEFORE UPDATE ON public.leads
+    FOR EACH ROW EXECUTE FUNCTION public.leads_freeze_conversion_attribution();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.tenants
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.products
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.wallet
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.leads
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.lead_activities
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.admin_activity_logs
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
 
 INSERT INTO public.leads (id, merchant_name, status, page_phone, phone_numbers, address, city, converted_tenant_id) VALUES
   ('b0000000-0000-4000-8000-000000000001', 'Kut Perfumes', 'contacted', '', '[{"title": "Sales", "number": "07701234568"}]', 'Main street', 'Kut', NULL),
@@ -29,8 +79,8 @@ INSERT INTO public.leads (id, merchant_name, status, page_phone, phone_numbers, 
   ('b0000000-0000-4000-8000-000000000008', 'Kut Shoes', 'new', NULL, '[]', NULL, NULL, NULL);
 INSERT INTO public.industries (id, name) VALUES
   ('d0000000-0000-4000-8000-000000000001', 'Fashion');
-INSERT INTO public.tenants (business_name, slug, prospect_lead_id) VALUES
-  ('Has a shop', 'has-a-shop-1', 'b0000000-0000-4000-8000-000000000004');
+INSERT INTO public.tenants (business_name, slug, prospect_lead_id, is_prospect) VALUES
+  ('Has a shop', 'has-a-shop-1', 'b0000000-0000-4000-8000-000000000004', true);
 
 DO $t$
 DECLARE
@@ -93,6 +143,16 @@ BEGIN
       AND admin_label IS NULL AND tenant_id = shop.id
       AND details = jsonb_build_object('lead_id', l1, 'slug', shop.slug);
     IF n <> 1 THEN RAISE EXCEPTION 'staff log row missing'; END IF;
+    -- The live triggers ran on what the build wrote.
+    SELECT string_agg(h.new_price || ':' || h.reason, ' | ' ORDER BY h.new_price) INTO names
+      FROM public.product_price_history h JOIN public.products p ON p.id = h.product_id
+     WHERE p.tenant_id = shop.id AND h.tenant_id = shop.id AND h.old_price IS NULL;
+    IF names <> '15000:Initial price | 25000:Initial price' THEN RAISE EXCEPTION 'first prices: %', names; END IF;
+    SELECT count(*) INTO n FROM public.product_activity_log WHERE tenant_id = shop.id AND action = 'created';
+    IF n <> 2 THEN RAISE EXCEPTION 'product "created" lines: %', n; END IF;
+    IF lead.score_breakdown ->> 'store' <> '10' THEN
+        RAISE EXCEPTION 'the lead''s score does not count its store: %', lead.score_breakdown;
+    END IF;
 
     -- No Latin letters, no colour, no products: a "store-" address, the page phone, the default colour.
     answer := public.admin_build_prospect_store(l2, 'general', NULL, '[]', karrar, 'karrar@x.test');
