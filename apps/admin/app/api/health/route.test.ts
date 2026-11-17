@@ -56,6 +56,8 @@ beforeEach(() => {
   // Raw rows, the demo store's invented orders among them: never counted here.
   stub.state.tables.orders = [{ id: "o1" }, { id: "o2" }, { id: "demo-1" }, { id: "demo-2" }, { id: "demo-3" }];
   // The plan's counter: c's 9 must not hide that c has no real order.
+  // No shop is locked unless a test says so.
+  stub.state.functions.admin_locked_shops = () => ({ data: {}, error: null });
   stub.state.tables.usage_tracking = [
     { tenant_id: "a", year: 2026, month: 11, orders_count: 12, team_members_count: 2 },
     { tenant_id: "c", year: 2026, month: 11, orders_count: 9, team_members_count: 1 },
@@ -93,6 +95,25 @@ describe("GET /api/health", () => {
       { tenant_id: "c", business_name: "Shop c", balance_iqd: 0, threshold_iqd: 5_000 },
       { tenant_id: "b", business_name: "Shop b", balance_iqd: 1_000, threshold_iqd: 5_000 },
     ]);
+  });
+
+  it("names a locked shop with why, though its status still reads trial or active", async () => {
+    // a pays nothing this month; c's trial ended unpaid.
+    stub.state.functions.admin_locked_shops = () => ({ data: { a: "unpaid", c: "trial_ended" }, error: null });
+
+    const body = await (await call()).json();
+
+    // a: locked 3 (enough alone). c: low balance 3 + no orders 2 + locked 3.
+    expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score, risk.reasons])).toEqual([
+      ["c", 8, ["Low balance", "No orders in 30 days", "Locked: trial ended"]],
+      ["b", 7, ["Low balance", "No orders in 30 days", "Suspended"]],
+      ["a", 3, ["Locked: month not paid"]],
+    ]);
+  });
+
+  it("answers 500, not an empty list, when the locked shops read fails", async () => {
+    stub.state.functions.admin_locked_shops = () => ({ data: null, error: { message: "connection lost" } });
+    expect((await call()).status).toBe(500);
   });
 
   it.each(["tenants", "wallet", "admin_order_facts"])(

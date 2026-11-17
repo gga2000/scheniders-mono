@@ -24,6 +24,7 @@
 --       once at sign-up) changes nothing;
 --     * a shop whose trial ended unpaid, or whose month is unpaid, is reported
 --       locked with the reason; a paying shop and an internal shop are not;
+--       admin_locked_shops (Shops at risk) lists the same locked shops;
 --     * a shop with no rows at all still gets a row of zeros and blanks;
 --     * a shop asked for twice comes back once; a shop not asked for never does.
 --   Merchants page header:
@@ -73,7 +74,8 @@ BEGIN
     FOREACH _fn IN ARRAY ARRAY[
         'public.admin_merchant_list_stats(uuid[], timestamptz)',
         'public.admin_fees_30d(uuid[], timestamptz)',
-        'public.admin_team_counts()'
+        'public.admin_team_counts()',
+        'public.admin_locked_shops()'
     ] LOOP
         PERFORM pg_temp.check('access: anon can run ' || _fn, NOT has_function_privilege('anon', _fn, 'EXECUTE'));
         PERFORM pg_temp.check('access: authenticated can run ' || _fn, NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
@@ -234,6 +236,14 @@ BEGIN
 
     SELECT * INTO _r FROM public.admin_merchant_list_stats(ARRAY[_internal], _now) s;
     PERFORM pg_temp.check('internal shop: never locked', _r.lock_reason IS NULL);
+
+    -- Shops at risk: every locked shop, by the same rule as the list.
+    PERFORM pg_temp.check('locked shops: the ended trial and the unpaid month, nothing else, got '
+            || (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+                 WHERE k IN (_busy::text, _quiet::text, _trial::text, _unpaid::text, _internal::text, _other::text))::text,
+        (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+          WHERE k IN (_busy::text, _quiet::text, _trial::text, _unpaid::text, _internal::text, _other::text))
+        = jsonb_build_object(_trial::text, 'trial_ended', _unpaid::text, 'unpaid'));
 
     -- Page header: one number for a set of shops ----------------------------------
     PERFORM pg_temp.check('header: fees of the shops asked for are 9,085, got '
