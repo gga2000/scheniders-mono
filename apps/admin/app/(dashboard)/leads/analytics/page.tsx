@@ -165,7 +165,12 @@ function AnalyticsDashboard({
         <NumberCell label="Became a shop, all time" value={`${data.conversion_rate.toFixed(1)}%`} note="of all leads" />
         <NumberCell
           label="Days from lead to shop, average"
-          value={`${data.avg_time_to_convert_days.toFixed(1)} days`}
+          value={
+            data.avg_time_to_convert_days === null
+              ? "None yet"
+              : `${data.avg_time_to_convert_days} ${data.avg_time_to_convert_days === 1 ? "day" : "days"}`
+          }
+          note={data.avg_time_to_convert_days === null ? "No lead has become a shop yet" : undefined}
         />
         {/* The sum leaves out converted and lost leads (api/leads/analytics), and each lead gives its monthly sales. */}
         <NumberCell label="Est. monthly sales, open leads" value={formatIQD(data.total_estimated_revenue)} />

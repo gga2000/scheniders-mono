@@ -47,7 +47,7 @@ function lastActiveLine(dateStr: string): { text: string; color: string } {
   const days = (Date.now() - new Date(dateStr).getTime()) / 86_400_000;
   const color =
     days < 1 ? "text-green-600 dark:text-green-400" : days < 7 ? "text-amber-600 dark:text-amber-400" : "text-foreground/40";
-  return { text: formatWhen(dateStr), color };
+  return { text: `Active ${formatWhen(dateStr)}`, color };
 }
 
 

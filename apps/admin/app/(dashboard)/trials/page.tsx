@@ -62,6 +62,13 @@ function trialDayLabel({ is_expired, days_remaining: days }: Pick<Trial, "is_exp
   return `${days} days left`;
 }
 
+/** The header line: an ended trial that is not paid yet is no longer "on trial". */
+function trialsLine({ total, expired }: TrialsSummary): string {
+  const running = total - expired;
+  const onTrial = `${running} ${running === 1 ? "shop" : "shops"} on trial`;
+  return expired > 0 ? `${onTrial}, ${expired} ended and not paid yet` : onTrial;
+}
+
 function getBarColor(days: number, ended: boolean): string {
   if (ended) return "bg-gray-400";
   if (days <= 3) return "bg-red-500";
@@ -204,9 +211,7 @@ export default function TrialsPage() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Trials</h1>
         <p className="text-[13px] text-foreground/70">
-          {isLoading
-            ? "Loading..."
-            : `${summary.total} active trial${summary.total !== 1 ? "s" : ""}`}
+          {isLoading ? "Loading..." : trialsLine(summary)}
         </p>
       </div>
 
@@ -215,7 +220,7 @@ export default function TrialsPage() {
 
       {/* Headline numbers, each naming its window (board v6: one surface). */}
       <NumberStrip columns={3} label="Trial numbers">
-        <NumberCell label="Shops on trial, now" value={isLoading ? "..." : formatCount(summary.total)} />
+        <NumberCell label="Shops on trial, now" value={isLoading ? "..." : formatCount(summary.total - summary.expired)} />
         <NumberCell
           label="Ending in 3 days or less"
           value={isLoading ? "..." : formatCount(summary.expiringSoon)}
@@ -236,8 +241,8 @@ export default function TrialsPage() {
       ) : sortedTrials.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <Clock className="w-12 h-12 mb-3" />
-          <p className="text-lg font-semibold">No active trials</p>
-          <p className="text-sm mt-1">All merchants have been converted or there are no trials yet</p>
+          <p className="text-lg font-semibold">No shops on trial</p>
+          <p className="text-sm mt-1">No shop is on a trial, or past one and not paid yet.</p>
         </div>
       ) : (
         <div className="pastel-card divide-y divide-[var(--card-border)]">
