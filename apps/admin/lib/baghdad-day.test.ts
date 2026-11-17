@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, dayOf, readDayRange, trialClock } from "./baghdad-day";
+import { addDays, dayOf, lastDaysStart, readDayRange, trialClock } from "./baghdad-day";
 
 /*
  * Shop #100095's trial ended at 06:21 Baghdad on 17 Nov. On the evening of
@@ -78,5 +78,17 @@ describe("readDayRange", () => {
     expect(read("date_to=2026-13-01")).toEqual({ error: "date_to must be a day such as 2026-11-16" });
     expect(read("date_to=16/11/2026")).toEqual({ error: "date_to must be a day such as 2026-11-16" });
     expect(read("date_from=2026-11-16T00:00:00Z")).toEqual({ error: "date_from must be a day such as 2026-11-16" });
+  });
+});
+
+describe("lastDaysStart", () => {
+  it("starts the last 7 days at Baghdad midnight, today included", () => {
+    // 22:30 UTC on 16 Nov is already 01:30 on 17 Nov in Baghdad.
+    expect(lastDaysStart(7, Date.parse("2026-11-16T22:30:00Z"))).toBe("2026-11-11T00:00:00+03:00");
+    expect(lastDaysStart(7, Date.parse("2026-11-16T20:59:00Z"))).toBe("2026-11-10T00:00:00+03:00");
+  });
+
+  it("makes 1 day mean today only", () => {
+    expect(lastDaysStart(1, Date.parse("2026-11-16T09:00:00Z"))).toBe("2026-11-16T00:00:00+03:00");
   });
 });
