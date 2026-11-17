@@ -11,6 +11,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import { AdminSidebar } from "./admin-sidebar";
 import { AdminTopbar } from "./admin-topbar";
+import { AccessCheckNotice } from "./access-check-notice";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
@@ -166,6 +167,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           />
 
           <div className="max-w-[1800px] mx-auto">
+            <AccessCheckNotice />
             <PageTransition>{children}</PageTransition>
           </div>
         </main>
