@@ -105,6 +105,18 @@ describe("POST /api/billing/topup", () => {
     expect(logAdminActivity).not.toHaveBeenCalled();
   });
 
+  it("tells staff what happened in plain words, never the database's own", async () => {
+    rpc.mockResolvedValue({ data: { success: false, error: "No wallet found" }, error: null });
+    expect(await (await POST(req({ tenant_id: TENANT, amount: 5000 }))).json()).toEqual({
+      error: "This shop has no wallet yet, so nothing was added.",
+    });
+
+    rpc.mockResolvedValue({ data: null, error: { message: 'permission denied for table "wallet"' } });
+    const body = await (await POST(req({ tenant_id: TENANT, amount: 5000 }))).json();
+    expect(body).toEqual({ error: "The top-up could not be confirmed. Trying again adds it once at most." });
+    expect(JSON.stringify(body)).not.toMatch(/permission|wallet"/);
+  });
+
   it.each([undefined, "", "not-a-uuid", 42])(
     "refuses a top-up without a valid request id (%s): a retry could not be told apart",
     async (request_id) => {

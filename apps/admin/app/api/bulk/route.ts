@@ -12,6 +12,27 @@ import { updateShop, type ShopChange, type ShopUpdateActor } from "@/lib/shop-up
 
 const bulkTopupAmountSchema = topupAmountSchema.min(1000);
 
+type Failure = { tenant_id: string; error: string };
+
+/**
+ * The shops not done, with their names, so staff can see which ones to look
+ * at. Money or changes may already have gone through for the others, so a
+ * failed name read still answers with the outcome: it is logged, and those
+ * lines go without a name.
+ */
+async function withNames(
+  supabase: ReturnType<typeof createAdminClient>,
+  failed: Failure[],
+): Promise<(Failure & { name: string | null })[]> {
+  const { data, error } = await supabase
+    .from("tenants")
+    .select("id, business_name")
+    .in("id", failed.map((f) => f.tenant_id));
+  if (error) console.error("[bulk] could not read the names of the shops not done:", error.message);
+  const names = new Map((data ?? []).map((t: { id: string; business_name: string }) => [t.id, t.business_name]));
+  return failed.map((f) => ({ ...f, name: names.get(f.tenant_id) ?? null }));
+}
+
 /**
  * One change for every picked shop, one database call per shop: the call
  * checks the change, writes the shop and its subscription, and writes that
@@ -25,7 +46,7 @@ async function changeShops(
   actor: ShopUpdateActor,
 ) {
   const changed: { tenant_id: string; status: string; plan: string }[] = [];
-  const notChanged: { tenant_id: string; error: string }[] = [];
+  const notChanged: Failure[] = [];
   let crashed = false;
   for (const tid of tenantIds) {
     try {
@@ -47,7 +68,7 @@ async function changeShops(
           changed.length > 0 ? `; ${changed.length} were changed` : ""
         }`,
         succeeded: changed,
-        failed: notChanged,
+        failed: await withNames(supabase, notChanged),
       },
       // A refusal is the shop's state, not a server fault.
       { status: crashed ? 500 : 409 }
@@ -156,7 +177,7 @@ export async function POST(request: NextRequest) {
         // One RPC per shop: it moves the trial date and the bill date together,
         // refuses a shop that is not on trial, and writes that shop's audit row.
         const extended: { tenant_id: string; trial_ends_at: string }[] = [];
-        const notExtended: { tenant_id: string; error: string }[] = [];
+        const notExtended: Failure[] = [];
         let crashed = false;
         for (const tid of tenant_ids) {
           try {
@@ -178,7 +199,7 @@ export async function POST(request: NextRequest) {
                 extended.length > 0 ? `; ${extended.length} were extended` : ""
               }`,
               succeeded: extended,
-              failed: notExtended,
+              failed: await withNames(supabase, notExtended),
             },
             // A shop that is not on trial is a refusal, not a server fault.
             { status: crashed ? 500 : 409 }
@@ -228,7 +249,7 @@ export async function POST(request: NextRequest) {
         // `duplicate` marks a wallet this same request already credited: a
         // retry after a partial failure moves no money for it.
         const succeeded: { tenant_id: string; new_balance: number; duplicate: boolean }[] = [];
-        const failed: { tenant_id: string; error: string }[] = [];
+        const failed: Failure[] = [];
         for (const tid of tenant_ids) {
           const result = await topUpWallet({
             tenantId: tid,
@@ -263,7 +284,7 @@ export async function POST(request: NextRequest) {
                 succeeded.length > 0 ? `; ${succeeded.length} were credited` : ""
               }`,
               succeeded,
-              failed,
+              failed: await withNames(supabase, failed),
             },
             { status: 500 }
           );

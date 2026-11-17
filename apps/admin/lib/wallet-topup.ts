@@ -22,7 +22,17 @@ const rpcResultSchema = z.discriminatedUnion("success", [
 
 export type TopupResult =
   | { ok: true; newBalance: number; duplicate: boolean }
-  | { ok: false; error: string };
+  /** `error` is for staff to read; the database's own words stay in the server log. */
+  | { ok: false; noWallet: boolean; error: string };
+
+/** The database answers this when the shop has no wallet row. */
+const NO_WALLET = "No wallet found";
+export const TOPUP_NO_WALLET = "This shop has no wallet yet, so nothing was added.";
+/**
+ * The call failed or its answer was lost. The request id makes a retry add the
+ * money once at most, so that is what staff are told.
+ */
+export const TOPUP_NOT_CONFIRMED = "The top-up could not be confirmed. Trying again adds it once at most.";
 
 /**
  * Credit a tenant's prepaid wallet through the `admin_topup_wallet` RPC, which
@@ -50,11 +60,21 @@ export async function topUpWallet(params: {
     _reference_id: `admin_topup:${params.requestId}:${params.tenantId}`,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("[wallet-topup] admin_topup_wallet failed:", params.tenantId, error.message);
+    return { ok: false, noWallet: false, error: TOPUP_NOT_CONFIRMED };
+  }
 
   const parsed = rpcResultSchema.safeParse(data);
-  if (!parsed.success) return { ok: false, error: "Unexpected top-up response" };
-  if (!parsed.data.success) return { ok: false, error: parsed.data.error };
+  if (!parsed.success) {
+    console.error("[wallet-topup] unexpected answer:", params.tenantId, parsed.error.message);
+    return { ok: false, noWallet: false, error: TOPUP_NOT_CONFIRMED };
+  }
+  if (!parsed.data.success) {
+    if (parsed.data.error === NO_WALLET) return { ok: false, noWallet: true, error: TOPUP_NO_WALLET };
+    console.error("[wallet-topup] refused:", params.tenantId, parsed.data.error);
+    return { ok: false, noWallet: false, error: TOPUP_NOT_CONFIRMED };
+  }
   return {
     ok: true,
     newBalance: parsed.data.new_balance,
