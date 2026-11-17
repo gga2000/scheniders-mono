@@ -37,10 +37,13 @@ export function useCreateIndustry() {
   });
 }
 
+type IndustryEdit = Partial<Pick<Industry, "name" | "name_ar" | "icon" | "color" | "avg_order_value_iqd" | "is_active">>;
+
 export function useUpdateIndustry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Industry> }) => {
+    // Not the place in the list: that is useMoveIndustry.
+    mutationFn: async ({ id, data }: { id: string; data: IndustryEdit }) => {
       const res = await adminFetch(`/api/industries/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -50,6 +53,29 @@ export function useUpdateIndustry() {
       return res.json();
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["industries"] });
+    },
+  });
+}
+
+/**
+ * One place up or down. The server moves it, renumbers the list and logs it
+ * in one write; the list is read again either way, so it shows where each
+ * industry stands.
+ */
+export function useMoveIndustry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, direction }: { id: string; direction: "up" | "down" }) => {
+      const res = await adminFetch(`/api/industries/${id}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ direction }),
+      });
+      if (!res.ok) throw new Error(await refusal(res, "Could not move the industry."));
+      return res.json();
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });

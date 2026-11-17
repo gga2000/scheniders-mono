@@ -13,9 +13,11 @@ const patchSchema = z
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     avg_order_value_iqd: z.number().int().min(0),
     is_active: z.boolean(),
-    sort_order: z.number().int(),
   })
-  .partial();
+  // The place in the list changes only through /move, which renumbers the
+  // whole list in one write. A sort_order set here could share a number.
+  .partial()
+  .strict();
 
 export async function PATCH(
   request: NextRequest,

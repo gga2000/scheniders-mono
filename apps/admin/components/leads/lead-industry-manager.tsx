@@ -10,6 +10,7 @@ import {
   useIndustries,
   useCreateIndustry,
   useUpdateIndustry,
+  useMoveIndustry,
   useDeleteIndustry,
 } from "@/hooks/use-industries";
 import type { Industry } from "@/types/leads";
@@ -105,6 +106,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
   const { data: industries = [], isLoading, isError, error, refetch, isFetching } = useIndustries();
   const createIndustry = useCreateIndustry();
   const updateIndustry = useUpdateIndustry();
+  const moveIndustry = useMoveIndustry();
   const deleteIndustry = useDeleteIndustry();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -151,24 +153,21 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
     [updateIndustry]
   );
 
-  // Two industries trade places in two saves. Either one refused says so;
-  // the list is read again either way, so it shows where each one stands.
-  const swap = useCallback(
-    (moving: Industry, other: Industry) => {
-      void Promise.all([
-        updateIndustry.mutateAsync({ id: moving.id, data: { sort_order: other.sort_order } }),
-        updateIndustry.mutateAsync({ id: other.id, data: { sort_order: moving.sort_order } }),
-      ]).catch((error: Error) => toast.error(`Could not move "${moving.name}": ${error.message}`));
-    },
-    [updateIndustry]
-  );
+  // One write: the server moves the industry past its neighbour and renumbers
+  // the list, so two industries never share a place.
+  const move = (industry: Industry, direction: "up" | "down") => {
+    moveIndustry.mutate(
+      { id: industry.id, direction },
+      { onError: (error) => toast.error(`Could not move "${industry.name}": ${error.message}`) },
+    );
+  };
 
   const handleMoveUp = (index: number) => {
-    if (index > 0) swap(sorted[index], sorted[index - 1]);
+    if (index > 0) move(sorted[index], "up");
   };
 
   const handleMoveDown = (index: number) => {
-    if (index < sorted.length - 1) swap(sorted[index], sorted[index + 1]);
+    if (index < sorted.length - 1) move(sorted[index], "down");
   };
 
   const handleStartEdit = (industry: Industry) => {
@@ -484,14 +483,16 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               <div className="flex flex-col shrink-0">
                                 <button
                                   onClick={() => handleMoveUp(index)}
-                                  disabled={index === 0}
+                                  aria-label={`Move ${industry.name} up`}
+                                  disabled={index === 0 || moveIndustry.isPending}
                                   className="p-0.5 text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 >
                                   <ChevronUp className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleMoveDown(index)}
-                                  disabled={index === sorted.length - 1}
+                                  aria-label={`Move ${industry.name} down`}
+                                  disabled={index === sorted.length - 1 || moveIndustry.isPending}
                                   className="p-0.5 text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 >
                                   <ChevronDown className="w-3.5 h-3.5" />
