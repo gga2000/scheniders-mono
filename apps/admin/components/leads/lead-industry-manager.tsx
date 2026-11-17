@@ -113,10 +113,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
   const [formData, setFormData] = useState<NewIndustryFormData>(INITIAL_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<NewIndustryFormData>>({});
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    industry: Industry;
-    linkedLeads: number;
-  } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Industry | null>(null);
 
   // Sort industries by sort_order
   const sorted = [...industries].sort((a, b) => a.sort_order - b.sort_order);
@@ -199,16 +196,23 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
     );
   }, [editingId, editData, updateIndustry]);
 
-  const handleDeleteClick = (industry: Industry) => {
-    // In a real app we'd check the server for linked leads.
-    // For now, simulate: if industry has an id it may be referenced.
-    setDeleteConfirm({ industry, linkedLeads: 0 });
-  };
+  const handleDeleteClick = (industry: Industry) => setDeleteConfirm(industry);
 
+  // The server decides: an industry no lead uses is removed; one that leads
+  // use is switched off and they keep it. Staff are told which happened.
   const handleConfirmDelete = useCallback(() => {
     if (!deleteConfirm) return;
-    deleteIndustry.mutate(deleteConfirm.industry.id, {
-      onSuccess: () => setDeleteConfirm(null),
+    const { id, name } = deleteConfirm;
+    deleteIndustry.mutate(id, {
+      onSuccess: (answer) => {
+        setDeleteConfirm(null);
+        if (answer.result === "removed") {
+          toast.success(`"${name}" removed.`);
+        } else {
+          const leads = `${answer.leads_using_it} lead${answer.leads_using_it === 1 ? "" : "s"}`;
+          toast.success(`"${name}" switched off. ${leads} still use it, so it was not removed.`);
+        }
+      },
       onError: (error) => toast.error(error.message),
     });
   }, [deleteConfirm, deleteIndustry]);
@@ -510,6 +514,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               {/* Delete */}
                               <button
                                 onClick={() => handleDeleteClick(industry)}
+                                aria-label={`Delete ${industry.name}`}
                                 className="p-1.5 rounded-lg text-[var(--muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -649,23 +654,12 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
               </div>
               <div>
                 <Dialog.Title className="text-sm font-bold text-[var(--foreground)] mb-1">
-                  Delete &ldquo;{deleteConfirm?.industry.name}&rdquo;?
+                  Delete &ldquo;{deleteConfirm?.name}&rdquo;?
                 </Dialog.Title>
-                {deleteConfirm && deleteConfirm.linkedLeads > 0 ? (
-                  <p className="text-xs text-[var(--muted)]">
-                    This industry is linked to{" "}
-                    <span className="font-semibold text-[var(--ink-red)]">
-                      {deleteConfirm.linkedLeads}
-                    </span>{" "}
-                    lead{deleteConfirm.linkedLeads !== 1 ? "s" : ""}. Removing it
-                    will set their industry to uncategorized. Continue?
-                  </p>
-                ) : (
-                  <p className="text-xs text-[var(--muted)]">
-                    This industry will be permanently removed. This action cannot
-                    be undone.
-                  </p>
-                )}
+                <p className="text-xs text-[var(--muted)]">
+                  If no lead uses it, it is removed for good. If leads use it, it
+                  is switched off instead and those leads keep it.
+                </p>
               </div>
             </div>
 
