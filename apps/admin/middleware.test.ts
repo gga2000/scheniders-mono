@@ -99,7 +99,7 @@ describe("middleware access check", () => {
 
   it("sends a signed-out visitor to the login page, and answers 401 on the API", async () => {
     getUser = { data: { user: null }, error: new AuthSessionMissingError() };
-    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?next=%2Fmerchants");
     expect((await call("/api/leads")).status).toBe(401);
   });
 
@@ -112,12 +112,12 @@ describe("middleware access check", () => {
 
   it("treats a token the auth server rejects as signed out", async () => {
     getUser = { data: { user: null }, error: new AuthApiError("invalid JWT", 401, "bad_jwt") };
-    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?next=%2Fmerchants");
   });
 
   it("sends a signed-in non-admin to the login page with forbidden, and answers 403 on the API", async () => {
     adminRead = { data: null, error: null };
-    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=forbidden");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=forbidden&next=%2Fmerchants");
     expect((await call("/api/leads")).status).toBe(403);
     adminRead = { data: { admin_role: "super_admin", is_active: false }, error: null };
     expect((await call("/api/leads")).status).toBe(403);
@@ -187,7 +187,7 @@ describe("how long a staff sign-in lasts", () => {
   it("ends a sign-in older than 16 hours, here and on the auth server, and says why", async () => {
     sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
     const page = await call("/merchants");
-    expect(page.headers.get("location")).toBe("https://console.test/login?error=expired");
+    expect(page.headers.get("location")).toBe("https://console.test/login?error=expired&next=%2Fmerchants");
     expect(signOut).toHaveBeenCalledWith({ scope: "local" });
     // The browser's session cookie goes with the answer.
     expect(page.cookies.get("sb-session")?.value).toBe("");
@@ -213,13 +213,13 @@ describe("how long a staff sign-in lasts", () => {
   it("still sends staff to sign in again when ending the old sign-in failed, and reports it", async () => {
     sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
     signOutError = new AuthRetryableFetchError("fetch failed", 0);
-    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=expired");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?error=expired&next=%2Fmerchants");
     expect(errors).toHaveBeenCalledWith("[middleware] Ending an old sign-in failed", { path: "/merchants", message: "fetch failed" });
   });
 
   it("treats a session token that does not check out as signed out", async () => {
     sessionClaims = { data: null, error: new AuthInvalidJwtError("Invalid JWT signature") };
-    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?next=%2Fmerchants");
     expect((await call("/api/leads")).status).toBe(401);
   });
 
@@ -233,8 +233,8 @@ describe("how long a staff sign-in lasts", () => {
     getUser = { data: { user: null }, error: new AuthSessionMissingError() };
     const marked = (path: string) =>
       middleware(new NextRequest(`https://console.test${path}`, { headers: { cookie: "staff_sign_in_ended=1" } }));
-    expect((await marked("/merchants")).headers.get("location")).toBe("https://console.test/login?error=expired");
-    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+    expect((await marked("/merchants")).headers.get("location")).toBe("https://console.test/login?error=expired&next=%2Fmerchants");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?next=%2Fmerchants");
   });
 
   it("clears the mark once staff are signed in again", async () => {
@@ -248,6 +248,35 @@ describe("how long a staff sign-in lasts", () => {
     sessionClaims = { data: null, error: new AuthRetryableFetchError("fetch failed", 0) };
     expect((await call("/merchants")).status).toBe(503);
     expect((await call("/api/leads")).status).toBe(503);
+  });
+});
+
+// Round 14 (Workflow new 6): staff whose sign-in had ended signed in again
+// and landed on Home, not on the page they had opened.
+describe("the page staff asked for", () => {
+  const signedOut = () => {
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+  };
+  const location = async (path: string) => (await call(path)).headers.get("location");
+
+  it("goes to the login page with the page asked for, its own query inside it", async () => {
+    signedOut();
+    expect(await location("/leads/7f1c?tab=notes")).toBe("https://console.test/login?next=%2Fleads%2F7f1c%3Ftab%3Dnotes");
+    expect(await location("/merchants?status=trial")).toBe("https://console.test/login?next=%2Fmerchants%3Fstatus%3Dtrial");
+  });
+
+  it("names no page for Home", async () => {
+    signedOut();
+    expect(await location("/")).toBe("https://console.test/login");
+  });
+
+  it("sends a signed-in admin from the login page on to the page asked for", async () => {
+    expect(await location("/login?next=%2Fleads%2F7f1c%3Ftab%3Dnotes")).toBe("https://console.test/leads/7f1c?tab=notes");
+  });
+
+  it("sends a signed-in admin from the login page Home, without the login page's reason", async () => {
+    expect(await location("/login?error=expired")).toBe("https://console.test/");
+    expect(await location("/login?next=%2F%2Fexample.com")).toBe("https://console.test/");
   });
 });
 
