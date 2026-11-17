@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireBearerAdmin, type AdminContext } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
-import { convertedLeadsMessage, isConvertedLock, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
+import { convertedLeadsDeleteMessage, convertedLeadsMessage, isConvertedLock, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { bulkLeadSchema, type BulkLeadResult } from "@/lib/lead-bulk";
 import { changeLeads, type LeadChange } from "@/lib/lead-change";
 import { deleteLeads } from "@/lib/lead-delete";
@@ -82,19 +82,29 @@ async function changeTicked(
 
 /**
  * A deleted lead takes its history with it: the log row keeps each name, as
- * for one lead. A ticked lead with a prospect store stops the whole press and
- * is named (lib/lead-converted-lock); the delete itself skips such a lead too,
- * so a store built at the same moment keeps its lead.
+ * for one lead. A ticked lead that became a shop, or has a prospect store,
+ * stops the whole press and is named (lib/lead-converted-lock); the delete
+ * itself skips such a lead too, so one converted or built at the same moment
+ * is kept, and the answer names it.
  */
 async function deleteTicked(supabase: Supabase, admin: AdminContext, leadIds: string[]): Promise<NextResponse> {
+  const shops = await namesWithShop(supabase, leadIds, "converted_tenant_id");
+  if (shops.length > 0) {
+    return NextResponse.json({ error: convertedLeadsDeleteMessage(shops, true) }, { status: 409 });
+  }
   const withStore = await namesWithShop(supabase, leadIds, "prospect_tenant_id");
   if (withStore.length > 0) {
     return NextResponse.json({ error: prospectStoreLeadsMessage(withStore, true) }, { status: 409 });
   }
-  // The delete skips a lead whose store was built after the check above, and
-  // the staff log row naming each lead is written in the same transaction.
-  const { removed } = await deleteLeads(supabase, leadIds, admin.user, true);
-  return answer({ success: true, found: removed.length, changed: removed.length });
+  // The staff log row naming each lead is written in the same transaction.
+  const result = await deleteLeads(supabase, leadIds, admin.user, true);
+  const kept = [...result.kept_converted, ...result.kept_with_store];
+  return answer({
+    success: true,
+    found: result.removed.length + kept.length,
+    changed: result.removed.length,
+    ...(kept.length > 0 ? { kept } : {}),
+  });
 }
 
 /**

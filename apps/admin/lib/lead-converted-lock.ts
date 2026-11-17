@@ -48,3 +48,17 @@ export function prospectStoreLeadsMessage(names: readonly string[], bulk = false
     ? `${refusal} Untick ${one ? "it" : "them"} and try again. Nothing was deleted.`
     : `${refusal} The store would stay online with no lead to find it by.`;
 }
+
+/**
+ * A lead that became a shop is not deleted: its sale counts in Lead numbers
+ * and the Team board, and its commission row points at it. Names the ones
+ * kept, so the person knows which to untick.
+ */
+export function convertedLeadsDeleteMessage(names: readonly string[], bulk = false): string {
+  const quoted = wordList(names.map((name) => `"${name}"`), 3);
+  const one = names.length === 1;
+  const refusal = one
+    ? `${quoted} is already a store, so it can't be deleted. Its sale and commission stay on record.`
+    : `${quoted} are already stores, so they can't be deleted. Their sales and commission stay on record.`;
+  return bulk ? `${refusal} Untick ${one ? "it" : "them"} and try again. Nothing was deleted.` : refusal;
+}

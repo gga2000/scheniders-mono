@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { leadConvertedLockResponse, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
+import { convertedLeadsDeleteMessage, leadConvertedLockResponse, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
@@ -164,13 +164,17 @@ export async function DELETE(
     if (missing) return missing;
     const supabase = createAdminClient();
 
-    // A lead with a prospect store is not deleted: its store would stay online
-    // with the business's name, phone and address, and no screen could find
-    // it again. The database skips such a lead in the delete itself, so a
-    // store built at the same moment keeps its lead, and writes the staff log
-    // row (all that remains of a deleted lead) in the same transaction.
+    // A lead that became a shop, or has a prospect store, is not deleted: its
+    // sale and commission stay on record, and a prospect store would stay
+    // online with no lead to find it by. The database skips such a lead in the
+    // delete itself, so one converted or built at the same moment is kept, and
+    // writes the staff log row (all that remains of a deleted lead) in the
+    // same transaction.
     const result = await deleteLeads(supabase, [id], admin.user, false);
-    if (result.removed.length === 0 && result.kept_with_store.length > 0) {
+    if (result.kept_converted.length > 0) {
+      return NextResponse.json({ error: convertedLeadsDeleteMessage(result.kept_converted) }, { status: 409 });
+    }
+    if (result.kept_with_store.length > 0) {
       return NextResponse.json({ error: prospectStoreLeadsMessage(result.kept_with_store) }, { status: 409 });
     }
 

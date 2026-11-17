@@ -27,8 +27,12 @@ vi.mock("@/lib/activity-logger", () => ({ logAdminAction: async (...args: unknow
 const rpc = vi.fn();
 /** Every read and write on leads, as the chain the route built. */
 let reads: Array<{ method: string; args: unknown[] }[]>;
-/** What a read of leads answers (the delete is a database call, `rpc`). */
-let storeRows: Array<{ merchant_name: string }>;
+/**
+ * What a read of leads answers, by the column it asks to be set: leads that
+ * became shops, or leads with a prospect store (the delete is a database
+ * call, `rpc`).
+ */
+let shopRows: Record<string, Array<{ merchant_name: string }>>;
 function chain(steps: { method: string; args: unknown[] }[], answer: () => unknown): unknown {
   return new Proxy(() => undefined, {
     get(_target, prop) {
@@ -47,7 +51,7 @@ vi.mock("@/lib/admin-supabase", () => ({
       const steps: { method: string; args: unknown[] }[] = [];
       reads.push(steps);
       return chain(steps, () => ({
-        data: storeRows,
+        data: shopRows[String(steps.find((step) => step.method === "not")?.args[0])] ?? [],
         error: null,
       }));
     },
@@ -66,7 +70,7 @@ const done = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   role = "support_staff";
   reads = [];
-  storeRows = [];
+  shopRows = {};
   logged.length = 0;
   rpc.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -144,7 +148,7 @@ describe("POST /api/leads/bulk", () => {
 
   it("names the ticked leads that are already stores when the database refuses", async () => {
     rpc.mockResolvedValue({ data: null, error: { hint: "LEAD_CONVERTED_LOCKED", message: "locked" } });
-    storeRows = [{ merchant_name: "Kawkab" }];
+    shopRows = { converted_tenant_id: [{ merchant_name: "Kawkab" }] };
     const res = await call({ action: "assign_to_me", lead_ids: [LEAD, LEAD2], take_from_others: true });
 
     expect(res.status).toBe(409);
@@ -166,14 +170,17 @@ describe("POST /api/leads/bulk", () => {
       { id: LEAD, merchant_name: "Kawkab" },
       { id: LEAD2, merchant_name: "Noor" },
     ];
-    rpc.mockResolvedValue({ data: { removed, kept_with_store: [] }, error: null });
+    rpc.mockResolvedValue({ data: { removed, kept_with_store: [], kept_converted: [] }, error: null });
     const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2, LEAD3] });
 
     expect(await res.json()).toEqual({ success: true, found: 2, changed: 2 });
-    // First the check for prospect stores (it only picks the words), then one
-    // call that deletes, skips a store built meanwhile, and logs.
-    expect(reads).toHaveLength(1);
-    expect(reads[0].map((s) => s.method)).toEqual(["select", "in", "not", "order"]);
+    // First the checks for shops and prospect stores (they only pick the
+    // words), then one call that deletes, skips a lead converted or built
+    // meanwhile, and logs.
+    expect(reads.map((read) => read.find((s) => s.method === "not")?.args[0])).toEqual([
+      "converted_tenant_id",
+      "prospect_tenant_id",
+    ]);
     expect(rpc).toHaveBeenCalledWith("admin_delete_leads", {
       _lead_ids: [LEAD, LEAD2, LEAD3],
       _admin_user_id: ME,
@@ -186,21 +193,49 @@ describe("POST /api/leads/bulk", () => {
   it("refuses the whole press when a ticked lead has a prospect store, naming it, and deletes nothing", async () => {
     role = "super_admin";
     // Its store would stay online with the business's name and phone, and no screen could find it.
-    storeRows = [{ merchant_name: "Kawkab" }];
+    shopRows = { prospect_tenant_id: [{ merchant_name: "Kawkab" }] };
     const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2] });
 
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe(
       '"Kawkab" has a prospect store, so it can\'t be deleted. Untick it and try again. Nothing was deleted.',
     );
-    expect(reads[0]).toContainEqual({ method: "not", args: ["prospect_tenant_id", "is", null] });
+    expect(reads[1]).toContainEqual({ method: "not", args: ["prospect_tenant_id", "is", null] });
     expect(rpc).not.toHaveBeenCalled();
     expect(logged).toEqual([]);
   });
 
+  it("refuses the whole press when a ticked lead became a shop, naming it, and deletes nothing", async () => {
+    role = "super_admin";
+    // Deleting it took its sale off Lead numbers and the Team board, and left
+    // its commission row pointing at nothing.
+    shopRows = { converted_tenant_id: [{ merchant_name: "متجر الذهب" }, { merchant_name: "Noor" }] };
+    const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2, LEAD3] });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(
+      '"متجر الذهب" and "Noor" are already stores, so they can\'t be deleted. Their sales and commission stay on record. Untick them and try again. Nothing was deleted.',
+    );
+    expect(reads[0]).toContainEqual({ method: "not", args: ["converted_tenant_id", "is", null] });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(logged).toEqual([]);
+  });
+
+  it("names the leads the database kept because they became shops or got a store after the checks", async () => {
+    role = "super_admin";
+    rpc.mockResolvedValue({
+      data: { removed: [{ id: LEAD, merchant_name: "Noor" }], kept_with_store: ["Kawkab"], kept_converted: ["Erbil Mall"] },
+      error: null,
+    });
+    const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2, LEAD3] });
+
+    // Kept leads were found: the bar no longer says they "no longer exist".
+    expect(await res.json()).toEqual({ success: true, found: 3, changed: 1, kept: ["Erbil Mall", "Kawkab"] });
+  });
+
   it("answers nothing changed when every ticked lead was gone already", async () => {
     role = "super_admin";
-    rpc.mockResolvedValue({ data: { removed: [], kept_with_store: [] }, error: null });
+    rpc.mockResolvedValue({ data: { removed: [], kept_with_store: [], kept_converted: [] }, error: null });
     const res = await call({ action: "delete", lead_ids: [LEAD] });
 
     expect(await res.json()).toEqual({ success: true, found: 0, changed: 0 });

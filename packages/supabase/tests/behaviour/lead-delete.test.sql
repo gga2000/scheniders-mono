@@ -7,6 +7,7 @@
 --     row naming it, in the same transaction;
 --   * ticked leads: deleted, one 'bulk_leads' row naming each;
 --   * a lead with a prospect store is never deleted and is named back;
+--   * a lead that became a shop is never deleted and is named on its own list;
 --     a press of only such leads, or of leads already gone, writes no row;
 --   * no ids or no _bulk: an error, nothing written;
 --   * only the service role may run it.
@@ -26,11 +27,14 @@ BEGIN
     END IF;
 END $$;
 
-INSERT INTO public.leads (id, merchant_name, prospect_tenant_id) VALUES
-    ('b0000000-0000-4000-8000-000000000001', 'Kawkab', NULL),
-    ('b0000000-0000-4000-8000-000000000002', 'Zahra Perfumes', NULL),
-    ('b0000000-0000-4000-8000-000000000003', 'Baghdad Tools', NULL),
-    ('b0000000-0000-4000-8000-000000000004', 'Basra Shoes', 'c0000000-0000-4000-8000-000000000004');
+INSERT INTO public.leads (id, merchant_name, prospect_tenant_id, converted_tenant_id) VALUES
+    ('b0000000-0000-4000-8000-000000000001', 'Kawkab', NULL, NULL),
+    ('b0000000-0000-4000-8000-000000000002', 'Zahra Perfumes', NULL, NULL),
+    ('b0000000-0000-4000-8000-000000000003', 'Baghdad Tools', NULL, NULL),
+    ('b0000000-0000-4000-8000-000000000004', 'Basra Shoes', 'c0000000-0000-4000-8000-000000000004', NULL),
+    -- Became shops: one signed up on its own, one from its prospect store.
+    ('b0000000-0000-4000-8000-000000000005', 'متجر الذهب', NULL, 'c0000000-0000-4000-8000-000000000005'),
+    ('b0000000-0000-4000-8000-000000000006', 'Erbil Mall', 'c0000000-0000-4000-8000-000000000006', 'c0000000-0000-4000-8000-000000000006');
 INSERT INTO public.lead_activities (lead_id, activity_type, title) VALUES
     ('b0000000-0000-4000-8000-000000000001', 'note', 'called, wants a demo');
 
@@ -43,7 +47,7 @@ BEGIN
     -- One lead from its own page.
     _r := public.admin_delete_leads(ARRAY['b0000000-0000-4000-8000-000000000001']::uuid[], _admin, 'ops@x.test', false);
     PERFORM pg_temp.check('one: answer is not Kawkab removed: ' || _r::text,
-        _r = '{"removed": [{"id": "b0000000-0000-4000-8000-000000000001", "merchant_name": "Kawkab"}], "kept_with_store": []}');
+        _r = '{"removed": [{"id": "b0000000-0000-4000-8000-000000000001", "merchant_name": "Kawkab"}], "kept_with_store": [], "kept_converted": []}');
     PERFORM pg_temp.check('one: the lead is still there',
         NOT EXISTS (SELECT 1 FROM public.leads WHERE id = 'b0000000-0000-4000-8000-000000000001'));
     PERFORM pg_temp.check('one: its history is still there',
@@ -69,10 +73,22 @@ BEGIN
        AND jsonb_array_length(details -> 'leads') = 2;
     PERFORM pg_temp.check('bulk: not one bulk_leads row naming both, got ' || _n, _n = 1);
 
+    -- THE LOST CASE: a lead that became a shop is never deleted, so its
+    -- conversion stays in Lead numbers, the Team board and its commission
+    -- row. It is named on its own list, even when it came from a prospect store.
+    SELECT count(*) INTO _n FROM public.admin_activity_logs;
+    _r := public.admin_delete_leads(ARRAY[
+        'b0000000-0000-4000-8000-000000000005', 'b0000000-0000-4000-8000-000000000006']::uuid[], _admin, 'ops@x.test', true);
+    PERFORM pg_temp.check('shops: answer is wrong: ' || _r::text,
+        _r = '{"removed": [], "kept_with_store": [], "kept_converted": ["Erbil Mall", "متجر الذهب"]}');
+    PERFORM pg_temp.check('shops: a converted lead was deleted',
+        (SELECT count(*) FROM public.leads WHERE converted_tenant_id IS NOT NULL) = 2);
+    PERFORM pg_temp.check('shops: a row was written', (SELECT count(*) FROM public.admin_activity_logs) = _n);
+
     -- Nothing to delete: no row.
     SELECT count(*) INTO _n FROM public.admin_activity_logs;
     _r := public.admin_delete_leads(ARRAY['b0000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000001']::uuid[], _admin, 'ops@x.test', true);
-    PERFORM pg_temp.check('none: answer is wrong: ' || _r::text, _r = '{"removed": [], "kept_with_store": ["Basra Shoes"]}');
+    PERFORM pg_temp.check('none: answer is wrong: ' || _r::text, _r = '{"removed": [], "kept_with_store": ["Basra Shoes"], "kept_converted": []}');
     PERFORM pg_temp.check('none: a row was written', (SELECT count(*) FROM public.admin_activity_logs) = _n);
 
     -- Bad calls.

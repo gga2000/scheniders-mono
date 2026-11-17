@@ -24,6 +24,16 @@ describe("bulkResultText", () => {
     expect(bulkResultText(body, done(3, 3))).toBe("Deleted 3 leads. 1 no longer exists.");
     expect(bulkResultText(body, done(0, 0))).toBe("Nothing was deleted. 4 no longer exist.");
   });
+
+  it("names the leads kept because they became stores meanwhile, instead of saying they are gone", () => {
+    const body = { action: "delete" as const, lead_ids: ids(4) };
+    expect(bulkResultText(body, { ...done(4, 3), kept: ["Kawkab"] })).toBe(
+      'Deleted 3 leads. Kept "Kawkab": it has a store now.',
+    );
+    expect(bulkResultText(body, { ...done(3, 1), kept: ["Kawkab", "متجر الذهب"] })).toBe(
+      'Deleted 1 lead. Kept "Kawkab" and "متجر الذهب": they have stores now. 1 no longer exists.',
+    );
+  });
 });
 
 describe("bulkLeadSchema", () => {

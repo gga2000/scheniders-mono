@@ -6,7 +6,9 @@ import { NextRequest } from "next/server";
  * the store stayed online with the business's name, phone and address, its
  * link to the lead was cleared, and no screen could find it again. Such a
  * lead is refused with its name, and the database skips it in the delete
- * itself, so a store built at the same moment keeps its lead.
+ * itself, so a store built at the same moment keeps its lead. A lead that
+ * became a shop was deleted too, taking its sale off Lead numbers and the
+ * Team board; it is refused the same way.
  *
  * The staff log row is all that remains of a deleted lead. It was written in
  * a second request after the delete, and lost when that request failed. Now
@@ -28,8 +30,8 @@ const remove = () =>
   DELETE(new NextRequest(`http://admin.test/api/leads/${LEAD}`, { method: "DELETE" }), {
     params: Promise.resolve({ id: LEAD }),
   });
-const answer = (removed: Array<{ id: string; merchant_name: string }>, kept: string[] = []) =>
-  rpc.mockResolvedValue({ data: { removed, kept_with_store: kept }, error: null });
+const answer = (removed: Array<{ id: string; merchant_name: string }>, kept: string[] = [], converted: string[] = []) =>
+  rpc.mockResolvedValue({ data: { removed, kept_with_store: kept, kept_converted: converted }, error: null });
 
 beforeEach(() => {
   rpc.mockReset();
@@ -63,6 +65,17 @@ describe("DELETE /api/leads/[id]", () => {
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe(
       '"Kawkab" has a prospect store, so it can\'t be deleted. The store would stay online with no lead to find it by.',
+    );
+  });
+
+  it("refuses a lead that became a shop, by name, so its sale and commission stay on record", async () => {
+    answer([], [], ["متجر الذهب"]);
+
+    const res = await remove();
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(
+      '"متجر الذهب" is already a store, so it can\'t be deleted. Its sale and commission stay on record.',
     );
   });
 

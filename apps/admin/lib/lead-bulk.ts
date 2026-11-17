@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { LEAD_STATUS_CONFIG } from "@/types/leads";
 import { MANUAL_LEAD_STATUSES } from "./lead-update";
+import { wordList } from "./word-list";
 
 const leadIds = z.array(z.uuid()).min(1, "lead_ids required").max(100, "Max 100 leads per bulk action");
 
@@ -28,7 +29,13 @@ export type BulkLeadBody = z.input<typeof bulkLeadSchema>;
  * really changed. A lead already in that state is found but not changed; a
  * lead someone deleted meanwhile is not found.
  */
-export const bulkLeadResultSchema = z.object({ success: z.literal(true), found: z.number(), changed: z.number() });
+export const bulkLeadResultSchema = z.object({
+  success: z.literal(true),
+  found: z.number(),
+  changed: z.number(),
+  /** Delete only: leads kept because they became shops or got a store meanwhile, by name. */
+  kept: z.array(z.string()).optional(),
+});
 
 export type BulkLeadResult = z.infer<typeof bulkLeadResultSchema>;
 
@@ -36,7 +43,7 @@ const leads = (n: number) => (n === 1 ? "1 lead" : `${n} leads`);
 const wasWere = (n: number) => (n === 1 ? "1 was" : `${n} were`);
 
 /** What the bar says once a press went through: what changed, and what was so already. */
-export function bulkResultText(body: BulkLeadBody, { found, changed }: BulkLeadResult): string {
+export function bulkResultText(body: BulkLeadBody, { found, changed, kept = [] }: BulkLeadResult): string {
   const same = found - changed;
   const gone = body.lead_ids.length - found;
   const said: string[] = [];
@@ -53,6 +60,10 @@ export function bulkResultText(body: BulkLeadBody, { found, changed }: BulkLeadR
       break;
     case "delete":
       said.push(changed > 0 ? `Deleted ${leads(changed)}.` : "Nothing was deleted.");
+      if (kept.length > 0) {
+        const names = wordList(kept.map((name) => `"${name}"`), 3);
+        said.push(`Kept ${names}: ${kept.length === 1 ? "it has a store now" : "they have stores now"}.`);
+      }
       break;
   }
   if (gone > 0) said.push(`${gone === 1 ? "1 no longer exists" : `${gone} no longer exist`}.`);
