@@ -10,6 +10,10 @@ import { NextRequest } from "next/server";
  * history line, assigned_at and the reassign_lead row with the change, so a
  * refused change leaves nothing behind and two staff moving one lead log the
  * right "from".
+ *
+ * The rest of the form (name, phones, tags, priority...) was written straight
+ * to the row with no staff log row. It now goes through admin_edit_lead,
+ * which saves only what really changed and logs those fields with it.
  */
 
 vi.mock("@/lib/api-auth", () => ({
@@ -22,18 +26,14 @@ const OTHER = "1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d";
 
 type Call = { fn: string; args: Record<string, unknown> };
 let calls: Call[];
-let updates: Record<string, unknown>[];
 let rpcAnswer: { data: unknown; error: unknown };
+let editAnswer: { data: unknown; error: unknown };
 let stored: Record<string, unknown> | null;
 
 function from() {
   const builder = {
     select: () => builder,
     eq: () => builder,
-    update: (row: Record<string, unknown>) => {
-      updates.push(row);
-      return { eq: async () => ({ error: null }) };
-    },
     maybeSingle: async () => ({ data: stored, error: null }),
   };
   return builder;
@@ -41,8 +41,11 @@ function from() {
 
 async function rpc(fn: string, args: Record<string, unknown>) {
   calls.push({ fn, args });
-  return rpcAnswer;
+  return fn === "admin_edit_lead" ? editAnswer : rpcAnswer;
 }
+
+/** The fields sent to admin_edit_lead, or none. */
+const edits = () => calls.filter((c) => c.fn === "admin_edit_lead").map((c) => c.args._changes);
 
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ from, rpc }) }));
 
@@ -55,8 +58,8 @@ const patch = (body: unknown) =>
 
 beforeEach(() => {
   calls = [];
-  updates = [];
   rpcAnswer = { data: { success: true, found: 1, status_changed: 1, moved: 0 }, error: null };
+  editAnswer = { data: { found: true, changed: ["merchant_name"] }, error: null };
   stored = { id: LEAD, merchant_name: "Kawkab", status: "store_built" };
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -68,7 +71,6 @@ describe("PATCH /api/leads/[id]", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/only through Convert/);
     expect(calls).toEqual([]);
-    expect(updates).toEqual([]);
   });
 
   it("changes the status through the one rule and answers with the saved lead", async () => {
@@ -81,7 +83,7 @@ describe("PATCH /api/leads/[id]", () => {
         args: expect.objectContaining({ _lead_ids: [LEAD], _status: "store_built", _set_owner: false, _admin_user_id: "a1" }),
       },
     ]);
-    expect(updates).toEqual([]);
+    expect(edits()).toEqual([]);
     expect((await res.json()).lead).toMatchObject({ id: LEAD, status: "store_built" });
   });
 
@@ -89,7 +91,7 @@ describe("PATCH /api/leads/[id]", () => {
     await patch({ merchant_name: "Noor", assigned_to: OTHER, status: "interested" });
 
     expect(calls[0].args).toMatchObject({ _status: "interested", _set_owner: true, _owner: OTHER, _take_owned: true });
-    expect(updates).toEqual([{ merchant_name: "Noor" }]);
+    expect(edits()).toEqual([{ merchant_name: "Noor" }]);
   });
 
   it("can leave a lead with no owner", async () => {
@@ -104,7 +106,7 @@ describe("PATCH /api/leads/[id]", () => {
     const res = await patch({ status: "lost", merchant_name: "Noor" });
 
     expect(res.status).toBe(409);
-    expect(updates).toEqual([]);
+    expect(edits()).toEqual([]);
   });
 
   it("refuses an owner who is not active staff", async () => {
@@ -124,11 +126,31 @@ describe("PATCH /api/leads/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("saves other fields without the status rule, and drops fields the server keeps", async () => {
+  it("saves other fields through admin_edit_lead with who did it, and drops fields the server keeps", async () => {
     await patch({ priority: "high", last_contacted_at: "2020-01-01T00:00:00Z", lead_score: 100, assigned_at: "2020-01-01" });
 
-    expect(calls).toEqual([]);
-    expect(updates).toEqual([{ priority: "high" }]);
+    expect(calls).toEqual([
+      {
+        fn: "admin_edit_lead",
+        args: { _lead_id: LEAD, _changes: { priority: "high" }, _admin_user_id: "a1", _actor_email: "a@b.co" },
+      },
+    ]);
+  });
+
+  it("answers 404 when the lead is gone before its fields are saved", async () => {
+    editAnswer = { data: { found: false, changed: [] }, error: null };
+
+    const res = await patch({ tags: ["vip"] });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("answers 500, never a saved lead, when the edit is refused", async () => {
+    editAnswer = { data: null, error: { code: "22023", message: "admin_edit_lead cannot change x" } };
+
+    const res = await patch({ merchant_name: "Noor" });
+
+    expect(res.status).toBe(500);
   });
 
   it("refuses an empty change", async () => {
@@ -136,6 +158,5 @@ describe("PATCH /api/leads/[id]", () => {
 
     expect(res.status).toBe(400);
     expect(calls).toEqual([]);
-    expect(updates).toEqual([]);
   });
 });

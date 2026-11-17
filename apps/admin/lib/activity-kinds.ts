@@ -43,7 +43,7 @@ export const ACTIVITY_KINDS: readonly KindRule[] = [
   {
     value: "leads",
     label: "Leads",
-    actions: ["convert_lead", "build_store_for_lead", "delete_lead", "reassign_lead", "import_leads", "bulk_leads"],
+    actions: ["convert_lead", "build_store_for_lead", "edit_lead", "delete_lead", "reassign_lead", "import_leads", "bulk_leads"],
     prefixes: [],
   },
   {
