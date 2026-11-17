@@ -108,6 +108,10 @@ describe("SummaryView", () => {
         expect(byTestId("statement-plain")?.textContent).not.toContain("%");
         // the staircase ends in what is left: a green row for the profit, with its share of sales
         expect(byTestId("statement-left")?.textContent).toBe("يبقى لك29% من المبيعات115,000د.ع");
+        // the share column adds up to 100, like the products table (37.5 + 15 + 7.5 + 10 + 1.25 + 28.75)
+        const shares = ["product_cost", "ads", "delivery", "refunds", "other"].map((id) => Number(/(\d+)% من المبيعات/.exec(line(id)?.textContent ?? "")?.[1]));
+        expect(shares).toEqual([38, 15, 7, 10, 1]);
+        expect(shares.reduce((sum, share) => sum + share, 0) + 29).toBe(100);
     });
 
     it("re-reads the statement per order, and offers no other view", () => {
@@ -215,6 +219,7 @@ describe("SummaryView", () => {
         // 330,000 + 30,000 + 40,000 = 400,000
         expect(byTestId("money-reached")?.textContent).toContain("330,000");
         expect(byTestId("money-reached")?.textContent).toContain("ثمن 7 طلبات مسلَّمة في هذه الفترة، بعد أجرة التوصيل");
+        expect(byTestId("money-reached")?.textContent).not.toContain("خصمته الكشوف");
         expect(byTestId("money-fee")?.textContent).toContain("30,000");
         // the statement's delivery line has nothing more here, so no second figure to explain
         expect(byTestId("money-fee-statement")).toBeNull();
@@ -244,7 +249,7 @@ describe("SummaryView", () => {
         // over two weeks is late: only the first row is marked
         expect(ages.map((age) => age.hasAttribute("data-late"))).toEqual([true, false]);
         // a late row says once what to do about it
-        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة بالبرتقالي تسلّمها الزبائن قبل أكثر من أسبوعين ولم يُدفع لك ثمنها بعد: اسأل عنها شركة التوصيل التي أوصلتها.");
+        expect(byTestId("money-unpaid-late")?.textContent).toBe("الطلبات المكتوبة باللون البرتقالي تسلّمها الزبائن قبل أكثر من أسبوعين ولم يُدفع لك ثمنها بعد: اسأل عنها شركة التوصيل التي أوصلتها.");
         vi.useRealTimers();
         const list = byTestId("money-unpaid-list");
         const links = Array.from(list?.querySelectorAll("a") ?? []);
@@ -323,7 +328,8 @@ describe("SummaryView", () => {
         renderView(query(summary({
             cash: {
                 ...s.cash,
-                split: { ...s.cash.split, reached_now: 380_000, reached_before: 1_000 },
+                // 5 prepaid orders in "paid to you", 2 of them in these statements
+                split: { ...s.cash.split, reached_now: 380_000, reached_before: 1_000, reached_prepaid: 50_000, reached_prepaid_orders: 5 },
                 statement: {
                     returns: -50_000,
                     returns_orders: 3,
@@ -355,7 +361,7 @@ describe("SummaryView", () => {
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
             "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالته بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
-            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
+            "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء. و3 طلبات أخرى دفعها الزبون مسبقاً في «دُفع لك» لم ترد في كشوف هذه الفترة.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
             "فروق أخرى−28,001د.ع",
@@ -388,8 +394,10 @@ describe("SummaryView", () => {
         cleanup();
         // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 }, statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1 } } })));
-        // folded until asked for, so the open card only shows parts that add up to "paid to you"
+        // folded until asked for, so the open card only shows parts that add up to "paid to you"; the note under
+        // "paid to you" says up front that it is before what the statements took off
         expect(byTestId("money-from-now-lines")).toBeNull();
+        expect(byTestId("money-reached")?.textContent).toContain("بعد أجرة التوصيل، وقبل ما خصمته الكشوف (20,000 د.ع)");
         expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةكيف يطابق هذا الدفعات100,000");
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
@@ -651,7 +659,7 @@ describe("SummaryView", () => {
         // 3.2 x 18,000 = 57,600, the 5 x 11,500 a day left after the costs, give or take the rounding
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
-        expect(bar?.textContent).toContain("1.8 طلب تغطي مصروفات اليوم");
+        expect(bar?.textContent).toContain("مصروفات اليوم يغطيها 1.8 طلب");
         expect(bar?.textContent).toContain("من كل 5 طلبات في اليوم، 3.2 منها تترك لك ربحاً");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");

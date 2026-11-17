@@ -105,6 +105,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
             if (!next.delete(key)) next.add(key);
             return next;
         });
+    const prepaidElsewhere = Math.max(split.reached_prepaid_orders - statement.prepaid_orders, 0);
     // A prepaid order loses the whole delivery fee; one the statement credited with some money loses less, so say why.
     const prepaidNote = (prepaid: StatementOrder[]) => {
         const fee = usualAmount(prepaid.map((order) => order.amount));
@@ -119,6 +120,11 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                     net: money(-order.amount),
                 }),
             ),
+            // "Paid to you" counts more prepaid orders than these statements list: say where the rest are,
+            // so the two counts on the page are not read as missing fees.
+            ...(prepaidElsewhere > 0
+                ? [t("fin.money.cash.part.prepaidElsewhere", { n: formatWhole(prepaidElsewhere), count: prepaidElsewhere })]
+                : []),
         ].join(" ");
     };
     const parts: Part[] =
