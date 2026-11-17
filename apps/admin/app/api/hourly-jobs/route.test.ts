@@ -98,8 +98,8 @@ describe("GET /api/hourly-jobs", () => {
     const [error, context] = sentry.captureException.mock.calls[0];
     expect(String(error)).toBe("Error: Hourly job refresh-lead-scores failed");
     expect(context).toEqual({
-      fingerprint: ["hourly-job-failed", "refresh-lead-scores"],
-      extra: { started: minutesAgo(3), message: "ERROR: something" },
+      fingerprint: ["hourly-job", "failed", "refresh-lead-scores"],
+      extra: { last_run: minutesAgo(3), message: "ERROR: something" },
     });
   });
 
