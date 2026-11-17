@@ -4,12 +4,13 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, Wallet, Building2, Clock, AlertTriangle } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
 import { WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
 import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing-check-alert";
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
 import { formatWhen } from "@/lib/format";
+import { staffActionText } from "@/lib/staff-actions";
 
 interface Notification {
   id: string;
@@ -19,48 +20,36 @@ interface Notification {
   created_at: string;
 }
 
-const ACTION_CONFIG: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, label: "Wallet Top-Up", color: "text-[var(--ink-green)]" },
-  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Plan Changed", color: "text-[var(--ink-blue)]" },
-  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, label: "Trial Extended", color: "text-[var(--ink-amber)]" },
-  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Tenant Suspended", color: "text-[var(--ink-red)]" },
-  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, label: "Tenant Reactivated", color: "text-[var(--ink-green)]" },
-  add_note: { icon: <Building2 className="w-3.5 h-3.5" />, label: "Note Added", color: "text-foreground/70" },
+// Icon and tint per step; the words come from staffActionText, as on the Team page.
+const ACTION_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
+  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, color: "text-[var(--ink-green)]" },
+  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, color: "text-[var(--ink-blue)]" },
+  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, color: "text-[var(--ink-amber)]" },
+  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-[var(--ink-red)]" },
+  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, color: "text-[var(--ink-green)]" },
+  add_note: { icon: <Building2 className="w-3.5 h-3.5" />, color: "text-foreground/70" },
 };
+
+const NO_NOTIFICATIONS: Notification[] = [];
 
 function getActionConfig(action: string) {
   return ACTION_CONFIG[action] || {
     icon: <Bell className="w-3.5 h-3.5" />,
-    label: action.replace(/_/g, " "),
     color: "text-foreground/70",
   };
 }
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
-
-  // Read notifications from the dashboard v2 cache
-  useEffect(() => {
-    const cache = queryClient.getQueryData<{ recentActivity?: Notification[] }>(["admin", "dashboard-v2"]);
-    if (cache?.recentActivity) {
-      setNotifications(cache.recentActivity);
-    }
-
-    const unsub = queryClient.getQueryCache().subscribe((event) => {
-      if (event.type === "updated" && event.query.queryKey[0] === "admin" && event.query.queryKey[1] === "dashboard-v2") {
-        const data = event.query.state.data as { recentActivity?: Notification[] } | undefined;
-        if (data?.recentActivity) {
-          setNotifications(data.recentActivity);
-        }
-      }
-    });
-
-    return unsub;
-  }, [queryClient]);
+  // Recent steps come from Home's data once it has loaded; the bell watches
+  // that cache and never fetches it itself.
+  const { data: dashboard } = useQuery<{ recentActivity?: Notification[] }>({
+    queryKey: ["admin", "dashboard-v2"],
+    enabled: false,
+  });
+  const notifications = dashboard?.recentActivity ?? NO_NOTIFICATIONS;
   const primeRequests = usePrimeLinkRequests();
   const openPrime = primeRequests.data ?? [];
   const openTopups = useTopupRequests().data ?? [];
@@ -166,7 +155,7 @@ export function NotificationBell() {
                       <span className={`mt-0.5 ${config.color}`}>{config.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-foreground">
-                          {config.label}
+                          {staffActionText(notif.action, notif.details)}
                         </p>
                         {notif.details && (
                           <p className="text-xs text-foreground/70 truncate mt-0.5">
