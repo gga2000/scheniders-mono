@@ -65,9 +65,14 @@ describe("shopCheckLines", () => {
       "broken",
     ],
     [
-      "a pause that ended yesterday",
-      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) },
+      "a pause that ended 10 minutes ago",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(10 / 1440) },
       "ok",
+    ],
+    [
+      "a pause that ended yesterday and is still on",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) },
+      "look",
     ],
     ["a prospect store", { is_prospect: true }, "look"],
     ["a trial ending tomorrow", { status: "trial", trial_ends_at: ago(-1) }, "look"],
@@ -78,11 +83,17 @@ describe("shopCheckLines", () => {
     expect(line(check, "store").state).toBe(state);
   });
 
-  it("says a pause has ended once its end date has passed, as the shop page does", () => {
+  it("says an ended pause lifts within the hour, as the hourly lift does", () => {
+    const check = healthy();
+    check.store = { ...check.store, status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(10 / 1440) };
+    expect(line(check, "store").text).toBe("Pause ended today. Nothing is stopped now; it lifts on its own within the hour.");
+  });
+
+  it("says a pause the hourly lift missed needs lifting by hand", () => {
     const check = healthy();
     check.store = { ...check.store, status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) };
     expect(line(check, "store").text).toBe(
-      "Pause ended yesterday. Nothing is stopped now; it clears at the shop's next action.",
+      "Pause ended yesterday but did not lift on its own. Nothing is stopped now; it needs lifting by hand on the shop page.",
     );
   });
 
