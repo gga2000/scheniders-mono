@@ -93,6 +93,17 @@ describe("shopStatusLine", () => {
     expect(line.next).toBe("Paying 9,000 IQD from the wallet opens it again. Wallet 2,175 IQD, short by 6,825 IQD.");
   });
 
+  it("says a paused locked shop stays locked until the pause lifts, even with the money in its wallet", () => {
+    const lock = { locked: true, reason: "unpaid", since: "2026-11-13T08:00:00Z", orders_left: 50, allowance: 50, plan: "starter", price_iqd: 9_000 } as const;
+    const paused = { status: "limited", restrictions: { paused_until: "2026-11-20T15:00:00Z" } };
+    expect(shopStatusLine(shop({ wallet: 9_000, lock, tenant: paused }), now).next).toBe(
+      "Paused, so the lock stays until the pause lifts. Then paying 9,000 IQD from the wallet opens it.",
+    );
+    expect(shopStatusLine(shop({ wallet: 2_000, lock, tenant: paused }), now).next).toBe(
+      "Paused, so the lock stays until the pause lifts. Then paying 9,000 IQD from the wallet opens it. Wallet 2,000 IQD, short by 7,000 IQD.",
+    );
+  });
+
   it("gives a trial its end and first charge", () => {
     const line = shopStatusLine(shop({ tenant: { status: "trial", trial_ends_at: "2026-11-17T09:00:00Z" }, wallet: 0 }), now);
     expect(line.sentence).toBe("Trial until Tue 17 Nov, 12:00.");

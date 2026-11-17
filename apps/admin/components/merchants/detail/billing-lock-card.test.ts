@@ -17,12 +17,12 @@ const LOCK: BillingLockSnapshot = {
   price_iqd: 25000,
 };
 
-const render = (canForceUnlock: boolean, lock: BillingLockSnapshot = LOCK) =>
+const render = (canForceUnlock: boolean, lock: BillingLockSnapshot = LOCK, shopPaused = false) =>
   renderToStaticMarkup(
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
-      createElement(BillingLockCard, { merchantId: "t1", lock, canForceUnlock }),
+      createElement(BillingLockCard, { merchantId: "t1", lock, canForceUnlock, shopPaused }),
     ),
   );
 
@@ -39,6 +39,14 @@ describe("BillingLockCard", () => {
     const html = render(true, { ...LOCK, reason: "trial_ended", orders_left: 12 });
     expect(html).toContain("Trial ended, not paid");
     expect(html).toContain("Then the storefront pauses");
+  });
+
+  it("on a paused shop, says paying opens it once the pause lifts and offers no free unlock the database would refuse", () => {
+    const html = render(true, LOCK, true);
+    expect(html).toContain("Paused: once the pause lifts, paying 25,000 IQD from the wallet unlocks it");
+    expect(html).not.toContain("Unlock for");
+    expect(html).toContain("Unlock free works once the pause lifts.");
+    expect(render(true)).toContain("Paying 25,000 IQD from the wallet unlocks it");
   });
 
   it("offers the free unlock to super admins only", () => {

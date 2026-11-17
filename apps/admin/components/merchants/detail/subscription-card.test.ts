@@ -86,4 +86,9 @@ describe("SubscriptionCard on a paused trial", () => {
     expect(html).toContain("This month");
     expect(html).not.toContain("Trial ends");
   });
+
+  it("says a paused shop is not charged until the pause lifts", () => {
+    const paused = { ...tenant, status: "limited", restrictions: { status_before: "active" } } as MerchantDetail["tenant"];
+    expect(render("super_admin", paused)).toContain("On: not charged while paused, then charges the wallet each month");
+  });
 });

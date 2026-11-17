@@ -109,7 +109,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   />
                 </button>
               )}
-              {renewalWords(autoRenew, tenant.is_demo)}
+              {renewalWords(autoRenew, tenant.is_demo, tenant.status === "limited")}
             </span>
             {stopping && autoRenew && (
               <span className="mt-3 block max-w-sm font-normal">
@@ -158,11 +158,13 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
 /**
  * The renewal line. The demo store renews each month at no charge
  * (renew_subscription_core), as the status line above says; "charges the
- * wallet" there contradicted it.
+ * wallet" there contradicted it. A paused shop is not charged until the
+ * pause lifts (renew_subscription_core answers on_hold).
  */
-function renewalWords(autoRenew: boolean, demo: boolean): string {
+function renewalWords(autoRenew: boolean, demo: boolean, paused: boolean): string {
   if (!autoRenew) return "Off: the month ends and is not renewed";
-  return demo ? "On: renews each month, never charged (demo store)" : "On: charges the wallet each month";
+  if (demo) return "On: renews each month, never charged (demo store)";
+  return paused ? "On: not charged while paused, then charges the wallet each month" : "On: charges the wallet each month";
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {

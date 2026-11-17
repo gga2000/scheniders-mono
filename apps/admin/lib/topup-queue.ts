@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatIQD } from "@/lib/format";
 
 /**
  * Shops that paid us by transfer and uploaded the receipt (Fermi B3). Read
@@ -82,6 +83,19 @@ export type TopupDecision = z.infer<typeof topupDecisionSchema>;
 export function amountStillOwed(row: Pick<TopupQueueRow, "billing" | "balance_iqd">): number {
   if (!row.billing?.locked) return 0;
   return Math.max(0, row.billing.price_iqd - row.balance_iqd);
+}
+
+/**
+ * The locked chip on a payment: why it is locked and what opens it. A paused
+ * shop's lock does not open with money until the pause lifts
+ * (settle_billing_lock answers on_hold); null when the shop is not locked.
+ */
+export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | "tenant_status">): string | null {
+  if (!row.billing?.locked) return null;
+  const why = row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended";
+  if (row.tenant_status === "limited") return `${why} · paused, opens once the pause lifts`;
+  const owed = amountStillOwed(row);
+  return owed > 0 ? `${why} · needs ${formatIQD(owed)} to open` : `${why} · this payment opens it`;
 }
 
 /** Why staff should look twice before approving, in plain words; empty when nothing stands out. */
