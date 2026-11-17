@@ -125,6 +125,20 @@ describe("POST /api/leads/[id]/build-store", () => {
   });
 
   it.each([
+    [{ slug: "a".repeat(61) }, "The web address can have at most 60 characters."],
+    [{ industry_id: "fashion" }, "Pick an industry from the list."],
+    [{ products: [{ name: "Half", price: 1500.5 }] }, "A product price is whole dinars, with no fraction."],
+    [{ products: [{ name: "Bag", price: 5000, image_url: "bag.jpg" }] }, "A product image must be a full web link, such as https://…/photo.jpg."],
+    [{ products: [{ name: " ", price: 5000 }] }, "Each product needs a name."],
+  ])("names the field it refuses (%j)", async (details, words) => {
+    // One "Invalid store details" for every case named no field.
+    const res = await buildStore(details);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: words });
+    expect(rpcCalls).toHaveLength(0);
+  });
+
+  it.each([
     ["not_found", 404, "Lead not found"],
     ["converted", 409, "Lead already converted"],
     ["store_exists", 409, "A store already exists for this lead"],

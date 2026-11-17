@@ -119,15 +119,17 @@ export function useBuildStore() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to build store");
-      }
+      if (!res.ok) throw new Error(await refusal(res, "Failed to build store"));
       return res.json();
     },
-    onSuccess: (_, vars) => {
+    // A refusal can mean the lead changed under the dialog ("A store already
+    // exists", "Lead already converted"), so the lead is read again either
+    // way; the page stopped offering Build Store only after a reload.
+    onSettled: (_, __, vars) => {
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
+    },
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "merchants"] });
       qc.invalidateQueries({ queryKey: ["lead-analytics"] });
     },

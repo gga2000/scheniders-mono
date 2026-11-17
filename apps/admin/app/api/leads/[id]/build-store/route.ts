@@ -5,25 +5,30 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 
 // What the Build Store form sends. Blank name: the lead's. No `slug`: the web
-// address is made from the name. The database checks each again.
+// address is made from the name. The database checks each again. Each refusal
+// names the field: one "Invalid store details" for all of them named none.
 const bodySchema = z.object({
-  business_name: z.string().trim().max(200).optional(),
+  business_name: z.string().trim().max(200, { error: "The business name can have at most 200 characters." }).optional(),
   // The form's "Web Address": its Latin letters and digits start the address.
-  slug: z.string().trim().max(60).optional(),
-  industry_id: z.uuid().nullish(),
-  description: z.string().trim().max(2000).nullish(),
-  template: z.string().trim().min(1).max(40).default("general"),
-  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  slug: z.string().trim().max(60, { error: "The web address can have at most 60 characters." }).optional(),
+  industry_id: z.uuid({ error: "Pick an industry from the list." }).nullish(),
+  description: z.string().trim().max(2000, { error: "The description can have at most 2,000 characters." }).nullish(),
+  template: z.string().trim().min(1, { error: "Pick a template." }).max(40, { error: "Pick a template." }).default("general"),
+  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, { error: "The colour must be a code such as #1E1E1E." }).optional(),
   products: z
     .array(
       z.object({
-        name: z.string().trim().min(1).max(200),
-        price: z.number().int().min(0).default(0),
-        description: z.string().max(2000).nullish(),
-        image_url: z.url().nullish(),
+        name: z.string().trim().min(1, { error: "Each product needs a name." }).max(200, { error: "A product name can have at most 200 characters." }),
+        price: z
+          .number({ error: "A product price must be a number." })
+          .int({ error: "A product price is whole dinars, with no fraction." })
+          .min(0, { error: "A product price cannot be below 0." })
+          .default(0),
+        description: z.string().max(2000, { error: "A product description can have at most 2,000 characters." }).nullish(),
+        image_url: z.url({ error: "A product image must be a full web link, such as https://…/photo.jpg." }).nullish(),
       }),
     )
-    .max(10)
+    .max(10, { error: "A store can start with at most 10 products." })
     .default([]),
 });
 
@@ -60,7 +65,8 @@ export async function POST(
   if (missing) return missing;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: REFUSED.bad_input.error }, { status: REFUSED.bad_input.status });
+    const issue = parsed.error.issues[0];
+    return NextResponse.json({ error: issue?.path.length ? issue.message : REFUSED.bad_input.error }, { status: REFUSED.bad_input.status });
   }
   const body = parsed.data;
 
