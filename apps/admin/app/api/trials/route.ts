@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
-import { trialClock } from "@/lib/baghdad-day";
+import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
 
     const summary = {
       total: trials.length,
-      expiringSoon: trials.filter((t) => !t.is_expired && t.days_remaining <= 3).length,
+      expiringSoon: trials.filter((t) => !t.is_expired && t.days_remaining <= TRIAL_ENDING_DAYS).length,
       expired: trials.filter((t) => t.is_expired).length,
-      healthy: trials.filter((t) => !t.is_expired && t.days_remaining > 3).length,
+      healthy: trials.filter((t) => !t.is_expired && t.days_remaining > TRIAL_ENDING_DAYS).length,
     };
 
     return NextResponse.json({ trials, summary });

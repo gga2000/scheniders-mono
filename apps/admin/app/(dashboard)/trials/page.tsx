@@ -16,6 +16,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatDayTime, formatIQD } from "@/lib/format";
+import { TRIAL_ENDING_DAYS } from "@/lib/baghdad-day";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,14 +72,14 @@ function trialsLine({ total, expired }: TrialsSummary): string {
 
 function getBarColor(days: number, ended: boolean): string {
   if (ended) return "bg-gray-400";
-  if (days <= 3) return "bg-red-500";
+  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500";
   if (days <= 7) return "bg-amber-500";
   return "bg-green-500";
 }
 
 function getBarBg(days: number, ended: boolean): string {
   if (ended) return "bg-gray-200";
-  if (days <= 3) return "bg-red-500/15";
+  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500/15";
   if (days <= 7) return "bg-amber-500/15";
   return "bg-green-500/15";
 }
@@ -222,7 +223,7 @@ export default function TrialsPage() {
       <NumberStrip columns={3} label="Trial numbers">
         <NumberCell label="Shops on trial, now" value={isLoading ? "..." : formatCount(summary.total - summary.expired)} />
         <NumberCell
-          label="Ending in 3 days or less"
+          label={`Ending in ${TRIAL_ENDING_DAYS} days or less`}
           value={isLoading ? "..." : formatCount(summary.expiringSoon)}
           alert={summary.expiringSoon > 0}
         />
@@ -288,7 +289,7 @@ export default function TrialsPage() {
                         className={`text-xs font-semibold ${
                           trial.is_expired
                             ? "text-foreground/70"
-                            : trial.days_remaining <= 3
+                            : trial.days_remaining <= TRIAL_ENDING_DAYS
                               ? "text-[var(--ink-red)]"
                               : trial.days_remaining <= 7
                                 ? "text-[var(--ink-amber)]"

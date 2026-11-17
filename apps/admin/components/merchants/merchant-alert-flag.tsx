@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AlertCircle, Clock, Ban, XCircle } from "lucide-react";
-import { trialClock } from "@/lib/baghdad-day";
+import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
 import { cn } from "@/lib/utils";
 /** A list row or the shop record: the flag reads its status and trial end. */
 interface AlertShop {
@@ -52,7 +52,7 @@ function computeAlert(merchant: AlertShop): AlertInfo | null {
         severity: "critical",
       };
     }
-    if (clock.days <= 3) {
+    if (clock.days <= TRIAL_ENDING_DAYS) {
       return {
         icon: Clock,
         label: "Trial ending",

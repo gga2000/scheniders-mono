@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dayOf, trialClock } from "./baghdad-day";
+import { dayOf, TRIAL_ENDING_DAYS, trialClock } from "./baghdad-day";
 import { formatUntilDay } from "./format";
 
 /**
@@ -60,8 +60,6 @@ const LOW_WALLET_IQD = 5_000;
 const QUIET_DAYS = 3;
 /** WhatsApp failures above this share of sends (with at least 10 sends) need a look. */
 const WHATSAPP_FAIL_SHARE = 0.2;
-/** A trial this many Baghdad days from its end or fewer is "ending", as on Trials. */
-const TRIAL_LAST_DAYS = 3;
 
 const DAY_MS = 86_400_000;
 
@@ -118,7 +116,7 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
     }
     return {
       ...base,
-      state: clock.days <= TRIAL_LAST_DAYS ? "look" : "ok",
+      state: clock.days <= TRIAL_ENDING_DAYS ? "look" : "ok",
       text: `Taking orders. Trial ends ${formatUntilDay(s.trial_ends_at, new Date(nowMs))}.`,
     };
   }
