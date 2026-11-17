@@ -21,6 +21,15 @@ export function dayOf(instant: string | Date | number): string {
   return baghdadDay.format(new Date(instant));
 }
 
+/**
+ * Where "the last `days` days" starts: midnight in Baghdad `days - 1` days
+ * before today, so today counts as one of them: the same window the
+ * Merchants list's "30 days" uses (admin_merchant_list_stats).
+ */
+export function lastDaysStart(days: number, now: Date | number = Date.now()): string {
+  return `${addDays(dayOf(now), 1 - days)}T00:00:00+03:00`;
+}
+
 export interface TrialClock {
   /** The end has passed: the trial is over (and the shop is locked until it pays). */
   ended: boolean;
