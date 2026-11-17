@@ -39,7 +39,6 @@ import { LeadRegisterSheet } from "@/components/leads/mobile/lead-register-sheet
 import { leadToFormData } from "@/components/leads/lead-form-data";
 import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
 import { useUpdateLead } from "@/hooks/use-lead-mutations";
-import type { LeadFormData } from "@/types/leads";
 
 // ── Tabs ─────────────────────────────────────────────────────────────────
 
@@ -302,8 +301,11 @@ export function LeadMobileDetail() {
         open={editOpen}
         onOpenChange={setEditOpen}
         initialData={leadToFormData(lead)}
-        onSubmit={(formData: LeadFormData) =>
-          updateLead.mutateAsync({ id: lead.id, data: formData }).then(() => true)
+        onSubmit={(_, changes) =>
+          // Only the fields this person changed: a colleague's edit since the form opened stays.
+          Object.keys(changes).length === 0
+            ? Promise.resolve(true)
+            : updateLead.mutateAsync({ id: lead.id, data: changes }).then(() => true)
         }
       />
       <QuickNoteSheet

@@ -13,7 +13,6 @@ import {
   LEAD_TIER_CONFIG,
   LEAD_TIER_UI,
 } from "@/types/leads";
-import type { LeadFormData } from "@/types/leads";
 import {
   ArrowLeft,
   Phone,
@@ -510,8 +509,11 @@ export function LeadDetailDesktop() {
       <LeadForm
         open={editFormOpen}
         onOpenChange={setEditFormOpen}
-        onSubmit={(formData: LeadFormData) =>
-          updateLead.mutateAsync({ id: lead.id, data: formData }).then(() => true)
+        onSubmit={(_, changes) =>
+          // Only the fields this person changed: a colleague's edit since the form opened stays.
+          Object.keys(changes).length === 0
+            ? true
+            : updateLead.mutateAsync({ id: lead.id, data: changes }).then(() => true)
         }
         initialData={leadToFormData(lead)}
       />

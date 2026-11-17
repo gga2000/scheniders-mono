@@ -5,7 +5,8 @@ import type { LeadFormData, LeadPhoneNumber, LeadBranch } from "@/types/leads";
 import { useIndustries } from "@/hooks/use-industries";
 import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
-import { normalizeIraqiPhone, isValidIraqiPhone } from "./lead-phone";
+import { isValidIraqiPhone } from "./lead-phone";
+import { leadFormChanges, normalizeLeadForm } from "./lead-form-data";
 
 export const EMPTY_PHONE: LeadPhoneNumber = { title: "", number: "" };
 export const EMPTY_BRANCH: LeadBranch = { name: "", city: "", address: "", phones: [{ ...EMPTY_PHONE }] };
@@ -49,7 +50,8 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 interface UseLeadFormControllerArgs {
   open: boolean;
-  onSubmit: (data: LeadFormData) => Promise<boolean> | boolean | void;
+  /** `data` is the whole saved form; `changes` only the fields that differ from the form as it opened. */
+  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<boolean> | boolean | void;
   initialData?: Partial<LeadFormData>;
   /** Called after a successful single save (lets the host close the sheet/dialog). */
   onClose: () => void;
@@ -73,14 +75,14 @@ export function useLeadFormController({
 
   const isEdit = !!initialData;
 
-  // Snapshot of the form as it was on open — used to detect unsaved edits so an
-  // accidental dismissal can be auto-saved as a draft.
-  const baselineRef = useRef<string>("");
+  // The form as it was on open: what a save is compared with, and how unsaved
+  // edits are spotted so an accidental dismissal can be auto-saved as a draft.
+  const [opened, setOpened] = useState<LeadFormData>(DEFAULT_FORM);
 
   const resetForm = useCallback(() => {
     const initial = initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM;
     setForm(initial);
-    baselineRef.current = JSON.stringify(initial);
+    setOpened(initial);
     setAnalyzeHandle("");
     setAnalyzeError(null);
     setAnalyzeSuccess(false);
@@ -88,7 +90,7 @@ export function useLeadFormController({
   }, [initialData]);
 
   /** True when the form differs from its opened state (has unsaved content). */
-  const isDirty = JSON.stringify(form) !== baselineRef.current;
+  const isDirty = JSON.stringify(form) !== JSON.stringify(opened);
 
   useEffect(() => {
     if (open) resetForm();
@@ -238,47 +240,14 @@ export function useLeadFormController({
     if (submitting) return;
     if (!validate()) return;
 
-    const normalized: LeadFormData = {
-      ...form,
-      merchant_name: form.merchant_name.trim(),
-      industry_detail: form.industry_detail.trim(),
-      // Store the handle without a leading "@" (users may type "@name").
-      handle: form.handle.trim().replace(/^@+/, ""),
-      website_url: form.website_url.trim(),
-      email: form.email.trim().toLowerCase(),
-      // DM-only pages keep no phone numbers.
-      page_phone: form.contact_via_dm || !form.page_phone ? "" : normalizeIraqiPhone(form.page_phone),
-      phone_numbers: form.contact_via_dm
-        ? []
-        : form.phone_numbers
-            .map((p) => ({
-              title: p.title.trim(),
-              number: p.number ? normalizeIraqiPhone(p.number) : "",
-            }))
-            .filter((p) => p.number || p.title),
-      // Online-only pages have no physical location (or branches).
-      ...(form.is_online_only ? { address: "", city: "", governorate_code: "", branches: [] } : {}),
-      // Trim/normalize branches; drop fully-empty ones and blank phone rows.
-      branches: form.is_online_only
-        ? []
-        : form.branches
-            .map((b) => ({
-              name: b.name.trim(),
-              city: b.city.trim(),
-              address: b.address.trim(),
-              phones: b.phones
-                .map((p) => ({
-                  title: p.title.trim(),
-                  number: p.number ? normalizeIraqiPhone(p.number) : "",
-                }))
-                .filter((p) => p.number || p.title),
-            }))
-            .filter((b) => b.name || b.city || b.address || b.phones.length > 0),
-    };
+    const normalized = normalizeLeadForm(form);
+    // Only what this person changed goes to an existing lead, so a colleague's
+    // edit made while this form was open is not written back over.
+    const changes = leadFormChanges(opened, normalized);
 
     setSubmitting(true);
     try {
-      const result = await onSubmit(normalized);
+      const result = await onSubmit(normalized, changes);
       if (result === false) {
         toast.error("Couldn't save the lead. Please try again.");
         return;
