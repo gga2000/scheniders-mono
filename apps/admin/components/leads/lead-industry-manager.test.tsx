@@ -46,6 +46,7 @@ async function open() {
     </QueryClientProvider>,
   );
   await settle();
+  return client;
 }
 
 beforeEach(() => {
@@ -141,23 +142,42 @@ describe("LeadIndustryManager delete", () => {
  */
 describe("LeadIndustryManager edit", () => {
   /** Opens the row, renames the industry (when asked) and saves. */
-  async function saveEdit(name: string, rename: string | null = `${name} and more`) {
-    await open();
+  async function saveEdit(name: string, rename: string | null = `${name} and more`, avgOrder?: number) {
+    const client = await open();
+    for (const key of LEAD_READS) client.setQueryData(key, {});
     fireEvent.click(await screen.findByRole("button", { name: `Edit ${name}` }));
     if (rename !== null) fireEvent.change(screen.getByPlaceholderText("Name (English)"), { target: { value: rename } });
+    if (avgOrder !== undefined) fireEvent.change(screen.getByRole("spinbutton"), { target: { value: String(avgOrder) } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await settle();
+    return client;
   }
+
+  /** What shows a lead's estimated monthly sales: Lead numbers, the lists and a lead's page. */
+  const LEAD_READS = [["lead-analytics"], ["leads", { page: 1 }], ["lead", "l1"]];
+  const staleLeadReads = (client: QueryClient) => LEAD_READS.filter((key) => client.getQueryState(key)?.isInvalidated);
 
   // Round 11: the row sent all five fields, so a rename also wrote back the
   // color and average order it opened with, over a colleague's change.
   it("sends only the field that was changed", async () => {
     answer = () => new Response(JSON.stringify({ industry: {} }));
 
-    await saveEdit("Tools", "  Hardware ");
+    const client = await saveEdit("Tools", "  Hardware ");
 
     expect(requests).toEqual(["PATCH /api/industries/a0000000-0000-4000-8000-000000000002 {\"name\":\"Hardware\"}"]);
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(staleLeadReads(client)).toEqual([]);
+  });
+
+  // Round 11: a new average order now prices the industry's leads again on
+  // the server, so what shows their estimate is read again.
+  it("reads the lead numbers, lists and pages again after a new average order", async () => {
+    answer = () => new Response(JSON.stringify({ industry: {} }));
+
+    const client = await saveEdit("Tools", null, 40000);
+
+    expect(requests).toEqual(["PATCH /api/industries/a0000000-0000-4000-8000-000000000002 {\"avg_order_value_iqd\":40000}"]);
+    expect(staleLeadReads(client)).toEqual(LEAD_READS);
   });
 
   it("closes a row saved with nothing changed, and sends nothing", async () => {
