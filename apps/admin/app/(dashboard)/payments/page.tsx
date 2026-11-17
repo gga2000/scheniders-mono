@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { AlertTriangle, Check, ExternalLink, FileText, Loader2, Lock, X } from "lucide-react";
+import { toast } from "sonner";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
@@ -18,6 +19,7 @@ import {
   TOPUP_QUEUE_KEY,
   TOPUP_MAX_IQD,
   TOPUP_MIN_IQD,
+  alreadyDecidedText,
   amountStillOwed,
   topupQueueItemSchema,
   topupWarnings,
@@ -99,13 +101,19 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
         headers: { "content-type": "application/json" },
         body: JSON.stringify(decision),
       });
-      // 409: someone else decided it first; the refreshed list shows that.
-      if (!res.ok && res.status !== 409) {
+      // 409: it was decided first and nothing changed; say so, and the
+      // refreshed list shows how it was decided.
+      if (res.status === 409) return alreadyDecidedText(await res.json().catch(() => null));
+      if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(typeof body?.error === "string" ? body.error : `Decision failed: ${res.status}`);
       }
+      return null;
     },
-    onSuccess: () => setConfirming(null),
+    onSuccess: (alreadyDecided) => {
+      setConfirming(null);
+      if (alreadyDecided) toast.info(alreadyDecided);
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: TOPUP_QUEUE_KEY });
     },

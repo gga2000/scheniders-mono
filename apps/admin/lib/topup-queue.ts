@@ -134,3 +134,18 @@ export function readPaymentDetails(value: unknown): PaymentDetails {
     legal_name: pick("legal_name"),
   };
 }
+
+const alreadyDecidedSchema = z.object({ outcome: z.enum(["approved", "rejected"]).nullable() });
+
+/**
+ * What staff are told when a receipt they decide was decided first, by a
+ * colleague or by their own earlier click. The server answers 409 and
+ * changes nothing; the page used to treat that as its own success and say
+ * nothing.
+ */
+export function alreadyDecidedText(body: unknown): string {
+  const parsed = alreadyDecidedSchema.safeParse(body);
+  const outcome = parsed.success ? parsed.data.outcome : null;
+  const done = outcome === "approved" ? "approved" : outcome === "rejected" ? "refused" : "decided";
+  return `This receipt was already ${done}, so your decision changed nothing.`;
+}
