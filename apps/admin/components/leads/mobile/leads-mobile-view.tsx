@@ -201,7 +201,7 @@ export function LeadsMobileView() {
             <UserPlus className="h-7 w-7 text-[#FF8899]" />
           </div>
           <p className="text-sm font-bold text-[var(--foreground)]">
-            No prospects yet
+            No leads yet
           </p>
           <button
             type="button"

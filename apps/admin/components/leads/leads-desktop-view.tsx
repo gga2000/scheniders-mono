@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/use-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
+import { useLeadsTableLayout } from "@/hooks/use-leads-table-layout";
 import {
   useCreateLead,
   useUpdateLead,
@@ -61,6 +62,12 @@ export function LeadsDesktopView() {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
   const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : 20);
+  // The table's shared column layout is read with the page, beside the leads,
+  // and the table waits for it: read only once the table drew, it arrived
+  // seconds later and moved every column under the pointer. A failed read
+  // stops the wait, and the table uses the default columns.
+  const layout = useLeadsTableLayout();
+  const waitingForColumns = viewMode === "table" && layout.isPending;
   const { data: analytics, isError: analyticsFailed, refetch: refetchAnalytics, isFetching: analyticsRetrying } = useLeadAnalytics();
   // While loading "...", after a failed read a dash and a line that says so: never a number that is not known.
   const leadNumber = (pick: (a: NonNullable<typeof analytics>) => number) =>
@@ -258,7 +265,7 @@ export function LeadsDesktopView() {
               Retry
             </button>
           </div>
-        ) : isLoading ? (
+        ) : isLoading || waitingForColumns ? (
           viewMode === "table" ? (
             <div className="divide-y divide-[var(--card-border)]">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -287,7 +294,7 @@ export function LeadsDesktopView() {
             <div className="w-16 h-16 rounded-2xl bg-foreground/[0.05] flex items-center justify-center mb-4">
               <UserPlus className="w-8 h-8 text-[#FF8899]" />
             </div>
-            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">No prospects yet</h3>
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">No leads yet</h3>
             <p className="text-sm text-[var(--muted)] mb-6 max-w-sm">
               Start adding potential merchants to build your sales pipeline.
             </p>

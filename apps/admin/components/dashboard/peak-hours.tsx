@@ -24,9 +24,10 @@ const HOUR_LABELS = [0, 3, 6, 9, 12, 15, 18, 21];
 
 function getCellColor(intensity: number): string {
   if (intensity <= 0) return "var(--card-bg, #ffffff)";
-  if (intensity < 0.25) return "var(--pastel-yellow-light, #FEF3C7)";
-  if (intensity < 0.55) return "var(--pastel-yellow, #FBE38E)";
-  return "#d97706"; // amber-600
+  // Tokens in app/globals.css: the same pastels in light mode, a ramp that brightens with the orders in dark mode.
+  if (intensity < 0.25) return "var(--heat-1)";
+  if (intensity < 0.55) return "var(--heat-2)";
+  return "var(--heat-3)";
 }
 
 function Skeleton() {

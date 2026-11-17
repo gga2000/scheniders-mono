@@ -171,12 +171,9 @@ export function NotificationBell() {
                         <p className="text-xs font-medium text-foreground">
                           {staffActionText(notif.action, notif.details)}
                         </p>
-                        {notif.details && (
-                          <p className="text-xs text-foreground/70 truncate mt-0.5">
-                            {typeof notif.details === "object"
-                              ? Object.values(notif.details).filter(Boolean).join(" · ")
-                              : String(notif.details)}
-                          </p>
+                        {/* The shop by name: the raw detail values read as ids and "[object Object]". */}
+                        {notif.business_name && (
+                          <p className="text-xs text-foreground/70 truncate mt-0.5">{notif.business_name}</p>
                         )}
                         <p className="text-xs text-foreground/70 mt-1">
                           {formatWhen(notif.created_at)}
