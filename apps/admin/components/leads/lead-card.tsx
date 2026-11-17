@@ -299,21 +299,21 @@ export function LeadCard({
         <div className="flex items-center gap-1 pt-2 border-t border-black/[0.05] dark:border-white/[0.05]">
           <button
             onClick={(e) => { e.stopPropagation(); onQuickCall?.(); }}
-            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-[var(--muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
           >
             <Phone className="w-3.5 h-3.5" />
             <span>Call</span>
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onQuickWhatsApp?.(); }}
-            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-[var(--muted)] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors"
           >
             <MessageCircle className="w-3.5 h-3.5" />
             <span>WhatsApp</span>
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onQuickNote?.(); }}
-            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium text-[var(--muted)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
           >
             <StickyNote className="w-3.5 h-3.5" />
             <span>Note</span>

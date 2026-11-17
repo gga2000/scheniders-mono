@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Clock, Download, CreditCard, Wallet, Activity } from "lucide-react";
 import { useCan } from "@/hooks/use-admin-auth";
+import { tooManyShops } from "@/lib/bulk-not-done";
 import type { AdminAction } from "@/types/admin";
 
 interface MerchantBulkBarProps {
@@ -26,6 +27,10 @@ export function MerchantBulkBar({
 }: MerchantBulkBarProps) {
   const can = useCan();
   const actions = BULK_ACTIONS.filter((a) => a.needs.every(can));
+  // /api/bulk (every action that needs bulk_action) takes at most 100 shops:
+  // say so as soon as more are ticked, not after the form is filled. Export
+  // has no such limit.
+  const tooMany = tooManyShops(selectedCount);
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -71,12 +76,19 @@ export function MerchantBulkBar({
               </>
             )}
 
+            {tooMany && (
+              <span role="status" className="px-2 text-xs font-semibold whitespace-nowrap text-amber-300">
+                {tooMany}
+              </span>
+            )}
+
             {/* Actions */}
-            {actions.map(({ key, label, icon: Icon }) => (
+            {actions.map(({ key, label, icon: Icon, needs }) => (
               <button
                 key={key}
                 onClick={() => onBulkAction(key)}
-                className="px-3 py-1.5 rounded-full hover:bg-white/10 text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap text-white/90 hover:text-white"
+                disabled={tooMany !== null && needs.includes("bulk_action")}
+                className="px-3 py-1.5 rounded-full hover:bg-white/10 text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap text-white/90 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {label}

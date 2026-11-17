@@ -96,10 +96,8 @@ function KanbanCard({
           <span className="text-xs text-[var(--muted)] uppercase tracking-wider">
             Score
           </span>
-          <span
-            className="text-xs font-bold"
-            style={{ color: tierConfig.color }}
-          >
+          {/* The number in text colour: tier colours on white read at 1.2 to 1.8:1. The bar keeps the tier. */}
+          <span className="text-xs font-bold text-[var(--foreground)]">
             {lead.lead_score}
           </span>
         </div>
