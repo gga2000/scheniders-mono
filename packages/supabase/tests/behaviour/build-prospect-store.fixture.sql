@@ -1,4 +1,4 @@
--- Throwaway Postgres database for admin_build_prospect_store: leads, shops,
+-- Throwaway Postgres database for admin_build_prospect_store: leads, industries, shops,
 -- products, wallets, lead history and the staff log, with the columns, keys
 -- and checks the function touches as they are live (information_schema,
 -- 2026-11-17).
@@ -25,6 +25,11 @@ CREATE TYPE public.lead_activity_type AS ENUM (
 );
 CREATE TYPE public.plan_tier AS ENUM ('starter', 'growth', 'professional', 'enterprise', 'internal');
 CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'suspended', 'cancelled', 'limited');
+
+CREATE TABLE public.industries (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name text NOT NULL
+);
 
 CREATE TABLE public.leads (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

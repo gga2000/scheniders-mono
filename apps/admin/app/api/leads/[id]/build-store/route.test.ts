@@ -59,8 +59,10 @@ describe("POST /api/leads/[id]/build-store", () => {
     const res = await buildStore({
       template: "perfume",
       primary_color: "#1E1E1E",
-      business_name: "ignored",
-      slug: "ignored",
+      business_name: " Zara Baghdad ",
+      slug: "zara-baghdad",
+      industry_id: "55555555-5555-4555-8555-555555555555",
+      description: " Women's clothes ",
       products: [{ name: " Oud ", price: 25000 }, { name: "Musk", price: 15000, image_url: "https://x.test/m.png" }],
     });
 
@@ -82,15 +84,38 @@ describe("POST /api/leads/[id]/build-store", () => {
           ],
           _admin_user_id: ADMIN,
           _actor_email: "karrar@x.test",
+          _business_name: "Zara Baghdad",
+          _address: "zara-baghdad",
+          _industry_id: "55555555-5555-4555-8555-555555555555",
+          _description: "Women's clothes",
         },
       },
     ]);
     expect(tableCalls).toEqual([]);
   });
 
-  it("sends the general template, no colour and no products when the dialog sends none", async () => {
+  it("sends the general template, no colour, no products and no form fields when the dialog sends none", async () => {
     await buildStore({});
-    expect(rpcCalls[0]?.args).toMatchObject({ _template: "general", _primary_color: null, _products: [] });
+    expect(rpcCalls[0]?.args).toMatchObject({
+      _template: "general",
+      _primary_color: null,
+      _products: [],
+      _business_name: null,
+      _address: null,
+      _industry_id: null,
+      _description: null,
+    });
+  });
+
+  it("sends blank form fields as none, so the database uses the lead's name", async () => {
+    await buildStore({ business_name: "  ", slug: "", description: " " });
+    expect(rpcCalls[0]?.args).toMatchObject({ _business_name: null, _address: null, _description: null });
+  });
+
+  it("refuses an industry that is not an id, and an over-long web address, before calling the database", async () => {
+    expect((await buildStore({ industry_id: "fashion" })).status).toBe(400);
+    expect((await buildStore({ slug: "a".repeat(61) })).status).toBe(400);
+    expect(rpcCalls).toHaveLength(0);
   });
 
   it("refuses bad details before calling the database", async () => {

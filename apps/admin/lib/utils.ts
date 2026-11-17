@@ -1,1 +1,1 @@
-export { cn, slugify } from "@scheniders/shared";
+export { cn } from "@scheniders/shared";

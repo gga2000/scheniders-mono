@@ -4,9 +4,14 @@ import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 
-// The dialog also sends business_name and slug; the store takes the lead's
-// name and a generated slug, so those are not read.
+// What the Build Store form sends. Blank name: the lead's. No `slug`: the web
+// address is made from the name. The database checks each again.
 const bodySchema = z.object({
+  business_name: z.string().trim().max(200).optional(),
+  // The form's "Web Address": its Latin letters and digits start the address.
+  slug: z.string().trim().max(60).optional(),
+  industry_id: z.uuid().nullish(),
+  description: z.string().trim().max(2000).nullish(),
   template: z.string().trim().min(1).max(40).default("general"),
   primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   products: z
@@ -23,7 +28,9 @@ const bodySchema = z.object({
 });
 
 /**
- * `public.admin_build_prospect_store` writes the shop, its products, its
+ * `public.admin_build_prospect_store` names the shop and makes its web
+ * address from the form (the lead's name when the form leaves it blank), and
+ * writes the shop, its products, its
  * wallet, the lead's link, the lead's history and the staff log row in one
  * transaction under a lock on the lead, the lock convert_lead_atomic takes
  * too. A failure leaves nothing behind, and a build cannot race a convert.
@@ -70,6 +77,10 @@ export async function POST(
     // Attributed to the signed-in caller, never to a client-supplied id.
     _admin_user_id: admin.user.id,
     _actor_email: admin.user.email ?? null,
+    _business_name: body.business_name || null,
+    _address: body.slug || null,
+    _industry_id: body.industry_id ?? null,
+    _description: body.description || null,
   });
   if (error) {
     console.error("Build store error:", error);
