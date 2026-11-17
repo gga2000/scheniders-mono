@@ -208,44 +208,6 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                 );
             })}
 
-            {empty.length > 0 && (
-                <div
-                    className="flex items-center gap-4 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
-                    data-testid="statement-quiet"
-                >
-                    <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.none", { lines: empty.map((line) => t(`fin.line.${line.id}`)).join(language === "ar" ? "، " : ", ") })}{" "}
-                        <span className="font-medium text-foreground">{t("fin.statement.noneMeans")}</span>
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => onOpenTab("expenses")}
-                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
-                    >
-                        {t("fin.statement.addExpense")}
-                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                    </button>
-                </div>
-            )}
-
-            {refundsOpen > 0 && (
-                <div
-                    className="flex items-center gap-4 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
-                    data-testid="statement-refunds-open"
-                >
-                    <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
-                    </span>
-                    <a
-                        href={`#${COURIER_PAYMENTS_ID}`}
-                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
-                    >
-                        {t("fin.alert.refundsOpen.open")}
-                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                    </a>
-                </div>
-            )}
-
             {!loss && statement.sales > 0 && leftShare > 0 && (
                 <div className={cn(ROW, "border-t border-[var(--card-border)] py-[11px]")} data-testid="statement-left">
                     <span className="flex min-w-0 items-center gap-2.5">
@@ -264,7 +226,9 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
                         {statement.margin !== null && t("fin.line.ofSales", { pct: pct(statement.margin) })}
                     </span>
-                    <span />
+                    <span className="flex justify-end">
+                        {amount(statement.netProfit, "text-[18px] font-semibold text-emerald-600 dark:text-emerald-400")}
+                    </span>
                 </div>
             )}
 
@@ -295,6 +259,46 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     )}
                 </span>
             </div>
+            {/* Under the net profit: these notes say the figure above may be too high, so they follow it
+                rather than break the subtraction above. */}
+            {empty.length > 0 && (
+                <div
+                    className="flex items-center gap-4 mt-3 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
+                    data-testid="statement-quiet"
+                >
+                    <span className="min-w-0 flex-1 text-left" dir={dir}>
+                        {t("fin.statement.none", { lines: empty.map((line) => t(`fin.line.${line.id}`)).join(language === "ar" ? "، " : ", ") })}{" "}
+                        <span className="font-medium text-foreground">{t("fin.statement.noneMeans")}</span>
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => onOpenTab("expenses")}
+                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                    >
+                        {t("fin.statement.addExpense")}
+                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </button>
+                </div>
+            )}
+
+            {refundsOpen > 0 && (
+                <div
+                    className="flex items-center gap-4 mt-3 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
+                    data-testid="statement-refunds-open"
+                >
+                    <span className="min-w-0 flex-1 text-left" dir={dir}>
+                        {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
+                    </span>
+                    <a
+                        href={`#${COURIER_PAYMENTS_ID}`}
+                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                    >
+                        {t("fin.alert.refundsOpen.open")}
+                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </a>
+                </div>
+            )}
+
         </SummaryCard>
     );
 }

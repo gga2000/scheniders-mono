@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { ArrowUpRight, ChevronRight } from "lucide-react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
@@ -60,6 +60,19 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
     );
 }
 
+/** The link from the statements part to the courier payments card that takes it apart. */
+function NowLink({ href, label }: { href: string; label: string }) {
+    return (
+        <Link
+            href={href}
+            className="mt-1 block w-fit text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+            data-testid="money-from-now-link"
+        >
+            {label}
+        </Link>
+    );
+}
+
 /**
  * Where the period's sales are now. The delivered sales are cut in three,
  * order by order: what already reached the shop (after the delivery fee), the
@@ -74,6 +87,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
+    // The lines that match 6,810,500 to the payments card fold away, so the open card only shows parts that add up to "paid to you".
+    const [linesOpen, setLinesOpen] = useState(false);
     const { in_transit: road, returning, split, reached: payments, statement } = summary.cash;
     const cashForNow =
         payments.payments > 0 ? split.reached_now + statement.returns + statement.prepaid_gap + statement.price_gap : split.reached_now;
@@ -123,8 +138,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
         nowGap <= 0
             ? []
             : [
-                  { key: "gap", label: t("fin.money.from.nowGap"), amount: -nowGap, sign: true, strong: false },
-                  { key: "paid", label: t("fin.money.from.nowPaid"), amount: cashForNow, sign: false, strong: !withUndelivered },
+                  { key: "gap", label: t("fin.money.from.nowGap"), amount: -nowGap, sign: true },
+                  { key: "paid", label: t("fin.money.from.nowPaid"), amount: cashForNow, sign: false },
                   ...(withUndelivered
                       ? [
                             {
@@ -132,9 +147,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                 label: t("fin.money.from.nowUndelivered", { count: statement.undelivered_orders }),
                                 amount: statement.undelivered,
                                 sign: true,
-                                strong: false,
                             },
-                            { key: "total", label: t("fin.money.from.nowTotal"), amount: payments.amount, sign: false, strong: true },
+                            { key: "total", label: t("fin.money.from.nowTotal"), amount: payments.amount, sign: false },
                         ]
                       : []),
               ];
@@ -216,31 +230,44 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                             <dt className="min-w-0 text-left text-muted" dir={dir}>
                                                 {source.label}
                                                 {source.note && <span className="block text-[12px]">{source.note}</span>}
-                                                {/* The statement part is what the courier payments card takes apart: link the two. */}
-                                                {source.href && (
-                                                    <Link href={source.href} className="mt-0.5 block w-fit text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current" data-testid="money-from-now-link">
-                                                        {t("fin.money.from.nowLink")}
-                                                    </Link>
+                                                {/* The statement part is what the courier payments card takes apart: link the two,
+                                                    or, when the same statements took something off, fold the lines that match them. */}
+                                                {source.lines && source.lines.length > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setLinesOpen((open) => !open)}
+                                                        aria-expanded={linesOpen}
+                                                        className="mt-0.5 flex w-fit items-center gap-1 text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                                        data-testid="money-from-now-toggle"
+                                                    >
+                                                        <ChevronRight className={cn("size-3.5 transition-transform", linesOpen && "rotate-90")} aria-hidden="true" />
+                                                        {t("fin.money.from.nowMatch")}
+                                                    </button>
+                                                ) : (
+                                                    source.href && <NowLink href={source.href} label={t("fin.money.from.nowLink")} />
                                                 )}
                                             </dt>
                                             <dd className="shrink-0">
                                                 <Money value={source.amount} className="font-semibold text-foreground" />
                                             </dd>
                                         </div>
-                                        {source.lines && source.lines.length > 0 && (
-                                            <ul className="mb-1 mt-1 space-y-0.5 ps-3 text-[12px] text-muted" data-testid="money-from-now-lines">
+                                        {source.lines && source.lines.length > 0 && linesOpen && (
+                                            <div className="mb-1 mt-1 ps-3">
+                                            <ul className="space-y-0.5 text-[12px] text-muted" data-testid="money-from-now-lines">
                                                 {source.lines.map((line) => (
                                                     <li key={line.key} className="flex items-baseline justify-between gap-4" data-line={line.key}>
-                                                        <span className={cn("min-w-0 text-left", line.strong && "font-semibold text-foreground")} dir={dir}>
+                                                        <span className="min-w-0 text-left" dir={dir}>
                                                             {line.label}
                                                         </span>
-                                                        <span className={cn("shrink-0 whitespace-nowrap tabular-nums", line.strong && "font-semibold text-foreground")} dir="ltr">
+                                                        <span className="shrink-0 whitespace-nowrap tabular-nums" dir="ltr">
                                                             {line.sign && line.amount > 0 && "+"}
                                                             <Money value={line.amount} />
                                                         </span>
                                                     </li>
                                                 ))}
                                             </ul>
+                                            {source.href && <NowLink href={source.href} label={t("fin.money.from.nowLink")} />}
+                                            </div>
                                         )}
                                         </div>
                                     ))}

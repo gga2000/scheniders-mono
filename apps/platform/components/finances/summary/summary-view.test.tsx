@@ -107,7 +107,7 @@ describe("SummaryView", () => {
         expect(byTestId("statement-plain")?.textContent).toContain("288");
         expect(byTestId("statement-plain")?.textContent).not.toContain("%");
         // the staircase ends in what is left: a green row for the profit, with its share of sales
-        expect(byTestId("statement-left")?.textContent).toBe("يبقى لك29% من المبيعات");
+        expect(byTestId("statement-left")?.textContent).toBe("يبقى لك29% من المبيعات115,000د.ع");
     });
 
     it("re-reads the statement per order, and offers no other view", () => {
@@ -354,7 +354,7 @@ describe("SummaryView", () => {
         expect(rows).toEqual([
             "ثمن طلبات هذه الفترة في كشوف هذه الفترة380,000د.ع",
             "مبلغان مستردان دفعتهما شركة التوصيل لزبونين عنك (2)غيّرتَ حالتها إلى «تم الاسترجاع»، فهي ضمن «مبالغ مستردة» في حساب الربح، وهو هناك 40,000 د.ع لأنه يشمل أيضاً مبالغ مستردة دُفعت في الفترة وليست في هذه الكشوف.−30,000د.ع",
-            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر حالته بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
+            "مبلغ مسترد دفعته شركة التوصيل ولم تغيّر أنت حالته بعد (1)غيّر حالة كل طلب إلى «تم الاسترجاع» ليُخصم من ربحك في «مبالغ مستردة». وإلى أن تفعل ذلك يبقى صافي الربح أعلى من الحقيقي بـ20,000 د.ع.RTN-4108-1−20,000د.ع",
             "أجرة توصيل خصمتها شركة التوصيل عن طلبين مدفوعين مسبقاً (2)دفع الزبون ثمنها لك مسبقاً، فخصمت شركة التوصيل أجرتها فقط (5,000 د.ع عن كل طلب)، عدا الطلب 1261030001: ذكر الكشف أنها قبضت عنه 1 د.ع، فخصمت 4,999 د.ع. لا تحتاج إلى فعل شيء.1261030001−4,999د.ع1261104002−5,000د.ع−9,999د.ع",
             "طلب قُبض فيه سعر مختلف (1)قبضت شركة التوصيل 5,000 د.ع أكثر من سعر الطلب المسجّل. إن كان السعر في الطلب خطأ فصحّحه.4261101004+5,000د.ع",
             "طلب دُفع ثمنه وما زال غير «مُسلَّم» عندك (1)غيّر حالته إلى «مُسلَّم» ليُحسب في مبيعاتك.4261102012+3,000د.ع",
@@ -363,11 +363,11 @@ describe("SummaryView", () => {
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=u-1"]')?.textContent).toBe("4261102012");
         expect(byTestId("money-payments-parts")?.querySelector('a[href="/orders?order=r-1"]')?.textContent).toBe("RTN-4108-1");
         // the profit card says its net profit is too high until the open refund is marked, and links to it
-        expect(byTestId("statement-refunds-open")?.textContent).toBe("صافي الربح أدناه أعلى من الحقيقي بـ20,000 د.ع: مبالغ مستردة دفعتها شركة التوصيل ولم تغيّر حالتها إلى «تم الاسترجاع» بعد.اعرضها");
+        expect(byTestId("statement-refunds-open")?.textContent).toBe("صافي الربح أعلاه أعلى من الحقيقي بـ20,000 د.ع: مبالغ مستردة دفعتها شركة التوصيل ولم تغيّر أنت حالتها إلى «تم الاسترجاع» بعد.اعرضها");
         expect(byTestId("statement-refunds-open")?.querySelector("a")?.getAttribute("href")).toBe("#courier-payments");
         // The refund not marked yet also warns at the top, and the warning scrolls to this card.
         const refundsAlert = document.querySelector('[data-alert="refunds_open"]');
-        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
+        expect(refundsAlert?.textContent).toContain("مبلغ مسترد واحد دفعته شركة التوصيل لزبونك ولم تغيّر أنت حالة طلبه إلى «تم الاسترجاع» بعد، لذلك صافي الربح أعلى من الحقيقي بـ20,000 د.ع.");
         expect(refundsAlert?.getAttribute("href")).toBe("#courier-payments");
         expect(document.getElementById("courier-payments")).toBe(byTestId("money-payments"));
         expect(byTestId("money-payments-link")?.textContent).toBe(
@@ -388,6 +388,11 @@ describe("SummaryView", () => {
         cleanup();
         // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
         renderView(query(summary({ cash: { ...s.cash, split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 }, statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1 } } })));
+        // folded until asked for, so the open card only shows parts that add up to "paid to you"
+        expect(byTestId("money-from-now-lines")).toBeNull();
+        expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةكيف يطابق هذا الدفعات100,000");
+        fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
+        expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
         expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual(["خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع", "وصلك منها فعلاً80,000د.ع"]);
         cleanup();
         // the same statements also paid 3,000 for an order not marked delivered: the note names it, so 80,000 + 3,000
@@ -400,11 +405,12 @@ describe("SummaryView", () => {
                 statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1, undelivered: 3_000, undelivered_orders: 1 },
             },
         })));
+        fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual([
             "خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع",
             "وصلك منها فعلاً80,000د.ع",
-            "ودفعت الكشوف عن طلب لم تجعله «مُسلَّماً» بعد+3,000د.ع",
-            "المجموع، كما في الدفعات83,000د.ع",
+            "ودفعت الكشوف عن طلب لم تجعله أنت «مُسلَّماً» بعد+3,000د.ع",
+            "وهذا ما تجده في بطاقة الدفعات83,000د.ع",
         ]);
         cleanup();
         renderView(query(summary()));
@@ -646,7 +652,7 @@ describe("SummaryView", () => {
         const bar = byTestId("break-even-bar");
         expect(bar?.getAttribute("data-state")).toBe("above");
         expect(bar?.textContent).toContain("1.8 طلب تغطي مصروفات اليوم");
-        expect(bar?.textContent).toContain("من كل 5 طلبات في اليوم، 3.2 منها ربح لك");
+        expect(bar?.textContent).toContain("من كل 5 طلبات في اليوم، 3.2 منها تترك لك ربحاً");
         expect(bar?.textContent).toContain("18,000");
         expect(bar?.textContent).toContain("32,500");
         // and what each order leaves after the daily costs: the strip's profit per order
