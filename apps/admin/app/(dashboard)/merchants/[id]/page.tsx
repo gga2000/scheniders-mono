@@ -253,6 +253,8 @@ export default function MerchantDetailPage() {
         {tabs.map((tab) => (
           <button
             key={tab}
+            type="button"
+            aria-pressed={activeTab === tab}
             onClick={() => {
               setFocusNote(false);
               setActiveTab(tab);

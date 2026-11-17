@@ -302,6 +302,8 @@ export default function MerchantsPage() {
                 return (
                   <button
                     key={mode.value}
+                    type="button"
+                    aria-pressed={viewMode === mode.value}
                     onClick={() => setViewMode(mode.value)}
                     className={cn(
                       "p-1.5 rounded-lg transition-all",
