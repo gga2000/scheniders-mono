@@ -35,6 +35,14 @@ export default function LoginPage() {
   const captchaRef = useRef<TurnstileHandle>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaReady = TURNSTILE_SITE_KEY === "" || captchaToken !== null;
+  // The security check could not run (its script was blocked, or Cloudflare
+  // refused it): Sign in stays off, so say why and offer to run it again.
+  const [captchaFailed, setCaptchaFailed] = useState(false);
+  const [captchaRun, setCaptchaRun] = useState(0);
+  const onCaptchaToken = (token: string | null) => {
+    setCaptchaToken(token);
+    if (token) setCaptchaFailed(false);
+  };
 
   // Read from the address itself, after the server's render (no Suspense needed).
   const sentHere = SENT_HERE.get(useSyncExternalStore(unwatched, sentHereFor, () => "")) ?? null;
@@ -61,7 +69,7 @@ export default function LoginPage() {
         router.push("/");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to sign in");
+      setError(err instanceof Error ? `Could not sign in: ${err.message}` : "Could not sign in. Try again.");
     } finally {
       setLoading(false);
       captchaRef.current?.reset();
@@ -134,12 +142,29 @@ export default function LoginPage() {
           </div>
 
           <TurnstileBox
+            key={captchaRun}
             ref={captchaRef}
             siteKey={TURNSTILE_SITE_KEY}
-            onToken={setCaptchaToken}
+            onToken={onCaptchaToken}
+            onFailure={() => setCaptchaFailed(true)}
             language="en"
             frameClassName="rounded-xl border border-[#E7E5E4] bg-white"
           />
+          {captchaFailed && (
+            <div role="alert" className="flex items-center justify-between gap-3 text-sm text-[#991B1B]">
+              <span>The security check did not finish, so Sign in is off. If it fails again, refresh the page.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptchaFailed(false);
+                  setCaptchaRun((run) => run + 1);
+                }}
+                className="shrink-0 font-semibold text-[#1E1E1E] underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"

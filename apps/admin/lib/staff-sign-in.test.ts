@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AuthApiError, AuthInvalidJwtError, AuthRetryableFetchError } from "@supabase/supabase-js";
-import { STAFF_SIGN_IN_MAX_MS, bearerToken, signInEnded, verifyStaffToken } from "./staff-sign-in";
+import { STAFF_SIGN_IN_MAX_MS, bearerToken, signInEnded, signInRefusedWords, verifyStaffToken } from "./staff-sign-in";
 
 /**
  * Round 13: one staff sign-in was refreshed for 158 days, and every API read
@@ -93,5 +93,37 @@ describe("bearerToken", () => {
     expect(bearerToken(new Headers({ authorization: "Basic abc" }))).toBeNull();
     expect(bearerToken(new Headers({ authorization: "Bearer a b" }))).toBeNull();
     expect(bearerToken(new Headers())).toBeNull();
+  });
+});
+
+// Round 14 (Workflow new 3): the login page showed the auth server's own
+// words ("Invalid login credentials", "captcha protection: request
+// disallowed (timeout-or-duplicate)").
+describe("signInRefusedWords", () => {
+  it("words the refusals staff meet", () => {
+    expect(signInRefusedWords(new AuthApiError("Invalid login credentials", 400, "invalid_credentials"))).toBe(
+      "Wrong email or password.",
+    );
+    expect(
+      signInRefusedWords(new AuthApiError("captcha protection: request disallowed (timeout-or-duplicate)", 400, "captcha_failed")),
+    ).toBe("The security check ran out before Sign in. Try again.");
+    expect(signInRefusedWords(new AuthApiError("Request rate limit reached", 429, "over_request_rate_limit"))).toBe(
+      "Too many tries. Wait a few minutes, then try again.",
+    );
+    expect(signInRefusedWords(new AuthApiError("User is banned", 400, "user_banned"))).toBe(
+      "This login is switched off. Ask a super admin.",
+    );
+  });
+
+  it("says when the sign-in server could not be reached", () => {
+    expect(signInRefusedWords(new AuthRetryableFetchError("Failed to fetch", 0))).toBe(
+      "Could not reach the sign-in server. Check the connection, then try again.",
+    );
+  });
+
+  it("keeps the server's words for a refusal it does not know, so staff can pass them on", () => {
+    expect(signInRefusedWords(new AuthApiError("Database error querying schema", 500, "unexpected_failure"))).toBe(
+      "Could not sign in: Database error querying schema",
+    );
   });
 });

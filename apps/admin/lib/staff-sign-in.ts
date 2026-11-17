@@ -1,4 +1,4 @@
-import { AuthInvalidJwtError, type SupabaseClient } from "@supabase/supabase-js";
+import { AuthInvalidJwtError, isAuthRetryableFetchError, type AuthError, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { isCredentialRejection } from "./admin-auth-error";
 
@@ -13,6 +13,29 @@ export const STAFF_SIGN_IN_MAX_MS = 16 * 60 * 60 * 1000;
 
 /** What staff read when their sign-in has reached that age. */
 export const SIGN_IN_ENDED = "Your sign-in ended after 16 hours. Sign in again.";
+
+/** A refused sign-in in staff's words, by the auth server's code. */
+const SIGN_IN_REFUSED: ReadonlyMap<string, string> = new Map([
+  ["invalid_credentials", "Wrong email or password."],
+  ["captcha_failed", "The security check ran out before Sign in. Try again."],
+  ["over_request_rate_limit", "Too many tries. Wait a few minutes, then try again."],
+  ["user_banned", "This login is switched off. Ask a super admin."],
+  ["email_not_confirmed", "This login's email is not confirmed yet. Ask a super admin."],
+]);
+
+/**
+ * Why a sign-in did not go through, in words staff can act on. The auth
+ * server answers in its own terms ("Invalid login credentials", "captcha
+ * protection: request disallowed (timeout-or-duplicate)"). A server it could
+ * not reach says so; anything else keeps the server's words, so staff can
+ * pass them on.
+ */
+export function signInRefusedWords(error: AuthError): string {
+  const words = error.code ? SIGN_IN_REFUSED.get(error.code) : undefined;
+  if (words) return words;
+  if (isAuthRetryableFetchError(error)) return "Could not reach the sign-in server. Check the connection, then try again.";
+  return `Could not sign in: ${error.message}`;
+}
 
 /** The claims the console reads from a staff access token. */
 const staffClaims = z.object({

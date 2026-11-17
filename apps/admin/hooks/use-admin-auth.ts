@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
 import { readAccessCheck, type AccessCheck } from "@/lib/admin-access";
+import { signInRefusedWords } from "@/lib/staff-sign-in";
 import { watchAdminSession } from "@/lib/admin-session-watch";
 import { useAdminStore } from "@/store/use-admin-store";
 
@@ -187,9 +188,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         options: { captchaToken },
       });
       if (signInError) {
+        const words = signInRefusedWords(signInError);
         setIsLoading(false);
-        setError(signInError.message);
-        return { error: signInError.message };
+        setError(words);
+        return { error: words };
       }
       // onAuthStateChange will handle the rest
       return { error: null };
