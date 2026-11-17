@@ -21,6 +21,7 @@ vi.mock("./whatsapp-health-alert", () => ({
   useWhatsAppHealth: () => ({ data: { interaktEmpty: false, pausedShops: 0 } }),
 }));
 vi.mock("./billing-check-alert", () => ({ BillingCheckAlert: () => null, billingCheckCount: () => 0, useBillingCheck: () => ({ data: undefined }) }));
+vi.mock("./hourly-jobs-alert", () => ({ HourlyJobsAlert: () => null, hourlyJobsCount: () => 0, useHourlyJobs: () => ({ data: undefined }) }));
 
 vi.mock("@/hooks/use-admin-auth", () => ({ useAdminAuth: () => ({ user: { id: "user-noor" } }) }));
 

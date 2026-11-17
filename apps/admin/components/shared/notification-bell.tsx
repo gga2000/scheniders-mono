@@ -7,6 +7,7 @@ import { EASE_CHROME } from "@/lib/animation-constants";
 import { TopupRequestsSection, useTopupRequests } from "./topup-requests-section";
 import { WhatsAppHealthAlert, WhatsAppPausedAlert, useWhatsAppHealth } from "./whatsapp-health-alert";
 import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing-check-alert";
+import { HourlyJobsAlert, hourlyJobsCount, useHourlyJobs } from "./hourly-jobs-alert";
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
 import { formatWhen } from "@/lib/format";
 import { staffActionText } from "@/lib/staff-actions";
@@ -81,15 +82,19 @@ export function NotificationBell() {
   const billingRead = useBillingCheck();
   const billingCheck = billingRead.data;
   const billingMissed = billingCheckCount(billingCheck) > 0;
+  const hourlyRead = useHourlyJobs();
+  const hourlyCheck = hourlyRead.data;
+  const hourlyMissed = hourlyJobsCount(hourlyCheck) > 0;
   // An alarm whose read failed is not quiet: the bell names it, and counts it once.
   const unchecked = uncheckedAlarms([
     { name: "the receipts", read: topupRead },
     { name: "the Prime link requests", read: primeRequests },
     { name: "WhatsApp", read: whatsappRead },
     { name: "the billing job", read: billingRead },
+    { name: "the hourly jobs", read: hourlyRead },
   ]);
   // Open Prime and top-up requests always count: they wait on the team, not on a read mark.
-  const unreadCount = notifications.filter((n) => isNewStep(n.created_at, readUpTo)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0) + (unchecked.names.length > 0 ? 1 : 0);
+  const unreadCount = notifications.filter((n) => isNewStep(n.created_at, readUpTo)).length + openPrime.length + openTopups.length + (interaktEmpty ? 1 : 0) + (pausedShops > 0 ? 1 : 0) + (billingMissed ? 1 : 0) + (hourlyMissed ? 1 : 0) + (unchecked.names.length > 0 ? 1 : 0);
 
   const markAllRead = useCallback(() => {
     // The list is newest first.
@@ -173,6 +178,9 @@ export function NotificationBell() {
 
             {/* A daily billing job missed shops: trial not paused or month not renewed */}
             {billingMissed && billingCheck && <BillingCheckAlert check={billingCheck} />}
+
+            {/* An hourly job failed or stopped, or a pause did not lift on its own */}
+            {hourlyMissed && hourlyCheck && <HourlyJobsAlert check={hourlyCheck} />}
 
             {/* Interakt wallet empty: every shop's WhatsApp is stopped */}
             {interaktEmpty && <WhatsAppHealthAlert since={whatsapp?.since ?? null} />}
