@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { dayOf, TRIAL_ENDING_DAYS, trialClock } from "./baghdad-day";
 import { formatUntilDay } from "./format";
+import { pauseLiftOverdue } from "./tenant-pause";
 
 /**
  * "Check this shop" beside a support conversation. `support_shop_check`
@@ -89,13 +90,17 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
     const since = s.lock_since ? ` since ${daysAgo(s.lock_since, nowMs)}` : "";
     return { ...base, state: "broken", text: `Locked for payment${since} (${s.lock_reason.replace(/_/g, " ")}).` };
   }
-  // A pause past its end date stops nothing; the shop's status clears at its
-  // next action. The shop page's Paused banner says the same.
+  // A pause past its end date stops nothing, and the hourly lift takes it off
+  // within the hour. Past that the lift failed for this shop, and staff lift it
+  // by hand. The shop page's Paused banner says the same.
   if (s.paused && s.paused_until && Date.parse(s.paused_until) <= nowMs) {
+    const overdue = pauseLiftOverdue(s.paused_until, nowMs);
     return {
       ...base,
-      state: "ok",
-      text: `Pause ended ${daysAgo(s.paused_until, nowMs)}. Nothing is stopped now; it clears at the shop's next action.`,
+      state: overdue ? "look" : "ok",
+      text: overdue
+        ? `Pause ended ${daysAgo(s.paused_until, nowMs)} but did not lift on its own. Nothing is stopped now; it needs lifting by hand on the shop page.`
+        : `Pause ended ${daysAgo(s.paused_until, nowMs)}. Nothing is stopped now; it lifts on its own within the hour.`,
     };
   }
   if (s.paused && s.blocks_new_orders) {

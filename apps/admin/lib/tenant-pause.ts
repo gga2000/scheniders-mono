@@ -29,3 +29,17 @@ export function pausedShop(rows: unknown): PausedShop | null {
   }
   return { id: row.id, status: row.status, restrictions: row.restrictions };
 }
+
+/**
+ * lift_ended_pauses lifts every ended pause once an hour (pg_cron
+ * lift-ended-pauses, at :21), so an ended pause is lifted within the hour.
+ * Later than that, the hourly lift failed for this shop: it keeps the pause,
+ * the database logs a warning and tries again each hour, and staff should
+ * lift it by hand. Five minutes of slack for the run itself.
+ */
+const HOURLY_LIFT_MS = 65 * 60 * 1000;
+
+/** Whether a pause that ended at `pausedUntil` should have been lifted on its own by `nowMs`. */
+export function pauseLiftOverdue(pausedUntil: string, nowMs: number): boolean {
+  return nowMs - Date.parse(pausedUntil) > HOURLY_LIFT_MS;
+}
