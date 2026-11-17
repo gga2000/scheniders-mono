@@ -23,6 +23,11 @@
  * - Development needs eval for React's error overlay and fast refresh. Zod
  *   would test eval in the browser too; instrumentation-client turns that off.
  *
+ * - report-uri and report-to send each breach from the browser itself to
+ *   Sentry's security endpoint (breachReportUrl), so a page the policy breaks
+ *   whole, where no script of the console runs to tell anyone, still shows up.
+ *   Sentry leaves out browser extensions' breaches by its default filter.
+ *
  * Only scripts, workers, plugins, the base URL, form targets and frames are
  * limited: images, styles and API calls are not.
  */
@@ -39,7 +44,26 @@ export function newNonce(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-export function scriptPolicy(nonce: string, development = false): string {
+/** The Reporting-Endpoints name report-to points at. */
+export const REPORT_GROUP = "csp";
+
+/**
+ * Sentry's security endpoint for the project behind a DSN
+ * (https://<key>@<host>/<project>), tagged with the environment; null when
+ * there is no DSN to report to, as in development without one.
+ */
+export function breachReportUrl(dsn: string | undefined, environment: string): string | null {
+  if (!dsn || !URL.canParse(dsn)) return null;
+  const parsed = new URL(dsn);
+  const project = parsed.pathname.slice(1);
+  if (!parsed.username || !/^\d+$/.test(project)) return null;
+  const url = new URL(`/api/${project}/security/`, parsed.origin);
+  url.searchParams.set("sentry_key", parsed.username);
+  url.searchParams.set("sentry_environment", environment);
+  return url.toString();
+}
+
+export function scriptPolicy(nonce: string, { development = false, reportUrl = null }: { development?: boolean; reportUrl?: string | null } = {}): string {
   const scripts = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(development ? ["'unsafe-eval'"] : [])];
   return [
     `script-src ${scripts.join(" ")}`,
@@ -48,5 +72,6 @@ export function scriptPolicy(nonce: string, development = false): string {
     "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    ...(reportUrl ? [`report-uri ${reportUrl}`, `report-to ${REPORT_GROUP}`] : []),
   ].join("; ");
 }
