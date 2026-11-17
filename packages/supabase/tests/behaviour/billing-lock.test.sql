@@ -727,3 +727,72 @@ UPDATE public.tenants SET status = 'trial', restrictions = '{}' WHERE id = '2000
 SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a1') IS NULL
                      AND pg_temp.balance('20000000-0000-4000-8000-0000000000a1') = 20000,
                      'after the pause the trial is the same trial');
+
+-- 20. A paused shop keeps its lock until it really pays, and a pause with an
+--     end date ends on that date (20261117134448). The rule stays: no charge
+--     while paused, the month is charged once the pause lifts.
+--     a2: the paused ended trial from 19.  a3: the paused unpaid paying shop
+--     from 19.  a5: paused with no end date.  a6: an end date that does not
+--     parse.
+SELECT public.admin_topup_wallet('20000000-0000-4000-8000-0000000000a3', 1000, 'receipt', NULL, 'manual', 'p-1');
+SELECT pg_temp.check(pg_temp.balance('20000000-0000-4000-8000-0000000000a3') = 1000, 'a credit while paused stays in the wallet');
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a3') = 'unpaid', 'a credit while paused keeps the unpaid lock');
+SELECT pg_temp.check(pg_temp.sub_status('20000000-0000-4000-8000-0000000000a3') = 'past_due', 'and its month stays past_due');
+
+SELECT pg_temp.check(
+  public.settle_billing_lock('20000000-0000-4000-8000-0000000000a2', true)->>'outcome' = 'on_hold'
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000a2') = 'past_due'
+  AND pg_temp.lock('20000000-0000-4000-8000-0000000000a2') = 'trial_ended'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-0000000000a2') = 'limited',
+  'settling a paused locked trial changes nothing');
+
+-- Unlock free refuses a paused shop and writes nothing.
+SELECT pg_temp.check(
+  public.admin_force_unlock('20000000-0000-4000-8000-0000000000a3', 7, 'merchant asked for time')->>'error' = 'paused',
+  'Unlock free refuses a paused shop');
+SELECT pg_temp.check(
+  pg_temp.shop_status('20000000-0000-4000-8000-0000000000a3') = 'limited'
+  AND (SELECT restrictions->>'status_before' = 'active' FROM public.tenants WHERE id = '20000000-0000-4000-8000-0000000000a3')
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000a3') = 'past_due'
+  AND NOT EXISTS (SELECT 1 FROM public.admin_activity_logs
+                   WHERE tenant_id = '20000000-0000-4000-8000-0000000000a3' AND action = 'force_unlock'),
+  'the refused unlock left the pause, the month and the log as they were');
+
+-- The hourly job lifts only pauses whose end date has passed.
+UPDATE public.tenants SET restrictions = restrictions || jsonb_build_object('paused_until', now() - interval '1 hour')
+ WHERE id = '20000000-0000-4000-8000-0000000000a3';
+UPDATE public.tenants SET restrictions = restrictions || jsonb_build_object('paused_until', now() + interval '1 day')
+ WHERE id = '20000000-0000-4000-8000-0000000000a2';
+INSERT INTO public.tenants (id, plan, status, trial_ends_at, restrictions) VALUES
+  ('20000000-0000-4000-8000-0000000000a5', 'starter', 'limited', NULL, '{"new_orders": true, "status_before": "active"}'),
+  ('20000000-0000-4000-8000-0000000000a6', 'starter', 'limited', NULL, '{"new_orders": true, "status_before": "active", "paused_until": "soon"}');
+
+SELECT pg_temp.check(public.lift_ended_pauses() = 1, 'one pause had ended');
+SELECT pg_temp.check(
+  pg_temp.shop_status('20000000-0000-4000-8000-0000000000a3') = 'active'
+  AND (SELECT restrictions = '{}'::jsonb FROM public.tenants WHERE id = '20000000-0000-4000-8000-0000000000a3'),
+  'the ended pause gave the shop back its status and dropped its blocks');
+SELECT pg_temp.check(
+  (SELECT count(*) = 1 AND bool_and(admin_label = 'system' AND admin_user_id IS NULL
+                                    AND details->>'status' = 'active' AND details->>'ended' = 'true')
+     FROM public.admin_activity_logs
+    WHERE tenant_id = '20000000-0000-4000-8000-0000000000a3' AND action = 'unpause_tenant'),
+  'one system log row says the pause ended');
+SELECT pg_temp.check(
+  pg_temp.shop_status('20000000-0000-4000-8000-0000000000a2') = 'limited'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-0000000000a5') = 'limited'
+  AND pg_temp.shop_status('20000000-0000-4000-8000-0000000000a6') = 'limited',
+  'a running pause, a pause with no end date and an end date that does not parse all stay');
+SELECT pg_temp.check(public.lift_ended_pauses() = 0
+  AND (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'unpause_tenant') = 1,
+  'a second run lifts nothing and logs nothing');
+
+-- Back from the pause, the unpaid month is due again: still locked until the
+-- wallet covers it, then charged once.
+SELECT pg_temp.check(pg_temp.lock('20000000-0000-4000-8000-0000000000a3') = 'unpaid', 'back from the pause, still locked');
+SELECT public.admin_topup_wallet('20000000-0000-4000-8000-0000000000a3', 8000, 'receipt', NULL, 'manual', 'p-2');
+SELECT pg_temp.check(
+  pg_temp.lock('20000000-0000-4000-8000-0000000000a3') IS NULL
+  AND pg_temp.balance('20000000-0000-4000-8000-0000000000a3') = 0
+  AND pg_temp.sub_status('20000000-0000-4000-8000-0000000000a3') = 'active',
+  'the covering credit pays the 9,000 month and unlocks');

@@ -29,10 +29,12 @@ for (const address of ["/merchants", "/merchants/abc.png"]) {
   });
 }
 
-test("API answers stay out of the browser's cache", async ({ page }) => {
+test("API answers stay out of the browser's cache", async ({ page, watch }) => {
+  // `watch` signs the page in, so this is a real staff answer, not a 401.
   const answer = await page.request.get("/api/merchants/stats");
-  expect(answer.ok()).toBe(true);
+  expect(answer.status()).toBe(200);
   expect(answer.headers()["cache-control"]).toBe("private, no-store");
+  expect(watch.writes).toEqual([]);
 });
 
 test.describe("every page on the menu opens", () => {

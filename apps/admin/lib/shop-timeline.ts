@@ -124,7 +124,8 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return length === null ? "Paused, no end date" : `Paused for ${nDays(length)}`;
     }
     case "unpause_tenant":
-      return "Pause lifted";
+      // The hourly job lifts a pause on its end date (lift_ended_pauses).
+      return d.ended === true ? "Pause ended on its end date" : "Pause lifted";
     case "suspend":
     case "bulk_suspend":
       return "Put on hold";

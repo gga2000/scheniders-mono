@@ -49,6 +49,7 @@ const REFUSALS: Record<string, Omit<Refusal, "ok">> = {
   not_found: { status: 404, error: "Merchant not found" },
   request_reused: REQUEST_REUSED,
   not_locked: { status: 409, error: "This store is not locked" },
+  paused: { status: 409, error: "This store is paused. Lift the pause first, then unlock it" },
   unpaid_lock: { status: 403, error: "A store locked for an unpaid month gets more orders from a super admin" },
 };
 

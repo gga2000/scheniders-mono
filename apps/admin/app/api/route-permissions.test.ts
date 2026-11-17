@@ -684,6 +684,13 @@ describe("billing lock staff tools", () => {
     expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(404);
   });
 
+  it("a paused store is not unlocked: staff lift the pause first", async () => {
+    dbResult = { data: { success: false, error: "paused" }, error: null };
+    const res = await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("This store is paused. Lift the pause first, then unlock it");
+  });
+
   it("a database error or an unreadable answer is a 500, not a success", async () => {
     dbResult = { data: null, error: { code: "40P01", message: "deadlock detected" } };
     expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(500);
