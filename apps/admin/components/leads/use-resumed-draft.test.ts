@@ -10,6 +10,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Lead, LeadFormData } from "@/types/leads";
 
+// Saves (PATCH) answer from `patch`; a read of the lead by id answers `stored`.
+const patch = vi.hoisted(() => vi.fn());
+const stored = vi.hoisted(() => ({ lead: null as unknown }));
 const adminFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
@@ -60,8 +63,10 @@ const draft = (over: Partial<Lead> = {}): Lead =>
 function setup(leads: Lead[] = [draft()]) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const invalidated: unknown[] = [];
-  vi.spyOn(client, "invalidateQueries").mockImplementation(async (filters) => {
+  const invalidate = client.invalidateQueries.bind(client);
+  vi.spyOn(client, "invalidateQueries").mockImplementation((filters) => {
     invalidated.push(filters?.queryKey);
+    return invalidate(filters);
   });
   const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
   const view = renderHook((props: { leads: Lead[] }) => useResumedDraft(props.leads), { wrapper, initialProps: { leads } });
@@ -70,20 +75,27 @@ function setup(leads: Lead[] = [draft()]) {
 }
 
 /** The body of the n-th PATCH sent. */
-const sent = (n = 0) => JSON.parse(adminFetch.mock.calls[n][1].body as string);
+const sent = (n = 0) => JSON.parse(patch.mock.calls[n][1].body as string);
 
 const ok = () => new Response(JSON.stringify({ saved: true }), { status: 200 });
 const clash = () =>
   new Response(JSON.stringify({ error: "A colleague changed this lead's phones ...", stale: ["phone_numbers"] }), { status: 409 });
 
 beforeEach(() => {
+  patch.mockReset();
+  stored.lead = null;
   adminFetch.mockReset();
+  adminFetch.mockImplementation(async (url: string, init?: RequestInit) =>
+    init?.method === "PATCH"
+      ? patch(url, init)
+      : new Response(JSON.stringify({ lead: stored.lead ?? draft(), activities: [], follow_ups: [], social_links: [], competitors: [] })),
+  );
   toast.error.mockReset();
 });
 
 describe("useResumedDraft: Save", () => {
   it("makes it a lead with only the changes, and the lists it changed as the draft opened", async () => {
-    adminFetch.mockResolvedValueOnce(ok());
+    patch.mockResolvedValueOnce(ok());
     const { result } = setup();
     const opened = { ...leadToFormData(draft()) };
     const changes: Partial<LeadFormData> = { merchant_name: "Kawkab", phone_numbers: [MINE, THEIRS] };
@@ -92,47 +104,80 @@ describe("useResumedDraft: Save", () => {
       await expect(result.current.form.onSubmit({ ...opened, ...changes }, changes, opened)).resolves.toBe(true);
     });
 
-    expect(adminFetch.mock.calls[0][0]).toBe(`/api/leads/${draft().id}`);
+    expect(patch.mock.calls[0][0]).toBe(`/api/leads/${draft().id}`);
     expect(sent()).toEqual({ merchant_name: "Kawkab", phone_numbers: [MINE, THEIRS], is_draft: false, was: { phone_numbers: [MINE] } });
   });
 
-  it("is refused over a colleague's phones, and the form then takes the list's fresh copy", async () => {
-    adminFetch.mockResolvedValueOnce(clash());
+  // Round 14: the form took the colleague's lists only from the list page, so a
+  // draft that had left the page or filter kept its stale copy for good.
+  it("is refused over a colleague's phones, and the form then takes the lead read again, wherever the list is", async () => {
+    patch.mockResolvedValueOnce(clash());
     const { result, rerender, invalidated } = setup();
+    await waitFor(() => expect(result.current.form.initialData?.phone_numbers).toEqual([MINE]));
     const opened = leadToFormData(draft());
     const changes: Partial<LeadFormData> = { phone_numbers: [] };
+    stored.lead = draft({ phone_numbers: [MINE, THEIRS] });
 
     await act(async () => {
       await expect(result.current.form.onSubmit({ ...opened, ...changes }, changes, opened)).rejects.toThrow("A colleague changed");
     });
-    await waitFor(() => expect(invalidated).toContainEqual(["leads"]));
+    await waitFor(() => expect(invalidated).toContainEqual(["lead", draft().id]));
 
-    rerender({ leads: [draft({ phone_numbers: [MINE, THEIRS] })] });
+    rerender({ leads: [] });
+    await waitFor(() => expect(result.current.form.initialData?.phone_numbers).toEqual([MINE, THEIRS]));
+  });
+});
+
+describe("useResumedDraft: opening", () => {
+  it("opens at once with the copy at hand when nothing is being saved", () => {
+    const { result } = setup();
+    expect(result.current.form.open).toBe(true);
+    expect(result.current.form.initialData?.phone_numbers).toEqual([MINE]);
+  });
+
+  // Round 14: reopened while its close save ran, the draft opened the copy from
+  // before that save, and its next Save was refused over the person's own change.
+  it("reopened while its own close save runs, waits for the save and the read after it", async () => {
+    let answer: (response: Response) => void = () => {};
+    patch.mockReturnValueOnce(new Promise<Response>((resolve) => (answer = resolve)));
+    const { result } = setup();
+    const opened = leadToFormData(draft());
+    const changes: Partial<LeadFormData> = { phone_numbers: [MINE, THEIRS] };
+
+    act(() => result.current.form.onSaveDraft({ ...opened, ...changes }, changes, opened));
+    act(() => result.current.form.onOpenChange(false));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    act(() => result.current.resume(draft()));
+    expect(result.current.form.open).toBe(false);
+
+    stored.lead = draft({ phone_numbers: [MINE, THEIRS] });
+    await act(async () => answer(ok()));
+    await waitFor(() => expect(result.current.form.open).toBe(true));
     expect(result.current.form.initialData?.phone_numbers).toEqual([MINE, THEIRS]);
   });
 });
 
 describe("useResumedDraft: closing with changes", () => {
   it("sends only the changes with their lists as opened, and leaves the draft mark and the owner alone", async () => {
-    adminFetch.mockResolvedValueOnce(ok());
+    patch.mockResolvedValueOnce(ok());
     const { result } = setup();
     const opened = leadToFormData(draft());
     const changes: Partial<LeadFormData> = { management_name: "Typed", phone_numbers: [MINE, THEIRS] };
 
     act(() => result.current.form.onSaveDraft({ ...opened, ...changes }, changes, opened));
 
-    await waitFor(() => expect(adminFetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
     expect(sent()).toEqual({ management_name: "Typed", phone_numbers: [MINE, THEIRS], was: { phone_numbers: [MINE] } });
   });
 
   it("keeps the placeholder name when the name was cleared", async () => {
-    adminFetch.mockResolvedValueOnce(ok());
+    patch.mockResolvedValueOnce(ok());
     const { result } = setup();
     const opened = leadToFormData(draft());
 
     act(() => result.current.form.onSaveDraft({ ...opened, merchant_name: "" }, { merchant_name: "" }, opened));
 
-    await waitFor(() => expect(adminFetch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
     expect(sent()).toEqual({ merchant_name: "Untitled draft" });
   });
 
@@ -142,11 +187,11 @@ describe("useResumedDraft: closing with changes", () => {
 
     act(() => result.current.form.onSaveDraft(opened, {}, opened));
 
-    expect(adminFetch).not.toHaveBeenCalled();
+    expect(patch).not.toHaveBeenCalled();
   });
 
   it("says so when the save fails", async () => {
-    adminFetch.mockResolvedValueOnce(new Response(JSON.stringify({ error: "Failed to update lead" }), { status: 500 }));
+    patch.mockResolvedValueOnce(new Response(JSON.stringify({ error: "Failed to update lead" }), { status: 500 }));
     const { result } = setup();
     const opened = leadToFormData(draft());
 
@@ -156,7 +201,7 @@ describe("useResumedDraft: closing with changes", () => {
   });
 
   it("says to open the draft again when a colleague changed its lists", async () => {
-    adminFetch.mockResolvedValueOnce(clash());
+    patch.mockResolvedValueOnce(clash());
     const { result } = setup();
     const opened = leadToFormData(draft());
 
