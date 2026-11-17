@@ -14,6 +14,25 @@ export const STAFF_SIGN_IN_MAX_MS = 16 * 60 * 60 * 1000;
 /** What staff read when their sign-in has reached that age. */
 export const SIGN_IN_ENDED = "Your sign-in ended after 16 hours. Sign in again.";
 
+/** What staff read when their login has no active staff row: removed, switched off, or never staff. */
+export const NO_CONSOLE_ACCESS = "This login has no access to the staff console.";
+
+/**
+ * The answer header on the API's 403 for a login with no console access, from
+ * the middleware or a route's guard. A role that only lacks one permission
+ * gets a 403 without it and keeps its page. With it, an open page reloads once
+ * (adminFetch), and the middleware sends it to /login?error=forbidden, which
+ * says why. Round 15: a role removed while a page was open left every read
+ * failing as if the console were down.
+ */
+const NO_ACCESS_HEADER = "x-staff-access";
+export const NO_ACCESS_HEADERS: Readonly<Record<string, string>> = { [NO_ACCESS_HEADER]: "none" };
+
+/** The API's answer for a login with no console access (see NO_ACCESS_HEADERS). */
+export function isNoConsoleAccess(response: Response): boolean {
+  return response.status === 403 && response.headers.get(NO_ACCESS_HEADER) === NO_ACCESS_HEADERS[NO_ACCESS_HEADER];
+}
+
 /** A refused sign-in in staff's words, by the auth server's code. */
 const SIGN_IN_REFUSED: ReadonlyMap<string, string> = new Map([
   ["invalid_credentials", "Wrong email or password."],

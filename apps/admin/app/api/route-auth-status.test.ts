@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { AdminAuthError } from "@/lib/admin-auth-error";
+import { NO_CONSOLE_ACCESS, isNoConsoleAccess } from "@/lib/staff-sign-in";
 
 /**
  * Auth failures must come back as 401/403, and real server failures as 500 —
@@ -168,7 +169,9 @@ describe("bearer-only CRM routes map auth failures to 401/403", () => {
   it.each(BEARER_HANDLERS)("$name — authenticated non-admin → 403", async (h) => {
     const res = await call(h, `Bearer ${TOKENS.outsider}`);
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: "Forbidden" });
+    // Marked, so an open page leaves for the login page (lib/admin-fetch.ts).
+    expect(isNoConsoleAccess(res)).toBe(true);
+    expect(await res.json()).toEqual({ error: NO_CONSOLE_ACCESS });
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 

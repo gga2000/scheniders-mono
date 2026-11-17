@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Shield, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
-import { SIGN_IN_ENDED } from "@/lib/staff-sign-in";
+import { NO_CONSOLE_ACCESS, SIGN_IN_ENDED } from "@/lib/staff-sign-in";
 
 // Public Cloudflare Turnstile key. Unset = no box (only while Supabase CAPTCHA is off).
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
@@ -21,7 +21,7 @@ const unwatched = () => () => {};
 /** Why the console sent staff here (middleware.ts), in words they can act on. */
 const SENT_HERE = new Map([
   ["expired", SIGN_IN_ENDED],
-  ["forbidden", "This login has no access to the staff console."],
+  ["forbidden", NO_CONSOLE_ACCESS],
 ]);
 
 export default function LoginPage() {

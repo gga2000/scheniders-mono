@@ -1,7 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
-import { SIGN_IN_ENDED, bearerToken, signInEnded, verifyStaffToken } from "@/lib/staff-sign-in";
+import {
+  NO_ACCESS_HEADERS,
+  NO_CONSOLE_ACCESS,
+  SIGN_IN_ENDED,
+  bearerToken,
+  signInEnded,
+  verifyStaffToken,
+} from "@/lib/staff-sign-in";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
 import { sentryEnvironment } from "@scheniders/shared/sentry-scrub";
 import { CSP_HEADER, REPORT_GROUP, breachReportUrl, newNonce, scriptPolicy } from "@/lib/csp";
@@ -184,7 +191,7 @@ async function checkAccess(request: NextRequest) {
 
   if (!isAdmin) {
     if (isApi) {
-      return withSession(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+      return withSession(NextResponse.json({ error: NO_CONSOLE_ACCESS }, { status: 403, headers: NO_ACCESS_HEADERS }));
     }
     if (isLoginPage) {
       return supabaseResponse;
