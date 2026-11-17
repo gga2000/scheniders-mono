@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
-import { feesOf, fetchIncomeStats, monthLabel } from "@/lib/console-stats";
+import { cohortMonthsSoFar, feesOf, fetchIncomeStats, monthLabel } from "@/lib/console-stats";
 import { calculateMerchantLTV } from "@/lib/dashboard-calculations";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
@@ -38,7 +38,11 @@ export async function GET(request: NextRequest) {
     const mrrWaterfall = months.map((m) => ({ month: monthLabel(m.month), revenue: feesOf(m) }));
     const otherCharges = months.reduce((sum, m) => sum + m.other, 0);
 
-    const cohorts = income.cohorts.map((c) => ({ cohort: c.cohort, tenantCount: c.tenants, months: c.months }));
+    const cohorts = income.cohorts.map((c) => ({
+      cohort: c.cohort,
+      tenantCount: c.tenants,
+      months: cohortMonthsSoFar(c.cohort, c.months, income.today),
+    }));
 
     const ltv = calculateMerchantLTV(shops, income.byTenant, income.today, 10);
 

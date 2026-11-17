@@ -23,7 +23,8 @@ interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
   /** Wallet charges of the same six months that are not fees (corrections, test reversals). */
   otherCharges: number;
-  cohorts: Array<{ cohort: string; tenantCount: number; months: number[] }>;
+  /** A month the cohort has not reached yet is null. */
+  cohorts: Array<{ cohort: string; tenantCount: number; months: Array<number | null> }>;
   ltvDistribution: Array<{ label: string; count: number }>;
   topLTV: Array<{ id: string; name: string; revenue: number }>;
   avgLTV: number;
@@ -143,22 +144,25 @@ export default function RevenuePage() {
               </thead>
               <tbody>
                 {data.cohorts.map((cohort) => {
-                  const maxVal = Math.max(...cohort.months, 1);
+                  const maxVal = Math.max(...cohort.months.map((rev) => rev ?? 0), 1);
                   return (
                     <tr key={cohort.cohort} className="border-t border-[var(--card-border)]">
                       <td className="p-2 font-medium text-foreground">{cohort.cohort}</td>
                       <td className="p-2 text-center text-foreground/70">{cohort.tenantCount}</td>
                       {cohort.months.map((rev, i) => {
-                        const intensity = rev / maxVal;
+                        const intensity = (rev ?? 0) / maxVal;
+                        // Blank: the month has not come yet. 0 is a month with no fees; a refund month keeps its minus.
                         return (
                           <td
                             key={i}
                             className="p-2 text-center"
+                            title={rev === null ? "Not reached yet" : undefined}
                             style={{
-                              backgroundColor: rev > 0 ? `rgba(134, 239, 172, ${0.1 + intensity * 0.6})` : undefined,
+                              backgroundColor:
+                                rev !== null && rev > 0 ? `rgba(134, 239, 172, ${0.1 + intensity * 0.6})` : undefined,
                             }}
                           >
-                            {rev > 0 ? formatCount(rev) : "\u2014"}
+                            {rev === null ? "" : formatCount(rev)}
                           </td>
                         );
                       })}
