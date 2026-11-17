@@ -274,7 +274,12 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     data-testid="statement-quiet"
                 >
                     <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.none", { lines: empty.map((line) => t(`fin.line.${line.id}`)).join(language === "ar" ? "، " : ", ") })}{" "}
+                        {t("fin.statement.none", {
+                            // As a sentence ("in «Salaries» or in «Other costs»"), each line by its name on the card.
+                            lines: empty
+                                .map((line) => (language === "ar" ? `«${t(`fin.line.${line.id}`)}»` : `“${t(`fin.line.${line.id}`)}”`))
+                                .join(t("fin.statement.none.or")),
+                        })}{" "}
                         <span className="font-medium text-foreground">{t("fin.statement.noneMeans")}</span>
                     </span>
                     <button

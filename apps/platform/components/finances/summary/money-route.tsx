@@ -197,6 +197,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
               { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other, href: null },
           ].filter((source) => source.amount > 0)
         : [];
+    const nowSource = sources.find((source) => source.key === "now");
 
     return (
         <SummaryCard
@@ -244,7 +245,8 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             textDir={dir}
                         >
                             {sources.length > 0 && (
-                                <dl className="mt-2 space-y-1 border-s-2 border-[var(--card-border)] ps-3" data-testid="money-reached-parts">
+                                <div className="mt-2 border-s-2 border-[var(--card-border)] ps-3" data-testid="money-reached-parts">
+                                <dl className="space-y-1">
                                     {sources.map((source) => (
                                         <div key={source.key}>
                                         <div className="flex items-baseline justify-between gap-4 text-[13px]">
@@ -253,46 +255,53 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                                 {source.note && <span className="block text-[12px]">{source.note}</span>}
                                                 {/* The statement part is what the courier payments card takes apart: link the two,
                                                     or, when the same statements took something off, fold the lines that match them. */}
-                                                {source.lines && source.lines.length > 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setLinesOpen((open) => !open)}
-                                                        aria-expanded={linesOpen}
-                                                        className="mt-0.5 flex w-fit items-center gap-1 text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
-                                                        data-testid="money-from-now-toggle"
-                                                    >
-                                                        <ChevronRight className={cn("size-3.5 transition-transform", linesOpen && "rotate-90")} aria-hidden="true" />
-                                                        {t("fin.money.from.nowMatch")}
-                                                    </button>
-                                                ) : (
-                                                    source.href && <NowLink href={source.href} label={t("fin.money.from.nowLink")} />
+                                                {!(source.lines && source.lines.length > 0) && source.href && (
+                                                    <NowLink href={source.href} label={t("fin.money.from.nowLink")} />
                                                 )}
                                             </dt>
                                             <dd className="shrink-0">
                                                 <Money value={source.amount} className="font-semibold text-foreground" />
                                             </dd>
                                         </div>
-                                        {source.lines && source.lines.length > 0 && linesOpen && (
-                                            <div className="mb-1 mt-1 ps-3">
-                                            <ul className="space-y-0.5 text-[12px] text-muted" data-testid="money-from-now-lines">
-                                                {source.lines.map((line) => (
-                                                    <li key={line.key} className="flex items-baseline justify-between gap-4" data-line={line.key}>
-                                                        <span className="min-w-0 text-left" dir={dir}>
-                                                            {line.label}
-                                                        </span>
-                                                        <span className="shrink-0 whitespace-nowrap tabular-nums" dir="ltr">
-                                                            {line.sign && line.amount > 0 && "+"}
-                                                            <Money value={line.amount} />
-                                                        </span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                            {source.href && <NowLink href={source.href} label={t("fin.money.from.nowLink")} />}
-                                            </div>
-                                        )}
                                         </div>
                                     ))}
                                 </dl>
+                                {/* How the statements' part matches the delivery-company payments, folded under all the
+                                    parts so the open card still reads as one sum; it starts again from that part. */}
+                                {nowSource && nowSource.lines && nowSource.lines.length > 0 && (
+                                    <div className="mt-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setLinesOpen((open) => !open)}
+                                            aria-expanded={linesOpen}
+                                            className="flex w-fit items-center gap-1 text-left text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                            dir={dir}
+                                            data-testid="money-from-now-toggle"
+                                        >
+                                            <ChevronRight className={cn("size-3.5 transition-transform", linesOpen && "rotate-90")} aria-hidden="true" />
+                                            {t("fin.money.from.nowMatch")}
+                                        </button>
+                                        {linesOpen && (
+                                            <div className="mb-1 mt-1 ps-3">
+                                                <ul className="space-y-0.5 text-[12px] text-muted" data-testid="money-from-now-lines">
+                                                    {[{ key: "start", label: nowSource.label, amount: nowSource.amount, sign: false }, ...nowSource.lines].map((line) => (
+                                                        <li key={line.key} className="flex items-baseline justify-between gap-4" data-line={line.key}>
+                                                            <span className="min-w-0 text-left" dir={dir}>
+                                                                {line.label}
+                                                            </span>
+                                                            <span className="shrink-0 whitespace-nowrap tabular-nums" dir="ltr">
+                                                                {line.sign && line.amount > 0 && "+"}
+                                                                <Money value={line.amount} />
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                                {nowSource.href && <NowLink href={nowSource.href} label={t("fin.money.from.nowLink")} />}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                </div>
                             )}
                         </PartRow>
                         <PartRow
