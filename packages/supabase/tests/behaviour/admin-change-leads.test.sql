@@ -15,6 +15,9 @@
 --   still be saved with that owner sent back (round 6);
 --   "converted" is refused; a converted lead
 --   in the list stops the whole call and changes nothing;
+--   a status change writes no staff log row, except the bulk bar's press
+--   (_bulk), which writes one bulk_leads row counting the leads that really
+--   moved, and none when nothing moved (round 10);
 --   only the service role may call it.
 
 \set ON_ERROR_STOP 1
@@ -129,6 +132,29 @@ BEGIN
     END IF;
     IF (SELECT count(*) FROM public.admin_activity_logs) <> n THEN RAISE EXCEPTION 'a refused move left a log row'; END IF;
 
+    -- The lead form's status change writes its history line and no staff log row.
+    IF EXISTS (SELECT 1 FROM public.admin_activity_logs WHERE action = 'bulk_leads') THEN
+        RAISE EXCEPTION 'a status change without _bulk wrote a bulk_leads row';
+    END IF;
+
+    -- The bulk bar's status press (_bulk) writes one bulk_leads row with the
+    -- change, counting only the leads that really moved: l1 is already
+    -- contacted, l3 and l4 are not.
+    UPDATE public.leads SET status = 'contacted' WHERE id = l1;
+    UPDATE public.leads SET status = 'new' WHERE id IN (l3, l4);
+    answer := public.admin_change_leads(ARRAY[l1, l3, l4], 'contacted', false, NULL, true, karrar, 'karrar@x.test', true);
+    IF answer->>'status_changed' <> '2' THEN RAISE EXCEPTION 'bulk contacted: %', answer; END IF;
+    SELECT count(*) INTO n FROM public.admin_activity_logs
+    WHERE action = 'bulk_leads' AND admin_user_id = karrar AND actor_email = 'karrar@x.test'
+      AND details = '{"action": "change_status", "status": "contacted", "changed": 2}';
+    IF n <> 1 THEN RAISE EXCEPTION 'want 1 bulk_leads row, got %', n; END IF;
+    -- Pressed again, nothing moves, so no second row.
+    answer := public.admin_change_leads(ARRAY[l1, l3, l4], 'contacted', false, NULL, true, karrar, 'karrar@x.test', true);
+    IF answer->>'status_changed' <> '0' THEN RAISE EXCEPTION 'bulk again: %', answer; END IF;
+    IF (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'bulk_leads') <> 1 THEN
+        RAISE EXCEPTION 'a press that moved nothing wrote a bulk_leads row';
+    END IF;
+
     -- Only the service role.
     PERFORM set_config('test.role', 'authenticated', true);
     BEGIN
@@ -137,8 +163,8 @@ BEGIN
     EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
     PERFORM set_config('test.role', '', true);
-    IF has_function_privilege('anon', 'public.admin_change_leads(uuid[], public.lead_status, boolean, uuid, boolean, uuid, text)', 'EXECUTE')
-       OR has_function_privilege('authenticated', 'public.admin_change_leads(uuid[], public.lead_status, boolean, uuid, boolean, uuid, text)', 'EXECUTE') THEN
+    IF has_function_privilege('anon', 'public.admin_change_leads(uuid[], public.lead_status, boolean, uuid, boolean, uuid, text, boolean)', 'EXECUTE')
+       OR has_function_privilege('authenticated', 'public.admin_change_leads(uuid[], public.lead_status, boolean, uuid, boolean, uuid, text, boolean)', 'EXECUTE') THEN
         RAISE EXCEPTION 'a browser role may call admin_change_leads';
     END IF;
 END;

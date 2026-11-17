@@ -10,6 +10,8 @@ import { MANUAL_LEAD_STATUSES } from "./lead-update";
  * owner change writes assigned_at, a history line and a reassign_lead row
  * with its own "from", in the same transaction. A converted lead is refused
  * by the database (LEAD_CONVERTED_LOCKED), which the routes turn into a 409.
+ * The bulk bar's status press (`bulk`) also writes its one bulk_leads staff
+ * log row there, saying how many leads really moved.
  */
 export interface LeadChange {
   status?: (typeof MANUAL_LEAD_STATUSES)[number];
@@ -43,6 +45,7 @@ export async function changeLeads(
   leadIds: string[],
   change: LeadChange,
   actor: { id: string; email?: string | null },
+  bulk = false,
 ): Promise<LeadChangeResult> {
   const { data, error } = await supabase.rpc("admin_change_leads", {
     _lead_ids: leadIds,
@@ -52,6 +55,7 @@ export async function changeLeads(
     _take_owned: change.takeOwned ?? true,
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
+    _bulk: bulk,
   });
   if (error) throw error;
 
