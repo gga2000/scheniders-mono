@@ -7,6 +7,10 @@ import { notAnId } from "@/lib/route-id";
 import { leadUpdateSchema } from "@/lib/lead-update";
 import { changeLeads } from "@/lib/lead-change";
 
+// The lead with its industry and, once built, its prospect store's web address
+// (the Store tab shows and copies it).
+const LEAD_WITH_PARTS = "*, industry:industries(*), prospect_tenant:tenants!leads_prospect_tenant_id_fkey(slug, business_name)";
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -24,7 +28,7 @@ export async function GET(
       await Promise.all([
         supabase
           .from("leads")
-          .select("*, industry:industries(*)")
+          .select(LEAD_WITH_PARTS)
           .eq("id", id)
           .single(),
         supabase
@@ -132,7 +136,7 @@ export async function PATCH(
 
     const { data: lead, error } = await supabase
       .from("leads")
-      .select("*, industry:industries(*)")
+      .select(LEAD_WITH_PARTS)
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn, slugify } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Lead, Industry } from "@/types/leads";
 import { useBuildStore } from "@/hooks/use-lead-mutations";
 import { useIndustries } from "@/hooks/use-industries";
@@ -22,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import { storeAddress } from "@scheniders/shared/store-address";
+import { prospectAddressPreview } from "@/lib/prospect-store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -76,13 +78,10 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
   const [primaryColor, setPrimaryColor] = useState("#1E1E1E");
   const [products, setProducts] = useState<ProductRow[]>([emptyProduct()]);
 
-  // Derived slug
-  const slug = useMemo(() => {
-    if (mode === "advanced" && customSlug.trim()) {
-      return slugify(customSlug);
-    }
-    return slugify(businessName);
-  }, [mode, customSlug, businessName]);
+  // The address the database will make: from the web address when one is
+  // typed, else from the name; its last 8 characters are made at the build.
+  const addressFrom = mode === "advanced" && customSlug.trim() ? customSlug : businessName;
+  const addressPreview = prospectAddressPreview(addressFrom);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -123,10 +122,10 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
       business_name: businessName,
       industry_id: industryId || null,
       template,
-      slug,
     };
 
     if (mode === "advanced") {
+      if (customSlug.trim()) data.slug = customSlug;
       data.description = description || null;
       data.primary_color = primaryColor;
       data.products = products
@@ -140,7 +139,16 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
 
     buildStore.mutate(
       { leadId: lead.id, data },
-      { onSuccess: () => onClose() }
+      {
+        onSuccess: ({ tenant }) => {
+          // The address is only known now: its last 8 characters are random.
+          const address = storeAddress(tenant.slug);
+          toast.success(`Store built at ${address}`, {
+            action: { label: "Copy", onClick: () => void navigator.clipboard.writeText(`https://${address}`) },
+          });
+          onClose();
+        },
+      }
     );
   };
 
@@ -307,7 +315,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                       {/* Custom Slug */}
                       <div>
                         <label className="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">
-                          Custom Slug
+                          Web Address
                         </label>
                         <input
                           type="text"
@@ -428,9 +436,8 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                   <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
                   <p className="text-xs text-[var(--muted)]">
                     This will create a prospect store at{" "}
-                    <span className="font-semibold text-[var(--foreground)]">
-                      {storeAddress(slug || "...")}
-                    </span>
+                    <span className="font-semibold text-[var(--foreground)]">{addressPreview}</span>. The
+                    x&apos;s become 8 random characters when you build.
                   </p>
                 </div>
 

@@ -109,7 +109,13 @@ export function useBulkLeadAction() {
 export function useBuildStore() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ leadId, data }: { leadId: string; data: Record<string, unknown> }) => {
+    mutationFn: async ({
+      leadId,
+      data,
+    }: {
+      leadId: string;
+      data: Record<string, unknown>;
+    }): Promise<{ tenant: { id: string; slug: string }; store_url: string }> => {
       const res = await adminFetch(`/api/leads/${leadId}/build-store`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

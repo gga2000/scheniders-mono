@@ -223,6 +223,8 @@ export interface Lead {
   assigned_at: string | null;
 
   prospect_tenant_id: string | null;
+  /** The prospect store's name and web address part; only the single-lead read has them. */
+  prospect_tenant?: { slug: string; business_name: string } | null;
   store_built_at: string | null;
 
   converted_tenant_id: string | null;

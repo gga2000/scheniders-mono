@@ -1,5 +1,5 @@
 -- Behaviour test for admin_build_prospect_store (staff console audit,
--- round 6), run against the newest definition in
+-- rounds 6 and 7), run against the newest definition in
 -- packages/supabase/migrations (run.sh). Every check raises on a wrong
 -- result, so psql -v ON_ERROR_STOP=1 fails.
 --
@@ -8,6 +8,9 @@
 --   place), its products in the order sent, its wallet, the lead's link and
 --   "store_built", one history line and one staff log row;
 --   a name with no Latin letters gets a "store-" web address;
+--   the form's business name, web address, industry and description are
+--   used (round 7); a long name makes an address of at most 49 characters;
+--   an unknown industry or an over-long field is refused;
 --   a second build, a converted lead and a lead with a shop already are
 --   refused and write nothing;
 --   a product the database refuses undoes the whole build;
@@ -20,7 +23,12 @@ INSERT INTO public.leads (id, merchant_name, status, page_phone, phone_numbers, 
   ('b0000000-0000-4000-8000-000000000002', 'عطور الكوت', 'new', '07701234567', '[]', NULL, NULL, NULL),
   ('b0000000-0000-4000-8000-000000000003', 'Converted', 'converted', NULL, '[]', NULL, NULL, 'c0000000-0000-4000-8000-000000000001'),
   ('b0000000-0000-4000-8000-000000000004', 'Has a shop', 'contacted', NULL, '[]', NULL, NULL, NULL),
-  ('b0000000-0000-4000-8000-000000000005', 'Bad price', 'new', NULL, '[]', NULL, NULL, NULL);
+  ('b0000000-0000-4000-8000-000000000005', 'Bad price', 'new', NULL, '[]', NULL, NULL, NULL),
+  ('b0000000-0000-4000-8000-000000000006', 'NATTY FASHION', 'new', NULL, '[]', NULL, NULL, NULL),
+  ('b0000000-0000-4000-8000-000000000007', 'Long name', 'new', NULL, '[]', NULL, NULL, NULL),
+  ('b0000000-0000-4000-8000-000000000008', 'Kut Shoes', 'new', NULL, '[]', NULL, NULL, NULL);
+INSERT INTO public.industries (id, name) VALUES
+  ('d0000000-0000-4000-8000-000000000001', 'Fashion');
 INSERT INTO public.tenants (business_name, slug, prospect_lead_id) VALUES
   ('Has a shop', 'has-a-shop-1', 'b0000000-0000-4000-8000-000000000004');
 
@@ -32,6 +40,10 @@ DECLARE
     l3 constant uuid := 'b0000000-0000-4000-8000-000000000003';
     l4 constant uuid := 'b0000000-0000-4000-8000-000000000004';
     l5 constant uuid := 'b0000000-0000-4000-8000-000000000005';
+    l6 constant uuid := 'b0000000-0000-4000-8000-000000000006';
+    l7 constant uuid := 'b0000000-0000-4000-8000-000000000007';
+    l8 constant uuid := 'b0000000-0000-4000-8000-000000000008';
+    fashion constant uuid := 'd0000000-0000-4000-8000-000000000001';
     answer jsonb;
     shop public.tenants%ROWTYPE;
     lead public.leads%ROWTYPE;
@@ -124,6 +136,50 @@ BEGIN
         RAISE EXCEPTION 'a failed build left rows behind';
     END IF;
 
+    -- The form's name, web address, industry and description are used.
+    answer := public.admin_build_prospect_store(
+        _lead_id => l6, _template => 'fashion', _admin_user_id => karrar, _actor_email => 'karrar@x.test',
+        _business_name => ' Zara Baghdad ', _address => 'Zara Baghdad!!', _industry_id => fashion,
+        _description => ' Women''s clothes ');
+    IF answer->>'success' <> 'true' THEN RAISE EXCEPTION 'form build: %', answer; END IF;
+    SELECT * INTO shop FROM public.tenants WHERE id = (answer->>'tenant_id')::uuid;
+    IF shop.business_name <> 'Zara Baghdad' OR shop.slug !~ '^zara-baghdad-[0-9a-f]{8}$'
+       OR shop.metadata <> jsonb_build_object('template', 'fashion', 'created_from_lead', true,
+                                              'industry_id', fashion, 'description', 'Women''s clothes') THEN
+        RAISE EXCEPTION 'form fields not used: %', to_jsonb(shop);
+    END IF;
+
+    -- A long name is cut at 40 characters, with no "-" left at the cut.
+    answer := public.admin_build_prospect_store(
+        _lead_id => l7, _template => 'general', _admin_user_id => karrar,
+        _business_name => 'The best shoes and bags shop in all of Baghdad and Basra');
+    SELECT * INTO shop FROM public.tenants WHERE id = (answer->>'tenant_id')::uuid;
+    IF shop.slug !~ '^the-best-shoes-and-bags-shop-in-all-of-b-[0-9a-f]{8}$' OR length(shop.slug) > 49
+       OR shop.business_name <> 'The best shoes and bags shop in all of Baghdad and Basra' THEN
+        RAISE EXCEPTION 'long name address: %', shop.slug;
+    END IF;
+
+    -- Refused before anything is written: an unknown industry, over-long fields.
+    SELECT count(*) INTO n FROM public.tenants;
+    answer := public.admin_build_prospect_store(_lead_id => l8, _template => 'general',
+        _industry_id => 'd0000000-0000-4000-8000-0000000000ff');
+    IF answer <> '{"success": false, "error": "bad_input"}' THEN RAISE EXCEPTION 'unknown industry: %', answer; END IF;
+    answer := public.admin_build_prospect_store(_lead_id => l8, _template => 'general', _address => repeat('a', 61));
+    IF answer <> '{"success": false, "error": "bad_input"}' THEN RAISE EXCEPTION 'long address: %', answer; END IF;
+    answer := public.admin_build_prospect_store(_lead_id => l8, _template => 'general', _business_name => repeat('a', 201));
+    IF answer <> '{"success": false, "error": "bad_input"}' THEN RAISE EXCEPTION 'long name: %', answer; END IF;
+    answer := public.admin_build_prospect_store(_lead_id => l8, _template => 'general', _description => repeat('a', 2001));
+    IF answer <> '{"success": false, "error": "bad_input"}' THEN RAISE EXCEPTION 'long description: %', answer; END IF;
+    IF (SELECT count(*) FROM public.tenants) <> n THEN RAISE EXCEPTION 'a refused form made a shop'; END IF;
+
+    -- A blank name keeps the lead's; an address with no Latin letters gets "store-".
+    answer := public.admin_build_prospect_store(_lead_id => l8, _template => 'general',
+        _business_name => '  ', _address => 'أحذية الكوت');
+    SELECT * INTO shop FROM public.tenants WHERE id = (answer->>'tenant_id')::uuid;
+    IF shop.business_name <> 'Kut Shoes' OR shop.slug !~ '^store-[0-9a-f]{8}$' OR shop.metadata ? 'description' THEN
+        RAISE EXCEPTION 'blank name or Arabic address: %', to_jsonb(shop);
+    END IF;
+
     -- Only the service role may call it.
     PERFORM set_config('test.role', 'authenticated', true);
     BEGIN
@@ -139,9 +195,13 @@ $t$;
 -- The browser roles have no EXECUTE.
 DO $g$
 BEGIN
-    IF has_function_privilege('authenticated', 'public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text)', 'EXECUTE')
-       OR has_function_privilege('anon', 'public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text)', 'EXECUTE') THEN
+    IF has_function_privilege('authenticated', 'public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text, text, text, uuid, text)', 'EXECUTE')
+       OR has_function_privilege('anon', 'public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text, text, text, uuid, text)', 'EXECUTE') THEN
         RAISE EXCEPTION 'browser roles can call admin_build_prospect_store';
+    END IF;
+    -- The six-argument version is gone, so a call with six names has one target.
+    IF to_regprocedure('public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text)') IS NOT NULL THEN
+        RAISE EXCEPTION 'the old six-argument function is still there';
     END IF;
 END;
 $g$;
