@@ -1,4 +1,6 @@
+store_address_base
 admin_build_prospect_store
+convert_lead_atomic
 tenants_slug_not_in_foreign_history
 tenant_slug_lock
 tenants_strip_capi_keys
