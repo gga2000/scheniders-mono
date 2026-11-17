@@ -1,5 +1,5 @@
 -- Throwaway Postgres database for admin_change_leads
--- (20261117014500_admin_change_leads.sql): leads, their history, staff,
+-- (20261117014604_admin_change_leads.sql): leads, their history, staff,
 -- profiles and the staff log, with the columns the function touches as they
 -- are live (information_schema, 2026-11-17), and the live trigger that locks
 -- a converted lead's owner and status.

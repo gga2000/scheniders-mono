@@ -226,6 +226,18 @@ export function monthsEnding(month: string, count: number): string[] {
   });
 }
 
+/**
+ * A cohort's fees by month of its life (M0 is the month its shops signed up),
+ * with null for a month that has not come yet. The database sends those as 0,
+ * which reads as "paid nothing". `today` is the Baghdad day the numbers are for.
+ */
+export function cohortMonthsSoFar(cohort: string, months: number[], today: string): Array<number | null> {
+  const [year, month] = cohort.split("-").map(Number);
+  const [nowYear, nowMonth] = today.split("-").map(Number);
+  const lastReached = (nowYear - year) * 12 + (nowMonth - month);
+  return months.map((amount, age) => (age <= lastReached ? amount : null));
+}
+
 /** '2026-11' reads "Nov 26". */
 export function monthLabel(month: string): string {
   return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", {

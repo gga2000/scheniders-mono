@@ -73,7 +73,23 @@ describe("GET /api/revenue", () => {
     // Three shops, one of which never paid: (31,960 + 9,000 + 0) / 3.
     expect(body.avgLTV).toBe(13_653);
     expect(body.ltvDistribution[0]).toEqual({ label: "0 IQD", count: 1 });
-    expect(body.cohorts.at(-1)).toEqual({ cohort: "2026-11", tenantCount: 2, months: [10_160, 0, 0, 0, 0, 0] });
+    expect(body.cohorts.at(-1)).toEqual({
+      cohort: "2026-11",
+      tenantCount: 2,
+      months: [10_160, null, null, null, null, null],
+    });
+  });
+
+  it("leaves a cohort's months still to come empty, and keeps 0 and a refund month as they are", async () => {
+    stub.state.functions.admin_income_stats = () => ({
+      data: { ...incomeStats(), cohorts: [{ cohort: "2026-09", tenants: 3, months: [5_000, 0, -1_000, 0, 0, 0] }] },
+      error: null,
+    });
+
+    const body = await (await call()).json();
+
+    // Today is 16 Nov: September's shops have lived through Sep, Oct and Nov (M0 to M2).
+    expect(body.cohorts).toEqual([{ cohort: "2026-09", tenantCount: 3, months: [5_000, 0, -1_000, null, null, null] }]);
   });
 
   it("averages fees over every shop past the first 1,000 rows", async () => {
