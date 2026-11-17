@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
-import { CSP_HEADER, newNonce, scriptPolicy } from "@/lib/csp";
+import { CSP_HEADER, NEXT_NONCE_SOURCE, newNonce, scriptPolicy } from "@/lib/csp";
 
 const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
 
@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
   const nonce = newNonce();
   const policy = scriptPolicy(nonce, process.env.NODE_ENV === "development");
   request.headers.set("x-nonce", nonce);
-  request.headers.set(CSP_HEADER.toLowerCase(), policy);
+  request.headers.set(NEXT_NONCE_SOURCE, policy);
   const response = await checkAccess(request);
   response.headers.set(CSP_HEADER, policy);
   return response;

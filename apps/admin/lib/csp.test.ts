@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import nextConfig from "../next.config";
 import { newNonce, scriptPolicy } from "./csp";
 
 /** The nonce form Next.js reads from the request's policy (get-script-nonce-from-header). */
@@ -22,6 +23,7 @@ describe("the console's script policy", () => {
       "object-src 'none'",
       "base-uri 'none'",
       "form-action 'self'",
+      "frame-ancestors 'none'",
     ]);
     expect(policy).not.toContain("unsafe-inline");
     expect(policy).not.toContain("unsafe-eval");
@@ -29,5 +31,12 @@ describe("the console's script policy", () => {
 
   it("allows eval only in development", () => {
     expect(scriptPolicy("abc=", true)).toContain("'unsafe-eval'");
+  });
+
+  it("is the console's only policy: next.config sends none, so Next.js finds the nonce", async () => {
+    const rules = (await nextConfig.headers?.()) ?? [];
+    const names = rules.flatMap((rule) => rule.headers.map((header) => header.key.toLowerCase()));
+    expect(names).toContain("x-frame-options");
+    expect(names.filter((name) => name.startsWith("content-security-policy"))).toEqual([]);
   });
 });
