@@ -29,10 +29,16 @@ export type ShopUpdateResult =
   | { ok: true; shop: UpdatedShop }
   | { ok: false; status: 404 | 409; error: string };
 
+/**
+ * The demo store (Fermi B13) stays open for everyone who is shown it: no
+ * status change and no pause. Said the same way wherever staff meet it.
+ */
+export const DEMO_STORE_REFUSAL = "This is the demo store. Its status does not change.";
+
 /** Why the database refused, in words staff can act on. */
 const REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
-  demo_store: { status: 409, error: "This is the demo store. Its status does not change." },
+  demo_store: { status: 409, error: DEMO_STORE_REFUSAL },
   use_pause: { status: 409, error: "Use Pause to limit a shop: it sets what is blocked and for how long." },
   paused: { status: 409, error: "This shop is paused. Resume it first." },
   still_trial: { status: 409, error: "This shop is on trial. Use Convert to paid to make it a paying shop." },
