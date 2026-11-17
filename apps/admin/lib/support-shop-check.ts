@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { dayOf, TRIAL_ENDING_DAYS, trialClock } from "./baghdad-day";
+import { lockedBecause } from "./billing-lock-label";
 import { formatUntilDay } from "./format";
 import { pauseLiftOverdue } from "./tenant-pause";
 
@@ -88,7 +89,7 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
   if (s.status === "suspended") return { ...base, state: "broken", text: "Suspended. The store takes no orders." };
   if (s.lock_reason) {
     const since = s.lock_since ? ` since ${daysAgo(s.lock_since, nowMs)}` : "";
-    return { ...base, state: "broken", text: `Locked for payment${since} (${s.lock_reason.replace(/_/g, " ")}).` };
+    return { ...base, state: "broken", text: `${lockedBecause(s.lock_reason, since)}.` };
   }
   // A pause past its end date stops nothing, and the hourly lift takes it off
   // within the hour. Past that the lift failed for this shop, and a super admin

@@ -35,21 +35,27 @@ describe("lockedChip", () => {
   const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000 };
 
   it("says what still opens a locked shop, or that this payment does", () => {
-    expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "active" })).toBe("Locked, month unpaid · needs 7,800 IQD to open");
+    expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "active" })).toBe("Locked: month not paid · needs 7,800 IQD to open");
     expect(lockedChip({ billing: { ...billing, reason: "trial_ended" }, balance_iqd: 9000, tenant_status: "trial" })).toBe(
-      "Locked, trial ended · this payment opens it",
+      "Locked: trial ended, not paid · this payment opens it",
     );
   });
 
   it("does not promise a paused shop opens with the money: it opens once the pause lifts", () => {
     expect(lockedChip({ billing, balance_iqd: 9000, tenant_status: "limited" })).toBe(
-      "Locked, month unpaid · paused, opens once the pause lifts",
+      "Locked: month not paid · paused, opens once the pause lifts",
     );
   });
 
   it("says what a paused shop that is short still needs before the pause lifts", () => {
     expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "limited" })).toBe(
-      "Locked, month unpaid · paused; needs 7,800 IQD, then opens once the pause lifts",
+      "Locked: month not paid · paused; needs 7,800 IQD, then opens once the pause lifts",
+    );
+  });
+
+  it("says Locked without a reason rather than guess one", () => {
+    expect(lockedChip({ billing: { ...billing, reason: null }, balance_iqd: 9000, tenant_status: "active" })).toBe(
+      "Locked · this payment opens it",
     );
   });
 
