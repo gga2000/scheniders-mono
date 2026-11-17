@@ -167,7 +167,8 @@ function AnalyticsDashboard({
           label="Days from lead to shop, average"
           value={`${data.avg_time_to_convert_days.toFixed(1)} days`}
         />
-        <NumberCell label="Est. revenue, all leads" value={formatIQD(data.total_estimated_revenue)} />
+        {/* The sum leaves out converted and lost leads (api/leads/analytics), and each lead gives its monthly sales. */}
+        <NumberCell label="Est. monthly sales, open leads" value={formatIQD(data.total_estimated_revenue)} />
       </NumberStrip>
 
       {/* ── Pipeline Funnel ──────────────────────────────────────── */}

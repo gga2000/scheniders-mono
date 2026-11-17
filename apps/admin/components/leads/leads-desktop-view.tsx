@@ -60,7 +60,10 @@ export function LeadsDesktopView() {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
   const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : 20);
-  const { data: analytics } = useLeadAnalytics();
+  const { data: analytics, isError: analyticsFailed, refetch: refetchAnalytics, isFetching: analyticsRetrying } = useLeadAnalytics();
+  // While loading "...", after a failed read a dash and a line that says so: never a number that is not known.
+  const leadNumber = (pick: (a: NonNullable<typeof analytics>) => number) =>
+    analytics ? formatCount(pick(analytics)) : analyticsFailed ? "—" : "...";
   const lastTrend = analytics?.monthly_trends?.[analytics.monthly_trends.length - 1];
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
@@ -174,27 +177,36 @@ export function LeadsDesktopView() {
       <NumberStrip columns={4} label="Lead numbers">
         <NumberCell
           label="Leads, now"
-          value={analytics ? formatCount(analytics.total_leads) : "..."}
+          value={leadNumber((a) => a.total_leads)}
           note={lastTrend ? `${formatCount(lastTrend.added)} added this month` : undefined}
         />
         <NumberCell
           label="New, not contacted yet"
-          value={analytics ? formatCount(analytics.by_status.new ?? 0) : "..."}
+          value={leadNumber((a) => a.by_status.new ?? 0)}
         />
         <NumberCell
           label="Interested or store built, now"
-          value={
-            analytics
-              ? formatCount((analytics.by_status.interested ?? 0) + (analytics.by_status.store_built ?? 0))
-              : "..."
-          }
+          value={leadNumber((a) => (a.by_status.interested ?? 0) + (a.by_status.store_built ?? 0))}
         />
         <NumberCell
           label="Converted, all time"
-          value={analytics ? formatCount(analytics.by_status.converted ?? 0) : "..."}
+          value={leadNumber((a) => a.by_status.converted ?? 0)}
           note={analytics ? `${analytics.conversion_rate.toFixed(1)}% of all leads` : undefined}
         />
       </NumberStrip>
+      {analyticsFailed && !analytics && (
+        <p className="-mt-2 flex items-center gap-2 text-xs text-[var(--ink-red)]" role="alert">
+          Could not load the lead numbers.
+          <button
+            type="button"
+            onClick={() => refetchAnalytics()}
+            disabled={analyticsRetrying}
+            className="font-semibold underline disabled:opacity-50"
+          >
+            {analyticsRetrying ? "Loading" : "Try again"}
+          </button>
+        </p>
+      )}
 
       {/* Workspace Panel */}
       <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">

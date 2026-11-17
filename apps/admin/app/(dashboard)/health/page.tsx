@@ -13,6 +13,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopFormHref } from "@/lib/shop-actions";
+import { shopsAtRiskLine } from "@/lib/merchant-health";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,7 +104,6 @@ export default function HealthPage() {
 
   const hasIssues =
     riskIndicators.length > 0 || lowBalanceWallets.length > 0;
-  const issueCount = riskIndicators.length + lowBalanceWallets.length;
 
   const activePercent =
     health && health.totalTenants > 0
@@ -129,11 +129,7 @@ export default function HealthPage() {
           {hasIssues ? (
             <>
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              {issueCount} issue{issueCount !== 1 ? "s" : ""} detected
-              &mdash; {riskIndicators.length} at-risk tenant
-              {riskIndicators.length !== 1 ? "s" : ""},&nbsp;
-              {lowBalanceWallets.length} low balance wallet
-              {lowBalanceWallets.length !== 1 ? "s" : ""}
+              {shopsAtRiskLine(riskIndicators, lowBalanceWallets)}
             </>
           ) : (
             <>

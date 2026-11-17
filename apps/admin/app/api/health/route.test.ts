@@ -120,6 +120,20 @@ describe("GET /api/health", () => {
     expect(body.lowBalanceWallets.map((wallet: Row) => wallet.tenant_id)).toEqual([`s${many - 1}`]);
   });
 
+  it("leaves cancelled shops, the demo store and prospect stores out of both lists", async () => {
+    stub.state.tables.tenants.push(
+      shop("gone", { status: "cancelled", staff_health_parts: NO_ORDERS }),
+      shop("demo", { is_demo: true, staff_health_parts: NO_ORDERS }),
+      shop("lead", { is_prospect: true, status: "trial", staff_health_parts: NO_ORDERS }),
+    );
+    for (const id of ["gone", "demo", "lead"]) stub.state.tables.wallet.push({ tenant_id: id, balance_iqd: 0, threshold_iqd: 5_000 });
+
+    const body = await (await call()).json();
+    expect(body.riskIndicators.map((risk: Row) => risk.tenant_id)).toEqual(["b", "c"]);
+    // The demo and prospect wallets showed as "Unknown" with a Top Up link.
+    expect(body.lowBalanceWallets.map((wallet: Row) => wallet.tenant_id)).toEqual(["c", "b"]);
+  });
+
   it("puts a new shop in its Baghdad month", async () => {
     stub.state.tables.tenants = [
       // 00:30 on 1 Nov in Baghdad, still 31 Oct in UTC.
