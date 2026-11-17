@@ -266,7 +266,7 @@ export function LeadMobileDetail() {
         <button
           onClick={() => {
             if (intl) {
-              window.open(`https://wa.me/${intl}`, "_blank");
+              window.open(`https://wa.me/${intl}`, "_blank", "noopener,noreferrer");
             } else {
               toast.info("No WhatsApp number on file");
             }

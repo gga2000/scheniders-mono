@@ -127,7 +127,7 @@ export function LeadsDesktopView() {
   const handleQuickWhatsApp = useCallback((lead: Lead) => {
     const p = leadPhone(lead);
     const intl = p && toIntlIraqi(p);
-    if (intl) window.open(`https://wa.me/${intl}`, "_blank");
+    if (intl) window.open(`https://wa.me/${intl}`, "_blank", "noopener,noreferrer");
     else toast.info("No WhatsApp number on file");
   }, []);
 

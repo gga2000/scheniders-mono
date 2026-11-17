@@ -283,7 +283,7 @@ export function LeadDetailDesktop() {
                           setDropdownOpen(false);
                           const phone = leadPhone(lead);
                           const intl = phone && toIntlIraqi(phone);
-                          if (intl) window.open(`https://wa.me/${intl}`, "_blank");
+                          if (intl) window.open(`https://wa.me/${intl}`, "_blank", "noopener,noreferrer");
                           else toast.info("No WhatsApp number on file");
                         }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5 transition-colors"
