@@ -251,6 +251,9 @@ export function LeadDetailDesktop() {
               {/* Dropdown */}
               <div className="relative">
                 <button
+                  type="button"
+                  aria-label="More actions"
+                  aria-expanded={dropdownOpen}
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="w-9 h-9 rounded-xl flex items-center justify-center border border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
                 >
