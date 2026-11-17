@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { leadToFormData } from "@/components/leads/lead-form-data";
 import type { Lead } from "@/types/leads";
-import { leadPatchSchema, leadUpdateSchema, listsChangedText } from "./lead-update";
+import { LeadListsChangedError, leadPatchSchema, leadSaveRefusal, leadUpdateSchema, listsChangedText } from "./lead-update";
 
 // A lead as the API returns it, with the empty columns a real row has.
 const stored = {
@@ -80,9 +80,36 @@ describe("leadUpdateSchema", () => {
 describe("listsChangedText", () => {
   it("names the lists in the form's words", () => {
     expect(listsChangedText(["tags"])).toBe(
-      "A colleague changed this lead's tags while you had it open. Nothing was saved. Open the lead again to see their change, then make yours.",
+      "A colleague changed this lead's tags while you had it open. Nothing was saved. The form now shows their tags: make your change to them again, then save.",
     );
     expect(listsChangedText(["branches", "phone_numbers"])).toMatch(/^A colleague changed this lead's phones and branches /);
+  });
+});
+
+/*
+ * Round 12 should-fix 8: after that refusal the form kept its old lists, so
+ * Save could only be refused again. The answer names the lists, and the
+ * error carries them so the form can take the colleague's in.
+ */
+describe("leadSaveRefusal", () => {
+  const answer = (body: unknown, status = 409) => new Response(JSON.stringify(body), { status });
+
+  it("carries the lists a colleague changed", async () => {
+    const error = await leadSaveRefusal(answer({ error: "A colleague changed ...", stale: ["tags"] }), "Could not save the lead.");
+    expect(error).toBeInstanceOf(LeadListsChangedError);
+    expect(error.message).toBe("A colleague changed ...");
+    expect(error instanceof LeadListsChangedError && error.lists).toEqual(["tags"]);
+  });
+
+  it("gives any other refusal in the server's words, without lists", async () => {
+    const error = await leadSaveRefusal(answer({ error: "A lead can only go to an active staff member." }, 400), "Could not save the lead.");
+    expect(error).not.toBeInstanceOf(LeadListsChangedError);
+    expect(error.message).toBe("A lead can only go to an active staff member.");
+  });
+
+  it("falls back to plain words when the answer is not the server's", async () => {
+    const error = await leadSaveRefusal(new Response("<html>Bad gateway</html>", { status: 502 }), "Could not save the lead.");
+    expect(error.message).toBe("Could not save the lead.");
   });
 });
 

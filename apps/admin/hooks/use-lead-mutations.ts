@@ -5,7 +5,7 @@ import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { refusal } from "@/lib/refusal";
 import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
-import { INDUSTRY_GONE, type LeadListsAsOpened } from "@/lib/lead-update";
+import { INDUSTRY_GONE, leadSaveRefusal, type LeadListsAsOpened } from "@/lib/lead-update";
 
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -50,7 +50,7 @@ export function useUpdateLead() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(Object.keys(was).length > 0 ? { ...data, was } : data),
       });
-      if (!res.ok) throw new Error(await refusal(res, "Could not save the lead."));
+      if (!res.ok) throw await leadSaveRefusal(res, "Could not save the lead.");
       return res.json();
     },
     onSuccess: (_, vars) => {

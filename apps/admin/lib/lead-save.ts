@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
 import { leadChangeRefusal, type LeadChange } from "./lead-change";
-import { listsChangedText, type LeadListsAsOpened, type LeadUpdate } from "./lead-update";
+import { LEAD_LISTS, listsChangedText, type LeadList, type LeadListsAsOpened, type LeadUpdate } from "./lead-update";
 
 /** The lead form's save: status and owner, the other fields, and the lists as the form opened them. */
 export interface LeadSave {
@@ -12,14 +12,15 @@ export interface LeadSave {
   was: LeadListsAsOpened;
 }
 
-export type LeadSaveResult = { ok: true } | { ok: false; status: 400 | 404 | 409; error: string };
+/** A refusal names the lists a colleague changed meanwhile (`stale`), so the form can take theirs in. */
+export type LeadSaveResult = { ok: true } | { ok: false; status: 400 | 404 | 409; error: string; stale?: LeadList[] };
 
 const savedSchema = z.object({ success: z.literal(true) });
 const refusedSchema = z.object({
   success: z.literal(false),
   error: z.string(),
   count: z.number().optional(),
-  stale: z.array(z.string()).optional(),
+  stale: z.array(z.enum(LEAD_LISTS)).optional(),
 });
 
 /**
@@ -55,7 +56,7 @@ export async function saveLead(
   if (refused.success) {
     const { error: code, stale } = refused.data;
     if (code === "not_found") return { ok: false, status: 404, error: "Lead not found" };
-    if (code === "stale") return { ok: false, status: 409, error: listsChangedText(stale ?? []) };
+    if (code === "stale") return { ok: false, status: 409, error: listsChangedText(stale ?? []), stale: stale ?? [] };
     const { status, error: words } = leadChangeRefusal(refused.data);
     return { ok: false, status, error: words };
   }
