@@ -101,6 +101,6 @@ export async function POST(
     return NextResponse.json({ activity: data }, { status: 201 });
   } catch (error) {
     console.error("Lead activities POST error:", error);
-    return NextResponse.json({ error: "Failed to create activity" }, { status: 500 });
+    return NextResponse.json({ error: "Could not save it. Try again." }, { status: 500 });
   }
 }

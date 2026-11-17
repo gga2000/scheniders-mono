@@ -82,16 +82,22 @@ describe("links each login may open", () => {
 
 describe("the count beside a place", () => {
   it("counts what waits, and a 0 hides the badge", () => {
-    expect(waitingBadge({ data: 3, isError: false }, "receipts to check")).toEqual({ count: 3, label: "3 receipts to check" });
-    expect(waitingBadge({ data: undefined, isError: false }, "receipts to check").count).toBe(0);
+    expect(waitingBadge({ data: 3, isError: false }, "receipts to check", "the receipts")).toEqual({
+      count: 3,
+      label: "3 receipts to check",
+    });
+    expect(waitingBadge({ data: undefined, isError: false }, "receipts to check", "the receipts").count).toBe(0);
   });
 
-  it("says it could not check when the count's read failed, in place of a 0 that hides the badge", () => {
-    expect(waitingBadge({ data: undefined, isError: true }, "leads with no owner")).toEqual({
+  it("says what it could not check when the count's read failed, in place of a 0 that hides the badge", () => {
+    expect(waitingBadge({ data: undefined, isError: true }, "receipts to check", "the receipts")).toEqual({
       count: null,
-      label: "Could not check leads with no owner",
+      label: "Could not check the receipts",
     });
     // A later read failed: the last count may be stale, so it is not shown as fact.
-    expect(waitingBadge({ data: 4, isError: true }, "waiting on us").count).toBeNull();
+    expect(waitingBadge({ data: 4, isError: true }, "waiting on us", "the support inbox")).toEqual({
+      count: null,
+      label: "Could not check the support inbox",
+    });
   });
 });

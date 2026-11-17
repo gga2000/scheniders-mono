@@ -25,11 +25,17 @@ export interface MenuBadge {
 /**
  * One badge from its count's read. A failed count is not 0: the badge says
  * "?" so a queue does not look empty exactly when its read is failing.
+ * `counted` follows the number ("3 receipts to check"); `queue` names what
+ * could not be read ("Could not check the receipts").
  */
-export function waitingBadge(read: { data: number | undefined; isError: boolean }, what: string): MenuBadge {
-  if (read.isError) return { count: null, label: `Could not check ${what}` };
+export function waitingBadge(
+  read: { data: number | undefined; isError: boolean },
+  counted: string,
+  queue: string,
+): MenuBadge {
+  if (read.isError) return { count: null, label: `Could not check ${queue}` };
   const count = read.data ?? 0;
-  return { count, label: `${count} ${what}` };
+  return { count, label: `${count} ${counted}` };
 }
 
 export interface MenuLink {

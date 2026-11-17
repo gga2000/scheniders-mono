@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBulkFailureList, notDoneLines } from "./bulk-not-done";
+import { BULK_MAX_SHOPS, isBulkFailureList, notDoneLines, tooManyShops } from "./bulk-not-done";
 
 /*
  * Round 6: a bulk action that was not done for some shops said only "2 not
@@ -42,5 +42,20 @@ describe("a bulk answer's list of shops not done", () => {
     expect(isBulkFailureList(null)).toBe(false);
     expect(isBulkFailureList([{ tenant_id: "t" }])).toBe(false);
     expect(isBulkFailureList([{ tenant_id: "t", error: "x", name: 4 }])).toBe(false);
+  });
+});
+
+/*
+ * Round 7: "Select all" on more than 100 shops answered "Invalid input", and
+ * the dialog showed nothing staff could act on. Now it says how many to pick.
+ */
+describe("the most shops one bulk action takes", () => {
+  it("lets up to the limit through", () => {
+    expect(tooManyShops(1)).toBeNull();
+    expect(tooManyShops(BULK_MAX_SHOPS)).toBeNull();
+  });
+
+  it("says the limit and how many were ticked past it", () => {
+    expect(tooManyShops(1500)).toBe("Pick at most 100 shops (1,500 ticked).");
   });
 });
