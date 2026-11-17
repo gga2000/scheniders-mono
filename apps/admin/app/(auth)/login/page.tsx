@@ -72,6 +72,10 @@ export default function LoginPage() {
       setError(err instanceof Error ? `Could not sign in: ${err.message}` : "Could not sign in. Try again.");
     } finally {
       setLoading(false);
+      // A token works once. The box may not be on screen to drop it: the
+      // spinner stands in for the card while a sign-in runs, so a new box
+      // comes back and Sign in waits for its token.
+      setCaptchaToken(null);
       captchaRef.current?.reset();
     }
   };
