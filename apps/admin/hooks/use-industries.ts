@@ -63,6 +63,12 @@ export function useUpdateIndustry() {
       if (!res.ok) throw await refused(res, "Could not save the industry.");
       return res.json();
     },
+    // A new average order prices the industry's leads again on the server:
+    // the lead numbers, lists and pages are read again to show it.
+    onSuccess: (_, { data }) => {
+      if (data.avg_order_value_iqd === undefined) return;
+      for (const queryKey of [["leads"], ["lead"], ["lead-analytics"]]) qc.invalidateQueries({ queryKey });
+    },
     // A refused save ("no longer exists") also means the list is out of date.
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["industries"] });

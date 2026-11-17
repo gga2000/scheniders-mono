@@ -17,6 +17,13 @@
 --     * a field the form does not edit (sort_order: only /move renumbers);
 --     * an unknown industry: 'not_found';
 --     * no industry, or changes that are not an object: an error.
+--   Pricing its leads again (round 11 data finding 5):
+--     * a new average order prices that industry's leads again, in the same
+--       call, as leads_before_upsert prices them (2 orders a day at 40,000:
+--       2,400,000 a month);
+--     * a lead whose estimate does not move (no daily orders: 0) is not
+--       written, nor is a lead of another industry;
+--     * an edit that leaves the average order (a rename) writes no lead.
 --   Taking turns:
 --     * it takes the industries table lock that add, remove and move take,
 --       before its row lock, so an edit and a remove at the same instant do
@@ -122,6 +129,50 @@ BEGIN
         (SELECT name = 'Cosmetics' AND sort_order = 2 FROM public.industries WHERE id = _id));
 
     RESET ROLE;
+END $$;
+
+-- A lead's ctid changes when the row is written, so it shows which leads an
+-- edit wrote within this one transaction (updated_at is now(), which stays
+-- the same for the whole transaction).
+INSERT INTO public.industries (name, sort_order, avg_order_value_iqd) VALUES ('Tools', 3, 25000);
+INSERT INTO public.leads (merchant_name, industry_id, avg_order_count)
+SELECT v.name, i.id, v.orders
+  FROM (VALUES ('Kawkab', 'Tools', 2), ('Noor', 'Tools', 0), ('Dijla', 'Fashion', 3)) AS v(name, industry, orders)
+  JOIN public.industries i ON i.name = v.industry;
+
+DO $$
+DECLARE
+    _admin constant uuid := gen_random_uuid();
+    _tools constant uuid := (SELECT id FROM public.industries WHERE name = 'Tools');
+    _was jsonb;
+    _r jsonb;
+BEGIN
+    PERFORM pg_temp.check('pricing: the fixture did not price Kawkab at 25,000',
+        (SELECT estimated_monthly_revenue FROM public.leads WHERE merchant_name = 'Kawkab') = 2 * 30 * 25000);
+    SELECT jsonb_object_agg(merchant_name, ctid::text) INTO _was FROM public.leads;
+
+    SET LOCAL ROLE service_role;
+    _r := public.admin_edit_industry(_tools, '{"avg_order_value_iqd": 40000}', _admin, 'ops@example.com');
+    RESET ROLE;
+
+    PERFORM pg_temp.check('pricing: wrong change: ' || _r::text, _r @> '{"success": true, "changed": ["avg_order_value_iqd"]}');
+    PERFORM pg_temp.check('pricing: Kawkab not priced at the new 40,000',
+        (SELECT estimated_monthly_revenue = 2 * 30 * 40000 AND estimated_daily_orders = 2 FROM public.leads WHERE merchant_name = 'Kawkab'));
+    PERFORM pg_temp.check('pricing: Kawkab not written',
+        (SELECT ctid::text FROM public.leads WHERE merchant_name = 'Kawkab') <> _was ->> 'Kawkab');
+    PERFORM pg_temp.check('pricing: Noor, with no daily orders, was written or priced',
+        (SELECT estimated_monthly_revenue = 0 AND ctid::text = _was ->> 'Noor' FROM public.leads WHERE merchant_name = 'Noor'));
+    PERFORM pg_temp.check('pricing: Dijla, of another industry, was written or priced again',
+        (SELECT estimated_monthly_revenue = 3 * 30 * 25000 AND ctid::text = _was ->> 'Dijla' FROM public.leads WHERE merchant_name = 'Dijla'));
+
+    -- A rename leaves the average order, and every lead as it is.
+    SELECT jsonb_object_agg(merchant_name, ctid::text) INTO _was FROM public.leads;
+    SET LOCAL ROLE service_role;
+    _r := public.admin_edit_industry(_tools, '{"name": "Hand tools"}', _admin, 'ops@example.com');
+    RESET ROLE;
+    PERFORM pg_temp.check('pricing: rename not saved: ' || _r::text, _r @> '{"success": true, "changed": ["name"]}');
+    PERFORM pg_temp.check('pricing: a rename wrote a lead',
+        (SELECT jsonb_object_agg(merchant_name, ctid::text) FROM public.leads) = _was);
 END $$;
 
 DO $$
