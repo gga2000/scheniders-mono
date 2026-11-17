@@ -34,6 +34,7 @@ CREATE TABLE public.tenants (
     id uuid PRIMARY KEY,
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     status public.tenant_status NOT NULL DEFAULT 'active',
+    is_prospect boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 GRANT SELECT, UPDATE ON public.tenants TO authenticated;
