@@ -205,7 +205,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                     />
 
                     {/* Business name */}
-                    <span className="text-sm font-bold text-foreground truncate flex-1 min-w-0">
+                    <span className="text-sm font-bold text-foreground truncate name-dir flex-1 min-w-0">
                       {merchant.business_name}
                     </span>
 

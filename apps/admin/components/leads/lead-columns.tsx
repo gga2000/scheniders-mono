@@ -38,7 +38,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-[var(--foreground)] truncate max-w-[180px]">
+          <span className="font-semibold text-[var(--foreground)] truncate name-dir max-w-[180px]">
             {lead.merchant_name}
           </span>
           {lead.is_draft && (

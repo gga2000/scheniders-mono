@@ -194,7 +194,7 @@ export function LeadCard({
 
         {/* Business Name */}
         <div className="flex items-center gap-1.5 mb-1">
-          <h3 className="font-bold text-base truncate text-[var(--foreground)]">
+          <h3 className="font-bold text-base truncate name-dir text-[var(--foreground)]">
             {lead.merchant_name}
           </h3>
           <span onClick={(e) => e.stopPropagation()}>

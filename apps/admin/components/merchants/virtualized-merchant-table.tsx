@@ -277,7 +277,7 @@ function renderCell(
           <div className="min-w-0 flex-1">
             <button
               onClick={() => onOpenDetail(m.id)}
-              className="font-black text-foreground tracking-tight truncate block hover:underline text-left text-[13px] leading-tight"
+              className="font-black text-foreground tracking-tight truncate name-dir block hover:underline text-left text-[13px] leading-tight"
             >
               {m.business_name}
             </button>

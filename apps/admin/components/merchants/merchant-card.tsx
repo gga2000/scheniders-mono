@@ -236,10 +236,12 @@ export function MerchantCard({
           </div>
           <div className="min-w-0 flex-1">
             {/* max-w-full: a block button is as wide as its text, so without it a
-                long name ran under the status chips and never got its "…". */}
+                long name ran under the status chips and never got its "…".
+                The title shows the whole name when it is cut. */}
             <button
               onClick={() => onOpenDetail?.(merchant.id)}
-              className="text-[15px] font-black text-foreground tracking-tight truncate block max-w-full text-left hover:underline cursor-pointer leading-tight"
+              title={merchant.business_name}
+              className="text-[15px] font-black text-foreground tracking-tight truncate name-dir block max-w-full text-left hover:underline cursor-pointer leading-tight"
             >
               {merchant.business_name}
             </button>

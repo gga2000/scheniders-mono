@@ -142,21 +142,25 @@ export function IndustryChip({
   const Icon = INDUSTRY_ICONS[industry.icon] ?? Building2;
   const color = industry.color || "#6B7280";
   const sm = size === "sm";
+  // max-w-full and a cut name: in a narrow table column the chip ends in "…"
+  // at the name's own end, instead of running out of the cell and losing an
+  // Arabic name's first word.
   return (
     <span
+      title={industry.name_ar || industry.name}
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-full font-medium text-[var(--foreground)]",
+        "inline-flex max-w-full items-center whitespace-nowrap rounded-full font-medium text-[var(--foreground)]",
         sm ? "h-5 gap-1 pl-0.5 pr-2 text-xs" : "h-6 gap-1.5 pl-1 pr-2.5 text-xs",
       )}
       style={{ backgroundColor: `${color}14`, boxShadow: `inset 0 0 0 1px ${color}3d` }}
     >
       <span
-        className={cn("flex items-center justify-center rounded-full", sm ? "h-4 w-4" : "h-[18px] w-[18px]")}
+        className={cn("flex shrink-0 items-center justify-center rounded-full", sm ? "h-4 w-4" : "h-[18px] w-[18px]")}
         style={{ backgroundColor: color }}
       >
         <Icon className={cn("text-white", sm ? "h-2.5 w-2.5" : "h-3 w-3")} />
       </span>
-      {industry.name_ar || industry.name}
+      <span className="min-w-0 truncate name-dir">{industry.name_ar || industry.name}</span>
     </span>
   );
 }
