@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { AlertCircle, Clock, Ban, XCircle } from "lucide-react";
 import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
+import { effectiveStatus } from "@/lib/effective-status";
 import { cn } from "@/lib/utils";
-/** A list row or the shop record: the flag reads its status and trial end. */
+/** A list row or the shop record: the flag reads its status, pause and trial end. */
 interface AlertShop {
   status: string;
+  restrictions?: unknown;
   trial_ends_at: string | null;
 }
 
@@ -39,7 +41,8 @@ function computeAlert(merchant: AlertShop): AlertInfo | null {
     return { icon: XCircle, label: "Cancelled", detail: "Subscription has been cancelled", age: null, severity: "critical" };
   }
 
-  if (status === "trial" && trialEnd) {
+  // A paused trial still ends (lib/effective-status), and "Needs attention" counts it.
+  if (effectiveStatus(status, merchant.restrictions) === "trial" && trialEnd) {
     // Baghdad calendar days, the same clock as the Merchants banner and the Trials page.
     const clock = trialClock(trialEnd);
     if (clock.ended) {

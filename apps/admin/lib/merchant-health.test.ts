@@ -69,6 +69,13 @@ describe("isChurnRisk", () => {
     expect(isChurnRisk({ ...trial, trialEndsAt: null }, NOW)).toBe(false);
   });
 
+  it("flames a paused trial as a trial: its days still run", () => {
+    const pausedTrial = { status: "limited", restrictions: { status_before: "trial" }, trialEndsAt: inDays(2), walletIqd: 20_000, orders30d: 0 };
+    expect(isChurnRisk(pausedTrial, NOW)).toBe(true);
+    // A paying shop paused, with an old trial date, is no trial.
+    expect(isChurnRisk({ ...pausedTrial, restrictions: { status_before: "active" } }, NOW)).toBe(false);
+  });
+
   it("counts the last 3 days on the Baghdad calendar, as the Trials page does", () => {
     // NOW is 09:00 on 16 Nov. 23:00 on the 19th is three days away by the calendar
     // (3 days and 14 hours by the clock); 00:30 on the 20th is four.

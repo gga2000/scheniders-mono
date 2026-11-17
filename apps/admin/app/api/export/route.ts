@@ -7,6 +7,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP, CUSTOMER_SHOP_EMBEDDED } from "@/lib/customer-shops";
+import { ON_TRIAL_FILTER } from "@/lib/effective-status";
 import { CROSS_SITE_READ, isOwnPageRead } from "@/lib/same-origin";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
@@ -121,7 +122,8 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
       .select(
         "id, business_name, slug, plan, trial_ends_at, city, contact_email, created_at"
       )
-      .eq("status", "trial")
+      // On trial, paused or not: the shops Trials lists (lib/effective-status).
+      .or(ON_TRIAL_FILTER)
       // A prospect store is "trial" until its lead signs up; it is no customer's trial.
       .match(CUSTOMER_SHOP)
       .order("created_at", { ascending: true })

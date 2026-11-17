@@ -224,6 +224,13 @@ function orParts(filter: string): string[] | null {
   return readable ? parts : null;
 }
 
+/** Whether a row passes an "or" filter as the API reads it; throws on one the API cannot read. */
+export function rowPassesOr(row: Row, filter: string): boolean {
+  const parts = orParts(filter);
+  if (!parts) throw new Error(`failed to parse logic tree ((${filter}))`);
+  return parts.some((part) => partHolds(row, part));
+}
+
 const GROUP = /^(and|or)\((.*)\)$/;
 const LEAF = /^([a-z_][a-z0-9_]*(?:->>?[a-z_][a-z0-9_]*)*)\.(not\.)?(eq|neq|gt|gte|lt|lte|like|ilike|is|in)\.(.+)$/;
 

@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { effectiveStatus, isPausedTrial } from "./effective-status";
+import { ON_TRIAL_FILTER, effectiveStatus, isPausedTrial } from "./effective-status";
+import { rowPassesOr } from "./supabase-stub.test-data";
 
 /*
  * Round 11: the database reads a paused shop as what it was before the pause
@@ -68,5 +69,67 @@ describe("effectiveStatus", () => {
       const read = effectiveStatus("limited", { status_before: before });
       expect(read === "active" || sqlBefore.includes(before)).toBe(true);
     }
+  });
+});
+
+describe("ON_TRIAL_FILTER", () => {
+  it("lists the shops effectiveStatus calls a trial, and no other", () => {
+    const rows = [
+      { status: "trial", restrictions: {} },
+      { status: "limited", restrictions: { status_before: "trial" } },
+      { status: "limited", restrictions: { status_before: "active" } },
+      { status: "limited", restrictions: { status_before: "suspended" } },
+      { status: "limited", restrictions: {} },
+      { status: "limited", restrictions: null },
+      { status: "active", restrictions: { status_before: "trial" } },
+      { status: "suspended", restrictions: {} },
+      { status: "cancelled", restrictions: {} },
+    ];
+    for (const row of rows) {
+      expect(rowPassesOr(row, ON_TRIAL_FILTER), JSON.stringify(row)).toBe(effectiveStatus(row.status, row.restrictions) === "trial");
+    }
+  });
+});
+
+/*
+ * Round 12: after #1389 the Merchants pill, count, filter and flag, shop
+ * health, the smart alert, Home's plan movements and the support card still
+ * read the raw status, so a paused trial dropped out of each. A raw "trial"
+ * test is now either effectiveStatus or one of the places below, each with
+ * its reason. A new one fails here until it is one or the other.
+ */
+const ADMIN_DIR = path.resolve(__dirname, "..");
+const RAW_TRIAL = /status\s*[!=]==\s*"trial"|"trial"\s*[!=]==\s*[\w.]*status\b|\.eq\(\s*"status"\s*,\s*"trial"\s*\)/g;
+const RAW_ON_PURPOSE: Record<string, { count: number; why: string }> = {
+  "app/api/merchants/route.ts": { count: 1, why: "the ?status= the page asked for, not a shop's status" },
+  "app/api/merchants/stats/route.ts": { count: 2, why: "the ?status= asked for, and the Pipeline's raw columns, which add up to the total" },
+  "app/api/merchants/[id]/convert-trial/route.ts": { count: 1, why: "converting waits for the pause to lift" },
+  "app/(dashboard)/merchants/[id]/page.tsx": { count: 1, why: "free days from the trial end only for a trial that is not paused" },
+  "components/support/support-today.tsx": { count: 1, why: "shop_status comes from support_tasks_due, which reads tenant_effective_status" },
+  "components/trials/trial-checks-panel.tsx": { count: 2, why: "the paused trial is answered first; the decisions wait for the pause to lift" },
+  "lib/shop-actions.ts": { count: 2, why: "free days and Convert are refused on a paused shop" },
+  "lib/support-shop-check.ts": { count: 1, why: "a paused shop is answered above it" },
+  "lib/shop-status.ts": { count: 1, why: "a paused shop is answered above it" },
+};
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) return name === "node_modules" || name.startsWith(".") ? [] : sourceFiles(full);
+    return /\.tsx?$/.test(name) && !/\.test(-data)?\.tsx?$/.test(name) ? [full] : [];
+  });
+}
+
+describe("the console's readers of a trial", () => {
+  it("read effectiveStatus, or say why a paused trial must not count", () => {
+    const found: Record<string, number> = {};
+    for (const dir of ["app", "components", "hooks", "lib", "types"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const count = readFileSync(file, "utf8").match(RAW_TRIAL)?.length ?? 0;
+        if (count > 0) found[path.relative(ADMIN_DIR, file).split(path.sep).join("/")] = count;
+      }
+    }
+    const allowed = Object.fromEntries(Object.entries(RAW_ON_PURPOSE).map(([file, { count }]) => [file, count]));
+    expect(found).toEqual(allowed);
   });
 });

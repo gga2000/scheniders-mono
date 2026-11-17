@@ -8,7 +8,7 @@ import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merc
 import { merchantSearchFilter } from "@/lib/merchant-search";
 import { readShopCity, shopGovernorate } from "@/lib/shop-city";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
-import { effectiveStatus } from "@/lib/effective-status";
+import { ON_TRIAL_FILTER, effectiveStatus } from "@/lib/effective-status";
 
 /** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
 interface LiteShop {
@@ -47,6 +47,12 @@ interface Aggregates {
   plan_prices_iqd: number;
   fees_30d_iqd: number;
   status: StatusCounts;
+  /**
+   * Shops on trial, paused or not: what the Trial pill lists (ON_TRIAL_FILTER)
+   * and Trials shows. A paused trial is under "limited" in `status`, so the
+   * Pipeline columns still add up to the total.
+   */
+  on_trial: number;
   buckets: BucketCounts;
   /** Shops per governorate (by map code), for the map. Only governorates with shops. */
   governorates: Record<string, number>;
@@ -86,7 +92,9 @@ export async function GET(request: NextRequest) {
 
       if (plan) query = query.eq("plan", plan);
       // "attention" is not a value of the status column: it is one of the computed filters below.
-      if (status && status !== ATTENTION) query = query.eq("status", status);
+      // "trial" counts a paused trial too, as the list and Trials list it.
+      if (status === "trial") query = query.or(ON_TRIAL_FILTER);
+      else if (status && status !== ATTENTION) query = query.eq("status", status);
       if (city.governorate) query = query.filter("city", "imatch", city.governorate.pattern);
       // Needs attention and the balance and health bands, filtered by the
       // database the way the list filters them, so these numbers count the
@@ -108,6 +116,7 @@ export async function GET(request: NextRequest) {
       plan_prices_iqd: 0,
       fees_30d_iqd: 0,
       status: { trial: 0, active: 0, limited: 0, suspended: 0, cancelled: 0 },
+      on_trial: 0,
       buckets: {
         trials_today: 0,
         trials_expired: 0,
@@ -155,6 +164,7 @@ export async function GET(request: NextRequest) {
     };
     const governorates: Record<string, number> = {};
     let unknownCity = 0;
+    let onTrial = 0;
     let totalWallet = 0;
     let planPrices = 0;
 
@@ -178,6 +188,8 @@ export async function GET(request: NextRequest) {
       }
 
       if (isCountedStatus(s)) status_[s]++;
+      const trial = effectiveStatus(s, t.restrictions) === "trial";
+      if (trial) onTrial++;
 
       // The reasons the banner names. Whether a shop needs attention at all is
       // the database's answer (staff_needs_attention), the same one the list
@@ -185,7 +197,7 @@ export async function GET(request: NextRequest) {
       if (s === "suspended") buckets.suspended++;
       if (s === "cancelled") buckets.cancelled++;
       // A paused trial is still a trial: its days run and it locks at their end.
-      if (effectiveStatus(s, t.restrictions) === "trial" && trialEnd) {
+      if (trial && trialEnd) {
         // Baghdad calendar days: a trial ending at 06:00 tomorrow ends tomorrow.
         const clock = trialClock(trialEnd, now);
         if (clock.ended) buckets.trials_expired++;
@@ -207,6 +219,7 @@ export async function GET(request: NextRequest) {
       plan_prices_iqd: planPrices,
       fees_30d_iqd: fees30d,
       status: status_,
+      on_trial: onTrial,
       buckets,
       governorates,
       unknown_city: unknownCity,

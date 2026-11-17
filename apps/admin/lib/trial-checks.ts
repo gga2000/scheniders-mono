@@ -51,6 +51,8 @@ const storeRowSchema = z.object({
   business_name: z.string(),
   display_id: z.number().int().nullable(),
   status: z.string(),
+  /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+  restrictions: z.unknown(),
   trial_ends_at: z.string().nullable(),
   contact_phone: z.string().nullable(),
   created_at: z.string(),
@@ -58,7 +60,7 @@ const storeRowSchema = z.object({
 
 const CHECK_COLUMNS =
   "tenant_id, verdict, signals, trial_withheld_at, staff_decision, staff_reason, decided_by_email, decided_at, created_at, updated_at";
-const STORE_COLUMNS = "id, business_name, display_id, status, trial_ends_at, contact_phone, created_at";
+const STORE_COLUMNS = "id, business_name, display_id, status, restrictions, trial_ends_at, contact_phone, created_at";
 
 /** An earlier store, without its phone: staff open its page for more. */
 export type TrialCheckStore = Omit<z.infer<typeof storeRowSchema>, "contact_phone">;
@@ -131,6 +133,7 @@ function withoutPhone(row: z.infer<typeof storeRowSchema>): TrialCheckStore {
     business_name: row.business_name,
     display_id: row.display_id,
     status: row.status,
+    restrictions: row.restrictions,
     trial_ends_at: row.trial_ends_at,
     created_at: row.created_at,
   };
@@ -299,6 +302,6 @@ export function storeName(store: Pick<TrialCheckStore, "business_name" | "displa
 
 /** "Team member email matches #100123 Al Noor (cancelled)". */
 export function matchLine(match: TrialCheckMatch): string {
-  const status = match.store ? ` (${match.store.status})` : "";
+  const status = match.store ? ` (${match.store.status === "limited" ? "paused" : match.store.status})` : "";
   return `${MATCH_WHAT[match.source]} matches ${storeName(match.store)}${status}`;
 }

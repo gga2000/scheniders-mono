@@ -6,6 +6,7 @@ import { readDayRange } from "@/lib/baghdad-day";
 import { fetchMerchantListStats } from "@/lib/console-stats";
 import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
+import { ON_TRIAL_FILTER } from "@/lib/effective-status";
 import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
 import { readShopCity } from "@/lib/shop-city";
 import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
@@ -70,7 +71,9 @@ export async function GET(request: NextRequest) {
     if (ids.data) query = query.in("id", ids.data);
     if (plan) query = query.eq("plan", plan);
     // "attention" is not a value of the status column: it is one of the computed filters below.
-    if (status && status !== ATTENTION) query = query.eq("status", status);
+    // "trial" lists a paused trial too, as Trials does (lib/effective-status).
+    if (status === "trial") query = query.or(ON_TRIAL_FILTER);
+    else if (status && status !== ATTENTION) query = query.eq("status", status);
     // "بغداد", "Baghdad" and "baghdad " are one city: the same pattern the map reads.
     if (city.governorate) query = query.filter("city", "imatch", city.governorate.pattern);
     // Needs attention, the balance band and the health band are worked out in

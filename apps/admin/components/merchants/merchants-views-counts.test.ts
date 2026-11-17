@@ -15,6 +15,7 @@ const stats: MerchantsStats = {
   plan_prices_iqd: 9_000_000,
   fees_30d_iqd: 1_105_500,
   status: { trial: 900, active: 3800, limited: 20, suspended: 180, cancelled: 100 },
+  on_trial: 905,
   buckets: { trials_today: 4, trials_expired: 2, suspended: 180, cancelled: 100, low_wallet: 40, attention: 230 },
   governorates: { BGD: 2100, BAS: 640 },
   unknown_city: 1250,

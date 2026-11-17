@@ -26,6 +26,7 @@ import type {
 } from "@/types/dashboard";
 import { addDays, dayOf } from "./baghdad-day";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
+import { effectiveStatus } from "./effective-status";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
 import { SHOP_GOVERNORATES, shopGovernorate } from "./shop-city";
 
@@ -36,6 +37,8 @@ export interface DashboardTenant {
   business_name: string;
   plan: string;
   status: string;
+  /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+  restrictions: unknown;
   created_at: string;
   branding: { primary_color: string } | null;
   wallet_balance: number;
@@ -418,12 +421,14 @@ export function calculatePlanMovements(
   rows: SubscriptionRow[],
   statusSteps: ShopStepRow[],
   planChanges: PlanChangeRow[],
-  shops: ReadonlyArray<Pick<DashboardTenant, "id" | "plan" | "status" | "created_at">>,
+  shops: ReadonlyArray<Pick<DashboardTenant, "id" | "plan" | "status" | "restrictions" | "created_at">>,
   now: Date,
 ): PlanMovement[] {
   const since = now.getTime() - 30 * DAY_MS;
   const shopPlans = new Map(shops.map((shop) => [shop.id, shop.plan]));
-  const onTrial = new Set(shops.filter((shop) => shop.status === "trial").map((shop) => shop.id));
+  const onTrial = new Set(
+    shops.filter((shop) => effectiveStatus(shop.status, shop.restrictions) === "trial").map((shop) => shop.id),
+  );
   type Moved = { plan: string; status?: unknown; planBefore?: string; planAfter?: string };
   const byShop = new Map<string, Moved>();
   const shopOf = (tenantId: string | null): Moved | undefined => {

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       everyRow((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, created_at, branding, store_config_rev, wallet(balance_iqd, total_topped_up_iqd)")
+          .select("id, business_name, plan, status, restrictions, created_at, branding, store_config_rev, wallet(balance_iqd, total_topped_up_iqd)")
           // The demo store and prospect stores (lib/customer-shops) are in no platform number.
           .match(CUSTOMER_SHOP)
           .order("id", { ascending: true })
@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
         business_name: t.business_name,
         plan: t.plan,
         status: t.status,
+        restrictions: t.restrictions,
         created_at: t.created_at,
         branding: { primary_color: branding?.primary_color || DEFAULT_BRAND_COLOR },
         wallet_balance: Number(wallet?.balance_iqd) || 0,

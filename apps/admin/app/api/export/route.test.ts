@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
+import { rowPassesOr } from "@/lib/supabase-stub.test-data";
 
 /*
  * The export asked for every row in one request. The API answers with at most
@@ -22,7 +23,7 @@ let limits: number[];
 let orders: string[];
 let ins: number[];
 
-/** A stand-in for the query builder: filters by eq and match, answers a range, never more than the server cap. */
+/** A stand-in for the query builder: filters by eq, or and match, answers a range, never more than the server cap. */
 function query(table: string) {
   let rows = tables[table] ?? [];
   let window: [number, number] = [0, SERVER_MAX_ROWS - 1];
@@ -34,6 +35,10 @@ function query(table: string) {
     },
     eq: (column: string, value: unknown) => {
       rows = rows.filter((row) => row[column] === value);
+      return builder;
+    },
+    or: (filter: string) => {
+      rows = rows.filter((row) => rowPassesOr(row, filter));
       return builder;
     },
     // "tenants.is_demo" is a column of the embedded shop, as an inner join reads it.
@@ -235,6 +240,16 @@ describe("GET /api/export", () => {
       ["shop-1", 2],
       ["shop-2", null],
     ]);
+  });
+
+  it("lists a paused trial too, as Trials does, and no other paused shop", async () => {
+    tables.tenants = [
+      shop(1, { status: "trial", trial_ends_at: "2026-11-18T09:00:00Z" }),
+      shop(2, { status: "limited", restrictions: { status_before: "trial" }, trial_ends_at: "2026-11-18T09:00:00Z" }),
+      shop(3, { status: "limited", restrictions: { status_before: "active" }, trial_ends_at: "2026-11-01T09:00:00Z" }),
+    ];
+    const rows = await (await call("type=trials&format=json")).json();
+    expect(rows.map((row: Row) => row.id)).toEqual(["shop-1", "shop-2"]);
   });
 
   it("lists no prospect store or demo store among the trials", async () => {

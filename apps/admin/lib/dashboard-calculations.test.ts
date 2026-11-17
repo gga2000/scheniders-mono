@@ -31,6 +31,7 @@ const tenant = (id: string, over: Partial<DashboardTenant> = {}): DashboardTenan
   business_name: `Shop ${id.slice(0, 1).toUpperCase()}`,
   plan: "starter",
   status: "active",
+  restrictions: {},
   created_at: "2026-04-01T09:00:00Z",
   branding: { primary_color: "#1E1E1E" },
   wallet_balance: 0,
@@ -331,7 +332,13 @@ describe("calculatePlanMovements", () => {
     changed_at,
     from_trial,
   });
-  const shop = (id: string, plan: string, created_at = "2026-01-05T09:00:00Z", status = "active") => ({ id, plan, status, created_at });
+  const shop = (id: string, plan: string, created_at = "2026-01-05T09:00:00Z", status = "active", restrictions: unknown = {}) => ({
+    id,
+    plan,
+    status,
+    restrictions,
+    created_at,
+  });
   const shops = [shop(SHOP_A, "starter"), shop(SHOP_B, "growth"), shop(SHOP_C, "growth")];
   const lines = (moves: ReturnType<typeof calculatePlanMovements>) =>
     moves.map((m) => `${m.fromPlan}>${m.toPlan}:${m.type}:${m.count}`);
@@ -469,6 +476,28 @@ describe("calculatePlanMovements", () => {
       now,
     );
     expect(moves).toEqual([]);
+  });
+
+  it("lists no waiting choice for a paused trial: it is still a trial", () => {
+    const moves = calculatePlanMovements(
+      [sub("paused-trial", { plan: "starter", status: "past_due", pending_plan: "professional" })],
+      [],
+      [],
+      [...shops, shop("paused-trial", "starter", "2026-01-05T09:00:00Z", "limited", { status_before: "trial" })],
+      now,
+    );
+    expect(moves).toEqual([]);
+  });
+
+  it("lists the waiting choice of a paused paying shop", () => {
+    const moves = calculatePlanMovements(
+      [sub("paused-paying", { plan: "starter", status: "past_due", pending_plan: "professional" })],
+      [],
+      [],
+      [...shops, shop("paused-paying", "starter", "2026-01-05T09:00:00Z", "limited", { status_before: "active" })],
+      now,
+    );
+    expect(lines(moves)).toEqual(["starter>professional:waiting:1"]);
   });
 
   it("shows no waiting change on a cancelled subscription", () => {
