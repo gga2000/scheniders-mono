@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
+import { leadConvertedLockResponse, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
@@ -164,14 +164,30 @@ export async function DELETE(
     if (missing) return missing;
     const supabase = createAdminClient();
 
+    // A lead with a prospect store is not deleted: its store would stay online
+    // with the business's name, phone and address, and no screen could find
+    // it again. The filter is in the delete itself, so a store built at the
+    // same moment keeps its lead.
     const { data: removed, error } = await supabase
       .from("leads")
       .delete()
       .eq("id", id)
+      .is("prospect_tenant_id", null)
       .select("merchant_name")
       .maybeSingle();
 
     if (error) throw error;
+
+    if (!removed) {
+      const { data: kept, error: readError } = await supabase
+        .from("leads")
+        .select("merchant_name")
+        .eq("id", id)
+        .not("prospect_tenant_id", "is", null)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (kept) return NextResponse.json({ error: prospectStoreLeadsMessage([kept.merchant_name]) }, { status: 409 });
+    }
 
     // A deleted lead takes its history with it: this row is what remains.
     if (removed) {

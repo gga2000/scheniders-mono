@@ -32,3 +32,19 @@ export function convertedLeadsMessage(names: readonly string[]): string {
     ? `${quoted} is already a store, so its owner and status can't change. Untick it and try again.`
     : `${quoted} are already stores, so their owner and status can't change. Untick them and try again.`;
 }
+
+/**
+ * A lead with a prospect store is not deleted: the store would stay online
+ * with the business's name, phone and address, and no screen could find it
+ * again. The bulk bar names the ticked ones, so the person knows which to untick.
+ */
+export function prospectStoreLeadsMessage(names: readonly string[], bulk = false): string {
+  const quoted = wordList(names.map((name) => `"${name}"`), 3);
+  const one = names.length === 1;
+  const refusal = one
+    ? `${quoted} has a prospect store, so it can't be deleted.`
+    : `${quoted} have prospect stores, so they can't be deleted.`;
+  return bulk
+    ? `${refusal} Untick ${one ? "it" : "them"} and try again. Nothing was deleted.`
+    : `${refusal} The store would stay online with no lead to find it by.`;
+}

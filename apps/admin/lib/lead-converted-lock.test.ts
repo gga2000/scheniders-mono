@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { convertedLeadsMessage, leadConvertedLockResponse } from "./lead-converted-lock";
+import { convertedLeadsMessage, leadConvertedLockResponse, prospectStoreLeadsMessage } from "./lead-converted-lock";
 
 describe("leadConvertedLockResponse", () => {
     it("turns the database lock into a 409", async () => {
@@ -28,5 +28,16 @@ describe("convertedLeadsMessage", () => {
 
     it("still refuses clearly when no name could be read", () => {
         expect(convertedLeadsMessage([])).toMatch(/already a store.*Nothing was changed/);
+    });
+});
+
+describe("prospectStoreLeadsMessage", () => {
+    it("says why a lead with a prospect store is not deleted, and in the bulk bar which to untick", () => {
+        expect(prospectStoreLeadsMessage(["Kawkab"])).toBe(
+            '"Kawkab" has a prospect store, so it can\'t be deleted. The store would stay online with no lead to find it by.',
+        );
+        expect(prospectStoreLeadsMessage(["Kawkab", "Noor"], true)).toBe(
+            '"Kawkab" and "Noor" have prospect stores, so they can\'t be deleted. Untick them and try again. Nothing was deleted.',
+        );
     });
 });
