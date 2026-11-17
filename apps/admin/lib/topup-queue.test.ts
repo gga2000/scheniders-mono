@@ -3,6 +3,7 @@ import {
   alreadyDecidedText,
   amountStillOwed,
   EMPTY_PAYMENT_DETAILS,
+  lockedChip,
   paymentDetailsSchema,
   readPaymentDetails,
   receiptKind,
@@ -27,6 +28,28 @@ describe("amountStillOwed", () => {
   it("is zero for a shop that is not locked, whatever its wallet", () => {
     expect(amountStillOwed({ billing: { ...billing, locked: false, reason: null }, balance_iqd: -5000 })).toBe(0);
     expect(amountStillOwed({ billing: null, balance_iqd: 0 })).toBe(0);
+  });
+});
+
+describe("lockedChip", () => {
+  const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000 };
+
+  it("says what still opens a locked shop, or that this payment does", () => {
+    expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "active" })).toBe("Locked, month unpaid · needs 7,800 IQD to open");
+    expect(lockedChip({ billing: { ...billing, reason: "trial_ended" }, balance_iqd: 9000, tenant_status: "trial" })).toBe(
+      "Locked, trial ended · this payment opens it",
+    );
+  });
+
+  it("does not promise a paused shop opens with the money: it opens once the pause lifts", () => {
+    expect(lockedChip({ billing, balance_iqd: 9000, tenant_status: "limited" })).toBe(
+      "Locked, month unpaid · paused, opens once the pause lifts",
+    );
+  });
+
+  it("is nothing for a shop that is not locked", () => {
+    expect(lockedChip({ billing: { ...billing, locked: false, reason: null }, balance_iqd: 0, tenant_status: "limited" })).toBeNull();
+    expect(lockedChip({ billing: null, balance_iqd: 0, tenant_status: "active" })).toBeNull();
   });
 });
 

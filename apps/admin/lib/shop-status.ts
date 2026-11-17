@@ -49,11 +49,18 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
   if (billingLock?.locked) {
     const reason = billingLock.reason ? LOCK_REASON[billingLock.reason] : "Locked";
     const since = billingLock.since ? ` Locked since ${formatDay(billingLock.since, now)}.` : "";
+    const amount = formatIQD(billingLock.price_iqd);
+    const short = shortBy(balance, billingLock.price_iqd);
     return {
       tone: "locked",
       label: "Locked",
       sentence: `${reason}.${since}`,
-      next: `Paying ${formatIQD(billingLock.price_iqd)} from the wallet opens it again.${shortBy(balance, billingLock.price_iqd)}`,
+      // A paused shop is not charged, so money does not open its lock until
+      // the pause lifts (settle_billing_lock answers on_hold).
+      next:
+        tenant.status === "limited"
+          ? `Paused, so the lock stays until the pause lifts. Then paying ${amount} from the wallet opens it.${short}`
+          : `Paying ${amount} from the wallet opens it again.${short}`,
     };
   }
 

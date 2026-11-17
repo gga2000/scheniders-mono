@@ -20,7 +20,7 @@ import {
   TOPUP_MAX_IQD,
   TOPUP_MIN_IQD,
   alreadyDecidedText,
-  amountStillOwed,
+  lockedChip,
   topupQueueItemSchema,
   topupWarnings,
   type TopupDecision,
@@ -222,7 +222,7 @@ function Decision({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDeci
 }
 
 function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDecide: boolean; canAddMore: boolean }) {
-  const owed = amountStillOwed(row);
+  const locked = lockedChip(row);
   const warnings = topupWarnings(row);
   return (
     <div className="pastel-card flex flex-wrap items-start gap-4 p-4" data-testid="payment-row">
@@ -239,11 +239,10 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
           <span className="text-foreground/70"> by {METHOD_LABEL[row.method]} · sent {sentAgo(row.created_at)}</span>
         </p>
         <p className="text-xs text-foreground/70">{billingLine(row)}</p>
-        {row.billing?.locked && (
+        {locked && (
           <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-[var(--ink-amber)]">
             <Lock className="w-3 h-3" />
-            {row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended"}
-            {owed > 0 ? ` · needs ${iqd(owed)} to open` : " · this payment opens it"}
+            {locked}
           </p>
         )}
         {warnings.map((w) => (
@@ -262,7 +261,7 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
  * «Payments to check» (Fermi B3): shops pay us by Qi or Zain Cash transfer
  * and upload the receipt. Staff check the money arrived, then add what came
  * in to the shop's wallet (a payment that covers the plan opens a locked shop
- * at once), or refuse and say why; the shop reads the reason and can send
+ * at once, a paused one once its pause lifts), or refuse and say why; the shop reads the reason and can send
  * again.
  */
 export default function PaymentsPage() {
@@ -288,7 +287,7 @@ export default function PaymentsPage() {
         <h1 className="text-[22px] font-semibold text-foreground">Payments to check</h1>
         <p className="text-[13px] text-foreground/70 max-w-2xl">
           Shops paid us by transfer and sent the receipt. Check the money arrived, then add what came in. A payment that
-          covers the plan opens a locked shop at once. Refuse with a reason and the shop can send again.
+          covers the plan opens a locked shop at once, or a paused one once its pause lifts. Refuse with a reason and the shop can send again.
         </p>
       </div>
 
