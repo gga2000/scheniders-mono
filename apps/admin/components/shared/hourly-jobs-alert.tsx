@@ -30,13 +30,14 @@ export function hourlyJobsCount(check: HourlyJobsCheck | undefined): number {
   return check ? check.pausesNotLifted.length + check.jobs.length : 0;
 }
 
-/** One line per job in trouble: what happened, and when it last ran. */
-export function jobLine({ job, problem, last_run }: JobProblem, now: Date = new Date()): string {
+/** One line per job in trouble: what happened, when it last ran, and what a failed run said (super admins). */
+export function jobLine({ job, problem, last_run, message }: JobProblem, now: Date = new Date()): string {
   const name = HOURLY_JOBS[job];
   if (problem === "not_scheduled") return `${name} is not scheduled.`;
   if (!last_run) return `${name} has never run.`;
   const when = formatDayTime(last_run, now);
-  return problem === "failed" ? `${name} failed at ${when}.` : `${name} has not run since ${when}.`;
+  if (problem !== "failed") return `${name} has not run since ${when}.`;
+  return message ? `${name} failed at ${when}. It said: ${message}` : `${name} failed at ${when}.`;
 }
 
 function names(rows: HourlyJobsCheck["pausesNotLifted"]): string {

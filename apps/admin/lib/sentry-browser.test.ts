@@ -125,9 +125,10 @@ function sourceFiles(dir: string): string[] {
 const files = sourceFiles(ROOT).map((path) => ({ rel: relative(ROOT, path), text: readFileSync(path, "utf8") }));
 
 describe("where Sentry is imported", () => {
-  it("only the server set-up, the server logger and lib/sentry-browser.ts import the SDK", () => {
+  it("only the server set-up, the server logger, API routes and lib/sentry-browser.ts import the SDK", () => {
     const importers = files.filter((f) => /@sentry\/nextjs/.test(f.text)).map((f) => f.rel).sort();
-    expect(importers).toEqual([
+    // An API route runs only on the server, so the SDK it imports never reaches a page.
+    expect(importers.filter((rel) => !/^app\/api\/.+\/route\.ts$/.test(rel))).toEqual([
       "instrumentation.ts",
       "lib/activity-logger.ts",
       "lib/sentry-browser.ts",

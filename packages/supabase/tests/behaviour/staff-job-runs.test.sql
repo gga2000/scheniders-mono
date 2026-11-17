@@ -4,8 +4,10 @@
 -- result, so psql -v ON_ERROR_STOP=1 fails.
 --
 -- Rules under test:
---   each job named answers its schedule and its newest run only, with the
---   run's start, status and the first 300 characters of its message;
+--   each job named answers its schedule and its newest run only (round 14:
+--   by runid, the order pg_cron starts runs in), with the run's start,
+--   status and the first 300 characters of its message; a run still starting
+--   (no start time yet) is passed over;
 --   a job that never ran answers with no run; a job not scheduled, or not
 --   named, answers no row;
 --   the service role may call it, and no browser role may.
@@ -23,7 +25,8 @@ INSERT INTO cron.job_run_details VALUES
   (12, 1, 'succeeded', '1 row', now() - interval '1 hour'),
   (20, 2, 'succeeded', '1 row', now() - interval '2 hours'),
   (21, 2, 'failed', 'ERROR: division by zero', now() - interval '1 hour'),
-  (30, 3, 'failed', 'not asked for', now());
+  (30, 3, 'failed', 'not asked for', now()),
+  (31, 2, 'starting', NULL, NULL);
 
 DO $t$
 DECLARE
@@ -38,7 +41,7 @@ BEGIN
         RAISE EXCEPTION 'newest run only, after an older failure: %', rows->'lift-ended-pauses';
     END IF;
     IF rows->'refresh-lead-scores' <> '{"schedule": "27 * * * *", "status": "failed", "message": "ERROR: division by zero", "hours_ago": 1}'::jsonb THEN
-        RAISE EXCEPTION 'a failed newest run: %', rows->'refresh-lead-scores';
+        RAISE EXCEPTION 'a failed newest run, with a run still starting after it: %', rows->'refresh-lead-scores';
     END IF;
     IF rows->'never-ran' <> '{"schedule": "0 * * * *", "status": null, "message": null, "hours_ago": null}'::jsonb THEN
         RAISE EXCEPTION 'a job that never ran: %', rows->'never-ran';
