@@ -39,7 +39,6 @@ vi.mock("@/lib/api-auth", () => ({
   requireAdminPermission: vi.fn(async () => ({ user: { id: ADMIN_ID, email: "noor@example.com" }, role: "support_staff" })),
 }));
 vi.mock("@/lib/support-admin-name", () => ({ adminDisplayName: vi.fn(async () => "Noor") }));
-vi.mock("@/lib/activity-logger", () => ({ logAdminActivity: vi.fn(async () => undefined) }));
 vi.mock("@/lib/admin-env", () => ({ env: { PLATFORM_URL: "https://app.test" } }));
 
 const { POST } = await import("./route");

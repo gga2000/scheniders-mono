@@ -86,10 +86,13 @@ DO $$
 DECLARE
     v jsonb;
 BEGIN
-    PERFORM pg_temp.check('access: authenticated start', NOT has_function_privilege('authenticated', 'public.support_view_start(uuid,uuid,uuid)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: anon end', NOT has_function_privilege('anon', 'public.support_view_end(uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated start', NOT has_function_privilege('authenticated', 'public.support_view_start(uuid,uuid,uuid,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: anon end', NOT has_function_privilege('anon', 'public.support_view_end(uuid,text)', 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated tables', NOT has_function_privilege('authenticated', 'public.support_view_unguarded_tables()', 'EXECUTE'));
-    PERFORM pg_temp.check('access: service start', has_function_privilege('service_role', 'public.support_view_start(uuid,uuid,uuid)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: service start', has_function_privilege('service_role', 'public.support_view_start(uuid,uuid,uuid,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: service end', has_function_privilege('service_role', 'public.support_view_end(uuid,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: one start, the old signature is gone', to_regprocedure('public.support_view_start(uuid,uuid,uuid)') IS NULL);
+    PERFORM pg_temp.check('access: one end, the old signature is gone', to_regprocedure('public.support_view_end(uuid)') IS NULL);
     PERFORM pg_temp.check('access: anon may ask the lock question', has_function_privilege('anon', 'public.is_support_viewer()', 'EXECUTE'));
     PERFORM pg_temp.check('lock: every table is locked', cardinality(public.support_view_unguarded_tables()) = 0);
 
@@ -191,6 +194,39 @@ SELECT pg_temp.as_user('30000000-0000-4000-8000-000000000002', '{}');
 SELECT pg_temp.check('end: expired session gives nothing', NOT EXISTS (SELECT 1 FROM public.get_user_tenant_ids()));
 SELECT pg_temp.check('end: expired session has no money view', NOT public.member_has_permission(
     '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', 'system.financials.view'));
+
+-- Each start and end writes its staff log row in the same step; a refused
+-- start writes none. The merchant's Support activity reads these rows.
+SELECT pg_temp.as_user('', '');
+DO $$
+DECLARE
+    v jsonb;
+    r public.admin_activity_logs;
+BEGIN
+    -- Three starts above went through; three were refused.
+    PERFORM pg_temp.check('log: one row per start, none for a refusal',
+        (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'support_view') = 3);
+    PERFORM pg_temp.check('log: the end above wrote its row',
+        (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'support_view_end' AND details ->> 'ended' = '1') = 1);
+
+    v := public.support_view_start('a0000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001',
+        '10000000-0000-4000-8000-000000000002', 'noor@example.com');
+    SELECT * INTO r FROM public.admin_activity_logs l
+    WHERE l.action = 'support_view' AND l.details ->> 'session_id' = v ->> 'session_id';
+    PERFORM pg_temp.check('log: start names the staff member', r.admin_user_id = 'a0000000-0000-4000-8000-000000000001');
+    PERFORM pg_temp.check('log: start keeps the email', r.actor_email = 'noor@example.com');
+    PERFORM pg_temp.check('log: start names the shop the merchant sees it in', r.tenant_id = '10000000-0000-4000-8000-000000000002');
+    PERFORM pg_temp.check('log: start details are the session only', r.details = jsonb_build_object('session_id', v ->> 'session_id'));
+    PERFORM pg_temp.check('log: no label for a named staff member', r.admin_label IS NULL);
+
+    PERFORM pg_temp.check('end: says how many it closed', public.support_view_end('a0000000-0000-4000-8000-000000000001', 'noor@example.com') = 1);
+    SELECT * INTO r FROM public.admin_activity_logs l
+    WHERE l.action = 'support_view_end' AND l.actor_email = 'noor@example.com';
+    PERFORM pg_temp.check('log: end names the staff member', r.admin_user_id = 'a0000000-0000-4000-8000-000000000001');
+    PERFORM pg_temp.check('log: end details', r.details = '{"ended": 1}'::jsonb);
+    PERFORM pg_temp.check('log: end has no shop', r.tenant_id IS NULL);
+    PERFORM pg_temp.check('lock: still no unlocked table', cardinality(public.support_view_unguarded_tables()) = 0);
+END $$;
 
 DO $$
 BEGIN
