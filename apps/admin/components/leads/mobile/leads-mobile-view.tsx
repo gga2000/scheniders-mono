@@ -4,11 +4,12 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
-import { useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
+import { useCreateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
-import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
+import { DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
+import { useResumedDraft } from "../use-resumed-draft";
 import { leadsCountLine } from "../leads-count";
 import { LeadMobileRow } from "./lead-mobile-row";
 import { LeadRegisterSheet } from "./lead-register-sheet";
@@ -27,7 +28,6 @@ import {
 export function LeadsMobileView() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [stageLead, setStageLead] = useState<Lead | null>(null);
-  const [draftLead, setDraftLead] = useState<Lead | null>(null);
 
   const {
     data,
@@ -40,6 +40,7 @@ export function LeadsMobileView() {
   } = useInfiniteLeads();
 
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
+  const resumed = useResumedDraft(leads);
   const total = data?.pages[0]?.total ?? 0;
 
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } =
@@ -49,7 +50,6 @@ export function LeadsMobileView() {
   const byStatus = analytics?.by_status;
 
   const createLead = useCreateLead();
-  const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
   const can = useCan();
   // A refused save rejects with the server's words; the form shows them.
@@ -215,7 +215,7 @@ export function LeadsMobileView() {
               key={l.id}
               lead={l}
               onStatusTap={setStageLead}
-              onResumeDraft={setDraftLead}
+              onResumeDraft={resumed.resume}
             />
           ))}
         </div>
@@ -259,23 +259,7 @@ export function LeadsMobileView() {
       />
 
       {/* Resume an in-progress draft — saving promotes it to a real lead */}
-      <LeadRegisterSheet
-        key={draftLead?.id ?? "no-draft"}
-        open={!!draftLead}
-        onOpenChange={(v) => {
-          if (!v) setDraftLead(null);
-        }}
-        initialData={draftLead ? leadToFormData(draftLead) : undefined}
-        onSubmit={(_, changes) =>
-          draftLead
-            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...changes, is_draft: false } }).then(() => true)
-            : Promise.resolve(false)
-        }
-        onSaveDraft={(formData) => {
-          if (!draftLead) return;
-          updateLead.mutate({ id: draftLead.id, data: { ...formData, is_draft: true } });
-        }}
-      />
+      <LeadRegisterSheet key={resumed.formKey} {...resumed.form} />
 
       <AdvanceStageSheet lead={stageLead} onClose={() => setStageLead(null)} />
     </div>

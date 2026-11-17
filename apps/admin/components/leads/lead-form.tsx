@@ -52,6 +52,7 @@ import { LeadIndustryManager } from "./lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
+  type LeadFormDraftSave,
   type LeadFormSubmitResult,
 } from "./use-lead-form-controller";
 
@@ -74,7 +75,7 @@ interface LeadFormProps {
    * content auto-saves the in-progress lead as a draft instead of discarding it.
    * The explicit Cancel/✕ buttons always discard.
    */
-  onSaveDraft?: (data: LeadFormData) => void;
+  onSaveDraft?: LeadFormDraftSave;
 }
 
 const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
@@ -439,7 +440,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
     estimatedDailyOrders,
     estimatedMonthlyRevenue,
     hasPrediction,
-    isDirty,
+    saveDraftOnClose,
     update,
     resetForm,
     handleAnalyze,
@@ -488,9 +489,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
   // (A successful submit closes via the controller's onClose, which bypasses this.)
   const handleOpenChange = (v: boolean) => {
     if (!v && submitting) return;
-    if (!v && onSaveDraft && isDirty) {
-      onSaveDraft(form);
-    }
+    if (!v) saveDraftOnClose(onSaveDraft);
     onOpenChange(v);
   };
 

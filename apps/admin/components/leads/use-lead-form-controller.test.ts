@@ -156,3 +156,30 @@ describe("useLeadFormController: a save refused over a colleague's lists", () =>
     expect(result.current.form.tags).toEqual(["abaya", "called"]);
   });
 });
+
+describe("useLeadFormController: a dismissal with unsaved content", () => {
+  it("hands the draft save the form, only what changed, and the form as it opened", () => {
+    const { result } = setup(vi.fn());
+    act(() => result.current.update("management_name", "Typed by me"));
+    act(() => result.current.update("handle", "@kawkab"));
+    const onSaveDraft = vi.fn();
+
+    act(() => result.current.saveDraftOnClose(onSaveDraft));
+
+    expect(onSaveDraft).toHaveBeenCalledTimes(1);
+    const [data, changes, opened] = onSaveDraft.mock.calls[0];
+    expect(data).toMatchObject({ management_name: "Typed by me", handle: "@kawkab" });
+    // As a save sends them: the handle without its "@".
+    expect(changes).toEqual({ management_name: "Typed by me", handle: "kawkab" });
+    expect(opened).toMatchObject({ management_name: "Owner", page_phone: "07701234567" });
+  });
+
+  it("saves nothing when nothing was typed", () => {
+    const { result } = setup(vi.fn());
+    const onSaveDraft = vi.fn();
+
+    act(() => result.current.saveDraftOnClose(onSaveDraft));
+
+    expect(onSaveDraft).not.toHaveBeenCalled();
+  });
+});
