@@ -36,6 +36,12 @@ describe("SupportViewButton", () => {
     expect(html).toContain("Copy link");
   });
 
+  // Round 15 (data lane 3): the end time used the browser's clock zone.
+  it("says until when in Baghdad time", () => {
+    opened = look(12);
+    expect(render()).toContain("Look only, until 15:12.");
+  });
+
   it("goes back to View as merchant once the 30 minutes have run out", () => {
     opened = look(-1);
     const html = render();

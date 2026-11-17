@@ -5,18 +5,25 @@ import { cn } from "@/lib/utils";
 import { BarChart3 } from "lucide-react";
 import type { StaffAction } from "@/types/leads";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatDayKey } from "@/lib/format";
+import { useLiveTick } from "@/hooks/use-live-tick";
 
 interface TeamPerformanceChartProps {
   employeeId?: string;
   actions?: StaffAction[];
 }
 
+// Days on the Baghdad calendar, as every day in the console is counted, so a
+// staff member whose browser runs another clock sees the same buckets.
+const BAGHDAD = "Asia/Baghdad";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function formatShortDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: BAGHDAD });
 }
 
 function formatDayLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
+  return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", timeZone: BAGHDAD });
 }
 
 export function TeamPerformanceChart({
@@ -24,17 +31,16 @@ export function TeamPerformanceChart({
 }: TeamPerformanceChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const chartData = useMemo(() => {
-    const now = new Date();
-    const days: { date: Date; label: string; shortLabel: string; count: number }[] = [];
+  const now = useLiveTick();
 
-    // Create 14 day buckets
+  const chartData = useMemo(() => {
+    const days: { key: string; label: string; shortLabel: string; count: number }[] = [];
+
+    // 14 Baghdad days, today last (Iraq keeps one offset all year).
     for (let i = 13; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
+      const date = new Date(now - i * DAY_MS);
       days.push({
-        date,
+        key: formatDayKey(date),
         label: formatDayLabel(date),
         shortLabel: formatShortDate(date),
         count: 0,
@@ -43,19 +49,12 @@ export function TeamPerformanceChart({
 
     // Count actions per day
     for (const action of actions) {
-      const actionDate = new Date(action.created_at);
-      actionDate.setHours(0, 0, 0, 0);
-
-      for (const day of days) {
-        if (day.date.getTime() === actionDate.getTime()) {
-          day.count++;
-          break;
-        }
-      }
+      const day = days.find((d) => d.key === formatDayKey(action.created_at));
+      if (day) day.count++;
     }
 
     return days;
-  }, [actions]);
+  }, [actions, now]);
 
   const stats = useMemo(() => {
     const total = chartData.reduce((sum, d) => sum + d.count, 0);
