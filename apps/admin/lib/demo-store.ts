@@ -44,7 +44,6 @@ export const demoStoreSchema = z.object({
   products: z.number(),
   storefront_url: z.string().url(),
 });
-export type DemoStore = z.infer<typeof demoStoreSchema>;
 
 export const demoStatusSchema = z.object({ store: demoStoreSchema.nullable() });
 

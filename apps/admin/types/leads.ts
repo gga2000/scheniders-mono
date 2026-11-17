@@ -302,17 +302,6 @@ export interface LeadCompetitor {
   competitor_tenant?: { id: string; business_name: string; slug: string } | null;
 }
 
-export interface OutreachTemplate {
-  id: string;
-  name: string;
-  stage: LeadStatus;
-  message_template: string;
-  is_active: boolean;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 // ── Team & Commission Types ─────────────────────────────────────────────
 
 export interface AdminEmployee {
@@ -463,17 +452,4 @@ export interface LeadFormData {
   tags: string[];
   source_campaign: string;
   source_medium: string;
-}
-
-export interface LeadFilters {
-  status: LeadStatus | null;
-  platform: LeadSourcePlatform | null;
-  priority: LeadPriority | null;
-  tier: LeadTier | null;
-  industry_id: string | null;
-  assigned_to: string | null;
-  has_store: boolean | null;
-  score_min: number | null;
-  score_max: number | null;
-  search: string;
 }

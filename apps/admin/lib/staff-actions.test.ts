@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { staffActionText, staffLogSummary, toStaffAction } from "./staff-actions";
 
 describe("staffActionText", () => {
@@ -132,6 +132,48 @@ describe("staffLogSummary", () => {
     expect(staffActionText("reassign_lead", move)).toBe("Moved a lead to another owner: Kawkab");
     expect(staffLogSummary("reassign_lead", move)).toBeNull();
     expect(staffLogSummary("edit_lead", { merchant_name: "Kawkab", source: "form" })).toBe("source: form");
+  });
+
+  // Round 13: the summary repeated the step's own words ("Gave 7 free trial
+  // days" over "days: 7", an edit's old name, a pause that ended by itself).
+  it("leaves out what the step's own words already say", () => {
+    const trial = { days: 7, reason: "Waiting for the bank", source: "single" };
+    expect(staffActionText("extend_trial", trial)).toBe("Gave 7 free trial days");
+    expect(staffLogSummary("extend_trial", trial)).toBe("reason: Waiting for the bank | source: single");
+
+    const edit = { merchant_name: "Kawkab Baghdad", was: "Kawkab", fields: ["merchant_name"], source: "form" };
+    expect(staffActionText("edit_lead", edit)).toBe("Edited a lead: Kawkab Baghdad, was Kawkab (name)");
+    expect(staffLogSummary("edit_lead", edit)).toBe("source: form");
+
+    const industry = { setting: "industries", change: "edited", name: "Beauty", was: "Cosmetics", fields: ["name"] };
+    expect(staffActionText("update_settings", industry)).toBe("Edited industry Beauty, was Cosmetics (name)");
+    expect(staffLogSummary("update_settings", industry)).toBeNull();
+
+    const lifted = { ended: true, status: "active" };
+    expect(staffActionText("unpause_tenant", lifted)).toBe("Pause ended on its end date");
+    expect(staffLogSummary("unpause_tenant", lifted)).toBe("status: active");
+
+    const bulk = { action: "change_status", status: "contacted", changed: 3 };
+    expect(staffLogSummary("bulk_leads", bulk)).toBeNull();
+  });
+
+  it("keeps a value the words did not use", () => {
+    // An older bulk row has no count, so its words are the general ones.
+    expect(staffActionText("bulk_leads", { action: "assign" })).toBe("Changed several leads at once");
+    expect(staffLogSummary("bulk_leads", { action: "assign" })).toBe("action: assign");
+    // Other settings than the industry list keep their name.
+    expect(staffLogSummary("update_settings", { setting: "payment_details" })).toBe("setting: payment_details");
+  });
+
+  it("gives a time on the console's clock, and leaves out blank text", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-17T12:00:00Z") });
+    try {
+      expect(staffLogSummary("any_step", { paused_until: "2026-11-17T03:21:24.887769+00:00", note: " " })).toBe(
+        "paused until: Tue 17 Nov, 06:21",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("is null for no details", () => {

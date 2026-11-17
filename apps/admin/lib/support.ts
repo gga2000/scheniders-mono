@@ -296,8 +296,6 @@ export const StaffPushRemoveSchema = z.object({
   endpoint: z.string().url().max(2000),
 });
 
-export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
-
 export const SUPPORT_SHOT_BUCKET = "support-shots";
 export const SUPPORT_VOICE_BUCKET = "support-voice";
 

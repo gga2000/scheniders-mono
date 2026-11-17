@@ -311,6 +311,11 @@ export async function DELETE(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
+  // A login id is a uuid: anything else is nobody on the staff list, not a
+  // failed read (the database refuses to compare it, which read as a 500).
+  if (!z.uuid().safeParse(userId).success) {
+    return NextResponse.json({ error: "Not an admin user" }, { status: 404 });
+  }
   if (userId === auth.user.id) {
     return NextResponse.json(
       { error: "You cannot remove your own admin access" },
