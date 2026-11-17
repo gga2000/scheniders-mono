@@ -57,7 +57,8 @@ interface LeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Persist the lead. Resolve `true` on success, `false` on failure. */
-  onSubmit: (data: LeadFormData) => Promise<boolean> | boolean | void;
+  /** `changes`: only the fields that differ from the form as it opened (what an edit sends). */
+  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<boolean> | boolean | void;
   initialData?: Partial<LeadFormData>;
   /**
    * If provided, an *accidental* dismissal (Escape / click-outside) with unsaved

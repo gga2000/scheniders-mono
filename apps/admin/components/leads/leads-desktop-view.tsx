@@ -415,9 +415,9 @@ export function LeadsDesktopView() {
           if (!v) setDraftLead(null);
         }}
         initialData={draftLead ? leadToFormData(draftLead) : undefined}
-        onSubmit={(data) =>
+        onSubmit={(_, changes) =>
           draftLead
-            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...data, is_draft: false } }).then(() => true)
+            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...changes, is_draft: false } }).then(() => true)
             : false
         }
         onSaveDraft={(data) => {

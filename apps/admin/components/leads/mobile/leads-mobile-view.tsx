@@ -266,9 +266,9 @@ export function LeadsMobileView() {
           if (!v) setDraftLead(null);
         }}
         initialData={draftLead ? leadToFormData(draftLead) : undefined}
-        onSubmit={(formData) =>
+        onSubmit={(_, changes) =>
           draftLead
-            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...formData, is_draft: false } }).then(() => true)
+            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...changes, is_draft: false } }).then(() => true)
             : Promise.resolve(false)
         }
         onSaveDraft={(formData) => {
