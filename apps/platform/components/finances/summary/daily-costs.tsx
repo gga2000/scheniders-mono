@@ -156,7 +156,7 @@ export function DailyCosts({ summary, statement, previous, onOpenTab }: DailyCos
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {t("fin.ads.spent", { spent: money(spent) })}
                         {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
-                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds), now: formatWhole(brought) })}</>}
+                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds, now: formatWhole(brought) })}</>}
                     </p>
                     {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
                     {noLift !== null && (

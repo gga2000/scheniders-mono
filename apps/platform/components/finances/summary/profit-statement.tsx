@@ -65,6 +65,9 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const money = useMoneyText();
     // Refunds the courier paid that the shop has not marked yet: until it does, the net profit below is too high.
     const refundsOpen = summary.cash.statement.returns_open_orders;
+    // Delivered orders the ordinary delivery company has not put on a statement yet: its fee on them is
+    // only known from that statement, so the net profit below does not take it off yet.
+    const feePending = Math.max(summary.cash.split.unpaid_orders - summary.cash.split.unpaid_prime, 0);
     const [open, setOpen] = useState<CostLineId | null>(null);
     const [lens, setLens] = useState<Lens>("total");
     const steps = useMemo(() => new Map(waterfall(statement).map((step) => [step.id, step])), [statement]);
@@ -312,6 +315,18 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                         {t("fin.alert.refundsOpen.open")}
                         <ArrowUpRight className="size-3.5" aria-hidden="true" />
                     </a>
+                </div>
+            )}
+
+            {feePending > 0 && (
+                <div
+                    className="mt-3 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
+                    data-testid="statement-fee-pending"
+                >
+                    <p className="text-left" dir={dir}>
+                        {t("fin.statement.feePending", { n: formatWhole(feePending), count: feePending })}{" "}
+                        <span className="font-medium text-foreground">{t("fin.statement.feePendingMeans")}</span>
+                    </p>
                 </div>
             )}
 
