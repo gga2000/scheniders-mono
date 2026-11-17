@@ -1,0 +1,157 @@
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AccessCheck } from "./admin-access";
+import { watchAdminSession, type SessionView } from "./admin-session-watch";
+
+/*
+ * #1285: the browser took a failed read of the person's staff row for "no
+ * access" and signed them out of every device; a blip at the hourly token
+ * refresh was enough. These tests drive the watch the console's sign-in
+ * provider runs, with the auth events Supabase sends.
+ */
+
+type Listener = (event: AuthChangeEvent, session: Session | null) => void;
+
+const user = (id: string) => ({ id }) as User;
+const session = (id: string) => ({ user: user(id) }) as Session;
+
+/** A read that answers when the test says so. */
+function later<T>() {
+  let answer!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => (answer = resolve));
+  return { promise, answer };
+}
+
+let listener: Listener;
+let views: SessionView<string>[];
+let reads: string[];
+let access: (userId: string) => Promise<AccessCheck>;
+let signOutHere: ReturnType<typeof vi.fn>;
+let unsubscribe: ReturnType<typeof vi.fn>;
+let stop: () => void;
+
+const start = () => {
+  stop = watchAdminSession<string>(
+    {
+      onAuthStateChange: (l) => {
+        listener = l;
+        return unsubscribe;
+      },
+      signOutHere,
+      readAccess: (userId) => {
+        reads.push(userId);
+        return access(userId);
+      },
+      readProfile: async (userId) => `profile of ${userId}`,
+    },
+    (view) => views.push(view),
+  );
+};
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+const last = () => views.at(-1);
+
+beforeEach(() => {
+  views = [];
+  reads = [];
+  access = async () => ({ kind: "role", role: "support_staff" });
+  signOutHere = vi.fn(async () => undefined);
+  unsubscribe = vi.fn();
+  start();
+});
+
+describe("the console's sign-in watch", () => {
+  it("reads the stored session once and shows the person with their role", async () => {
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+
+    expect(reads).toEqual(["u1"]);
+    expect(last()).toMatchObject({ kind: "signed_in", role: "support_staff", profile: "profile of u1", checkFailed: false });
+  });
+
+  it("does not read the staff row again when the token is refreshed", async () => {
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+    listener("TOKEN_REFRESHED", session("u1"));
+    await settle();
+
+    expect(reads).toEqual(["u1"]);
+    expect(views).toHaveLength(1);
+  });
+
+  it("keeps the known role and signs nobody out when a later read fails", async () => {
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+    access = async () => ({ kind: "failed" });
+    listener("USER_UPDATED", session("u1"));
+    await settle();
+
+    expect(last()).toMatchObject({ kind: "signed_in", role: "support_staff", keepProfile: true, checkFailed: false });
+    expect(signOutHere).not.toHaveBeenCalled();
+  });
+
+  it("shows the person with no role, and signs nobody out, when the first read fails", async () => {
+    access = async () => ({ kind: "failed" });
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+
+    expect(last()).toMatchObject({ kind: "signed_in", role: null, checkFailed: true });
+    expect(signOutHere).not.toHaveBeenCalled();
+  });
+
+  it("does not lend one person's role to another after a failed read", async () => {
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+    access = async () => ({ kind: "failed" });
+    listener("SIGNED_IN", session("u2"));
+    await settle();
+
+    expect(last()).toMatchObject({ kind: "signed_in", role: null, checkFailed: true });
+  });
+
+  it("signs out this browser only when the staff row answers no", async () => {
+    access = async () => ({ kind: "none" });
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+
+    expect(last()).toEqual({ kind: "no_access" });
+    expect(signOutHere).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets only the newest answer count when answers come back out of order", async () => {
+    const slow = later<AccessCheck>();
+    access = () => slow.promise;
+    listener("INITIAL_SESSION", session("u1"));
+    access = async () => ({ kind: "role", role: "super_admin" });
+    listener("SIGNED_IN", session("u1"));
+    await settle();
+    slow.answer({ kind: "none" });
+    await settle();
+
+    expect(last()).toMatchObject({ kind: "signed_in", role: "super_admin" });
+    expect(signOutHere).not.toHaveBeenCalled();
+  });
+
+  it("drops an answer still on its way when the person signs out", async () => {
+    const slow = later<AccessCheck>();
+    access = () => slow.promise;
+    listener("INITIAL_SESSION", session("u1"));
+    listener("SIGNED_OUT", null);
+    slow.answer({ kind: "role", role: "super_admin" });
+    await settle();
+
+    expect(last()).toEqual({ kind: "signed_out" });
+  });
+
+  it("shows nothing more and stops listening once stopped", async () => {
+    const slow = later<AccessCheck>();
+    access = () => slow.promise;
+    listener("INITIAL_SESSION", session("u1"));
+    stop();
+    slow.answer({ kind: "role", role: "super_admin" });
+    await settle();
+    listener("SIGNED_OUT", null);
+
+    expect(views).toEqual([]);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+});
