@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
+import { SIGN_IN_ENDED, bearerToken, signInEnded, verifyStaffToken } from "@/lib/staff-sign-in";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
 import { sentryEnvironment } from "@scheniders/shared/sentry-scrub";
 import { CSP_HEADER, REPORT_GROUP, breachReportUrl, newNonce, scriptPolicy } from "@/lib/csp";
@@ -70,7 +71,7 @@ async function checkAccess(request: NextRequest) {
     supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
     return response;
   };
-  const toLogin = (error?: "forbidden") => {
+  const toLogin = (error?: "forbidden" | "expired") => {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     if (error) url.searchParams.set("error", error);
@@ -110,6 +111,43 @@ async function checkAccess(request: NextRequest) {
       return supabaseResponse;
     }
     return toLogin();
+  }
+
+  // The auth server has just answered for this session; its token is now read
+  // locally (lib/staff-sign-in.ts) for when it signed in. A sign-in past the
+  // staff age limit is ended for good, here and on the auth server, and staff
+  // sign in again; the login page shows why.
+  let session: Awaited<ReturnType<typeof verifyStaffToken>>;
+  try {
+    session = await verifyStaffToken(supabase.auth);
+  } catch (error) {
+    return checkFailed("sign-in", error);
+  }
+  if (!session) {
+    if (isApi) return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+    return isLoginPage ? supabaseResponse : toLogin();
+  }
+  if (signInEnded(session.signedInAt)) {
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+    if (signOutError) console.error("[middleware] Ending an old sign-in failed", { path, message: errorMessage(signOutError) });
+    if (isApi) return withSession(NextResponse.json({ error: SIGN_IN_ENDED }, { status: 401 }));
+    return isLoginPage ? supabaseResponse : toLogin("expired");
+  }
+
+  // The API reads the browser's token from its Authorization header and checks
+  // it only locally, so it must be the session the auth server just answered
+  // for: a token of an ended session, or of someone else, is refused here.
+  const sent = isApi ? bearerToken(request.headers) : null;
+  if (sent) {
+    let sentSession: Awaited<ReturnType<typeof verifyStaffToken>>;
+    try {
+      sentSession = await verifyStaffToken(supabase.auth, sent);
+    } catch (error) {
+      return checkFailed("sign-in", error);
+    }
+    if (sentSession?.sessionId !== session.sessionId) {
+      return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+    }
   }
 
   // Authenticated — verify admin-console access via the dedicated `admin_users`
