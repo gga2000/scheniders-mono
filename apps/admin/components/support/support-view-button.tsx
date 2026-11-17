@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, Eye, Loader2, Square } from "lucide-react";
 import { toast } from "sonner";
+import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportViewEnd, useSupportViewStart } from "@/hooks/use-support-cases";
 
 /**
@@ -13,7 +14,11 @@ import { useSupportViewEnd, useSupportViewStart } from "@/hooks/use-support-case
 export function SupportViewButton({ tenantId }: { tenantId: string }) {
   const start = useSupportViewStart();
   const end = useSupportViewEnd();
-  const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
+  const [opened, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
+  // A look runs out on its own after 30 minutes: then there is nothing to
+  // open, copy or end, and support_view_end would close nothing.
+  const now = useLiveTick(15_000);
+  const link = opened && Date.parse(opened.expiresAt) > now ? opened : null;
 
   const open = () =>
     start.mutate(tenantId, {
