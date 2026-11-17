@@ -70,7 +70,9 @@ const logAdminAction = vi.fn(async () => undefined);
 vi.mock("@/lib/activity-logger", () => ({ logAdminAction }));
 
 const { GET, POST } = await import("./route");
-const call = (params: string) => GET(new NextRequest(`http://admin.test/api/export?${params}`));
+// window.open from a console page: the browser says the request came from the same site.
+const call = (params: string, site: string | null = "same-origin") =>
+  GET(new NextRequest(`http://admin.test/api/export?${params}`, { headers: site ? { "sec-fetch-site": site } : {} }));
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
@@ -230,6 +232,21 @@ describe("GET /api/export", () => {
       ["shop-1", 2],
       ["shop-2", null],
     ]);
+  });
+
+  it("starts no file and logs nothing when the request came from another site", async () => {
+    tables.tenants = [shop(1)];
+    for (const site of ["cross-site", "same-site", null]) {
+      const res = await call("type=merchants&format=csv", site);
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "This download did not start from the staff console, so it was refused." });
+    }
+    expect(logAdminAction).not.toHaveBeenCalled();
+  });
+
+  it("starts a file typed into the address bar by the person", async () => {
+    tables.tenants = [shop(1)];
+    expect((await call("type=merchants&format=csv", "none")).status).toBe(200);
   });
 
   it("refuses a type it does not know", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOwnPageWrite } from "./same-origin";
+import { isOwnPageRead, isOwnPageWrite } from "./same-origin";
 
 /*
  * Round 5 of the staff console audit: the API took any write that carried a
@@ -38,5 +38,18 @@ describe("isOwnPageWrite", () => {
 
   it("trusts Origin over Sec-Fetch-Site when both are sent", () => {
     expect(isOwnPageWrite("POST", headers({ origin: "https://evil.example", "sec-fetch-site": "same-origin" }), HOST)).toBe(false);
+  });
+});
+
+describe("a read that starts something", () => {
+  it("comes from a console page, or from the person typing the address", () => {
+    expect(isOwnPageRead(headers({ "sec-fetch-site": "same-origin" }))).toBe(true);
+    expect(isOwnPageRead(headers({ "sec-fetch-site": "none" }))).toBe(true);
+  });
+
+  it("is refused from another site, a sibling site, or no browser page", () => {
+    expect(isOwnPageRead(headers({ "sec-fetch-site": "cross-site" }))).toBe(false);
+    expect(isOwnPageRead(headers({ "sec-fetch-site": "same-site" }))).toBe(false);
+    expect(isOwnPageRead(headers({}))).toBe(false);
   });
 });

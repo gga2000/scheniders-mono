@@ -7,6 +7,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { CROSS_SITE_READ, isOwnPageRead } from "@/lib/same-origin";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
 const VALID_FORMATS = ["csv", "json"] as const;
@@ -135,6 +136,10 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
 
 /** GET /api/export?type=…&format=… — the whole list as a file. */
 export async function GET(request: NextRequest) {
+  // A GET that starts a file and logs it: only from the console's own pages.
+  if (!isOwnPageRead(request.headers)) {
+    return NextResponse.json({ error: CROSS_SITE_READ }, { status: 403 });
+  }
   const auth = await requireAdminPermission(request, "export_data");
   if (auth instanceof NextResponse) return auth;
 
