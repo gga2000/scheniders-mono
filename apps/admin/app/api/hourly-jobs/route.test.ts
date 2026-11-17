@@ -11,6 +11,8 @@ import { supabaseStub, type Row } from "@/lib/supabase-stub.test-data";
 vi.mock("@/lib/api-auth", () => ({
   requireAdminFromRequest: async () => ({ user: { id: "a", email: "a@b.co" }, role: "support_staff" }),
 }));
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
+vi.mock("@sentry/nextjs", () => sentry);
 
 let stub: ReturnType<typeof supabaseStub>;
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => stub.client }));
@@ -31,13 +33,13 @@ const shop = (id: string, status: string, pausedUntil: unknown, kind: Row = {}):
 });
 const ran = (jobname: string, minutes: number, status = "succeeded"): Row => ({
   jobname,
-  schedule: "21 * * * *",
   last_start: minutesAgo(minutes),
   last_status: status,
   last_message: status === "failed" ? "ERROR: something" : "1 row",
 });
 
 beforeEach(() => {
+  sentry.captureException.mockClear();
   stub = supabaseStub();
   stub.state.tables.tenants = [];
   stub.state.functions.staff_job_runs = () => ({ data: [ran("lift-ended-pauses", 19), ran("refresh-lead-scores", 13)], error: null });
@@ -76,9 +78,29 @@ describe("GET /api/hourly-jobs", () => {
       error: null,
     });
     expect((await (await check()).json()).jobs).toEqual([
-      { job: "lift-ended-pauses", problem: "stopped", last_run: minutesAgo(80) },
-      { job: "refresh-lead-scores", problem: "failed", last_run: minutesAgo(13) },
+      { job: "lift-ended-pauses", problem: "stopped", last_run: minutesAgo(80), message: null },
+      { job: "refresh-lead-scores", problem: "failed", last_run: minutesAgo(13), message: "ERROR: something" },
     ]);
+  });
+
+  // Round 14 (Reliability new 4): the reason was read and dropped, and no
+  // failure reached Sentry.
+  it("says what the failed run said, and sends it to Sentry once", async () => {
+    stub.state.functions.staff_job_runs = () => ({
+      data: [ran("lift-ended-pauses", 19), ran("refresh-lead-scores", 3, "failed")],
+      error: null,
+    });
+    expect((await (await check()).json()).jobs).toEqual([
+      { job: "refresh-lead-scores", problem: "failed", last_run: minutesAgo(3), message: "ERROR: something" },
+    ]);
+    await check();
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    const [error, context] = sentry.captureException.mock.calls[0];
+    expect(String(error)).toBe("Error: Hourly job refresh-lead-scores failed");
+    expect(context).toEqual({
+      fingerprint: ["hourly-job-failed", "refresh-lead-scores"],
+      extra: { started: minutesAgo(3), message: "ERROR: something" },
+    });
   });
 
   it("fails out loud when the runs cannot be read, so the bell says it could not check", async () => {

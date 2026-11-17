@@ -1,14 +1,18 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 import { everyRow } from "@/lib/every-row";
-import { hourlyJobSchema, jobProblems, jobRunSchema } from "@/lib/hourly-jobs";
+import { freshFailures, hourlyJobSchema, jobProblems, jobRunSchema } from "@/lib/hourly-jobs";
 import { pauseLiftOverdue } from "@/lib/tenant-pause";
 
 /** A paused shop's end date, as lift_ended_pauses reads it: a readable time, or no end. */
 const pauseEnd = z.object({ paused_until: z.string().refine((value) => !Number.isNaN(Date.parse(value))) });
+
+/** The failed runs this server instance has sent to Sentry (lib/hourly-jobs `freshFailures`). */
+const sentToSentry = new Map<string, number>();
 
 /**
  * GET /api/hourly-jobs: what the console's hourly jobs left undone, for the
@@ -17,7 +21,8 @@ const pauseEnd = z.object({ paused_until: z.string().refine((value) => !Number.i
  *   - pausesNotLifted: paused customer shops whose pause ended more than an
  *     hour ago, so the hourly lift failed for them (it tries again each hour);
  *   - jobs: a job whose newest run failed, that has not run within the hour,
- *     or that is not scheduled (staff_job_runs).
+ *     or that is not scheduled (staff_job_runs). A failed run says why, so
+ *     whoever sees the bell can pass the words on; it goes to Sentry once.
  * Empty lists mean the hourly jobs are running.
  */
 export async function GET(request: NextRequest) {
@@ -48,7 +53,14 @@ export async function GET(request: NextRequest) {
         : [];
     });
 
-    return NextResponse.json({ pausesNotLifted, jobs: jobProblems(z.array(jobRunSchema).parse(runs.data), nowMs) });
+    const jobs = jobProblems(z.array(jobRunSchema).parse(runs.data), nowMs);
+    for (const failed of freshFailures(jobs, sentToSentry, nowMs)) {
+      Sentry.captureException(new Error(`Hourly job ${failed.job} failed`), {
+        fingerprint: ["hourly-job-failed", failed.job],
+        extra: { started: failed.last_run, message: failed.message },
+      });
+    }
+    return NextResponse.json({ pausesNotLifted, jobs });
   } catch (error) {
     console.error("Hourly jobs check API error:", error);
     return NextResponse.json({ error: "Failed to check the hourly jobs" }, { status: 500 });
