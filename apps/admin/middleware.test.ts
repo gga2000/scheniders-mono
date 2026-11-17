@@ -139,7 +139,9 @@ describe("middleware access check", () => {
     expect(page.headers.get("location")).toBeNull();
     const html = await page.text();
     expect(html).toContain("Could not check your access");
-    expect(html).toContain('href="/merchants?tab=all"');
+    expect(html).toContain('href="https://console.test/merchants?tab=all"');
+    // Round 16: a path of "//x" alone would link to another site.
+    expect(await (await call("//example.com/x")).text()).toContain('href="https://console.test//example.com/x"');
 
     const api = await call("/api/leads");
     expect(api.status).toBe(503);
@@ -441,6 +443,34 @@ describe("which addresses the middleware sees", () => {
     const seen = ["/favicon.icox", "/favicon.ico/x", "/faviconXico", "/_vercelx", "/_next/staticx", "/_next/imagex", "/support-sw.jsx", "/support-swXjs"];
     for (const url of seen) expect(sees(url), url).toBe(true);
     expect(sees("/_vercel/x"), "/_vercel/x").toBe(false);
+  });
+});
+
+describe("an encoded letter or slash in the path", () => {
+  // Round 16 (Reliability new 4, Sentry SCHENIDERS-1H): Next.js answered these
+  // with a 500 and an error to Sentry.
+  const redirect = async (path: string) => {
+    getUser = { data: { user: null }, error: { message: "must not be asked" } };
+    const answer = await call(path);
+    return { status: answer.status, location: answer.headers.get("location") };
+  };
+
+  it("sends the browser to the plain path first, its query kept, before any sign-in check", async () => {
+    expect(await redirect("/%6Ceads?status=new")).toEqual({ status: 308, location: "https://console.test/leads?status=new" });
+    expect(await redirect("/%6Cogin")).toEqual({ status: 308, location: "https://console.test/login" });
+    expect(await redirect("/api%2Fhourly-jobs")).toEqual({ status: 308, location: "https://console.test/api/hourly-jobs" });
+    expect(await redirect("/%61pi/cron/hourly-jobs")).toEqual({ status: 308, location: "https://console.test/api/cron/hourly-jobs" });
+  });
+
+  it("keeps the browser on the console", async () => {
+    expect(await redirect("/%2F%2Fexample.com")).toEqual({ status: 308, location: "https://console.test///example.com" });
+    expect(await redirect("/%5C%5Cexample.com")).toEqual({ status: 308, location: "https://console.test///example.com" });
+  });
+
+  it("leaves a plain path, and other encodings, to the usual checks", async () => {
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+    expect((await call("/merchants/%D8%A7")).headers.get("location")).toBe("https://console.test/login?next=%2Fmerchants%2F%25D8%25A7");
+    expect((await call("/api/leads/a%2Fb")).status).toBe(401);
   });
 });
 
