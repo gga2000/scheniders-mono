@@ -35,18 +35,33 @@ describe("prospectAddressBase: the name part the database makes", () => {
 });
 
 describe("prospectAddressBase follows the database", () => {
-  it("uses the same steps as the newest admin_build_prospect_store", () => {
-    const dir = path.resolve(__dirname, "../../../packages/supabase/migrations");
-    const newest = readdirSync(dir)
+  const dir = path.resolve(__dirname, "../../../packages/supabase/migrations");
+  const newestDefining = (fn: string) => {
+    const file = readdirSync(dir)
       .filter((f) => /^\d{14}_.*\.sql$/.test(f))
       .sort()
-      .filter((f) => /FUNCTION public\.admin_build_prospect_store\(/.test(readFileSync(path.join(dir, f), "utf8")))
+      .filter((f) => new RegExp(`CREATE (OR REPLACE )?FUNCTION public\\.${fn}\\(`).test(readFileSync(path.join(dir, f), "utf8")))
       .at(-1);
-    expect(newest).toBeDefined();
-    const sql = readFileSync(path.join(dir, newest ?? ""), "utf8");
+    expect(file).toBeDefined();
+    const sql = readFileSync(path.join(dir, file ?? ""), "utf8");
+    // Only this function's own definition, up to the end of its body.
+    const start = sql.search(new RegExp(`CREATE (OR REPLACE )?FUNCTION public\\.${fn}\\(`));
+    return sql.slice(start, sql.indexOf("$function$;", start));
+  };
+
+  it("uses the same steps as the newest store_address_base", () => {
+    const sql = newestDefining("store_address_base");
     expect(sql).toContain("'[^a-z0-9]+', '-', 'g'");
-    expect(sql).toContain("trim(both '-' from left(_slug_base, 40))");
-    expect(sql).toContain("_slug_base := 'store'");
-    expect(sql).toContain("substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)");
+    expect(sql).toContain("trim(both '-' from left(_base, 40))");
+    expect(sql).toContain("coalesce(nullif(_base, ''), 'store')");
+  });
+
+  it("is the rule both Build Store and converting a lead use, with 8 random characters after it", () => {
+    for (const fn of ["admin_build_prospect_store", "convert_lead_atomic"]) {
+      const sql = newestDefining(fn);
+      expect(sql).toContain("_slug_base := public.store_address_base(");
+      expect(sql).toContain("_slug_base || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)");
+      expect(sql).not.toContain("regexp_replace(");
+    }
   });
 });

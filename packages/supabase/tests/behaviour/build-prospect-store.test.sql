@@ -1,5 +1,6 @@
 -- Behaviour test for admin_build_prospect_store (staff console audit,
--- rounds 6 and 7), run against the newest definition in
+-- rounds 6 and 7) and convert_lead_atomic (round 8), run against the newest
+-- definitions in
 -- packages/supabase/migrations (run.sh). Every check raises on a wrong
 -- result, so psql -v ON_ERROR_STOP=1 fails.
 --
@@ -17,7 +18,12 @@
 --   only the service role may call it;
 --   the build passes the live triggers on the rows it writes, and they do
 --   their part: each priced product gets its first price line and a
---   "created" line, and the lead's score counts its new store (round 7).
+--   "created" line, and the lead's score counts its new store (round 7);
+--   converting a lead makes its web address by the same rule as Build Store
+--   (store_address_base: cut at 40, "store-" for Arabic only), with its
+--   wallet, 30-day subscription, history line and owner's pending
+--   commission; a prospect shop is turned into the merchant; a second
+--   convert writes nothing; only the service role may convert (round 8).
 
 \set ON_ERROR_STOP 1
 
@@ -66,6 +72,12 @@ CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TR
 CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.lead_activities
     FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
 CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.admin_activity_logs
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.subscriptions
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.admin_commission_config
+    FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
+CREATE TRIGGER zz_support_view_read_only BEFORE INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.admin_employee_commissions
     FOR EACH STATEMENT EXECUTE FUNCTION public.support_view_block_writes();
 
 INSERT INTO public.leads (id, merchant_name, status, page_phone, phone_numbers, address, city, converted_tenant_id) VALUES
@@ -252,9 +264,122 @@ BEGIN
 END;
 $t$;
 
+-- Converting a lead (convert_lead_atomic) makes the web address by the same
+-- rule as Build Store.
+INSERT INTO public.user_profiles (id, email) VALUES
+  ('a0000000-0000-4000-8000-00000000000b', 'noor@x.test');
+INSERT INTO public.admin_commission_config (id, name, is_active) VALUES
+  ('e0000000-0000-4000-8000-000000000001', 'Per order', true);
+INSERT INTO public.leads (id, merchant_name, status, assigned_to) VALUES
+  ('b0000000-0000-4000-8000-000000000011', 'The best shoes and bags shop in all of Baghdad and Basra', 'interested',
+   'a0000000-0000-4000-8000-00000000000b'),
+  ('b0000000-0000-4000-8000-000000000012', 'عطور النجف', 'interested', NULL);
+
+DO $c$
+DECLARE
+    karrar constant uuid := 'a0000000-0000-4000-8000-00000000000a';
+    noor constant uuid := 'a0000000-0000-4000-8000-00000000000b';
+    l1 constant uuid := 'b0000000-0000-4000-8000-000000000001';
+    c1 constant uuid := 'b0000000-0000-4000-8000-000000000011';
+    c2 constant uuid := 'b0000000-0000-4000-8000-000000000012';
+    answer jsonb;
+    again jsonb;
+    shop public.tenants%ROWTYPE;
+    lead public.leads%ROWTYPE;
+    prospect uuid;
+    n integer;
+BEGIN
+    -- The one copy of the steps, with the console's own cases.
+    IF public.store_address_base('NATTY FASHION') <> 'natty-fashion'
+       OR public.store_address_base(' Zara Baghdad!! ') <> 'zara-baghdad'
+       OR public.store_address_base('abcdefghij abcdefghij abcdefghij abcdefg xyz') <> 'abcdefghij-abcdefghij-abcdefghij-abcdefg'
+       OR public.store_address_base('النمور ستور') <> 'store'
+       OR public.store_address_base(NULL) <> 'store' THEN
+        RAISE EXCEPTION 'store_address_base steps';
+    END IF;
+
+    -- A long Latin name is cut at 40, so the address fits a web address part.
+    answer := public.convert_lead_atomic(c1, karrar, ' Signed on the call ');
+    IF answer->>'outcome' <> 'converted' THEN RAISE EXCEPTION 'convert: %', answer; END IF;
+    SELECT * INTO shop FROM public.tenants WHERE id = (answer->>'tenant_id')::uuid;
+    IF shop.slug !~ '^the-best-shoes-and-bags-shop-in-all-of-b-[0-9a-f]{8}$' OR length(shop.slug) > 49 THEN
+        RAISE EXCEPTION 'converted long name address: %', shop.slug;
+    END IF;
+    IF shop.business_name <> 'The best shoes and bags shop in all of Baghdad and Basra' OR shop.plan <> 'starter'
+       OR shop.status <> 'active' OR shop.is_prospect OR shop.prospect_lead_id <> c1 THEN
+        RAISE EXCEPTION 'converted shop row: %', to_jsonb(shop);
+    END IF;
+    SELECT count(*) INTO n FROM public.wallet WHERE tenant_id = shop.id AND balance_iqd = 0 AND threshold_iqd = 5000;
+    IF n <> 1 THEN RAISE EXCEPTION 'converted wallet missing'; END IF;
+    SELECT count(*) INTO n FROM public.subscriptions
+    WHERE tenant_id = shop.id AND plan = 'starter' AND status = 'active'
+      AND current_period_end - current_period_start = interval '30 days';
+    IF n <> 1 THEN RAISE EXCEPTION 'converted subscription missing'; END IF;
+    SELECT * INTO lead FROM public.leads WHERE id = c1;
+    IF lead.converted_tenant_id <> shop.id OR lead.status <> 'converted' OR lead.converted_at IS NULL THEN
+        RAISE EXCEPTION 'lead not converted: %', to_jsonb(lead);
+    END IF;
+    SELECT count(*) INTO n FROM public.lead_activities
+    WHERE lead_id = c1 AND activity_type = 'conversion' AND description = 'Signed on the call'
+      AND metadata = jsonb_build_object('tenant_id', shop.id, 'plan', 'starter') AND created_by = karrar;
+    IF n <> 1 THEN RAISE EXCEPTION 'conversion history line missing'; END IF;
+    SELECT count(*) INTO n FROM public.admin_employee_commissions
+    WHERE admin_user_id = noor AND lead_id = c1 AND tenant_id = shop.id AND status = 'pending'
+      AND commission_config_id = 'e0000000-0000-4000-8000-000000000001' AND amount_earned = 0;
+    IF n <> 1 THEN RAISE EXCEPTION 'owner commission missing'; END IF;
+    -- The new shop is a real merchant, so the one-trial check keeps its identifiers.
+    IF (SELECT count(*) FROM public.test_fingerprint_calls WHERE tenant_id = shop.id) <> 1 THEN
+        RAISE EXCEPTION 'one-trial check skipped the converted shop';
+    END IF;
+
+    -- A second convert finds the first one and writes nothing.
+    again := public.convert_lead_atomic(c1, karrar, NULL);
+    IF again <> jsonb_build_object('outcome', 'already_converted', 'tenant_id', shop.id) THEN
+        RAISE EXCEPTION 'second convert: %', again;
+    END IF;
+    IF (SELECT count(*) FROM public.tenants WHERE prospect_lead_id = c1) <> 1
+       OR (SELECT count(*) FROM public.subscriptions WHERE tenant_id = shop.id) <> 1
+       OR (SELECT count(*) FROM public.admin_employee_commissions WHERE lead_id = c1) <> 1
+       OR (SELECT count(*) FROM public.lead_activities WHERE lead_id = c1) <> 1 THEN
+        RAISE EXCEPTION 'a second convert wrote rows';
+    END IF;
+
+    -- A name in Arabic letters only gets "store-"; no owner, no commission.
+    answer := public.convert_lead_atomic(c2, karrar, NULL);
+    SELECT * INTO shop FROM public.tenants WHERE id = (answer->>'tenant_id')::uuid;
+    IF shop.slug !~ '^store-[0-9a-f]{8}$' THEN RAISE EXCEPTION 'converted Arabic name address: %', shop.slug; END IF;
+    IF EXISTS (SELECT 1 FROM public.admin_employee_commissions WHERE lead_id = c2) THEN
+        RAISE EXCEPTION 'a lead with no owner made a commission';
+    END IF;
+
+    -- A lead with a prospect shop keeps that shop and its address.
+    SELECT prospect_tenant_id INTO prospect FROM public.leads WHERE id = l1;
+    answer := public.convert_lead_atomic(l1, karrar, NULL);
+    SELECT * INTO shop FROM public.tenants WHERE id = prospect;
+    IF (answer->>'tenant_id')::uuid <> prospect OR shop.is_prospect OR shop.status <> 'active'
+       OR shop.slug !~ '^kut-perfumes-[0-9a-f]{8}$' THEN
+        RAISE EXCEPTION 'prospect shop convert: % %', answer, to_jsonb(shop);
+    END IF;
+
+    -- Only the service role may convert.
+    PERFORM set_config('test.role', 'authenticated', true);
+    BEGIN
+        PERFORM public.convert_lead_atomic('b0000000-0000-4000-8000-000000000008', karrar, NULL);
+        RAISE EXCEPTION 'a signed-in browser converted a lead';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
+    PERFORM set_config('test.role', '', true);
+END;
+$c$;
+
 -- The browser roles have no EXECUTE.
 DO $g$
 BEGIN
+    IF has_function_privilege('authenticated', 'public.store_address_base(text)', 'EXECUTE')
+       OR has_function_privilege('anon', 'public.store_address_base(text)', 'EXECUTE') THEN
+        RAISE EXCEPTION 'browser roles can call store_address_base';
+    END IF;
     IF has_function_privilege('authenticated', 'public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text, text, text, uuid, text)', 'EXECUTE')
        OR has_function_privilege('anon', 'public.admin_build_prospect_store(uuid, text, text, jsonb, uuid, text, text, text, uuid, text)', 'EXECUTE') THEN
         RAISE EXCEPTION 'browser roles can call admin_build_prospect_store';

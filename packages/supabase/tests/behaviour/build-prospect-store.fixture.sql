@@ -1,4 +1,5 @@
--- Throwaway Postgres database for admin_build_prospect_store: leads, industries, shops,
+-- Throwaway Postgres database for admin_build_prospect_store and
+-- convert_lead_atomic: leads, industries, shops, subscriptions, commissions,
 -- products, wallets, lead history and the staff log, with the columns, keys
 -- and checks the function touches as they are live (information_schema,
 -- 2026-11-17). The columns and tables the live triggers on those tables read
@@ -34,6 +35,9 @@ CREATE TYPE public.lead_activity_type AS ENUM (
 CREATE TYPE public.plan_tier AS ENUM ('starter', 'growth', 'professional', 'enterprise', 'internal');
 CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'suspended', 'cancelled', 'limited');
 CREATE TYPE public.lead_tier AS ENUM ('bronze', 'silver', 'gold', 'diamond', 'legendary');
+CREATE TYPE public.subscription_status AS ENUM ('trialing', 'active', 'past_due', 'cancelled', 'incomplete');
+CREATE TYPE public.commission_type AS ENUM ('per_order', 'percentage', 'tiered_bonus', 'custom');
+CREATE TYPE public.commission_status AS ENUM ('pending', 'approved', 'paid');
 CREATE TYPE public.lead_source_platform AS ENUM (
     'instagram', 'facebook', 'tiktok', 'snapchat', 'youtube', 'twitter', 'linkedin', 'website',
     'referral', 'cold_call', 'other'
@@ -56,6 +60,7 @@ CREATE TABLE public.leads (
     prospect_tenant_id uuid,
     store_built_at timestamptz,
     converted_tenant_id uuid,
+    converted_at timestamptz,
     updated_at timestamptz NOT NULL DEFAULT now(),
     -- Read and written by the lead triggers (trg_leads_before_upsert, trg_leads_after_upsert).
     platform public.lead_source_platform NOT NULL DEFAULT 'instagram',
@@ -207,3 +212,57 @@ CREATE TABLE public.product_activity_log (
     user_id uuid,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Written by convert_lead_atomic.
+CREATE TABLE public.subscriptions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    plan public.plan_tier NOT NULL,
+    status public.subscription_status NOT NULL,
+    current_period_start timestamptz NOT NULL,
+    current_period_end timestamptz NOT NULL,
+    cancel_at timestamptz,
+    cancelled_at timestamptz,
+    pending_plan public.plan_tier,
+    plan_change_at timestamptz,
+    cancellation_reason text,
+    cancellation_feedback text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    auto_renew boolean NOT NULL DEFAULT true
+);
+CREATE TABLE public.admin_commission_config (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name text NOT NULL,
+    type public.commission_type NOT NULL DEFAULT 'per_order',
+    config jsonb NOT NULL DEFAULT '{}'::jsonb,
+    is_active boolean NOT NULL DEFAULT false,
+    created_by uuid REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.admin_employee_commissions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id uuid NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    lead_id uuid REFERENCES public.leads(id) ON DELETE SET NULL,
+    tenant_id uuid REFERENCES public.tenants(id) ON DELETE SET NULL,
+    commission_config_id uuid REFERENCES public.admin_commission_config(id) ON DELETE SET NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    orders_count integer NOT NULL DEFAULT 0,
+    order_revenue integer NOT NULL DEFAULT 0,
+    amount_earned integer NOT NULL DEFAULT 0,
+    status public.commission_status NOT NULL DEFAULT 'pending',
+    paid_at timestamptz,
+    paid_by uuid REFERENCES public.user_profiles(id) ON DELETE SET NULL,
+    notes text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT period_valid CHECK (period_start <= period_end)
+);
+
+-- A converted lead's new shop is not a prospect, so the one-trial check
+-- (trial_check_run, bound in the test) keeps its identifiers. That step is
+-- the trial-check suite's; here a stand-in notes each call.
+CREATE TABLE public.test_fingerprint_calls (tenant_id uuid NOT NULL);
+CREATE FUNCTION public.trial_fingerprints_refresh(_tenant_id uuid) RETURNS void
+LANGUAGE sql AS $$ INSERT INTO public.test_fingerprint_calls (tenant_id) VALUES (_tenant_id) $$;

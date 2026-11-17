@@ -4,8 +4,9 @@ import { storeAddress } from "@scheniders/shared/store-address";
 export const PROSPECT_ADDRESS_SUFFIX_LENGTH = 8;
 
 /**
- * The name part of a prospect store's web address, made the way the newest
- * `admin_build_prospect_store` migration makes it (the test checks): Latin letters and
+ * The name part of a new store's web address, made the way the database's
+ * `store_address_base` makes it for Build Store and for converting a lead
+ * (the test checks): Latin letters and
  * digits in lower case, every other run of characters one "-", cut at 40
  * characters with no "-" at either end, and "store" when nothing is left
  * (a name in Arabic letters only).
