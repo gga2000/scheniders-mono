@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
+import type { BulkLeadBody } from "@/lib/lead-bulk";
 
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -64,18 +65,34 @@ export function useDeleteLead() {
   });
 }
 
+/**
+ * A bulk refusal with what the bar needs to ask again: "Assign to me" over
+ * leads someone else owns answers how many, and moves nothing until asked.
+ */
+export class BulkLeadError extends Error {
+  constructor(
+    message: string,
+    readonly ownedByOthers: number | null,
+  ) {
+    super(message);
+  }
+}
+
 export function useBulkLeadAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { lead_ids: string[]; action: string; payload?: Record<string, unknown> }) => {
+    mutationFn: async (body: BulkLeadBody) => {
       const res = await adminFetch("/api/leads/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Bulk action failed");
+        const err: { error?: unknown; owned_by_others?: unknown } = await res.json().catch(() => ({}));
+        throw new BulkLeadError(
+          typeof err.error === "string" ? err.error : "Bulk action failed",
+          typeof err.owned_by_others === "number" ? err.owned_by_others : null,
+        );
       }
       return res.json();
     },

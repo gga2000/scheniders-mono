@@ -30,6 +30,7 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",
   "merchants/[id]/route.ts PATCH": "admin_update_shop",
+  "leads/[id]/route.ts PATCH": "admin_change_leads",
 };
 
 /** Handlers that write no staff log row, each with why. */
@@ -73,13 +74,15 @@ function newestDefinition(fn: string): string {
     .filter((file) => file.endsWith(".sql"))
     .sort()
     .reverse();
-  const start = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${fn}\\(`, "i");
+  // A migration that changes a function's arguments drops it and uses plain
+  // CREATE FUNCTION; reading only CREATE OR REPLACE found an older body.
+  const start = new RegExp(`CREATE (OR REPLACE )?FUNCTION public\\.${fn}\\(`, "i");
   for (const file of files) {
     const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
     const at = sql.search(start);
     if (at === -1) continue;
     const rest = sql.slice(at + 1);
-    const next = rest.search(/CREATE OR REPLACE FUNCTION /i);
+    const next = rest.search(/CREATE (OR REPLACE )?FUNCTION /i);
     return next === -1 ? rest : rest.slice(0, next);
   }
   return "";

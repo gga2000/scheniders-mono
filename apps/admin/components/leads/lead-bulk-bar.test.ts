@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
  */
 
 vi.mock("@/hooks/use-lead-mutations", () => ({
+  BulkLeadError: class extends Error {},
   useBulkLeadAction: () => ({ mutate: () => {}, isPending: false }),
 }));
 
