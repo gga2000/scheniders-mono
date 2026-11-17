@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
+import { LoadError } from "@/components/shared/load-error";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
@@ -100,7 +101,7 @@ function EmptyState() {
 // ── Main page ─────────────────────────────────────────────────────────
 
 export default function LeadAnalyticsPage() {
-  const { data, isLoading } = useLeadAnalytics();
+  const { data, isError, error, refetch, isFetching } = useLeadAnalytics();
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -111,9 +112,11 @@ export default function LeadAnalyticsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {isError ? (
+        <LoadError what="the lead numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />
+      ) : !data ? (
         <LoadingState />
-      ) : !data || data.total_leads === 0 ? (
+      ) : data.total_leads === 0 ? (
         <EmptyState />
       ) : (
         <AnalyticsDashboard data={data} />

@@ -13,7 +13,7 @@ import { SupportScoreboardView } from "@/components/support/support-scoreboard";
 import { SupportNeedsUs } from "@/components/support/support-needs-us";
 import { SupportToday } from "@/components/support/support-today";
 import { SupportNoticeBar } from "@/components/support/support-notice-bar";
-import type { ScoreboardDays } from "@/lib/support";
+import { waitingOnUsLine, type ScoreboardDays } from "@/lib/support";
 
 type View = "open" | "solved" | "needs" | "today" | "scoreboard";
 
@@ -54,7 +54,6 @@ function SupportInbox() {
   const inbox = view === "open" || view === "solved";
   const activeId = inbox ? (selectedId ?? cases[0]?.id ?? null) : null;
   const detail = useSupportCase(activeId);
-  const waiting = list.data?.waitingOnUs ?? 0;
   const needsUs = useSupportNeedsUs().data?.length ?? 0;
   const tasks = useSupportTasks().data;
   const myCalls = tasks ? tasks.tasks.filter((t) => t.owner_id === tasks.me).length : 0;
@@ -65,11 +64,7 @@ function SupportInbox() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Support</h1>
           <p className="text-[13px] text-foreground/70">
-            {list.isLoading
-              ? "Loading..."
-              : waiting === 0
-                ? "No merchant is waiting on us."
-                : `${waiting} merchant${waiting === 1 ? "" : "s"} waiting on us`}
+            {waitingOnUsLine({ count: list.data?.waitingOnUs, isError: list.isError })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

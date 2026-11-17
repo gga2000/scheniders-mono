@@ -18,6 +18,7 @@ import {
   filePaths,
   sortInbox,
   supportRefusal,
+  waitingOnUsLine,
   supportTimeline,
   type SupportCaseNote,
   type SupportCaseRow,
@@ -325,5 +326,19 @@ describe("supportTimeline", () => {
       [note("n1", "2026-11-16T18:59:00.123456+00:00")],
     );
     expect(items.map((i) => i.type)).toEqual(["note", "message"]);
+  });
+});
+
+describe("waitingOnUsLine", () => {
+  it("counts the merchants waiting on us", () => {
+    expect(waitingOnUsLine({ count: 0, isError: false })).toBe("No merchant is waiting on us.");
+    expect(waitingOnUsLine({ count: 1, isError: false })).toBe("1 merchant waiting on us");
+    expect(waitingOnUsLine({ count: 3, isError: false })).toBe("3 merchants waiting on us");
+  });
+
+  it("says nobody is waiting only when the read answered", () => {
+    expect(waitingOnUsLine({ count: undefined, isError: false })).toBe("Loading...");
+    expect(waitingOnUsLine({ count: undefined, isError: true })).toBe("Could not check who is waiting on us");
+    expect(waitingOnUsLine({ count: 0, isError: true })).toBe("Could not check who is waiting on us");
   });
 });

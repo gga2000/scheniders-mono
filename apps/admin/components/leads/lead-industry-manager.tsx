@@ -12,6 +12,7 @@ import {
   useDeleteIndustry,
 } from "@/hooks/use-industries";
 import type { Industry } from "@/types/leads";
+import { LoadError } from "@/components/shared/load-error";
 import {
   X,
   Settings,
@@ -100,7 +101,7 @@ const INITIAL_FORM: NewIndustryFormData = {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProps) {
-  const { data: industries = [] } = useIndustries();
+  const { data: industries = [], isLoading, isError, error, refetch, isFetching } = useIndustries();
   const createIndustry = useCreateIndustry();
   const updateIndustry = useUpdateIndustry();
   const deleteIndustry = useDeleteIndustry();
@@ -391,7 +392,13 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
               {/* ── Industry List ───────────────────────────── */}
               <div className="px-6 py-4">
-                {sorted.length === 0 ? (
+                {isError ? (
+                  <LoadError compact what="the industries" error={error} onRetry={() => refetch()} retrying={isFetching} />
+                ) : isLoading ? (
+                  <div className="py-12 text-center">
+                    <p className="text-sm text-[var(--muted)]">Loading industries...</p>
+                  </div>
+                ) : sorted.length === 0 ? (
                   <div className="py-12 text-center">
                     <p className="text-sm text-[var(--muted)]">
                       No industries yet. Add one above.

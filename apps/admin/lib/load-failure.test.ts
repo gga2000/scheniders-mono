@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOAD_RETRIES, LoadFailure, loadFailureKind, okOrLoadFailure, shouldRetryLoad } from "./load-failure";
+import { LOAD_RETRIES, LoadFailure, countLine, loadFailureKind, okOrLoadFailure, shouldRetryLoad } from "./load-failure";
 
 /*
  * Round 1 of the staff console audit: a support login opening Billing got a
@@ -59,5 +59,23 @@ describe("shouldRetryLoad", () => {
     for (const status of [401, 403, 404]) {
       expect(shouldRetryLoad(0, new LoadFailure(status, "x"))).toBe(false);
     }
+  });
+});
+
+describe("countLine", () => {
+  const words = { loading: "loading", failed: "failed", counted: (n: number) => `${n} counted` };
+
+  it("writes the count once the read answered, 0 included", () => {
+    expect(countLine({ count: 0, isError: false }, words)).toBe("0 counted");
+    expect(countLine({ count: 7, isError: false }, words)).toBe("7 counted");
+  });
+
+  it("says the read is running before it answers", () => {
+    expect(countLine({ count: undefined, isError: false }, words)).toBe("loading");
+  });
+
+  it("says the read failed, not the count left from an earlier read", () => {
+    expect(countLine({ count: undefined, isError: true }, words)).toBe("failed");
+    expect(countLine({ count: 7, isError: true }, words)).toBe("failed");
   });
 });
