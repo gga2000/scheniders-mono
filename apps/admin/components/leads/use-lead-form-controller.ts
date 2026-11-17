@@ -7,6 +7,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
 import { isValidIraqiPhone } from "./lead-phone";
 import { leadFormChanges, normalizeLeadForm } from "./lead-form-data";
+import { LeadListsChangedError, type LeadList } from "@/lib/lead-update";
 
 export const EMPTY_PHONE: LeadPhoneNumber = { title: "", number: "" };
 export const EMPTY_BRANCH: LeadBranch = { name: "", city: "", address: "", phones: [{ ...EMPTY_PHONE }] };
@@ -45,6 +46,16 @@ export const DEFAULT_FORM: LeadFormData = {
 };
 
 export const ANALYZABLE_PLATFORMS = new Set(["instagram"]);
+
+/** `form` with `lists` taken from `from`. */
+function withLists(form: LeadFormData, from: LeadFormData, lists: readonly LeadList[]): LeadFormData {
+  const next = { ...form };
+  const take = <K extends LeadList>(list: K) => {
+    next[list] = from[list];
+  };
+  lists.forEach(take);
+  return next;
+}
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -88,6 +99,8 @@ export function useLeadFormController({
   // The form as it was on open: what a save is compared with, and how unsaved
   // edits are spotted so an accidental dismissal can be auto-saved as a draft.
   const [opened, setOpened] = useState<LeadFormData>(DEFAULT_FORM);
+  // The lists a save was refused over, until the colleague's copy arrives.
+  const [clash, setClash] = useState<LeadList[] | null>(null);
 
   const resetForm = useCallback(() => {
     const initial = initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM;
@@ -97,7 +110,21 @@ export function useLeadFormController({
     setAnalyzeError(null);
     setAnalyzeSuccess(false);
     setErrors({});
+    setClash(null);
   }, [initialData]);
+
+  // A save refused because a colleague changed lists meanwhile reads the lead
+  // again (useUpdateLead). Once their lists arrive they replace this form's
+  // copy, as shown and as opened; every other typed field stays, so the next
+  // Save sends this person's changes over the colleague's lists.
+  if (clash && initialData) {
+    const fresh: LeadFormData = { ...DEFAULT_FORM, ...initialData };
+    if (clash.some((list) => JSON.stringify(fresh[list]) !== JSON.stringify(opened[list]))) {
+      setOpened(withLists(opened, fresh, clash));
+      setForm((prev) => withLists(prev, fresh, clash));
+      setClash(null);
+    }
+  }
 
   /** True when the form differs from its opened state (has unsaved content). */
   const isDirty = JSON.stringify(form) !== JSON.stringify(opened);
@@ -262,6 +289,7 @@ export function useLeadFormController({
     const changes = leadFormChanges(opened, normalized);
 
     setSubmitting(true);
+    setClash(null);
     try {
       const result = await onSubmit(normalized, changes, opened);
       if (result === false) {
@@ -281,6 +309,12 @@ export function useLeadFormController({
         onClose();
       }
     } catch (error) {
+      if (error instanceof LeadListsChangedError) {
+        // Long enough to read: the form is about to show the colleague's lists.
+        setClash(error.lists);
+        toast.error(error.message, { duration: 15_000 });
+        return;
+      }
       // A refused save rejects with the server's own words ("A lead can only
       // go to an active staff member."); "try again" would never help there.
       toast.error(error instanceof Error && error.message ? error.message : "Something went wrong while saving.");

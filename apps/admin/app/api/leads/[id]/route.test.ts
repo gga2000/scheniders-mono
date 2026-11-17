@@ -172,15 +172,17 @@ describe("PATCH /api/leads/[id]", () => {
     });
   });
 
-  it("says which lists a colleague changed, and that nothing was saved", async () => {
+  it("says which lists a colleague changed, and that nothing was saved, and names them for the form", async () => {
     answer = { data: { success: false, error: "stale", stale: ["branches", "phone_numbers"] }, error: null };
 
     const res = await patch({ status: "contacted", phone_numbers: [], branches: [], was: { phone_numbers: [], branches: [] } });
 
     expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe(
-      "A colleague changed this lead's phones and branches while you had it open. Nothing was saved. Open the lead again to see their change, then make yours.",
-    );
+    expect(await res.json()).toEqual({
+      error:
+        "A colleague changed this lead's phones and branches while you had it open. Nothing was saved. The form now shows their phones and branches: make your change to them again, then save.",
+      stale: ["branches", "phone_numbers"],
+    });
   });
 
   it("refuses a field other than the lists in the copy as it opened", async () => {

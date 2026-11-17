@@ -8,6 +8,7 @@ vi.mock("sonner", () => ({ toast }));
 vi.mock("@/hooks/use-industries", () => ({ useIndustries: () => ({ data: [] }) }));
 vi.mock("@/lib/admin-fetch", () => ({ adminFetch: vi.fn() }));
 
+import { LeadListsChangedError } from "@/lib/lead-update";
 import { useLeadFormController, type LeadFormSubmitResult } from "./use-lead-form-controller";
 
 type Submit = (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => Promise<LeadFormSubmitResult>;
@@ -26,11 +27,11 @@ const lead = (over: Partial<LeadFormData> = {}): Partial<LeadFormData> => ({
   ...over,
 });
 
-function setup(onSubmit: Submit) {
+function setup(onSubmit: Submit, start = lead()) {
   const onClose = vi.fn();
   const view = renderHook(
     (props: Props) => useLeadFormController({ ...props, onSubmit, onClose }),
-    { initialProps: { open: true, initialData: lead() } },
+    { initialProps: { open: true, initialData: start } },
   );
   return { ...view, onClose };
 }
@@ -102,5 +103,56 @@ describe("useLeadFormController: the form starts over only when it opens", () =>
     expect(toast.info).toHaveBeenCalledWith("Nothing changed");
     expect(toast.success).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * Round 12 should-fix 8: after "A colleague changed this lead's tags" the form
+ * kept its old tags, so Save could only be refused again, and closing threw
+ * away everything typed. The form now takes the colleague's lists in, as shown
+ * and as opened, and keeps every other field this person typed.
+ */
+describe("useLeadFormController: a save refused over a colleague's lists", () => {
+  const CLASH = "A colleague changed this lead's tags while you had it open.";
+
+  it("takes the colleague's lists in once they arrive, and keeps every other typed field", async () => {
+    const onSubmit = vi
+      .fn<Submit>()
+      .mockRejectedValueOnce(new LeadListsChangedError(CLASH, ["tags"]))
+      .mockResolvedValueOnce(true);
+    const { result, rerender, onClose } = setup(onSubmit, lead({ tags: ["abaya"] }));
+    act(() => {
+      result.current.update("management_name", "Typed by me");
+      result.current.update("tags", ["abaya", "called"]);
+    });
+
+    await act(() => result.current.submit(false));
+    expect(toast.error).toHaveBeenCalledWith(CLASH, { duration: 15_000 });
+    expect(onClose).not.toHaveBeenCalled();
+
+    // The lead is read again; until the colleague's copy arrives nothing moves.
+    rerender({ open: true, initialData: lead({ tags: ["abaya"] }) });
+    expect(result.current.form.tags).toEqual(["abaya", "called"]);
+
+    rerender({ open: true, initialData: lead({ tags: ["abaya", "vip"] }) });
+    expect(result.current.form.tags).toEqual(["abaya", "vip"]);
+    expect(result.current.form.management_name).toBe("Typed by me");
+
+    // The next Save sends this person's field over the colleague's tags.
+    await act(() => result.current.submit(false));
+    expect(onSubmit.mock.calls[1][1]).toEqual({ management_name: "Typed by me" });
+    expect(onSubmit.mock.calls[1][2].tags).toEqual(["abaya", "vip"]);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the typed lists alone after any other refusal", async () => {
+    const onSubmit = vi.fn<Submit>().mockRejectedValueOnce(new Error("A lead can only go to an active staff member."));
+    const { result, rerender } = setup(onSubmit, lead({ tags: ["abaya"] }));
+    act(() => result.current.update("tags", ["abaya", "called"]));
+
+    await act(() => result.current.submit(false));
+    rerender({ open: true, initialData: lead({ tags: ["abaya", "vip"] }) });
+
+    expect(result.current.form.tags).toEqual(["abaya", "called"]);
   });
 });

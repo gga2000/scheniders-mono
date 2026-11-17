@@ -88,11 +88,33 @@ export const leadPatchSchema = leadUpdateSchema.extend({ was: listsAsOpenedSchem
 
 const LIST_WORDS: Record<LeadList, string> = { phone_numbers: "phones", tags: "tags", branches: "branches" };
 
-/** "A colleague changed this lead's tags while you had it open. ..." */
+/**
+ * "A colleague changed this lead's tags while you had it open. ..." The form
+ * then takes their lists in and keeps everything else that was typed.
+ */
 export function listsChangedText(lists: readonly string[]): string {
   const words = LEAD_LISTS.filter((list) => lists.includes(list)).map((list) => LIST_WORDS[list]);
   const named = words.length > 0 ? wordList(words) : "lists";
-  return `A colleague changed this lead's ${named} while you had it open. Nothing was saved. Open the lead again to see their change, then make yours.`;
+  return `A colleague changed this lead's ${named} while you had it open. Nothing was saved. The form now shows their ${named}: make your change to them again, then save.`;
+}
+
+/** A save refused because a colleague changed these lists since the form opened. */
+export class LeadListsChangedError extends Error {
+  constructor(
+    message: string,
+    readonly lists: LeadList[],
+  ) {
+    super(message);
+  }
+}
+
+const refusedSaveSchema = z.object({ error: z.string(), stale: z.array(z.enum(LEAD_LISTS)).optional() });
+
+/** The error a refused lead save answers with: the server's words, and the lists that clashed. */
+export async function leadSaveRefusal(res: Response, fallback: string): Promise<Error> {
+  const body = refusedSaveSchema.safeParse(await res.json().catch(() => null));
+  if (!body.success) return new Error(fallback);
+  return body.data.stale?.length ? new LeadListsChangedError(body.data.error, body.data.stale) : new Error(body.data.error);
 }
 
 /**

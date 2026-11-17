@@ -123,7 +123,8 @@ export async function PATCH(
     // colleague changed since the form opened is refused before anything is
     // written, and an error undoes the whole save, status and owner included.
     const saved = await saveLead(supabase, id, { status, owner: assigned_to, changes: rest, was }, admin.user);
-    if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: saved.status });
+    // A clash names its lists, so the form can take the colleague's in.
+    if (!saved.ok) return NextResponse.json({ error: saved.error, stale: saved.stale }, { status: saved.status });
 
     // The form reads the lead again itself, so a read here could only fail
     // after the save and say it had not saved.
