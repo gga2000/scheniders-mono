@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /*
@@ -7,15 +8,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * page with no reason. A failed answer on a browser with no session left now
  * reloads the page once, and the middleware sends it to the login page.
  */
-const auth = vi.hoisted(() => ({ session: null as { access_token: string } | null }));
+const auth = vi.hoisted(() => ({ session: null as { access_token: string } | null, error: null as Error | null }));
 vi.mock("@supabase/ssr", () => ({
-  createBrowserClient: () => ({ auth: { getSession: async () => ({ data: { session: auth.session } }) } }),
+  createBrowserClient: () => ({
+    auth: { getSession: async () => ({ data: { session: auth.session }, error: auth.error }) },
+  }),
 }));
 
 const reload = vi.fn();
 beforeEach(() => {
   vi.resetModules();
   reload.mockClear();
+  auth.error = null;
   vi.stubGlobal("location", { ...window.location, reload });
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -33,6 +37,27 @@ describe("leaveIfSignedOut", () => {
     const { leaveIfSignedOut } = await import("./admin-fetch");
     await leaveIfSignedOut();
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Round 15: a laptop woke with an out-of-date token on a network that passed
+   * nothing. The refresh failed, the session stayed in the browser, and the page
+   * reloaded onto the browser's error page with the typing lost.
+   */
+  it("keeps the page when the session could not be checked: a refresh that did not reach the auth server", async () => {
+    auth.session = null;
+    auth.error = new AuthRetryableFetchError("Failed to fetch", 0);
+    const { leaveIfSignedOut } = await import("./admin-fetch");
+    await leaveIfSignedOut();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("leaves when the auth server refused the refresh, which drops the session", async () => {
+    auth.session = null;
+    auth.error = new AuthApiError("Invalid Refresh Token: Refresh Token Not Found", 400, "refresh_token_not_found");
+    const { leaveIfSignedOut } = await import("./admin-fetch");
+    await leaveIfSignedOut();
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
 

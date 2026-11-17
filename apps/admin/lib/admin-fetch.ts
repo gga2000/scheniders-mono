@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 
 let _client: ReturnType<typeof createBrowserClient> | null = null;
 
@@ -19,13 +20,19 @@ let leaving = false;
  * otherwise staff meet "Could not load" lines and "?" badges on a page that can
  * never load again. A failure while a session is still held is the caller's to
  * show, so this never reloads in a loop.
+ *
+ * An out-of-date token whose refresh could not reach the auth server (a network
+ * blip, a 502) answers no session with a retryable error, and the session stays
+ * in the browser: "could not check" is not "signed out", so the page and what
+ * was typed on it stay. A refused refresh drops the session, and the page leaves.
  */
 export async function leaveIfSignedOut(): Promise<void> {
   if (leaving) return;
   const {
     data: { session },
+    error,
   } = await getBrowserClient().auth.getSession();
-  if (session || leaving) return;
+  if (session || isAuthRetryableFetchError(error) || leaving) return;
   leaving = true;
   window.location.reload();
 }
