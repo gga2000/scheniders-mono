@@ -22,7 +22,12 @@ export function pageAfterSignIn(next: string | null | undefined): string {
     return "/";
   }
   if (url.origin !== CONSOLE) return "/";
+  const page = url.pathname + url.search + url.hash;
+  // The page is checked in the form it is returned in, as the browser and the
+  // redirect will read it. Reading drops dot segments, so "/..//x" comes back
+  // as "//x": another site.
+  if (new URL(page, CONSOLE).href !== url.href) return "/";
   // The middleware treats every address under "/login" as the login page.
   if (url.pathname.startsWith("/login") || url.pathname.startsWith("/api/")) return "/";
-  return url.pathname + url.search + url.hash;
+  return page;
 }

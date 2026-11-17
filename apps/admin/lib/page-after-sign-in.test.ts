@@ -31,6 +31,26 @@ describe("pageAfterSignIn", () => {
     }
   });
 
+  it("never follows a dot segment that leaves another site's address behind", () => {
+    // Round 16 (Security new 1): each of these reads as "//example.com".
+    for (const next of [
+      "/.//example.com",
+      "/..//example.com",
+      "/%2e//example.com",
+      "/%2E%2E//example.com",
+      "/a/..//example.com/x?y=1",
+      "/./\\example.com",
+      "/.\\/example.com",
+    ]) {
+      expect(pageAfterSignIn(next), next).toBe("/");
+    }
+  });
+
+  it("follows a dot segment that stays on a console page", () => {
+    expect(pageAfterSignIn("/merchants/../leads?status=new")).toBe("/leads?status=new");
+    expect(pageAfterSignIn("/a/../login")).toBe("/");
+  });
+
   it("never goes back to the login page or to the API", () => {
     expect(pageAfterSignIn("/login")).toBe("/");
     expect(pageAfterSignIn("/login?error=expired")).toBe("/");

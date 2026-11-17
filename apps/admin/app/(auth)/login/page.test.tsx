@@ -98,6 +98,12 @@ describe("the login page", () => {
     expect(push).toHaveBeenCalledWith("/");
   });
 
+  // Round 16 (Security new 1): the push went to "//example.com".
+  it("never follows a dot segment to another site", () => {
+    open("/login?next=%2F..%2F%2Fexample.com", { id: "u1" });
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
   it("ignores a reason it does not know", () => {
     open("/login?error=constructor", null);
     expect(screen.queryByRole("alert")).toBeNull();
