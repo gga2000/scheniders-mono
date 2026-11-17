@@ -886,7 +886,7 @@ describe("support view as merchant", () => {
     expect(dbCalls).toHaveLength(0);
   });
 
-  it("opens the shop with my own viewer, logs the visit the merchant sees, and answers a one-time link", async () => {
+  it("opens the shop with my own viewer, has the database log the visit the merchant sees, and answers a one-time link", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
@@ -904,17 +904,15 @@ describe("support view as merchant", () => {
     expect(url.searchParams.get("next")).toBe("/orders");
     expect(rpcCall()?.args).toEqual([
       "support_view_start",
-      { p_admin_id: SUPPORT_ID, p_viewer_user_id: VIEWER, p_tenant_id: TENANT },
+      { p_admin_id: SUPPORT_ID, p_viewer_user_id: VIEWER, p_tenant_id: TENANT, p_actor_email: "agent@example.com" },
     ]);
     expect(dbCalls.find((c) => c.method === "generateLink")?.args[0]).toEqual({
       type: "magiclink",
       email: `support-viewer-${SUPPORT_ID}@usefermi.com`,
     });
-    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
-      admin_user_id: SUPPORT_ID,
-      tenant_id: TENANT,
-      action: "support_view",
-    });
+    // support_view_start writes the support_view row with the look (support-view
+    // suite): the route writes none in a second request.
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
     expect(dbCalls.some((c) => c.method === "createUser")).toBe(false);
   });
 
@@ -962,15 +960,16 @@ describe("support view as merchant", () => {
     expect(dbCalls.some((c) => c.method === "generateLink")).toBe(false);
   });
 
-  it("ends my own look", async () => {
+  it("ends my own look, and the database logs it in the same step", async () => {
     dbResult = { data: 1, error: null };
     expect((await stop("support")).status).toBe(200);
-    expect(rpcCall()?.args).toEqual(["support_view_end", { p_admin_id: SUPPORT_ID }]);
-    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
-      admin_user_id: SUPPORT_ID,
-      action: "support_view_end",
-      details: { ended: 1 },
-    });
+    expect(rpcCall()?.args).toEqual(["support_view_end", { p_admin_id: SUPPORT_ID, p_actor_email: "agent@example.com" }]);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("answers 500 when the look cannot be ended", async () => {
+    dbResult = { data: null, error: { code: "XX000", message: "down" } };
+    expect((await stop("support")).status).toBe(500);
   });
 });
 

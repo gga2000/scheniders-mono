@@ -38,6 +38,8 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "industries/[id]/route.ts DELETE": "admin_remove_industry",
   "industries/[id]/route.ts PATCH": "admin_edit_industry",
   "industries/route.ts POST": "admin_add_industry",
+  "support/view/route.ts POST": "support_view_start",
+  "support/view/route.ts DELETE": "support_view_end",
 };
 
 /** Handlers that write no staff log row, each with why. */
