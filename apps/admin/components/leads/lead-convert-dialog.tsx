@@ -1,7 +1,7 @@
 "use client";
 
 import { PlatformChip } from "@/components/leads/lead-chips";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useEffectEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
@@ -13,12 +13,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Store,
-  Phone,
-  UserPlus,
-  Wallet,
-  ArrowRightCircle,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { EASE_CHROME, STAGGER_CHILDREN } from "@/lib/animation-constants";
 
@@ -45,14 +40,14 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
   const [notes, setNotes] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Reset on open
+  // Start over when the dialog opens, and only then.
+  const resetOnOpen = useEffectEvent(() => {
+    setNotes("");
+    setShowSuccess(false);
+    convertLead.reset();
+  });
   useEffect(() => {
-    if (isOpen) {
-      setNotes("");
-      setShowSuccess(false);
-      convertLead.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
+    if (isOpen) resetOnOpen();
   }, [isOpen]);
 
   // Build checklist

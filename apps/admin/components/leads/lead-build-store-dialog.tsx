@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useEffectEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -83,21 +83,23 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
   const addressFrom = mode === "advanced" && customSlug.trim() ? customSlug : businessName;
   const addressPreview = prospectAddressPreview(addressFrom);
 
-  // Reset form when dialog opens
+  // Start from the lead when the dialog opens, and only then: a fresh read of
+  // the lead while it is open (a colleague's edit, a refetch on focus) keeps
+  // what was typed.
+  const resetOnOpen = useEffectEvent(() => {
+    setMode("quick");
+    setBusinessName(lead.merchant_name);
+    setIndustryId(lead.industry_id ?? "");
+    setTemplate("general");
+    setCustomSlug("");
+    setDescription("");
+    setPrimaryColor("#1E1E1E");
+    setProducts([emptyProduct()]);
+    buildStore.reset();
+  });
   useEffect(() => {
-    if (isOpen) {
-      setMode("quick");
-      setBusinessName(lead.merchant_name);
-      setIndustryId(lead.industry_id ?? "");
-      setTemplate("general");
-      setCustomSlug("");
-      setDescription("");
-      setPrimaryColor("#1E1E1E");
-      setProducts([emptyProduct()]);
-      buildStore.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
-  }, [isOpen, lead]);
+    if (isOpen) resetOnOpen();
+  }, [isOpen]);
 
   // Product row helpers
   const addProduct = () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { UserPlus, X, Loader2, Shield, LifeBuoy } from "lucide-react";
@@ -36,15 +36,16 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
   const [adminRole, setAdminRole] = useState<AdminRole>("support_staff");
   const [password, setPassword] = useState("");
 
+  // Start over when the dialog opens, and only then.
+  const resetOnOpen = useEffectEvent(() => {
+    setEmail("");
+    setDisplayName("");
+    setAdminRole("support_staff");
+    setPassword("");
+    addAdminUser.reset();
+  });
   useEffect(() => {
-    if (isOpen) {
-      setEmail("");
-      setDisplayName("");
-      setAdminRole("support_staff");
-      setPassword("");
-      addAdminUser.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
+    if (isOpen) resetOnOpen();
   }, [isOpen]);
 
   const handleSubmit = () => {
