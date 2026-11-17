@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDay, formatDayTime, formatIQD, formatUntil, formatWhen } from "./format";
+import { formatCount, formatDay, formatDayTime, formatIQD, formatUntil, formatUntilDay, formatWhen } from "./format";
 
 describe("formatIQD", () => {
   it("writes whole dinars with commas and IQD after", () => {
@@ -76,5 +76,29 @@ describe("formatUntil", () => {
 
   it("says ended once the time has passed", () => {
     expect(formatUntil("2026-11-16T09:59:00Z", now)).toBe("ended");
+  });
+});
+
+describe("formatUntilDay", () => {
+  // Tue 17 Nov, 22:00 in Baghdad.
+  const now = new Date("2026-11-17T19:00:00Z");
+
+  it("counts Baghdad days past one day, as the Trials page does", () => {
+    // Ends Fri 20 Nov, 06:00 Baghdad: Trials says "3 days left"; whole 24-hour spans said "in 2 days".
+    expect(formatUntil("2026-11-20T03:00:00Z", now)).toBe("in 2 days");
+    expect(formatUntilDay("2026-11-20T03:00:00Z", now)).toBe("in 3 days");
+    // Ends Thu 19 Nov, 23:00 Baghdad: 49 hours, two days on the calendar.
+    expect(formatUntilDay("2026-11-19T20:00:00Z", now)).toBe("in 2 days");
+  });
+
+  it("says tomorrow for more than a day that ends on the next Baghdad day", () => {
+    const justAfterMidnight = new Date("2026-11-16T21:30:00Z"); // Tue 17 Nov, 00:30 Baghdad
+    expect(formatUntilDay("2026-11-18T20:00:00Z", justAfterMidnight)).toBe("tomorrow");
+  });
+
+  it("keeps hours and minutes under a day, and ended once passed", () => {
+    expect(formatUntilDay("2026-11-18T03:00:00Z", now)).toBe("in 8 h");
+    expect(formatUntilDay("2026-11-17T19:40:00Z", now)).toBe("in 40 min");
+    expect(formatUntilDay("2026-11-17T18:59:00Z", now)).toBe("ended");
   });
 });
