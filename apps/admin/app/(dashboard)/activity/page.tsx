@@ -14,6 +14,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
 import { staffActionText } from "@/lib/staff-actions";
+import { ACTIVITY_KINDS, isActivityKind, type ActivityKind } from "@/lib/activity-kinds";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -28,7 +29,7 @@ interface ActivityLog {
   admin_label: string | null;
   actor_email: string | null;
   created_at: string;
-  business_name?: string;
+  business_name: string | null;
 }
 
 interface ActivityResponse {
@@ -37,23 +38,6 @@ interface ActivityResponse {
   page: number;
   limit: number;
 }
-
-/* ------------------------------------------------------------------ */
-/* Constants                                                           */
-/* ------------------------------------------------------------------ */
-
-const ACTION_OPTIONS = [
-  { value: "", label: "All Actions" },
-  { value: "login", label: "Login" },
-  { value: "create", label: "Create" },
-  { value: "update", label: "Update" },
-  { value: "delete", label: "Delete" },
-  { value: "top_up_wallet", label: "Top Up Wallet" },
-  { value: "change_plan", label: "Change Plan" },
-  { value: "extend_trial", label: "Extend Trial" },
-  { value: "suspend_tenant", label: "Suspend Tenant" },
-  { value: "impersonate", label: "Impersonate" },
-];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -118,16 +102,16 @@ function actorLabel(log: {
 
 export default function ActivityLogPage() {
   const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<ActivityKind | null>(null);
   const limit = 50;
 
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("limit", String(limit));
-  if (actionFilter) params.set("action", actionFilter);
+  if (kindFilter) params.set("kind", kindFilter);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ActivityResponse>({
-    queryKey: ["admin", "activity", page, actionFilter],
+    queryKey: ["admin", "activity", page, kindFilter],
     queryFn: async () => {
       const res = okOrLoadFailure(await fetch(`/api/activity?${params.toString()}`), "the activity log");
       return res.json();
@@ -161,33 +145,35 @@ export default function ActivityLogPage() {
           {/* Action Filter Pill */}
           <div className="relative inline-flex items-center">
             <select
-              value={actionFilter ?? ""}
+              aria-label="Kind of step"
+              value={kindFilter ?? ""}
               onChange={(e) => {
-                setActionFilter(e.target.value || null);
+                setKindFilter(isActivityKind(e.target.value) ? e.target.value : null);
                 setPage(1);
               }}
               className={`
                 appearance-none pr-7 pl-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer
                 ${
-                  actionFilter
+                  kindFilter
                     ? "border-[#1E1E1E] text-[#1E1E1E] bg-[var(--card-bg)] shadow-sm"
                     : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30 bg-[var(--card-bg)]"
                 }
               `}
             >
-              {ACTION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              <option value="">All steps</option>
+              {ACTIVITY_KINDS.map((kind) => (
+                <option key={kind.value} value={kind.value}>
+                  {kind.label}
                 </option>
               ))}
             </select>
             <ChevronDown className="pointer-events-none absolute right-2 h-3 w-3 text-foreground/70" />
           </div>
 
-          {actionFilter && (
+          {kindFilter && (
             <button
               onClick={() => {
-                setActionFilter(null);
+                setKindFilter(null);
                 setPage(1);
               }}
               className="text-xs text-foreground/70 hover:text-foreground underline transition-colors"
@@ -206,8 +192,17 @@ export default function ActivityLogPage() {
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <FileText className="w-12 h-12 mb-3" />
-          <p className="text-lg font-semibold">No activity logged yet</p>
-          <p className="text-sm mt-1">Actions performed in the admin panel will appear here.</p>
+          {kindFilter ? (
+            <>
+              <p className="text-lg font-semibold">No steps of this kind</p>
+              <p className="text-sm mt-1">Clear the filter to see every step.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-semibold">No activity logged yet</p>
+              <p className="text-sm mt-1">Actions performed in the admin panel will appear here.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="pastel-card overflow-hidden">
