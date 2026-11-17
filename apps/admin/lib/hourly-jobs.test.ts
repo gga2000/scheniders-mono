@@ -1,8 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
-import { HOURLY_RUN_MS, hourlyJobSchema, jobProblems, type JobRun } from "./hourly-jobs";
+import { freshFailures, HOURLY_RUN_MS, hourlyJobSchema, jobProblems, type JobProblem, type JobRun } from "./hourly-jobs";
 import { pauseLiftOverdue } from "./tenant-pause";
 
 /*
@@ -78,23 +77,59 @@ describe("jobProblems", () => {
 });
 
 /*
- * Round 15 (Reliability new 4): the bell sent failed runs to Sentry only while
- * someone had a console open, and a stopped or unscheduled job never. Vercel's
- * scheduler now runs the check each hour (/api/cron/hourly-jobs), after both
- * jobs, so it reads this hour's runs.
+ * Round 14 (Reliability new 4): a failed run's reason was read and dropped,
+ * and no failure reached Sentry. The bell checks every 10 minutes in every
+ * open console, so a failed run is sent once per server instance, and only
+ * while it is fresh.
  */
-describe("the scheduled check", () => {
-  const cron = z.object({ crons: z.array(z.object({ path: z.string(), schedule: z.string() })) });
-  const crons = cron.parse(JSON.parse(readFileSync(path.resolve(__dirname, "../vercel.json"), "utf8"))).crons;
-  const check = crons.find((entry) => entry.path === "/api/cron/hourly-jobs");
-
-  it("runs once an hour", () => {
-    expect(check?.schedule).toMatch(/^[0-5]?\d \* \* \* \*$/);
+describe("freshFailures", () => {
+  const failed = (job: JobProblem["job"], minutes: number): JobProblem => ({
+    job,
+    problem: "failed",
+    last_run: minutesAgo(minutes),
+    message: "ERROR: division by zero",
   });
 
-  it.each(hourlyJobSchema.options)("runs after %s has had at least 5 minutes, within the same hour", (job) => {
-    const jobMinute = Number(schedule(job)?.split(" ")[0]);
-    const checkMinute = Number(check?.schedule.split(" ")[0]);
-    expect(checkMinute - jobMinute).toBeGreaterThanOrEqual(5);
+  it("sends a fresh failed run once, however often the bell checks", () => {
+    const seen = new Map<string, number>();
+    const problems = [failed("refresh-lead-scores", 2)];
+    expect(freshFailures(problems, seen, NOW)).toEqual(problems);
+    expect(freshFailures(problems, seen, NOW + 10 * 60_000)).toEqual([]);
+  });
+
+  it("sends the next failed run of the same job as a new one", () => {
+    const seen = new Map<string, number>();
+    freshFailures([failed("refresh-lead-scores", 2)], seen, NOW);
+    const nextHour = [failed("refresh-lead-scores", 2)];
+    expect(freshFailures(nextHour, seen, NOW + 60 * 60_000)).toEqual([]); // the same run, already sent
+    expect(freshFailures([{ ...nextHour[0], last_run: new Date(NOW + 58 * 60_000).toISOString() }], seen, NOW + 60 * 60_000)).toHaveLength(1);
+  });
+
+  it("sends a failure the first check finds late in its hour, as when nobody had the console open", () => {
+    const seen = new Map<string, number>();
+    expect(freshFailures([failed("lift-ended-pauses", 50)], seen, NOW)).toHaveLength(1);
+  });
+
+  it("does not send a failed run older than the hour, a stopped job or one never run", () => {
+    const seen = new Map<string, number>();
+    expect(freshFailures([failed("lift-ended-pauses", HOURLY_RUN_MS / 60_000 + 1)], seen, NOW)).toEqual([]);
+    expect(
+      freshFailures(
+        [
+          { job: "lift-ended-pauses", problem: "stopped", last_run: minutesAgo(80), message: null },
+          { job: "refresh-lead-scores", problem: "failed", last_run: null, message: null },
+        ],
+        seen,
+        NOW,
+      ),
+    ).toEqual([]);
+  });
+
+  it("forgets runs past the hour, so it does not grow", () => {
+    const seen = new Map<string, number>();
+    freshFailures([failed("refresh-lead-scores", 2)], seen, NOW);
+    expect(seen.size).toBe(1);
+    freshFailures([], seen, NOW + HOURLY_RUN_MS);
+    expect(seen.size).toBe(0);
   });
 });

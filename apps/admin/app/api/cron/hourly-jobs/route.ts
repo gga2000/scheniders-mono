@@ -13,12 +13,12 @@ const PROBLEM_WORDS: Record<JobProblem["problem"], string> = {
 };
 
 /**
- * GET /api/cron/hourly-jobs: Vercel's scheduler calls it each hour (vercel.json),
- * after the database's hourly jobs have run (:21 and :27). Every problem the
- * staff bell would show goes to Sentry, one issue per job and problem, one
- * event per hour while it lasts: a failed run with what it said, a job that
- * stopped or was never scheduled, and paused shops the lift missed. Round 15:
- * the bell sent only failed runs, and only while someone had a console open.
+ * GET /api/cron/hourly-jobs: for Vercel's scheduler, once an hour after the
+ * database's hourly jobs have run (:21 and :27). Every problem the staff bell
+ * would show goes to Sentry, one issue per job and problem, one event per
+ * hour while it lasts: a failed run with what it said, a job that stopped or
+ * was never scheduled, and paused shops the lift missed. Round 15: the bell
+ * sends only failed runs, and only while someone has a console open.
  */
 export async function GET(request: Request) {
   const refused = requireCronAuth(request);
