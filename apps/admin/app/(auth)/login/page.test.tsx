@@ -87,6 +87,17 @@ describe("the login page", () => {
     expect(push).toHaveBeenCalledWith("/");
   });
 
+  // Round 14 (Workflow new 6): staff landed on Home, not on the page they had opened.
+  it("sends someone already signed in on to the page they asked for", () => {
+    open("/login?next=%2Fleads%2F7f1c%3Ftab%3Dnotes", { id: "u1" });
+    expect(push).toHaveBeenCalledWith("/leads/7f1c?tab=notes");
+  });
+
+  it("never follows a page asked for on another site", () => {
+    open("/login?next=%2F%2Fexample.com", { id: "u1" });
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
   it("ignores a reason it does not know", () => {
     open("/login?error=constructor", null);
     expect(screen.queryByRole("alert")).toBeNull();
@@ -117,11 +128,11 @@ describe("the login page", () => {
  * check never held Sign in, and no test sent the form.
  */
 describe("the login page with the security check on", () => {
-  async function openWithCheck() {
+  async function openWithCheck(address = "/login") {
     vi.resetModules();
     vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "site-key");
     const { default: Page } = await import("./page");
-    window.history.replaceState(null, "", "/login");
+    window.history.replaceState(null, "", address);
     auth.user = null;
     render(createElement(Page));
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "staff@example.com" } });
@@ -158,5 +169,13 @@ describe("the login page with the security check on", () => {
     await press();
     expect(auth.signIn).toHaveBeenLastCalledWith("staff@example.com", "secret", "token-2");
     expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("takes staff to the page they asked for once signed in", async () => {
+    await openWithCheck("/login?error=expired&next=%2Fmerchants%3Fstatus%3Dtrial");
+    act(() => captcha.props?.onToken("token-1"));
+    auth.signIn.mockResolvedValueOnce({ error: null });
+    await press();
+    expect(push).toHaveBeenCalledWith("/merchants?status=trial");
   });
 });

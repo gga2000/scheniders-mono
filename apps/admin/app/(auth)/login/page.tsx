@@ -6,6 +6,7 @@ import { Shield, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
 import { NO_CONSOLE_ACCESS, SIGN_IN_ENDED } from "@/lib/staff-sign-in";
+import { NEXT_PAGE, pageAfterSignIn } from "@/lib/page-after-sign-in";
 
 // Public Cloudflare Turnstile key. Unset = no box (only while Supabase CAPTCHA is off).
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
@@ -13,6 +14,11 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ??
 /** The reason in the address the console sent staff here with, if any. */
 function sentHereFor(): string {
   return new URLSearchParams(window.location.search).get("error") ?? "";
+}
+
+/** The console page staff asked for before the console sent them here, or Home. */
+function pageAsked(): string {
+  return pageAfterSignIn(new URLSearchParams(window.location.search).get(NEXT_PAGE));
 }
 
 /** The address does not change while the login page is open. */
@@ -51,7 +57,7 @@ export default function LoginPage() {
   // the console would send it here again, round and round.
   useEffect(() => {
     if (user && sentHereFor() !== "expired") {
-      router.push("/");
+      router.push(pageAsked());
     }
   }, [user, router]);
 
@@ -66,7 +72,7 @@ export default function LoginPage() {
         setError(result.error);
       } else {
         router.refresh();
-        router.push("/");
+        router.push(pageAsked());
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? `Could not sign in: ${err.message}` : "Could not sign in. Try again.");

@@ -10,6 +10,7 @@ import {
   verifyStaffToken,
 } from "@/lib/staff-sign-in";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
+import { NEXT_PAGE, pageAfterSignIn } from "@/lib/page-after-sign-in";
 import { sentryEnvironment } from "@scheniders/shared/sentry-scrub";
 import { CSP_HEADER, REPORT_GROUP, breachReportUrl, newNonce, scriptPolicy } from "@/lib/csp";
 
@@ -95,11 +96,17 @@ async function checkAccess(request: NextRequest) {
     supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
     return response;
   };
+  // The login page gets the reason, and the page staff asked for: signing in
+  // takes them back to it (lib/page-after-sign-in.ts). The asked-for page's own
+  // query goes inside `next`, not onto the login page's address.
   const toLogin = (error?: "forbidden" | "expired") => {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     const reason = error ?? (request.cookies.has(SIGN_IN_ENDED_MARK) ? "expired" : undefined);
     if (reason) url.searchParams.set("error", reason);
+    const asked = request.nextUrl.pathname + request.nextUrl.search;
+    if (pageAfterSignIn(asked) !== "/") url.searchParams.set(NEXT_PAGE, asked);
     return withSession(NextResponse.redirect(url));
   };
   // The check itself failed: say so and keep the staff member signed in,
@@ -208,11 +215,11 @@ async function checkAccess(request: NextRequest) {
     return toLogin("forbidden");
   }
 
-  // Signed-in admin landing on /login — bounce to dashboard.
+  // Signed-in admin landing on /login: on to the page asked for, or Home,
+  // without the login page's own reason.
   if (isLoginPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return withSession(NextResponse.redirect(url));
+    const target = pageAfterSignIn(request.nextUrl.searchParams.get(NEXT_PAGE));
+    return withSession(NextResponse.redirect(new URL(target, request.nextUrl.origin)));
   }
 
   return supabaseResponse;
