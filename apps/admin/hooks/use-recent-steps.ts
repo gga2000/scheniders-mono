@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 /** How many of the newest staff steps the bell lists. */
 export const RECENT_STEPS = 20;
@@ -39,6 +40,8 @@ export function useRecentSteps() {
   return useQuery<RecentStep[]>({
     // Under ["admin", "activity"], so a new staff step refreshes it with the Activity page.
     queryKey: ["admin", "activity", "bell"],
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: () => readRecentSteps(),
     staleTime: 30_000,
     refetchInterval: 60_000,
