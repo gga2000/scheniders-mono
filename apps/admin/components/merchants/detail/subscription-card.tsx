@@ -7,7 +7,7 @@ import { useLiveTick } from "@/hooks/use-live-tick";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
-import { formatDay, formatDayTime, formatUntil } from "@/lib/format";
+import { formatDay, formatDayTime, formatUntilDay } from "@/lib/format";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { ConfirmButton, postJson } from "./action-ui";
@@ -106,7 +106,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   />
                 </button>
               )}
-              {autoRenew ? "On: charges the wallet each month" : "Off: the month ends and is not renewed"}
+              {renewalWords(autoRenew, tenant.is_demo)}
             </span>
             {stopping && autoRenew && (
               <span className="mt-3 block max-w-sm font-normal">
@@ -152,6 +152,16 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
   );
 }
 
+/**
+ * The renewal line. The demo store renews each month at no charge
+ * (renew_subscription_core), as the status line above says; "charges the
+ * wallet" there contradicted it.
+ */
+function renewalWords(autoRenew: boolean, demo: boolean): string {
+  if (!autoRenew) return "Off: the month ends and is not renewed";
+  return demo ? "On: renews each month, never charged (demo store)" : "On: charges the wallet each month";
+}
+
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -161,11 +171,11 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** "in 3 days" beside a date, amber when it is under a day away. */
+/** "in 3 days" beside a date (Baghdad days, as Trials counts), amber when it is under a day away. */
 function When({ end, now, soon }: { end: string; now: Date; soon: boolean }) {
   return (
     <span className={cn("ml-2 text-[13px] font-medium", soon ? "text-[var(--ink-amber)]" : "text-foreground/70")}>
-      {formatUntil(end, now)}
+      {formatUntilDay(end, now)}
     </span>
   );
 }

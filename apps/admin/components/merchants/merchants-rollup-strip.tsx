@@ -31,7 +31,8 @@ export function MerchantsRollupStrip() {
   }> = [
     {
       label: "Total Wallet",
-      sublabel: "active + trial only",
+      // Every shop but the cancelled and those on hold (stats route), paused ones too.
+      sublabel: "not cancelled or on hold",
       value: !data ? "—" : formatCount(totalWallet),
       suffix: "IQD",
       icon: Wallet,
@@ -40,9 +41,11 @@ export function MerchantsRollupStrip() {
         "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm shadow-emerald-500/30",
     },
     {
-      // A promise, not money in: what the active shops' plans cost a month at list price.
+      // A promise, not money in: what the active shops' plans cost a month at
+      // list price. Add-ons and a plan waiting for the next payment are not in
+      // it, so a shop page's "Next charge" can be more.
       label: "Plan prices",
-      sublabel: "active shops, a month",
+      sublabel: "active shops, list price a month",
       value: !data ? "—" : formatCount(planPrices),
       suffix: "IQD",
       icon: Repeat,

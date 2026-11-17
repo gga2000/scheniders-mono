@@ -20,13 +20,13 @@ const subscription = {
   current_period_end: "2026-12-01T00:00:00+00:00",
 } as unknown as MerchantDetail["subscription"];
 
-const render = (role: AdminRole | null) => {
+const render = (role: AdminRole | null, shop: MerchantDetail["tenant"] = tenant) => {
   auth.role = role;
   return renderToStaticMarkup(
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
-      createElement(SubscriptionCard, { merchantId: "t1", tenant, subscription }),
+      createElement(SubscriptionCard, { merchantId: "t1", tenant: shop, subscription }),
     ),
   );
 };
@@ -52,5 +52,15 @@ describe("SubscriptionCard renewal", () => {
 
   it("shows no switch before the role is known", () => {
     expect(render(null)).not.toContain('role="switch"');
+  });
+});
+
+describe("SubscriptionCard on the demo store", () => {
+  // The status line says the demo store is never charged; the renewal line
+  // below said "charges the wallet each month". The renewal takes 0.
+  it("says its month renews at no charge", () => {
+    const html = render("super_admin", { ...tenant, is_demo: true } as MerchantDetail["tenant"]);
+    expect(html).toContain("On: renews each month, never charged (demo store)");
+    expect(html).not.toContain("charges the wallet");
   });
 });

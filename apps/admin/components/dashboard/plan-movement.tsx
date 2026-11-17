@@ -7,17 +7,22 @@ interface PlanMovementProps {
   movements: PlanMovement[] | undefined;
 }
 
-/** `pill` names the move on its line; `label` heads its count. */
+/**
+ * `pill` names the move on its line; `label` heads its count and `title` says
+ * it in full on hover. A count's tile is about 73 px wide on Home, so its label
+ * is one short word: "Cancellations" in capitals needed 118 px and ran into
+ * the next tile.
+ */
 const TYPE_STYLES: Record<
   PlanMovement["type"],
-  { bg: string; text: string; label: string; pill: string }
+  { bg: string; text: string; label: string; title: string; pill: string }
 > = {
-  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Upgrades", pill: "upgrade" },
-  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Downgrades", pill: "downgrade" },
-  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Cancellations", pill: "cancellation" },
-  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New Signups", pill: "new" },
+  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Up", title: "Upgrades", pill: "upgrade" },
+  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Down", title: "Downgrades", pill: "downgrade" },
+  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Ended", title: "Cancelled by staff", pill: "cancellation" },
+  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New", title: "New signups", pill: "new" },
   // Set for the next payment, not made yet: listed, not counted above.
-  waiting: { bg: "bg-amber-500/15", text: "text-[var(--ink-amber)]", label: "Waiting", pill: "at next payment" },
+  waiting: { bg: "bg-amber-500/15", text: "text-[var(--ink-amber)]", label: "Waiting", title: "Waiting", pill: "at next payment" },
 };
 
 function Skeleton() {
@@ -77,12 +82,13 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
               return (
                 <div
                   key={type}
+                  title={style.title}
                   className={`rounded-xl px-3 py-2.5 ${style.bg} text-center`}
                 >
                   <p className={`text-xl font-bold ${style.text}`}>
                     {summary[type]}
                   </p>
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${style.text}`}>
+                  <p className={`text-xs font-semibold ${style.text}`}>
                     {style.label}
                   </p>
                 </div>
