@@ -10,6 +10,7 @@ import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
 import { readShopCity } from "@/lib/shop-city";
 import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { shopHealth } from "@/lib/shop-health-score";
 
 /**
  * A shop's staff tags: staff_shop_tags is keyed by the shop, so the database
@@ -56,9 +57,10 @@ export async function GET(request: NextRequest) {
     // ── Main query ─────────────────────────────────────────────────────
     let query = supabase
       .from("tenants")
-      // The health score and its parts are the database's: the browser shows them and works nothing out.
-      // Staff tags live in staff_shop_tags, which merchants cannot read.
-      .select(`${SHOP_COLUMNS}, wallet(${SHOP_WALLET_COLUMNS}), staff_shop_tags(tags), staff_health_score, staff_health_parts`, {
+      // The health parts are the database's; the score is their sum (lib/shop-health-score),
+      // so the parts are worked out once per row. Staff tags live in staff_shop_tags,
+      // which merchants cannot read.
+      .select(`${SHOP_COLUMNS}, wallet(${SHOP_WALLET_COLUMNS}), staff_shop_tags(tags), staff_health_parts`, {
         count: "exact",
       })
       // The demo store and prospect stores (lib/customer-shops) have their own way in, not a row among customers.
@@ -136,12 +138,13 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Assemble enriched merchants ────────────────────────────────────
-    const merchants = tenants.map(({ staff_shop_tags: staffTags, ...tenant }) => {
+    const merchants = tenants.map(({ staff_shop_tags: staffTags, staff_health_parts: healthParts, ...tenant }) => {
       const row = stats.get(tenant.id);
       if (!row) throw new Error(`No list numbers for shop ${tenant.id}`);
 
       return {
         ...tenant,
+        ...shopHealth(healthParts),
         // One row per shop, so the API gives an object, or null for a shop never tagged.
         tags: staffTagsSchema.parse(staffTags)?.tags ?? [],
         // The later of the last wallet line and the last real order.

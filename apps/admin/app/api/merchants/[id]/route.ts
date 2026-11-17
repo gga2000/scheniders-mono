@@ -10,6 +10,7 @@ import { PLAN_TIERS } from "@/types/admin";
 import { notAnId } from "@/lib/route-id";
 import { staffReasonSchema } from "@/lib/staff-reason";
 import { SHOP_COLUMNS } from "@/lib/shop-columns";
+import { shopHealth } from "@/lib/shop-health-score";
 
 const patchSchema = z
   .object({
@@ -106,10 +107,10 @@ export async function GET(
       planLimitsResult,
       billingLock,
     ] = await Promise.all([
-      // The health score and its parts, as the list shows them.
+      // The health parts, as the list reads them; the score is their sum (lib/shop-health-score).
       supabase
         .from("tenants")
-        .select(`${SHOP_COLUMNS}, store_config_rev, staff_health_score, staff_health_parts`)
+        .select(`${SHOP_COLUMNS}, store_config_rev, staff_health_parts`)
         .eq("id", id)
         .single(),
       // A shop built from a lead may have no wallet or subscription yet: no row is not an error.
@@ -164,7 +165,8 @@ export async function GET(
       if (result.error) throw result.error;
     }
 
-    const tenant = tenantResult.data;
+    const { staff_health_parts: healthParts, ...shop } = tenantResult.data;
+    const tenant = { ...shop, ...shopHealth(healthParts) };
     const stoppedBy = await readStoppedBy(supabase, id, tenant.status);
     const planLimits = (planLimitsResult.data ?? []).find(
       (p: { plan: string }) => p.plan === tenant.plan

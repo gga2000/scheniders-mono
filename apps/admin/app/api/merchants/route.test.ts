@@ -30,6 +30,7 @@ const shop = (n: number, extra: Row = {}): Row => ({
   staff_shop_tags: null,
   wallet: { balance_iqd: 20000 },
   subscriptions: [],
+  staff_health_parts: { status: 15, wallet: 5, orders: 0 },
   ...extra,
 });
 
@@ -106,25 +107,32 @@ describe("GET /api/merchants", () => {
     expect(merchants[1].last_active_at).toBe("2026-11-16T05:30:00+00:00");
   });
 
-  it("sends the health score and its parts as the database worked them out", async () => {
+  it("sends the health parts as the database worked them out, and the score as their sum", async () => {
     // The browser used to work the score out itself, in five places. A paused
-    // shop with an empty wallet would be 20 by that sum: the row's 75 must come through.
+    // shop with an empty wallet would be 20 by that sum: the row's parts must come through.
     stub.state.tables.tenants = [
       shop(1, {
         status: "suspended",
         wallet: { balance_iqd: 0 },
-        staff_health_score: 75,
         staff_health_parts: { status: 15, wallet: 5, orders: 5 },
       }),
     ];
 
     const { merchants } = await (await call()).json();
 
-    expect(stub.callsTo("tenants.select")[0]?.[0]).toMatch(/, staff_health_score, staff_health_parts$/);
+    // The score calls the parts, so reading both worked the parts out twice per row.
+    const columns = stub.callsTo("tenants.select")[0]?.[0];
+    expect(columns).toMatch(/, staff_health_parts$/);
+    expect(columns).not.toMatch(/staff_health_score/);
     expect(merchants[0]).toMatchObject({
       staff_health_score: 75,
       staff_health_parts: { status: 15, wallet: 5, orders: 5 },
     });
+  });
+
+  it("fails rather than show a made-up score when the parts are not numbers", async () => {
+    stub.state.tables.tenants = [shop(1, { staff_health_parts: { status: "15", wallet: 5 } })];
+    expect((await call()).status).toBe(500);
   });
 
   it("reads only the columns the list shows, never the store builder's pages", async () => {
