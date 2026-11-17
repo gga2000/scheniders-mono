@@ -268,7 +268,8 @@ DECLARE
     v jsonb := public.support_shops_needing_us('2026-11-16 10:00+03');
     paused text[];
 BEGIN
-    SELECT array_agg(x ->> 'business_name' ORDER BY x ->> 'business_name') INTO paused
+    -- Byte order, so the expected list does not depend on the server's locale.
+    SELECT array_agg(x ->> 'business_name' ORDER BY x ->> 'business_name' COLLATE "C") INTO paused
     FROM jsonb_array_elements(v) x
     WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(x -> 'problems') p WHERE p ->> 'code' = 'store_paused');
     PERFORM pg_temp.check('store paused: ' || coalesce(paused::text, 'none'),
