@@ -110,6 +110,7 @@ const RAW_ON_PURPOSE: Record<string, { count: number; why: string }> = {
   "lib/shop-actions.ts": { count: 2, why: "free days and Convert are refused on a paused shop" },
   "lib/support-shop-check.ts": { count: 1, why: "a paused shop is answered above it" },
   "lib/shop-status.ts": { count: 1, why: "a paused shop is answered above it" },
+  "lib/shop-status-choice.ts": { count: 1, why: "admin_update_shop checks the stored status; a paused shop is answered above it" },
 };
 
 function sourceFiles(dir: string): string[] {

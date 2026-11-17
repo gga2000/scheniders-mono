@@ -8,7 +8,7 @@ import { BULK_MAX_SHOPS, isBulkFailureList, notDoneLines, tooManyShops } from ".
  */
 
 const NO_WALLET = "This shop has no wallet yet, so nothing was added.";
-const PAUSED = "This shop is paused. Resume it first.";
+const PAUSED = "This shop is paused. Lift the pause first (on its page).";
 const shop = (n: number, error: string, name: string | null = `Shop ${n}`) => ({ tenant_id: `t-${n}`, name, error });
 
 describe("the lines for shops a bulk action did not do", () => {

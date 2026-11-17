@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { newestDefinition } from "@/lib/sql-migrations.test-data";
 
 /*
  * Round 1 of the staff console audit found 7 of 40 changing routes writing an
@@ -14,7 +15,6 @@ import { describe, expect, it } from "vitest";
  */
 
 const API_DIR = path.resolve(__dirname);
-const MIGRATIONS_DIR = path.resolve(__dirname, "../../../../packages/supabase/migrations");
 const CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const LOGS = /\b(logAdminAction|logAdminActivity|logAdminActivityBatch)\(/;
 
@@ -74,26 +74,6 @@ const handlers = routeFiles.flatMap((file) => {
 });
 
 const mustLeaveATrace = handlers.filter((handler) => CHANGING.has(handler.method) || LOGGED_READS.has(handler.key));
-
-/** The newest definition of a database function, from its CREATE to the next one. */
-function newestDefinition(fn: string): string {
-  const files = readdirSync(MIGRATIONS_DIR)
-    .filter((file) => file.endsWith(".sql"))
-    .sort()
-    .reverse();
-  // A migration that changes a function's arguments drops it and uses plain
-  // CREATE FUNCTION; reading only CREATE OR REPLACE found an older body.
-  const start = new RegExp(`CREATE (OR REPLACE )?FUNCTION public\\.${fn}\\(`, "i");
-  for (const file of files) {
-    const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-    const at = sql.search(start);
-    if (at === -1) continue;
-    const rest = sql.slice(at + 1);
-    const next = rest.search(/CREATE (OR REPLACE )?FUNCTION /i);
-    return next === -1 ? rest : rest.slice(0, next);
-  }
-  return "";
-}
 
 describe("every changing admin route leaves a trace", () => {
   it("finds the changing handlers", () => {

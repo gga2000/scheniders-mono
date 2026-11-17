@@ -1,9 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { industryEditSchema } from "./industry-edit";
 import { LEAD_LISTS, leadUpdateSchema } from "./lead-update";
 import { INDUSTRY_FIELD_WORDS, LEAD_FIELD_WORDS } from "./staff-actions";
+import { newestDefinition } from "./sql-migrations.test-data";
 
 /*
  * Round 11 structure finding 10. The fields a lead or industry edit may
@@ -14,24 +13,6 @@ import { INDUSTRY_FIELD_WORDS, LEAD_FIELD_WORDS } from "./staff-actions";
  * every save that touched it a 500. These read the newest SQL definitions
  * from the migrations, as they ship, and hold the lists together.
  */
-
-const MIGRATIONS_DIR = path.resolve(__dirname, "../../../packages/supabase/migrations");
-
-/** The newest definition of public.<fn> in the migrations, header to body end. */
-function newestDefinition(fn: string): string {
-  const head = new RegExp(`CREATE\\s+(?:OR\\s+REPLACE\\s+)?FUNCTION\\s+public\\.${fn}\\s*\\(`, "gi");
-  let latest = "";
-  for (const file of readdirSync(MIGRATIONS_DIR).filter((name) => /^\d{14}_.*\.sql$/.test(name)).sort()) {
-    const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-    for (const match of sql.matchAll(head)) {
-      const tag = /\$[A-Za-z_]*\$/.exec(sql.slice(match.index));
-      if (!tag) continue;
-      const open = match.index + tag.index + tag[0].length;
-      latest = sql.slice(match.index, sql.indexOf(tag[0], open));
-    }
-  }
-  return latest;
-}
 
 /** The quoted names of `<name> constant text[] := ARRAY[...]` in a definition. */
 function sqlList(definition: string, name: string): string[] {

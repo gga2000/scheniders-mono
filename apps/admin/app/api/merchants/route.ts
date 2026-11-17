@@ -13,6 +13,7 @@ import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 import { shopHealth } from "@/lib/shop-health-score";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { isTrialSubscription } from "@/lib/shop-status-choice";
 
 /**
  * A shop's staff tags: staff_shop_tags is keyed by the shop, so the database
@@ -184,6 +185,8 @@ export async function GET(request: NextRequest) {
         // A locked shop still has status "trial" or "active"; this is what tells them apart.
         billing_lock: row.lock_reason ? { reason: row.lock_reason, since: row.lock_since } : null,
         subscription_running: isSubscriptionRunning(subscriptionStatus.get(tenant.id)),
+        // Whether the status menu may offer Trial: admin_update_shop refuses it otherwise.
+        trial_subscription: isTrialSubscription(subscriptionStatus.get(tenant.id)),
         pinned_note: pinnedNoteMap.get(tenant.id) ?? null,
       };
     });

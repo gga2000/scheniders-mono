@@ -19,7 +19,7 @@ import type { AdminTenant, TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
-import { STILL_TRIAL_REFUSAL, canPickStatus } from "@/lib/shop-status-choice";
+import { STATUS_REFUSALS, statusPickRefusal } from "@/lib/shop-status-choice";
 
 type StageKey = TenantStatus;
 
@@ -94,9 +94,10 @@ const STAGE_BY_STATUS: Record<TenantStatus, Stage> = {
 const STAGES = Object.values(STAGE_BY_STATUS);
 
 /**
- * A pause is set and lifted with Pause and Resume on the shop page, which keep
- * its end date and what it blocks; the database refuses a plain status change
- * to or from it. So paused shops are shown here but not dragged in or out.
+ * A pause is set and lifted on the shop page (Pause, "Lift the pause now"),
+ * which keeps its end date and what it blocks; the database refuses a plain
+ * status change to or from it. So paused shops are shown here but not dragged
+ * in or out.
  */
 const isPaused = (status: StageKey) => status === "limited";
 
@@ -189,9 +190,10 @@ export function MerchantsKanbanView({
         setDraggingId(null);
         return;
       }
-      if (!canPickStatus(from, target)) {
+      const refusal = statusPickRefusal({ status: from, trial_subscription: merchant.trial_subscription ?? false }, target);
+      if (refusal) {
         // Said before a confirm that the server would only refuse.
-        toast.error(STILL_TRIAL_REFUSAL);
+        toast.error(STATUS_REFUSALS[refusal]);
         setHoverCol(null);
         setDraggingId(null);
         return;

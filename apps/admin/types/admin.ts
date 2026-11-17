@@ -129,6 +129,8 @@ export interface AdminTenant {
   billing_lock?: ListBillingLock | null;
   /** The newest subscription is trialing, active or past due. Sent by the Merchants list. */
   subscription_running?: boolean;
+  /** No subscription, or the newest is trialing: Trial can be picked. Sent by the Merchants list. */
+  trial_subscription?: boolean;
   pinned_note?: {
     content: string;
     updated_at: string;
