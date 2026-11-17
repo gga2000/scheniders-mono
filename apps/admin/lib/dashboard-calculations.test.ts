@@ -18,6 +18,7 @@ import {
   getDateKey,
   MIN_ENDED_FOR_RATE,
   type DashboardTenant,
+  type StatusChangeRow,
   type SubscriptionRow,
 } from "./dashboard-calculations";
 import { dashboardStats, incomeStats, SHOP_A, SHOP_B, SHOP_C, TODAY, usageStats } from "./console-stats.test-data";
@@ -286,30 +287,48 @@ describe("smaller widgets", () => {
 });
 
 describe("calculatePlanMovements", () => {
+  // The card read cancellations from subscriptions.cancelled_at, which nothing
+  // writes, so it could never show one. A shop is cancelled only by a staff
+  // status change, which the staff log keeps with its day.
   const now = new Date("2026-11-16T22:00:00Z");
   const sub = (tenant_id: string, over: Partial<SubscriptionRow> = {}): SubscriptionRow => ({
     tenant_id,
     plan: "starter",
     status: "active",
     pending_plan: null,
-    cancelled_at: null,
     ...over,
   });
-  const shops = new Set([SHOP_A, SHOP_B, SHOP_C]);
+  const change = (tenant_id: string | null, status: string, created_at: string): StatusChangeRow => ({
+    tenant_id,
+    details: { status, previous_status: "active", source: "single" },
+    created_at,
+  });
+  const shops = new Map([
+    [SHOP_A, "starter"],
+    [SHOP_B, "growth"],
+    [SHOP_C, "growth"],
+  ]);
 
-  it("counts a cancellation only when it is dated in the last 30 days", () => {
+  it("counts each shop staff cancelled in the last 30 days, under its plan", () => {
     const moves = calculatePlanMovements(
+      [],
       [
-        sub(SHOP_A, { status: "cancelled", cancelled_at: "2026-11-01T10:00:00Z" }),
-        // Ended in May: not a move of the last 30 days.
-        sub(SHOP_B, { plan: "internal", status: "cancelled", cancelled_at: "2026-05-09T10:00:00Z" }),
-        // No date at all: nothing proves when it happened.
-        sub(SHOP_C, { status: "cancelled" }),
+        change(SHOP_A, "cancelled", "2026-11-01T10:00:00Z"),
+        change(SHOP_B, "cancelled", "2026-11-15T10:00:00Z"),
+        // Put on hold, not cancelled.
+        change(SHOP_C, "suspended", "2026-11-15T10:00:00Z"),
+        // Older than 30 days.
+        change(SHOP_C, "cancelled", "2026-10-10T10:00:00Z"),
+        // A row with no shop names nothing.
+        change(null, "cancelled", "2026-11-15T10:00:00Z"),
       ],
       shops,
       now,
     );
-    expect(moves).toEqual([{ fromPlan: "starter", toPlan: "cancelled", count: 1, type: "cancellation" }]);
+    expect(moves).toEqual([
+      { fromPlan: "starter", toPlan: "cancelled", count: 1, type: "cancellation" },
+      { fromPlan: "growth", toPlan: "cancelled", count: 1, type: "cancellation" },
+    ]);
   });
 
   it("shows a waiting plan change as an upgrade or a downgrade", () => {
@@ -319,6 +338,7 @@ describe("calculatePlanMovements", () => {
         sub(SHOP_B, { plan: "professional", pending_plan: "growth" }),
         sub(SHOP_C, { plan: "growth", pending_plan: "growth" }),
       ],
+      [],
       shops,
       now,
     );
@@ -328,9 +348,14 @@ describe("calculatePlanMovements", () => {
     ]);
   });
 
+  it("shows no waiting change on a cancelled subscription", () => {
+    expect(calculatePlanMovements([sub(SHOP_A, { status: "cancelled", pending_plan: "growth" })], [], shops, now)).toEqual([]);
+  });
+
   it("leaves out shops that are not listed, such as the demo store", () => {
     const moves = calculatePlanMovements(
       [sub("demo-store", { plan: "growth", pending_plan: "starter" })],
+      [change("demo-store", "cancelled", "2026-11-15T10:00:00Z")],
       shops,
       now,
     );

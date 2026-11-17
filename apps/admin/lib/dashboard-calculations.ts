@@ -50,7 +50,13 @@ export interface SubscriptionRow {
   plan: string;
   status: string;
   pending_plan: string | null;
-  cancelled_at: string | null;
+}
+
+/** A status change on the staff log, as Home reads it for Plan Movements. */
+export interface StatusChangeRow {
+  tenant_id: string | null;
+  details: unknown;
+  created_at: string;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -367,29 +373,33 @@ const PLAN_RANK: Record<string, number> = {
 
 /**
  * The "Plan Movements (30d)" card. No table keeps a plan's history, so the
- * card shows only what the subscriptions prove: a cancellation dated in the
- * last 30 days, and a plan change still waiting for the next payment. A
- * cancellation older than that, or with no date, is not a move of the last 30
- * days. Only shops in `shopIds` count, so the demo store stays out.
+ * card shows what is on record: each shop staff cancelled in the last 30 days
+ * (a status change on the staff log, the only way a shop becomes cancelled;
+ * subscriptions.cancelled_at is never written), and each plan change still
+ * waiting for the next payment. A cancellation counts under the shop's plan
+ * today. Only shops in `shopPlans` count, so the demo store stays out.
  */
 export function calculatePlanMovements(
   rows: SubscriptionRow[],
-  shopIds: ReadonlySet<string>,
+  statusChanges: StatusChangeRow[],
+  shopPlans: ReadonlyMap<string, string>,
   now: Date,
 ): PlanMovement[] {
   const since = now.getTime() - 30 * DAY_MS;
   const moves: PlanMovement[] = [];
+  for (const change of statusChanges) {
+    const plan = change.tenant_id ? shopPlans.get(change.tenant_id) : undefined;
+    if (!plan || Date.parse(change.created_at) < since) continue;
+    const status = (change.details as { status?: unknown } | null)?.status;
+    if (status !== "cancelled") continue;
+    moves.push({ fromPlan: plan as PlanMovement["fromPlan"], toPlan: "cancelled", count: 1, type: "cancellation" });
+  }
   for (const s of rows) {
-    if (!shopIds.has(s.tenant_id)) continue;
-    const from = s.plan as PlanMovement["fromPlan"];
-    if (s.status === "cancelled") {
-      if (s.cancelled_at && Date.parse(s.cancelled_at) >= since) {
-        moves.push({ fromPlan: from, toPlan: "cancelled", count: 1, type: "cancellation" });
-      }
-    } else if (s.pending_plan && s.pending_plan !== s.plan) {
+    if (!shopPlans.has(s.tenant_id) || s.status === "cancelled") continue;
+    if (s.pending_plan && s.pending_plan !== s.plan) {
       const up = (PLAN_RANK[s.pending_plan] || 0) > (PLAN_RANK[s.plan] || 0);
       moves.push({
-        fromPlan: from,
+        fromPlan: s.plan as PlanMovement["fromPlan"],
         toPlan: s.pending_plan as PlanMovement["toPlan"],
         count: 1,
         type: up ? "upgrade" : "downgrade",
