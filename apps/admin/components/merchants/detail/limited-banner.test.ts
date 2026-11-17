@@ -44,12 +44,31 @@ describe("LimitedBanner", () => {
   it("tells support staff to ask, since they cannot lift it", () => {
     role = "support_staff";
     const html = render(minutesAgo(90));
-    expect(html).toContain("Ask someone who can lift pauses to lift it.");
+    expect(html).toContain("Ask a super admin to lift it.");
     expect(html).not.toContain("Lift the pause now");
     role = "super_admin";
   });
 
   it("names the end of a pause still running", () => {
     expect(render(new Date(NOW + 2 * 3_600_000).toISOString())).toContain("Lifts on its own");
+  });
+
+  // Round 13: the banner counted whole 24-hour spans ("in 2 days") where the
+  // subscription card beside it counts Baghdad calendar days ("in 3 days").
+  it("counts the days to the end on the Baghdad calendar", () => {
+    // Tue 17 Nov 15:00 Baghdad; the pause ends Fri 20 Nov 06:00 Baghdad.
+    const html = render("2026-11-20T03:00:00Z");
+    expect(html).toContain("Lifts on its own Fri 20 Nov, 06:00, in 3 days.");
+    expect(html).toContain("Stopped: new orders.");
+  });
+
+  // Round 13: past its end a pause stops nothing, so "Stopped: new orders"
+  // beside "nothing is stopped now" said both.
+  it("names nothing as stopped once the pause has ended", () => {
+    for (const ago of [10, 90]) {
+      const html = render(minutesAgo(ago));
+      expect(html).not.toContain("Stopped:");
+      expect(html).toContain("nothing is stopped now");
+    }
   });
 });
