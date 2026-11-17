@@ -13,6 +13,7 @@ import {
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
+import { staffActionText } from "@/lib/staff-actions";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -58,21 +59,23 @@ const ACTION_OPTIONS = [
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function getActionBadge(action: string): { bg: string; text: string } {
+/** The step in plain words (the Team page's words), tinted by its kind. */
+function getActionBadge(action: string, details: Record<string, unknown> | null): { bg: string; text: string } {
+  const text = staffActionText(action, details);
   const lower = action.toLowerCase();
   if (lower.includes("login") || lower.includes("auth") || lower.includes("sign") || lower.includes("impersonate")) {
-    return { bg: "bg-blue-500/15 text-[var(--ink-blue)]", text: action };
+    return { bg: "bg-blue-500/15 text-[var(--ink-blue)]", text };
   }
   if (lower.includes("create") || lower.includes("add") || lower.includes("new") || lower.includes("top_up")) {
-    return { bg: "bg-green-500/15 text-[var(--ink-green)]", text: action };
+    return { bg: "bg-green-500/15 text-[var(--ink-green)]", text };
   }
   if (lower.includes("update") || lower.includes("edit") || lower.includes("change") || lower.includes("extend")) {
-    return { bg: "bg-amber-500/15 text-[var(--ink-amber)]", text: action };
+    return { bg: "bg-amber-500/15 text-[var(--ink-amber)]", text };
   }
   if (lower.includes("delete") || lower.includes("remove") || lower.includes("suspend") || lower.includes("cancel")) {
-    return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text: action };
+    return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text };
   }
-  return { bg: "bg-gray-500/15 text-[var(--muted)]", text: action };
+  return { bg: "bg-gray-500/15 text-[var(--muted)]", text };
 }
 
 function summarizeDetails(details: Record<string, unknown> | null): string {
@@ -231,7 +234,7 @@ export default function ActivityLogPage() {
               </thead>
               <tbody>
                 {logs.map((log) => {
-                  const badge = getActionBadge(log.action);
+                  const badge = getActionBadge(log.action, log.details);
                   return (
                     <tr
                       key={log.id}

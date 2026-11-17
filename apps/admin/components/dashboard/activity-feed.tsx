@@ -4,6 +4,7 @@ import { Activity, Inbox } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { formatWhen } from "@/lib/format";
+import { staffActionText } from "@/lib/staff-actions";
 
 interface ActivityFeedProps {
   activities: Array<{
@@ -71,6 +72,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
     return activities.map((activity) => ({
       ...activity,
       color: getActionColor(activity.action),
+      text: staffActionText(activity.action, activity.details),
       relativeTime: formatWhen(activity.created_at),
       summary: summarizeDetails(activity.details),
     }));
@@ -125,7 +127,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground">
-                  <span className="font-semibold">{item.action}</span>
+                  <span className="font-semibold">{item.text}</span>
                 </p>
                 {item.summary && (
                   <p className="text-xs text-foreground/70 mt-0.5 truncate">
