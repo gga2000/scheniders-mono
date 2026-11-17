@@ -252,6 +252,10 @@ BEGIN
             now() - interval '50 minutes', now() - interval '20 minutes');
     v := public.support_view_start('a0000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001',
         '10000000-0000-4000-8000-000000000001', 'noor@example.com');
+    -- Round 13: the start closes a run-out look at its own end, as End now does.
+    PERFORM pg_temp.check('start: a run-out look ends at its own end',
+        (SELECT ended_at = expires_at FROM public.support_view_sessions
+         WHERE admin_id = 'a0000000-0000-4000-8000-000000000001' AND started_at = now() - interval '50 minutes'));
     -- The start closed the run-out one too; put one back beside the running look.
     INSERT INTO public.support_view_sessions (admin_id, viewer_user_id, tenant_id, started_at, expires_at)
     VALUES ('a0000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002',
