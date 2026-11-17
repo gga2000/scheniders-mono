@@ -127,11 +127,20 @@ describe("GET /api/merchants/[id] billing lock", () => {
     expect(body.billingLock).toMatchObject({ locked: false, reason: null, orders_left: null });
   });
 
+  it("reads only the shop columns the page shows, never the store builder's pages", async () => {
+    rpc.mockResolvedValue({ data: LOCKED, error: null });
+    await call();
+
+    const columns = String(selects.find(([table]) => table === "tenants")?.[1]);
+    expect(columns).not.toMatch(/\*|store_config,|store_config$|metadata/);
+    expect(columns).toContain("store_config_rev");
+  });
+
   it("reads the health score and its parts from the database, as the list does", async () => {
     rpc.mockResolvedValue({ data: LOCKED, error: null });
     const body = await (await call()).json();
 
-    expect(selects).toContainEqual(["tenants", "*, staff_health_score, staff_health_parts"]);
+    expect(selects).toContainEqual(["tenants", expect.stringMatching(/, staff_health_score, staff_health_parts$/)]);
     expect(body.tenant).toMatchObject({
       staff_health_score: 65,
       staff_health_parts: { status: 5, wallet: 5, orders: 5 },

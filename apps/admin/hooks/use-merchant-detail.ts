@@ -31,7 +31,6 @@ export interface MerchantDetail {
       secondary_color: string;
     } | null;
     settings: Record<string, unknown> | null;
-    store_config: Record<string, unknown> | null;
     /** How many times the store builder was published (raised only by a publish). */
     store_config_rev: number | null;
     contact_email: string | null;
