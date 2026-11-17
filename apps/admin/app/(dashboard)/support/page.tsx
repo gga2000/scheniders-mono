@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { waitingBadge } from "@/lib/admin-menu";
 import { useSupportCase, useSupportCases, useSupportNeedsUs, useSupportTasks } from "@/hooks/use-support-cases";
 import { SupportCaseList } from "@/components/support/support-case-list";
 import { SupportConversation } from "@/components/support/support-conversation";
@@ -13,6 +14,7 @@ import { SupportScoreboardView } from "@/components/support/support-scoreboard";
 import { SupportNeedsUs } from "@/components/support/support-needs-us";
 import { SupportToday } from "@/components/support/support-today";
 import { SupportNoticeBar } from "@/components/support/support-notice-bar";
+import { SupportTabCount } from "@/components/support/support-tab-count";
 import { waitingOnUsLine, type ScoreboardDays } from "@/lib/support";
 
 type View = "open" | "solved" | "needs" | "today" | "scoreboard";
@@ -54,9 +56,19 @@ function SupportInbox() {
   const inbox = view === "open" || view === "solved";
   const activeId = inbox ? (selectedId ?? cases[0]?.id ?? null) : null;
   const detail = useSupportCase(activeId);
-  const needsUs = useSupportNeedsUs().data?.length ?? 0;
-  const tasks = useSupportTasks().data;
-  const myCalls = tasks ? tasks.tasks.filter((t) => t.owner_id === tasks.me).length : 0;
+  // A failed read shows "?" on its tab, not no count: no count reads as nothing waiting.
+  const needsUsRead = useSupportNeedsUs();
+  const needsUs = waitingBadge(
+    { data: needsUsRead.data?.length, isError: needsUsRead.isError },
+    "to look at",
+    "the shops that need us",
+  );
+  const tasks = useSupportTasks();
+  const myCalls = waitingBadge(
+    { data: tasks.data?.tasks.filter((t) => t.owner_id === tasks.data?.me).length, isError: tasks.isError },
+    "to call today",
+    "today's calls",
+  );
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -84,16 +96,8 @@ function SupportInbox() {
                 )}
               >
                 {v.label}
-                {v.id === "needs" && needsUs > 0 && (
-                  <span className="ml-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--ink-amber)]">
-                    {needsUs}
-                  </span>
-                )}
-                {v.id === "today" && myCalls > 0 && (
-                  <span className="ml-1.5 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--ink-blue)]">
-                    {myCalls}
-                  </span>
-                )}
+                {v.id === "needs" && <SupportTabCount badge={needsUs} tone="bg-amber-500/15 text-[var(--ink-amber)]" />}
+                {v.id === "today" && <SupportTabCount badge={myCalls} tone="bg-sky-500/15 text-[var(--ink-blue)]" />}
               </button>
             ))}
           </div>
