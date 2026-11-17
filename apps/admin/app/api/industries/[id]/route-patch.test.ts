@@ -6,24 +6,17 @@ import { NextRequest } from "next/server";
  * and ended in a plain 500 ("Failed to update industry"). It now says "This
  * industry no longer exists." as Delete and Move do. A rename onto another
  * industry's name is refused (one industry per name, industries_name_key).
+ * The edit and its staff log row are one database call (admin_edit_industry,
+ * the industry-edit suite): the route writes no row of its own.
  */
 
 const INDUSTRY = "11111111-1111-4111-8111-111111111111";
 const ADMIN = "22222222-2222-4222-8222-222222222222";
-/** What the update answers: the row, no row, or an error. */
-let updated: { data: unknown; error: { code?: string; message: string } | null } = { data: null, error: null };
-const writes: unknown[] = [];
+/** What admin_edit_industry answers: the result, or an error. */
+let answer: { data: unknown; error: { code?: string; message: string } | null } = { data: null, error: null };
+const rpc = vi.fn<(...args: unknown[]) => Promise<typeof answer>>(async () => answer);
 
-vi.mock("@/lib/admin-supabase", () => ({
-  createAdminClient: () => ({
-    from: () => ({
-      update: (fields: unknown) => {
-        writes.push(fields);
-        return { eq: () => ({ select: () => ({ maybeSingle: async () => updated }) }) };
-      },
-    }),
-  }),
-}));
+vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => ({ rpc }) }));
 vi.mock("@/lib/api-auth", () => ({
   requireAdminPermission: vi.fn(async () => ({ user: { id: ADMIN, email: "ops@example.com" }, role: "super_admin" })),
 }));
@@ -38,45 +31,58 @@ const patch = (body: unknown) =>
   });
 
 beforeEach(() => {
-  writes.length = 0;
+  rpc.mockClear();
   logAdminAction.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 describe("PATCH /api/industries/[id]", () => {
-  it("saves the edit and logs it", async () => {
-    updated = { data: { id: INDUSTRY, name: "Pets" }, error: null };
+  it("sends the edit and who made it in one database call, and answers the saved industry", async () => {
+    answer = { data: { success: true, industry: { id: INDUSTRY, name: "Pets" }, changed: ["name"] }, error: null };
 
-    const res = await patch({ name: "Pets" });
+    const res = await patch({ name: " Pets " });
 
     expect(res.status).toBe(200);
-    expect(writes).toEqual([{ name: "Pets" }]);
-    expect(logAdminAction).toHaveBeenCalledTimes(1);
+    expect(await res.json()).toEqual({ industry: { id: INDUSTRY, name: "Pets" } });
+    expect(rpc).toHaveBeenCalledWith("admin_edit_industry", {
+      _industry_id: INDUSTRY,
+      _changes: { name: "Pets" },
+      _admin_user_id: ADMIN,
+      _email: "ops@example.com",
+    });
+    expect(logAdminAction).not.toHaveBeenCalled();
   });
 
-  it("says the industry no longer exists when a colleague removed it first, and logs nothing", async () => {
-    updated = { data: null, error: null };
+  it("refuses a field the form does not edit before calling the database", async () => {
+    const res = await patch({ sort_order: 1 });
+
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("says the industry no longer exists when a colleague removed it first", async () => {
+    answer = { data: { success: false, error: "not_found" }, error: null };
 
     const res = await patch({ name: "Pets" });
 
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "This industry no longer exists." });
-    expect(logAdminAction).not.toHaveBeenCalled();
   });
 
-  it("refuses a name another industry has, and logs nothing", async () => {
-    updated = { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" } };
+  it("refuses a name another industry has", async () => {
+    answer = { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" } };
 
     const res = await patch({ name: "Beauty" });
 
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "An industry with this name already exists." });
-    expect(logAdminAction).not.toHaveBeenCalled();
   });
 
-  it("answers 500 when the database fails", async () => {
-    updated = { data: null, error: { message: "connection lost" } };
+  it("answers 500 when the database fails or answers something else", async () => {
+    answer = { data: null, error: { message: "connection lost" } };
+    expect((await patch({ name: "Pets" })).status).toBe(500);
 
+    answer = { data: { ok: true }, error: null };
     expect((await patch({ name: "Pets" })).status).toBe(500);
   });
 });

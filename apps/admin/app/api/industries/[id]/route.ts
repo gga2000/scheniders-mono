@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
-import { logAdminAction } from "@/lib/activity-logger";
 import { notAnId } from "@/lib/route-id";
 
 const patchSchema = z
@@ -19,6 +18,18 @@ const patchSchema = z
   .partial()
   .strict();
 
+const editResultSchema = z.union([
+  z.object({ success: z.literal(true), industry: z.record(z.string(), z.unknown()), changed: z.array(z.string()) }),
+  z.object({ success: z.literal(false), error: z.literal("not_found") }),
+]);
+
+/**
+ * PATCH /api/industries/[id]: the database writes the fields that really
+ * changed and one staff log row naming them, in one transaction, after the
+ * table lock add, remove and move take (admin_edit_industry). The route wrote
+ * the row in a second request, listing every field sent, even for a save that
+ * changed nothing.
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,28 +45,24 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid industry" }, { status: 400 });
     }
-    const supabase = createAdminClient();
 
-    const { data, error } = await supabase
-      .from("industries")
-      .update(parsed.data)
-      .eq("id", id)
-      .select()
-      .maybeSingle();
+    const { data, error } = await createAdminClient().rpc("admin_edit_industry", {
+      _industry_id: id,
+      _changes: parsed.data,
+      _admin_user_id: admin.user.id,
+      _email: admin.user.email ?? null,
+    });
 
     // A rename onto another industry's name (industries_name_key).
     if (error?.code === "23505") {
       return NextResponse.json({ error: "An industry with this name already exists." }, { status: 409 });
     }
     if (error) throw error;
+    const result = editResultSchema.parse(data);
     // A colleague removed it first: said as Delete and Move say it, not a 500.
-    if (!data) return NextResponse.json({ error: "This industry no longer exists." }, { status: 404 });
+    if (!result.success) return NextResponse.json({ error: "This industry no longer exists." }, { status: 404 });
 
-    await logAdminAction(admin, "update_settings", {
-      details: { setting: "industries", change: "edited", industry_id: id, fields: Object.keys(parsed.data) },
-    });
-
-    return NextResponse.json({ industry: data });
+    return NextResponse.json({ industry: result.industry });
   } catch (error) {
     console.error("Industry PATCH error:", error);
     return NextResponse.json({ error: "Failed to update industry" }, { status: 500 });
