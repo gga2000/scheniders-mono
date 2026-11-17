@@ -45,6 +45,7 @@ const TEAM_WORDS: Record<string, string> = {
   remove_admin_access: "Took away a colleague's console access",
   update_commission_config: "Changed the commission rules",
   link_prime: "Linked a shop to Prime",
+  support_view_end: "Stopped looking as the merchant",
 };
 
 /** Steps on a lead, which the log names by the lead's shop name. */
@@ -187,6 +188,22 @@ export function staffActionText(action: string, details: Record<string, unknown>
   // The log keeps the lead's name: a deleted lead has no row left to name it.
   const lead = LEAD_STEPS.has(action) ? text(details?.merchant_name) : null;
   return lead ? `${words}: ${lead}` : words;
+}
+
+/** A key that holds an id: a uuid in the log says nothing to a reader. */
+const ID_KEY = /(^|_)id$/;
+
+/**
+ * Up to two of the row's plain values, "days: 7 | rows: 40", for the
+ * Activity log and Home's Recent Activity. Ids (session_id, industry_id),
+ * lists and empty values are left out; null when nothing is left.
+ */
+export function staffLogSummary(details: Record<string, unknown> | null): string | null {
+  const parts = Object.entries(details ?? {})
+    .filter(([key, value]) => !ID_KEY.test(key) && value !== null && value !== undefined && typeof value !== "object")
+    .slice(0, 2)
+    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${String(value)}`);
+  return parts.length > 0 ? parts.join(" | ") : null;
 }
 
 export function toStaffAction(row: StaffLogRow): StaffAction {

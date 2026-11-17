@@ -13,7 +13,7 @@ import {
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
-import { staffActionText } from "@/lib/staff-actions";
+import { staffActionText, staffLogSummary } from "@/lib/staff-actions";
 import { ACTIVITY_KINDS, isActivityKind, type ActivityKind } from "@/lib/activity-kinds";
 
 /* ------------------------------------------------------------------ */
@@ -60,21 +60,6 @@ function getActionBadge(action: string, details: Record<string, unknown> | null)
     return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text };
   }
   return { bg: "bg-gray-500/15 text-[var(--muted)]", text };
-}
-
-function summarizeDetails(details: Record<string, unknown> | null): string {
-  if (!details || Object.keys(details).length === 0) return "\u2014";
-
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(details)) {
-    if (value === null || value === undefined) continue;
-    if (typeof value === "object") continue;
-    const displayKey = key.replace(/_/g, " ");
-    parts.push(`${displayKey}: ${String(value)}`);
-    if (parts.length >= 2) break;
-  }
-
-  return parts.length > 0 ? parts.join(" | ") : "\u2014";
 }
 
 function shortenId(id: string): string {
@@ -248,7 +233,7 @@ export default function ActivityLogPage() {
                         </span>
                       </td>
                       <td className="p-3 text-foreground/70 max-w-xs truncate">
-                        {summarizeDetails(log.details)}
+                        {staffLogSummary(log.details) ?? "\u2014"}
                       </td>
                       <td className="p-3 text-foreground/70">
                         {log.business_name || (log.tenant_id ? shortenId(log.tenant_id) : "\u2014")}
