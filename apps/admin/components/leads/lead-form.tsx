@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { normalizeIraqiPhone } from "./lead-phone";
+import { useCan } from "@/hooks/use-admin-auth";
 import { LeadIndustryManager } from "./lead-industry-manager";
 import {
   useLeadFormController,
@@ -459,6 +460,10 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
   const [showIndustryDetail, setShowIndustryDetail] = useState(false);
   const [extras, setExtras] = useState({ website: false, email: false, notes: false });
   const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
+  // The industry list is a settings write (update_settings): support staff
+  // got a bare "Forbidden" at every step, so the link is not shown to them,
+  // as on the Settings page.
+  const canManageIndustries = useCan()("update_settings");
 
   // Re-derive what's revealed each time the dialog opens (so editing a lead that
   // already has a website/email/notes/niche shows those fields straight away).
@@ -602,13 +607,15 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <FieldLabel>Industry</FieldLabel>
-                  <button
-                    type="button"
-                    onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] transition-colors hover:underline"
-                  >
-                    <Settings2 className="h-3 w-3" /> Manage
-                  </button>
+                  {canManageIndustries && (
+                    <button
+                      type="button"
+                      onClick={() => setIndustryMgrOpen(true)}
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] transition-colors hover:underline"
+                    >
+                      <Settings2 className="h-3 w-3" /> Manage
+                    </button>
+                  )}
                 </div>
                 <SelectField
                   value={form.industry_id ?? ""}
@@ -1293,10 +1300,12 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
         </Dialog.Content>
       </Dialog.Portal>
 
-      <LeadIndustryManager
-        isOpen={industryMgrOpen}
-        onClose={() => setIndustryMgrOpen(false)}
-      />
+      {canManageIndustries && (
+        <LeadIndustryManager
+          isOpen={industryMgrOpen}
+          onClose={() => setIndustryMgrOpen(false)}
+        />
+      )}
     </Dialog.Root>
   );
 }

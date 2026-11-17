@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { BottomSheet } from "./bottom-sheet";
 import { normalizeIraqiPhone } from "../lead-phone";
+import { useCan } from "@/hooks/use-admin-auth";
 import { LeadIndustryManager } from "../lead-industry-manager";
 import {
   useLeadFormController,
@@ -87,6 +88,10 @@ export function LeadRegisterSheet({
 }: LeadRegisterSheetProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
+  // The industry list is a settings write (update_settings): support staff
+  // got a bare "Forbidden" at every step, so the link is not shown to them,
+  // as on the Settings page.
+  const canManageIndustries = useCan()("update_settings");
   const [showIndustryDetail, setShowIndustryDetail] = useState(false);
 
   const {
@@ -374,13 +379,15 @@ export function LeadRegisterSheet({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className={cn(LABEL, "mb-0")}>Industry</label>
-                  <button
-                    type="button"
-                    onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] hover:underline"
-                  >
-                    <Settings2 className="w-3 h-3" /> Manage
-                  </button>
+                  {canManageIndustries && (
+                    <button
+                      type="button"
+                      onClick={() => setIndustryMgrOpen(true)}
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] hover:underline"
+                    >
+                      <Settings2 className="w-3 h-3" /> Manage
+                    </button>
+                  )}
                 </div>
                 <div className="relative">
                   <select
@@ -859,10 +866,12 @@ export function LeadRegisterSheet({
         </div>
       </div>
     </BottomSheet>
-    <LeadIndustryManager
-      isOpen={industryMgrOpen}
-      onClose={() => setIndustryMgrOpen(false)}
-    />
+    {canManageIndustries && (
+      <LeadIndustryManager
+        isOpen={industryMgrOpen}
+        onClose={() => setIndustryMgrOpen(false)}
+      />
+    )}
     </>
   );
 }
