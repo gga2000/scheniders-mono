@@ -23,7 +23,9 @@
 --   (store_address_base: cut at 40, "store-" for Arabic only), with its
 --   wallet, 30-day subscription, history line and owner's pending
 --   commission; a prospect shop is turned into the merchant; a second
---   convert writes nothing; only the service role may convert (round 8).
+--   convert writes nothing; only the service role may convert (round 8);
+--   a converted prospect shop starts the day it is converted, and the lead
+--   keeps its build day (round 8 data finding 4).
 
 \set ON_ERROR_STOP 1
 
@@ -352,13 +354,23 @@ BEGIN
         RAISE EXCEPTION 'a lead with no owner made a commission';
     END IF;
 
-    -- A lead with a prospect shop keeps that shop and its address.
+    -- A lead with a prospect shop keeps that shop and its address. The shop
+    -- starts the day it is converted, not the day it was built (round 8 data
+    -- finding 4); the lead keeps the build day.
     SELECT prospect_tenant_id INTO prospect FROM public.leads WHERE id = l1;
+    UPDATE public.tenants SET created_at = '2026-11-01 10:00+03' WHERE id = prospect;
+    UPDATE public.leads SET store_built_at = '2026-11-01 10:00+03' WHERE id = l1;
     answer := public.convert_lead_atomic(l1, karrar, NULL);
     SELECT * INTO shop FROM public.tenants WHERE id = prospect;
     IF (answer->>'tenant_id')::uuid <> prospect OR shop.is_prospect OR shop.status <> 'active'
        OR shop.slug !~ '^kut-perfumes-[0-9a-f]{8}$' THEN
         RAISE EXCEPTION 'prospect shop convert: % %', answer, to_jsonb(shop);
+    END IF;
+    IF shop.created_at <> now() THEN
+        RAISE EXCEPTION 'a converted prospect shop is dated by its build day: %', shop.created_at;
+    END IF;
+    IF (SELECT store_built_at FROM public.leads WHERE id = l1) <> '2026-11-01 10:00+03'::timestamptz THEN
+        RAISE EXCEPTION 'converting changed the lead''s build day';
     END IF;
 
     -- Only the service role may convert.
