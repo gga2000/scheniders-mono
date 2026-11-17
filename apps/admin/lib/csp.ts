@@ -5,9 +5,9 @@
  * it does not run; this is the backstop behind React's escaping.
  *
  * - The middleware makes one nonce per request, hands it to Next.js in the
- *   request's content-security-policy header (Next.js reads its nonce from
- *   there and puts it on its own scripts and chunks) and in x-nonce (the root
- *   layout's before-paint script), and sends the same policy on the response.
+ *   request's copy of the policy (Next.js reads its nonce from there and puts
+ *   it on its own scripts and chunks) and in x-nonce (the root layout's
+ *   before-paint script, and the theme's), and sends the policy on the response.
  * - This is the console's only policy, framing rule included: next.config sets
  *   none. While next.config sent one too, Next.js on Vercel found no nonce in
  *   the request and left its own scripts without one.
@@ -19,7 +19,7 @@
  * - object-src and base-uri close the two other ways to run or redirect a
  *   script; form-action keeps forms on the console; frame-ancestors keeps
  *   every other site from showing the console in a frame (X-Frame-Options
- *   from next.config says the same, and holds while this is report-only).
+ *   from next.config says the same to browsers older than frame-ancestors).
  * - Development needs eval for React's error overlay and fast refresh. Zod
  *   would test eval in the browser too; instrumentation-client turns that off.
  *
@@ -27,11 +27,11 @@
  * limited: images, styles and API calls are not.
  */
 
-/** Report-only while live runs prove no page breaks it; then the enforcing header. */
-export const CSP_HEADER = "Content-Security-Policy-Report-Only";
-
-/** The request header Next.js reads its nonce from, before the report-only one. */
-export const NEXT_NONCE_SOURCE = "content-security-policy";
+/**
+ * Enforced: it ran report-only first (#1381-#1383) until a live run of every
+ * menu page showed each script with the nonce and no breach.
+ */
+export const CSP_HEADER = "Content-Security-Policy";
 
 /** A fresh nonce: 16 random bytes, base64 (the form Next.js reads). */
 export function newNonce(): string {
