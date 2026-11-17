@@ -33,7 +33,6 @@ import { freeDaysKind } from "@/lib/shop-actions";
 interface MerchantCardProps {
   merchant: AdminTenant;
   isSelected: boolean;
-  isPulsing?: boolean;
   isStarred?: boolean;
   index?: number;
   lastActor?: LastActor | null;
@@ -55,7 +54,6 @@ function lastActiveLine(dateStr: string): { text: string; color: string } {
 export function MerchantCard({
   merchant,
   isSelected,
-  isPulsing,
   isStarred,
   index,
   lastActor,
@@ -134,8 +132,7 @@ export function MerchantCard({
           "pastel-card group relative overflow-hidden p-5 transition-all duration-200",
           "hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5",
           isSelected &&
-            "ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]",
-          isPulsing && "animate-pulse-glow"
+            "ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]"
         )}
       >
         {/* Decorative ambient gradient — emanates from logo color */}

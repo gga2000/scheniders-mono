@@ -30,7 +30,6 @@ import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortc
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { LoadError } from "@/components/shared/load-error";
 import { downloadSelectedShops } from "@/lib/download-export";
-import { useRealtimePulse } from "@/store/use-realtime-pulse";
 import {
   EASE_CROSSFADE,
   STAGGER_CHILDREN,
@@ -113,7 +112,6 @@ export default function MerchantsPage() {
     healthFilter,
   } = useAdminStore();
 
-  const pulsingMerchants = useRealtimePulse((s) => s.pulsing);
 
   const hasActiveFilters = !!(planFilter || statusFilter || cityFilter || balanceFilter || healthFilter);
   const hasActiveSearch = !!searchQuery.trim();
@@ -370,7 +368,6 @@ export default function MerchantsPage() {
                 <MerchantCard
                   merchant={merchant}
                   isSelected={selectedMerchants.has(merchant.id)}
-                  isPulsing={pulsingMerchants.has(merchant.id)}
                   isStarred={starredMerchants.includes(merchant.id)}
                   index={idx}
                   lastActor={lastActorsMap[merchant.id] ?? null}

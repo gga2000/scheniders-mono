@@ -112,7 +112,7 @@ const geistMonoCyrillicExt = localFont({
 
 /**
  * `--font-geist-sans` / `--font-geist-mono`, set on `<body>`; read by
- * tailwind.config.ts and @scheniders/ui tokens.css.
+ * @scheniders/ui tokens.css.
  */
 export const geistFontVars: FontVariables = {
   "--font-geist-sans": subsetFontStack([
