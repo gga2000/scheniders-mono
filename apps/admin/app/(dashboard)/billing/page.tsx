@@ -17,6 +17,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
+import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,6 +84,12 @@ async function fetchBilling(): Promise<BillingData> {
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
+  const can = useCan();
+  const { isLoading: roleLoading } = useAdminAuth();
+  // Adding money needs top_up_wallet. The form is drawn while the role loads,
+  // so the tables below hold still for the super admins who use it; support
+  // staff, who would only get a refusal, see it leave.
+  const showTopUp = roleLoading || can("top_up_wallet");
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<BillingData>({
     queryKey: ["admin", "billing"],
     queryFn: fetchBilling,
@@ -159,7 +166,8 @@ export default function BillingPage() {
             Every shop&apos;s wallet, its top-ups and its charges.
           </p>
         </div>
-        <ExportButton type="transactions" label="Export Transactions" />
+        {/* The transactions file needs adjust_balance (api/export). */}
+        {can("adjust_balance") && <ExportButton type="transactions" label="Export Transactions" />}
       </div>
 
       {/* Headline numbers, each naming its window (board v6: one surface). */}
@@ -175,114 +183,116 @@ export default function BillingPage() {
       </NumberStrip>
 
       {/* Top-up Form */}
-      <div className="pastel-card p-4 md:p-5">
-        <h2 className="text-sm font-semibold text-foreground mb-3">
-          Quick Top-Up
-        </h2>
-        <form
-          onSubmit={handleTopup}
-          className="flex flex-col sm:flex-row gap-3 items-end"
-        >
-          {/* Merchant Select */}
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/70 mb-1">
-              Merchant
-            </label>
-            <select
-              value={topupTenantId}
-              onChange={(e) => setTopupTenantId(e.target.value)}
-              className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            >
-              <option value="">Select merchant...</option>
-              {sortedWallets.map((w) => (
-                <option key={w.tenant_id} value={w.tenant_id}>
-                  {w.business_name} ({formatIQD(w.balance_iqd)})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Amount */}
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/70 mb-1">
-              Amount (IQD)
-            </label>
-            <div className="flex gap-1.5 flex-wrap mb-1.5">
-              {PRESET_AMOUNTS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setTopupAmount(preset)}
-                  className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
-                    topupAmount === preset
-                      ? "bg-foreground text-background border-foreground"
-                      : "bg-[var(--card-bg)] text-foreground/70 border-[var(--card-border)] hover:border-foreground/30"
-                  }`}
-                >
-                  {formatCount(preset)}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number"
-              value={topupAmount}
-              onChange={(e) =>
-                setTopupAmount(e.target.value ? Number(e.target.value) : "")
-              }
-              placeholder="Custom amount"
-              min={1}
-              className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            />
-          </div>
-
-          {/* Reason: on the wallet line and in the staff log */}
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-foreground/70 mb-1">
-              Reason (saved in the log)
-            </label>
-            <input
-              type="text"
-              value={topupDescription}
-              onChange={(e) => setTopupDescription(e.target.value)}
-              placeholder="e.g. Qi transfer, receipt 12"
-              maxLength={STAFF_REASON_MAX}
-              className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={
-              !topupTenantId ||
-              !topupAmount ||
-              topupAmount <= 0 ||
-              !isStaffReason(topupDescription) ||
-              topupMutation.isPending
-            }
-            className="px-5 py-2 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap flex items-center gap-2"
+      {showTopUp && (
+        <div className="pastel-card p-4 md:p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-3">
+            Quick Top-Up
+          </h2>
+          <form
+            onSubmit={handleTopup}
+            className="flex flex-col sm:flex-row gap-3 items-end"
           >
-            {topupMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <ArrowUpRight className="w-4 h-4" />
-            )}
-            Top Up
-          </button>
-        </form>
+            {/* Merchant Select */}
+            <div className="flex-1 min-w-0">
+              <label className="block text-xs font-medium text-foreground/70 mb-1">
+                Merchant
+              </label>
+              <select
+                value={topupTenantId}
+                onChange={(e) => setTopupTenantId(e.target.value)}
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              >
+                <option value="">Select merchant...</option>
+                {sortedWallets.map((w) => (
+                  <option key={w.tenant_id} value={w.tenant_id}>
+                    {w.business_name} ({formatIQD(w.balance_iqd)})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        {topupMutation.isError && (
-          <p className="text-xs text-[var(--ink-red)] mt-2">
-            {(topupMutation.error as Error).message}
-          </p>
-        )}
-        {topupMutation.isSuccess && (
-          <p className="text-xs text-[var(--ink-green)] mt-2">
-            Top-up successful! New balance:{" "}
-            {formatIQD(topupMutation.data?.newBalance ?? 0)}
-          </p>
-        )}
-      </div>
+            {/* Amount */}
+            <div className="flex-1 min-w-0">
+              <label className="block text-xs font-medium text-foreground/70 mb-1">
+                Amount (IQD)
+              </label>
+              <div className="flex gap-1.5 flex-wrap mb-1.5">
+                {PRESET_AMOUNTS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setTopupAmount(preset)}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
+                      topupAmount === preset
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-[var(--card-bg)] text-foreground/70 border-[var(--card-border)] hover:border-foreground/30"
+                    }`}
+                  >
+                    {formatCount(preset)}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                value={topupAmount}
+                onChange={(e) =>
+                  setTopupAmount(e.target.value ? Number(e.target.value) : "")
+                }
+                placeholder="Custom amount"
+                min={1}
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            {/* Reason: on the wallet line and in the staff log */}
+            <div className="flex-1 min-w-0">
+              <label className="block text-xs font-medium text-foreground/70 mb-1">
+                Reason (saved in the log)
+              </label>
+              <input
+                type="text"
+                value={topupDescription}
+                onChange={(e) => setTopupDescription(e.target.value)}
+                placeholder="e.g. Qi transfer, receipt 12"
+                maxLength={STAFF_REASON_MAX}
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={
+                !topupTenantId ||
+                !topupAmount ||
+                topupAmount <= 0 ||
+                !isStaffReason(topupDescription) ||
+                topupMutation.isPending
+              }
+              className="px-5 py-2 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap flex items-center gap-2"
+            >
+              {topupMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowUpRight className="w-4 h-4" />
+              )}
+              Top Up
+            </button>
+          </form>
+
+          {topupMutation.isError && (
+            <p className="text-xs text-[var(--ink-red)] mt-2">
+              {(topupMutation.error as Error).message}
+            </p>
+          )}
+          {topupMutation.isSuccess && (
+            <p className="text-xs text-[var(--ink-green)] mt-2">
+              Top-up successful! New balance:{" "}
+              {formatIQD(topupMutation.data?.newBalance ?? 0)}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

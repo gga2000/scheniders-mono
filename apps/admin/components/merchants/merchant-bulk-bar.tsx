@@ -2,6 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Clock, Download, CreditCard, Wallet, Activity } from "lucide-react";
+import { useCan } from "@/hooks/use-admin-auth";
+import type { AdminAction } from "@/types/admin";
 
 interface MerchantBulkBarProps {
   selectedCount: number;
@@ -9,11 +11,12 @@ interface MerchantBulkBarProps {
   onBulkAction: (action: string) => void;
 }
 
-const BULK_ACTIONS = [
-  { key: "top-up", label: "Top Up", icon: Wallet },
-  { key: "extend-trial", label: "Extend Trial", icon: Clock },
-  { key: "export", label: "Export", icon: Download },
-  { key: "change-plan", label: "Change Plan", icon: CreditCard },
+/** Each action with what the server asks of the role (api/bulk, api/export). */
+const BULK_ACTIONS: { key: string; label: string; icon: typeof Wallet; needs: AdminAction[] }[] = [
+  { key: "top-up", label: "Top Up", icon: Wallet, needs: ["bulk_action", "top_up_wallet"] },
+  { key: "extend-trial", label: "Extend Trial", icon: Clock, needs: ["bulk_action"] },
+  { key: "export", label: "Export", icon: Download, needs: ["export_data"] },
+  { key: "change-plan", label: "Change Plan", icon: CreditCard, needs: ["bulk_action"] },
 ];
 
 export function MerchantBulkBar({
@@ -21,6 +24,8 @@ export function MerchantBulkBar({
   onClearSelection,
   onBulkAction,
 }: MerchantBulkBarProps) {
+  const can = useCan();
+  const actions = BULK_ACTIONS.filter((a) => a.needs.every(can));
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -67,7 +72,7 @@ export function MerchantBulkBar({
             )}
 
             {/* Actions */}
-            {BULK_ACTIONS.map(({ key, label, icon: Icon }) => (
+            {actions.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => onBulkAction(key)}

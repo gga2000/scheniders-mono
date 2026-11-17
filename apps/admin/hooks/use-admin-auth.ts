@@ -11,7 +11,8 @@ import {
 } from "react";
 import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
-import type { AdminRole } from "@/types/admin";
+import type { AdminAction, AdminRole } from "@/types/admin";
+import { hasPermission } from "@/lib/admin-permissions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -248,4 +249,14 @@ export function useAdminAuth(): AdminAuthContextValue {
     throw new Error("useAdminAuth must be used within an AdminAuthProvider");
   }
   return context;
+}
+
+/**
+ * Whether the signed-in person's role may do `action` (lib/admin-permissions),
+ * and false until the role is known. Screens use it to leave out a control
+ * the server would refuse with a 403.
+ */
+export function useCan(): (action: AdminAction) => boolean {
+  const { role } = useAdminAuth();
+  return useCallback((action: AdminAction) => (role ? hasPermission(role, action) : false), [role]);
 }

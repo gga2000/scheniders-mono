@@ -13,12 +13,16 @@ import {
 import { storeAddress } from "@scheniders/shared/store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { shopFormHref } from "@/lib/shop-actions";
+import { useCan } from "@/hooks/use-admin-auth";
+import type { AdminAction } from "@/types/admin";
 
 interface ContextMenuItem {
   label: string;
   icon: ReactNode;
   action: () => void;
   variant?: "default" | "destructive";
+  /** Left out for anyone whose role may not do this. */
+  needs?: AdminAction;
 }
 
 interface ContextMenuProps {
@@ -33,10 +37,11 @@ export function MerchantContextMenu({
   children,
 }: ContextMenuProps) {
   const router = useRouter();
+  const can = useCan();
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const items: ContextMenuItem[] = [
+  const allItems: ContextMenuItem[] = [
     {
       label: "View Details",
       icon: <ExternalLink className="w-3.5 h-3.5" />,
@@ -46,11 +51,13 @@ export function MerchantContextMenu({
       label: "Top Up Wallet",
       icon: <Wallet className="w-3.5 h-3.5" />,
       action: () => router.push(shopFormHref(merchantId, "money")),
+      needs: "top_up_wallet",
     },
     {
       label: "Extend Trial",
       icon: <Clock className="w-3.5 h-3.5" />,
       action: () => router.push(shopFormHref(merchantId, "days")),
+      needs: "extend_trial",
     },
     {
       label: "Copy Slug",
@@ -65,6 +72,7 @@ export function MerchantContextMenu({
       action: () => window.open(`https://${storeAddress(merchantSlug)}`, "_blank"),
     },
   ];
+  const items = allItems.filter((item) => !item.needs || can(item.needs));
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

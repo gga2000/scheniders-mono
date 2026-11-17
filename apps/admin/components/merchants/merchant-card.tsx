@@ -27,6 +27,7 @@ import { LastActorBadge } from "./last-actor-badge";
 import type { LastActor } from "@/hooks/use-last-actors";
 import { listChurnRisk } from "@/lib/merchant-health";
 import { formatCount, formatWhen } from "@/lib/format";
+import { useCan } from "@/hooks/use-admin-auth";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -62,6 +63,7 @@ export function MerchantCard({
   onSelectWithShift,
   onToggleStar,
 }: MerchantCardProps) {
+  const can = useCan();
   const logoChar = merchant.business_name?.charAt(0)?.toUpperCase() || "?";
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const healthScore = merchant.staff_health_score;
@@ -335,16 +337,21 @@ export function MerchantCard({
 
         {/* Footer: quick-action toolbar */}
         <div className="relative mt-4 pt-3 border-t border-[var(--card-border)] flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onOpenDetail?.(merchant.id)}
-            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/20 dark:text-emerald-400 text-[11px] font-bold transition-colors"
-            title="Top up wallet"
-            aria-label="Top up wallet"
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            Top Up
-          </button>
+          {/* Only for someone who may add money; the note and link keep their place. */}
+          {can("top_up_wallet") ? (
+            <button
+              type="button"
+              onClick={() => onOpenDetail?.(merchant.id)}
+              className="flex-1 flex items-center justify-center gap-1 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/20 dark:text-emerald-400 text-[11px] font-bold transition-colors"
+              title="Top up wallet"
+              aria-label="Top up wallet"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              Top Up
+            </button>
+          ) : (
+            <span className="flex-1" />
+          )}
           <QuickNotePopover merchantId={merchant.id} />
           <Link
             href={`/merchants/${merchant.id}`}

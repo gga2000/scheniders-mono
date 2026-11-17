@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import type { AdminTenant, TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
+import { useCan } from "@/hooks/use-admin-auth";
 
 type StageKey = TenantStatus;
 
@@ -113,6 +114,9 @@ export function MerchantsKanbanView({
   onOpenDetail,
 }: MerchantsKanbanViewProps) {
   const queryClient = useQueryClient();
+  // Moving a card changes the shop's status (PATCH, change_plan); without it
+  // the cards stay put instead of ending in a refusal.
+  const canMove = useCan()("change_plan");
   // Column totals are counted by the server over every matching shop; the
   // cards are the pages of the list loaded so far.
   const { data: stats } = useMerchantsStats();
@@ -278,7 +282,7 @@ export function MerchantsKanbanView({
                     <KanbanCard
                       key={m.id}
                       merchant={m}
-                      canDrag={!isPaused(stage.key)}
+                      canDrag={canMove && !isPaused(stage.key)}
                       isDragging={draggingId === m.id}
                       onDragStart={(e) => handleDragStart(e, m)}
                       onDragEnd={handleDragEnd}

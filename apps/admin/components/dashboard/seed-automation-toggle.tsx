@@ -2,8 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Bot, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { useCan } from "@/hooks/use-admin-auth";
+
+const switchAnswer = z.object({ success: z.boolean().optional(), error: z.string().optional() });
 
 export function SeedAutomationToggle() {
+  const can = useCan();
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
@@ -32,18 +38,21 @@ export function SeedAutomationToggle() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !active }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setActive(!active);
+      const answer = switchAnswer.safeParse(await res.json().catch(() => null));
+      if (!res.ok || !answer.success || answer.data.success !== true) {
+        throw new Error((answer.success && answer.data.error) || `Seed Automation did not switch (${res.status}).`);
       }
-    } catch {
-      // ignore
+      setActive(!active);
+    } catch (error) {
+      // A refused or failed switch says so; it used to be dropped without a word.
+      toast.error(error instanceof Error ? error.message : "Seed Automation did not switch.");
     } finally {
       setToggling(false);
     }
   };
 
-  if (loading) return null;
+  // Switching needs update_settings; anyone else would only get a refusal.
+  if (loading || !can("update_settings")) return null;
 
   return (
     <button
