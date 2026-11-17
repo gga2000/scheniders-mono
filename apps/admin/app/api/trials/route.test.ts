@@ -23,7 +23,7 @@ const NOW = Date.parse("2026-11-16T22:00:00+03:00");
 
 const trial = (n: number, trialEndsAt: string, extra: Row = {}): Row => ({
   id: `shop-${String(n).padStart(5, "0")}`,
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   business_name: `Shop ${n}`,
   slug: `shop-${n}`,
   plan: "starter",
@@ -57,12 +57,14 @@ describe("GET /api/trials", () => {
     expect(stub.tablesRead()).toEqual(["tenants"]);
   });
 
-  it("counts days on the Baghdad calendar, soonest end first, and leaves the demo store out", async () => {
+  it("counts days on the Baghdad calendar, soonest end first, and leaves the demo store and prospect stores out", async () => {
     stub.state.tables.tenants = [
       trial(1, "2026-11-17T03:21:00Z"), // 06:21 tomorrow: 1 day left
       trial(2, "2026-11-16T20:30:00Z"), // 23:30 tonight: ends today
       trial(3, "2026-11-16T18:00:00Z", { wallet: null }), // 21:00: ended today
-      trial(4, "2026-11-30T09:00:00Z", { is_demo: true }),
+      trial(4, "2026-11-30T09:00:00Z", { is_demo: true, is_prospect: false }),
+      // A store built for a lead before it signs up: its 30 days are no merchant's trial.
+      trial(5, "2026-12-16T09:00:00Z", { is_demo: false, is_prospect: true }),
     ];
 
     const body = await (await call()).json();

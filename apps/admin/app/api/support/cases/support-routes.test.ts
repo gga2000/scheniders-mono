@@ -372,7 +372,7 @@ describe("support shared problem spotter", () => {
     expect((await res.json()).spike).toMatchObject({ topic: "delivery", shops: 3 });
     expect(dbCalls).toContainEqual({ method: "from", args: ["support_messages"] });
     expect(dbCalls).toContainEqual({ method: "eq", args: ["sender_kind", "merchant"] });
-    expect(dbCalls).toContainEqual({ method: "eq", args: ["tenants.is_demo", false] });
+    expect(dbCalls).toContainEqual({ method: "match", args: [{ "tenants.is_demo": false, "tenants.is_prospect": false }] });
     const since = dbCalls.find((c) => c.method === "gte")?.args;
     expect(since?.[0]).toBe("created_at");
     const sinceMs = Date.parse(String(since?.[1]));

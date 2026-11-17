@@ -4,6 +4,7 @@ import { requireAdminFromRequest } from "@/lib/api-auth";
 import { feesOf, fetchIncomeStats, monthLabel } from "@/lib/console-stats";
 import { calculateMerchantLTV } from "@/lib/dashboard-calculations";
 import { everyRow } from "@/lib/every-row";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,8 @@ export async function GET(request: NextRequest) {
         supabase
           .from("tenants")
           .select("id, business_name, created_at")
-          // The demo store (Fermi B13) is in no platform number.
-          .eq("is_demo", false)
+          // The demo store and prospect stores (lib/customer-shops) are in no platform number.
+          .match(CUSTOMER_SHOP)
           .order("id", { ascending: true })
           .range(from, to),
       ),

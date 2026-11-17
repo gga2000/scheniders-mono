@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 interface TenantRow {
   id: string;
@@ -39,8 +40,8 @@ export async function GET(request: NextRequest) {
         supabase
           .from("tenants")
           .select("id, business_name, plan, status, city, created_at, staff_health_parts")
-          // The demo store (Fermi B13) is never a shop at risk.
-          .eq("is_demo", false)
+          // The demo store and prospect stores (lib/customer-shops) are never shops at risk.
+          .match(CUSTOMER_SHOP)
           .order("id")
           .range(from, to)
       ),

@@ -9,6 +9,7 @@ import { merchantSearchFilter } from "@/lib/merchant-search";
 import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
 import { readShopCity } from "@/lib/shop-city";
 import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 /**
  * A shop's staff tags: staff_shop_tags is keyed by the shop, so the database
@@ -60,8 +61,8 @@ export async function GET(request: NextRequest) {
       .select(`${SHOP_COLUMNS}, wallet(${SHOP_WALLET_COLUMNS}), staff_shop_tags(tags), staff_health_score, staff_health_parts`, {
         count: "exact",
       })
-      // The demo store (Fermi B13) has its own card, not a row among customers.
-      .eq("is_demo", false);
+      // The demo store and prospect stores (lib/customer-shops) have their own way in, not a row among customers.
+      .match(CUSTOMER_SHOP);
 
     if (ids.data) query = query.in("id", ids.data);
     if (plan) query = query.eq("plan", plan);

@@ -22,6 +22,7 @@ import {
   calculatePlatformOrderStats,
   type DashboardTenant,
 } from "@/lib/dashboard-calculations";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 const DEFAULT_BRAND_COLOR = "#1E1E1E";
 
@@ -46,8 +47,8 @@ export async function GET(request: NextRequest) {
         supabase
           .from("tenants")
           .select("id, business_name, plan, status, created_at, branding, store_config_rev, wallet(balance_iqd, total_topped_up_iqd)")
-          // The demo store (Fermi B13) is in no platform number.
-          .eq("is_demo", false)
+          // The demo store and prospect stores (lib/customer-shops) are in no platform number.
+          .match(CUSTOMER_SHOP)
           .order("id", { ascending: true })
           .range(from, to),
       ),

@@ -20,7 +20,7 @@ const { GET } = await import("./route");
 const call = () => GET(new NextRequest("http://admin.test/api/health"));
 
 const shop = (id: string, extra: Row = {}): Row => ({
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   id,
   business_name: `Shop ${id}`,
   plan: "starter",

@@ -26,10 +26,10 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   stub.state.functions.admin_income_stats = () => ({ data: incomeStats(), error: null });
   stub.state.tables.tenants = [
-    { id: SHOP_A, is_demo: false, business_name: "Kut Shop", created_at: "2026-04-01T09:00:00Z" },
-    { id: SHOP_B, is_demo: false, business_name: "New Shop", created_at: "2026-11-02T09:00:00Z" },
-    { id: SHOP_C, is_demo: false, business_name: "Quiet Shop", created_at: "2026-11-03T09:00:00Z" },
-    { id: "demo", is_demo: true, business_name: "Fermi B13", created_at: "2026-11-10T09:00:00Z" },
+    { id: SHOP_A, is_demo: false, is_prospect: false, business_name: "Kut Shop", created_at: "2026-04-01T09:00:00Z" },
+    { id: SHOP_B, is_demo: false, is_prospect: false, business_name: "New Shop", created_at: "2026-11-02T09:00:00Z" },
+    { id: SHOP_C, is_demo: false, is_prospect: false, business_name: "Quiet Shop", created_at: "2026-11-03T09:00:00Z" },
+    { id: "demo", is_demo: true, is_prospect: false, business_name: "Fermi B13", created_at: "2026-11-10T09:00:00Z" },
   ];
 });
 
@@ -41,7 +41,7 @@ describe("GET /api/revenue", () => {
     expect(stub.tablesRead()).toEqual(["tenants"]);
     expect(stub.callsTo("tenants.select").flat().join(",")).not.toContain("wallet");
     // The demo store (Fermi B13) is in no platform number.
-    expect(stub.callsTo("tenants.eq")).toContainEqual(["is_demo", false]);
+    expect(stub.callsTo("tenants.match")).toContainEqual([{ is_demo: false, is_prospect: false }]);
   });
 
   it("counts our fees as income and reports other charges apart", async () => {
@@ -79,7 +79,7 @@ describe("GET /api/revenue", () => {
   it("averages fees over every shop past the first 1,000 rows", async () => {
     const quiet = Array.from({ length: SERVER_MAX_ROWS + 497 }, (_, i) => ({
       id: `quiet-${String(i).padStart(5, "0")}`,
-      is_demo: false,
+      is_demo: false, is_prospect: false,
       business_name: `Quiet ${i}`,
       created_at: "2026-10-01T09:00:00Z",
     }));

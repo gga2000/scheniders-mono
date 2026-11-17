@@ -22,7 +22,7 @@ let limits: number[];
 let orders: string[];
 let ins: number[];
 
-/** A stand-in for the query builder: filters by eq, answers a range, never more than the server cap. */
+/** A stand-in for the query builder: filters by eq and match, answers a range, never more than the server cap. */
 function query(table: string) {
   let rows = tables[table] ?? [];
   let window: [number, number] = [0, SERVER_MAX_ROWS - 1];
@@ -34,6 +34,10 @@ function query(table: string) {
     },
     eq: (column: string, value: unknown) => {
       rows = rows.filter((row) => row[column] === value);
+      return builder;
+    },
+    match: (query: Row) => {
+      rows = rows.filter((row) => Object.entries(query).every(([column, value]) => row[column] === value));
       return builder;
     },
     in: (column: string, values: unknown[]) => {
@@ -70,7 +74,7 @@ const call = (params: string) => GET(new NextRequest(`http://admin.test/api/expo
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   business_name: `Shop ${n}`,
   slug: `shop-${n}`,
   plan: "starter",
@@ -264,7 +268,7 @@ describe("POST /api/export: the ticked shops", () => {
   });
 
   it("never puts the demo store in the file, even when it is ticked", async () => {
-    tables.tenants[0] = { ...tables.tenants[0], is_demo: true };
+    tables.tenants[0] = { ...tables.tenants[0], is_demo: true, is_prospect: false };
 
     const rows = await (await post({ type: "merchants", format: "json", ids: [uuid(0), uuid(1)] })).json();
 
