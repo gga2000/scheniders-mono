@@ -319,3 +319,27 @@ SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_
                      = ARRAY['0b:starter>growth:false', '0e:growth>starter:false', '10:growth>professional:false',
                              '0a:growth>professional:true'],
                      'the first choice is on record as from the trial; the others are not');
+
+-- 17. Staff change the plan of a locked trial shop (20261117091510): the
+-- subscription is 'past_due' but the shop is still 'trial', so it is still
+-- the first choice, not a move. Statements in admin_update_shop's order: the
+-- shop's plan, then the subscription's. Staff who first make a locked trial
+-- 'active' and then change its plan have a paying shop by then: a real move.
+SELECT pg_temp.check((SELECT t.status = 'trial' AND s.status = 'past_due'
+                        FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id
+                       WHERE t.id = 'a0000000-0000-4000-8000-00000000000a'),
+                     'the locked trial shop is trial on the shop and past_due on the subscription');
+UPDATE public.tenants SET plan = 'starter' WHERE id = 'a0000000-0000-4000-8000-00000000000a';
+UPDATE public.subscriptions SET plan = 'starter', updated_at = now() WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a';
+INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
+  ('a0000000-0000-4000-8000-000000000012', 'growth', 'trial', now() - interval '1 day');
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, pending_plan) VALUES
+  ('a0000000-0000-4000-8000-000000000012', 'growth', 'past_due', now() - interval '8 days', now() - interval '1 day', NULL);
+UPDATE public.tenants SET status = 'active' WHERE id = 'a0000000-0000-4000-8000-000000000012';
+UPDATE public.tenants SET plan = 'starter' WHERE id = 'a0000000-0000-4000-8000-000000000012';
+UPDATE public.subscriptions SET plan = 'starter', updated_at = now() WHERE tenant_id = 'a0000000-0000-4000-8000-000000000012';
+SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_plan || '>' || to_plan || ':' || from_trial ORDER BY id)
+                        FROM public.subscription_plan_changes)
+                     = ARRAY['0b:starter>growth:false', '0e:growth>starter:false', '10:growth>professional:false',
+                             '0a:growth>professional:true', '0a:professional>starter:true', '12:growth>starter:false'],
+                     'a staff change on a locked trial is from the trial; after staff made the shop active it is a move');
