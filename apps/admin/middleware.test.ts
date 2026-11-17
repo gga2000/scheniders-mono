@@ -213,6 +213,27 @@ describe("how long a staff sign-in lasts", () => {
     expect((await call("/api/leads")).status).toBe(401);
   });
 
+  // Round 14: an open page learns of the end from an API answer and reloads;
+  // the session is gone by then, so a mark tells the login page why.
+  it("marks an ended sign-in, so the page that reloads after the API's 401 is told why", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
+    const api = await call("/api/leads");
+    expect(api.cookies.get("staff_sign_in_ended")?.value).toBe("1");
+
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+    const marked = (path: string) =>
+      middleware(new NextRequest(`https://console.test${path}`, { headers: { cookie: "staff_sign_in_ended=1" } }));
+    expect((await marked("/merchants")).headers.get("location")).toBe("https://console.test/login?error=expired");
+    expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");
+  });
+
+  it("clears the mark once staff are signed in again", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 1) }, error: null };
+    const page = await middleware(new NextRequest("https://console.test/merchants", { headers: { cookie: "staff_sign_in_ended=1" } }));
+    expect(page.status).toBe(200);
+    expect(page.cookies.get("staff_sign_in_ended")?.value).toBe("");
+  });
+
   it("answers 503 when the keys to check the token cannot be read", async () => {
     sessionClaims = { data: null, error: new AuthRetryableFetchError("fetch failed", 0) };
     expect((await call("/merchants")).status).toBe(503);

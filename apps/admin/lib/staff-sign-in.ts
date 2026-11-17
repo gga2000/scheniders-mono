@@ -29,7 +29,7 @@ export interface StaffToken {
   userId: string;
   sessionId: string;
   email: string | null;
-  /** When this session last proved who it is (password, or a second step), in ms. */
+  /** When this session first proved who it is (its password sign-in), in ms. */
   signedInAt: number;
 }
 
@@ -63,7 +63,9 @@ export async function verifyStaffToken(
     userId: claims.data.sub,
     sessionId: claims.data.session_id,
     email: claims.data.email || null,
-    signedInAt: Math.max(...claims.data.amr.map((step) => step.timestamp)) * 1000,
+    // The first proof: a later step (a second factor, which the session itself
+    // can add) must not restart the age limit.
+    signedInAt: Math.min(...claims.data.amr.map((step) => step.timestamp)) * 1000,
   };
 }
 

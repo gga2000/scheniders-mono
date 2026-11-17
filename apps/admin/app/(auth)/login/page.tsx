@@ -92,9 +92,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Error */}
+        {/* Error. The card stays white in dark mode, so its red is the light one. */}
         {(error ?? sentHere) && (
-          <div role="alert" className="p-3 rounded-xl bg-red-500/5 border border-red-200 text-sm text-[var(--ink-red)]">
+          <div role="alert" className="p-3 rounded-xl bg-red-500/5 border border-red-200 text-sm text-[#991B1B]">
             {error ?? sentHere}
           </div>
         )}
