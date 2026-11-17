@@ -30,5 +30,10 @@ export function useCreateActivity() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
+    // A refusal may mean a colleague deleted the lead: read it again, so the
+    // page says so (lead-detail's "deleted" state).
+    onError: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
+    },
   });
 }

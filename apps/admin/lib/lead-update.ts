@@ -101,6 +101,14 @@ function listNames(lists: readonly string[]): string {
  */
 export const LEAD_GONE = "This lead was deleted. Changes here can no longer be saved.";
 
+/**
+ * An insert that names a lead a colleague deleted: Postgres refuses it on the
+ * row's foreign key to the lead (`foreignKey`, e.g. lead_activities_lead_id_fkey).
+ */
+export function leadGoneOn(error: { code?: string; message?: string } | null, foreignKey: string): boolean {
+  return error?.code === "23503" && Boolean(error.message?.includes(foreignKey));
+}
+
 /** One toast for a deleted lead, however many saves and reads find it gone. */
 export const LEAD_GONE_TOAST = "lead-gone";
 

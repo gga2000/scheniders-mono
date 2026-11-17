@@ -20,8 +20,10 @@ type Step = { method: string; args: unknown[] };
 let writes: { table: string; steps: Step[] }[];
 /** The follow-up the update finds (null: none on this lead). */
 let found: { id: string } | null;
+/** Whether the lead itself is still there. */
+let leadThere: boolean;
 
-function chain(steps: Step[]): unknown {
+function chain(steps: Step[], table: string): unknown {
   return new Proxy(() => undefined, {
     get(_target, prop) {
       if (prop === "then") {
@@ -31,9 +33,10 @@ function chain(steps: Step[]): unknown {
         steps.push({ method: String(prop), args });
         if (prop === "maybeSingle") {
           const updating = steps.some((s) => s.method === "update");
-          return Promise.resolve({ data: updating ? found : null, error: null });
+          if (updating) return Promise.resolve({ data: found, error: null });
+          return Promise.resolve({ data: table === "leads" && leadThere ? { id: LEAD } : null, error: null });
         }
-        return chain(steps);
+        return chain(steps, table);
       };
     },
   });
@@ -44,7 +47,7 @@ vi.mock("@/lib/admin-supabase", () => ({
     from: (table: string) => {
       const steps: Step[] = [];
       writes.push({ table, steps });
-      return chain(steps);
+      return chain(steps, table);
     },
   }),
 }));
@@ -67,7 +70,9 @@ const followUpUpdate = () =>
 beforeEach(() => {
   writes = [];
   found = { id: FOLLOW_UP };
-  vi.spyOn(console, "error").mockImplementation(() => {});
+  leadThere = true;
+  // Calls are counted per test: "logs nothing" means in this test.
+  vi.spyOn(console, "error").mockImplementation(() => {}).mockClear();
 });
 
 describe("PATCH /api/leads/[id]/follow-ups/[fid]", () => {
@@ -93,7 +98,22 @@ describe("PATCH /api/leads/[id]/follow-ups/[fid]", () => {
     const res = await change({ is_completed: true });
 
     expect(res.status).toBe(404);
-    expect(writes.map((w) => w.table)).toEqual(["lead_follow_ups"]);
+    expect(await res.json()).toEqual({ error: "This follow-up no longer exists." });
+    expect(writes.map((w) => w.table)).toEqual(["lead_follow_ups", "leads"]);
+    expect(writes[1].steps.some((s) => s.method === "update")).toBe(false);
+  });
+
+  // Round 16 (Data new 2): deleting a lead deletes its follow-ups, and staff
+  // read "This follow-up no longer exists." on a lead that was gone.
+  it("says the lead was deleted when it was, in the words of every other save", async () => {
+    found = null;
+    leadThere = false;
+
+    const res = await change({ is_completed: true });
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "This lead was deleted. Changes here can no longer be saved." });
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it("refuses a change with nothing in it, and writes nothing", async () => {

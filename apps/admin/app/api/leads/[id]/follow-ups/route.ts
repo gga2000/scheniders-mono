@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
+import { LEAD_GONE, leadGoneOn } from "@/lib/lead-update";
+import { setNextFollowUp } from "@/lib/lead-next-follow-up";
 
 // The follow-up form sends assigned_to "" or leaves it out: the follow-up is then
 // its creator's. Any other owner must be active staff, the same rule as a lead's owner.
@@ -58,24 +60,11 @@ export async function POST(
       .select()
       .single();
 
+    // A colleague deleted the lead: the same words as every other save on it.
+    if (leadGoneOn(error, "lead_follow_ups_lead_id_fkey")) return NextResponse.json({ error: LEAD_GONE }, { status: 404 });
     if (error) throw error;
 
-    // Update next_follow_up_at on the lead
-    const { data: earliestFollowUp } = await supabase
-      .from("lead_follow_ups")
-      .select("scheduled_at")
-      .eq("lead_id", id)
-      .eq("is_completed", false)
-      .order("scheduled_at", { ascending: true })
-      .limit(1)
-      .single();
-
-    if (earliestFollowUp) {
-      await supabase
-        .from("leads")
-        .update({ next_follow_up_at: earliestFollowUp.scheduled_at })
-        .eq("id", id);
-    }
+    await setNextFollowUp(supabase, id);
 
     return NextResponse.json({ follow_up: data }, { status: 201 });
   } catch (error) {
