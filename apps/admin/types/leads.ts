@@ -404,7 +404,8 @@ export interface LeadAnalytics {
   by_tier: Record<LeadTier, number>;
   by_industry: { industry_name: string; count: number }[];
   conversion_rate: number;
-  avg_time_to_convert_days: number;
+  /** Whole days; null while no lead has become a shop. */
+  avg_time_to_convert_days: number | null;
   total_estimated_revenue: number;
   top_employees: {
     user_id: string;

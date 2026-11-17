@@ -17,7 +17,7 @@ interface CommandItem {
   sublabel?: string;
   icon: React.ReactNode;
   action: () => void;
-  category: "page" | "action" | "merchant";
+  category: "page" | "action";
 }
 
 /** Every page on the menu that `role` may open, under the place it sits in, in the menu's own words. */
@@ -133,7 +133,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Search pages, merchants, actions..."
+                  placeholder="Search pages and actions"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground/40 outline-none"
                 />
                 <kbd className="text-xs text-foreground/70 bg-foreground/5 px-1.5 py-0.5 rounded font-mono">

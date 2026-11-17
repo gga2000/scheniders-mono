@@ -167,12 +167,11 @@ export default function HealthPage() {
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
-            Tenants at Risk
+            Shops at risk
           </h2>
           {!isLoading && (
             <span className="ml-auto text-xs text-foreground/70">
-              {riskIndicators.length} tenant
-              {riskIndicators.length !== 1 ? "s" : ""}
+              {riskIndicators.length} {riskIndicators.length === 1 ? "shop" : "shops"}
             </span>
           )}
         </div>
@@ -184,7 +183,7 @@ export default function HealthPage() {
         ) : riskIndicators.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
             <CheckCircle2 className="w-10 h-10 mb-2" />
-            <p className="text-sm font-medium">No tenants at risk</p>
+            <p className="text-sm font-medium">No shops at risk</p>
             <p className="text-xs mt-1">All merchants are operating normally</p>
           </div>
         ) : (
