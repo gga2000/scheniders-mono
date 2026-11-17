@@ -1,11 +1,29 @@
 import { menuPages } from "../lib/admin-menu";
+import { CSP_HEADER } from "../lib/csp";
 import { expect, open, test } from "./console";
 
 /*
  * The staff console in a real browser, signed in, with every write stopped
- * (console.ts). Each test fails on a page error or a refused or failed read,
- * and on any write a press that only shows things tried to send.
+ * (console.ts). Each test fails on a page error, a refused or failed read or
+ * a script policy breach, and on any write a press that only shows things
+ * tried to send.
  */
+
+test("a page comes with the script policy, and every script in it carries that answer's nonce", async ({ page, watch }) => {
+  const first = await page.request.get("/merchants");
+  const policy = first.headers()[CSP_HEADER.toLowerCase()] ?? "";
+  const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+  expect(policy).toContain("'strict-dynamic'");
+  expect(nonce).toBeTruthy();
+
+  const scripts = (await first.text()).match(/<script\b[^>]*>/g) ?? [];
+  expect(scripts.length).toBeGreaterThan(0);
+  expect(scripts.filter((tag) => !tag.includes(`nonce="${nonce}"`))).toEqual([]);
+
+  const second = await page.request.get("/merchants");
+  expect(second.headers()[CSP_HEADER.toLowerCase()]).not.toContain(`'nonce-${nonce}'`);
+  expect(watch.writes).toEqual([]);
+});
 
 test.describe("every page on the menu opens", () => {
   for (const { label, href } of menuPages("super_admin")) {

@@ -40,6 +40,7 @@ vi.mock("@supabase/ssr", () => ({
 }));
 
 const { middleware } = await import("./middleware");
+const { CSP_HEADER } = await import("./lib/csp");
 
 const STAFF = { id: "11111111-1111-4111-8111-111111111111" };
 const call = (path: string) => middleware(new NextRequest(`https://console.test${path}`));
@@ -133,5 +134,39 @@ describe("writes from other sites", () => {
     const read = await middleware(new NextRequest("https://console.test/api/leads", { headers: { origin: "https://evil.example" } }));
     expect(read.status).toBe(200);
     expect((await write("/merchants", { origin: "https://evil.example" })).status).toBe(200);
+  });
+});
+
+describe("the script policy", () => {
+  const nonceIn = (policy: string | null) => policy?.match(/'nonce-([A-Za-z0-9+/]+={0,2})'/)?.[1];
+
+  it("sends a policy with a nonce of its own on every answer, and hands the same nonce to the page", async () => {
+    const first = await call("/merchants");
+    const second = await call("/merchants");
+    const policy = first.headers.get(CSP_HEADER);
+    const nonce = nonceIn(policy);
+
+    expect(policy).toContain("'strict-dynamic'");
+    expect(nonce).toBeTruthy();
+    expect(nonceIn(second.headers.get(CSP_HEADER))).not.toBe(nonce);
+    // Forwarded to Next.js (its scripts) and to the root layout (the before-paint script).
+    expect(first.headers.get("x-middleware-request-x-nonce")).toBe(nonce);
+    expect(first.headers.get(`x-middleware-request-${CSP_HEADER.toLowerCase()}`)).toBe(policy);
+  });
+
+  it("replaces a nonce the browser sent", async () => {
+    const response = await middleware(
+      new NextRequest("https://console.test/merchants", { headers: { "x-nonce": "chosen-by-the-page" } }),
+    );
+    expect(response.headers.get("x-middleware-request-x-nonce")).not.toBe("chosen-by-the-page");
+    expect(response.headers.get("x-middleware-request-x-nonce")).toBe(nonceIn(response.headers.get(CSP_HEADER)));
+  });
+
+  it("is on the answers the middleware builds itself too", async () => {
+    getUser = { data: { user: null }, error: null };
+    expect((await call("/merchants")).headers.get(CSP_HEADER)).toContain("script-src");
+    adminRead = { data: null, error: { message: "connection lost" } };
+    getUser = { data: { user: STAFF }, error: null };
+    expect((await call("/merchants")).headers.get(CSP_HEADER)).toContain("script-src");
   });
 });

@@ -10,8 +10,10 @@ import { test as base, expect, type Page } from "@playwright/test";
  *   change data, and /api/export is never fetched. Two reads the console
  *   sends as POST (who last acted on each shop, and Sentry's error reports)
  *   are stopped too, but are not counted as writes.
- * - Each test fails on a page error or an API read the server refused or
- *   failed (401, 403, 5xx), and lists the writes a press tried to send.
+ * - Each test fails on a page error, an API read the server refused or
+ *   failed (401, 403, 5xx), or anything the script policy (lib/csp.ts) stopped
+ *   or, while it only reports, would have stopped; and lists the writes a
+ *   press tried to send.
  */
 
 const EMAIL = process.env.E2E_ADMIN_EMAIL;
@@ -42,7 +44,7 @@ async function signIn(): Promise<string> {
 export interface ConsoleWatch {
   /** Writes a press tried to send ("POST /api/…"), stopped in the browser. */
   writes: string[];
-  /** Page errors and refused or failed API reads, which fail the test. */
+  /** Page errors, refused or failed API reads and script policy breaches, which fail the test. */
   problems: string[];
 }
 
@@ -71,6 +73,15 @@ export const test = base.extend<{ watch: ConsoleWatch }>({
       return route.abort();
     });
     page.on("pageerror", (error) => watch.problems.push(`page error: ${error.message.slice(0, 200)}`));
+    await page.exposeBinding("reportScriptPolicyBreach", (_source, breach: string) => {
+      watch.problems.push(`script policy: ${breach}`);
+    });
+    await page.addInitScript(() => {
+      const report = (window as unknown as { reportScriptPolicyBreach: (breach: string) => void }).reportScriptPolicyBreach;
+      document.addEventListener("securitypolicyviolation", (event) => {
+        report(`${event.effectiveDirective} ${event.blockedURI || "(inline)"} at ${event.sourceFile}:${event.lineNumber}`);
+      });
+    });
     page.on("response", (response) => {
       const url = new URL(response.url());
       const status = response.status();

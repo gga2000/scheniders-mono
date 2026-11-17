@@ -2,13 +2,29 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
+import { CSP_HEADER, newNonce, scriptPolicy } from "@/lib/csp";
 
 const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
 
 /** Staff whose access could not be checked: the database or auth server did not answer. */
 const CHECK_FAILED = "Could not check your access. Try again in a moment.";
 
+/**
+ * Every answer carries the script policy with a nonce of its own (lib/csp.ts).
+ * The request carries it on to Next.js, which puts the nonce on its scripts,
+ * and to the root layout as x-nonce; a nonce the browser sent is replaced.
+ */
 export async function middleware(request: NextRequest) {
+  const nonce = newNonce();
+  const policy = scriptPolicy(nonce, process.env.NODE_ENV === "development");
+  request.headers.set("x-nonce", nonce);
+  request.headers.set(CSP_HEADER.toLowerCase(), policy);
+  const response = await checkAccess(request);
+  response.headers.set(CSP_HEADER, policy);
+  return response;
+}
+
+async function checkAccess(request: NextRequest) {
   // A write to the API must come from the console's own pages, before the
   // sign-in cookie it carries is read at all.
   if (request.nextUrl.pathname.startsWith("/api/") && !isOwnPageWrite(request.method, request.headers, request.nextUrl.host)) {
