@@ -23,6 +23,7 @@ compute_lead_tier
 compute_lead_predictions
 normalize_phone
 leads_after_upsert
+lead_responsiveness_points
 calculate_lead_score
 leads_freeze_conversion_attribution
 support_view_block_writes

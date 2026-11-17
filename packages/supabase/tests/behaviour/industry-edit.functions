@@ -3,5 +3,6 @@ compute_lead_predictions
 compute_lead_tier
 normalize_phone
 leads_before_upsert
+lead_responsiveness_points
 calculate_lead_score
 leads_after_upsert
