@@ -116,7 +116,7 @@ export function MerchantCard({
   };
 
   return (
-    <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug}>
+    <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug} onTrial={merchant.status === "trial"}>
       <div
         className={cn(
           "pastel-card group relative overflow-hidden p-5 transition-all duration-200",

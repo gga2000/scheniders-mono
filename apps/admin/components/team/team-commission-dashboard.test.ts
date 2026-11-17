@@ -29,3 +29,12 @@ describe("commission settings", () => {
     expect(html).not.toContain("No commission configurations set up yet.");
   });
 });
+
+describe("a commission setting", () => {
+  it("shows no Edit button while there is no form to edit it", () => {
+    read = { ...read, data: [{ id: "c1", name: "Per shop", type: "per_order", is_active: true }] };
+    const html = render();
+    expect(html).toContain("Per shop");
+    expect(html).not.toMatch(/>\s*Edit\s*<\/button>/);
+  });
+});

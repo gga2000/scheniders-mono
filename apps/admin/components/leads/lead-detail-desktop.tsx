@@ -46,6 +46,8 @@ import {
   SCORE_KEYS,
 } from "@/components/leads/lead-detail-tabs";
 import { formatDay } from "@/lib/format";
+import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
+import { toast } from "sonner";
 
 // ── Tabs ───────────────────────────────────────────────────────────────
 
@@ -58,6 +60,8 @@ export function LeadDetailDesktop() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, isError, error } = useLeadDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  // "Add Note" in the ⋮ menu: opens Activity with its note box focused.
+  const [noteRequest, setNoteRequest] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [buildStoreOpen, setBuildStoreOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -259,22 +263,38 @@ export function LeadDetailDesktop() {
                       onClick={() => setDropdownOpen(false)}
                     />
                     <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl py-1">
+                      {/* Each item does what it says, as the Leads list's quick actions do. */}
                       <button
-                        onClick={() => setDropdownOpen(false)}
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          const phone = leadPhone(lead);
+                          if (phone) window.location.href = `tel:${phone}`;
+                          else toast.info("No phone number on file");
+                        }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5 transition-colors"
                       >
                         <Phone className="w-4 h-4" />
                         Call
                       </button>
                       <button
-                        onClick={() => setDropdownOpen(false)}
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          const phone = leadPhone(lead);
+                          const intl = phone && toIntlIraqi(phone);
+                          if (intl) window.open(`https://wa.me/${intl}`, "_blank");
+                          else toast.info("No WhatsApp number on file");
+                        }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5 transition-colors"
                       >
                         <MessageCircle className="w-4 h-4" />
                         WhatsApp
                       </button>
                       <button
-                        onClick={() => setDropdownOpen(false)}
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          setActiveTab("Activity");
+                          setNoteRequest((n) => n + 1);
+                        }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[var(--foreground)] hover:bg-white/5 transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
@@ -422,7 +442,10 @@ export function LeadDetailDesktop() {
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              setNoteRequest(0);
+            }}
             className={cn(
               "px-4 py-2.5 text-sm font-semibold transition-colors relative",
               activeTab === tab
@@ -453,7 +476,7 @@ export function LeadDetailDesktop() {
         >
           {activeTab === "Overview" && <OverviewContent lead={lead} />}
           {activeTab === "Activity" && (
-            <LeadActivityTimeline activities={activities} leadId={lead.id} />
+            <LeadActivityTimeline activities={activities} leadId={lead.id} noteRequest={noteRequest} />
           )}
           {activeTab === "Follow-ups" && (
             <LeadFollowUpList followUps={follow_ups} leadId={lead.id} />
