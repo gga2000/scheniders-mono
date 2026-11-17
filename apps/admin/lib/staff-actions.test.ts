@@ -102,22 +102,22 @@ describe("staffActionText", () => {
 // Round 11: the details column showed a look's session_id, a uuid nobody can read.
 describe("staffLogSummary", () => {
   it("shows up to two plain values in words", () => {
-    expect(staffLogSummary({ days: 7 })).toBe("days: 7");
-    expect(staffLogSummary({ rows: 40, kind: "leads", format: "csv" })).toBe("rows: 40 | kind: leads");
+    expect(staffLogSummary("any_step", { days: 7 })).toBe("days: 7");
+    expect(staffLogSummary("any_step", { rows: 40, kind: "leads", format: "csv" })).toBe("rows: 40 | kind: leads");
   });
 
   it("leaves out ids, lists and empty values", () => {
-    expect(staffLogSummary({ session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBeNull();
+    expect(staffLogSummary("any_step", { session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBeNull();
     expect(
-      staffLogSummary({ setting: "industries", industry_id: "x", id: "y", fields: ["name"], was: null, change: "edited" }),
+      staffLogSummary("any_step", { setting: "industries", industry_id: "x", id: "y", fields: ["name"], was: null, change: "edited" }),
     ).toBe("setting: industries | change: edited");
-    expect(staffLogSummary({ paid: true, said: "ok" })).toBe("paid: true | said: ok");
+    expect(staffLogSummary("any_step", { paid: true, said: "ok" })).toBe("paid: true | said: ok");
   });
 
   // Round 12: an owner move (admin_change_leads) logs from and to as staff ids.
   it("leaves out an id under any key", () => {
     expect(
-      staffLogSummary({
+      staffLogSummary("any_step", {
         lead_id: "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f",
         merchant_name: "Kawkab",
         from: "9b1e2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
@@ -126,9 +126,17 @@ describe("staffLogSummary", () => {
     ).toBe("merchant name: Kawkab");
   });
 
+  // An owner move's and a lead edit's own words name the lead: not twice.
+  it("leaves out the lead's name where the step's words give it", () => {
+    const move = { merchant_name: "Kawkab", from: "9b1e2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d", to: null };
+    expect(staffActionText("reassign_lead", move)).toBe("Moved a lead to another owner: Kawkab");
+    expect(staffLogSummary("reassign_lead", move)).toBeNull();
+    expect(staffLogSummary("edit_lead", { merchant_name: "Kawkab", source: "form" })).toBe("source: form");
+  });
+
   it("is null for no details", () => {
-    expect(staffLogSummary(null)).toBeNull();
-    expect(staffLogSummary({})).toBeNull();
+    expect(staffLogSummary("any_step", null)).toBeNull();
+    expect(staffLogSummary("any_step", {})).toBeNull();
   });
 });
 

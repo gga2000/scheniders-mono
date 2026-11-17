@@ -59,7 +59,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
       color: getActionColor(activity.action),
       text: staffActionText(activity.action, activity.details),
       relativeTime: formatWhen(activity.created_at),
-      summary: staffLogSummary(activity.details),
+      summary: staffLogSummary(activity.action, activity.details),
     }));
   }, [activities]);
 
