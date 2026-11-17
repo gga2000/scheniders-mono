@@ -19,7 +19,7 @@ import type { AdminTenant, TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
-import { STATUS_REFUSALS, statusLandedText, statusPickRefusal } from "@/lib/shop-status-choice";
+import { STATUS_REFUSALS, stageMoveNote, statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
 
 type StageKey = TenantStatus;
 
@@ -128,7 +128,11 @@ export function MerchantsKanbanView({
     id: string;
     name: string;
     from: StageKey;
+    /** The column it was dropped on. */
     to: StageKey;
+    /** What the server will save: a trial never paid dropped on Active goes back to Trial. */
+    saves: TenantStatus;
+    trialEndsAt: string | null;
   } | null>(null);
 
   const buckets = useMemo(() => {
@@ -193,7 +197,8 @@ export function MerchantsKanbanView({
         setDraggingId(null);
         return;
       }
-      const refusal = statusPickRefusal({ status: from, trial_unpaid: merchant.trial_unpaid ?? false }, target);
+      const shop = { status: from, trial_payment: merchant.trial_payment ?? "paid" } as const;
+      const refusal = statusPickRefusal(shop, target);
       if (refusal) {
         // Said before a confirm that the server would only refuse.
         toast.error(STATUS_REFUSALS[refusal]);
@@ -206,6 +211,8 @@ export function MerchantsKanbanView({
         name: merchant.business_name,
         from,
         to: target,
+        saves: statusPickSaves(shop, target),
+        trialEndsAt: merchant.trial_ends_at,
       });
       setHoverCol(null);
       setDraggingId(null);
@@ -338,12 +345,12 @@ export function MerchantsKanbanView({
               <p className="text-sm font-black text-foreground tracking-tight mb-4 leading-snug">
                 Move <span className="text-violet-600 dark:text-violet-400">{pendingMove.name}</span> from{" "}
                 {STAGES.find((s) => s.key === pendingMove.from)?.label} to{" "}
-                {STAGES.find((s) => s.key === pendingMove.to)?.label}?
+                {STAGES.find((s) => s.key === pendingMove.saves)?.label}?
               </p>
               <div className="flex items-center gap-2 mb-5">
                 {(() => {
                   const fromStage = STAGES.find((s) => s.key === pendingMove.from);
-                  const toStage = STAGES.find((s) => s.key === pendingMove.to);
+                  const toStage = STAGES.find((s) => s.key === pendingMove.saves);
                   if (!fromStage || !toStage) return null;
                   const FromIcon = fromStage.icon;
                   const ToIcon = toStage.icon;
@@ -373,28 +380,24 @@ export function MerchantsKanbanView({
                 })()}
               </div>
               <p className="text-[11px] text-foreground/55 mb-4 leading-snug">
-                {pendingMove.to === "trial"
-                  ? "Note: Moving back to trial does not reset the trial end date — extend it from the detail panel."
-                  : pendingMove.to === "suspended"
-                    ? "The merchant will lose dashboard access until reactivated."
-                    : pendingMove.to === "cancelled"
-                      ? "The merchant will be marked as churned."
-                      : "The merchant's status will update immediately."}
+                {stageMoveNote(pendingMove.to, pendingMove.saves, pendingMove.trialEndsAt, new Date())}
               </p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
+                    // The status the confirm names: if the trial was paid
+                    // meanwhile, the server refuses Trial and says why.
                     statusMutation.mutate({
                       id: pendingMove.id,
-                      status: pendingMove.to as TenantStatus,
+                      status: pendingMove.saves,
                     });
                     setPendingMove(null);
                   }}
                   disabled={statusMutation.isPending}
                   className={cn(
                     "flex-1 px-4 py-2.5 rounded-xl text-xs font-black text-white shadow-sm ring-1 ring-white/20 transition-all bg-gradient-to-br hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50",
-                    STAGES.find((s) => s.key === pendingMove.to)?.gradient ??
+                    STAGES.find((s) => s.key === pendingMove.saves)?.gradient ??
                       "from-foreground to-foreground"
                   )}
                 >

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { TenantStatus } from "@/types/admin";
+import type { TenantStatus, TrialPayment } from "@/types/admin";
 import {
   STATUS_REFUSALS,
-  canGoBackToTrial,
   isTrialUnpaid,
+  stageMoveNote,
   statusLandedText,
   statusPickRefusal,
+  statusPickSaves,
+  trialPayment,
   type StatusRefusal,
 } from "./shop-status-choice";
 import { SHOP_UPDATE_REFUSALS } from "./shop-update";
@@ -48,19 +50,22 @@ describe("the status moves staff are offered", () => {
     }
   });
 
-  const paying = { status: "active" as TenantStatus, trial_unpaid: false };
-  const cases: Array<[string, { status: TenantStatus; trial_unpaid: boolean }, TenantStatus, StatusRefusal | null]> = [
+  type Shop = { status: TenantStatus; trial_payment: TrialPayment };
+  const paying: Shop = { status: "active", trial_payment: "paid" };
+  const held = (trial_payment: TrialPayment): Shop => ({ status: "suspended", trial_payment });
+  const cases: Array<[string, Shop, TenantStatus, StatusRefusal | null]> = [
     ["Paused is set by Pause", paying, "limited", "use_pause"],
-    ["a paused shop has no move", { status: "limited", trial_unpaid: true }, "active", "paused"],
-    ["a paused shop cannot be put on hold", { status: "limited", trial_unpaid: true }, "suspended", "paused"],
-    ["a trial does not become paying by a pick", { status: "trial", trial_unpaid: true }, "active", "still_trial"],
+    ["a paused shop has no move", { status: "limited", trial_payment: "never_paid" }, "active", "paused"],
+    ["a paused shop cannot be put on hold", { status: "limited", trial_payment: "never_paid" }, "suspended", "paused"],
+    ["a trial does not become paying by a pick", { status: "trial", trial_payment: "never_paid" }, "active", "still_trial"],
     ["a paying shop does not go back to Trial", paying, "trial", "not_trialing"],
-    ["a held trial never paid can go back to Trial", { status: "suspended", trial_unpaid: true }, "trial", null],
-    ["a held shop that paid cannot go back to Trial", { status: "suspended", trial_unpaid: false }, "trial", "not_trialing"],
-    ["a held trial can be picked Active (it reopens as a trial)", { status: "suspended", trial_unpaid: true }, "active", null],
+    ["a held trial never paid can go back to Trial", held("never_paid"), "trial", null],
+    ["a held shop with no subscription can go back to Trial", held("no_subscription"), "trial", null],
+    ["a held shop that paid cannot go back to Trial", held("paid"), "trial", "not_trialing"],
+    ["a held trial can be picked Active (it reopens as a trial)", held("never_paid"), "active", null],
     ["a paying shop can be held", paying, "suspended", null],
-    ["a trial can be cancelled", { status: "trial", trial_unpaid: true }, "cancelled", null],
-    ["the current status is no move", { status: "limited", trial_unpaid: false }, "limited", null],
+    ["a trial can be cancelled", { status: "trial", trial_payment: "never_paid" }, "cancelled", null],
+    ["the current status is no move", { status: "limited", trial_payment: "paid" }, "limited", null],
   ];
   it.each(cases)("%s", (_, shop, to, refusal) => {
     expect(statusPickRefusal(shop, to)).toBe(refusal);
@@ -88,10 +93,24 @@ describe("a trial that was never paid", () => {
     expect(isTrialUnpaid({ status: "cancelled", current_period_end: TRIAL_END }, TRIAL_END)).toBe(false);
   });
 
-  it("may go back to Trial, as may a shop with no subscription", () => {
-    expect(canGoBackToTrial(null, null)).toBe(true);
-    expect(canGoBackToTrial({ status: "past_due", current_period_end: TRIAL_END }, TRIAL_END)).toBe(true);
-    expect(canGoBackToTrial({ status: "active", current_period_end: TRIAL_END }, TRIAL_END)).toBe(false);
+  it("is told apart from a paid subscription and from none", () => {
+    expect(trialPayment(null, null)).toBe("no_subscription");
+    expect(trialPayment(undefined, TRIAL_END)).toBe("no_subscription");
+    expect(trialPayment({ status: "past_due", current_period_end: TRIAL_END }, TRIAL_END)).toBe("never_paid");
+    expect(trialPayment({ status: "active", current_period_end: TRIAL_END }, TRIAL_END)).toBe("paid");
+  });
+
+  // Round 14 (data new 3): the list sent one flag for "no subscription, or
+  // never paid", so the Pipeline could not tell that Active saves as Trial.
+  it("saves Active as Trial only for a trial never paid, as the SQL rewrite does", () => {
+    const held = (trial_payment: TrialPayment) => ({ status: "suspended" as TenantStatus, trial_payment });
+    expect(statusPickSaves(held("never_paid"), "active")).toBe("trial");
+    expect(statusPickSaves({ status: "cancelled", trial_payment: "never_paid" }, "active")).toBe("trial");
+    // No subscription: _trial_unpaid is false in SQL, so Active is saved as picked.
+    expect(statusPickSaves(held("no_subscription"), "active")).toBe("active");
+    expect(statusPickSaves(held("paid"), "active")).toBe("active");
+    expect(statusPickSaves(held("never_paid"), "trial")).toBe("trial");
+    expect(statusPickSaves(held("never_paid"), "cancelled")).toBe("cancelled");
   });
 
   it("is the rule the newest admin_update_shop uses for both Trial and Active", () => {
@@ -101,6 +120,21 @@ describe("a trial that was never paid", () => {
     );
     expect(checks).toContain("IF _new_status = 'active' AND _trial_unpaid THEN _new_status := 'trial';");
     expect(checks).toContain("ELSIF _new_status = 'trial' AND _sub_id IS NOT NULL AND NOT _trial_unpaid THEN");
+  });
+
+  it("is said by the Pipeline's confirm before the move, as Reactivate says it", () => {
+    const now = new Date("2026-11-17T12:00:00Z");
+    expect(stageMoveNote("active", "trial", TRIAL_END, now)).toBe(
+      "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays.",
+    );
+    expect(stageMoveNote("active", "trial", "2026-11-30T00:00:00Z", now)).toBe(
+      "The shop goes back to its trial now: its trial was never paid.",
+    );
+    expect(stageMoveNote("active", "active", TRIAL_END, now)).toBe("The merchant's status will update immediately.");
+    // Trial picked as Trial names the shop page's button for more days.
+    expect(stageMoveNote("trial", "trial", TRIAL_END, now)).toBe(
+      "Its trial end date stays as it is. To give more days, use Give free days on its page.",
+    );
   });
 
   it("is said when Active comes back as Trial, and only then", () => {

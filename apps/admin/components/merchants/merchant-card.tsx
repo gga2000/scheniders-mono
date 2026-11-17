@@ -267,7 +267,7 @@ export function MerchantCard({
             <MerchantStatusDropdown
               merchantId={merchant.id}
               status={merchant.status}
-              trialUnpaid={merchant.trial_unpaid ?? false}
+              trialPayment={merchant.trial_payment ?? "paid"}
             />
             {merchant.billing_lock && <LockedChip lock={merchant.billing_lock} />}
           </div>
