@@ -848,7 +848,7 @@ describe("every admin API handler is guarded", () => {
   const API_DIR = path.resolve(__dirname);
   // Routes never call `requireAdmin` directly: its typed AdminAuthError would
   // land in the handler's generic catch and come back as a 500.
-  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin)\(/;
+  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin|requireCronAuth)\(/;
 
   const routeFiles = readdirSync(API_DIR, { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(`${path.sep}route.ts`) || f === "route.ts")

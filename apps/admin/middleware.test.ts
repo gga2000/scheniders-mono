@@ -297,6 +297,46 @@ describe("writes from other sites", () => {
   });
 });
 
+/*
+ * Round 15 (Reliability new 4): Vercel's scheduler calls the hourly check with
+ * its secret and no staff session. The route checks the secret and fails
+ * closed (lib/cron-auth.test.ts); the middleware lets only a read that carries
+ * a bearer token reach it, and never reads a sign-in for it.
+ */
+describe("the scheduled checks", () => {
+  const scheduled = (init: { method?: string; headers?: Record<string, string> } = {}) =>
+    middleware(new NextRequest("https://console.test/api/cron/hourly-jobs", init));
+
+  beforeEach(() => {
+    getUser = { data: { user: null }, error: { message: "must not be asked" } };
+    adminRead = { data: null, error: { message: "must not be asked" } };
+  });
+
+  it("hands the scheduler's read to the route, which checks its secret", async () => {
+    const response = await scheduled({ headers: { authorization: "Bearer the-scheduler-secret" } });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(errors).not.toHaveBeenCalled();
+  });
+
+  it("answers 401 to a read with no bearer token, and to any write", async () => {
+    expect((await scheduled()).status).toBe(401);
+    const write = await scheduled({
+      method: "POST",
+      headers: { authorization: "Bearer the-scheduler-secret", origin: "https://console.test" },
+    });
+    expect(write.status).toBe(401);
+  });
+
+  it("is only the /api/cron/ addresses: the rest of the API still needs a staff sign-in", async () => {
+    const read = await middleware(
+      new NextRequest("https://console.test/api/hourly-jobs", { headers: { authorization: "Bearer the-scheduler-secret" } }),
+    );
+    expect(read.status).toBe(503);
+  });
+});
+
 describe("the script policy", () => {
   const nonceIn = (policy: string | null) => policy?.match(/'nonce-([A-Za-z0-9+/]+={0,2})'/)?.[1];
 
