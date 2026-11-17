@@ -49,9 +49,10 @@ interface LeadRegisterSheetProps {
   onOpenChange: (open: boolean) => void;
   /**
    * `changes`: only the fields that differ from the form as it opened (what an
-   * edit sends). Resolve "unchanged" when there was nothing to send.
+   * edit sends); `opened`: the form as it opened. Resolve "unchanged" when
+   * there was nothing to send.
    */
-  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<LeadFormSubmitResult>;
+  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => Promise<LeadFormSubmitResult>;
   initialData?: Partial<LeadFormData>;
   /**
    * If provided, closing the sheet (swipe / tap-outside / back) with unsaved

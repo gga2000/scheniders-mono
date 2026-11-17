@@ -11,6 +11,10 @@
 --   a field the form does not own (status, owner, scores) is refused and
 --   nothing is saved;
 --   a lead that is gone is said to be gone;
+--   a list (phones, tags, branches) sent with the copy the form opened is
+--   refused, nothing saved and no row, when a colleague changed it since;
+--   saved when it is as it opened; no list reads as an empty one; only the
+--   lists may be compared;
 --   a converted lead's name may still be edited;
 --   only the service role may call it.
 
@@ -97,6 +101,44 @@ BEGIN
     answer := public.admin_edit_lead(l2, '{"merchant_name": "Store, renamed"}'::jsonb, karrar, NULL);
     IF answer->'changed' <> '["merchant_name"]'::jsonb THEN RAISE EXCEPTION 'converted rename: %', answer; END IF;
 
+    -- Lists as the form opened them (round 11). Noor added "called twice"
+    -- after Ali's form opened with ["abaya", "vip"]: Ali's tags are refused.
+    UPDATE public.leads SET tags = ARRAY['abaya', 'vip', 'called twice'] WHERE id = l1;
+    SELECT count(*) INTO n FROM public.admin_activity_logs;
+    answer := public.admin_edit_lead(l1,
+        '{"tags": ["abaya", "vip", "big order"], "priority": "low"}'::jsonb, karrar, 'karrar@x.test',
+        '{"tags": ["abaya", "vip"]}'::jsonb);
+    IF answer <> '{"found": true, "changed": [], "stale": ["tags"]}'::jsonb THEN RAISE EXCEPTION 'stale answer: %', answer; END IF;
+    SELECT * INTO lead FROM public.leads WHERE id = l1;
+    IF lead.tags <> ARRAY['abaya', 'vip', 'called twice'] OR lead.priority <> 'high' THEN
+        RAISE EXCEPTION 'a stale save changed the lead: %', to_jsonb(lead);
+    END IF;
+    IF (SELECT count(*) FROM public.admin_activity_logs) <> n THEN RAISE EXCEPTION 'a stale save wrote a row'; END IF;
+
+    -- Opened again, the same change is saved: phones in a different key order still match.
+    answer := public.admin_edit_lead(l1,
+        '{"tags": ["abaya", "vip", "called twice", "big order"]}'::jsonb, karrar, 'karrar@x.test',
+        jsonb_build_object('tags', '["abaya", "vip", "called twice"]'::jsonb,
+                           'phone_numbers', '[{"number":"07701234567","title":"Owner"},{"number":"07809876543","title":"Shop"}]'::jsonb));
+    IF answer <> '{"found": true, "changed": ["tags"]}'::jsonb THEN RAISE EXCEPTION 'fresh answer: %', answer; END IF;
+    IF (SELECT count(*) FROM public.admin_activity_logs) <> n + 1 THEN RAISE EXCEPTION 'a fresh save wrote no row'; END IF;
+
+    -- No tags at all (null) reads as an empty list.
+    answer := public.admin_edit_lead(l2, '{"tags": ["shop"]}'::jsonb, karrar, NULL, '{"tags": []}'::jsonb);
+    IF answer <> '{"found": true, "changed": ["tags"]}'::jsonb THEN RAISE EXCEPTION 'null tags answer: %', answer; END IF;
+
+    -- Only the lists are compared.
+    BEGIN
+        PERFORM public.admin_edit_lead(l1, '{"city": "Basra"}'::jsonb, karrar, NULL, '{"city": "Baghdad"}'::jsonb);
+        RAISE EXCEPTION 'a compared city was accepted';
+    EXCEPTION WHEN invalid_parameter_value THEN NULL;
+    END;
+    BEGIN
+        PERFORM public.admin_edit_lead(l1, '{"city": "Basra"}'::jsonb, karrar, NULL, '["tags"]'::jsonb);
+        RAISE EXCEPTION 'lists that are not an object were accepted';
+    EXCEPTION WHEN invalid_parameter_value THEN NULL;
+    END;
+
     -- Only the service role.
     PERFORM set_config('test.role', 'authenticated', true);
     BEGIN
@@ -112,8 +154,8 @@ $t$;
 -- Browsers cannot call it at all.
 DO $g$
 BEGIN
-    IF has_function_privilege('anon', 'public.admin_edit_lead(uuid, jsonb, uuid, text)', 'EXECUTE')
-       OR has_function_privilege('authenticated', 'public.admin_edit_lead(uuid, jsonb, uuid, text)', 'EXECUTE') THEN
+    IF has_function_privilege('anon', 'public.admin_edit_lead(uuid, jsonb, uuid, text, jsonb)', 'EXECUTE')
+       OR has_function_privilege('authenticated', 'public.admin_edit_lead(uuid, jsonb, uuid, text, jsonb)', 'EXECUTE') THEN
         RAISE EXCEPTION 'admin_edit_lead is open to browsers';
     END IF;
 END;

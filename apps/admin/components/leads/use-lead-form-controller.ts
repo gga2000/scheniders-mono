@@ -53,10 +53,14 @@ export type LeadFormSubmitResult = boolean | "unchanged";
 
 interface UseLeadFormControllerArgs {
   open: boolean;
-  /** `data` is the whole saved form; `changes` only the fields that differ from the form as it opened. */
+  /**
+   * `data` is the whole saved form; `changes` only the fields that differ from
+   * the form as it opened; `opened` the form as it opened.
+   */
   onSubmit: (
     data: LeadFormData,
     changes: Partial<LeadFormData>,
+    opened: LeadFormData,
   ) => Promise<LeadFormSubmitResult> | LeadFormSubmitResult | void;
   initialData?: Partial<LeadFormData>;
   /** Called after a successful single save (lets the host close the sheet/dialog). */
@@ -259,7 +263,7 @@ export function useLeadFormController({
 
     setSubmitting(true);
     try {
-      const result = await onSubmit(normalized, changes);
+      const result = await onSubmit(normalized, changes, opened);
       if (result === false) {
         toast.error("Couldn't save the lead. Please try again.");
         return;

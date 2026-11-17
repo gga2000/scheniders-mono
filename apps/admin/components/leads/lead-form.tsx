@@ -61,11 +61,12 @@ interface LeadFormProps {
   /**
    * Persist the lead. Resolve `true` on success, `false` on failure, "unchanged"
    * when there was nothing to send. `changes`: only the fields that differ from
-   * the form as it opened (what an edit sends).
+   * the form as it opened (what an edit sends); `opened`: the form as it opened.
    */
   onSubmit: (
     data: LeadFormData,
     changes: Partial<LeadFormData>,
+    opened: LeadFormData,
   ) => Promise<LeadFormSubmitResult> | LeadFormSubmitResult | void;
   initialData?: Partial<LeadFormData>;
   /**
