@@ -34,8 +34,25 @@ describe("readRecentSteps", () => {
 
     expect(asked).toEqual([`/api/activity?limit=${RECENT_STEPS}`]);
     expect(steps).toEqual([
-      { id: "l1", action: "status_change", details: { status: "active" }, tenant_id: "s1", created_at: "2026-11-17T01:00:00Z" },
+      {
+        id: "l1",
+        action: "status_change",
+        details: { status: "active" },
+        tenant_id: "s1",
+        business_name: "Kawkab",
+        created_at: "2026-11-17T01:00:00Z",
+      },
     ]);
+  });
+
+  it("names the shop a step was about, and none for a step about no shop", async () => {
+    // The bell showed the raw detail values ("cancelled · 3f2a..."), never the shop.
+    // undefined leaves the key out of the JSON, as the API does for a step about no shop.
+    const { fetcher } = answering(200, { logs: [step, { ...step, id: "l2", tenant_id: null, business_name: undefined }] });
+
+    const steps = await readRecentSteps(fetcher);
+
+    expect(steps.map((s) => s.business_name)).toEqual(["Kawkab", null]);
   });
 
   it("reads details that are not an object as none", async () => {

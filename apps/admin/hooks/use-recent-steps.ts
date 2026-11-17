@@ -15,6 +15,8 @@ const RecentStepsSchema = z.object({
       // A step's details are free JSON; anything but an object reads as none.
       details: z.record(z.string(), z.unknown()).nullable().catch(null),
       tenant_id: z.string().nullable(),
+      /** The shop the step was about, by name: what the bell shows under the step. */
+      business_name: z.string().nullable().catch(null),
       created_at: z.string(),
     }),
   ),

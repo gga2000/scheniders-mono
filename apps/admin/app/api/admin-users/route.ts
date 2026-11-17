@@ -3,9 +3,29 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-const ADMIN_ROLES = new Set(["super_admin", "support_staff"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** What the Add employee form sends. Empty strings read as "not given". */
+const addStaffSchema = z.object({
+  email: z
+    .string({ error: "A valid email is required" })
+    .trim()
+    .toLowerCase()
+    .regex(EMAIL_RE, { error: "A valid email is required" }),
+  adminRole: z.enum(["super_admin", "support_staff"], { error: "adminRole must be 'super_admin' or 'support_staff'" }),
+  displayName: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => v || null),
+  password: z
+    .string()
+    .nullish()
+    .transform((v) => v || null)
+    .refine((v) => v === null || v.length >= 8, { error: "Password must be at least 8 characters" }),
+});
 
 /**
  * Find an auth user's id by email. The admin API can't filter by email, so we
@@ -18,7 +38,9 @@ async function findAuthUserIdByEmail(
 ): Promise<string | null> {
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
-    if (error || !data?.users?.length) break;
+    // A failed page is not "no such login": that would try to create a second one.
+    if (error) throw error;
+    if (!data.users.length) break;
     const match = data.users.find((u) => (u.email ?? "").toLowerCase() === email);
     if (match) return match.id;
     if (data.users.length < 200) break;
@@ -86,38 +108,26 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const adminRole = ADMIN_ROLES.has(body.adminRole) ? (body.adminRole as string) : null;
-    const displayName = body.displayName ? String(body.displayName).trim() : null;
-    const password = body.password ? String(body.password) : null;
-
-    if (!email || !EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
+    // No body or a broken one reads as an empty form, so the reason names the first missing field.
+    const parsed = addStaffSchema.safeParse((await request.json().catch(() => null)) ?? {});
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
     }
-    if (!adminRole) {
-      return NextResponse.json(
-        { error: "adminRole must be 'super_admin' or 'support_staff'" },
-        { status: 400 },
-      );
-    }
-    if (password && password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 },
-      );
-    }
+    const { email, adminRole, displayName, password } = parsed.data;
 
     const supabase = createAdminClient();
 
-    // 1. Resolve to an existing user, preferring the cheap profile lookup.
-    const { data: existingProfile } = await supabase
+    // 1. Resolve to an existing user, preferring the cheap profile lookup. A
+    // failed lookup stops here: read as "no profile", it sent an existing
+    // login down the path for new people.
+    const { data: existingProfile, error: profileLookupErr } = await supabase
       .from("user_profiles")
       .select("id, display_name")
       // Exact match: emails are stored lower-case, and ilike treats "_" and "%"
       // as wildcards, so "john_doe@" would match a different person's "john1doe@".
       .eq("email", email)
       .maybeSingle();
+    if (profileLookupErr) throw profileLookupErr;
 
     let userId: string | null = existingProfile?.id ?? null;
     if (!userId) userId = await findAuthUserIdByEmail(supabase, email);
@@ -230,6 +240,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: `Could not set the new password: ${resetErr.message}` },
           { status: resetErr.status && resetErr.status < 500 ? 400 : 500 },
+        );
+      }
+    }
+
+    // An existing login with no profile row: the first try created the login
+    // but could not save its profile, and the person was added again. Without
+    // the row their Team page answers "Could not find" and their name falls
+    // back to the email everywhere, so it is written before access is granted.
+    if (existingAccount && !existingProfile) {
+      const { error: profileErr } = await supabase
+        .from("user_profiles")
+        .upsert(
+          { id: userId, email, display_name: displayName || email.split("@")[0], is_active: true },
+          { onConflict: "id" },
+        );
+      if (profileErr) {
+        return NextResponse.json(
+          { error: `Could not save this person's profile, so access was not given. Try again. (${profileErr.message})` },
+          { status: 500 },
         );
       }
     }
