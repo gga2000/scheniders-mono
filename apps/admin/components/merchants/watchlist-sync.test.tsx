@@ -53,7 +53,7 @@ describe("WatchlistSync", () => {
     expect(starred()).toEqual(["kept"]);
   });
 
-  it("saves a star this browser had before the server knew it, and only that", async () => {
+  it("saves a star pressed before the server's stars arrived, and only that", async () => {
     await mount(["local-only"]);
 
     expect(requests).toEqual(["POST /api/admin/watchlist"]);

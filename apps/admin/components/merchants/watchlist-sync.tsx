@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { useAdminStore } from "@/store/use-admin-store";
 import { addToWatchlist, removeFromWatchlist, useWatchlist } from "@/hooks/use-watchlist";
 
-// Mounts once at the app shell. Keeps the localStorage-backed Zustand
-// `starredMerchants` and the DB-backed `admin_watchlist` table in sync.
-// - On mount: hydrates Zustand from the API (API is source of truth).
+// Mounts once at the app shell. Keeps the in-memory Zustand
+// `starredMerchants` and the signed-in person's `admin_watchlist` rows in sync.
+// - On the first read: takes the server's stars, plus any star pressed on
+//   this page before they arrived.
 // - On change: sends a POST/DELETE for each difference from the last server
 //   state. A refused or lost save is undone, so the star shows what the
 //   server keeps, and staff are told.

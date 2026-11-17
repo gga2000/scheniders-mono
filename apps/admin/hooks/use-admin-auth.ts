@@ -11,10 +11,12 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
 import { readAccessCheck, type AccessCheck } from "@/lib/admin-access";
 import { watchAdminSession } from "@/lib/admin-session-watch";
+import { useAdminStore } from "@/store/use-admin-store";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,6 +132,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   // Stable reference — created once
   const [supabase] = useState(makeBrowserClient);
+  const queryClient = useQueryClient();
 
   // ── Bootstrap: follow the session and the person's access (lib/admin-session-watch) ──
   useEffect(
@@ -145,6 +148,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           signOutHere: () => supabase.auth.signOut({ scope: "local" }),
           readAccess: (userId) => fetchAccessCheck(userId, supabase),
           readProfile: (userId) => fetchProfile(userId, supabase),
+          forgetPerson: () => {
+            queryClient.clear();
+            useAdminStore.setState({ starredMerchants: [] });
+          },
         },
         (view) => {
           if (view.kind === "signed_in") {
@@ -164,7 +171,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
         },
       ),
-    [supabase, recheckCount],
+    [supabase, recheckCount, queryClient],
   );
 
   const recheckAccess = useCallback(() => setRecheckCount((n) => n + 1), []);
