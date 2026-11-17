@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireBearerAdmin, type AdminContext } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
-import { convertedLeadsMessage, isConvertedLock } from "@/lib/lead-converted-lock";
+import { convertedLeadsMessage, isConvertedLock, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { bulkLeadSchema, type BulkLeadResult } from "@/lib/lead-bulk";
 import { changeLeads, type LeadChange } from "@/lib/lead-change";
 
@@ -63,7 +63,7 @@ async function changeTicked(
     result = await changeLeads(supabase, leadIds, change, admin.user);
   } catch (error) {
     if (!isConvertedLock(error)) throw error;
-    return NextResponse.json({ error: convertedLeadsMessage(await storesAmong(supabase, leadIds)) }, { status: 409 });
+    return NextResponse.json({ error: convertedLeadsMessage(await namesWithShop(supabase, leadIds, "converted_tenant_id")) }, { status: 409 });
   }
   if (!result.ok) {
     return NextResponse.json(
@@ -79,9 +79,23 @@ async function changeTicked(
   return answer({ success: true, found: result.found, changed });
 }
 
-/** A deleted lead takes its history with it: the log row keeps each name, as for one lead. */
+/**
+ * A deleted lead takes its history with it: the log row keeps each name, as
+ * for one lead. A ticked lead with a prospect store stops the whole press and
+ * is named (lib/lead-converted-lock); the delete itself skips such a lead too,
+ * so a store built at the same moment keeps its lead.
+ */
 async function deleteTicked(supabase: Supabase, admin: AdminContext, leadIds: string[]): Promise<NextResponse> {
-  const { data, error } = await supabase.from("leads").delete().in("id", leadIds).select("id, merchant_name");
+  const withStore = await namesWithShop(supabase, leadIds, "prospect_tenant_id");
+  if (withStore.length > 0) {
+    return NextResponse.json({ error: prospectStoreLeadsMessage(withStore, true) }, { status: 409 });
+  }
+  const { data, error } = await supabase
+    .from("leads")
+    .delete()
+    .in("id", leadIds)
+    .is("prospect_tenant_id", null)
+    .select("id, merchant_name");
   if (error) throw error;
   const removed = data ?? [];
   if (removed.length > 0) {
@@ -96,13 +110,20 @@ async function deleteTicked(supabase: Supabase, admin: AdminContext, leadIds: st
   return answer({ success: true, found: removed.length, changed: removed.length });
 }
 
-/** The ticked leads that are already stores, by name, for the refusal. */
-async function storesAmong(supabase: Supabase, leadIds: string[]): Promise<string[]> {
+/**
+ * The ticked leads with a shop, by name, for a refusal: already a store
+ * (converted_tenant_id) or with a prospect store (prospect_tenant_id).
+ */
+async function namesWithShop(
+  supabase: Supabase,
+  leadIds: string[],
+  shop: "converted_tenant_id" | "prospect_tenant_id",
+): Promise<string[]> {
   const { data, error } = await supabase
     .from("leads")
     .select("merchant_name")
     .in("id", leadIds)
-    .not("converted_tenant_id", "is", null)
+    .not(shop, "is", null)
     .order("merchant_name");
   if (error) throw error;
   return (data ?? []).map((lead) => lead.merchant_name);

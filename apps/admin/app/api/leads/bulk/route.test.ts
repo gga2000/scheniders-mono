@@ -171,10 +171,32 @@ describe("POST /api/leads/bulk", () => {
     const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2, LEAD3] });
 
     expect(await res.json()).toEqual({ success: true, found: 2, changed: 2 });
-    expect(reads[0].map((s) => s.method)).toEqual(["delete", "in", "select"]);
+    // First the check for prospect stores, then the delete, which skips them too.
+    expect(reads[0].map((s) => s.method)).toEqual(["select", "in", "not", "order"]);
+    expect(reads[1]).toEqual([
+      { method: "delete", args: [] },
+      { method: "in", args: ["id", [LEAD, LEAD2, LEAD3]] },
+      { method: "is", args: ["prospect_tenant_id", null] },
+      { method: "select", args: ["id, merchant_name"] },
+    ]);
     expect(logged).toEqual([
       [expect.anything(), "bulk_leads", { details: { action: "delete", changed: 2, leads: removedRows } }],
     ]);
+  });
+
+  it("refuses the whole press when a ticked lead has a prospect store, naming it, and deletes nothing", async () => {
+    role = "super_admin";
+    // Its store would stay online with the business's name and phone, and no screen could find it.
+    storeRows = [{ merchant_name: "Kawkab" }];
+    const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2] });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(
+      '"Kawkab" has a prospect store, so it can\'t be deleted. Untick it and try again. Nothing was deleted.',
+    );
+    expect(reads[0]).toContainEqual({ method: "not", args: ["prospect_tenant_id", "is", null] });
+    expect(reads.some((steps) => steps.some((s) => s.method === "delete"))).toBe(false);
+    expect(logged).toEqual([]);
   });
 
   it("writes no log row when every ticked lead was gone already", async () => {
