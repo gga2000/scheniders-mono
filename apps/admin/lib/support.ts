@@ -502,9 +502,23 @@ export function problemDetail(code: ShopProblemCode, detail: string | null): str
   }
 }
 
+type ShopProblem = NeedsUsShop["problems"][number];
+
 /** The problem to open with: the first by SHOP_PROBLEMS order (the store being down comes before a trial ending). */
-export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblemCode {
-  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0].code;
+export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblem {
+  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0];
+}
+
+/** Said when staff paused a shop's WhatsApp: its messages did not fail. */
+const WHATSAPP_PAUSED_BY_STAFF = "هلا، رسائل الواتساب لزبائنك متوقفة حالياً من طرفنا. خلّينا نحجي حتى نرجّعها.";
+
+/**
+ * The first line staff can send about a problem. A WhatsApp pause staff made
+ * (detail "staff") has its own line; the usual one says most messages failed.
+ */
+export function problemOpener(problem: Pick<ShopProblem, "code" | "detail">): string {
+  if (problem.code === "whatsapp_paused" && problem.detail === "staff") return WHATSAPP_PAUSED_BY_STAFF;
+  return SHOP_PROBLEM_OPENERS[problem.code];
 }
 
 /** "3 h ago", "2 d ago"; "just now" under a minute. */
