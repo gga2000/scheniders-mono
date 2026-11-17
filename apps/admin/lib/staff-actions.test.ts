@@ -114,6 +114,18 @@ describe("staffLogSummary", () => {
     expect(staffLogSummary({ paid: true, said: "ok" })).toBe("paid: true | said: ok");
   });
 
+  // Round 12: an owner move (admin_change_leads) logs from and to as staff ids.
+  it("leaves out an id under any key", () => {
+    expect(
+      staffLogSummary({
+        lead_id: "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f",
+        merchant_name: "Kawkab",
+        from: "9b1e2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+        to: "A0000000-0000-4000-8000-00000000000A",
+      }),
+    ).toBe("merchant name: Kawkab");
+  });
+
   it("is null for no details", () => {
     expect(staffLogSummary(null)).toBeNull();
     expect(staffLogSummary({})).toBeNull();

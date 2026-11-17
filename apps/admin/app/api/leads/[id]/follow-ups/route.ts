@@ -4,34 +4,6 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const admin = await requireBearerAdmin(_request);
-    if (admin instanceof NextResponse) return admin;
-
-    const { id } = await params;
-    const missing = notAnId(id);
-    if (missing) return missing;
-    const supabase = createAdminClient();
-
-    const { data, error } = await supabase
-      .from("lead_follow_ups")
-      .select("*, assigned_user:user_profiles!lead_follow_ups_assigned_to_fkey(display_name, email, avatar_url)")
-      .eq("lead_id", id)
-      .order("scheduled_at", { ascending: true });
-
-    if (error) throw error;
-
-    return NextResponse.json({ follow_ups: data ?? [] });
-  } catch (error) {
-    console.error("Follow-ups GET error:", error);
-    return NextResponse.json({ error: "Failed to fetch follow-ups" }, { status: 500 });
-  }
-}
-
 // The follow-up form sends assigned_to "" or leaves it out: the follow-up is then
 // its creator's. Any other owner must be active staff, the same rule as a lead's owner.
 const followUpSchema = z.object({

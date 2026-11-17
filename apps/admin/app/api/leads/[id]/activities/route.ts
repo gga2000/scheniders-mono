@@ -4,35 +4,6 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const admin = await requireBearerAdmin(_request);
-    if (admin instanceof NextResponse) return admin;
-
-    const { id } = await params;
-    const missing = notAnId(id);
-    if (missing) return missing;
-    const supabase = createAdminClient();
-
-    const { data, error } = await supabase
-      .from("lead_activities")
-      .select("*, created_by_user:user_profiles!lead_activities_created_by_fkey(display_name, email, avatar_url)")
-      .eq("lead_id", id)
-      .order("created_at", { ascending: false })
-      .limit(200);
-
-    if (error) throw error;
-
-    return NextResponse.json({ activities: data ?? [] });
-  } catch (error) {
-    console.error("Lead activities GET error:", error);
-    return NextResponse.json({ error: "Failed to fetch activities" }, { status: 500 });
-  }
-}
-
 // Staff log these by hand. The other kinds (a status change, a store built, a
 // conversion) are written by the route or function that made the change.
 const HAND_LOGGED = ["note", "call", "whatsapp", "email", "meeting"] as const;

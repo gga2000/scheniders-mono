@@ -57,7 +57,6 @@ export function useUpdateLead() {
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", vars.id] });
       qc.invalidateQueries({ queryKey: ["lead-analytics"] });
-      qc.invalidateQueries({ queryKey: ["lead-activities", vars.id] });
     },
     // A refused save may mean this copy is out of date (a colleague changed
     // the lead's lists, or removed its industry): read them again.

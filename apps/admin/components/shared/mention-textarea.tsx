@@ -14,13 +14,6 @@ interface MentionTextareaProps {
   autoFocus?: boolean;
 }
 
-/** Extract mentioned usernames from text (e.g. "@Ali" → ["Ali"]) */
-export function extractMentions(text: string): string[] {
-  const matches = text.match(/@(\w[\w\s]*?\w|\w)/g);
-  if (!matches) return [];
-  return matches.map((m) => m.slice(1));
-}
-
 export function MentionTextarea({
   value,
   onChange,

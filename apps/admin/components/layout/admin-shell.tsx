@@ -1,8 +1,6 @@
 "use client";
 
 import React, {
-  createContext,
-  useContext,
   useState,
   useSyncExternalStore,
   useEffect,
@@ -19,28 +17,6 @@ import { readMenuCollapsed, writeMenuCollapsed } from "@/lib/menu-choice";
 import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
 import { PageTransition } from "@/components/shared/page-transition";
 import { WatchlistSync } from "@/components/merchants/watchlist-sync";
-
-// ---------------------------------------------------------------------------
-// Sidebar Context
-// ---------------------------------------------------------------------------
-
-interface AdminSidebarContextValue {
-  isCollapsed: boolean;
-  setIsCollapsed: (v: boolean) => void;
-  isMobileMenuOpen: boolean;
-  setMobileMenuOpen: (v: boolean) => void;
-}
-
-const AdminSidebarContext = createContext<AdminSidebarContextValue>({
-  isCollapsed: true,
-  setIsCollapsed: () => {},
-  isMobileMenuOpen: false,
-  setMobileMenuOpen: () => {},
-});
-
-export function useAdminSidebar() {
-  return useContext(AdminSidebarContext);
-}
 
 // ---------------------------------------------------------------------------
 // AdminShell
@@ -124,60 +100,51 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     : null;
 
   return (
-    <AdminSidebarContext.Provider
-      value={{
-        isCollapsed,
-        setIsCollapsed: setSidebarCollapsed,
-        isMobileMenuOpen: mobileMenuOpen,
-        setMobileMenuOpen: handleSetMobileMenuOpen,
-      }}
-    >
-      <div className="flex min-h-screen bg-background text-foreground">
-        <AdminSidebar
-          collapsed={isCollapsed}
-          setCollapsed={setSidebarCollapsed}
+    <div className="flex min-h-screen bg-background text-foreground">
+      <AdminSidebar
+        collapsed={isCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        isMobile={isMobile}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={handleSetMobileMenuOpen}
+        user={sidebarUser}
+        onSignOut={handleSignOut}
+      />
+
+      {/*
+        The room for the fixed menu is set in CSS, so the server's page
+        already has it. It used to start at 0 and slide to 272px for half a
+        second after every page load, pushing the whole page sideways. It
+        slides only when someone opens or closes the menu. For staff who
+        chose icons, data-admin-main takes the narrow room before the page
+        comes alive (lib/menu-choice.ts).
+      */}
+      <main
+        data-admin-main
+        className={cn(
+          "flex-1 min-w-0",
+          isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]",
+          mounted && "transition-[margin-left] duration-500 ease-in-out",
+        )}
+      >
+        <AdminTopbar
+          user={topbarUser}
+          onMenuClick={() => handleSetMobileMenuOpen(true)}
           isMobile={isMobile}
-          mobileMenuOpen={mobileMenuOpen}
-          setMobileMenuOpen={handleSetMobileMenuOpen}
-          user={sidebarUser}
-          onSignOut={handleSignOut}
+          onOpenCommandPalette={commandPalette.open}
         />
 
-        {/*
-          The room for the fixed menu is set in CSS, so the server's page
-          already has it. It used to start at 0 and slide to 272px for half a
-          second after every page load, pushing the whole page sideways. It
-          slides only when someone opens or closes the menu. For staff who
-          chose icons, data-admin-main takes the narrow room before the page
-          comes alive (lib/menu-choice.ts).
-        */}
-        <main
-          data-admin-main
-          className={cn(
-            "flex-1 min-w-0",
-            isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]",
-            mounted && "transition-[margin-left] duration-500 ease-in-out",
-          )}
-        >
-          <AdminTopbar
-            user={topbarUser}
-            onMenuClick={() => handleSetMobileMenuOpen(true)}
-            isMobile={isMobile}
-            onOpenCommandPalette={commandPalette.open}
-          />
+        <div className="max-w-[1800px] mx-auto">
+          <AccessCheckNotice />
+          <PageTransition>{children}</PageTransition>
+        </div>
+      </main>
 
-          <div className="max-w-[1800px] mx-auto">
-            <AccessCheckNotice />
-            <PageTransition>{children}</PageTransition>
-          </div>
-        </main>
-
-        <CommandPalette
-          isOpen={commandPalette.isOpen}
-          onClose={commandPalette.close}
-        />
-        <WatchlistSync />
-      </div>
-    </AdminSidebarContext.Provider>
+      <CommandPalette
+        isOpen={commandPalette.isOpen}
+        onClose={commandPalette.close}
+      />
+      <WatchlistSync />
+    </div>
   );
 }
