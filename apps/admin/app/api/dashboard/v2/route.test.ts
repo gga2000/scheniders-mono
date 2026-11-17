@@ -109,19 +109,26 @@ describe("GET /api/dashboard/v2", () => {
     expect(body.walletHealth).toMatchObject({ healthy: 1, critical: 1 });
   });
 
-  it("lists plan moves of real shops only, with no undated or old cancellation", async () => {
+  it("lists plan moves of real shops only, cancellations from the staff log", async () => {
     stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true });
     stub.state.tables.subscriptions = [
-      { id: "s-1", tenant_id: SHOP_A, plan: "growth", status: "active", pending_plan: "starter", cancelled_at: null },
-      // Ended in May, and the shop is active again: not a move of the last 30 days.
-      { id: "s-2", tenant_id: SHOP_B, plan: "internal", status: "cancelled", pending_plan: null, cancelled_at: "2026-05-09T10:00:00Z" },
+      { id: "s-1", tenant_id: SHOP_A, plan: "growth", status: "active", pending_plan: "starter" },
       // The demo store is in no platform number.
-      { id: "s-3", tenant_id: "demo-shop", plan: "starter", status: "active", pending_plan: "growth", cancelled_at: null },
+      { id: "s-3", tenant_id: "demo-shop", plan: "starter", status: "active", pending_plan: "growth" },
+    ];
+    const recently = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    stub.state.tables.admin_activity_logs = [
+      { id: "log-c", action: "status_change", tenant_id: SHOP_B, details: { status: "cancelled" }, created_at: recently },
+      { id: "log-d", action: "status_change", tenant_id: "demo-shop", details: { status: "cancelled" }, created_at: recently },
     ];
 
     const body = await (await call()).json();
 
-    expect(body.planMovements).toEqual([{ fromPlan: "growth", toPlan: "starter", count: 1, type: "downgrade" }]);
+    expect(body.planMovements).toEqual([
+      { fromPlan: "starter", toPlan: "cancelled", count: 1, type: "cancellation" },
+      { fromPlan: "growth", toPlan: "starter", count: 1, type: "downgrade" },
+    ]);
+    expect(stub.callsTo("admin_activity_logs.eq")).toContainEqual(["action", "status_change"]);
   });
 
   it("answers 500 when the database totals cannot be read", async () => {

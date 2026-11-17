@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
     // team members are read a page at a time for the same reason. A failed
     // read is an error for the whole page: empty lists drew zeros that read
     // like a quiet day.
-    const [stats, usage, income, shopRows, subscriptionRows, activityResult, memberRows] = await Promise.all([
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [stats, usage, income, shopRows, subscriptionRows, statusChanges, activityResult, memberRows] = await Promise.all([
       fetchDashboardStats(supabase),
       fetchUsageStats(supabase, null),
       fetchIncomeStats(supabase),
@@ -53,7 +54,18 @@ export async function GET(request: NextRequest) {
       everyRow((from, to) =>
         supabase
           .from("subscriptions")
-          .select("tenant_id, plan, status, pending_plan, cancelled_at")
+          .select("tenant_id, plan, status, pending_plan")
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      // Plan Movements' cancellations: a shop becomes cancelled only by a
+      // staff status change, which the staff log keeps with its day.
+      everyRow((from, to) =>
+        supabase
+          .from("admin_activity_logs")
+          .select("tenant_id, details, created_at")
+          .eq("action", "status_change")
+          .gte("created_at", monthAgo)
           .order("id", { ascending: true })
           .range(from, to),
       ),
@@ -106,7 +118,12 @@ export async function GET(request: NextRequest) {
       walletHealth: calculateWalletHealth(tenants, income.topups.daily7),
       activityHeatmap: calculateActivityHeatmap(usage),
       revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, geo, stats.sources90),
-      planMovements: calculatePlanMovements(subscriptionRows, new Set(tenants.map((t) => t.id)), new Date()),
+      planMovements: calculatePlanMovements(
+        subscriptionRows,
+        statusChanges,
+        new Map(tenants.map((t) => [t.id, t.plan])),
+        new Date(),
+      ),
       topUpPatterns: calculateTopUpPatterns(income.topups.byDow),
       merchantLTV: calculateMerchantLTV(tenants, income.byTenant, stats.today),
       timeToFirstOrder: calculateTimeToFirstOrder(tenants, stats.shops),
