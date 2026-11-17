@@ -5,7 +5,8 @@
  */
 
 import { changeTitle } from "@/lib/shop-timeline";
-import type { StaffAction } from "@/types/leads";
+import { wordList } from "@/lib/word-list";
+import { LEAD_STATUS_CONFIG, type StaffAction } from "@/types/leads";
 
 /**
  * Rows under a person's id that are not their own step: a note that names
@@ -53,8 +54,37 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/**
+ * A bulk bar press, from the count it really changed (rows since round 6 of
+ * the staff console audit; older rows counted every ticked lead, so they keep
+ * the general words).
+ */
+function bulkLeadsText(details: Record<string, unknown> | null): string | null {
+  const changed = details?.changed;
+  if (typeof changed !== "number") return null;
+  const leads = changed === 1 ? "1 lead" : `${changed} leads`;
+  if (details?.action === "change_status") {
+    const status = Object.entries(LEAD_STATUS_CONFIG).find(([key]) => key === details.status)?.[1].label;
+    return status ? `Marked ${leads} as ${status}` : null;
+  }
+  if (details?.action === "delete") {
+    const names = Array.isArray(details.leads)
+      ? details.leads.flatMap((lead: unknown) => {
+          const name = typeof lead === "object" && lead !== null ? text((lead as { merchant_name?: unknown }).merchant_name) : null;
+          return name ? [name] : [];
+        })
+      : [];
+    return names.length > 0 ? `Deleted ${leads}: ${wordList(names, 3)}` : `Deleted ${leads}`;
+  }
+  return null;
+}
+
 /** What the step did, in plain words: the shop's own list's words where it has them. */
 export function staffActionText(action: string, details: Record<string, unknown> | null): string {
+  if (action === "bulk_leads") {
+    const bulk = bulkLeadsText(details);
+    if (bulk) return bulk;
+  }
   const words = TEAM_WORDS[action] ?? changeTitle(action, details) ?? action.replace(/_/g, " ");
   // The log keeps the lead's name: a deleted lead has no row left to name it.
   const lead = LEAD_STEPS.has(action) ? text(details?.merchant_name) : null;

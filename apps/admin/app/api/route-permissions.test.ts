@@ -343,11 +343,11 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
-    name: "POST /api/leads/bulk change_priority (any admin)",
+    name: "POST /api/leads/bulk change_status (any admin)",
     call: async (t) => {
       const { POST } = await import("./leads/bulk/route");
       return POST(
-        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_priority", payload: { priority: "high" } }),
+        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_status", payload: { status: "contacted" } }),
       );
     },
   },

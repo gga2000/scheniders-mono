@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
-import type { BulkLeadBody } from "@/lib/lead-bulk";
+import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
 
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -84,7 +84,7 @@ export class BulkLeadError extends Error {
 export function useBulkLeadAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: BulkLeadBody) => {
+    mutationFn: async (body: BulkLeadBody): Promise<BulkLeadResult> => {
       const res = await adminFetch("/api/leads/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,7 +97,7 @@ export function useBulkLeadAction() {
           typeof err.owned_by_others === "number" ? err.owned_by_others : null,
         );
       }
-      return res.json();
+      return bulkLeadResultSchema.parse(await res.json());
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });

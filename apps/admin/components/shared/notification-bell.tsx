@@ -10,6 +10,7 @@ import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
 import { formatWhen } from "@/lib/format";
 import { staffActionText } from "@/lib/staff-actions";
+import { wordList } from "@/lib/word-list";
 import { activityKind } from "@/lib/activity-kinds";
 import { useRecentSteps, type RecentStep } from "@/hooks/use-recent-steps";
 import { isNewStep, useBellReadMark } from "@/hooks/use-bell-read-mark";
@@ -59,11 +60,6 @@ export function uncheckedAlarms(alarms: AlarmRead[]) {
     retrying: failed.some((a) => a.read.isFetching),
     retry: () => failed.forEach((a) => void a.read.refetch()),
   };
-}
-
-/** "a", "a and b", "a, b and c" */
-function wordList(names: string[]): string {
-  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 export function NotificationBell() {
