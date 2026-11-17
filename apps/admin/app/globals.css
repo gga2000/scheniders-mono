@@ -17,6 +17,18 @@
 }
 
 /*
+ * A shop or lead name, Arabic or English, in a box that cuts it with "…".
+ * The console is left to right, so a box is cut on its right, where an
+ * Arabic name starts. Each name is laid out in the direction of its own first
+ * letter instead, so it is cut at its own end, and stays left-aligned like
+ * every other row. lib/name-direction.test.ts finds the names that need it.
+ */
+@utility name-dir {
+  unicode-bidi: plaintext;
+  text-align: left;
+}
+
+/*
  * Board v7: every text passes WCAG AA (4.5:1) on the page and on cards, in
  * light and dark. The console has two inks: foreground and muted (muted is
  * text-foreground/70 or var(--muted), never fainter). `--muted` labels 291

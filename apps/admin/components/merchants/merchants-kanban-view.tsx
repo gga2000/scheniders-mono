@@ -445,7 +445,7 @@ function KanbanCard({
           {merchant.business_name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-foreground truncate leading-tight">
+          <p className="text-xs font-black text-foreground truncate name-dir leading-tight">
             {merchant.business_name}
           </p>
           <p className="text-[9px] text-foreground/45 truncate font-medium">

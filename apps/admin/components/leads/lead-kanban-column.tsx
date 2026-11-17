@@ -58,7 +58,7 @@ function KanbanCard({
       </div>
 
       {/* Merchant name */}
-      <h4 className="font-semibold text-sm text-[var(--foreground)] truncate pr-5 mb-1.5">
+      <h4 className="font-semibold text-sm text-[var(--foreground)] truncate name-dir pr-5 mb-1.5">
         {lead.merchant_name}
       </h4>
 

@@ -197,7 +197,7 @@ export default function HealthPage() {
                 <div className="md:w-1/4 min-w-0">
                   <Link
                     href={`/merchants/${ri.tenant_id}`}
-                    className="font-semibold text-foreground hover:underline truncate block"
+                    className="font-semibold text-foreground hover:underline truncate name-dir block"
                   >
                     {ri.business_name}
                   </Link>

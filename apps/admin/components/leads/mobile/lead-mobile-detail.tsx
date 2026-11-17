@@ -134,7 +134,7 @@ export function LeadMobileDetail() {
             {lead.merchant_name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-[var(--foreground)] truncate">
+            <h1 className="text-xl font-bold text-[var(--foreground)] truncate name-dir">
               {lead.merchant_name}
             </h1>
             {lead.management_name && (
