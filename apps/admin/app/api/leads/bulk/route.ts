@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireBearerAdmin, type AdminContext } from "@/lib/api-auth";
-import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { convertedLeadsDeleteMessage, convertedLeadsMessage, isConvertedLock, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { bulkLeadSchema, type BulkLeadResult } from "@/lib/lead-bulk";
@@ -50,8 +49,9 @@ export async function POST(request: NextRequest) {
 /**
  * Status and owner follow the lead form's rule (lib/lead-change): a history
  * line per changed lead, last contacted, and a reassign_lead row per moved
- * lead with its name and its "from", written by the database. A status change
- * has no such row, so one row here says how many leads moved to which status.
+ * lead with its name and its "from". A status press writes one bulk_leads
+ * row saying how many leads moved to which status. The database writes every
+ * row in the same transaction as the change.
  */
 async function changeTicked(
   supabase: Supabase,
@@ -61,7 +61,7 @@ async function changeTicked(
 ): Promise<NextResponse> {
   let result: Awaited<ReturnType<typeof changeLeads>>;
   try {
-    result = await changeLeads(supabase, leadIds, change, admin.user);
+    result = await changeLeads(supabase, leadIds, change, admin.user, true);
   } catch (error) {
     if (!isConvertedLock(error)) throw error;
     return NextResponse.json({ error: convertedLeadsMessage(await namesWithShop(supabase, leadIds, "converted_tenant_id")) }, { status: 409 });
@@ -74,9 +74,6 @@ async function changeTicked(
   }
 
   const changed = change.status !== undefined ? result.statusChanged : result.moved;
-  if (change.status !== undefined && changed > 0) {
-    await logAdminAction(admin, "bulk_leads", { details: { action: "change_status", status: change.status, changed } });
-  }
   return answer({ success: true, found: result.found, changed });
 }
 

@@ -90,6 +90,7 @@ describe("POST /api/leads/bulk", () => {
       _take_owned: false,
       _admin_user_id: ME,
       _actor_email: "me@staff.test",
+      _bulk: true,
     });
     expect(reads).toEqual([]);
     // Each moved lead has its own named reassign_lead row, written by the database.
@@ -119,31 +120,22 @@ describe("POST /api/leads/bulk", () => {
     const res = await call({ action: "change_status", lead_ids: [LEAD, LEAD2], payload: { status: "contacted" } });
 
     expect(res.status).toBe(200);
+    // _bulk: the database writes the bulk_leads row with the change
+    // (admin-change-leads suite), so the route writes none in a second request.
     expect(rpc).toHaveBeenCalledWith(
       "admin_change_leads",
-      expect.objectContaining({ _lead_ids: [LEAD, LEAD2], _status: "contacted", _set_owner: false }),
+      expect.objectContaining({ _lead_ids: [LEAD, LEAD2], _status: "contacted", _set_owner: false, _bulk: true }),
     );
     expect(reads).toEqual([]);
     expect(await res.json()).toEqual({ success: true, found: 2, changed: 2 });
-    expect(logged).toEqual([
-      [expect.anything(), "bulk_leads", { details: { action: "change_status", status: "contacted", changed: 2 } }],
-    ]);
+    expect(logged).toEqual([]);
   });
 
-  it("logs and answers only the leads that really changed", async () => {
+  it("answers only the leads that really changed", async () => {
     rpc.mockResolvedValue(done({ found: 3, status_changed: 1 }));
     const res = await call({ action: "change_status", lead_ids: [LEAD, LEAD2, LEAD3], payload: { status: "contacted" } });
 
     expect(await res.json()).toEqual({ success: true, found: 3, changed: 1 });
-    expect(logged[0][2]).toEqual({ details: { action: "change_status", status: "contacted", changed: 1 } });
-  });
-
-  it("writes no log row when nothing changed", async () => {
-    rpc.mockResolvedValue(done({ status_changed: 0 }));
-    const res = await call({ action: "change_status", lead_ids: [LEAD, LEAD2], payload: { status: "contacted" } });
-
-    expect(await res.json()).toEqual({ success: true, found: 2, changed: 0 });
-    expect(logged).toEqual([]);
   });
 
   it("names the ticked leads that are already stores when the database refuses", async () => {
