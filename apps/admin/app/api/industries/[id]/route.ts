@@ -3,20 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { z } from "zod";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
-
-const patchSchema = z
-  .object({
-    name: z.string().trim().min(1).max(100),
-    name_ar: z.string().trim().max(100).nullable(),
-    icon: z.string().trim().min(1).max(60),
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-    avg_order_value_iqd: z.number().int().min(0),
-    is_active: z.boolean(),
-  })
-  // The place in the list changes only through /move, which renumbers the
-  // whole list in one write. A sort_order set here could share a number.
-  .partial()
-  .strict();
+import { industryEditSchema } from "@/lib/industry-edit";
 
 const editResultSchema = z.union([
   z.object({ success: z.literal(true), industry: z.record(z.string(), z.unknown()), changed: z.array(z.string()) }),
@@ -41,7 +28,7 @@ export async function PATCH(
     const { id } = await params;
     const missing = notAnId(id);
     if (missing) return missing;
-    const parsed = patchSchema.safeParse(await request.json().catch(() => null));
+    const parsed = industryEditSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid industry" }, { status: 400 });
     }

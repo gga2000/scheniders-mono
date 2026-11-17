@@ -17,7 +17,9 @@ const phone = z.object({ title: z.string(), number: z.string() });
  * What the lead form and the status menus may change on a lead (PATCH
  * /api/leads/[id]). Every field is optional; unknown fields are dropped.
  * Fields the server keeps (assigned_at, last_contacted_at, scores, the
- * conversion columns) are not here.
+ * conversion columns) are not here. admin_edit_lead saves all of them but
+ * status and owner, and refuses any other key (edit-field-lists.test.ts
+ * holds the lists together).
  */
 export const leadUpdateSchema = z
   .object({
