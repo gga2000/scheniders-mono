@@ -37,7 +37,6 @@ const TABLES: Record<string, Answer> = {
       plan: "starter",
       status: "trial",
       trial_ends_at: "2026-11-10T00:00:00Z",
-      staff_health_score: 65,
       staff_health_parts: { status: 5, wallet: 5, orders: 5 },
     },
     error: null,
@@ -136,11 +135,11 @@ describe("GET /api/merchants/[id] billing lock", () => {
     expect(columns).toContain("store_config_rev");
   });
 
-  it("reads the health score and its parts from the database, as the list does", async () => {
+  it("reads the health parts from the database and sends the score as their sum, as the list does", async () => {
     rpc.mockResolvedValue({ data: LOCKED, error: null });
     const body = await (await call()).json();
 
-    expect(selects).toContainEqual(["tenants", expect.stringMatching(/, staff_health_score, staff_health_parts$/)]);
+    expect(selects).toContainEqual(["tenants", expect.stringMatching(/, store_config_rev, staff_health_parts$/)]);
     expect(body.tenant).toMatchObject({
       staff_health_score: 65,
       staff_health_parts: { status: 5, wallet: 5, orders: 5 },

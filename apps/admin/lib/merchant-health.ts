@@ -5,8 +5,9 @@
  * orders of six months while the list read one month), so one shop could be
  * green with no flame here and red with a flame there.
  *
- * The score itself comes from the database (staff_health_score). This file
- * only says which band a score is in and when the flame shows.
+ * The score's parts come from the database (staff_health_parts) and the API
+ * adds them up (lib/shop-health-score). This file only says which band a
+ * score is in and when the flame shows.
  */
 import type { AdminTenant } from "@/types/admin";
 import { trialClock } from "@/lib/baghdad-day";
