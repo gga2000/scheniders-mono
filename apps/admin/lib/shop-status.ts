@@ -23,7 +23,7 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
-type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "planLimits" | "billingLock" | "stoppedBy">;
+type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy">;
 
 const LOCK_REASON = { trial_ended: "Trial ended, not paid", unpaid: "Month not paid" } as const;
 
@@ -39,9 +39,12 @@ function shortByThen(balance: number, price: number): string {
 }
 
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
-  const { tenant, wallet, subscription, planLimits, billingLock, stoppedBy } = detail;
+  const { tenant, wallet, subscription, billingLock, stoppedBy } = detail;
   const balance = wallet?.balance_iqd ?? 0;
-  const price = planLimits?.base_price_iqd ?? 0;
+  // What the trial's end or the next renewal takes: the plan the shop moves to,
+  // with its add-ons. billing_lock_snapshot adds it up as renew_subscription_core
+  // charges it; the plan's list price left the add-ons and a waiting plan out.
+  const price = billingLock?.price_iqd ?? 0;
 
   if (billingLock?.locked) {
     const reason = billingLock.reason ? LOCK_REASON[billingLock.reason] : "Locked";
@@ -77,6 +80,11 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
 
   if (tenant.plan === "internal") {
     return { tone: "internal", label: "Internal", sentence: "Our own shop. It is never billed.", next: null };
+  }
+
+  // The demo store (Fermi B13): its month renews at no charge (renew_subscription_core).
+  if (tenant.is_demo) {
+    return { tone: "internal", label: "Demo", sentence: "The demo store. It is never charged.", next: null };
   }
 
   if (tenant.status === "trial") {
