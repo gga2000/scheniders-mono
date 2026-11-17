@@ -109,20 +109,28 @@ describe("GET /api/dashboard/v2", () => {
     expect(body.walletHealth).toMatchObject({ healthy: 1, critical: 1 });
   });
 
-  it("lists plan moves of real shops only, cancellations and plan changes from the staff log", async () => {
-    stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true, is_prospect: false });
+  it("lists plan moves of real shops only: staff cancellations, every plan change on record, new shops", async () => {
+    const recently = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    stub.state.tables.tenants.push({ ...quietShop(9), id: "demo-shop", is_demo: true, is_prospect: false, created_at: recently });
+    // A shop opened two days ago is a new signup.
+    stub.state.tables.tenants = stub.state.tables.tenants.map((t) => (t.id === SHOP_B ? { ...t, created_at: recently } : t));
     stub.state.tables.subscriptions = [
       { id: "s-1", tenant_id: SHOP_A, plan: "growth", status: "active", pending_plan: "starter" },
       // The demo store is in no platform number.
       { id: "s-3", tenant_id: "demo-shop", plan: "starter", status: "active", pending_plan: "growth" },
     ];
-    const recently = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     stub.state.tables.admin_activity_logs = [
       { id: "log-c", action: "status_change", tenant_id: SHOP_B, details: { status: "cancelled" }, created_at: recently },
       { id: "log-d", action: "status_change", tenant_id: "demo-shop", details: { status: "cancelled" }, created_at: recently },
+      // A staff plan change is on the plan record too: the log row is not read, so it is not counted twice.
       { id: "log-e", action: "plan_change", tenant_id: SHOP_A, details: { plan: "growth", previous_plan: "starter" }, created_at: recently },
       // Other steps are not read.
       { id: "log-f", action: "extend_trial", tenant_id: SHOP_B, details: { status: "cancelled" }, created_at: recently },
+    ];
+    // The merchant's own upgrade, which the staff log never had.
+    stub.state.tables.subscription_plan_changes = [
+      { id: 1, tenant_id: SHOP_A, from_plan: "starter", to_plan: "growth", changed_at: recently },
+      { id: 2, tenant_id: "demo-shop", from_plan: "growth", to_plan: "starter", changed_at: recently },
     ];
 
     const body = await (await call()).json();
@@ -130,9 +138,10 @@ describe("GET /api/dashboard/v2", () => {
     expect(body.planMovements).toEqual([
       { fromPlan: "starter", toPlan: "cancelled", count: 1, type: "cancellation" },
       { fromPlan: "starter", toPlan: "growth", count: 1, type: "upgrade" },
+      { fromPlan: "new", toPlan: "starter", count: 1, type: "new" },
       { fromPlan: "growth", toPlan: "starter", count: 1, type: "waiting" },
     ]);
-    expect(stub.callsTo("admin_activity_logs.in")).toContainEqual(["action", ["status_change", "plan_change"]]);
+    expect(stub.callsTo("admin_activity_logs.eq")).toContainEqual(["action", "status_change"]);
   });
 
   it("answers 500 when the database totals cannot be read", async () => {
@@ -143,7 +152,7 @@ describe("GET /api/dashboard/v2", () => {
     expect(await res.json()).toEqual({ error: "Failed to fetch dashboard data" });
   });
 
-  it.each(["tenants", "subscriptions", "admin_activity_logs", "tenant_members"])(
+  it.each(["tenants", "subscriptions", "admin_activity_logs", "subscription_plan_changes", "tenant_members"])(
     "answers 500 when the %s query fails, instead of drawing the page without it",
     async (table) => {
       stub.state.failing.add(table);

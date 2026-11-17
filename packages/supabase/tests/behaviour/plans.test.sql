@@ -281,3 +281,20 @@ SELECT pg_temp.check((SELECT r->>'outcome' = 'on_hold' AND r ? 'demo' IS NOT TRU
                                (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011')) r)
                      AND (SELECT status::text FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011') = 'active',
                      'a demo store on staff hold stays on hold, untouched');
+
+-- 15. Every real plan change is on record with its day (20261117054950), for
+-- the staff console's Plan Movements: the merchant's upgrade (6) and the
+-- waiting plans the renewal applied (12, 14). A choice made in the trial (3),
+-- a downgrade called off (8), a refusal (4, 7, 11) and a renewal that keeps
+-- the plan (13) are not changes.
+SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_plan || '>' || to_plan ORDER BY id)
+                        FROM public.subscription_plan_changes)
+                     = ARRAY['0b:starter>growth', '0e:growth>starter', '10:growth>professional'],
+                     'three changes on record: the upgrade and two renewals onto a waiting plan');
+SELECT pg_temp.check((SELECT bool_and(changed_at > now() - interval '1 minute') FROM public.subscription_plan_changes),
+                     'each with its day');
+SELECT pg_temp.check((SELECT relrowsecurity FROM pg_class WHERE oid = 'public.subscription_plan_changes'::regclass)
+                     AND NOT has_table_privilege('anon', 'public.subscription_plan_changes', 'SELECT')
+                     AND NOT has_table_privilege('authenticated', 'public.subscription_plan_changes', 'SELECT')
+                     AND has_table_privilege('service_role', 'public.subscription_plan_changes', 'SELECT'),
+                     'only the staff console server reads the record');

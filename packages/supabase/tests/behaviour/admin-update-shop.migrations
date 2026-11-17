@@ -1,3 +1,4 @@
 20261116071900_tenant_pause_keeps_status.sql
 20261116084726_admin_update_shop.sql
 20261117002947_admin_update_shop_reason.sql
+20261117054950_subscription_plan_changes.sql
