@@ -11,7 +11,9 @@
 --   a move writes assigned_at, a history line and one reassign_lead row per
 --   lead with its own "from"; a lead already the new owner's keeps its
 --   assigned_at and gets no row;
---   the owner must be active staff; "converted" is refused; a converted lead
+--   a new owner must be active staff, but a lead whose owner has left can
+--   still be saved with that owner sent back (round 6);
+--   "converted" is refused; a converted lead
 --   in the list stops the whole call and changes nothing;
 --   only the service role may call it.
 
@@ -29,7 +31,8 @@ INSERT INTO public.leads (id, merchant_name, status, assigned_to, assigned_at, l
   ('b0000000-0000-4000-8000-000000000002', 'Lulu', 'contacted', NULL, NULL, '2026-11-01T09:00:00Z', NULL),
   ('b0000000-0000-4000-8000-000000000003', 'Noor shop', 'new', 'a0000000-0000-4000-8000-00000000000b', '2026-11-02T09:00:00Z', NULL, NULL),
   ('b0000000-0000-4000-8000-000000000004', 'Mine', 'new', 'a0000000-0000-4000-8000-00000000000a', '2026-11-03T09:00:00Z', NULL, NULL),
-  ('b0000000-0000-4000-8000-000000000005', 'Store already', 'converted', 'a0000000-0000-4000-8000-00000000000b', '2026-11-04T09:00:00Z', NULL, 'c0000000-0000-4000-8000-000000000001');
+  ('b0000000-0000-4000-8000-000000000005', 'Store already', 'converted', 'a0000000-0000-4000-8000-00000000000b', '2026-11-04T09:00:00Z', NULL, 'c0000000-0000-4000-8000-000000000001'),
+  ('b0000000-0000-4000-8000-000000000006', 'Left behind', 'new', 'a0000000-0000-4000-8000-00000000000c', '2026-11-05T09:00:00Z', NULL, NULL);
 
 DO $t$
 DECLARE
@@ -41,6 +44,7 @@ DECLARE
     l3 constant uuid := 'b0000000-0000-4000-8000-000000000003';
     l4 constant uuid := 'b0000000-0000-4000-8000-000000000004';
     l5 constant uuid := 'b0000000-0000-4000-8000-000000000005';
+    l6 constant uuid := 'b0000000-0000-4000-8000-000000000006';
     answer jsonb;
     n integer;
     t timestamptz;
@@ -90,10 +94,23 @@ BEGIN
     SELECT assigned_at INTO t FROM public.leads WHERE id = l1;
     IF t IS NOT NULL THEN RAISE EXCEPTION 'a lead with no owner kept assigned_at'; END IF;
 
+    -- A lead whose owner has left: the form sends that owner back with a
+    -- status change, and the save goes through without moving the lead.
+    answer := public.admin_change_leads(ARRAY[l6], 'contacted', true, gone, true, karrar, NULL);
+    IF answer <> '{"success": true, "found": 1, "status_changed": 1, "moved": 0}' THEN
+        RAISE EXCEPTION 'save with the owner who left: %', answer;
+    END IF;
+    SELECT assigned_at INTO t FROM public.leads WHERE id = l6 AND assigned_to = gone AND status = 'contacted';
+    IF t IS DISTINCT FROM '2026-11-05T09:00:00Z' THEN RAISE EXCEPTION 'the lead whose owner left changed owner or assigned_at: %', t; END IF;
+
     -- Refusals change nothing.
     SELECT count(*) INTO n FROM public.admin_activity_logs;
     answer := public.admin_change_leads(ARRAY[l1], NULL, true, gone, true, karrar, NULL);
     IF answer->>'error' <> 'owner_not_staff' THEN RAISE EXCEPTION 'inactive owner: %', answer; END IF;
+    -- Their own lead in the list does not let another lead go to them.
+    answer := public.admin_change_leads(ARRAY[l6, l1], NULL, true, gone, true, karrar, NULL);
+    IF answer->>'error' <> 'owner_not_staff' THEN RAISE EXCEPTION 'inactive owner with their own lead in the list: %', answer; END IF;
+    IF (SELECT assigned_to FROM public.leads WHERE id = l1) IS NOT NULL THEN RAISE EXCEPTION 'a lead went to someone who left'; END IF;
     answer := public.admin_change_leads(ARRAY[l1], 'converted', false, NULL, true, karrar, NULL);
     IF answer->>'error' <> 'use_convert' THEN RAISE EXCEPTION 'converted by hand: %', answer; END IF;
     answer := public.admin_change_leads(ARRAY[l1], NULL, false, NULL, true, karrar, NULL);

@@ -81,13 +81,8 @@ export function LeadsDesktopView() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
 
-  const handleCreateLead = (formData: LeadFormData) =>
-    new Promise<boolean>((resolve) => {
-      createLead.mutate(formData, {
-        onSuccess: () => resolve(true),
-        onError: () => resolve(false),
-      });
-    });
+  // A refused save rejects with the server's words; the form shows them.
+  const handleCreateLead = (formData: LeadFormData) => createLead.mutateAsync(formData).then(() => true);
 
   // Auto-save an in-progress lead as a draft when the form is dismissed.
   const handleSaveDraft = (formData: LeadFormData) =>
@@ -421,13 +416,9 @@ export function LeadsDesktopView() {
         }}
         initialData={draftLead ? leadToFormData(draftLead) : undefined}
         onSubmit={(data) =>
-          new Promise<boolean>((resolve) => {
-            if (!draftLead) return resolve(false);
-            updateLead.mutate(
-              { id: draftLead.id, data: { ...data, is_draft: false } },
-              { onSuccess: () => resolve(true), onError: () => resolve(false) },
-            );
-          })
+          draftLead
+            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...data, is_draft: false } }).then(() => true)
+            : false
         }
         onSaveDraft={(data) => {
           if (!draftLead) return;

@@ -52,13 +52,9 @@ export function LeadsMobileView() {
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
   const can = useCan();
+  // A refused save rejects with the server's words; the form shows them.
   const handleCreate = (formData: LeadFormData): Promise<boolean> =>
-    new Promise((resolve) => {
-      createLead.mutate(formData, {
-        onSuccess: () => resolve(true),
-        onError: () => resolve(false),
-      });
-    });
+    createLead.mutateAsync(formData).then(() => true);
 
   // Auto-save an in-progress lead as a draft when the sheet is dismissed.
   const handleSaveDraft = (formData: LeadFormData) =>
@@ -271,13 +267,9 @@ export function LeadsMobileView() {
         }}
         initialData={draftLead ? leadToFormData(draftLead) : undefined}
         onSubmit={(formData) =>
-          new Promise<boolean>((resolve) => {
-            if (!draftLead) return resolve(false);
-            updateLead.mutate(
-              { id: draftLead.id, data: { ...formData, is_draft: false } },
-              { onSuccess: () => resolve(true), onError: () => resolve(false) },
-            );
-          })
+          draftLead
+            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...formData, is_draft: false } }).then(() => true)
+            : Promise.resolve(false)
         }
         onSaveDraft={(formData) => {
           if (!draftLead) return;

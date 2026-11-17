@@ -483,12 +483,7 @@ export function LeadDetailDesktop() {
         open={editFormOpen}
         onOpenChange={setEditFormOpen}
         onSubmit={(formData: LeadFormData) =>
-          new Promise<boolean>((resolve) => {
-            updateLead.mutate(
-              { id: lead.id, data: formData },
-              { onSuccess: () => resolve(true), onError: () => resolve(false) }
-            );
-          })
+          updateLead.mutateAsync({ id: lead.id, data: formData }).then(() => true)
         }
         initialData={leadToFormData(lead)}
       />
