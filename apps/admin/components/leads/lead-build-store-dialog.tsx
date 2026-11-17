@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useEffectEvent } from "react";
+import { useState, useEffect, useEffectEvent, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -62,6 +62,8 @@ const emptyProduct = (): ProductRow => ({ name: "", price: "", image_url: "" });
 
 export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDialogProps) {
   const buildStore = useBuildStore();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const { data: industries } = useIndustries();
 
   // Mode
@@ -118,8 +120,22 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
     );
   };
 
+  // A refusal is said at the end of a body that scrolls: in Advanced, with
+  // products, it sat below the fold and the press seemed to do nothing.
+  useEffect(() => {
+    if (buildStore.isError) errorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [buildStore.isError, buildStore.error]);
+
   // Submit
   const handleSubmit = () => {
+    // A field the browser already knows is wrong (an image that is not a full
+    // link, as the server requires) is pointed at before anything is sent.
+    const wrong = Array.from(bodyRef.current?.querySelectorAll("input") ?? []).find((input) => !input.checkValidity());
+    if (wrong) {
+      wrong.reportValidity();
+      return;
+    }
+
     const data: Record<string, unknown> = {
       business_name: businessName,
       industry_id: industryId || null,
@@ -201,7 +217,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
               </div>
 
               {/* ── Body ────────────────────────────────────────── */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              <div ref={bodyRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 {/* Mode Toggle */}
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--foreground)]/5 w-fit">
                   <button
@@ -238,6 +254,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                   <input
                     type="text"
                     value={businessName}
+                    maxLength={200}
                     onChange={(e) => setBusinessName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
                     placeholder="e.g. Zara Baghdad"
@@ -322,6 +339,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                         <input
                           type="text"
                           value={customSlug}
+                          maxLength={60}
                           onChange={(e) => setCustomSlug(e.target.value)}
                           className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
                           placeholder="e.g. zara-baghdad"
@@ -335,6 +353,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                         </label>
                         <textarea
                           value={description}
+                          maxLength={2000}
                           onChange={(e) => setDescription(e.target.value)}
                           rows={3}
                           className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow resize-none"
@@ -388,6 +407,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                               <input
                                 type="text"
                                 value={product.name}
+                                maxLength={200}
                                 onChange={(e) => updateProduct(index, "name", e.target.value)}
                                 className="flex-1 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
                                 placeholder="Product name"
@@ -401,7 +421,8 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                                 placeholder="Price (IQD)"
                               />
                               <input
-                                type="text"
+                                type="url"
+                                inputMode="url"
                                 value={product.image_url}
                                 onChange={(e) => updateProduct(index, "image_url", e.target.value)}
                                 className="w-36 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
@@ -445,7 +466,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
 
                 {/* Error State */}
                 {buildStore.isError && (
-                  <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
+                  <div ref={errorRef} role="alert" className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
                     {buildStore.error?.message || "Failed to build store. Please try again."}
                   </div>
                 )}
