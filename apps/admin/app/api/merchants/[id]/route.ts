@@ -15,11 +15,18 @@ const patchSchema = z
     status: z.enum(["active", "trial", "limited", "suspended", "cancelled"]).optional(),
     plan: z.enum(PLAN_TIERS).optional(),
     auto_renew: z.boolean().optional(),
-    // Staff's words, kept on the staff log rows; the shop page's hold asks for them.
+    // Staff's words, kept on the staff log rows. The shop page asks for them
+    // on a hold and a plan change; the Merchants card menus (the owner's page)
+    // do not yet, so they stay optional there.
     reason: staffReasonSchema.optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {
     message: "At least one field required",
+  })
+  // Stopping renewal ends the shop's paid months; only the shop page sends it.
+  .refine((d) => d.auto_renew !== false || d.reason, {
+    message: "Say why renewal stops.",
+    path: ["reason"],
   });
 
 /**

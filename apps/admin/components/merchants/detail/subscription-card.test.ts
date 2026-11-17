@@ -44,6 +44,12 @@ describe("SubscriptionCard renewal", () => {
     expect(html).toContain("On: charges the wallet each month");
   });
 
+  it("asks nothing until the switch is pressed: the reason form opens only to stop renewing", () => {
+    const html = render("super_admin");
+    expect(html).not.toContain('aria-label="Reason"');
+    expect(html).not.toContain("Stop renewing");
+  });
+
   it("shows no switch before the role is known", () => {
     expect(render(null)).not.toContain('role="switch"');
   });
