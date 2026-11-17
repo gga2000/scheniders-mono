@@ -27,7 +27,7 @@ export interface MerchantsDigest {
  */
 export function merchantsDigest(buckets: MerchantsStats["buckets"]): MerchantsDigest {
   const cards: DigestCard[] = [
-    { reason: "trials_expired", label: "Trial expired", count: buckets.trials_expired, status: ATTENTION },
+    { reason: "trials_expired", label: "Trial ended", count: buckets.trials_expired, status: ATTENTION },
     { reason: "trials_today", label: "Trial ends today", count: buckets.trials_today, status: ATTENTION },
     { reason: "suspended", label: "Suspended", count: buckets.suspended, status: "suspended" },
     {

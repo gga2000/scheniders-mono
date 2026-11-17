@@ -198,6 +198,11 @@ describe("problemDetail", () => {
     expect(problemDetail("orders_stopped", "262")).toBe("none in 48 h, 262 in the 2 weeks before");
     expect(problemDetail("wallet_empty", "-1500")).toBe("-1,500 IQD");
     expect(problemDetail("prime_error", "token expired")).toBe("token expired");
+    // Round 13: a locked shop read "Locked for billing · trial_ended".
+    expect(problemDetail("billing_locked", "trial_ended")).toBe("Trial ended, not paid");
+    expect(problemDetail("billing_locked", "unpaid")).toBe("Month not paid");
+    expect(problemDetail("whatsapp_paused", "staff")).toBe("by staff");
+    expect(problemDetail("billing_locked", "constructor")).toBe("constructor");
     expect(problemDetail("trial_ending", null)).toBeNull();
     expect(problemDetail("store_paused", " ")).toBeNull();
   });

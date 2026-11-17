@@ -7,12 +7,7 @@ import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { usePageHeader } from "@/store/use-page-header";
 import { pageTitle as menuPageTitle } from "@/lib/admin-menu";
-
-/** Friendly labels for the admin-console roles (stored as snake_case). */
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  support_staff: "Support",
-};
+import { roleLabel } from "@/lib/admin-access";
 
 
 interface MerchantResult {
@@ -270,10 +265,10 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                 <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]">
                   {user.full_name || user.email?.split("@")[0]}
                 </span>
-                {(ROLE_LABELS[user.role] || user.role) && (
+                {user.role && (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)]">
                     <Shield className="w-2.5 h-2.5" strokeWidth={2.5} />
-                    {ROLE_LABELS[user.role] ?? "Admin"}
+                    {roleLabel(user.role)}
                   </span>
                 )}
               </div>

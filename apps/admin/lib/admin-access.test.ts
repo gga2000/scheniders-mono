@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextAccess, readAccessCheck } from "./admin-access";
+import { nextAccess, readAccessCheck, roleLabel } from "./admin-access";
 
 /*
  * The browser read the person's own staff row on every sign-in event and took
@@ -48,5 +48,16 @@ describe("what a check does to the person's session", () => {
 
   it("takes the role the row gives", () => {
     expect(nextAccess({ kind: "role", role: "super_admin" }, known, "u1")).toEqual({ kind: "grant", role: "super_admin" });
+  });
+});
+
+// Round 13: a member's page showed "Super_admin", the top bar "Super Admin"
+// and "Support", and Add member "Super admin": one role, three names.
+describe("a role's name on screen", () => {
+  it("is the name Add member offers, and a role it does not know stays as stored", () => {
+    expect(roleLabel("super_admin")).toBe("Super admin");
+    expect(roleLabel("support_staff")).toBe("Support staff");
+    expect(roleLabel("sales_agent")).toBe("sales_agent");
+    expect(roleLabel("constructor")).toBe("constructor");
   });
 });

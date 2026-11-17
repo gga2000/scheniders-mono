@@ -17,6 +17,7 @@ import { PaymentDetailsCard, paymentDetailsQuery } from "@/components/settings/p
 import { DemoStoreCard } from "@/components/settings/demo-store-card";
 import { SignupWhatsAppCard, signupWhatsAppQuery } from "@/components/settings/signup-whatsapp-card";
 import { hasPermission } from "@/lib/admin-permissions";
+import { roleLabel } from "@/lib/admin-access";
 
 // The rows of `admin_settings` are storage that other code reads (the leads
 // table layout, the top-up payment details shops see): JSON objects, not text.
@@ -124,8 +125,8 @@ export default function SettingsPage() {
                         {user.email}
                       </p>
                       {role && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-foreground/10 text-foreground/70 capitalize shrink-0">
-                          {role.replace("_", " ")}
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-foreground/10 text-foreground/70 shrink-0">
+                          {roleLabel(role)}
                         </span>
                       )}
                     </div>

@@ -48,7 +48,7 @@ describe("merchantsDigest", () => {
     const digest = merchantsDigest(buckets({ trials_today: 1, trials_expired: 2, suspended: 3, attention: 6 }));
 
     expect(digest.cards.map((card) => [card.label, card.count, card.status])).toEqual([
-      ["Trial expired", 2, "attention"],
+      ["Trial ended", 2, "attention"],
       ["Trial ends today", 1, "attention"],
       ["Suspended", 3, "suspended"],
     ]);

@@ -205,7 +205,7 @@ export default function ActivityLogPage() {
                     Details
                   </th>
                   <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-                    Tenant
+                    Shop
                   </th>
                   <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Admin

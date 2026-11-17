@@ -24,6 +24,7 @@ import {
 import { formatDay } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
+import { roleLabel } from "@/lib/admin-access";
 
 const tabs = ["Actions", "Commissions", "Achievements", "Performance"] as const;
 type Tab = (typeof tabs)[number];
@@ -72,12 +73,6 @@ export default function TeamMemberDetailPage() {
   const { employee, recent_actions, commissions, achievements } = data;
   const initial = (employee.display_name ?? employee.email).charAt(0).toUpperCase();
 
-  const roleStyles: Record<string, string> = {
-    admin: "bg-purple-500/15 text-[var(--ink-violet)]",
-    manager: "bg-blue-500/15 text-[var(--ink-blue)]",
-    agent: "bg-green-500/15 text-[var(--ink-green)]",
-  };
-
   const totalPages = actionsData ? Math.ceil(actionsData.total / 50) : 1;
   // Until page 1 loads, the newest of the chart's steps stand in for it.
   const paginatedActions = actionsData?.actions ?? recent_actions.slice(0, 50);
@@ -113,13 +108,8 @@ export default function TeamMemberDetailPage() {
             </h1>
             <p className="text-sm text-foreground/70 truncate">{employee.email}</p>
           </div>
-          <span
-            className={cn(
-              "px-2.5 py-1 rounded-full text-xs font-semibold capitalize shrink-0",
-              roleStyles[employee.role] ?? "bg-gray-500/15 text-[var(--muted)]"
-            )}
-          >
-            {employee.role}
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-gray-500/15 text-[var(--muted)]">
+            {roleLabel(employee.role)}
           </span>
         </div>
       </div>
