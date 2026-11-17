@@ -238,7 +238,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             note={
                                 t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders }) +
                                 // Said up front, so "paid to you" is not read as the cash the statements finally sent.
-                                (nowGap > 0 && split.reached_orders > 0 ? t("fin.money.reached.taken", { gap: money(nowGap) }) : "")
+                                (nowGap > 0 && split.reached_orders > 0 ? t("fin.money.reached.taken", { where: t("fin.money.from.nowMatch") }) : "")
                             }
                             amount={split.reached}
                             textDir={dir}

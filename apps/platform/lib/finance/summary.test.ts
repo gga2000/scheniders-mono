@@ -275,9 +275,10 @@ describe("adsWithoutLift", () => {
             }),
         );
 
-    it("says how much more was sold before, when the ads are new and sales did not rise", () => {
-        expect(adsWithoutLift(now, withAds(1_000, 430_000))).toBe(8);
-        expect(adsWithoutLift(now, withAds(0, 401_000))).toBe(0);
+    it("says how much sales fell against the period before, when the ads are new and sales did not rise", () => {
+        // 400,000 now against 430,000 before: a fall of 30,000 / 430,000, the profit card's own base
+        expect(adsWithoutLift(now, withAds(1_000, 430_000))).toBeCloseTo((30_000 / 430_000) * 100, 6);
+        expect(adsWithoutLift(now, withAds(0, 400_000))).toBe(0);
     });
 
     it("says nothing when sales rose, the ads are not new, or there is no period before", () => {
