@@ -93,7 +93,7 @@ describe("shopCheckLines", () => {
     const check = healthy();
     check.store = { ...check.store, status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) };
     expect(line(check, "store").text).toBe(
-      "Pause ended yesterday but did not lift on its own. Nothing is stopped now; it needs lifting by hand on the shop page.",
+      "Pause ended yesterday but did not lift on its own. Nothing is stopped now. A super admin can lift it on the shop page.",
     );
   });
 
