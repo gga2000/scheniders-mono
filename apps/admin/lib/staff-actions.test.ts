@@ -17,6 +17,10 @@ describe("staffActionText", () => {
     expect(staffActionText("delete_lead", {})).toBe("Deleted a lead");
   });
 
+  it("names the lead that was moved to another owner", () => {
+    expect(staffActionText("reassign_lead", { merchant_name: "Kawkab" })).toBe("Moved a lead to another owner: Kawkab");
+  });
+
   it("reads an unknown step as words", () => {
     expect(staffActionText("support_notice_posted", null)).toBe("Support notice posted");
   });
