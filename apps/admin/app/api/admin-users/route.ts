@@ -70,9 +70,12 @@ export async function GET(request: NextRequest) {
 /**
  * Grant admin-console access to a person (super_admin only).
  *
- * - Existing user (matched by email) → just adds an `admin_users` row; they sign
- *   in with their EXISTING password (this is the "copy a main-app employee"
- *   case). Their main-app role is left untouched.
+ * - Existing staff (matched by email) → a role change; a password is optional
+ *   and resets theirs.
+ * - Existing login that is not staff yet → a new password is required. The
+ *   reset ends every sign-in on that login, so console access never goes to
+ *   whoever already knew its old password. Logins that sign in to a store are
+ *   refused.
  * - Brand-new email → creates an auth user (password required) plus a minimal
  *   user_profiles row with NO tenant membership (so zero main-app access), then
  *   adds the `admin_users` row.
@@ -203,11 +206,25 @@ export async function POST(request: NextRequest) {
           { status: 409 },
         );
       }
+      // Nothing proves who knows this login's password: a store may have made
+      // it, and its emails are not checked. A new password, set below before
+      // access is granted, ends every sign-in on it (the auth server logs the
+      // login out everywhere on an admin password change).
+      if (!alreadyStaff && !password) {
+        return NextResponse.json(
+          {
+            error:
+              "This email already has a login. Set a new password for it: the old one stops working and every sign-in on it ends.",
+          },
+          { status: 400 },
+        );
+      }
     }
     if (userId && existingAccount && password) {
-      // Existing user and a password was supplied → reset it as a convenience.
-      // A refused reset stops here: access is not granted, and the log never
-      // says a password was set when it was not.
+      // Existing login and a password: reset it before access is granted (for a
+      // login that is not staff yet it was required above). A refused reset
+      // stops here: access is not granted, and the log never says a password
+      // was set when it was not.
       const { error: resetErr } = await supabase.auth.admin.updateUserById(userId, { password });
       if (resetErr) {
         return NextResponse.json(
