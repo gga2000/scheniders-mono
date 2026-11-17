@@ -150,7 +150,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           readProfile: (userId) => fetchProfile(userId, supabase),
           forgetPerson: () => {
             queryClient.clear();
-            useAdminStore.setState({ starredMerchants: [] });
+            useAdminStore.getState().forgetStars();
           },
         },
         (view) => {

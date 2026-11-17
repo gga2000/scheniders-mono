@@ -116,4 +116,32 @@ describe("WatchlistSync", () => {
     expect(toastError).toHaveBeenCalledWith("Your stars could not be loaded, so the star was not saved. Try again.");
     expect(refetch).toHaveBeenCalledTimes(1);
   });
+
+  /*
+   * Someone else signed in from another tab while this one stayed open. The
+   * console forgot the first person's stars, but the sync still held them as
+   * "what the server has", so the next person's first read sent a DELETE for
+   * each of them under the new session, taking off the new person's own
+   * stars where both had starred the same shop, and their other stars never
+   * showed.
+   */
+  it("starts over when someone else signs in on this browser", async () => {
+    useAdminStore.setState({ starredMerchants: [] });
+    const view = render(<WatchlistSync />);
+    await settle();
+    expect(starred()).toEqual(["kept"]);
+
+    // The console forgets the first person; the next person's stars are being read.
+    read = { isError: false };
+    act(() => useAdminStore.getState().forgetStars());
+    view.rerender(<WatchlistSync />);
+    await settle();
+
+    read = { data: { watchlist: [{ tenant_id: "theirs", note: "", created_at: "2026-11-17T09:00:00Z" }] }, isError: false };
+    view.rerender(<WatchlistSync />);
+    await settle();
+
+    expect(requests).toEqual([]);
+    expect(starred()).toEqual(["theirs"]);
+  });
 });

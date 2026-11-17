@@ -78,8 +78,16 @@ interface AdminSavedViewState {
 
 interface AdminStarredState {
   starredMerchants: string[];
+  /**
+   * Goes up each time the console forgets the signed-in person (someone
+   * else signed in on this browser). WatchlistSync starts over when it
+   * changes, so one person's stars are never sent as the next one's changes.
+   */
+  starsPerson: number;
   toggleStar: (id: string) => void;
   isStarred: (id: string) => boolean;
+  /** Clears the stars of a person who is no longer signed in here. */
+  forgetStars: () => void;
 }
 
 interface AdminColumnState {
@@ -252,6 +260,8 @@ export const useAdminStore = create<AdminStore>()(
           return { starredMerchants: [...state.starredMerchants, id] };
         }),
       isStarred: (id) => get().starredMerchants.includes(id),
+      starsPerson: 0,
+      forgetStars: () => set((state) => ({ starredMerchants: [], starsPerson: state.starsPerson + 1 })),
 
       // ── Columns ──
       hiddenColumns: [],
