@@ -15,6 +15,6 @@ export default defineConfig({
     environment: "node",
     globals: false,
     // .tsx too: a test that renders a component is picked up wherever it lives.
-    include: ["{app,components,hooks,lib,store}/**/*.test.{ts,tsx}", "middleware.test.ts"],
+    include: ["{app,components,hooks,lib,store}/**/*.test.{ts,tsx}", "middleware.test.ts", "vercel.test.ts"],
   },
 });
