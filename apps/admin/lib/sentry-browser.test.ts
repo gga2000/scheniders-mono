@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * load waited for. It held the whole SDK, session replay and the feedback
  * widget included, because the console imported the SDK as a whole. It now
  * loads after the load event, or when a screen catches an error first, and
- * only from lib/sentry-browser.ts, which names what it uses.
+ * only from lib/sentry-browser.ts, which names what it uses. An error
+ * nothing catches before then is kept and starts it at once.
  */
 
 const loaded = { count: 0, captureException: vi.fn() };
@@ -34,8 +35,12 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Let a page that never saw its load event start Sentry now, so its
+  // listeners are gone before the next test.
   setReadyState("complete");
+  window.dispatchEvent(new Event("load"));
+  await settle();
 });
 
 describe("starting Sentry in the browser", () => {
@@ -70,6 +75,41 @@ describe("starting Sentry in the browser", () => {
       tags: { boundary: "dashboard" },
       extra: { path: "/merchants" },
     });
+  });
+});
+
+describe("an error nothing catches before Sentry starts", () => {
+  it("is kept, starts Sentry at once and is sent", async () => {
+    setReadyState("loading");
+    await import("../instrumentation-client");
+    const error = new Error("thrown while the page loads");
+    window.dispatchEvent(new ErrorEvent("error", { error, message: error.message }));
+    await settle();
+    expect(loaded.count).toBe(1);
+    expect(loaded.captureException).toHaveBeenCalledWith(error);
+  });
+
+  it("keeps a promise refused with nobody waiting for it too", async () => {
+    setReadyState("loading");
+    await import("../instrumentation-client");
+    const reason = new Error("a read failed while the page loads");
+    window.dispatchEvent(Object.assign(new Event("unhandledrejection"), { reason }));
+    await settle();
+    expect(loaded.captureException).toHaveBeenCalledWith(reason);
+  });
+
+  it("is left to Sentry's own listeners once it has started, so nothing is sent twice", async () => {
+    setReadyState("complete");
+    await import("../instrumentation-client");
+    await settle();
+    // Stands in for Sentry's own listener, which takes the error from here.
+    const sentryOwn = (event: Event) => event.preventDefault();
+    window.addEventListener("error", sentryOwn);
+    window.dispatchEvent(new ErrorEvent("error", { error: new Error("later"), message: "later", cancelable: true }));
+    window.removeEventListener("error", sentryOwn);
+    await settle();
+    expect(loaded.count).toBe(1);
+    expect(loaded.captureException).not.toHaveBeenCalled();
   });
 });
 
