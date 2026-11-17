@@ -12,4 +12,3 @@
 
 \ir staff-list-filters.fixture.sql
 
-ALTER TABLE public.tenants ADD COLUMN restrictions jsonb NOT NULL DEFAULT '{}'::jsonb;

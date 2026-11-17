@@ -10,7 +10,8 @@
 --       the status before;
 --     * THE MONEY CASE: 'active' over a shop on trial is refused. The old
 --       route wrote it, the subscription stayed 'trialing', and the billing
---       lock never held the shop after its trial ended;
+--       lock never held the shop after its trial ended. A locked trial
+--       ('past_due') is refused too, and back from hold it is a trial again;
 --     * a suspended shop whose trial was never converted comes back on trial
 --       when 'active' is asked, and the lock holds it once the trial is over;
 --     * 'trial' over a paying shop is refused (its old trial date would lock
@@ -474,6 +475,53 @@ BEGIN
     END;
     PERFORM set_config('test.role', '', true);
     PERFORM pg_temp.check('extend: a merchant ran it', _n = 0);
+END $$;
+
+-- A locked trial (20261117102504). Its trial ended unpaid, so the billing
+-- lock made its subscription 'past_due', and the shop is still 'trial'.
+-- 'active' is refused: it would count a shop that never paid as Active and
+-- paying, and turn its lock to 'unpaid' so its lock orders were charged. Put
+-- on hold and brought back, it is a trial again (its period still ends at its
+-- trial end); a paying shop behind on its month comes back active.
+DO $$
+DECLARE
+    _admin constant uuid := 'aaaaaaaa-1111-4222-8333-444444444444';
+    _ended constant timestamptz := now() - interval '1 day';
+    _locked constant uuid := gen_random_uuid();
+    _held constant uuid := gen_random_uuid();
+    _held_paying constant uuid := gen_random_uuid();
+    _res jsonb;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, is_demo) VALUES
+        (_locked, 'tt locked trial', 'tt-' || _locked, 'starter', 'trial', _ended, false),
+        (_held, 'tt locked trial on hold', 'tt-' || _held, 'starter', 'suspended', _ended, false),
+        (_held_paying, 'tt paying, behind, on hold', 'tt-' || _held_paying, 'starter', 'suspended', now() - interval '70 days', false);
+    INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end) VALUES
+        (_locked, 'starter', 'past_due', _ended - interval '7 days', _ended),
+        (_held, 'starter', 'past_due', _ended - interval '7 days', _ended),
+        (_held_paying, 'starter', 'past_due', now() - interval '31 days', now() - interval '1 day');
+
+    SET LOCAL ROLE service_role;
+    _res := public.admin_update_shop(_locked, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('locked trial: active was not refused: ' || _res::text, _res ->> 'error' = 'still_trial');
+    _res := public.admin_update_shop(_locked, 'active', NULL, NULL, _admin, 'ops@example.com', 'bulk');
+    PERFORM pg_temp.check('locked trial: bulk active was not refused: ' || _res::text, _res ->> 'error' = 'still_trial');
+    _res := public.admin_update_shop(_held, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('locked trial on hold: did not come back on trial: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res ->> 'status' = 'trial');
+    _res := public.admin_update_shop(_held_paying, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('paying shop on hold: did not come back active: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res ->> 'status' = 'active');
+    RESET ROLE;
+
+    PERFORM pg_temp.check('locked trial: its status changed',
+        (SELECT status = 'trial' FROM public.tenants WHERE id = _locked));
+    PERFORM pg_temp.check('locked trial: a refusal wrote a log row',
+        NOT EXISTS (SELECT 1 FROM public.admin_activity_logs WHERE tenant_id = _locked));
+    PERFORM pg_temp.check('locked trial: the lock no longer says trial_ended',
+        (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_locked)));
+    PERFORM pg_temp.check('locked trial back from hold: the lock does not hold it as an ended trial',
+        (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_held)));
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1

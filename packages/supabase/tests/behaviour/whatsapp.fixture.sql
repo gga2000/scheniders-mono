@@ -32,6 +32,7 @@ CREATE TABLE public.tenants (
     id uuid PRIMARY KEY,
     plan public.plan_tier NOT NULL,
     status public.tenant_status NOT NULL,
+    restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,
     display_id bigint,
     business_name text NOT NULL DEFAULT 'Shop'
 );
