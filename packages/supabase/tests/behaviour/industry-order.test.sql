@@ -11,7 +11,8 @@
 --     * THE STUCK CASE: two industries added from the console both have
 --       sort_order 0. Trading their numbers changed nothing. A move now puts
 --       them in the asked order, and afterwards no two share a number;
---     * one staff log row per move, with who, from and to;
+--     * one staff log row per move, with who, which industry by name, from
+--       and to;
 --   Refusals (nothing written, no log row):
 --     * the first moved up, the last moved down: 'at_edge';
 --     * an unknown industry: 'not_found';
@@ -88,7 +89,7 @@ BEGIN
     PERFORM pg_temp.check('log: not one row per move, got ' || _logs, _logs = 2);
     PERFORM pg_temp.check('log: the last row does not say Perfume went from 2 to 3',
         EXISTS (SELECT 1 FROM public.admin_activity_logs
-                 WHERE details @> jsonb_build_object('industry_id', _id, 'from_place', 2, 'to_place', 3)));
+                 WHERE details @> jsonb_build_object('industry_id', _id, 'name', 'Perfume', 'from_place', 2, 'to_place', 3)));
 
     -- Refusals write nothing.
     _shown := pg_temp.shown();

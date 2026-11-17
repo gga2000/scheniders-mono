@@ -5,6 +5,7 @@ import type { Industry } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { refusal } from "@/lib/refusal";
+import type { IndustryEdit } from "@/lib/industry-edit";
 
 export function useIndustries() {
   return useQuery<Industry[]>({
@@ -48,8 +49,6 @@ async function refused(res: Response, fallback: string): Promise<Error> {
   const words = await refusal(res, fallback);
   return res.status === 404 ? new IndustryGoneError(words) : new Error(words);
 }
-
-type IndustryEdit = Partial<Pick<Industry, "name" | "name_ar" | "icon" | "color" | "avg_order_value_iqd" | "is_active">>;
 
 export function useUpdateIndustry() {
   const qc = useQueryClient();
