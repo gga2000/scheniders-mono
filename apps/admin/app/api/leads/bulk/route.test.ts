@@ -14,27 +14,44 @@ const ME = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 const LEAD = "33333333-3333-4333-8333-333333333333";
 const LEAD2 = "44444444-4444-4444-8444-444444444444";
+const LEAD3 = "55555555-5555-4555-8555-555555555555";
 
+let role = "support_staff";
 vi.mock("@/lib/api-auth", () => ({
-  requireBearerAdmin: async () => ({ user: { id: ME, email: "me@staff.test" }, role: "support_staff" }),
+  requireBearerAdmin: async () => ({ user: { id: ME, email: "me@staff.test" }, role }),
   forbidden: (permission: string) => Response.json({ error: `needs ${permission}` }, { status: 403 }),
 }));
 const logged: unknown[][] = [];
 vi.mock("@/lib/activity-logger", () => ({ logAdminAction: async (...args: unknown[]) => void logged.push(args) }));
 
 const rpc = vi.fn();
-let updates: Array<{ values: Record<string, unknown>; ids: unknown[] }>;
+/** Every read and write on leads, as the chain the route built. */
+let reads: Array<{ method: string; args: unknown[] }[]>;
+/** What a delete answers (the rows it removed) and what a read answers. */
+let removedRows: Array<{ id: string; merchant_name: string }>;
+let storeRows: Array<{ merchant_name: string }>;
+function chain(steps: { method: string; args: unknown[] }[], answer: () => unknown): unknown {
+  return new Proxy(() => undefined, {
+    get(_target, prop) {
+      if (prop === "then") return (resolve: (value: unknown) => void) => resolve(answer());
+      return (...args: unknown[]) => {
+        steps.push({ method: String(prop), args });
+        return chain(steps, answer);
+      };
+    },
+  });
+}
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
     rpc,
-    from: () => ({
-      update: (values: Record<string, unknown>) => ({
-        in: async (_column: string, ids: unknown[]) => {
-          updates.push({ values, ids });
-          return { error: null };
-        },
-      }),
-    }),
+    from: () => {
+      const steps: { method: string; args: unknown[] }[] = [];
+      reads.push(steps);
+      return chain(steps, () => ({
+        data: steps.some((s) => s.method === "delete") ? removedRows : storeRows,
+        error: null,
+      }));
+    },
   }),
 }));
 
@@ -48,7 +65,10 @@ const done = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
-  updates = [];
+  role = "support_staff";
+  reads = [];
+  removedRows = [];
+  storeRows = [];
   logged.length = 0;
   rpc.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -69,9 +89,10 @@ describe("POST /api/leads/bulk", () => {
       _admin_user_id: ME,
       _actor_email: "me@staff.test",
     });
-    expect(updates).toEqual([]);
-    expect(logged).toHaveLength(1);
-    expect(logged[0][1]).toBe("bulk_leads");
+    expect(reads).toEqual([]);
+    // Each moved lead has its own named reassign_lead row, written by the database.
+    expect(logged).toEqual([]);
+    expect(await res.json()).toEqual({ success: true, found: 2, changed: 1 });
   });
 
   it("says how many leads someone else owns and moves nothing until asked", async () => {
@@ -100,15 +121,75 @@ describe("POST /api/leads/bulk", () => {
       "admin_change_leads",
       expect.objectContaining({ _lead_ids: [LEAD, LEAD2], _status: "contacted", _set_owner: false }),
     );
-    expect(updates).toEqual([]);
+    expect(reads).toEqual([]);
+    expect(await res.json()).toEqual({ success: true, found: 2, changed: 2 });
+    expect(logged).toEqual([
+      [expect.anything(), "bulk_leads", { details: { action: "change_status", status: "contacted", changed: 2 } }],
+    ]);
   });
 
-  it("answers 409 when a ticked lead is already a store", async () => {
+  it("logs and answers only the leads that really changed", async () => {
+    rpc.mockResolvedValue(done({ found: 3, status_changed: 1 }));
+    const res = await call({ action: "change_status", lead_ids: [LEAD, LEAD2, LEAD3], payload: { status: "contacted" } });
+
+    expect(await res.json()).toEqual({ success: true, found: 3, changed: 1 });
+    expect(logged[0][2]).toEqual({ details: { action: "change_status", status: "contacted", changed: 1 } });
+  });
+
+  it("writes no log row when nothing changed", async () => {
+    rpc.mockResolvedValue(done({ status_changed: 0 }));
+    const res = await call({ action: "change_status", lead_ids: [LEAD, LEAD2], payload: { status: "contacted" } });
+
+    expect(await res.json()).toEqual({ success: true, found: 2, changed: 0 });
+    expect(logged).toEqual([]);
+  });
+
+  it("names the ticked leads that are already stores when the database refuses", async () => {
     rpc.mockResolvedValue({ data: null, error: { hint: "LEAD_CONVERTED_LOCKED", message: "locked" } });
-    const res = await call({ action: "assign_to_me", lead_ids: [LEAD], take_from_others: true });
+    storeRows = [{ merchant_name: "Kawkab" }];
+    const res = await call({ action: "assign_to_me", lead_ids: [LEAD, LEAD2], take_from_others: true });
 
     expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(
+      '"Kawkab" is already a store, so its owner and status can\'t change. Untick it and try again.',
+    );
+    expect(reads[0]).toEqual([
+      { method: "select", args: ["merchant_name"] },
+      { method: "in", args: ["id", [LEAD, LEAD2]] },
+      { method: "not", args: ["converted_tenant_id", "is", null] },
+      { method: "order", args: ["merchant_name"] },
+    ]);
     expect(logged).toEqual([]);
+  });
+
+  it("deletes the ticked leads and keeps each name in the log, since their rows are gone", async () => {
+    role = "super_admin";
+    removedRows = [
+      { id: LEAD, merchant_name: "Kawkab" },
+      { id: LEAD2, merchant_name: "Noor" },
+    ];
+    const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2, LEAD3] });
+
+    expect(await res.json()).toEqual({ success: true, found: 2, changed: 2 });
+    expect(reads[0].map((s) => s.method)).toEqual(["delete", "in", "select"]);
+    expect(logged).toEqual([
+      [expect.anything(), "bulk_leads", { details: { action: "delete", changed: 2, leads: removedRows } }],
+    ]);
+  });
+
+  it("writes no log row when every ticked lead was gone already", async () => {
+    role = "super_admin";
+    const res = await call({ action: "delete", lead_ids: [LEAD] });
+
+    expect(await res.json()).toEqual({ success: true, found: 0, changed: 0 });
+    expect(logged).toEqual([]);
+  });
+
+  it("refuses a delete without delete_leads and touches nothing", async () => {
+    const res = await call({ action: "delete", lead_ids: [LEAD] });
+
+    expect(res.status).toBe(403);
+    expect(reads).toEqual([]);
   });
 
   it("no longer takes an assignee from the body", async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { leadConvertedLockResponse } from "./lead-converted-lock";
+import { convertedLeadsMessage, leadConvertedLockResponse } from "./lead-converted-lock";
 
 describe("leadConvertedLockResponse", () => {
     it("turns the database lock into a 409", async () => {
@@ -12,5 +12,21 @@ describe("leadConvertedLockResponse", () => {
         expect(leadConvertedLockResponse({ message: "boom", hint: "something else" })).toBeNull();
         expect(leadConvertedLockResponse(new Error("boom"))).toBeNull();
         expect(leadConvertedLockResponse(null)).toBeNull();
+    });
+});
+
+describe("convertedLeadsMessage", () => {
+    it("names the ticked stores, so the person knows which to untick", () => {
+        expect(convertedLeadsMessage(["Kawkab"])).toBe(
+            '"Kawkab" is already a store, so its owner and status can\'t change. Untick it and try again.',
+        );
+        expect(convertedLeadsMessage(["Kawkab", "Noor"])).toBe(
+            '"Kawkab" and "Noor" are already stores, so their owner and status can\'t change. Untick them and try again.',
+        );
+        expect(convertedLeadsMessage(["A", "B", "C", "D", "E"])).toMatch(/^"A", "B", "C" and 2 more are already stores/);
+    });
+
+    it("still refuses clearly when no name could be read", () => {
+        expect(convertedLeadsMessage([])).toMatch(/already a store.*Nothing was changed/);
     });
 });

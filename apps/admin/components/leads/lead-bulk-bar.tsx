@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { BulkLeadError, useBulkLeadAction } from "@/hooks/use-lead-mutations";
 import { hasPermission } from "@/lib/admin-permissions";
+import { bulkResultText } from "@/lib/lead-bulk";
 import type { AdminRole } from "@/types/admin";
 
 interface LeadBulkBarProps {
@@ -21,8 +22,9 @@ const BUTTON = "text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors
  * and their history on one click. Each button now says what it does, a
  * refusal is shown, and Delete asks once more, naming how many. "Assign to
  * me" over leads a colleague owns asks once more too, naming how many: the
- * server moves nothing until then. The bar is always dark, so its red is the
- * light one, and it keeps one line.
+ * server moves nothing until then. A press that went through says what
+ * changed. The bar is always dark, so its red is the light one, and it keeps
+ * one line.
  */
 export function LeadBulkBar({ selectedIds, role, onClear }: LeadBulkBarProps) {
   const bulkAction = useBulkLeadAction();
@@ -37,10 +39,14 @@ export function LeadBulkBar({ selectedIds, role, onClear }: LeadBulkBarProps) {
 
   const run = (body: Parameters<typeof bulkAction.mutate>[0]) =>
     bulkAction.mutate(body, {
-      onSuccess: () => {
+      onSuccess: (result) => {
         setConfirmingDelete(false);
         setAsked(null);
         onClear();
+        // The ticks clear, so the bar says what changed, and what was so already.
+        const said = bulkResultText(body, result);
+        if (result.changed > 0) toast.success(said);
+        else toast(said);
       },
       onError: (error) => {
         setConfirmingDelete(false);

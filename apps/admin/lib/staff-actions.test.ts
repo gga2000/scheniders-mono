@@ -21,6 +21,31 @@ describe("staffActionText", () => {
     expect(staffActionText("reassign_lead", { merchant_name: "Kawkab" })).toBe("Moved a lead to another owner: Kawkab");
   });
 
+  it("says what a bulk press really changed, and names the leads it deleted", () => {
+    expect(staffActionText("bulk_leads", { action: "change_status", status: "contacted", changed: 3 })).toBe(
+      "Marked 3 leads as Contacted",
+    );
+    expect(
+      staffActionText("bulk_leads", {
+        action: "delete",
+        changed: 5,
+        leads: ["Kawkab", "Noor", "Dijla", "Babil", "Sumer"].map((merchant_name, i) => ({ id: String(i), merchant_name })),
+      }),
+    ).toBe("Deleted 5 leads: Kawkab, Noor, Dijla and 2 more");
+    expect(staffActionText("bulk_leads", { action: "delete", changed: 1, leads: [{ id: "1", merchant_name: "Kawkab" }] })).toBe(
+      "Deleted 1 lead: Kawkab",
+    );
+  });
+
+  it("keeps the general words for a bulk row from before, which counted every ticked lead", () => {
+    expect(staffActionText("bulk_leads", { action: "change_status", count: 40, lead_ids: [] })).toBe(
+      "Changed several leads at once",
+    );
+    expect(staffActionText("bulk_leads", { action: "change_status", status: "nonsense", changed: 2 })).toBe(
+      "Changed several leads at once",
+    );
+  });
+
   it("reads an unknown step as words", () => {
     expect(staffActionText("support_notice_posted", null)).toBe("Support notice posted");
   });
