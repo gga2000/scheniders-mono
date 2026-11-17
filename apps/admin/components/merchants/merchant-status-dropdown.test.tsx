@@ -17,16 +17,16 @@ const { MerchantStatusDropdown } = await import("./merchant-status-dropdown");
 
 afterEach(cleanup);
 
-function showChip(status: TenantStatus, trialSubscription: boolean) {
+function showChip(status: TenantStatus, trialUnpaid: boolean) {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MerchantStatusDropdown merchantId="m1" status={status} trialSubscription={trialSubscription} />
+      <MerchantStatusDropdown merchantId="m1" status={status} trialUnpaid={trialUnpaid} />
     </QueryClientProvider>,
   );
 }
 
-function openMenu(status: TenantStatus, label: string, trialSubscription: boolean) {
-  showChip(status, trialSubscription);
+function openMenu(status: TenantStatus, label: string, trialUnpaid: boolean) {
+  showChip(status, trialUnpaid);
   fireEvent.click(screen.getByRole("button", { name: label }));
   return screen.getAllByRole("button").map((button) => button.textContent);
 }

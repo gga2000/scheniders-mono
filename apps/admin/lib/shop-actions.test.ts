@@ -5,6 +5,8 @@ import {
   freeDaysKind,
   isSubscriptionRunning,
   moreActions,
+  reactivateWords,
+  renewalWords,
   shopFormFrom,
   shopFormHref,
   typedAmount,
@@ -90,6 +92,40 @@ describe("where free days end", () => {
   it("counts from now once the end has passed, as the database does", () => {
     expect(endAfterDays("2026-11-10T09:00:00Z", 7, now).toISOString()).toBe("2026-11-23T09:00:00.000Z");
     expect(endAfterDays(null, 1, now).toISOString()).toBe("2026-11-17T09:00:00.000Z");
+  });
+});
+
+describe("what Reactivate says", () => {
+  const now = new Date("2026-11-16T09:00:00Z");
+
+  it("says a shop that paid comes back active and is charged as usual", () => {
+    expect(reactivateWords(false, "2026-11-01T09:00:00Z", now)).toBe(
+      "The shop is active again now, and its monthly fee is charged as usual.",
+    );
+  });
+
+  it("says a trial that was never paid comes back as a trial, locked once it has ended", () => {
+    expect(reactivateWords(true, "2026-11-10T09:00:00Z", now)).toBe(
+      "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays.",
+    );
+    expect(reactivateWords(true, "2026-11-20T09:00:00Z", now)).toBe(
+      "The shop goes back to its trial now: its trial was never paid.",
+    );
+  });
+});
+
+describe("the renewal line", () => {
+  it("says a shop that is not running is not charged while it stays so", () => {
+    expect(renewalWords(true, false, "active")).toBe("On: charges the wallet each month");
+    expect(renewalWords(true, false, "trial")).toBe("On: charges the wallet each month");
+    expect(renewalWords(true, false, "limited")).toBe("On: not charged while paused, then charges the wallet each month");
+    expect(renewalWords(true, false, "suspended")).toBe("On: not charged while on hold, then charges the wallet each month");
+    expect(renewalWords(true, false, "cancelled")).toBe("On: not charged while cancelled");
+  });
+
+  it("says the demo store is never charged, and an ended renewal is off", () => {
+    expect(renewalWords(true, true, "active")).toBe("On: renews each month, never charged (demo store)");
+    expect(renewalWords(false, false, "suspended")).toBe("Off: the month ends and is not renewed");
   });
 });
 

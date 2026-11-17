@@ -7,7 +7,7 @@ import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
-import { statusPickRefusal } from "@/lib/shop-status-choice";
+import { statusLandedText, statusPickRefusal } from "@/lib/shop-status-choice";
 import type { TenantStatus } from "@/types/admin";
 
 const STATUS_OPTIONS: Array<{
@@ -34,14 +34,14 @@ const statusBadgeStyle: Record<TenantStatus, string> = {
 interface MerchantStatusDropdownProps {
   merchantId: string;
   status: TenantStatus;
-  /** No subscription, or the newest is trialing: only then can the shop go back to Trial. */
-  trialSubscription: boolean;
+  /** No subscription, or a trial never paid: only then can the shop go back to Trial. */
+  trialUnpaid: boolean;
 }
 
 export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   merchantId,
   status,
-  trialSubscription,
+  trialUnpaid,
 }: MerchantStatusDropdownProps) {
   const [open, setOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<TenantStatus | null>(null);
@@ -79,6 +79,14 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
       // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
       return { restore: patchMerchantInCache(queryClient, merchantId, { status: newStatus }) };
+    },
+    // A held trial that was never paid comes back as Trial when Active is
+    // picked: the card says so and shows Trial at once.
+    onSuccess: (answer, picked) => {
+      const landed = statusLandedText(picked, answer);
+      if (!landed) return;
+      patchMerchantInCache(queryClient, merchantId, { status: "trial" });
+      toast.info(landed);
     },
     // The server says why it refused (a paused shop, a trial, the demo store).
     // The card goes back to the real status at once, before the list is read again.
@@ -122,7 +130,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   // is set by Pause on the shop page, and a paused shop has no move at all
   // until its pause is lifted.
   const menu = STATUS_OPTIONS.filter(
-    (o) => o.value === status || statusPickRefusal({ status, trial_subscription: trialSubscription }, o.value) === null,
+    (o) => o.value === status || statusPickRefusal({ status, trial_unpaid: trialUnpaid }, o.value) === null,
   );
 
   // A status change goes through the same PATCH as a plan change, which needs

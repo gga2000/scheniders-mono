@@ -36,6 +36,9 @@ interface ShopActionsProps {
   balance: number;
   /** When the trial, or this month, ends: where free days start. */
   freeDaysFrom: string | null;
+  /** Back from hold it is a trial again: its trial was never paid (Reactivate says so). */
+  reopensAsTrial: boolean;
+  trialEndsAt: string | null;
   /** The lock card holds the store-orders tool; this brings it into view. */
   onGiveOrders: () => void;
   onAddNote: () => void;
@@ -55,6 +58,8 @@ export function ShopActions({
   plan,
   balance,
   freeDaysFrom,
+  reopensAsTrial,
+  trialEndsAt,
   onGiveOrders,
   onAddNote,
   startOpen = null,
@@ -145,8 +150,18 @@ export function ShopActions({
                 </button>
                 {view === "plan" && <PlanForm shopId={shopId} plan={plan} onDone={done} />}
                 {view === "pause" && <PauseForm shopId={shopId} onDone={done} />}
-                {view === "hold" && <HoldForm shopId={shopId} mode="hold" onDone={done} />}
-                {view === "reactivate" && <HoldForm shopId={shopId} mode="reactivate" onDone={done} />}
+                {view === "hold" && (
+                  <HoldForm shopId={shopId} mode="hold" reopensAsTrial={reopensAsTrial} trialEndsAt={trialEndsAt} onDone={done} />
+                )}
+                {view === "reactivate" && (
+                  <HoldForm
+                    shopId={shopId}
+                    mode="reactivate"
+                    reopensAsTrial={reopensAsTrial}
+                    trialEndsAt={trialEndsAt}
+                    onDone={done}
+                  />
+                )}
                 {view === "convert" && <ConvertTrialForm shopId={shopId} onDone={done} />}
               </>
             ) : (

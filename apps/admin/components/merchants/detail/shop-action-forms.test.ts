@@ -60,7 +60,7 @@ describe("Give free days", () => {
 
 describe("On hold", () => {
   it("says no monthly fee is charged, and waits for a reason before putting a shop on hold", () => {
-    const html = render(createElement(HoldForm, { shopId: "t1", mode: "hold", onDone: () => {} }));
+    const html = render(createElement(HoldForm, { shopId: "t1", mode: "hold", reopensAsTrial: false, trialEndsAt: null, onDone: () => {} }));
     expect(html).toContain("No monthly fee is charged while it is on hold.");
     expect(html).toContain('aria-label="Reason"');
     expect(confirmButton(html)).toContain(">Put on hold<");
@@ -68,9 +68,26 @@ describe("On hold", () => {
   });
 
   it("brings a shop back without asking why", () => {
-    const html = render(createElement(HoldForm, { shopId: "t1", mode: "reactivate", onDone: () => {} }));
+    const html = render(
+      createElement(HoldForm, { shopId: "t1", mode: "reactivate", reopensAsTrial: false, trialEndsAt: null, onDone: () => {} }),
+    );
+    expect(html).toContain("The shop is active again now, and its monthly fee is charged as usual.");
     expect(html).not.toContain('aria-label="Reason"');
     expect(confirmButton(html)).not.toMatch(DISABLED);
+  });
+
+  it("says a held trial that was never paid comes back as a locked trial, not active", () => {
+    const html = render(
+      createElement(HoldForm, {
+        shopId: "t1",
+        mode: "reactivate",
+        reopensAsTrial: true,
+        trialEndsAt: "2026-11-10T09:00:00Z",
+        onDone: () => {},
+      }),
+    );
+    expect(html).toContain("Its trial ended unpaid, so it stays locked until it pays.");
+    expect(html).not.toContain("monthly fee is charged");
   });
 });
 
