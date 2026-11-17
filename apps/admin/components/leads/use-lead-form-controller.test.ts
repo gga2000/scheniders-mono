@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import type { LeadFormData } from "@/types/leads";
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), dismiss: vi.fn() }));
@@ -187,5 +187,23 @@ describe("useLeadFormController: a dismissal with unsaved content", () => {
     act(() => result.current.saveDraftOnClose(onSaveDraft));
 
     expect(onSaveDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe("useLeadFormController: a sign-in that ends while typing", () => {
+  function leaving(): boolean {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  it("asks before the page is left while the form holds unsaved typing, and not once it is closed", () => {
+    cleanup(); // forms the tests above left open with typing
+    const { result, rerender } = setup(vi.fn());
+    expect(leaving()).toBe(false);
+    act(() => result.current.update("management_name", "Typed by me"));
+    expect(leaving()).toBe(true);
+    rerender({ open: false, initialData: lead() });
+    expect(leaving()).toBe(false);
   });
 });

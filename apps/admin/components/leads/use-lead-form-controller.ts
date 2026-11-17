@@ -3,6 +3,7 @@
 import { useState, useEffect, useEffectEvent, useRef, useCallback } from "react";
 import type { LeadFormData, LeadPhoneNumber, LeadBranch } from "@/types/leads";
 import { useIndustries } from "@/hooks/use-industries";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
 import { isValidIraqiPhone } from "./lead-phone";
@@ -142,6 +143,7 @@ export function useLeadFormController({
 
   /** True when the form differs from its opened state (has unsaved content). */
   const isDirty = JSON.stringify(form) !== JSON.stringify(opened);
+  useLeaveGuard(open && isDirty);
 
   /** On a dismissal: hand unsaved content to the host's draft save. */
   const saveDraftOnClose = (onSaveDraft: LeadFormDraftSave | undefined) => {
