@@ -60,22 +60,27 @@ export async function changeLeads(
   if (error) throw error;
 
   const refused = refusedSchema.safeParse(data);
-  if (refused.success) {
-    const { error: code, count } = refused.data;
-    if (code === "owned_by_others") {
-      const n = count ?? 0;
-      return {
-        ok: false,
-        status: 409,
-        error: `${n} of these ${n === 1 ? "lead belongs" : "leads belong"} to someone else.`,
-        ownedByOthers: n,
-      };
-    }
-    const refusal = REFUSALS[code];
-    if (!refusal) throw new Error(`Unexpected refusal from admin_change_leads: ${code}`);
-    return { ok: false, ...refusal };
-  }
+  if (refused.success) return leadChangeRefusal(refused.data);
 
   const { found, status_changed, moved } = changedSchema.parse(data);
   return { ok: true, found, statusChanged: status_changed, moved };
+}
+
+/**
+ * An admin_change_leads refusal in words. admin_save_lead passes the same
+ * refusals on, so the lead form and the bulk bar say them alike.
+ */
+export function leadChangeRefusal({ error: code, count }: z.infer<typeof refusedSchema>): Extract<LeadChangeResult, { ok: false }> {
+  if (code === "owned_by_others") {
+    const n = count ?? 0;
+    return {
+      ok: false,
+      status: 409,
+      error: `${n} of these ${n === 1 ? "lead belongs" : "leads belong"} to someone else.`,
+      ownedByOthers: n,
+    };
+  }
+  const refusal = REFUSALS[code];
+  if (!refusal) throw new Error(`Unexpected refusal from admin_change_leads: ${code}`);
+  return { ok: false, ...refusal };
 }
