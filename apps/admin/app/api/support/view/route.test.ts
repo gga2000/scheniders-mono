@@ -70,8 +70,8 @@ describe("POST /api/support/view: the viewer sign-in", () => {
       { data: { user: { id: VIEWER, app_metadata: { provider: "email", support_viewer: true } } }, error: null },
       ok,
       ok,
-      session,
       link,
+      session,
     );
     const res = await start();
     expect(res.status).toBe(200);

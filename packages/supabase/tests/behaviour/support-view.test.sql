@@ -225,6 +225,10 @@ BEGIN
     PERFORM pg_temp.check('log: end names the staff member', r.admin_user_id = 'a0000000-0000-4000-8000-000000000001');
     PERFORM pg_temp.check('log: end details', r.details = '{"ended": 1}'::jsonb);
     PERFORM pg_temp.check('log: end has no shop', r.tenant_id IS NULL);
+    PERFORM pg_temp.check('end: a second end closes nothing', public.support_view_end('a0000000-0000-4000-8000-000000000001', 'noor@example.com') = 0);
+    PERFORM pg_temp.check('log: an end that closed nothing writes no row',
+        (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'support_view_end' AND actor_email = 'noor@example.com') = 1
+        AND NOT EXISTS (SELECT 1 FROM public.admin_activity_logs WHERE action = 'support_view_end' AND details ->> 'ended' = '0'));
     PERFORM pg_temp.check('lock: still no unlocked table', cardinality(public.support_view_unguarded_tables()) = 0);
 END $$;
 

@@ -82,6 +82,16 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
     const viewerId = await ensureViewer(supabase, admin.user.id, await adminDisplayName(supabase, admin));
 
+    // The link first: a link that fails starts no look, so the merchant never
+    // sees a visit that was not opened. A link made for a look the database
+    // then refuses is never answered, and the viewer sees no shop without a
+    // session (support_view_tenant).
+    const link = await supabase.auth.admin.generateLink({ type: "magiclink", email: supportViewerEmail(admin.user.id) });
+    const hashedToken = link.data.properties?.hashed_token;
+    if (!hashedToken || link.data.user?.id !== viewerId) {
+      throw new Error(`Viewer sign-in link failed: ${link.error?.message ?? "wrong user"}`);
+    }
+
     const { data, error } = await supabase.rpc("support_view_start", {
       p_admin_id: admin.user.id,
       p_viewer_user_id: viewerId,
@@ -91,12 +101,6 @@ export async function POST(request: NextRequest) {
     const refusal = error?.code === "P0001" && error.message ? SUPPORT_VIEW_REFUSALS[error.message] : undefined;
     if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
     if (error) throw error;
-
-    const link = await supabase.auth.admin.generateLink({ type: "magiclink", email: supportViewerEmail(admin.user.id) });
-    const hashedToken = link.data.properties?.hashed_token;
-    if (!hashedToken || link.data.user?.id !== viewerId) {
-      throw new Error(`Viewer sign-in link failed: ${link.error?.message ?? "wrong user"}`);
-    }
 
     const session = data as { session_id: string; expires_at: string };
     return NextResponse.json({ url: supportViewUrl(platformUrl, hashedToken), expiresAt: session.expires_at });
@@ -113,7 +117,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** DELETE /api/support/view — end my look now; the function writes the support_view_end row. */
+/** DELETE /api/support/view — end my look now; the function writes the support_view_end row when it closed one. */
 export async function DELETE(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
   if (admin instanceof NextResponse) return admin;
