@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 import type { FinanceSummary } from "@/lib/finance/summary";
 import { Money, formatWhole } from "./money";
 import { CARD_LINK } from "./summary-card";
@@ -45,6 +47,7 @@ export function UnpaidOrders({ orders, total, totalPrime }: UnpaidOrdersProps) {
         [language],
     );
     const [open, setOpen] = useState(false);
+    const [feeOpen, setFeeOpen] = useState(false);
     const rest = Math.max(total - orders.length, 0);
     const folds = orders.length > SHOW_ALL_UP_TO;
     const visible = folds && !open ? orders.slice(0, SHOWN_FOLDED) : orders;
@@ -116,11 +119,6 @@ export function UnpaidOrders({ orders, total, totalPrime }: UnpaidOrdersProps) {
                     {open ? t("fin.money.unpaid.showLess") : t("fin.money.unpaid.showAll", { n: formatWhole(orders.length) })}
                 </button>
             )}
-            {anyCourier && (
-                <p className="mt-2 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-courier-fee">
-                    {t("fin.money.unpaid.courierFeeNote")}
-                </p>
-            )}
             {anyLate && (
                 <p className="mt-2 text-left text-[12px] leading-relaxed text-amber-700 dark:text-amber-400" dir={dir} data-testid="money-unpaid-late">
                     {t("fin.money.unpaid.lateNote")}
@@ -130,6 +128,27 @@ export function UnpaidOrders({ orders, total, totalPrime }: UnpaidOrdersProps) {
                 <p className="mt-2 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-rest">
                     {restNote}
                 </p>
+            )}
+            {/* Why less may come than the rows say: background, so it folds; the late and the count lines stay open. */}
+            {anyCourier && (
+                <div className="mt-2">
+                    <button
+                        type="button"
+                        className="flex items-center gap-1 text-left text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                        aria-expanded={feeOpen}
+                        onClick={() => setFeeOpen((was) => !was)}
+                        dir={dir}
+                        data-testid="money-unpaid-courier-fee-toggle"
+                    >
+                        <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", feeOpen && "rotate-90")} aria-hidden="true" />
+                        {t("fin.money.unpaid.courierFeeWhy")}
+                    </button>
+                    {feeOpen && (
+                        <p className="mt-1 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-courier-fee">
+                            {t("fin.money.unpaid.courierFeeNote")}
+                        </p>
+                    )}
+                </div>
             )}
         </div>
     );

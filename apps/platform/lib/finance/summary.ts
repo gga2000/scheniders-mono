@@ -345,6 +345,20 @@ export function adReturn(statement: ProfitStatement): number | null {
     return ads > 0 ? Math.round((statement.sales / ads) * 1000) : null;
 }
 
+/**
+ * The ads figure (sales per 1,000 of ads) at which the ads eat all that sales leave after goods, delivery
+ * and refunds: above it the ads pay for themselves. Null with no ads, or when nothing is left before ads.
+ */
+export function adBreakEven(statement: ProfitStatement): number | null {
+    const ads = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
+    const before = (["product_cost", "delivery", "refunds"] as const).reduce(
+        (sum, id) => sum + (statement.lines.find((l) => l.id === id)?.amount ?? 0),
+        0,
+    );
+    const kept = statement.sales - before;
+    return ads > 0 && kept > 0 ? Math.ceil((statement.sales / kept) * 1000) : null;
+}
+
 export interface ProfitBar {
     /** First and last Baghdad day the bar covers (the same day for a daily bar). */
     from: string;

@@ -228,6 +228,9 @@ describe("SummaryView", () => {
         expect(byTestId("money-unpaid")?.textContent).toContain("3 طلبات: 1 عند برايم و2 عند شركة التوصيل");
         // the courier's fee is not known before its statement: its rows say so
         expect(byTestId("money-unpaid")?.textContent).toContain("عند شركة التوصيل، قبل أجرتها");
+        // background on why less may come folds; opened, it says why
+        expect(byTestId("money-unpaid-courier-fee")).toBeNull();
+        fireEvent.click(byTestId("money-unpaid-courier-fee-toggle") as HTMLElement);
         expect(byTestId("money-unpaid-courier-fee")?.textContent).toContain("فيصلك منها أقل من هذا");
         expect(byTestId("money-split")?.getAttribute("aria-label")).toContain("83%");
         // the road is not a sale yet: it sits under the line, apart from the three parts
@@ -389,7 +392,7 @@ describe("SummaryView", () => {
         expect(parts).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةاعرض الدفعات وفروقها100,000");
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
         expect(parts).toContain("طلبات دُفع ثمنها لك سابقاً، وسجّلتها «مُسلَّمة» متأخراً في هذه الفترة200,000");
-        expect(parts).toContain("دفعها الزبون لك مسبقاً (طلبان)20,000");
+        expect(parts).toContain("دفعها الزبون لك مسبقاً، بعد أجرة التوصيل (طلبان)20,000");
         expect(parts).toContain("من كشوف مؤرَّخة بعد هذه الفترة10,000");
         cleanup();
         // a refund of 20,000 on the same statements: the cash for these orders is 80,000, and the line says so
@@ -398,27 +401,29 @@ describe("SummaryView", () => {
         // "paid to you" says up front that it is before what the statements took off
         expect(byTestId("money-from-now-lines")).toBeNull();
         expect(byTestId("money-reached")?.textContent).toContain("بعد أجرة التوصيل، وقبل ما خصمته الكشوف (20,000 د.ع)");
-        expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةكيف يطابق هذا الدفعات100,000");
+        expect(byTestId("money-reached-parts")?.textContent).toContain("ثمن طلبات هذه الفترة في كشوف هذه الفترةكيف يطابق هذا الرقم دفعات شركات التوصيل100,000");
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(byTestId("money-from-now-link")?.getAttribute("href")).toBe("#courier-payments");
         expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual(["خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع", "وصلك منها فعلاً80,000د.ع"]);
         cleanup();
-        // the same statements also paid 3,000 for an order not marked delivered: the note names it, so 80,000 + 3,000
-        // meets the payments card's 83,000
+        // the same statements also paid 3,000 for an order not marked delivered and took a 5,000 fee off a prepaid
+        // order (already off "paid up front", so not in the gap): the lines name both, so 80,000 − 5,000 + 3,000
+        // meets the payments card's 78,000
         renderView(query(summary({
             cash: {
                 ...s.cash,
-                reached: { ...s.cash.reached, payments: 2, amount: 83_000 },
+                reached: { ...s.cash.reached, payments: 2, amount: 78_000 },
                 split: { ...s.cash.split, reached_now: 100_000, reached_before: 200_000 },
-                statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1, undelivered: 3_000, undelivered_orders: 1 },
+                statement: { ...s.cash.statement, returns: -20_000, returns_orders: 1, prepaid_gap: -5_000, prepaid_orders: 1, undelivered: 3_000, undelivered_orders: 1 },
             },
         })));
         fireEvent.click(byTestId("money-from-now-toggle") as HTMLElement);
         expect(Array.from(byTestId("money-from-now-lines")?.querySelectorAll("li") ?? []).map((li) => li.textContent)).toEqual([
             "خصمته الكشوف نفسها (مبالغ مستردة وفروق)−20,000د.ع",
             "وصلك منها فعلاً80,000د.ع",
-            "ودفعت الكشوف عن طلب لم تجعله أنت «مُسلَّماً» بعد+3,000د.ع",
-            "وهذا ما تجده في بطاقة الدفعات83,000د.ع",
+            "وأجرة توصيل طلب مدفوع مسبقاً خصمتها الكشوف (وهي مخصومة من «دفعها الزبون لك مسبقاً»)−5,000د.ع",
+            "وثمن طلب في الكشوف لم تغيّر أنت حالته إلى «مُسلَّم» بعد+3,000د.ع",
+            "وهذا ما تجده في بطاقة الدفعات78,000د.ع",
         ]);
         cleanup();
         renderView(query(summary()));
@@ -507,6 +512,8 @@ describe("SummaryView", () => {
         expect(figure).toContain("دينار مبيعات لكل 1,000 دينار إعلان");
         expect(figure).not.toContain("د.ع");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة.");
+        // the line to judge it by: 400,000 of sales leave 180,000 after goods, delivery and refunds
+        expect(byTestId("ad-return")?.textContent).toContain("ويربحك الإعلان ما دام هذا الرقم فوق 2,223");
         expect(byTestId("ad-return")?.textContent).toContain("صرفت 60,000 د.ع على الإعلانات في هذه الفترة");
         // the cost per order stays in the dark strip only
         expect(byTestId("ad-return")?.textContent).not.toContain("6,000");
