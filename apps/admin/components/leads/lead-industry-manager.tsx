@@ -299,7 +299,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                             onChange={(e) =>
                               setFormData((p) => ({ ...p, name_ar: e.target.value }))
                             }
-                            placeholder="e.g. ازياء"
+                            placeholder="مثال: أزياء"
                             className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-transparent text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-all"
                           />
                         </div>

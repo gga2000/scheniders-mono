@@ -187,3 +187,16 @@ describe("LeadIndustryManager edit", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
   });
 });
+
+// Round 11: the Arabic name box is right to left, so its hint "e.g. ازياء"
+// read "ازياء .e.g". The hint is now Arabic only, and reads in order.
+describe("LeadIndustryManager add form", () => {
+  it("gives the right-to-left Arabic name box a hint with no Latin letters", async () => {
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Add Industry" }));
+
+    const arabic = screen.getByPlaceholderText("مثال: أزياء");
+    expect(arabic.getAttribute("dir")).toBe("rtl");
+    expect(arabic.getAttribute("placeholder")).not.toMatch(/[A-Za-z]/);
+  });
+});
