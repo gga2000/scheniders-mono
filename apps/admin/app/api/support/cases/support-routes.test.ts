@@ -890,8 +890,8 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
-      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
       link as unknown as DbResult,
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
     );
     const res = await start("support", { tenantId: TENANT, adminId: "11111111-1111-4111-8111-111111111111" });
     expect(res.status).toBe(200);
@@ -923,8 +923,8 @@ describe("support view as merchant", () => {
       { data: { user: { id: VIEWER } }, error: null } as unknown as DbResult,
       { data: null, error: null },
       { data: null, error: null },
-      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
       link as unknown as DbResult,
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
     );
     expect((await start("support", { tenantId: TENANT })).status).toBe(200);
     expect(dbCalls.find((c) => c.method === "createUser")?.args[0]).toMatchObject({
@@ -936,14 +936,24 @@ describe("support view as merchant", () => {
     expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toEqual({ user_id: VIEWER, admin_id: SUPPORT_ID });
   });
 
-  it("never answers a link made for another sign-in", async () => {
+  it("never answers a link made for another sign-in, and starts no look for it", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
-      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
       { data: { properties: { hashed_token: "hash-1" }, user: { id: "someone-else" } }, error: null } as unknown as DbResult,
     );
     expect((await start("support", { tenantId: TENANT })).status).toBe(500);
+    expect(rpcCall()).toBeUndefined();
+  });
+
+  it("starts no look, so logs no visit, when the sign-in link cannot be made", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { user_id: VIEWER }, error: null },
+      { data: { properties: null, user: null }, error: { message: "auth down" } } as unknown as DbResult,
+    );
+    expect((await start("support", { tenantId: TENANT })).status).toBe(500);
+    expect(rpcCall()).toBeUndefined();
   });
 
   it.each([
@@ -954,10 +964,13 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
+      link as unknown as DbResult,
       { data: null, error: { code: "P0001", message } },
     );
-    expect((await start("support", { tenantId: TENANT })).status).toBe(status);
-    expect(dbCalls.some((c) => c.method === "generateLink")).toBe(false);
+    const res = await start("support", { tenantId: TENANT });
+    expect(res.status).toBe(status);
+    // The link made before the refusal is never answered.
+    expect(JSON.stringify(await res.json())).not.toContain("hash-1");
   });
 
   it("ends my own look, and the database logs it in the same step", async () => {
