@@ -21,6 +21,9 @@ export async function middleware(request: NextRequest) {
   request.headers.set(CSP_HEADER, policy);
   const response = await checkAccess(request);
   response.headers.set(CSP_HEADER, policy);
+  // Staff answers (phones, emails, wallets) stay out of the browser's disk
+  // cache, where they would outlast a sign-out on a shared computer.
+  if (request.nextUrl.pathname.startsWith("/api/")) response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
 
@@ -151,8 +154,9 @@ function checkFailedPage(retryPath: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Try again</title></head><body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F7F7F5;color:#1E1E1E;font-family:system-ui,sans-serif"><main style="max-width:420px;padding:32px;text-align:center"><h1 style="font-size:20px;margin:0 0 8px">Could not check your access</h1><p style="font-size:14px;color:#6B6B6B;margin:0 0 20px">The server did not answer in time. Nothing was changed and you were not signed out.</p><a href="${href}" style="display:inline-block;padding:10px 18px;border-radius:12px;background:#1E1E1E;color:#fff;text-decoration:none;font-size:14px">Try again</a></main></body></html>`;
 }
 
+// The console serves no images of its own (public/ holds only the alerts
+// worker), so every other address, whatever it ends in, gets the access check
+// and the script policy: /merchants/x.png is still the console.
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|_vercel|favicon.ico|support-sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|_vercel|favicon.ico|support-sw\\.js).*)"],
 };
