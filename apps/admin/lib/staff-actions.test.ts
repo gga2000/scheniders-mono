@@ -21,6 +21,17 @@ describe("staffActionText", () => {
     expect(staffActionText("reassign_lead", { merchant_name: "Kawkab" })).toBe("Moved a lead to another owner: Kawkab");
   });
 
+  it("names an edited lead, its old name, and the fields that changed in the form's words", () => {
+    expect(
+      staffActionText("edit_lead", { merchant_name: "Kawkab Baghdad", was: "Kawkab", fields: ["merchant_name", "phone_numbers", "priority"] }),
+    ).toBe("Edited a lead: Kawkab Baghdad, was Kawkab (name, phones and priority)");
+    expect(staffActionText("edit_lead", { merchant_name: "Kawkab", fields: ["tags"] })).toBe("Edited a lead: Kawkab (tags)");
+    expect(
+      staffActionText("edit_lead", { merchant_name: "Kawkab", fields: ["city", "address", "tags", "email", "branches"] }),
+    ).toBe("Edited a lead: Kawkab (city, address, tags, email and 1 more)");
+    expect(staffActionText("edit_lead", {})).toBe("Edited a lead");
+  });
+
   it("says what a bulk press really changed, and names the leads it deleted", () => {
     expect(staffActionText("bulk_leads", { action: "change_status", status: "contacted", changed: 3 })).toBe(
       "Marked 3 leads as Contacted",

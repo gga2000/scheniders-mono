@@ -3,7 +3,7 @@ import { convertedLeadsDeleteMessage, leadConvertedLockResponse, prospectStoreLe
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
-import { leadUpdateSchema } from "@/lib/lead-update";
+import { editLead, leadUpdateSchema } from "@/lib/lead-update";
 import { changeLeads } from "@/lib/lead-change";
 import { deleteLeads } from "@/lib/lead-delete";
 
@@ -129,9 +129,11 @@ export async function PATCH(
       if (result.found === 0) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
+    // The rest of the form: saved only where it really changed, with one
+    // edit_lead staff log row naming those fields, in the same transaction.
     if (Object.keys(rest).length > 0) {
-      const { error } = await supabase.from("leads").update(rest).eq("id", id);
-      if (error) throw error;
+      const edited = await editLead(supabase, id, rest, admin.user);
+      if (!edited.found) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
     const { data: lead, error } = await supabase

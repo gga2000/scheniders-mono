@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { createAdminClient } from "./admin-supabase";
 
 /**
  * Statuses a person may set by hand. "converted" is not one: a lead becomes
@@ -59,3 +60,28 @@ export const leadUpdateSchema = z
   .partial();
 
 export type LeadUpdate = z.infer<typeof leadUpdateSchema>;
+
+const editedSchema = z.object({ found: z.boolean(), changed: z.array(z.string()) });
+
+/**
+ * Save the lead form's fields (everything but status and owner, which go
+ * through changeLeads) with `admin_edit_lead`: under a lock it compares each
+ * field with what is stored, saves only a real change, and writes one
+ * edit_lead staff log row naming the fields that changed, in the same
+ * transaction. A save that changes nothing writes nothing.
+ */
+export async function editLead(
+  supabase: ReturnType<typeof createAdminClient>,
+  leadId: string,
+  changes: Omit<LeadUpdate, "status" | "assigned_to">,
+  actor: { id: string; email?: string | null },
+): Promise<z.infer<typeof editedSchema>> {
+  const { data, error } = await supabase.rpc("admin_edit_lead", {
+    _lead_id: leadId,
+    _changes: changes,
+    _admin_user_id: actor.id,
+    _actor_email: actor.email ?? null,
+  });
+  if (error) throw error;
+  return editedSchema.parse(data);
+}

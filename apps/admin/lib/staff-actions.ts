@@ -50,6 +50,39 @@ const TEAM_WORDS: Record<string, string> = {
 /** Steps on a lead, which the log names by the lead's shop name. */
 const LEAD_STEPS = new Set(["delete_lead", "reassign_lead"]);
 
+/** The lead form's fields, in the words the form uses (edit_lead rows name them). */
+const LEAD_FIELD_WORDS: Record<string, string> = {
+  merchant_name: "name",
+  industry_id: "industry",
+  industry_detail: "industry detail",
+  platform: "platform",
+  platform_url: "page link",
+  handle: "handle",
+  follower_count: "followers",
+  post_count: "posts",
+  management_name: "manager's name",
+  management_info: "manager details",
+  page_phone: "page phone",
+  phone_numbers: "phones",
+  contact_via_dm: "contact by DM",
+  website_url: "website",
+  email: "email",
+  avg_view_count: "views",
+  avg_like_count: "likes",
+  avg_comments_count: "comments",
+  avg_order_count: "orders",
+  address: "address",
+  city: "city",
+  governorate_code: "governorate",
+  is_online_only: "online only",
+  branches: "branches",
+  priority: "priority",
+  tags: "tags",
+  source_campaign: "campaign",
+  source_medium: "medium",
+  is_draft: "draft",
+};
+
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -79,12 +112,24 @@ function bulkLeadsText(details: Record<string, unknown> | null): string | null {
   return null;
 }
 
+/** "Edited a lead: Kawkab Baghdad, was Kawkab (name and phones)". */
+function editLeadText(details: Record<string, unknown> | null): string {
+  const name = text(details?.merchant_name);
+  const was = text(details?.was);
+  const fields = Array.isArray(details?.fields)
+    ? details.fields.flatMap((field: unknown) => (typeof field === "string" ? [LEAD_FIELD_WORDS[field] ?? field.replace(/_/g, " ")] : []))
+    : [];
+  const lead = name ? `: ${name}${was && was !== name ? `, was ${was}` : ""}` : "";
+  return `Edited a lead${lead}${fields.length > 0 ? ` (${wordList(fields, 4)})` : ""}`;
+}
+
 /** What the step did, in plain words: the shop's own list's words where it has them. */
 export function staffActionText(action: string, details: Record<string, unknown> | null): string {
   if (action === "bulk_leads") {
     const bulk = bulkLeadsText(details);
     if (bulk) return bulk;
   }
+  if (action === "edit_lead") return editLeadText(details);
   const words = TEAM_WORDS[action] ?? changeTitle(action, details) ?? action.replace(/_/g, " ");
   // The log keeps the lead's name: a deleted lead has no row left to name it.
   const lead = LEAD_STEPS.has(action) ? text(details?.merchant_name) : null;
