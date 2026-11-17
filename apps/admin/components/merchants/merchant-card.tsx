@@ -71,6 +71,8 @@ export function MerchantCard({
       status: merchant.status,
       locked: merchant.billing_lock != null,
       subscriptionRunning: merchant.subscription_running ?? false,
+      // The list holds customer shops only (lib/customer-shops), never the demo store.
+      demo: false,
     },
     can,
   );

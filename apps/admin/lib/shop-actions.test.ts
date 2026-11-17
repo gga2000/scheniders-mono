@@ -17,6 +17,7 @@ const shop = (facts: Partial<ShopFacts> = {}): ShopFacts => ({
   status: "active",
   locked: false,
   subscriptionRunning: true,
+  demo: false,
   ...facts,
 });
 
@@ -58,6 +59,20 @@ describe("More", () => {
   it("shows support staff only what their login may do", () => {
     expect(moreActions(shop(), as("support_staff"))).toEqual(["note"]);
     expect(moreActions(shop({ status: "trial", locked: true }), as("support_staff"))).toEqual(["orders", "note"]);
+  });
+});
+
+describe("the demo store", () => {
+  // Each of these was offered, filled in, and then refused by the database
+  // ("The demo store has no paid time to extend"; "This is the demo store.
+  // Its status does not change.").
+  it("offers no free days, pause or hold, since the database refuses them for it", () => {
+    expect(freeDaysKind(shop({ demo: true }), as("super_admin"))).toBeNull();
+    expect(moreActions(shop({ demo: true }), as("super_admin"))).toEqual(["plan", "note"]);
+  });
+
+  it("still offers what works on it", () => {
+    expect(moreActions(shop({ demo: true }), as("support_staff"))).toEqual(["note"]);
   });
 });
 
