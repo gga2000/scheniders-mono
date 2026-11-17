@@ -6,7 +6,7 @@ import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
-import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { CUSTOMER_SHOP, CUSTOMER_SHOP_EMBEDDED } from "@/lib/customer-shops";
 import { CROSS_SITE_READ, isOwnPageRead } from "@/lib/same-origin";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
@@ -90,8 +90,10 @@ async function fetchTransactions(supabase: ReturnType<typeof createAdminClient>)
     supabase
       .from("wallet_transactions")
       .select(
-        "id, tenant_id, type, amount_iqd, balance_after_iqd, description, created_at, tenants(business_name)"
+        "id, tenant_id, type, amount_iqd, balance_after_iqd, description, created_at, tenants!inner(business_name)"
       )
+      // The demo store and prospect stores hold no real money (lib/customer-shops), as on Wallets.
+      .match(CUSTOMER_SHOP_EMBEDDED)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .range(from, to)
@@ -120,6 +122,8 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
         "id, business_name, slug, plan, trial_ends_at, city, contact_email, created_at"
       )
       .eq("status", "trial")
+      // A prospect store is "trial" until its lead signs up; it is no customer's trial.
+      .match(CUSTOMER_SHOP)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to)
