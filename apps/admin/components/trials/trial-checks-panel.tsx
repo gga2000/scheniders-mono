@@ -18,6 +18,7 @@ import {
   type TrialCheckDecisionInput,
   type TrialChecksResponse,
 } from "@/lib/trial-checks";
+import { isPausedTrial } from "@/lib/effective-status";
 import { formatDayTime } from "@/lib/format";
 import { createRequestIds } from "@/lib/request-ids";
 
@@ -30,7 +31,12 @@ type DecisionAsk = { decision: "allow_trial"; days: number } | { decision: "end_
 function trialState(check: TrialCheck): string {
   const store = check.store;
   if (!store) return "Store deleted";
-  if (store.status !== "trial") return `Now ${store.status}`;
+  // The decisions wait for the pause to lift: the database gives days and ends
+  // only a trial that is not paused.
+  if (isPausedTrial(store.status, store.restrictions)) {
+    return store.trial_ends_at ? `Paused, trial until ${formatDayTime(store.trial_ends_at)}` : "Paused, on trial";
+  }
+  if (store.status !== "trial") return `Now ${store.status === "limited" ? "paused" : store.status}`;
   if (check.trial_withheld_at) return `Trial ended ${formatDayTime(check.trial_withheld_at)}`;
   if (store.trial_ends_at) return `Trial until ${formatDayTime(store.trial_ends_at)}`;
   return "On trial";

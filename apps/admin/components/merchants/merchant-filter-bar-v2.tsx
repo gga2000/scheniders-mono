@@ -281,7 +281,8 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
   const { data: stats } = useMerchantsStats({ ignoreStatusFilter: true });
   const statusCounts: Record<string, number> = {
     "": stats?.total ?? 0,
-    trial: stats?.status.trial ?? 0,
+    // A paused trial too: the Trial filter lists it, as Trials does.
+    trial: stats?.on_trial ?? 0,
     active: stats?.status.active ?? 0,
     suspended: stats?.status.suspended ?? 0,
     cancelled: stats?.status.cancelled ?? 0,

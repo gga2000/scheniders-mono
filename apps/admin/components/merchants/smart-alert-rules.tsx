@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { trialClock } from "@/lib/baghdad-day";
+import { effectiveStatus } from "@/lib/effective-status";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AdminTenant } from "@/types/admin";
@@ -84,7 +85,8 @@ function getMerchantFieldValue(merchant: AdminTenant, field: RuleField): number 
       return Math.floor(diff / (1000 * 60 * 60 * 24));
     }
     case "trial_remaining_days": {
-      if (merchant.status !== "trial" || !merchant.trial_ends_at) return null;
+      // A paused trial's days still run (lib/effective-status).
+      if (effectiveStatus(merchant.status, merchant.restrictions) !== "trial" || !merchant.trial_ends_at) return null;
       return trialClock(merchant.trial_ends_at).days;
     }
     default:

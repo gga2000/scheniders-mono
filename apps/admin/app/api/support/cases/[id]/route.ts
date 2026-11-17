@@ -49,7 +49,7 @@ async function loadShopCard(
   const [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier, owner, calls] = await Promise.all([
     supabase
       .from("tenants")
-      .select("id, business_name, display_id, plan, status, city, contact_phone, trial_ends_at, created_at")
+      .select("id, business_name, display_id, plan, status, restrictions, city, contact_phone, trial_ends_at, created_at")
       .eq("id", tenantId)
       .single(),
     supabase.from("wallet").select("balance_iqd").eq("tenant_id", tenantId).maybeSingle(),

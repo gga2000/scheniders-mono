@@ -5,12 +5,15 @@ import { requireAdminFromRequest } from "@/lib/api-auth";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { effectiveStatus } from "@/lib/effective-status";
 
 interface TenantRow {
   id: string;
   business_name: string;
   plan: string;
   status: string;
+  /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+  restrictions: unknown;
   city: string | null;
   created_at: string;
   /** The health score's parts; `orders` is 0 only for a shop with no real order in 30 days. */
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
       everyRow<TenantRow>((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, city, created_at, staff_health_parts")
+          .select("id, business_name, plan, status, restrictions, city, created_at, staff_health_parts")
           // The demo store and prospect stores (lib/customer-shops) are never shops at risk.
           .match(CUSTOMER_SHOP)
           .order("id")
@@ -87,7 +90,8 @@ export async function GET(request: NextRequest) {
 
     const totalTenants = tenants.length;
     const activeTenants = tenants.filter((t) => t.status === "active").length;
-    const trialTenants = tenants.filter((t) => t.status === "trial").length;
+    // A paused trial too, as Trials and the Merchants Trial pill count it.
+    const trialTenants = tenants.filter((t) => effectiveStatus(t.status, t.restrictions) === "trial").length;
     const suspendedTenants = tenants.filter(
       (t) => t.status === "suspended"
     ).length;

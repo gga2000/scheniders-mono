@@ -345,6 +345,26 @@ describe("GET /api/merchants", () => {
     expect(stub.callsTo("tenants.or")[0]?.[0]).toContain('merchant_code.ilike."%95%"');
   });
 
+  it("lists a paused trial under Trial, as Trials does, and still finds by search", async () => {
+    const paused = (before: string): Row => ({ status: "limited", restrictions: { status_before: before } });
+    stub.state.tables.tenants = [
+      shop(1, { status: "trial", business_name: "Noor trial" }),
+      shop(2, { ...paused("trial"), business_name: "Noor paused trial" }),
+      shop(3, { ...paused("active"), business_name: "Noor paused paying" }),
+      shop(4, { business_name: "Noor paying" }),
+      shop(5, { status: "trial", business_name: "Other trial" }),
+    ];
+
+    const { merchants, total } = await (await call("status=trial&search=Noor")).json();
+
+    expect(merchants.map((m: Row) => m.id).sort()).toEqual(["shop-1", "shop-2"]);
+    expect(total).toBe(2);
+    // No raw status filter: it would leave the paused trial out.
+    expect(stub.callsTo("tenants.eq").filter(([column]) => column === "status")).toEqual([]);
+    // The status and the search are two filters on one read; the API applies both.
+    expect(stub.callsTo("tenants.or")).toHaveLength(2);
+  });
+
   /*
    * "Needs attention", the balance bands and the health bands are database
    * functions over the shop (migration staff_list_filters). The route used to
@@ -403,10 +423,10 @@ describe("GET /api/merchants", () => {
     });
 
     it("puts the status, the balance band and the health band on one read", async () => {
-      await call("status=trial&balance=low&health=healthy");
+      await call("status=suspended&balance=low&health=healthy");
 
       expect(stub.callsTo("tenants.match")).toEqual([[{ is_demo: false, is_prospect: false }]]);
-      expect(stub.callsTo("tenants.eq")).toEqual([["status", "trial"]]);
+      expect(stub.callsTo("tenants.eq")).toEqual([["status", "suspended"]]);
       expect(stub.callsTo("tenants.filter")).toEqual([
         ["staff_wallet_balance", "gte", 10000],
         ["staff_wallet_balance", "lte", 50000],

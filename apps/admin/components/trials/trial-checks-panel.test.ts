@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { LoadFailure } from "@/lib/load-failure";
+import type { TrialCheck } from "@/lib/trial-checks";
 
 /*
  * The one-trial card sits above the Trials list. When its read failed, it drew
@@ -35,5 +36,50 @@ describe("the one-trial card", () => {
       isLoading: false, isError: false, error: null, isFetching: false, refetch: () => {},
     };
     expect(render()).toBe("");
+  });
+});
+
+describe("a flagged store that is paused", () => {
+  const check = (status: string, restrictions: unknown): TrialCheck => ({
+    tenant_id: "2b0f8f8e-6a43-4a34-9a5e-4d8a3c1f0a11",
+    verdict: "review",
+    trial_withheld_at: null,
+    staff_decision: null,
+    staff_reason: null,
+    decided_by_email: null,
+    decided_at: null,
+    created_at: "2026-11-15T09:00:00Z",
+    updated_at: "2026-11-15T09:00:00Z",
+    store: {
+      id: "2b0f8f8e-6a43-4a34-9a5e-4d8a3c1f0a11",
+      business_name: "Noor",
+      display_id: 100123,
+      status,
+      restrictions,
+      trial_ends_at: "2026-11-20T09:00:00Z",
+      contact_phone: null,
+      created_at: "2026-11-15T09:00:00Z",
+    },
+    matches: [],
+    needs_look: true,
+  });
+  const show = (one: TrialCheck) => {
+    query = {
+      data: { checks: [one], summary: { needs_look: 1, no_trial: 0, review: 1 } },
+      isLoading: false, isError: false, error: null, isFetching: false, refetch: () => {},
+    };
+    return render();
+  };
+
+  it("says a paused trial is still a trial, with its end", () => {
+    const html = show(check("limited", { status_before: "trial" }));
+    expect(html).toContain("Paused, trial until");
+    expect(html).not.toContain("Now limited");
+  });
+
+  it("calls any other pause paused, not limited", () => {
+    const html = show(check("limited", { status_before: "active" }));
+    expect(html).toContain("Now paused");
+    expect(html).not.toContain("trial until");
   });
 });

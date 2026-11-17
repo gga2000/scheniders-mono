@@ -194,6 +194,26 @@ describe("GET /api/merchants/stats", () => {
     }
   });
 
+  it("counts a paused trial on the Trial pill, and under the Trial filter", async () => {
+    const paused = (before: string) => ({ status: "limited", restrictions: { status_before: before } });
+    stub.state.tables.tenants = [
+      shop(1, { status: "trial" }),
+      shop(2, paused("trial")),
+      shop(3, paused("active")),
+      shop(4),
+    ];
+
+    const all = await (await call()).json();
+    expect(all.on_trial).toBe(2);
+    // The Pipeline's columns stay one per status.
+    expect(all.status).toEqual({ trial: 1, active: 1, limited: 2, suspended: 0, cancelled: 0 });
+
+    const trial = await (await call("status=trial")).json();
+    expect(trial.total).toBe(2);
+    expect(trial.on_trial).toBe(2);
+    expect(stub.callsTo("tenants.eq").filter(([column]) => column === "status")).toEqual([]);
+  });
+
   it("counts sign-ups on whole Baghdad days, the last day included", async () => {
     await call("date_from=2026-11-16&date_to=2026-11-16");
 

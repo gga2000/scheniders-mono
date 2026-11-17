@@ -184,6 +184,8 @@ export interface SupportShopCard {
     display_id: number | null;
     plan: string;
     status: string;
+    /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+    restrictions: unknown;
     city: string | null;
     contact_phone: string | null;
     trial_ends_at: string | null;

@@ -97,6 +97,20 @@ describe("GET /api/health", () => {
     ]);
   });
 
+  it("counts a paused trial among the trials, as Trials does", async () => {
+    stub.state.tables.tenants = [
+      shop("a"),
+      shop("p", { status: "limited", restrictions: { status_before: "trial" } }),
+      shop("q", { status: "limited", restrictions: { status_before: "active" } }),
+      shop("c", { status: "trial" }),
+    ];
+
+    const body = await (await call()).json();
+
+    expect(body.platformHealth.trialTenants).toBe(2);
+    expect(body.platformHealth.activeTenants).toBe(1);
+  });
+
   it("names a locked shop with why, though its status still reads trial or active", async () => {
     // a pays nothing this month; c's trial ended unpaid.
     stub.state.functions.admin_locked_shops = () => ({ data: { a: "unpaid", c: "trial_ended" }, error: null });

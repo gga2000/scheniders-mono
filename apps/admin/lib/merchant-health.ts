@@ -11,6 +11,7 @@
  */
 import type { AdminTenant } from "@/types/admin";
 import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
+import { effectiveStatus } from "@/lib/effective-status";
 import { ATTENTION_WALLET_IQD, HEALTH_AT_RISK_BELOW, HEALTH_HEALTHY_FROM } from "@/lib/merchant-filters";
 import { formatCount } from "@/lib/format";
 
@@ -50,6 +51,8 @@ const FEW_ORDERS = 5;
 
 export interface ChurnFacts {
   status: string;
+  /** The pause, if any: a paused trial still ends (lib/effective-status). */
+  restrictions?: unknown;
   trialEndsAt: string | null;
   walletIqd: number;
   /**
@@ -69,7 +72,7 @@ export function isChurnRisk(shop: ChurnFacts, now: number = Date.now()): boolean
   if (shop.status === "cancelled") return false;
   if (shop.status === "suspended") return true;
   if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.orders30d < FEW_ORDERS) return true;
-  if (shop.status === "trial" && shop.trialEndsAt) {
+  if (effectiveStatus(shop.status, shop.restrictions) === "trial" && shop.trialEndsAt) {
     return trialClock(shop.trialEndsAt, now).days <= TRIAL_ENDING_DAYS && shop.orders30d === 0;
   }
   return false;
@@ -80,6 +83,7 @@ export function listChurnRisk(shop: AdminTenant, now?: number): boolean {
   return isChurnRisk(
     {
       status: shop.status,
+      restrictions: shop.restrictions,
       trialEndsAt: shop.trial_ends_at,
       walletIqd: shop.wallet?.balance_iqd ?? 0,
       orders30d: shop.orders_30d ?? 0,

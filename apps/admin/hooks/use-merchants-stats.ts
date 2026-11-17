@@ -17,6 +17,8 @@ export interface MerchantsStats {
     suspended: number;
     cancelled: number;
   };
+  /** Shops on trial, paused or not: what the Trial pill lists. */
+  on_trial: number;
   buckets: {
     trials_today: number;
     trials_expired: number;
