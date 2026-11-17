@@ -5,6 +5,7 @@ import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { refusal } from "@/lib/refusal";
 import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
+import { INDUSTRY_GONE } from "@/lib/lead-update";
 
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -23,6 +24,10 @@ export function useCreateLead() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    // A colleague removed the picked industry: read the list again so it is gone from the picker.
+    onError: (error) => {
+      if (error.message === INDUSTRY_GONE) qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });
 }
@@ -44,6 +49,9 @@ export function useUpdateLead() {
       qc.invalidateQueries({ queryKey: ["lead", vars.id] });
       qc.invalidateQueries({ queryKey: ["lead-analytics"] });
       qc.invalidateQueries({ queryKey: ["lead-activities", vars.id] });
+    },
+    onError: (error) => {
+      if (error.message === INDUSTRY_GONE) qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });
 }

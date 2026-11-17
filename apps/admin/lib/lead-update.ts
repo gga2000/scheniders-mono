@@ -64,6 +64,21 @@ export type LeadUpdate = z.infer<typeof leadUpdateSchema>;
 const editedSchema = z.object({ found: z.boolean(), changed: z.array(z.string()) });
 
 /**
+ * A colleague removed the industry this lead names while its form was open
+ * (admin_remove_industry deletes an industry no lead uses). Said in words,
+ * not "Failed to update lead", and the form reads the industries again.
+ */
+export const INDUSTRY_GONE = "This industry was just removed. Pick another one and save again.";
+
+/** Postgres refused the lead because its industry no longer exists. */
+export function isIndustryGone(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const code = "code" in error ? error.code : undefined;
+  const message = "message" in error ? error.message : undefined;
+  return code === "23503" && typeof message === "string" && message.includes("leads_industry_id_fkey");
+}
+
+/**
  * Save the lead form's fields (everything but status and owner, which go
  * through changeLeads) with `admin_edit_lead`: under a lock it compares each
  * field with what is stored, saves only a real change, and writes one
