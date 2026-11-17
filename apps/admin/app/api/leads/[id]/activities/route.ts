@@ -38,10 +38,12 @@ export async function GET(
 const HAND_LOGGED = ["note", "call", "whatsapp", "email", "meeting"] as const;
 const CONTACT: ReadonlySet<string> = new Set(["call", "whatsapp", "email", "meeting"]);
 
+// Each refusal names what is wrong: one message for every case read "A note
+// needs a kind and some text." to a person whose 2,400-character note had both.
 const activitySchema = z.object({
-  activity_type: z.enum(HAND_LOGGED),
-  title: z.string().trim().min(1).max(200),
-  description: z.string().trim().max(2000).optional(),
+  activity_type: z.enum(HAND_LOGGED, { error: "Pick a kind: note, call, WhatsApp, email or meeting." }),
+  title: z.string().trim().min(1, { error: "A note needs a title." }).max(200, { error: "A title can have at most 200 characters." }),
+  description: z.string().trim().max(2000, { error: "A note can have at most 2,000 characters." }).optional(),
 });
 
 const LEAD_GONE = "This lead no longer exists.";
@@ -63,7 +65,8 @@ export async function POST(
     if (missing) return missing;
     const parsed = activitySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
-      return NextResponse.json({ error: "A note needs a kind and some text." }, { status: 400 });
+      const issue = parsed.error.issues[0];
+      return NextResponse.json({ error: issue?.path.length ? issue.message : "A note needs a kind and some text." }, { status: 400 });
     }
     const body = parsed.data;
     const supabase = createAdminClient();

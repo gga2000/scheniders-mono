@@ -111,6 +111,18 @@ describe("POST /api/leads/[id]/activities", () => {
     expect(res.status).toBe(404);
   });
 
+  it("names what is wrong with a note it refuses, and saves nothing", async () => {
+    // One message for every case read "A note needs a kind and some text." to a
+    // person whose 2,400-character note had both.
+    const long = await log({ activity_type: "note", title: "Note added", description: "a".repeat(2400) });
+    expect(long.status).toBe(400);
+    expect(await long.json()).toEqual({ error: "A note can have at most 2,000 characters." });
+
+    const kind = await log({ activity_type: "status_change", title: "Status changed" });
+    expect(await kind.json()).toEqual({ error: "Pick a kind: note, call, WhatsApp, email or meeting." });
+    expect(writes).toEqual([]);
+  });
+
   it("refuses a kind that only the console's own changes write, and saves nothing", async () => {
     const res = await log({ activity_type: "status_change", title: "Status changed" });
 
