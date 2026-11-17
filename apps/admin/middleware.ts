@@ -11,6 +11,7 @@ import {
 } from "@/lib/staff-sign-in";
 import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
 import { NEXT_PAGE, pageAfterSignIn } from "@/lib/page-after-sign-in";
+import { plainPath } from "@/lib/plain-path";
 import { sentryEnvironment } from "@scheniders/shared/sentry-scrub";
 import { CSP_HEADER, REPORT_GROUP, breachReportUrl, newNonce, scriptPolicy } from "@/lib/csp";
 
@@ -48,6 +49,16 @@ export async function middleware(request: NextRequest) {
 }
 
 async function checkAccess(request: NextRequest) {
+  // An encoded letter or slash in the path: the plain path first, so every
+  // check below reads the address the way Next.js will (lib/plain-path.ts).
+  // The address stays on the console: only its path changes.
+  const plain = plainPath(request.nextUrl.pathname);
+  if (plain !== request.nextUrl.pathname) {
+    const url = request.nextUrl.clone();
+    url.pathname = plain;
+    return NextResponse.redirect(url, 308);
+  }
+
   // A write to the API must come from the console's own pages, before the
   // sign-in cookie it carries is read at all.
   if (request.nextUrl.pathname.startsWith("/api/") && !isOwnPageWrite(request.method, request.headers, request.nextUrl.host)) {
@@ -119,7 +130,7 @@ async function checkAccess(request: NextRequest) {
     const headers = { "retry-after": "5", "cache-control": "no-store" };
     if (isApi) return withSession(NextResponse.json({ error: CHECK_FAILED }, { status: 503, headers }));
     return withSession(
-      new NextResponse(checkFailedPage(request.nextUrl.pathname + request.nextUrl.search), {
+      new NextResponse(checkFailedPage(request.nextUrl.href), {
         status: 503,
         headers: { ...headers, "content-type": "text/html; charset=utf-8" },
       })
@@ -234,9 +245,13 @@ function errorMessage(error: unknown): string {
   return String(error);
 }
 
-/** A plain page for a failed access check, with a link back to the page asked for. */
-function checkFailedPage(retryPath: string): string {
-  const href = retryPath.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+/**
+ * A plain page for a failed access check, with a link back to the page asked
+ * for. The link is the whole address: a path such as "//x" alone would be
+ * another site to the browser.
+ */
+function checkFailedPage(retryUrl: string): string {
+  const href = retryUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Try again</title></head><body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F7F7F5;color:#1E1E1E;font-family:system-ui,sans-serif"><main style="max-width:420px;padding:32px;text-align:center"><h1 style="font-size:20px;margin:0 0 8px">Could not check your access</h1><p style="font-size:14px;color:#6B6B6B;margin:0 0 20px">The server did not answer in time. Nothing was changed and you were not signed out.</p><a href="${href}" style="display:inline-block;padding:10px 18px;border-radius:12px;background:#1E1E1E;color:#fff;text-decoration:none;font-size:14px">Try again</a></main></body></html>`;
 }
 
