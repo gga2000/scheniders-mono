@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCredentialRejection } from "@/lib/admin-auth-error";
+import { CROSS_SITE_WRITE, isOwnPageWrite } from "@/lib/same-origin";
 
 const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
 
@@ -8,6 +9,12 @@ const ALLOWED_ROLES = new Set(["super_admin", "support_staff"]);
 const CHECK_FAILED = "Could not check your access. Try again in a moment.";
 
 export async function middleware(request: NextRequest) {
+  // A write to the API must come from the console's own pages, before the
+  // sign-in cookie it carries is read at all.
+  if (request.nextUrl.pathname.startsWith("/api/") && !isOwnPageWrite(request.method, request.headers, request.nextUrl.host)) {
+    return NextResponse.json({ error: CROSS_SITE_WRITE }, { status: 403 });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

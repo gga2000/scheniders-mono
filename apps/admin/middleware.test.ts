@@ -111,3 +111,27 @@ describe("middleware access check", () => {
     expect((await call("/merchants")).cookies.get("sb-session")?.value).toBe("fresh");
   });
 });
+
+describe("writes from other sites", () => {
+  const write = (path: string, headers: Record<string, string>) =>
+    middleware(new NextRequest(`https://console.test${path}`, { method: "POST", headers }));
+
+  it("refuses an API write sent from another site, before reading the sign-in", async () => {
+    getUser = { data: { user: null }, error: { message: "must not be asked" } };
+    const response = await write("/api/merchants/bulk", { origin: "https://evil.example" });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "This change did not come from the staff console, so it was refused." });
+  });
+
+  it("lets an API write from the console's own pages reach the access check", async () => {
+    expect((await write("/api/merchants/bulk", { origin: "https://console.test" })).status).toBe(200);
+    adminRead = { data: null, error: null };
+    expect((await write("/api/merchants/bulk", { origin: "https://console.test" })).status).toBe(403);
+  });
+
+  it("leaves API reads and pages to the access check", async () => {
+    const read = await middleware(new NextRequest("https://console.test/api/leads", { headers: { origin: "https://evil.example" } }));
+    expect(read.status).toBe(200);
+    expect((await write("/merchants", { origin: "https://evil.example" })).status).toBe(200);
+  });
+});
