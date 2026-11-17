@@ -33,7 +33,8 @@
 --       function set it, and the shop sat on a paid plan with no bill;
 --     * a shop behind on payment ('past_due') can change plan: its next
 --       top-up pays at that plan;
---     * the house tier ('internal', never billed) can be set on any shop.
+--     * the house tier ('internal', never billed) can be set on any shop;
+--     * the plan record (subscription_plan_changes) gets one row per change.
 --   Auto-renew:
 --     * written to the newest subscription, logged once, a repeat is nothing;
 --     * refused for a shop with no subscription.
@@ -284,6 +285,12 @@ BEGIN
     _res := public.admin_update_shop(_id, NULL, 'growth', NULL, _admin, 'ops@example.com');
     SELECT count(*) INTO _n FROM public.admin_activity_logs l WHERE l.tenant_id = _id;
     PERFORM pg_temp.check('plan twice: a second log row was written', _n = 1 AND _res -> 'changed' = '[]'::jsonb);
+    -- The plan record Plan Movements reads (20261117054950): one row, from the
+    -- subscription's plan before, however often staff pressed.
+    SELECT count(*) INTO _n FROM public.subscription_plan_changes c
+     WHERE c.tenant_id = _id AND c.from_plan = 'starter' AND c.to_plan = 'growth';
+    PERFORM pg_temp.check('plan: wanted one plan record row, got ' || _n,
+        _n = 1 AND NOT EXISTS (SELECT 1 FROM public.subscription_plan_changes c WHERE c.tenant_id = _id AND c.to_plan <> 'growth'));
 
     -- The shop says growth, its subscription says starter: asked growth, both growth.
     SELECT id INTO _id FROM tt_shops WHERE name = 'shop and subscription differ';

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // read is an error for the whole page: empty lists drew zeros that read
     // like a quiet day.
     const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const [stats, usage, income, shopRows, subscriptionRows, shopSteps, activityResult, memberRows] = await Promise.all([
+    const [stats, usage, income, shopRows, subscriptionRows, statusSteps, planChanges, activityResult, memberRows] = await Promise.all([
       fetchDashboardStats(supabase),
       fetchUsageStats(supabase, null),
       fetchIncomeStats(supabase),
@@ -59,14 +59,24 @@ export async function GET(request: NextRequest) {
           .order("id", { ascending: true })
           .range(from, to),
       ),
-      // Plan Movements: a shop becomes cancelled or changes plan by a staff
-      // step, which the staff log keeps with its day.
+      // Plan Movements: a shop is cancelled by a staff step, which the staff
+      // log keeps with its day.
       everyRow((from, to) =>
         supabase
           .from("admin_activity_logs")
           .select("tenant_id, action, details, created_at")
-          .in("action", ["status_change", "plan_change"])
+          .eq("action", "status_change")
           .gte("created_at", monthAgo)
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      // Plan Movements: every plan change, by the merchant, the renewal or
+      // staff, as the database records it (20261117054950).
+      everyRow((from, to) =>
+        supabase
+          .from("subscription_plan_changes")
+          .select("tenant_id, from_plan, to_plan, changed_at")
+          .gte("changed_at", monthAgo)
           .order("id", { ascending: true })
           .range(from, to),
       ),
@@ -119,12 +129,7 @@ export async function GET(request: NextRequest) {
       walletHealth: calculateWalletHealth(tenants, income.topups.daily7),
       activityHeatmap: calculateActivityHeatmap(usage),
       revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, geo, stats.sources90),
-      planMovements: calculatePlanMovements(
-        subscriptionRows,
-        shopSteps,
-        new Map(tenants.map((t) => [t.id, t.plan])),
-        new Date(),
-      ),
+      planMovements: calculatePlanMovements(subscriptionRows, statusSteps, planChanges, tenants, new Date()),
       topUpPatterns: calculateTopUpPatterns(income.topups.byDow),
       merchantLTV: calculateMerchantLTV(tenants, income.byTenant, stats.today),
       timeToFirstOrder: calculateTimeToFirstOrder(tenants, stats.shops),

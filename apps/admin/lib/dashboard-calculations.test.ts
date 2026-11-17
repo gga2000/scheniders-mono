@@ -20,6 +20,7 @@ import {
   MIN_ENDED_FOR_RATE,
   type DashboardTenant,
   type ShopStepRow,
+  type PlanChangeRow,
   type SubscriptionRow,
 } from "./dashboard-calculations";
 import { dashboardStats, incomeStats, SHOP_A, SHOP_B, SHOP_C, TODAY, usageStats } from "./console-stats.test-data";
@@ -306,8 +307,9 @@ describe("smaller widgets", () => {
 
 describe("calculatePlanMovements", () => {
   // The card read cancellations from subscriptions.cancelled_at, which nothing
-  // writes, so it could never show one. A shop is cancelled or changes plan
-  // only by a staff step, which the staff log keeps with its day (#1292).
+  // writes, so it could never show one (#1292). Plan changes came from the
+  // staff log, so a merchant's own change and a renewal onto a waiting plan
+  // were never counted, and New Signups was always 0 (round 7).
   const now = new Date("2026-11-16T22:00:00Z");
   const sub = (tenant_id: string, over: Partial<SubscriptionRow> = {}): SubscriptionRow => ({
     tenant_id,
@@ -322,17 +324,14 @@ describe("calculatePlanMovements", () => {
     details: { status, previous_status: "active", source: "single" },
     created_at,
   });
-  const planChange = (tenant_id: string, previous_plan: string, plan: string, created_at: string): ShopStepRow => ({
+  const planChange = (tenant_id: string, from_plan: string, to_plan: string, changed_at: string): PlanChangeRow => ({
     tenant_id,
-    action: "plan_change",
-    details: { plan, previous_plan, previous_subscription_plan: previous_plan, pending_plan: null, source: "single" },
-    created_at,
+    from_plan,
+    to_plan,
+    changed_at,
   });
-  const shops = new Map([
-    [SHOP_A, "starter"],
-    [SHOP_B, "growth"],
-    [SHOP_C, "growth"],
-  ]);
+  const shop = (id: string, plan: string, created_at = "2026-01-05T09:00:00Z") => ({ id, plan, created_at });
+  const shops = [shop(SHOP_A, "starter"), shop(SHOP_B, "growth"), shop(SHOP_C, "growth")];
   const lines = (moves: ReturnType<typeof calculatePlanMovements>) =>
     moves.map((m) => `${m.fromPlan}>${m.toPlan}:${m.type}:${m.count}`);
 
@@ -349,6 +348,7 @@ describe("calculatePlanMovements", () => {
         // A row with no shop names nothing.
         change(null, "cancelled", "2026-11-15T10:00:00Z"),
       ],
+      [],
       shops,
       now,
     );
@@ -369,29 +369,58 @@ describe("calculatePlanMovements", () => {
         change(SHOP_B, "active", "2026-11-14T10:00:00Z"),
         change(SHOP_B, "cancelled", "2026-11-02T10:00:00Z"),
       ],
+      [],
       shops,
       now,
     );
     expect(lines(moves)).toEqual(["starter>cancelled:cancellation:1"]);
   });
 
-  it("counts a staff plan change as one move per shop, from the first plan to the last", () => {
+  it("counts every plan change on record as one move per shop, from the first plan to the last", () => {
+    // Who changed it does not matter: the merchant (change_plan), the renewal
+    // onto a waiting plan, or staff all write the same record.
     const moves = calculatePlanMovements(
       [],
+      [],
       [
-        planChange(SHOP_A, "starter", "growth", "2026-11-03T10:00:00Z"),
         planChange(SHOP_A, "growth", "professional", "2026-11-10T10:00:00Z"),
+        planChange(SHOP_A, "starter", "growth", "2026-11-03T10:00:00Z"),
         planChange(SHOP_B, "growth", "starter", "2026-11-11T10:00:00Z"),
         // Changed and changed back: no move.
         planChange(SHOP_C, "growth", "starter", "2026-11-04T10:00:00Z"),
         planChange(SHOP_C, "starter", "growth", "2026-11-06T10:00:00Z"),
-        // The house tier is not a paid plan.
-        planChange(SHOP_C, "growth", "internal", "2026-10-01T10:00:00Z"),
+        // Older than 30 days.
+        planChange(SHOP_C, "starter", "professional", "2026-10-01T10:00:00Z"),
       ],
       shops,
       now,
     );
     expect(lines(moves)).toEqual(["starter>professional:upgrade:1", "growth>starter:downgrade:1"]);
+  });
+
+  it("never counts the house tier as a move", () => {
+    const moves = calculatePlanMovements([], [], [planChange(SHOP_B, "growth", "internal", "2026-11-11T10:00:00Z")], shops, now);
+    expect(moves).toEqual([]);
+  });
+
+  it("counts the shops opened in the last 30 days as new signups, one line per plan", () => {
+    const moves = calculatePlanMovements(
+      [],
+      [],
+      [],
+      [
+        ...shops,
+        shop("new-1", "starter", "2026-11-14T10:00:00Z"),
+        shop("new-2", "growth", "2026-11-02T10:00:00Z"),
+        shop("new-3", "starter", "2026-10-20T10:00:00Z"),
+        // Opened 31 days ago.
+        shop("old", "starter", "2026-10-16T21:00:00Z"),
+        // Our own shop is not a signup.
+        shop("house", "internal", "2026-11-15T10:00:00Z"),
+      ],
+      now,
+    );
+    expect(lines(moves)).toEqual(["new>starter:new:2", "new>growth:new:1"]);
   });
 
   it("lists a waiting plan change under its own words, not as a move made", () => {
@@ -402,6 +431,7 @@ describe("calculatePlanMovements", () => {
         sub(SHOP_C, { plan: "growth", pending_plan: "growth" }),
       ],
       [],
+      [],
       shops,
       now,
     );
@@ -409,13 +439,14 @@ describe("calculatePlanMovements", () => {
   });
 
   it("shows no waiting change on a cancelled subscription", () => {
-    expect(calculatePlanMovements([sub(SHOP_A, { status: "cancelled", pending_plan: "growth" })], [], shops, now)).toEqual([]);
+    expect(calculatePlanMovements([sub(SHOP_A, { status: "cancelled", pending_plan: "growth" })], [], [], shops, now)).toEqual([]);
   });
 
   it("leaves out shops that are not listed, such as the demo store", () => {
     const moves = calculatePlanMovements(
       [sub("demo-store", { plan: "growth", pending_plan: "starter" })],
-      [change("demo-store", "cancelled", "2026-11-15T10:00:00Z"), planChange("demo-store", "starter", "growth", "2026-11-15T10:00:00Z")],
+      [change("demo-store", "cancelled", "2026-11-15T10:00:00Z")],
+      [planChange("demo-store", "starter", "growth", "2026-11-15T10:00:00Z")],
       shops,
       now,
     );

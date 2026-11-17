@@ -53,12 +53,19 @@ export interface SubscriptionRow {
 }
 
 /** A status change on the staff log, as Home reads it for Plan Movements. */
-/** A staff step on a shop from the staff log: a status or a plan change. */
 export interface ShopStepRow {
   tenant_id: string | null;
   action: string;
   details: unknown;
   created_at: string;
+}
+
+/** One change of a subscription's plan, whoever made it (subscription_plan_changes). */
+export interface PlanChangeRow {
+  tenant_id: string;
+  from_plan: string;
+  to_plan: string;
+  changed_at: string;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -384,45 +391,54 @@ const PLAN_RANK: Record<string, number> = {
 const isRanked = (plan: unknown): plan is string => typeof plan === "string" && plan in PLAN_RANK;
 
 /**
- * The "Plan Movements (30d)" card, one line per shop and move. No table keeps
- * a plan's history, so the card reads what is on record: the staff log's
- * status and plan changes of the last 30 days (subscriptions.cancelled_at is
- * never written), and the plan changes still waiting for the next payment.
+ * The "Plan Movements (30d)" card, one line per shop and move. It reads what
+ * is on record for the last 30 days: the plan changes the database records
+ * whoever made them (the merchant, the renewal or staff), the staff log's
+ * status changes (subscriptions.cancelled_at is never written), the shops
+ * opened, and the plan changes still waiting for the next payment.
  *
- * - A shop counts once however often staff changed it: as cancelled when its
- *   last status change was to cancelled (one cancelled and turned back on is
- *   no cancellation), and as moved from its plan before the first plan change
- *   to its plan after the last one.
+ * - A shop counts once however often it changed: as cancelled when its last
+ *   status change was to cancelled (one cancelled and turned back on is no
+ *   cancellation), and as moved from its plan before the first plan change to
+ *   its plan after the last one.
+ * - New signups are the shops opened in the 30 days, one line per plan.
  * - A waiting change has not happened, so it is listed as "waiting" and is
  *   not counted as an upgrade or a downgrade.
  *
- * Only shops in `shopPlans` count, so the demo store stays out.
+ * Only the shops in `shops` count (customer shops), so the demo store and
+ * prospect stores stay out, and the house tier is never a move.
  */
 export function calculatePlanMovements(
   rows: SubscriptionRow[],
-  steps: ShopStepRow[],
-  shopPlans: ReadonlyMap<string, string>,
+  statusSteps: ShopStepRow[],
+  planChanges: PlanChangeRow[],
+  shops: ReadonlyArray<Pick<DashboardTenant, "id" | "plan" | "created_at">>,
   now: Date,
 ): PlanMovement[] {
   const since = now.getTime() - 30 * DAY_MS;
-  type Shop = { plan: string; status?: unknown; planBefore?: unknown; planAfter?: unknown; planChanged?: true };
-  const byShop = new Map<string, Shop>();
+  const shopPlans = new Map(shops.map((shop) => [shop.id, shop.plan]));
+  type Moved = { plan: string; status?: unknown; planBefore?: string; planAfter?: string };
+  const byShop = new Map<string, Moved>();
+  const shopOf = (tenantId: string | null): Moved | undefined => {
+    const plan = tenantId ? shopPlans.get(tenantId) : undefined;
+    if (!tenantId || plan === undefined) return undefined;
+    const shop = byShop.get(tenantId) ?? { plan };
+    byShop.set(tenantId, shop);
+    return shop;
+  };
+  const recent = (at: string) => Date.parse(at) >= since;
+  const byTime = (a: string, b: string) => Date.parse(a) - Date.parse(b);
+
   // The log's ids are random, so the steps are put in time order here.
-  const inOrder = steps
-    .filter((step) => Date.parse(step.created_at) >= since)
-    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
-  for (const step of inOrder) {
-    const plan = step.tenant_id ? shopPlans.get(step.tenant_id) : undefined;
-    if (!step.tenant_id || plan === undefined) continue;
-    const details = (step.details ?? {}) as { status?: unknown; plan?: unknown; previous_plan?: unknown };
-    const shop = byShop.get(step.tenant_id) ?? { plan };
-    if (step.action === "status_change") shop.status = details.status;
-    if (step.action === "plan_change") {
-      if (!shop.planChanged) shop.planBefore = details.previous_plan;
-      shop.planChanged = true;
-      shop.planAfter = details.plan;
-    }
-    byShop.set(step.tenant_id, shop);
+  for (const step of statusSteps.filter((s) => recent(s.created_at)).sort((a, b) => byTime(a.created_at, b.created_at))) {
+    const shop = shopOf(step.tenant_id);
+    if (shop) shop.status = (step.details as { status?: unknown } | null)?.status;
+  }
+  for (const change of planChanges.filter((c) => recent(c.changed_at)).sort((a, b) => byTime(a.changed_at, b.changed_at))) {
+    const shop = shopOf(change.tenant_id);
+    if (!shop) continue;
+    shop.planBefore ??= change.from_plan;
+    shop.planAfter = change.to_plan;
   }
 
   const moves: PlanMovement[] = [];
@@ -432,6 +448,16 @@ export function calculatePlanMovements(
     }
     if (status === "cancelled") moves.push({ fromPlan: plan, toPlan: "cancelled", count: 1, type: "cancellation" });
   }
+
+  const opened = new Map<string, number>();
+  for (const shop of shops) {
+    if (recent(shop.created_at) && isRanked(shop.plan)) opened.set(shop.plan, (opened.get(shop.plan) ?? 0) + 1);
+  }
+  for (const plan of Object.keys(PLAN_RANK)) {
+    const count = opened.get(plan);
+    if (count) moves.push({ fromPlan: "new", toPlan: plan, count, type: "new" });
+  }
+
   for (const s of rows) {
     if (!shopPlans.has(s.tenant_id) || s.status === "cancelled") continue;
     if (isRanked(s.plan) && isRanked(s.pending_plan) && s.pending_plan !== s.plan) {
