@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { leadToFormData } from "@/components/leads/lead-form-data";
 import type { Lead } from "@/types/leads";
-import { LeadListsChangedError, leadPatchSchema, leadSaveRefusal, leadUpdateSchema, listsChangedText } from "./lead-update";
+import {
+  LEAD_GONE,
+  LeadGoneError,
+  LeadListsChangedError,
+  leadPatchSchema,
+  leadSaveRefusal,
+  leadUpdateSchema,
+  listsChangedText,
+} from "./lead-update";
 
 // A lead as the API returns it, with the empty columns a real row has.
 const stored = {
@@ -111,7 +119,16 @@ describe("leadSaveRefusal", () => {
     const error = await leadSaveRefusal(new Response("<html>Bad gateway</html>", { status: 502 }), "Could not save the lead.");
     expect(error.message).toBe("Could not save the lead.");
   });
+
+  // Round 15: a deleted lead was "This lead was deleted…" on its page, "This
+  // lead no longer exists." on a note and "Lead not found" on a save.
+  it("says a deleted lead (404) in the lead page's words, whatever the body", async () => {
+    const error = await leadSaveRefusal(answer({ error: "Lead not found" }, 404), "Could not save the lead.");
+    expect(error).toBeInstanceOf(LeadGoneError);
+    expect(error.message).toBe(LEAD_GONE);
+  });
 });
+
 
 describe("leadPatchSchema", () => {
   it("takes the lists as they opened, as they came, and nothing else there", () => {

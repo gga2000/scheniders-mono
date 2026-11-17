@@ -8,7 +8,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
 import { isValidIraqiPhone } from "./lead-phone";
 import { leadFormChanges, normalizeLeadForm } from "./lead-form-data";
-import { LeadListsChangedError, type LeadList } from "@/lib/lead-update";
+import { LEAD_GONE_TOAST, LeadGoneError, LeadListsChangedError, type LeadList } from "@/lib/lead-update";
 
 export const EMPTY_PHONE: LeadPhoneNumber = { title: "", number: "" };
 export const EMPTY_BRANCH: LeadBranch = { name: "", city: "", address: "", phones: [{ ...EMPTY_PHONE }] };
@@ -342,6 +342,10 @@ export function useLeadFormController({
         return;
       }
       toast.dismiss(CLASH_TOAST);
+      if (error instanceof LeadGoneError) {
+        toast.error(error.message, { id: LEAD_GONE_TOAST });
+        return;
+      }
       // A refused save rejects with the server's own words ("A lead can only
       // go to an active staff member."); "try again" would never help there.
       toast.error(error instanceof Error && error.message ? error.message : "Something went wrong while saving.");

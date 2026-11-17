@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
 import { useUpdateLead } from "@/hooks/use-lead-mutations";
-import { draftNotSavedText } from "@/lib/lead-update";
+import { LEAD_GONE, LEAD_GONE_TOAST, LeadGoneError, draftNotSavedText } from "@/lib/lead-update";
+import { LoadFailure } from "@/lib/load-failure";
 import type { Lead, LeadFormData } from "@/types/leads";
 import { DRAFT_PLACEHOLDER_NAME, leadToFormData, listsAsOpened } from "./lead-form-data";
 import type { LeadFormDraftSave } from "./use-lead-form-controller";
@@ -21,6 +23,10 @@ import type { LeadFormDraftSave } from "./use-lead-form-controller";
  * draft reopened while its own close save runs waits for that save and the
  * read after it: the copy from before would make its next save refused over
  * this person's own change.
+ *
+ * A draft a colleague deleted (its read or a save answers 404, round 15) does
+ * not open, or closes: it says so once, in the lead page's words, and the list
+ * reads again without it.
  */
 export function useResumedDraft(leads: readonly Lead[]) {
   const [opened, setOpened] = useState<Lead | null>(null);
@@ -30,8 +36,15 @@ export function useResumedDraft(leads: readonly Lead[]) {
   // The draft's last close save, and when it answered.
   const [lastSave, setLastSave] = useState<{ id: string; at: number } | null>(null);
   const updateLead = useUpdateLead();
+  const queryClient = useQueryClient();
   const id = opened?.id ?? null;
   const read = useLeadDetail(id);
+  const gone = opened !== null && read.error instanceof LoadFailure && read.error.status === 404;
+  useEffect(() => {
+    if (!gone) return;
+    toast.error(LEAD_GONE, { id: LEAD_GONE_TOAST });
+    void queryClient.invalidateQueries({ queryKey: ["leads"] });
+  }, [gone, queryClient]);
 
   // Its own read once it answered; the list's copy, or the one clicked, until then.
   const draft = opened ? (read.data?.lead ?? leads.find((lead) => lead.id === opened.id) ?? opened) : null;
@@ -55,7 +68,10 @@ export function useResumedDraft(leads: readonly Lead[]) {
     updateLead.mutate(
       { id: draft.id, data, was: listsAsOpened(asOpened, changes) },
       {
-        onError: (error) => toast.error(draftNotSavedText(error)),
+        onError: (error) => {
+          if (error instanceof LeadGoneError) toast.error(LEAD_GONE, { id: LEAD_GONE_TOAST });
+          else toast.error(draftNotSavedText(error));
+        },
         onSettled: () => setLastSave({ id: draft.id, at: Date.now() }),
       },
     );
@@ -70,7 +86,7 @@ export function useResumedDraft(leads: readonly Lead[]) {
     /** The form's `key`: a new draft starts a new form. */
     formKey: id ?? "no-draft",
     form: {
-      open: opened !== null && shown,
+      open: opened !== null && shown && !gone,
       onOpenChange: (open: boolean) => {
         if (open) return;
         setOpened(null);

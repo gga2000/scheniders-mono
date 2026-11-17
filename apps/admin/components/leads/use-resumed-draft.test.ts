@@ -18,6 +18,8 @@ vi.mock("@/lib/admin-fetch", () => ({ adminFetch }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
+import { LEAD_GONE, LEAD_GONE_TOAST } from "@/lib/lead-update";
+import { shouldRetryLoad } from "@/lib/load-failure";
 import { leadToFormData } from "./lead-form-data";
 import { useResumedDraft } from "./use-resumed-draft";
 
@@ -61,7 +63,8 @@ const draft = (over: Partial<Lead> = {}): Lead =>
   }) as Lead;
 
 function setup(leads: Lead[] = [draft()]) {
-  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  // Reads retry as the console's client does: never after a 404.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: shouldRetryLoad }, mutations: { retry: false } } });
   const invalidated: unknown[] = [];
   const invalidate = client.invalidateQueries.bind(client);
   vi.spyOn(client, "invalidateQueries").mockImplementation((filters) => {
@@ -212,5 +215,48 @@ describe("useResumedDraft: closing with changes", () => {
         "Your changes to the draft were not saved: a colleague changed its phones meanwhile. Open the draft again to make them.",
       ),
     );
+  });
+});
+
+// Round 15: a draft a colleague deleted opened as if it were there; Save said
+// only "Lead not found", closing said "Couldn't save the draft: Lead not found",
+// and the row stayed on the list.
+describe("useResumedDraft: a draft a colleague deleted", () => {
+  const gone = () => new Response(JSON.stringify({ error: LEAD_GONE }), { status: 404 });
+
+  it("closes once its read finds it gone, says so once, and the list reads again", async () => {
+    adminFetch.mockImplementation(async (url: string, init?: RequestInit) => (init?.method === "PATCH" ? patch(url, init) : gone()));
+    const { result, invalidated } = setup();
+
+    await waitFor(() => expect(result.current.form.open).toBe(false));
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(LEAD_GONE, { id: LEAD_GONE_TOAST });
+    expect(invalidated).toContainEqual(["leads"]);
+  });
+
+  it("a Save refused as deleted says so in the same words, and the form closes", async () => {
+    patch.mockResolvedValueOnce(gone());
+    const { result, invalidated } = setup();
+    await waitFor(() => expect(result.current.form.initialData).toBeDefined());
+    adminFetch.mockImplementation(async (url: string, init?: RequestInit) => (init?.method === "PATCH" ? patch(url, init) : gone()));
+    const opened = leadToFormData(draft());
+    const changes: Partial<LeadFormData> = { merchant_name: "Kawkab" };
+
+    await act(async () => {
+      await expect(result.current.form.onSubmit({ ...opened, ...changes }, changes, opened)).rejects.toThrow(LEAD_GONE);
+    });
+
+    await waitFor(() => expect(result.current.form.open).toBe(false));
+    expect(invalidated).toContainEqual(["leads"]);
+  });
+
+  it("a close save refused as deleted says the lead page's words once", async () => {
+    patch.mockResolvedValueOnce(gone());
+    const { result } = setup();
+    const opened = leadToFormData(draft());
+
+    act(() => result.current.form.onSaveDraft({ ...opened, management_name: "Typed" }, { management_name: "Typed" }, opened));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(LEAD_GONE, { id: LEAD_GONE_TOAST }));
   });
 });
