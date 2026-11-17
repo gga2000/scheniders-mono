@@ -79,12 +79,15 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={panelRef}>
-      {/* Bell Button */}
+      {/* Bell Button: an icon, so it says what it is and how many wait */}
       <button
+        type="button"
         onClick={() => setIsOpen((v) => !v)}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} new` : "Notifications"}
+        aria-expanded={isOpen}
         className="relative p-2 rounded-xl text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
       >
-        <Bell className="w-4.5 h-4.5" />
+        <Bell className="w-4.5 h-4.5" aria-hidden />
         {unreadCount > 0 && (
           <motion.span
             initial={{ scale: 0 }}
