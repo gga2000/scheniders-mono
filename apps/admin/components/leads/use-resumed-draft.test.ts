@@ -260,3 +260,49 @@ describe("useResumedDraft: a draft a colleague deleted", () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(LEAD_GONE, { id: LEAD_GONE_TOAST }));
   });
 });
+
+// Round 15: a second save while a close save ran replaced the first one's
+// callbacks. Draft A's refusal said nothing, so its change was lost silently,
+// and A reopened at once with its old copy because "saving" followed draft B.
+describe("useResumedDraft: two saves at once", () => {
+  it("a Save on another draft keeps the first close save's failure toast and its wait", async () => {
+    const A = draft();
+    const B = draft({ id: "9d8c7b6a-5f4e-4d3c-8b2a-0f1e2d3c4b5a", merchant_name: "Draft B" });
+    let answerA: (response: Response) => void = () => {};
+    patch.mockImplementation((url: string) =>
+      url.endsWith(A.id) ? new Promise<Response>((resolve) => (answerA = resolve)) : Promise.resolve(ok()),
+    );
+    // Each draft reads as itself.
+    adminFetch.mockImplementation(async (url: string, init?: RequestInit) =>
+      init?.method === "PATCH"
+        ? patch(url, init)
+        : new Response(JSON.stringify({ lead: url.endsWith(A.id) ? A : B, activities: [], follow_ups: [], social_links: [], competitors: [] })),
+    );
+    const { result } = setup([A, B]);
+    const openedA = leadToFormData(A);
+
+    act(() => result.current.form.onSaveDraft({ ...openedA, phone_numbers: [] }, { phone_numbers: [] }, openedA));
+    act(() => result.current.form.onOpenChange(false));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.resume(B));
+    expect(result.current.form.open).toBe(true);
+    const openedB = leadToFormData(B);
+    await act(async () => {
+      await expect(result.current.form.onSubmit({ ...openedB, merchant_name: "Kawkab" }, { merchant_name: "Kawkab" }, openedB)).resolves.toBe(true);
+    });
+    expect(patch.mock.calls[1][0]).toBe(`/api/leads/${B.id}`);
+    act(() => result.current.form.onOpenChange(false));
+
+    act(() => result.current.resume(A));
+    expect(result.current.form.open).toBe(false);
+
+    await act(async () => answerA(clash()));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Your changes to the draft were not saved: a colleague changed its phones meanwhile. Open the draft again to make them.",
+      ),
+    );
+    await waitFor(() => expect(result.current.form.open).toBe(true));
+  });
+});
