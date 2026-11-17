@@ -9,8 +9,10 @@ import { supabaseStub } from "@/lib/supabase-stub.test-data";
  * subscription still "trialing": the billing lock holds a trial at its end date
  * and a paying shop whose month is unpaid, so that shop was never locked and
  * never asked to pay. The same call made any shop "active" that was not paused
- * at all. The status now comes from the database (lift_tenant_pause), which
+ * at all. The status now comes from the database (lift_pause_and_settle), which
  * gives back what the pause replaced and touches no shop that is not paused.
+ * It also settles the billing lock in the same transaction, so a locked shop
+ * whose wallet holds the month pays it and opens as the pause lifts.
  */
 
 const state: { role: AdminRole } = { role: "super_admin" };
@@ -50,7 +52,7 @@ beforeEach(() => {
 
 describe("POST /api/merchants/[id]/unpause", () => {
   it("gives the shop the status the database hands back, and writes no status itself", async () => {
-    stub.state.functions.lift_tenant_pause = () => ({
+    stub.state.functions.lift_pause_and_settle = () => ({
       data: [{ id: SHOP, status: "trial", restrictions: {} }],
       error: null,
     });
@@ -59,7 +61,7 @@ describe("POST /api/merchants/[id]/unpause", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ id: SHOP, status: "trial", restrictions: {} });
-    expect(stub.state.rpcCalls).toEqual([{ fn: "lift_tenant_pause", args: { _tenant_id: SHOP } }]);
+    expect(stub.state.rpcCalls).toEqual([{ fn: "lift_pause_and_settle", args: { _tenant_id: SHOP } }]);
     // No write from here: the old route updated tenants with status "active".
     expect(stub.tablesRead()).toEqual([]);
     expect(logAdminActivity).toHaveBeenCalledWith(
@@ -67,9 +69,25 @@ describe("POST /api/merchants/[id]/unpause", () => {
     );
   });
 
+  it("logs the status the shop has once the lift settled its lock", async () => {
+    // A paused ended trial with the month in its wallet pays it as the pause lifts.
+    stub.state.functions.lift_pause_and_settle = () => ({
+      data: [{ id: SHOP, status: "active", restrictions: {} }],
+      error: null,
+    });
+
+    const res = await call();
+
+    expect(res.status).toBe(200);
+    expect(stub.state.rpcCalls).toHaveLength(1);
+    expect(logAdminActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "unpause_tenant", details: { status: "active" } }),
+    );
+  });
+
   it("refuses a shop that is not paused, and logs nothing", async () => {
     stub.state.tables.tenants = [{ id: SHOP, status: "suspended" }];
-    stub.state.functions.lift_tenant_pause = () => ({ data: [], error: null });
+    stub.state.functions.lift_pause_and_settle = () => ({ data: [], error: null });
 
     const res = await call();
 
@@ -80,17 +98,17 @@ describe("POST /api/merchants/[id]/unpause", () => {
 
   it("answers 404 for a shop that does not exist", async () => {
     stub.state.tables.tenants = [];
-    stub.state.functions.lift_tenant_pause = () => ({ data: [], error: null });
+    stub.state.functions.lift_pause_and_settle = () => ({ data: [], error: null });
 
     expect((await call()).status).toBe(404);
     expect(logAdminActivity).not.toHaveBeenCalled();
   });
 
   it("answers with an error when the database fails or answers with something else", async () => {
-    stub.state.functions.lift_tenant_pause = () => ({ data: null, error: { message: "connection lost" } });
+    stub.state.functions.lift_pause_and_settle = () => ({ data: null, error: { message: "connection lost" } });
     expect((await call()).status).toBe(500);
 
-    stub.state.functions.lift_tenant_pause = () => ({ data: [{ id: SHOP }], error: null });
+    stub.state.functions.lift_pause_and_settle = () => ({ data: [{ id: SHOP }], error: null });
     expect((await call()).status).toBe(500);
 
     expect(logAdminActivity).not.toHaveBeenCalled();
