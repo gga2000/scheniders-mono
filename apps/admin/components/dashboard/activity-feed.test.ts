@@ -28,4 +28,14 @@ describe("Recent Activity", () => {
     expect(html).toContain("Support question solved");
     expect(html).not.toMatch(/>[a-z]+(_[a-z]+)+</);
   });
+
+  it("names a look as the merchant without its session id", () => {
+    const session = "5f0c2c1e-0000-4000-8000-000000000001";
+    const html = renderToStaticMarkup(
+      createElement(ActivityFeed, { activities: [row("support_view", { session_id: session }), row("support_view_end", { ended: 1 })] }),
+    );
+    expect(html).toContain("Looked at the shop as the merchant");
+    expect(html).toContain("Stopped looking as the merchant");
+    expect(html).not.toContain(session);
+  });
 });

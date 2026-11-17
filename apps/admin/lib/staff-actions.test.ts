@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { staffActionText, toStaffAction } from "./staff-actions";
+import { staffActionText, staffLogSummary, toStaffAction } from "./staff-actions";
 
 describe("staffActionText", () => {
   it("uses the shop list's words for a shop step", () => {
@@ -90,6 +90,33 @@ describe("staffActionText", () => {
 
   it("reads an unknown step as words", () => {
     expect(staffActionText("support_notice_posted", null)).toBe("Support notice posted");
+  });
+
+  // Round 11: the end of a look-as-the-merchant visit read "support view end".
+  it("says a look as the merchant started and ended", () => {
+    expect(staffActionText("support_view", { session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBe("Looked at the shop as the merchant");
+    expect(staffActionText("support_view_end", { ended: 1 })).toBe("Stopped looking as the merchant");
+  });
+});
+
+// Round 11: the details column showed a look's session_id, a uuid nobody can read.
+describe("staffLogSummary", () => {
+  it("shows up to two plain values in words", () => {
+    expect(staffLogSummary({ days: 7 })).toBe("days: 7");
+    expect(staffLogSummary({ rows: 40, kind: "leads", format: "csv" })).toBe("rows: 40 | kind: leads");
+  });
+
+  it("leaves out ids, lists and empty values", () => {
+    expect(staffLogSummary({ session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBeNull();
+    expect(
+      staffLogSummary({ setting: "industries", industry_id: "x", id: "y", fields: ["name"], was: null, change: "edited" }),
+    ).toBe("setting: industries | change: edited");
+    expect(staffLogSummary({ paid: true, said: "ok" })).toBe("paid: true | said: ok");
+  });
+
+  it("is null for no details", () => {
+    expect(staffLogSummary(null)).toBeNull();
+    expect(staffLogSummary({})).toBeNull();
   });
 });
 

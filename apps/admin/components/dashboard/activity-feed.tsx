@@ -4,7 +4,7 @@ import { Activity, Inbox } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { formatWhen } from "@/lib/format";
-import { staffActionText } from "@/lib/staff-actions";
+import { staffActionText, staffLogSummary } from "@/lib/staff-actions";
 
 interface ActivityFeedProps {
   activities: Array<{
@@ -37,21 +37,6 @@ function getActionColor(action: string): string {
   return "#D1D5DB"; // gray
 }
 
-function summarizeDetails(details: Record<string, unknown> | null): string | null {
-  if (!details || Object.keys(details).length === 0) return null;
-
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(details)) {
-    if (value === null || value === undefined) continue;
-    if (typeof value === "object") continue;
-    const displayKey = key.replace(/_/g, " ");
-    parts.push(`${displayKey}: ${String(value)}`);
-    if (parts.length >= 2) break;
-  }
-
-  return parts.length > 0 ? parts.join(" | ") : null;
-}
-
 function SkeletonRow() {
   return (
     <div className="flex gap-3 py-3 border-b border-[var(--card-border)] last:border-0">
@@ -74,7 +59,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
       color: getActionColor(activity.action),
       text: staffActionText(activity.action, activity.details),
       relativeTime: formatWhen(activity.created_at),
-      summary: summarizeDetails(activity.details),
+      summary: staffLogSummary(activity.details),
     }));
   }, [activities]);
 
