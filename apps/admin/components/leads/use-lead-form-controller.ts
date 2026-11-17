@@ -62,6 +62,13 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 /** What a host's save answered: saved, failed, or had nothing to send. */
 export type LeadFormSubmitResult = boolean | "unchanged";
 
+/**
+ * A dismissal with unsaved content saves a draft: the whole form (a new
+ * lead), what changed since it opened and the form as it opened (a resumed
+ * draft, which sends only its changes, as the lead page does).
+ */
+export type LeadFormDraftSave = (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => void;
+
 interface UseLeadFormControllerArgs {
   open: boolean;
   /**
@@ -128,6 +135,11 @@ export function useLeadFormController({
 
   /** True when the form differs from its opened state (has unsaved content). */
   const isDirty = JSON.stringify(form) !== JSON.stringify(opened);
+
+  /** On a dismissal: hand unsaved content to the host's draft save. */
+  const saveDraftOnClose = (onSaveDraft: LeadFormDraftSave | undefined) => {
+    if (onSaveDraft && isDirty) onSaveDraft(form, leadFormChanges(opened, normalizeLeadForm(form)), opened);
+  };
 
   // The form starts from the lead as it is when the form opens, and only then.
   // Hosts pass a new starting object on every render (a save in flight, a
@@ -343,7 +355,7 @@ export function useLeadFormController({
     estimatedMonthlyRevenue,
     hasPrediction,
     avgOrderValue,
-    isDirty,
+    saveDraftOnClose,
     update,
     resetForm,
     handleAnalyze,

@@ -41,6 +41,7 @@ import { LeadIndustryManager } from "../lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
+  type LeadFormDraftSave,
   type LeadFormSubmitResult,
 } from "../use-lead-form-controller";
 
@@ -58,7 +59,7 @@ interface LeadRegisterSheetProps {
    * If provided, closing the sheet (swipe / tap-outside / back) with unsaved
    * content auto-saves the in-progress lead as a draft instead of losing it.
    */
-  onSaveDraft?: (data: LeadFormData) => void;
+  onSaveDraft?: LeadFormDraftSave;
 }
 
 const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
@@ -113,7 +114,7 @@ export function LeadRegisterSheet({
     estimatedMonthlyRevenue,
     isOrdersOverride,
     hasPrediction,
-    isDirty,
+    saveDraftOnClose,
     update,
     handleAnalyze,
     addPhone,
@@ -139,7 +140,7 @@ export function LeadRegisterSheet({
   // draft rather than discarding — there's no explicit discard button on mobile.
   const handleSheetClose = (v: boolean) => {
     if (!v && submitting) return;
-    if (!v && onSaveDraft && isDirty) onSaveDraft(form);
+    if (!v) saveDraftOnClose(onSaveDraft);
     onOpenChange(v);
   };
 

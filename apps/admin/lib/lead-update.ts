@@ -88,14 +88,30 @@ export const leadPatchSchema = leadUpdateSchema.extend({ was: listsAsOpenedSchem
 
 const LIST_WORDS: Record<LeadList, string> = { phone_numbers: "phones", tags: "tags", branches: "branches" };
 
+/** "phones and tags", in the form's order; "lists" when none is named. */
+function listNames(lists: readonly string[]): string {
+  const words = LEAD_LISTS.filter((list) => lists.includes(list)).map((list) => LIST_WORDS[list]);
+  return words.length > 0 ? wordList(words) : "lists";
+}
+
 /**
  * "A colleague changed this lead's tags while you had it open. ..." The form
  * then takes their lists in and keeps everything else that was typed.
  */
 export function listsChangedText(lists: readonly string[]): string {
-  const words = LEAD_LISTS.filter((list) => lists.includes(list)).map((list) => LIST_WORDS[list]);
-  const named = words.length > 0 ? wordList(words) : "lists";
+  const named = listNames(lists);
   return `A colleague changed this lead's ${named} while you had it open. Nothing was saved. The form now shows their ${named}: make your change to them again, then save.`;
+}
+
+/**
+ * A resumed draft closed with changes that did not save. The form is gone, so
+ * a colleague's clash says to open the draft again, where their lists show.
+ */
+export function draftNotSavedText(error: Error): string {
+  if (error instanceof LeadListsChangedError) {
+    return `Your changes to the draft were not saved: a colleague changed its ${listNames(error.lists)} meanwhile. Open the draft again to make them.`;
+  }
+  return `Couldn't save the draft: ${error.message}`;
 }
 
 /** A save refused because a colleague changed these lists since the form opened. */

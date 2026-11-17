@@ -20,7 +20,8 @@ import { LeadCard } from "@/components/leads/lead-card";
 import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
 import { LeadsTable } from "@/components/leads/leads-table";
-import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
+import { DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
+import { useResumedDraft } from "@/components/leads/use-resumed-draft";
 import type { LeadFormData, Lead } from "@/types/leads";
 import { leadPhone, toIntlIraqi } from "./lead-phone";
 import { leadsCountLine } from "./leads-count";
@@ -45,7 +46,6 @@ export function LeadsDesktopView() {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [draftLead, setDraftLead] = useState<Lead | null>(null);
   // Column-edit mode is owned here so the "Edit columns" button can sit in the
   // filter row; <LeadsTable> consumes it. super_admin only (the route 403s others).
   const [columnsEditing, setColumnsEditing] = useState(false);
@@ -78,6 +78,7 @@ export function LeadsDesktopView() {
   const deleteLead = useDeleteLead();
 
   const leads = data?.leads ?? [];
+  const resumed = useResumedDraft(leads);
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
 
@@ -114,7 +115,7 @@ export function LeadsDesktopView() {
 
   // Drafts reopen the editor (resume); real leads open their detail page.
   const openLead = (lead: Lead) => {
-    if (lead.is_draft) setDraftLead(lead);
+    if (lead.is_draft) resumed.resume(lead);
     else router.push(`/leads/${lead.id}`);
   };
 
@@ -415,23 +416,7 @@ export function LeadsDesktopView() {
       />
 
       {/* Resume an in-progress draft — saving promotes it to a real lead */}
-      <LeadForm
-        key={draftLead?.id ?? "no-draft"}
-        open={!!draftLead}
-        onOpenChange={(v) => {
-          if (!v) setDraftLead(null);
-        }}
-        initialData={draftLead ? leadToFormData(draftLead) : undefined}
-        onSubmit={(_, changes) =>
-          draftLead
-            ? updateLead.mutateAsync({ id: draftLead.id, data: { ...changes, is_draft: false } }).then(() => true)
-            : false
-        }
-        onSaveDraft={(data) => {
-          if (!draftLead) return;
-          updateLead.mutate({ id: draftLead.id, data: { ...data, is_draft: true } });
-        }}
-      />
+      <LeadForm key={resumed.formKey} {...resumed.form} />
 
       {/* Import Dialog */}
       <LeadImportDialog isOpen={importOpen} onClose={() => setImportOpen(false)} />
