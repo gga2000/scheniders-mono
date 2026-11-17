@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { AdminAuthError } from "@/lib/admin-auth-error";
-import { NO_CONSOLE_ACCESS, isNoConsoleAccess } from "@/lib/staff-sign-in";
+import { NO_CONSOLE_ACCESS, SIGNED_OUT, SIGN_IN_ENDED, isNoConsoleAccess } from "@/lib/staff-sign-in";
 
 /**
  * Auth failures must come back as 401/403, and real server failures as 500 —
@@ -162,7 +162,8 @@ describe("bearer-only CRM routes map auth failures to 401/403", () => {
   it.each(BEARER_HANDLERS)("$name — rejected token → 401", async (h) => {
     const res = await call(h, `Bearer ${TOKENS.rejected}`);
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: "Unauthorized" });
+    // Round 16 (ux new 2): a save after the sign-in ended said "Unauthorized".
+    expect(await res.json()).toEqual({ error: SIGNED_OUT });
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
@@ -242,6 +243,7 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
   it("no session cookie → 401", async () => {
     const res = await requireAdminFromRequest(req("/x", "GET", null));
     expect((res as NextResponse).status).toBe(401);
+    expect(await (res as NextResponse).json()).toEqual({ error: SIGNED_OUT });
   });
 
   it("cookie session token that does not check out → 401", async () => {
@@ -257,6 +259,7 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
     cookieGetClaims = async () => cookieClaims(17);
     const res = await requireAdminFromRequest(req("/x", "GET", null));
     expect((res as NextResponse).status).toBe(401);
+    expect(await (res as NextResponse).json()).toEqual({ error: SIGN_IN_ENDED });
     expect(resolveAdminRole).not.toHaveBeenCalled();
   });
 
