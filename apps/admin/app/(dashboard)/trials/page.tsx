@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Clock,
@@ -35,6 +36,8 @@ interface Trial {
   balance_iqd: number;
   days_remaining: number;
   is_expired: boolean;
+  /** Paused while on trial: its days still run, and free days wait until the pause is lifted. */
+  paused: boolean;
 }
 
 interface TrialsSummary {
@@ -312,7 +315,17 @@ export default function TrialsPage() {
                 <span className="text-sm font-medium text-foreground/70">
                   {formatIQD(trial.balance_iqd)}
                 </span>
-                <ExtendTrialButton tenantId={trial.id} />
+                {trial.paused ? (
+                  // The database gives trial days only to a shop on trial, not a paused one.
+                  <Link
+                    href={`/merchants/${trial.id}`}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-colors"
+                  >
+                    Paused: lift it to give days
+                  </Link>
+                ) : (
+                  <ExtendTrialButton tenantId={trial.id} />
+                )}
               </div>
             </div>
           ))}

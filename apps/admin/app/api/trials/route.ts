@@ -4,6 +4,7 @@ import { requireAdminFromRequest } from "@/lib/api-auth";
 import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { ON_TRIAL_FILTER, isPausedTrial } from "@/lib/effective-status";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
@@ -14,11 +15,13 @@ export async function GET(request: NextRequest) {
 
     // Every shop on trial with its wallet, a page at a time: one read stops at
     // 1,000 rows, and a list of 1,000 ids in the wallet read is too long a URL.
+    // A paused trial is still a trial: its days run and it locks at their end
+    // (lib/effective-status), so it stays on the list, marked paused.
     const trialTenants = await everyRow((from, to) =>
       supabase
         .from("tenants")
-        .select("id, business_name, slug, plan, status, trial_ends_at, city, contact_email, created_at, wallet(balance_iqd)")
-        .eq("status", "trial")
+        .select("id, business_name, slug, plan, status, restrictions, trial_ends_at, city, contact_email, created_at, wallet(balance_iqd)")
+        .or(ON_TRIAL_FILTER)
         // The demo store and prospect stores (lib/customer-shops) are no customers.
         .match(CUSTOMER_SHOP)
         .order("trial_ends_at", { ascending: true })
@@ -33,10 +36,11 @@ export async function GET(request: NextRequest) {
     // passed it is expired: days_remaining is 0 on the end day, below 0 after.
     const trials = trialTenants.map((t) => {
       const clock = trialClock(t.trial_ends_at, now);
-      const { wallet, ...shop } = t;
+      const { wallet, restrictions, ...shop } = t;
       const w = Array.isArray(wallet) ? wallet[0] : wallet;
       return {
         ...shop,
+        paused: isPausedTrial(t.status, restrictions),
         balance_iqd: w?.balance_iqd ?? 0,
         days_remaining: clock.days,
         is_expired: clock.ended,

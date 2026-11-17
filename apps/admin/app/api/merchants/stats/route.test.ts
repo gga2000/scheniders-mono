@@ -170,6 +170,30 @@ describe("GET /api/merchants/stats", () => {
     }
   });
 
+  it("counts a paused trial's end as a trial's, and no other paused shop's", async () => {
+    vi.useFakeTimers({ now: Date.parse("2026-11-16T22:00:00+03:00"), toFake: ["Date"] });
+    try {
+      const paused = (before: string) => ({ status: "limited", restrictions: { status_before: before } });
+      stub.state.tables.tenants = [
+        // Paused on trial: one ends tonight, one ended at 21:00. Both are still trials.
+        shop(1, { ...paused("trial"), trial_ends_at: "2026-11-16T20:30:00Z" }),
+        shop(2, { ...paused("trial"), trial_ends_at: "2026-11-16T18:00:00Z" }),
+        // A paying shop paused, with an old trial date: not a trial.
+        shop(3, { ...paused("active"), trial_ends_at: "2026-11-16T18:00:00Z" }),
+      ];
+
+      const stats = await (await call()).json();
+
+      expect(stats.buckets.trials_today).toBe(1);
+      expect(stats.buckets.trials_expired).toBe(1);
+      // The Pipeline still has them in its Paused column.
+      expect(stats.status.limited).toBe(3);
+      expect(stats.status.trial).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("counts sign-ups on whole Baghdad days, the last day included", async () => {
     await call("date_from=2026-11-16&date_to=2026-11-16");
 

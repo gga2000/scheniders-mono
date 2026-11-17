@@ -64,3 +64,26 @@ describe("SubscriptionCard on the demo store", () => {
     expect(html).not.toContain("charges the wallet");
   });
 });
+
+describe("SubscriptionCard on a paused trial", () => {
+  // A paused trial is still a trial (lib/effective-status): its end day stands,
+  // and it has no paid month yet. The card showed "This month" instead.
+  it("shows when the trial ends and no month", () => {
+    const paused = {
+      ...tenant,
+      status: "limited",
+      trial_ends_at: "2026-11-20T09:00:00Z",
+      restrictions: { status_before: "trial", paused_until: "2026-11-19T09:00:00Z" },
+    } as MerchantDetail["tenant"];
+    const html = render("super_admin", paused);
+    expect(html).toContain("Trial ends");
+    expect(html).not.toContain("This month");
+  });
+
+  it("shows a paused paying shop's month, as before", () => {
+    const paused = { ...tenant, status: "limited", restrictions: { status_before: "active" } } as MerchantDetail["tenant"];
+    const html = render("super_admin", paused);
+    expect(html).toContain("This month");
+    expect(html).not.toContain("Trial ends");
+  });
+});

@@ -8,6 +8,7 @@ import { ATTENTION, ATTENTION_WALLET_IQD, computedShopFilters } from "@/lib/merc
 import { merchantSearchFilter } from "@/lib/merchant-search";
 import { readShopCity, shopGovernorate } from "@/lib/shop-city";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { effectiveStatus } from "@/lib/effective-status";
 
 /** What the numbers need of a shop. `staff_needs_attention` is worked out by the database. */
 interface LiteShop {
@@ -15,6 +16,8 @@ interface LiteShop {
   status: string;
   plan: string | null;
   trial_ends_at: string | null;
+  /** Holds status_before while the shop is paused (lib/effective-status). */
+  restrictions: unknown;
   city: string | null;
   wallet: { balance_iqd?: number } | { balance_iqd?: number }[] | null;
   staff_needs_attention: boolean;
@@ -77,7 +80,7 @@ export async function GET(request: NextRequest) {
     const tenants = await everyRow<LiteShop>((from, to) => {
       let query = supabase
         .from("tenants")
-        .select("id, status, plan, trial_ends_at, city, wallet(balance_iqd), staff_needs_attention")
+        .select("id, status, plan, trial_ends_at, restrictions, city, wallet(balance_iqd), staff_needs_attention")
         // The demo store and prospect stores (lib/customer-shops) are no customers: in no count.
         .match(CUSTOMER_SHOP);
 
@@ -181,7 +184,8 @@ export async function GET(request: NextRequest) {
       // filters on: it also counts a locked shop, which has no bucket here.
       if (s === "suspended") buckets.suspended++;
       if (s === "cancelled") buckets.cancelled++;
-      if (s === "trial" && trialEnd) {
+      // A paused trial is still a trial: its days run and it locks at their end.
+      if (effectiveStatus(s, t.restrictions) === "trial" && trialEnd) {
         // Baghdad calendar days: a trial ending at 06:00 tomorrow ends tomorrow.
         const clock = trialClock(trialEnd, now);
         if (clock.ended) buckets.trials_expired++;
