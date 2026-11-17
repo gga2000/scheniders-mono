@@ -151,6 +151,8 @@ export function LeadsDesktopView() {
             ].map(({ mode, icon: Icon, label }) => (
               <button
                 key={mode}
+                type="button"
+                aria-pressed={viewMode === mode}
                 onClick={() => setViewMode(mode)}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
