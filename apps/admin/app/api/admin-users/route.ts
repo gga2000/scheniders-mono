@@ -320,11 +320,16 @@ export async function DELETE(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: target } = await supabase
+  // A failed read is an error, not "not an admin user".
+  const { data: target, error: readError } = await supabase
     .from("admin_users")
     .select("admin_role, email")
     .eq("user_id", userId)
     .maybeSingle();
+  if (readError) {
+    console.error("Remove admin access: reading the admin row failed", readError);
+    return NextResponse.json({ error: "Could not read this admin. Try again." }, { status: 500 });
+  }
   if (!target) {
     return NextResponse.json({ error: "Not an admin user" }, { status: 404 });
   }
