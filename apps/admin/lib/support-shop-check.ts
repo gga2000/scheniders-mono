@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { trialClock } from "./baghdad-day";
+import { formatUntilDay } from "./format";
 
 /**
  * "Check this shop" beside a support conversation. `support_shop_check`
@@ -58,6 +60,8 @@ const LOW_WALLET_IQD = 5_000;
 const QUIET_DAYS = 3;
 /** WhatsApp failures above this share of sends (with at least 10 sends) need a look. */
 const WHATSAPP_FAIL_SHARE = 0.2;
+/** A trial this many Baghdad days from its end or fewer is "ending", as on Trials. */
+const TRIAL_LAST_DAYS = 3;
 
 const DAY_MS = 86_400_000;
 
@@ -96,12 +100,16 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
   if (s.paused) return { ...base, state: "look", text: "Paused by staff. Orders still come in." };
   if (s.is_prospect) return { ...base, state: "look", text: "Prospect store: built by us, takes no orders yet." };
   if (s.status === "trial" && s.trial_ends_at) {
-    const ends = Date.parse(s.trial_ends_at);
-    const soon = ends - nowMs < 3 * DAY_MS;
+    // Days on the Baghdad calendar, as Trials and the shop page count them.
+    const clock = trialClock(s.trial_ends_at, nowMs);
+    if (clock.ended) {
+      const when = clock.days === 0 ? "today" : clock.days === -1 ? "yesterday" : `${-clock.days} days ago`;
+      return { ...base, state: "look", text: `Trial ended ${when}, not paid yet.` };
+    }
     return {
       ...base,
-      state: soon ? "look" : "ok",
-      text: `Taking orders. Trial ends ${daysAgo(s.trial_ends_at, nowMs)}.`,
+      state: clock.days <= TRIAL_LAST_DAYS ? "look" : "ok",
+      text: `Taking orders. Trial ends ${formatUntilDay(s.trial_ends_at, new Date(nowMs))}.`,
     };
   }
   return { ...base, state: "ok", text: "Open and taking orders." };
