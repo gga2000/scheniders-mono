@@ -2,12 +2,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { canPickStatus } from "@/lib/shop-status-choice";
+import type { TenantStatus } from "@/types/admin";
 
 /*
- * Since #1367 the server refuses Active over any trial shop (still_trial):
- * a trial becomes a paying shop through "Start paid time, no charge" on its
- * page. The card menu offered Active anyway, and every pick was refused.
+ * The card menu offers only the moves admin_update_shop accepts
+ * (lib/shop-status-choice). Since #1367 the server refuses Active over a
+ * trial; round 12 found it also offering every move on a paused shop and
+ * "Trial" on a paying one, each refused after a round trip.
  */
 
 vi.mock("@/hooks/use-admin-auth", () => ({ useCan: () => () => true }));
@@ -16,31 +17,36 @@ const { MerchantStatusDropdown } = await import("./merchant-status-dropdown");
 
 afterEach(cleanup);
 
-function openMenu(status: "trial" | "active") {
+function showChip(status: TenantStatus, trialSubscription: boolean) {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MerchantStatusDropdown merchantId="m1" status={status} />
+      <MerchantStatusDropdown merchantId="m1" status={status} trialSubscription={trialSubscription} />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: status === "trial" ? "Trial" : "Active" }));
+}
+
+function openMenu(status: TenantStatus, label: string, trialSubscription: boolean) {
+  showChip(status, trialSubscription);
+  fireEvent.click(screen.getByRole("button", { name: label }));
   return screen.getAllByRole("button").map((button) => button.textContent);
 }
 
 describe("the card's status menu", () => {
   it("leaves Active out for a trial shop", () => {
-    expect(openMenu("trial")).toEqual(["Trial", "Trial", "Suspended", "Cancelled"]);
+    expect(openMenu("trial", "Trial", true)).toEqual(["Trial", "Trial", "Suspended", "Cancelled"]);
   });
 
-  it("still offers every pickable status to a paying shop", () => {
-    expect(openMenu("active")).toEqual(["Active", "Trial", "Active", "Suspended", "Cancelled"]);
+  it("leaves Trial out for a paying shop whose subscription is not a trial", () => {
+    expect(openMenu("active", "Active", false)).toEqual(["Active", "Active", "Suspended", "Cancelled"]);
   });
-});
 
-describe("canPickStatus", () => {
-  it("refuses only trial to active", () => {
-    expect(canPickStatus("trial", "active")).toBe(false);
-    expect(canPickStatus("trial", "suspended")).toBe(true);
-    expect(canPickStatus("active", "trial")).toBe(true);
-    expect(canPickStatus("suspended", "active")).toBe(true);
+  it("offers Trial and Active to a held shop whose subscription is still a trial", () => {
+    expect(openMenu("suspended", "Suspended", true)).toEqual(["Suspended", "Trial", "Active", "Suspended", "Cancelled"]);
+  });
+
+  it("is no menu on a paused shop, whose chip reads Paused as every other screen does", () => {
+    showChip("limited", true);
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText("Paused")).toBeTruthy();
   });
 });

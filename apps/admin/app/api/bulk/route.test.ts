@@ -362,7 +362,7 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
     expect(body.success).toBe(false);
     expect(body.error).toBe("Not changed for 1 of 2 merchant(s); 1 were changed");
     expect(body.succeeded).toEqual([{ tenant_id: T1, status: "trial", plan: "starter" }]);
-    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "This shop is paused. Resume it first." }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "This shop is paused. Lift the pause first (on its page)." }]);
   });
 
   it("suspend does not count the demo store as suspended", async () => {

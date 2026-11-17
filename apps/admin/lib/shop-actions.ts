@@ -53,8 +53,10 @@ export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
     // The lock card says who may give more orders for which lock.
     ["orders", shop.locked],
     ["plan", can("change_plan")],
+    // A paused shop keeps its status until the pause is lifted: the database
+    // refuses a second pause and a hold over it (paused).
     ["pause", canStop && shop.status !== "limited"],
-    ["hold", canStop],
+    ["hold", canStop && shop.status !== "limited"],
     ["reactivate", can("reactivate_tenant") && shop.status === "suspended"],
     ["convert", can("manage_subscription") && shop.status === "trial"],
     ["note", can("add_note")],

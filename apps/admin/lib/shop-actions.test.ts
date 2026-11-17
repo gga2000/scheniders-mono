@@ -53,7 +53,11 @@ describe("More", () => {
 
   it("brings a shop on hold back, and does not pause or hold it again", () => {
     expect(moreActions(shop({ status: "suspended" }), as("super_admin"))).toEqual(["plan", "reactivate", "note"]);
-    expect(moreActions(shop({ status: "limited" }), as("super_admin"))).toEqual(["plan", "hold", "note"]);
+  });
+
+  it("does not offer a paused shop a pause or a hold, which the database refuses until the pause is lifted", () => {
+    expect(moreActions(shop({ status: "limited" }), as("super_admin"))).toEqual(["plan", "note"]);
+    expect(moreActions(shop({ status: "limited", locked: true }), as("super_admin"))).toEqual(["orders", "plan", "note"]);
   });
 
   it("shows support staff only what their login may do", () => {

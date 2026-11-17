@@ -36,13 +36,13 @@ describe("merchant controls follow the role", () => {
 
   it("offers plan and status to a super admin", () => {
     expect(render(createElement(MerchantPlanDropdown, { merchantId: SHOP, plan: "starter" }))).toContain("<button");
-    expect(render(createElement(MerchantStatusDropdown, { merchantId: SHOP, status: "active" }))).toContain("<button");
+    expect(render(createElement(MerchantStatusDropdown, { merchantId: SHOP, status: "active", trialSubscription: false }))).toContain("<button");
   });
 
   it("shows plan and status to support staff without offering a change", () => {
     role = "support_staff";
     const plan = render(createElement(MerchantPlanDropdown, { merchantId: SHOP, plan: "starter" }));
-    const status = render(createElement(MerchantStatusDropdown, { merchantId: SHOP, status: "active" }));
+    const status = render(createElement(MerchantStatusDropdown, { merchantId: SHOP, status: "active", trialSubscription: false }));
 
     expect(plan).not.toContain("<button");
     expect(plan).toContain("Starter");

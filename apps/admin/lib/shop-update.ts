@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PlanTier, TenantStatus } from "@/types/admin";
 import type { createAdminClient } from "./admin-supabase";
-import { STILL_TRIAL_REFUSAL } from "./shop-status-choice";
+import { STATUS_REFUSALS } from "./shop-status-choice";
 
 /**
  * What staff ask for. Any part may be left out; at least one of status, plan
@@ -37,13 +37,14 @@ export type ShopUpdateResult =
 export const DEMO_STORE_REFUSAL = "This is the demo store. Its status does not change.";
 
 /** Why the database refused, in words staff can act on. */
-const REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
+export const SHOP_UPDATE_REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
   demo_store: { status: 409, error: DEMO_STORE_REFUSAL },
-  use_pause: { status: 409, error: "Use Pause to limit a shop: it sets what is blocked and for how long." },
-  paused: { status: 409, error: "This shop is paused. Resume it first." },
-  still_trial: { status: 409, error: STILL_TRIAL_REFUSAL },
-  not_trialing: { status: 409, error: "This shop's subscription is not a trial, so it cannot go back to Trial." },
+  // The status moves the card menu and the Pipeline also hold back (lib/shop-status-choice).
+  use_pause: { status: 409, error: STATUS_REFUSALS.use_pause },
+  paused: { status: 409, error: STATUS_REFUSALS.paused },
+  still_trial: { status: 409, error: STATUS_REFUSALS.still_trial },
+  not_trialing: { status: 409, error: STATUS_REFUSALS.not_trialing },
   no_subscription: { status: 409, error: "This shop has no subscription yet." },
   subscription_ended: {
     status: 409,
@@ -84,7 +85,7 @@ export async function updateShop(
 
   const refused = refusedSchema.safeParse(data);
   if (refused.success) {
-    const refusal = REFUSALS[refused.data.error];
+    const refusal = SHOP_UPDATE_REFUSALS[refused.data.error];
     if (!refusal) throw new Error(`Unexpected refusal from admin_update_shop: ${refused.data.error}`);
     return { ok: false, ...refusal };
   }

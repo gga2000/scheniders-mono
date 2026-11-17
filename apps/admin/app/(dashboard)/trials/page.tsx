@@ -14,6 +14,7 @@ import { createRequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { useCan } from "@/hooks/use-admin-auth";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatDayTime, formatIQD } from "@/lib/format";
@@ -194,6 +195,8 @@ export default function TrialsPage() {
     },
     staleTime: 30_000,
   });
+  // Only staff who may lift a pause are sent to the shop page to lift it.
+  const canLift = useCan()("reactivate_tenant");
 
   if (isError && !data) {
     return <LoadError what="the trials" error={error} onRetry={() => refetch()} retrying={isFetching} />;
@@ -315,7 +318,7 @@ export default function TrialsPage() {
                 <span className="text-sm font-medium text-foreground/70">
                   {formatIQD(trial.balance_iqd)}
                 </span>
-                {trial.paused ? (
+                {trial.paused && canLift ? (
                   // The database gives trial days only to a shop on trial, not a paused one.
                   <Link
                     href={`/merchants/${trial.id}`}
@@ -323,6 +326,10 @@ export default function TrialsPage() {
                   >
                     Paused: lift it to give days
                   </Link>
+                ) : trial.paused ? (
+                  <span className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 border border-[var(--card-border)]">
+                    Paused: ask a super admin to lift it
+                  </span>
                 ) : (
                   <ExtendTrialButton tenantId={trial.id} />
                 )}
