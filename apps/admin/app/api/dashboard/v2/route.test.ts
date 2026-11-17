@@ -129,8 +129,10 @@ describe("GET /api/dashboard/v2", () => {
     ];
     // The merchant's own upgrade, which the staff log never had.
     stub.state.tables.subscription_plan_changes = [
-      { id: 1, tenant_id: SHOP_A, from_plan: "starter", to_plan: "growth", changed_at: recently },
-      { id: 2, tenant_id: "demo-shop", from_plan: "growth", to_plan: "starter", changed_at: recently },
+      { id: 1, tenant_id: SHOP_A, from_plan: "starter", to_plan: "growth", changed_at: recently, from_trial: false },
+      { id: 2, tenant_id: "demo-shop", from_plan: "growth", to_plan: "starter", changed_at: recently, from_trial: false },
+      // The new shop's first choice when its Team trial ended: no downgrade.
+      { id: 3, tenant_id: SHOP_B, from_plan: "growth", to_plan: "starter", changed_at: recently, from_trial: true },
     ];
 
     const body = await (await call()).json();
@@ -142,6 +144,7 @@ describe("GET /api/dashboard/v2", () => {
       { fromPlan: "growth", toPlan: "starter", count: 1, type: "waiting" },
     ]);
     expect(stub.callsTo("admin_activity_logs.eq")).toContainEqual(["action", "status_change"]);
+    expect(stub.callsTo("subscription_plan_changes.select")).toContainEqual(["tenant_id, from_plan, to_plan, changed_at, from_trial"]);
   });
 
   it("answers 500 when the database totals cannot be read", async () => {

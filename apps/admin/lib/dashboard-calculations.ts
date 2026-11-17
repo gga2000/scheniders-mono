@@ -66,6 +66,8 @@ export interface PlanChangeRow {
   from_plan: string;
   to_plan: string;
   changed_at: string;
+  /** The subscription was still on trial: the merchant's first plan choice. */
+  from_trial: boolean;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -402,6 +404,10 @@ const isRanked = (plan: unknown): plan is string => typeof plan === "string" && 
  *   cancellation), and as moved from its plan before the first plan change to
  *   its plan after the last one.
  * - New signups are the shops opened in the 30 days, one line per plan.
+ * - A trial's end that applies the merchant's first plan choice is no move:
+ *   every trial runs on Team, so counting it would file each new shop that
+ *   picks Start as a downgrade (20261117071812). A choice still waiting in a
+ *   trial is not listed either.
  * - A waiting change has not happened, so it is listed as "waiting" and is
  *   not counted as an upgrade or a downgrade.
  *
@@ -412,11 +418,12 @@ export function calculatePlanMovements(
   rows: SubscriptionRow[],
   statusSteps: ShopStepRow[],
   planChanges: PlanChangeRow[],
-  shops: ReadonlyArray<Pick<DashboardTenant, "id" | "plan" | "created_at">>,
+  shops: ReadonlyArray<Pick<DashboardTenant, "id" | "plan" | "status" | "created_at">>,
   now: Date,
 ): PlanMovement[] {
   const since = now.getTime() - 30 * DAY_MS;
   const shopPlans = new Map(shops.map((shop) => [shop.id, shop.plan]));
+  const onTrial = new Set(shops.filter((shop) => shop.status === "trial").map((shop) => shop.id));
   type Moved = { plan: string; status?: unknown; planBefore?: string; planAfter?: string };
   const byShop = new Map<string, Moved>();
   const shopOf = (tenantId: string | null): Moved | undefined => {
@@ -434,7 +441,7 @@ export function calculatePlanMovements(
     const shop = shopOf(step.tenant_id);
     if (shop) shop.status = (step.details as { status?: unknown } | null)?.status;
   }
-  for (const change of planChanges.filter((c) => recent(c.changed_at)).sort((a, b) => byTime(a.changed_at, b.changed_at))) {
+  for (const change of planChanges.filter((c) => recent(c.changed_at) && !c.from_trial).sort((a, b) => byTime(a.changed_at, b.changed_at))) {
     const shop = shopOf(change.tenant_id);
     if (!shop) continue;
     shop.planBefore ??= change.from_plan;
@@ -460,6 +467,8 @@ export function calculatePlanMovements(
 
   for (const s of rows) {
     if (!shopPlans.has(s.tenant_id) || s.status === "cancelled") continue;
+    // In a trial (running, or locked after it) the choice is the first plan.
+    if (s.status === "trialing" || onTrial.has(s.tenant_id)) continue;
     if (isRanked(s.plan) && isRanked(s.pending_plan) && s.pending_plan !== s.plan) {
       moves.push({ fromPlan: s.plan, toPlan: s.pending_plan, count: 1, type: "waiting" });
     }
