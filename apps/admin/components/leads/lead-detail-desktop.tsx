@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
 import { loadFailureKind } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { LEAD_GONE } from "@/lib/lead-update";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
@@ -146,7 +147,13 @@ export function LeadDetailDesktop() {
         Back to Leads
       </Link>
       {isError && (
-        <LoadFailedLine what="this lead again" error={error} onRetry={() => void refetch()} retrying={isFetching} />
+        <LoadFailedLine
+          what="this lead again"
+          error={error}
+          gone={LEAD_GONE}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
       )}
 
       {/* ── Header Card ──────────────────────────────────────────── */}

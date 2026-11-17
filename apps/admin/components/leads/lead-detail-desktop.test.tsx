@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Lead } from "@/types/leads";
+import { LoadFailure } from "@/lib/load-failure";
 
 const read = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ id: "lead-1" }), useRouter: () => ({ push: vi.fn() }) }));
@@ -62,6 +63,21 @@ describe("the lead page after a failed read again", () => {
     expect(screen.getByRole("alert").textContent).toContain("Could not load this lead again.");
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
     expect(screen.queryByText("Failed to load lead")).toBeNull();
+  });
+
+  // Round 14 (reliability new 2): a colleague deleted the lead while it was
+  // open. Its read again answers 404, and "Try again" could never help.
+  it("says the lead was deleted, with no Try again, when its read again finds it gone", () => {
+    show({
+      data: { lead, activities: [], follow_ups: [], social_links: [], competitors: [] },
+      isError: true,
+      error: new LoadFailure(404, "lead"),
+    });
+
+    expect(screen.getByRole("heading", { name: "Kawkab" })).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toBe("This lead was deleted. Changes here can no longer be saved.");
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.getByRole("link", { name: /Back to Leads/ })).toBeTruthy();
   });
 
   it("shows the error page only for a lead that was never read", () => {

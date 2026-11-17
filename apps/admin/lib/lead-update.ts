@@ -95,6 +95,13 @@ function listNames(lists: readonly string[]): string {
 }
 
 /**
+ * The lead page's line when its read again finds the lead gone (404): a
+ * colleague deleted it while it was open. Asking again cannot bring it back,
+ * and a save answers "Lead not found".
+ */
+export const LEAD_GONE = "This lead was deleted. Changes here can no longer be saved.";
+
+/**
  * "A colleague changed this lead's tags while you had it open. ..." The form
  * then takes their lists in and keeps everything else that was typed.
  */

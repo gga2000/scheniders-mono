@@ -60,7 +60,7 @@ export function useUpdateLead() {
     },
     // A refused save may mean this copy is out of date (a colleague changed
     // the lead's lists, or removed its industry): read them again. A draft
-    // reopened from the list reads its copy from the list.
+    // reopened from the list reads its copy by id too (use-resumed-draft).
     onError: (error, vars) => {
       qc.invalidateQueries({ queryKey: ["lead", vars.id] });
       if (error instanceof LeadListsChangedError) qc.invalidateQueries({ queryKey: ["leads"] });
