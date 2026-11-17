@@ -51,9 +51,12 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   const [results, setResults] = useState<MerchantResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The newest search sent: an older answer that arrives late is dropped. */
+  const latestRef = useRef(0);
 
   // Each page names itself once, in its own heading (board n3). The top bar
   // names the browser tab only.
@@ -69,7 +72,10 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   // profile — it only belongs on the Merchants directory, not every page.
   const showSearch = pathname === "/merchants" || (pathname?.startsWith("/merchants/") ?? false);
 
+  // A search that failed says so: a server error or a lost connection read as
+  // "No results", so staff took a shop that exists for one that does not.
   const fetchResults = useCallback(async (searchQuery: string) => {
+    const asked = ++latestRef.current;
     if (!searchQuery.trim()) {
       setResults([]);
       setIsOpen(false);
@@ -78,18 +84,21 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
     }
 
     setIsLoading(true);
+    let found: MerchantResult[] | null = null;
     try {
       const res = await fetch(
         `/api/merchants?search=${encodeURIComponent(searchQuery)}&limit=5`
       );
-      const data = await res.json();
-      setResults(data.merchants ?? []);
-      setIsOpen(true);
-    } catch {
-      setResults([]);
-    } finally {
-      setIsLoading(false);
+      const data: { merchants?: MerchantResult[] } | null = res.ok ? await res.json() : null;
+      found = Array.isArray(data?.merchants) ? data.merchants : null;
+    } catch (error) {
+      console.error("Merchant search failed:", error);
     }
+    if (asked !== latestRef.current) return;
+    setResults(found ?? []);
+    setFailed(found === null);
+    setIsOpen(true);
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -98,7 +107,9 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
     }
 
     if (!query.trim()) {
+      latestRef.current += 1;
       setResults([]);
+      setFailed(false);
       setIsOpen(false);
       setIsLoading(false);
       return;
@@ -137,6 +148,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
     setIsOpen(false);
     setQuery("");
     setResults([]);
+    setFailed(false);
     router.push(`/merchants/${id}`);
   }
 
@@ -171,7 +183,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => {
-              if (results.length > 0) setIsOpen(true);
+              if (results.length > 0 || failed) setIsOpen(true);
             }}
             className="w-full h-10 pl-10 pr-20 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent focus:border-[var(--primary)] focus:outline-none text-sm text-foreground placeholder:text-foreground-muted transition-colors"
           />
@@ -187,7 +199,11 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
           {/* Search results dropdown */}
           {isOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl overflow-hidden">
-              {results.length === 0 && !isLoading ? (
+              {failed && !isLoading ? (
+                <div role="alert" className="px-4 py-3 text-sm text-foreground-muted text-center">
+                  The search did not load. Try again.
+                </div>
+              ) : results.length === 0 && !isLoading ? (
                 <div className="px-4 py-3 text-sm text-foreground-muted text-center">
                   No results
                 </div>
