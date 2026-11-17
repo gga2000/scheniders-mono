@@ -70,7 +70,7 @@ describe("GET /api/merchants", () => {
     expect(stub.state.rpcCalls).toEqual([
       { fn: "admin_merchant_list_stats", args: { _tenant_ids: ["shop-1", "shop-2"] } },
     ]);
-    expect(stub.tablesRead()).toEqual(["tenants", "admin_notes"]);
+    expect(stub.tablesRead()).toEqual(["tenants", "admin_notes", "subscriptions"]);
     expect(total).toBe(2);
     expect(merchants[0]).toMatchObject({
       id: "shop-1",
@@ -192,6 +192,40 @@ describe("GET /api/merchants", () => {
 
   it("answers with an error when the pinned notes cannot be read", async () => {
     stub.state.failing.add("admin_notes");
+
+    expect((await call()).status).toBe(500);
+  });
+
+  /*
+   * Round 7: the card's menu offered free days only to a shop on trial. A
+   * paying shop gets free days on its month (lib/shop-actions), so the card
+   * needs to know whether that month is running, read the way the billing
+   * lock reads it: the newest subscription.
+   */
+  it("says whether each shop's newest subscription is running", async () => {
+    stub.state.tables.subscriptions = [
+      { tenant_id: "shop-1", status: "cancelled", created_at: "2026-11-10T08:00:00Z" },
+      { tenant_id: "shop-1", status: "active", created_at: "2026-10-01T08:00:00Z" },
+      { tenant_id: "shop-2", status: "past_due", created_at: "2026-11-01T08:00:00Z" },
+    ];
+
+    const { merchants } = await (await call()).json();
+
+    expect(stub.callsTo("subscriptions.order")).toEqual([["created_at", { ascending: false }]]);
+    expect(merchants.map((m: Row) => [m.id, m.subscription_running])).toEqual([
+      ["shop-1", false],
+      ["shop-2", true],
+    ]);
+  });
+
+  it("says no subscription is running for a shop with none", async () => {
+    const { merchants } = await (await call()).json();
+
+    expect(merchants.map((m: Row) => m.subscription_running)).toEqual([false, false]);
+  });
+
+  it("answers with an error when the subscriptions cannot be read", async () => {
+    stub.state.failing.add("subscriptions");
 
     expect((await call()).status).toBe(500);
   });
