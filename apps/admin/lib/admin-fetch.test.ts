@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NO_ACCESS_HEADERS, NO_CONSOLE_ACCESS } from "./staff-sign-in";
 
 /*
  * Round 14: when the console ended a sign-in, an open page showed "Could not
@@ -72,5 +73,29 @@ describe("adminFetch", () => {
     expect(reload).not.toHaveBeenCalled();
     expect((await adminFetch("/api/leads")).status).toBe(401);
     await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+  });
+
+  /*
+   * Round 15: a role removed while a page was open answered every read 403 with
+   * the session still held, so nothing left the page: the bell and the lists
+   * said "Could not check", as if the console were down.
+   */
+  it("leaves once when the login has no console access, however many reads fail", async () => {
+    auth.session = { access_token: "jwt" };
+    const noAccess = () => new Response(JSON.stringify({ error: NO_CONSOLE_ACCESS }), { status: 403, headers: NO_ACCESS_HEADERS });
+    vi.stubGlobal("fetch", vi.fn(async () => noAccess()));
+    const { adminFetch } = await import("./admin-fetch");
+    const answers = await Promise.all(["/api/leads", "/api/notifications", "/api/stats"].map((url) => adminFetch(url)));
+    expect(answers.map((r) => r.status)).toEqual([403, 403, 403]);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the page for a 403 about one permission the role lacks", async () => {
+    auth.session = { access_token: "jwt" };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "Your role cannot do this." }), { status: 403 })));
+    const { adminFetch } = await import("./admin-fetch");
+    expect((await adminFetch("/api/merchants/1/pause", { method: "POST" })).status).toBe(403);
+    await Promise.resolve();
+    expect(reload).not.toHaveBeenCalled();
   });
 });

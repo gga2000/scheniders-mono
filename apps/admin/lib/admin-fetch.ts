@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
+import { isNoConsoleAccess } from "./staff-sign-in";
 
 let _client: ReturnType<typeof createBrowserClient> | null = null;
 
@@ -12,6 +13,13 @@ function getBrowserClient() {
 }
 
 let leaving = false;
+
+/** Reload once; the middleware then sends the page to the login page with the reason. */
+function leave(): void {
+  if (leaving) return;
+  leaving = true;
+  window.location.reload();
+}
 
 /**
  * After a failed API answer. When this browser no longer holds a session (the
@@ -32,9 +40,8 @@ export async function leaveIfSignedOut(): Promise<void> {
     data: { session },
     error,
   } = await getBrowserClient().auth.getSession();
-  if (session || isAuthRetryableFetchError(error) || leaving) return;
-  leaving = true;
-  window.location.reload();
+  if (session || isAuthRetryableFetchError(error)) return;
+  leave();
 }
 
 /**
@@ -58,5 +65,8 @@ export async function adminFetch(
 
   const response = await fetch(input, { ...init, headers });
   if (response.status === 401) void leaveIfSignedOut();
+  // The login has no console access any more (its staff row was removed or
+  // switched off): the session is still held, so only this mark says so.
+  if (isNoConsoleAccess(response)) leave();
   return response;
 }

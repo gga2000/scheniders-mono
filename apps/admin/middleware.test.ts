@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock, type MockInstance } fr
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { AuthApiError, AuthInvalidJwtError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
+import { NO_CONSOLE_ACCESS, isNoConsoleAccess } from "@/lib/staff-sign-in";
 
 /**
  * The middleware decides who reaches the console. A database or auth-server
@@ -120,6 +121,15 @@ describe("middleware access check", () => {
     expect((await call("/api/leads")).status).toBe(403);
     adminRead = { data: { admin_role: "super_admin", is_active: false }, error: null };
     expect((await call("/api/leads")).status).toBe(403);
+  });
+
+  // Round 15: the API's 403 looked like any other, so an open page whose role
+  // was removed never left. It carries the mark adminFetch leaves on.
+  it("marks the API's no-access 403, in the login page's words", async () => {
+    adminRead = { data: { admin_role: "sales", is_active: false }, error: null };
+    const answer = await call("/api/leads");
+    expect(isNoConsoleAccess(answer)).toBe(true);
+    expect(await answer.json()).toEqual({ error: NO_CONSOLE_ACCESS });
   });
 
   it("answers 503, not forbidden, when the admin_users read fails", async () => {

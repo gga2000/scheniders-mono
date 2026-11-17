@@ -6,7 +6,14 @@ import { requireAdmin, resolveAdminRole } from "./admin-supabase";
 import { env } from "./admin-env";
 import { AdminAuthError } from "./admin-auth-error";
 import { hasPermission } from "./admin-permissions";
-import { SIGN_IN_ENDED, bearerToken, signInEnded, verifyStaffToken } from "./staff-sign-in";
+import {
+  NO_ACCESS_HEADERS,
+  NO_CONSOLE_ACCESS,
+  SIGN_IN_ENDED,
+  bearerToken,
+  signInEnded,
+  verifyStaffToken,
+} from "./staff-sign-in";
 import type { AdminAction, AdminRole } from "@/types/admin";
 
 export type AdminContext = { user: { id: string; email?: string | null }; role: AdminRole };
@@ -63,10 +70,11 @@ async function adminFromCookies(): Promise<AdminContext | null> {
  */
 function authFailureResponse(error: unknown): NextResponse {
   if (error instanceof AdminAuthError) {
-    return NextResponse.json(
-      { error: error.status === 401 ? "Unauthorized" : "Forbidden" },
-      { status: error.status },
-    );
+    // A 403 here is always "no console access" (resolveAdminRole); a role
+    // missing one permission is answered by forbidden() below instead.
+    return error.status === 401
+      ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      : NextResponse.json({ error: NO_CONSOLE_ACCESS }, { status: 403, headers: NO_ACCESS_HEADERS });
   }
   throw error;
 }
