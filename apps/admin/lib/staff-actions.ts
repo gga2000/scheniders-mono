@@ -52,7 +52,7 @@ const TEAM_WORDS: Record<string, string> = {
 const LEAD_STEPS = new Set(["delete_lead", "reassign_lead"]);
 
 /** The lead form's fields, in the words the form uses (edit_lead rows name them). */
-const LEAD_FIELD_WORDS: Record<string, string> = {
+export const LEAD_FIELD_WORDS: Record<string, string> = {
   merchant_name: "name",
   industry_id: "industry",
   industry_detail: "industry detail",
@@ -125,7 +125,7 @@ function editLeadText(details: Record<string, unknown> | null): string {
 }
 
 /** The industry Edit row's fields, in the row's words (edited industry rows name them). */
-const INDUSTRY_FIELD_WORDS: Record<string, string> = {
+export const INDUSTRY_FIELD_WORDS: Record<string, string> = {
   name: "name",
   name_ar: "Arabic name",
   icon: "icon",
