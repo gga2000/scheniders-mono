@@ -439,9 +439,14 @@ export const SHOP_PROBLEM_LABELS: Record<ShopProblemCode, string> = {
   trial_ending: "Trial ends soon",
 };
 
-/** The first lines staff can send, in the merchant's Arabic; they edit before sending. */
+/**
+ * The first lines staff can send, in the merchant's Arabic; they edit before
+ * sending. Only staff pause a store (super admin, on the shop page), and a
+ * pause may leave new orders on, so the store_paused line says we paused it
+ * and nothing about orders (words agreed with support, 17 Nov).
+ */
 export const SHOP_PROBLEM_OPENERS: Record<ShopProblemCode, string> = {
-  store_paused: "هلا، لاحظنا أن متجرك متوقف حالياً وما يستقبل طلبات جديدة. نكدر نساعدك ترجعه يشتغل؟",
+  store_paused: "هلا، متجرك موقوف مؤقتاً من طرفنا. خلّينا نحجي عنه ونشوف شنو نحتاج حتى نرفع الإيقاف.",
   billing_locked: "هلا، لاحظنا أن متجرك مقفل بسبب الاشتراك. إذا تحتاج مساعدة بالدفع أو عندك سؤال، احنا هنا.",
   wallet_empty: "هلا، رصيد محفظتك خلص، فالطلبات الجديدة راح تتوقف. تحب نساعدك بالتعبئة؟",
   whatsapp_paused: "هلا، رسائل الواتساب لزبائنك متوقفة لأن أغلبها ما وصل. خلي نرتبها سوا حتى ترجع توصل.",
