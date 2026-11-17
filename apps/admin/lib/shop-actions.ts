@@ -65,13 +65,25 @@ export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
 }
 
 /**
- * What Reactivate does to a shop on hold. A trial that was never paid comes
- * back as a trial (admin_update_shop), and once that trial has ended the
- * billing lock holds it until it pays; any other shop comes back active and
- * its monthly fee is charged as usual.
+ * What a shop on hold comes back as when reactivated. A trial that was never
+ * paid comes back as a trial (admin_update_shop). Any other shop comes back
+ * active; one whose last month is unpaid (its subscription past_due) is locked
+ * again at once by tenant_billing_lock, until its wallet covers the month.
+ * The internal plan never locks.
  */
-export function reactivateWords(reopensAsTrial: boolean, trialEndsAt: string | null, now: Date): string {
-  if (!reopensAsTrial) return "The shop is active again now, and its monthly fee is charged as usual.";
+export type Comeback = "trial" | "active" | "active_unpaid";
+
+export function reactivateComeback(neverPaid: boolean, subscriptionStatus: string | null | undefined, plan: string | null): Comeback {
+  if (neverPaid) return "trial";
+  return subscriptionStatus === "past_due" && plan !== "internal" ? "active_unpaid" : "active";
+}
+
+/** What Reactivate does to a shop on hold, said before it is pressed. */
+export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, now: Date): string {
+  if (comeback === "active") return "The shop is active again now, and its monthly fee is charged as usual.";
+  if (comeback === "active_unpaid") {
+    return "The shop is active again now, but its last month is not paid, so it stays locked until its wallet covers the month.";
+  }
   const ended = trialEndsAt !== null && Date.parse(trialEndsAt) <= now.getTime();
   return ended
     ? "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays."

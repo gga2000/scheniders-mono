@@ -5,6 +5,7 @@ import {
   freeDaysKind,
   isSubscriptionRunning,
   moreActions,
+  reactivateComeback,
   reactivateWords,
   renewalWords,
   shopFormFrom,
@@ -99,18 +100,45 @@ describe("what Reactivate says", () => {
   const now = new Date("2026-11-16T09:00:00Z");
 
   it("says a shop that paid comes back active and is charged as usual", () => {
-    expect(reactivateWords(false, "2026-11-01T09:00:00Z", now)).toBe(
+    expect(reactivateWords("active", "2026-11-01T09:00:00Z", now)).toBe(
       "The shop is active again now, and its monthly fee is charged as usual.",
     );
   });
 
   it("says a trial that was never paid comes back as a trial, locked once it has ended", () => {
-    expect(reactivateWords(true, "2026-11-10T09:00:00Z", now)).toBe(
+    expect(reactivateWords("trial", "2026-11-10T09:00:00Z", now)).toBe(
       "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays.",
     );
-    expect(reactivateWords(true, "2026-11-20T09:00:00Z", now)).toBe(
+    expect(reactivateWords("trial", "2026-11-20T09:00:00Z", now)).toBe(
       "The shop goes back to its trial now: its trial was never paid.",
     );
+  });
+
+  it("says a shop whose last month is unpaid comes back locked until its wallet covers the month", () => {
+    expect(reactivateWords("active_unpaid", null, now)).toBe(
+      "The shop is active again now, but its last month is not paid, so it stays locked until its wallet covers the month.",
+    );
+  });
+});
+
+/*
+ * Round 15: admin_update_shop saves Active for a held shop that is not a never-
+ * paid trial, and tenant_billing_lock locks an active shop whose subscription
+ * is past_due at once (never the internal plan).
+ */
+describe("what a shop on hold comes back as", () => {
+  it("a trial never paid comes back as a trial", () => {
+    expect(reactivateComeback(true, "trialing", "starter")).toBe("trial");
+  });
+
+  it("a paid shop whose last month is unpaid comes back active and locked", () => {
+    expect(reactivateComeback(false, "past_due", "starter")).toBe("active_unpaid");
+  });
+
+  it("a paid shop in good standing, or on the internal plan, comes back active", () => {
+    expect(reactivateComeback(false, "active", "starter")).toBe("active");
+    expect(reactivateComeback(false, null, "starter")).toBe("active");
+    expect(reactivateComeback(false, "past_due", "internal")).toBe("active");
   });
 });
 
