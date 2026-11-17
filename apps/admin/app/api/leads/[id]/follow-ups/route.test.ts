@@ -19,6 +19,12 @@ vi.mock("@/lib/api-auth", () => ({
 
 const inserted: Record<string, unknown>[] = [];
 let activeStaff: string[];
+/** What the insert answers with (null: it is saved). */
+let insertError: { code: string; message: string } | null;
+/** What the lead's next follow-up update answers with. */
+let leadUpdateError: { message: string } | null;
+/** The next follow-up time written to the lead, if any. */
+let nextFollowUp: unknown;
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
@@ -46,9 +52,14 @@ vi.mock("@/lib/admin-supabase", () => ({
         eq: () => chain,
         order: () => chain,
         limit: () => chain,
-        update: () => chain,
-        single: () => Promise.resolve({ data: { id: "f1", scheduled_at: "2026-11-05T10:00:00Z" }, error: null }),
-        then: (resolve: (v: unknown) => unknown) => resolve({ data: null, error: null }),
+        update: (row: Record<string, unknown>) => {
+          if (table === "leads") nextFollowUp = row.next_follow_up_at;
+          return chain;
+        },
+        single: () =>
+          Promise.resolve(insertError ? { data: null, error: insertError } : { data: { id: "f1", scheduled_at: "2026-11-05T10:00:00Z" }, error: null }),
+        maybeSingle: () => Promise.resolve({ data: { scheduled_at: "2026-11-05T10:00:00Z" }, error: null }),
+        then: (resolve: (v: unknown) => unknown) => resolve({ data: null, error: table === "leads" ? leadUpdateError : null }),
       };
       return chain;
     },
@@ -70,7 +81,11 @@ const call = (body: Record<string, unknown>) =>
 beforeEach(() => {
   inserted.length = 0;
   activeStaff = [OTHER_ID];
-  vi.spyOn(console, "error").mockImplementation(() => {});
+  insertError = null;
+  leadUpdateError = null;
+  nextFollowUp = undefined;
+  // Calls are counted per test: "logs nothing" means in this test.
+  vi.spyOn(console, "error").mockImplementation(() => {}).mockClear();
 });
 
 describe("POST /api/leads/[id]/follow-ups", () => {
@@ -91,6 +106,35 @@ describe("POST /api/leads/[id]/follow-ups", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "A follow-up can only go to an active staff member." });
     expect(inserted).toEqual([]);
+  });
+
+  it("sets the lead's next follow-up to the earliest open one", async () => {
+    const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
+    expect(res.status).toBe(201);
+    expect(nextFollowUp).toBe("2026-11-05T10:00:00Z");
+  });
+
+  // Round 16 (Data new 2): a lead a colleague deleted answered 500 "Failed to
+  // create follow-up", with a false error in Sentry.
+  it("says the lead was deleted, in the words of every other save, and logs nothing", async () => {
+    insertError = {
+      code: "23503",
+      message: 'insert or update on table "lead_follow_ups" violates foreign key constraint "lead_follow_ups_lead_id_fkey"',
+    };
+    const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "This lead was deleted. Changes here can no longer be saved." });
+    expect(console.error).not.toHaveBeenCalled();
+    expect(nextFollowUp).toBeUndefined();
+  });
+
+  // Round 16 (Data new 2): a failed update of the lead's date answered 201,
+  // and the lead list kept the old time.
+  it("does not answer saved when the lead's next follow-up could not be set", async () => {
+    leadUpdateError = { message: "timeout" };
+    const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
+    expect(res.status).toBe(500);
+    expect(console.error).toHaveBeenCalled();
   });
 
   it("refuses a follow-up with no title or no time", async () => {

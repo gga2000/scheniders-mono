@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
+import { LEAD_GONE } from "@/lib/lead-update";
+import { setNextFollowUp } from "@/lib/lead-next-follow-up";
 
 // What a follow-up change may carry. The console sends { is_completed: true };
 // who completed it comes from the sign-in, never from the body.
@@ -54,24 +56,14 @@ export async function PATCH(
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return NextResponse.json({ error: "This follow-up no longer exists." }, { status: 404 });
+    if (!data) {
+      // Deleting a lead deletes its follow-ups: say which one is gone.
+      const { data: lead, error: leadReadError } = await supabase.from("leads").select("id").eq("id", id).maybeSingle();
+      if (leadReadError) throw leadReadError;
+      return NextResponse.json({ error: lead ? "This follow-up no longer exists." : LEAD_GONE }, { status: 404 });
+    }
 
-    // Recalculate next_follow_up_at
-    const { data: earliest, error: earliestError } = await supabase
-      .from("lead_follow_ups")
-      .select("scheduled_at")
-      .eq("lead_id", id)
-      .eq("is_completed", false)
-      .order("scheduled_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (earliestError) throw earliestError;
-
-    const { error: leadError } = await supabase
-      .from("leads")
-      .update({ next_follow_up_at: earliest?.scheduled_at ?? null })
-      .eq("id", id);
-    if (leadError) throw leadError;
+    await setNextFollowUp(supabase, id);
 
     return NextResponse.json({ follow_up: data });
   } catch (error) {
