@@ -20,6 +20,8 @@ const stats: MerchantsStats = {
   unknown_city: 1250,
 };
 vi.mock("@/hooks/use-merchants-stats", () => ({ useMerchantsStats: () => ({ data: stats, isError: false }) }));
+// The Pipeline lets a card move only for a role with change_plan.
+vi.mock("@/hooks/use-admin-auth", () => ({ useCan: () => () => true }));
 
 const { MerchantsMapView } = await import("./merchants-map-view");
 const { MerchantsKanbanView } = await import("./merchants-kanban-view");

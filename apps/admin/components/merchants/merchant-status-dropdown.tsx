@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCan } from "@/hooks/use-admin-auth";
 import type { TenantStatus } from "@/types/admin";
 
 const STATUS_OPTIONS: Array<{
@@ -48,6 +49,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   const [confirmAction, setConfirmAction] = useState<TenantStatus | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const can = useCan();
 
   // Click outside
   useEffect(() => {
@@ -118,6 +120,17 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   };
 
   const current = STATUS_OPTIONS.find((o) => o.value === status);
+
+  // A status change goes through the same PATCH as a plan change, which needs
+  // change_plan; without it the status is shown, not offered.
+  if (!can("change_plan")) {
+    return (
+      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1", statusBadgeStyle[status])}>
+        <span className={cn("w-1.5 h-1.5 rounded-full", current?.dot)} />
+        {current?.label ?? status}
+      </span>
+    );
+  }
 
   return (
     <div ref={ref} className="relative">
