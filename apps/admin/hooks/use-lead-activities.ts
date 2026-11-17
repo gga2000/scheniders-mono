@@ -27,18 +27,16 @@ export function useCreateActivity() {
       activity_type,
       title,
       description,
-      metadata,
     }: {
       leadId: string;
       activity_type: LeadActivityType;
       title: string;
       description?: string;
-      metadata?: Record<string, unknown>;
     }) => {
       const res = await adminFetch(`/api/leads/${leadId}/activities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activity_type, title, description, metadata }),
+        body: JSON.stringify({ activity_type, title, description }),
       });
       if (!res.ok) throw new Error("Failed to create activity");
       return res.json();
