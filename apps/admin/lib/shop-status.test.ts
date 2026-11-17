@@ -17,7 +17,7 @@ function shop(over: {
     tenant: {
       id: "t1", display_id: 100048, business_name: "Dijla Watches", slug: "dijla", plan: "starter", status: "active",
       trial_ends_at: null, branding: null, settings: null, store_config_rev: 2, contact_email: null, contact_phone: null,
-      address: null, city: "Baghdad", created_at: "2026-10-01T00:00:00Z", restrictions: null,
+      address: null, city: "Baghdad", created_at: "2026-10-01T00:00:00Z", restrictions: null, is_demo: false,
       staff_health_score: 80, staff_health_parts: { status: 40, wallet: 20, orders: 20 },
       ...over.tenant,
     },
@@ -30,8 +30,8 @@ function shop(over: {
             current_period_end: "2026-11-19T09:00:00Z", pending_plan: null, plan_change_at: null, auto_renew: true,
             ...over.subscription,
           },
-    planLimits: { plan: "starter", max_orders_per_month: -1, max_team_members: 2, base_price_iqd: 9_000, order_price_iqd: 55, overage_price_iqd: 0, features: {} },
-    billingLock: over.lock ?? null,
+    // What billing_lock_snapshot reads for an unlocked starter shop with no add-on.
+    billingLock: over.lock ?? { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9_000 },
     stoppedBy: over.stoppedBy ?? null,
   };
 }
@@ -44,6 +44,37 @@ describe("shopStatusLine", () => {
       sentence: "Paying. This month runs from Mon 19 Oct to Thu 19 Nov.",
       next: "Next charge 9,000 IQD on Thu 19 Nov.",
     });
+  });
+
+  it("charges what the renewal takes: the plan with its add-ons, not the plan's list price", () => {
+    // A starter shop with one more team member: 9,000 + 5,000.
+    const lock = { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 14_000 };
+    expect(shopStatusLine(shop({ lock, wallet: 10_000 }), now).next).toBe(
+      "Next charge 14,000 IQD on Thu 19 Nov. Wallet 10,000 IQD, short by 4,000 IQD. It locks that day unless money is added.",
+    );
+  });
+
+  it("charges the plan the shop moves to when a change waits for the renewal", () => {
+    const lock = { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "growth", price_iqd: 25_000 };
+    const line = shopStatusLine(shop({ lock, subscription: { pending_plan: "growth" } }), now);
+    expect(line.next).toBe("Next charge 25,000 IQD on Thu 19 Nov.");
+  });
+
+  it("charges a trial's first month with its add-ons", () => {
+    const lock = { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 14_000 };
+    const line = shopStatusLine(shop({ tenant: { status: "trial", trial_ends_at: "2026-11-17T09:00:00Z" }, lock, wallet: 20_000 }), now);
+    expect(line.next).toBe("First charge 14,000 IQD on Tue 17 Nov.");
+  });
+
+  it("never promises a charge to the demo store, which renews at no charge", () => {
+    for (const status of ["active", "trial"]) {
+      expect(shopStatusLine(shop({ tenant: { is_demo: true, status, trial_ends_at: "2026-11-17T09:00:00Z" } }), now)).toEqual({
+        tone: "internal",
+        label: "Demo",
+        sentence: "The demo store. It is never charged.",
+        next: null,
+      });
+    }
   });
 
   it("says how short the wallet is for the next charge", () => {

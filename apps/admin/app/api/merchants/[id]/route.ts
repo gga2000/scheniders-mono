@@ -110,7 +110,7 @@ export async function GET(
       // The health parts, as the list reads them; the score is their sum (lib/shop-health-score).
       supabase
         .from("tenants")
-        .select(`${SHOP_COLUMNS}, store_config_rev, staff_health_parts`)
+        .select(`${SHOP_COLUMNS}, store_config_rev, staff_health_parts, is_demo`)
         .eq("id", id)
         .single(),
       // A shop built from a lead may have no wallet or subscription yet: no row is not an error.

@@ -39,6 +39,8 @@ export interface MerchantDetail {
     city: string | null;
     created_at: string;
     is_prospect?: boolean;
+    /** The demo store (Fermi B13): never charged. */
+    is_demo: boolean;
     prospect_lead_id?: string | null;
     restrictions?: TenantRestrictions | null;
     /** 0 to 100, worked out by the database, the same number as in the list. */
