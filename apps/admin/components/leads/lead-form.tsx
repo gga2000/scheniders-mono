@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/format";
 import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
@@ -51,14 +51,21 @@ import { LeadIndustryManager } from "./lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
+  type LeadFormSubmitResult,
 } from "./use-lead-form-controller";
 
 interface LeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Persist the lead. Resolve `true` on success, `false` on failure. */
-  /** `changes`: only the fields that differ from the form as it opened (what an edit sends). */
-  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<boolean> | boolean | void;
+  /**
+   * Persist the lead. Resolve `true` on success, `false` on failure, "unchanged"
+   * when there was nothing to send. `changes`: only the fields that differ from
+   * the form as it opened (what an edit sends).
+   */
+  onSubmit: (
+    data: LeadFormData,
+    changes: Partial<LeadFormData>,
+  ) => Promise<LeadFormSubmitResult> | LeadFormSubmitResult | void;
   initialData?: Partial<LeadFormData>;
   /**
    * If provided, an *accidental* dismissal (Escape / click-outside) with unsaved
@@ -455,8 +462,9 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
 
   // Re-derive what's revealed each time the dialog opens (so editing a lead that
   // already has a website/email/notes/niche shows those fields straight away).
-  useEffect(() => {
-    if (!open) return;
+  // Only on open, like the form itself: a new starting object while open must
+  // not fold away a field this person revealed.
+  const revealSaved = useEffectEvent(() => {
     setShowAutofill(false);
     setShowIndustryDetail(!!initialData?.industry_detail);
     setExtras({
@@ -464,7 +472,10 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
       email: !!initialData?.email,
       notes: !!initialData?.management_info,
     });
-  }, [open, initialData]);
+  });
+  useEffect(() => {
+    if (open) revealSaved();
+  }, [open]);
 
   // ANY dismissal with unsaved content (✕, Cancel, Escape, click-outside) saves
   // a draft rather than losing it — the form is never an accidental dead-end.

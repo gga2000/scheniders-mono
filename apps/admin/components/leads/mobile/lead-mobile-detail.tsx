@@ -304,7 +304,7 @@ export function LeadMobileDetail() {
         onSubmit={(_, changes) =>
           // Only the fields this person changed: a colleague's edit since the form opened stays.
           Object.keys(changes).length === 0
-            ? Promise.resolve(true)
+            ? Promise.resolve("unchanged" as const)
             : updateLead.mutateAsync({ id: lead.id, data: changes }).then(() => true)
         }
       />

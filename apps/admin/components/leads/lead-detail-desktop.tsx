@@ -512,7 +512,7 @@ export function LeadDetailDesktop() {
         onSubmit={(_, changes) =>
           // Only the fields this person changed: a colleague's edit since the form opened stays.
           Object.keys(changes).length === 0
-            ? true
+            ? "unchanged"
             : updateLead.mutateAsync({ id: lead.id, data: changes }).then(() => true)
         }
         initialData={leadToFormData(lead)}
