@@ -849,8 +849,6 @@ describe("every admin API handler is guarded", () => {
   // Routes never call `requireAdmin` directly: its typed AdminAuthError would
   // land in the handler's generic catch and come back as a 500.
   const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin)\(/;
-  // The OAuth callback runs before a session exists; middleware also exempts it.
-  const PUBLIC = new Set(["auth/callback/route.ts GET"]);
 
   const routeFiles = readdirSync(API_DIR, { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(`${path.sep}route.ts`) || f === "route.ts")
@@ -871,7 +869,7 @@ describe("every admin API handler is guarded", () => {
     expect(handlers.length).toBeGreaterThan(50);
   });
 
-  it.each(handlers.filter((h) => !PUBLIC.has(h.key)).map((h) => [h.key, h.body]))(
+  it.each(handlers.map((h) => [h.key, h.body]))(
     "%s calls a guard",
     (_key, body) => {
       expect(body).toMatch(GUARD);
@@ -930,8 +928,6 @@ describe("every role rule is proven from the source", () => {
     "leads/analyze-profile/route.ts POST": "reads a lead's public profile",
     "leads/[id]/route.ts PATCH": "sales work: edit a lead",
     "leads/[id]/activities/route.ts POST": "sales work: log a call or message",
-    "leads/[id]/competitors/route.ts POST": "sales work: note a competitor",
-    "leads/[id]/competitors/route.ts DELETE": "sales work: remove a competitor note",
     "leads/[id]/follow-ups/route.ts POST": "sales work: plan a follow-up",
     "leads/[id]/follow-ups/[fid]/route.ts PATCH": "sales work: mark a follow-up done",
   };

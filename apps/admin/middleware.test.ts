@@ -69,6 +69,13 @@ describe("middleware access check", () => {
     expect((await call("/api/leads")).status).toBe(401);
   });
 
+  // Round 11: /api/auth/* skipped every check for a sign-in return route
+  // nothing used. The route is gone, and no API address is open.
+  it("checks the sign-in on every API address, /api/auth too", async () => {
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+    expect((await call("/api/auth/callback?code=x")).status).toBe(401);
+  });
+
   it("treats a token the auth server rejects as signed out", async () => {
     getUser = { data: { user: null }, error: new AuthApiError("invalid JWT", 401, "bad_jwt") };
     expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login");

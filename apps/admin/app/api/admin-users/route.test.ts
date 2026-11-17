@@ -31,6 +31,10 @@ let profileRow: { id: string; display_name: string } | null;
 let profileLookupError: { message: string } | null;
 let listUsersError: { message: string } | null;
 let created: string[];
+/** A failed read of the admin_users row. */
+let staffReadError: { message: string } | null;
+/** admin_users rows deleted. */
+let deleted: number;
 
 function from(table: string) {
   const builder = {
@@ -39,10 +43,14 @@ function from(table: string) {
     maybeSingle: async () =>
       table === "user_profiles"
         ? { data: profileLookupError ? null : profileRow, error: profileLookupError }
-        : { data: staffRow, error: null },
+        : { data: staffReadError ? null : staffRow, error: staffReadError },
     upsert: async () => {
       upserts.push(table);
       return { error: null };
+    },
+    delete: () => {
+      deleted += 1;
+      return { eq: async () => ({ error: null }) };
     },
     then: (resolve: (answer: { count: number; error: null }) => void) => resolve({ count: 0, error: null }),
   };
@@ -70,7 +78,7 @@ const client = {
 };
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => client }));
 
-const { POST } = await import("./route");
+const { DELETE, POST } = await import("./route");
 const send = (body: unknown) =>
   POST(new NextRequest("http://admin.test/api/admin-users", { method: "POST", body: JSON.stringify(body) }));
 const add = (password: string | null = "new-password-1") =>
@@ -85,6 +93,8 @@ beforeEach(() => {
   profileLookupError = null;
   listUsersError = null;
   created = [];
+  staffReadError = null;
+  deleted = 0;
   logged.length = 0;
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -203,5 +213,28 @@ describe("POST /api/admin-users when a read fails or the form is wrong", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe(error);
     expect(upserts).toEqual([]);
+  });
+});
+
+// Round 11: a failed read of the admin row answered 404 "Not an admin user".
+describe("DELETE /api/admin-users", () => {
+  const remove = () => DELETE(new NextRequest("http://admin.test/api/admin-users?userId=u1", { method: "DELETE" }));
+
+  it("says the read failed, and removes nothing, when the admin row cannot be read", async () => {
+    staffReadError = { message: "timeout" };
+
+    const res = await remove();
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("Could not read this admin. Try again.");
+    expect(deleted).toBe(0);
+    expect(logged).toEqual([]);
+  });
+
+  it("answers 404 for a person who is not staff", async () => {
+    staffRow = null;
+
+    expect((await remove()).status).toBe(404);
+    expect(deleted).toBe(0);
   });
 });

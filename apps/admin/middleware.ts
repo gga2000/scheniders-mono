@@ -59,14 +59,7 @@ async function checkAccess(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isLoginPage = path.startsWith("/login");
-  const isAuthApi = path.startsWith("/api/auth");
   const isApi = path.startsWith("/api/");
-
-  // Public surfaces — bypass auth checks entirely. /api/health is NOT one: it
-  // returns every tenant's name, wallet balance and order volume.
-  if (isAuthApi) {
-    return supabaseResponse;
-  }
 
   // A refreshed session arrives as cookies on supabaseResponse; every other
   // answer must carry them too, or the browser keeps a spent refresh token.

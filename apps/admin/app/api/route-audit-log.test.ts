@@ -55,8 +55,6 @@ const NO_STAFF_LOG: Record<string, string> = {
   "leads/[id]/activities/route.ts POST": "is the lead's own history",
   "leads/[id]/follow-ups/route.ts POST": "a sales reminder on a lead",
   "leads/[id]/follow-ups/[fid]/route.ts PATCH": "a sales reminder on a lead",
-  "leads/[id]/competitors/route.ts POST": "a sales note on a lead",
-  "leads/[id]/competitors/route.ts DELETE": "a sales note on a lead",
   "leads/analyze-profile/route.ts POST": "reads a public profile and saves nothing",
 };
 
