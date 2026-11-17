@@ -331,6 +331,12 @@ export function LeadsDesktopView() {
                 else router.push(`/leads/${leadId}`);
               }}
             />
+            {/* The board holds one page of leads; say so when there are more. */}
+            {total > leads.length && (
+              <p className="mt-3 text-xs text-foreground/70">
+                Showing {formatCount(leads.length)} of {formatCount(total)} leads. Search or filter to find the rest.
+              </p>
+            )}
           </div>
         )}
 

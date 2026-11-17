@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  alreadyDecidedText,
   amountStillOwed,
   EMPTY_PAYMENT_DETAILS,
   paymentDetailsSchema,
@@ -116,5 +117,21 @@ describe("payment details", () => {
     expect(readPaymentDetails(null)).toEqual(EMPTY_PAYMENT_DETAILS);
     expect(readPaymentDetails("text")).toEqual(EMPTY_PAYMENT_DETAILS);
     expect(readPaymentDetails({ qi_card: " 77 ", zain_cash: 123 })).toEqual({ ...EMPTY_PAYMENT_DETAILS, qi_card: "77" });
+  });
+});
+
+describe("alreadyDecidedText", () => {
+  it("says how the receipt was decided before this click", () => {
+    expect(alreadyDecidedText({ error: "Request already decided", outcome: "approved" })).toBe(
+      "This receipt was already approved, so your decision changed nothing.",
+    );
+    expect(alreadyDecidedText({ error: "Request already decided", outcome: "rejected" })).toBe(
+      "This receipt was already refused, so your decision changed nothing.",
+    );
+  });
+
+  it("still says it was decided when the answer does not say how", () => {
+    expect(alreadyDecidedText(null)).toBe("This receipt was already decided, so your decision changed nothing.");
+    expect(alreadyDecidedText({ outcome: "lost" })).toBe("This receipt was already decided, so your decision changed nothing.");
   });
 });
