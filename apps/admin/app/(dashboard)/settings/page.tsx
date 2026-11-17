@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { usePrefetchQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
   Settings,
@@ -30,8 +30,12 @@ export default function SettingsPage() {
   const canEditSettings = role ? hasPermission(role, "update_settings") : false;
   const [isIndustriesOpen, setIsIndustriesOpen] = useState(false);
   // Both are read by every staff member; start them now, not after the role.
-  usePrefetchQuery(paymentDetailsQuery);
-  usePrefetchQuery(signupWhatsAppQuery);
+  // In the browser only: the server render holds no session to read them with.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    void queryClient.prefetchQuery(paymentDetailsQuery);
+    void queryClient.prefetchQuery(signupWhatsAppQuery);
+  }, [queryClient]);
 
   const lastLogin = user?.last_sign_in_at
     ? new Date(user.last_sign_in_at).toLocaleString()
