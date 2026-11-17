@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { leadToFormData } from "@/components/leads/lead-form-data";
 import type { Lead } from "@/types/leads";
-import { leadUpdateSchema } from "./lead-update";
+import { leadPatchSchema, leadUpdateSchema, listsChangedText, staleLists } from "./lead-update";
 
 // A lead as the API returns it, with the empty columns a real row has.
 const stored = {
@@ -70,5 +70,48 @@ describe("leadUpdateSchema", () => {
   it("refuses an owner that is not an id and a negative count", () => {
     expect(leadUpdateSchema.safeParse({ assigned_to: "me" }).success).toBe(false);
     expect(leadUpdateSchema.safeParse({ follower_count: -5 }).success).toBe(false);
+  });
+});
+
+/*
+ * Round 11: phones, tags and branches are saved whole, so a save carries each
+ * list it changed as the form opened it. The rule admin_edit_lead applies.
+ */
+describe("staleLists", () => {
+  const phone = { title: "Owner", number: "07701234567" };
+
+  it("names a list stored now that is not as the form opened it", () => {
+    expect(staleLists({ tags: ["abaya", "called twice"] }, { tags: ["abaya"] })).toEqual(["tags"]);
+    expect(staleLists({ phone_numbers: [phone, phone] }, { phone_numbers: [phone] })).toEqual(["phone_numbers"]);
+  });
+
+  it("reads key order as Postgres does, and no list as an empty one", () => {
+    expect(staleLists({ phone_numbers: [{ number: "07701234567", title: "Owner" }] }, { phone_numbers: [phone] })).toEqual([]);
+    expect(staleLists({ tags: null }, { tags: [] })).toEqual([]);
+    expect(staleLists({ tags: [] }, { tags: null })).toEqual([]);
+  });
+
+  it("compares only the lists the save sent", () => {
+    expect(staleLists({ tags: ["changed"], branches: [] }, { branches: [] })).toEqual([]);
+  });
+});
+
+describe("listsChangedText", () => {
+  it("names the lists in the form's words", () => {
+    expect(listsChangedText(["tags"])).toBe(
+      "A colleague changed this lead's tags while you had it open. Nothing was saved. Open the lead again to see their change, then make yours.",
+    );
+    expect(listsChangedText(["branches", "phone_numbers"])).toMatch(/^A colleague changed this lead's phones and branches /);
+  });
+});
+
+describe("leadPatchSchema", () => {
+  it("takes the lists as they opened, as they came, and nothing else there", () => {
+    const odd = [{ title: "Owner", number: "0770", note: "old shape" }];
+    expect(leadPatchSchema.parse({ tags: ["vip"], was: { tags: null, phone_numbers: odd } })).toEqual({
+      tags: ["vip"],
+      was: { tags: null, phone_numbers: odd },
+    });
+    expect(leadPatchSchema.safeParse({ was: { city: "Kut" } }).success).toBe(false);
   });
 });

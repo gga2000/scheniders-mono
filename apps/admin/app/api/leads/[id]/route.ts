@@ -3,7 +3,7 @@ import { convertedLeadsDeleteMessage, leadConvertedLockResponse, prospectStoreLe
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
-import { editLead, INDUSTRY_GONE, isIndustryGone, leadUpdateSchema } from "@/lib/lead-update";
+import { editLead, INDUSTRY_GONE, isIndustryGone, leadPatchSchema, listsChangedText, staleLists } from "@/lib/lead-update";
 import { changeLeads } from "@/lib/lead-change";
 import { deleteLeads } from "@/lib/lead-delete";
 
@@ -109,11 +109,11 @@ export async function PATCH(
     const { id } = await params;
     const missing = notAnId(id);
     if (missing) return missing;
-    const parsed = leadUpdateSchema.safeParse(await request.json().catch(() => null));
+    const parsed = leadPatchSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid lead" }, { status: 400 });
     }
-    const { status, assigned_to, ...rest } = parsed.data;
+    const { status, assigned_to, was = {}, ...rest } = parsed.data;
     if (status === undefined && assigned_to === undefined && Object.keys(rest).length === 0) {
       return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
     }
@@ -131,6 +131,21 @@ export async function PATCH(
       if (!industry) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
     }
 
+    // A list saved whole (phones, tags, branches) that a colleague changed
+    // since this form opened: refused before anything is saved, so their
+    // change stays. admin_edit_lead checks again under the lead's lock.
+    if (Object.keys(was).length > 0) {
+      const { data: stored, error: storedError } = await supabase
+        .from("leads")
+        .select("phone_numbers, tags, branches")
+        .eq("id", id)
+        .maybeSingle();
+      if (storedError) throw storedError;
+      if (!stored) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+      const stale = staleLists(stored, was);
+      if (stale.length > 0) return NextResponse.json({ error: listsChangedText(stale) }, { status: 409 });
+    }
+
     // Status and owner go through the same rule as the bulk bar
     // (lib/lead-change): compared with what is stored under a lock, so a form
     // save that leaves them alone writes nothing, and a real change writes its
@@ -144,8 +159,10 @@ export async function PATCH(
     // The rest of the form: saved only where it really changed, with one
     // edit_lead staff log row naming those fields, in the same transaction.
     if (Object.keys(rest).length > 0) {
-      const edited = await editLead(supabase, id, rest, admin.user);
+      const edited = await editLead(supabase, id, rest, admin.user, was);
       if (!edited.found) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+      // Changed between the read above and the lock.
+      if (edited.stale?.length) return NextResponse.json({ error: listsChangedText(edited.stale) }, { status: 409 });
     }
 
     const { data: lead, error } = await supabase

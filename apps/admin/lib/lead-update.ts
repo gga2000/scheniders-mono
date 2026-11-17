@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
+import { wordList } from "./word-list";
 
 /**
  * Statuses a person may set by hand. "converted" is not one: a lead becomes
@@ -61,7 +62,58 @@ export const leadUpdateSchema = z
 
 export type LeadUpdate = z.infer<typeof leadUpdateSchema>;
 
-const editedSchema = z.object({ found: z.boolean(), changed: z.array(z.string()) });
+/** The lists a save sends whole (phones, tags, branches). */
+export const LEAD_LISTS = ["phone_numbers", "tags", "branches"] as const;
+export type LeadList = (typeof LEAD_LISTS)[number];
+
+/**
+ * The lists a save changes, as the form opened them (`was` on PATCH). They
+ * are only compared with what is stored, never saved, so they are taken as
+ * they came: a stored phone may hold keys the form does not know.
+ */
+const listsAsOpenedSchema = z
+  .object({
+    phone_numbers: z.array(z.unknown()).nullable(),
+    tags: z.array(z.unknown()).nullable(),
+    branches: z.array(z.unknown()).nullable(),
+  })
+  .partial()
+  .strict();
+
+export type LeadListsAsOpened = z.infer<typeof listsAsOpenedSchema>;
+
+/** PATCH /api/leads/[id]: the changes, and the lists among them as the form opened them. */
+export const leadPatchSchema = leadUpdateSchema.extend({ was: listsAsOpenedSchema.optional() });
+
+/** A list as Postgres compares jsonb: no list is an empty one, and key order does not count. */
+function listKey(value: unknown): string {
+  return JSON.stringify(value ?? [], (_key, v: unknown) =>
+    v !== null && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : v,
+  );
+}
+
+/**
+ * The lists stored now that are not as the form opened them: a colleague
+ * changed them meanwhile. The rule admin_edit_lead applies under the lead's
+ * lock (migration 20261117142441); the route reads it first so a save that
+ * would be refused saves nothing at all, status and owner included.
+ */
+export function staleLists(stored: Partial<Record<LeadList, unknown>>, was: LeadListsAsOpened): LeadList[] {
+  return LEAD_LISTS.filter((list) => list in was && listKey(stored[list]) !== listKey(was[list]));
+}
+
+const LIST_WORDS: Record<LeadList, string> = { phone_numbers: "phones", tags: "tags", branches: "branches" };
+
+/** "A colleague changed this lead's tags while you had it open. ..." */
+export function listsChangedText(lists: readonly string[]): string {
+  const words = LEAD_LISTS.filter((list) => lists.includes(list)).map((list) => LIST_WORDS[list]);
+  const named = words.length > 0 ? wordList(words) : "lists";
+  return `A colleague changed this lead's ${named} while you had it open. Nothing was saved. Open the lead again to see their change, then make yours.`;
+}
+
+const editedSchema = z.object({ found: z.boolean(), changed: z.array(z.string()), stale: z.array(z.string()).optional() });
 
 /**
  * A colleague removed the industry this lead names while its form was open
@@ -83,19 +135,24 @@ export function isIndustryGone(error: unknown): boolean {
  * through changeLeads) with `admin_edit_lead`: under a lock it compares each
  * field with what is stored, saves only a real change, and writes one
  * edit_lead staff log row naming the fields that changed, in the same
- * transaction. A save that changes nothing writes nothing.
+ * transaction. A save that changes nothing writes nothing. With `was`, a list
+ * a colleague changed since the form opened is answered as `stale` and
+ * nothing is saved.
  */
 export async function editLead(
   supabase: ReturnType<typeof createAdminClient>,
   leadId: string,
   changes: Omit<LeadUpdate, "status" | "assigned_to">,
   actor: { id: string; email?: string | null },
+  was: LeadListsAsOpened = {},
 ): Promise<z.infer<typeof editedSchema>> {
   const { data, error } = await supabase.rpc("admin_edit_lead", {
     _lead_id: leadId,
     _changes: changes,
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
+    // Left out when no list is compared: the function's default, no check.
+    ...(Object.keys(was).length > 0 ? { _was: was } : {}),
   });
   if (error) throw error;
   return editedSchema.parse(data);

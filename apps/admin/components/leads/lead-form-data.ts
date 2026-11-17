@@ -1,4 +1,5 @@
 import type { Lead, LeadFormData } from "@/types/leads";
+import { LEAD_LISTS, type LeadListsAsOpened } from "@/lib/lead-update";
 import { normalizeIraqiPhone } from "./lead-phone";
 
 /**
@@ -97,4 +98,13 @@ export function leadFormChanges(opened: LeadFormData, saved: LeadFormData): Part
   };
   for (const key of Object.keys(saved) as (keyof LeadFormData)[]) keep(key);
   return changes;
+}
+
+/**
+ * The lists a save changes (phones, tags, branches), as the form opened them.
+ * They are sent whole, so the server compares these with what is stored and
+ * refuses the save when a colleague changed one meanwhile (round 11).
+ */
+export function listsAsOpened(opened: LeadFormData, changes: Partial<LeadFormData>): LeadListsAsOpened {
+  return Object.fromEntries(LEAD_LISTS.filter((list) => list in changes).map((list) => [list, opened[list]]));
 }

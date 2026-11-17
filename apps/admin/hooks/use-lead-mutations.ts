@@ -5,7 +5,7 @@ import type { LeadFormData, LeadStatus } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { refusal } from "@/lib/refusal";
 import { bulkLeadResultSchema, type BulkLeadBody, type BulkLeadResult } from "@/lib/lead-bulk";
-import { INDUSTRY_GONE } from "@/lib/lead-update";
+import { INDUSTRY_GONE, type LeadListsAsOpened } from "@/lib/lead-update";
 
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -35,11 +35,20 @@ export function useCreateLead() {
 export function useUpdateLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<LeadFormData> & { status?: LeadStatus; is_draft?: boolean } }) => {
+    mutationFn: async ({
+      id,
+      data,
+      was = {},
+    }: {
+      id: string;
+      data: Partial<LeadFormData> & { status?: LeadStatus; is_draft?: boolean };
+      /** The lists in `data` as the form opened them; the server refuses the save if one changed since. */
+      was?: LeadListsAsOpened;
+    }) => {
       const res = await adminFetch(`/api/leads/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(Object.keys(was).length > 0 ? { ...data, was } : data),
       });
       if (!res.ok) throw new Error(await refusal(res, "Could not save the lead."));
       return res.json();
@@ -50,7 +59,10 @@ export function useUpdateLead() {
       qc.invalidateQueries({ queryKey: ["lead-analytics"] });
       qc.invalidateQueries({ queryKey: ["lead-activities", vars.id] });
     },
-    onError: (error) => {
+    // A refused save may mean this copy is out of date (a colleague changed
+    // the lead's lists, or removed its industry): read them again.
+    onError: (error, vars) => {
+      qc.invalidateQueries({ queryKey: ["lead", vars.id] });
       if (error.message === INDUSTRY_GONE) qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });

@@ -193,6 +193,61 @@ describe("PATCH /api/leads/[id]", () => {
     expect((await res.json()).error).toBe(INDUSTRY_GONE);
   });
 
+  /*
+   * Round 11: a list is saved whole. Noor tagged the lead "called twice"
+   * while Ali's form was open with ["abaya"]; Ali's tags, read before hers,
+   * replaced them. A save now sends the lists it changed as they opened.
+   */
+  it("refuses a list a colleague changed since the form opened, and saves nothing, not even the status", async () => {
+    stored = { id: LEAD, phone_numbers: [], tags: ["abaya", "called twice"], branches: [] };
+
+    const res = await patch({ status: "contacted", tags: ["abaya", "vip"], was: { tags: ["abaya"] } });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(
+      "A colleague changed this lead's tags while you had it open. Nothing was saved. Open the lead again to see their change, then make yours.",
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("saves a list that is as it opened, and has the database check it again under the lock", async () => {
+    const phones = [{ title: "Owner", number: "07701234567" }];
+    stored = { id: LEAD, phone_numbers: [{ number: "07701234567", title: "Owner" }], tags: null, branches: [] };
+
+    const res = await patch({ tags: ["vip"], phone_numbers: [], was: { tags: [], phone_numbers: phones } });
+
+    expect(res.status).toBe(200);
+    expect(calls).toEqual([
+      {
+        fn: "admin_edit_lead",
+        args: {
+          _lead_id: LEAD,
+          _changes: { tags: ["vip"], phone_numbers: [] },
+          _admin_user_id: "a1",
+          _actor_email: "a@b.co",
+          _was: { tags: [], phone_numbers: phones },
+        },
+      },
+    ]);
+  });
+
+  it("says so when the list changes between that check and the lock", async () => {
+    stored = { id: LEAD, phone_numbers: [], tags: [], branches: [] };
+    editAnswer = { data: { found: true, changed: [], stale: ["branches", "phone_numbers"] }, error: null };
+
+    const res = await patch({ phone_numbers: [], branches: [], was: { phone_numbers: [], branches: [] } });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/^A colleague changed this lead's phones and branches while you had it open/);
+  });
+
+  it("refuses a field other than the lists in the copy as it opened", async () => {
+    const res = await patch({ city: "Basra", was: { city: "Baghdad" } });
+
+    expect(res.status).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
   it("saves an industry that is there, and no industry at all", async () => {
     expect((await patch({ industry_id: CAFES })).status).toBe(200);
     expect((await patch({ industry_id: null })).status).toBe(200);

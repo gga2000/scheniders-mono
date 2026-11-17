@@ -10,7 +10,7 @@ vi.mock("@/lib/admin-fetch", () => ({ adminFetch: vi.fn() }));
 
 import { useLeadFormController, type LeadFormSubmitResult } from "./use-lead-form-controller";
 
-type Submit = (data: LeadFormData, changes: Partial<LeadFormData>) => Promise<LeadFormSubmitResult>;
+type Submit = (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => Promise<LeadFormSubmitResult>;
 
 interface Props {
   open: boolean;
@@ -62,6 +62,8 @@ describe("useLeadFormController: the form starts over only when it opens", () =>
     await act(() => result.current.submit(false));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][1]).toEqual({ management_name: "Typed by me" });
+    // The form as it opened goes with it, so a list it changed carries the copy it changed.
+    expect(onSubmit.mock.calls[0][2]).toMatchObject({ management_name: "Owner", page_phone: "07701234567" });
   });
 
   it("keeps what was typed when the save fails while the host renders again", async () => {

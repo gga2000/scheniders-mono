@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LeadFormData } from "@/types/leads";
 import { DEFAULT_FORM } from "./use-lead-form-controller";
-import { leadFormChanges, normalizeLeadForm } from "./lead-form-data";
+import { leadFormChanges, listsAsOpened, normalizeLeadForm } from "./lead-form-data";
 
 /*
  * Round 6: the lead edit form sent every field on save, so a colleague's
@@ -57,6 +57,14 @@ describe("what a lead form save sends", () => {
   it("sends a changed list whole", () => {
     const saved = normalizeLeadForm({ ...stored, tags: ["perfume", "vip"] });
     expect(leadFormChanges(stored, saved)).toEqual({ tags: ["perfume", "vip"] });
+  });
+
+  // Round 11: so the server can tell a colleague's change to the list from this one.
+  it("sends each changed list with the copy it opened as, as stored", () => {
+    const saved = normalizeLeadForm({ ...stored, tags: ["perfume", "vip"], phone_numbers: [] });
+    const changes = leadFormChanges(stored, saved);
+    expect(listsAsOpened(stored, changes)).toEqual({ tags: ["perfume"], phone_numbers: [{ title: " Sales ", number: "07701234568" }] });
+    expect(listsAsOpened(stored, { priority: "high" })).toEqual({});
   });
 });
 

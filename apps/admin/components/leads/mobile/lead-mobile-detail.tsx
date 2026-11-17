@@ -36,7 +36,7 @@ import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
 import { QuickNoteSheet } from "@/components/leads/mobile/quick-note-sheet";
 import { AdvanceStageSheet } from "@/components/leads/mobile/advance-stage-sheet";
 import { LeadRegisterSheet } from "@/components/leads/mobile/lead-register-sheet";
-import { leadToFormData } from "@/components/leads/lead-form-data";
+import { leadToFormData, listsAsOpened } from "@/components/leads/lead-form-data";
 import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
 import { useUpdateLead } from "@/hooks/use-lead-mutations";
 
@@ -301,11 +301,12 @@ export function LeadMobileDetail() {
         open={editOpen}
         onOpenChange={setEditOpen}
         initialData={leadToFormData(lead)}
-        onSubmit={(_, changes) =>
+        onSubmit={(_, changes, opened) =>
           // Only the fields this person changed: a colleague's edit since the form opened stays.
+          // A list is sent whole, so it goes with the copy it was changed from.
           Object.keys(changes).length === 0
             ? Promise.resolve("unchanged" as const)
-            : updateLead.mutateAsync({ id: lead.id, data: changes }).then(() => true)
+            : updateLead.mutateAsync({ id: lead.id, data: changes, was: listsAsOpened(opened, changes) }).then(() => true)
         }
       />
       <QuickNoteSheet
