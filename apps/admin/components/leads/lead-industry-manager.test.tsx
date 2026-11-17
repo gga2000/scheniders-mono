@@ -27,7 +27,8 @@ vi.mock("@/lib/admin-fetch", () => ({
   },
 }));
 const toastError = vi.fn();
-vi.mock("sonner", () => ({ toast: { error: (m: string) => toastError(m), success: vi.fn() } }));
+const toastSuccess = vi.fn();
+vi.mock("sonner", () => ({ toast: { error: (m: string) => toastError(m), success: (m: string) => toastSuccess(m) } }));
 
 const { LeadIndustryManager } = await import("./lead-industry-manager");
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
@@ -46,6 +47,7 @@ beforeEach(() => {
   requests = [];
   answer = () => new Response(JSON.stringify({ place: 2, of: 3 }));
   toastError.mockReset();
+  toastSuccess.mockReset();
 });
 afterEach(cleanup);
 
@@ -69,5 +71,47 @@ describe("LeadIndustryManager moves", () => {
 
     expect(requests).toEqual([`POST /api/industries/${list[2].id}/move {"direction":"up"}`]);
     expect(toastError).toHaveBeenCalledWith('Could not move "Fashion": This industry no longer exists.');
+  });
+});
+
+/*
+ * Delete asked "This industry will be permanently removed" every time (the
+ * lead count was a placeholder, always 0), while the server switched off an
+ * industry leads use. Now the dialog says both cases and staff are told which
+ * one happened.
+ */
+describe("LeadIndustryManager delete", () => {
+  async function pressDelete(name: string) {
+    await open();
+    fireEvent.click(await screen.findByRole("button", { name: `Delete ${name}` }));
+    expect(screen.getByText(/If leads use it, it is switched off instead and those leads keep it\./)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await settle();
+  }
+
+  it("says an industry leads use was switched off, not removed", async () => {
+    answer = () => new Response(JSON.stringify({ result: "switched_off", leads_using_it: 3 }));
+
+    await pressDelete("Fashion");
+
+    expect(requests).toEqual([`DELETE /api/industries/${list[2].id} `]);
+    expect(toastSuccess).toHaveBeenCalledWith('"Fashion" switched off. 3 leads still use it, so it was not removed.');
+  });
+
+  it("says an industry no lead uses was removed", async () => {
+    answer = () => new Response(JSON.stringify({ result: "removed" }));
+
+    await pressDelete("Tools");
+
+    expect(toastSuccess).toHaveBeenCalledWith('"Tools" removed.');
+  });
+
+  it("says why when the server refuses", async () => {
+    answer = () => new Response(JSON.stringify({ error: "This industry no longer exists." }), { status: 404 });
+
+    await pressDelete("Perfume");
+
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith("This industry no longer exists.");
   });
 });

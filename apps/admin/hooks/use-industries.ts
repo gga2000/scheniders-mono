@@ -81,15 +81,19 @@ export function useMoveIndustry() {
   });
 }
 
+/** What Delete did: an industry leads use is switched off, and they keep it. */
+export type IndustryRemoval = { result: "removed" } | { result: "switched_off"; leads_using_it: number };
+
 export function useDeleteIndustry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: string): Promise<IndustryRemoval> => {
       const res = await adminFetch(`/api/industries/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await refusal(res, "Could not delete the industry."));
       return res.json();
     },
-    onSuccess: () => {
+    // A refused delete ("no longer exists") also means the list is out of date.
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });
