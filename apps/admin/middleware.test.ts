@@ -227,6 +227,13 @@ describe("which addresses the middleware sees", () => {
     const skipped = ["/_next/static/chunks/app.js", "/_next/image?url=x", "/_vercel/insights/script.js", "/favicon.ico", "/support-sw.js"];
     for (const url of skipped) expect(sees(url), url).toBe(false);
   });
+
+  it("skips those by their whole name, not by how an address starts", () => {
+    // Round 12: "/favicon.icox" got no script policy and a bare 404.
+    const seen = ["/favicon.icox", "/favicon.ico/x", "/faviconXico", "/_vercelx", "/_next/staticx", "/_next/imagex", "/support-sw.jsx", "/support-swXjs"];
+    for (const url of seen) expect(sees(url), url).toBe(true);
+    expect(sees("/_vercel/x"), "/_vercel/x").toBe(false);
+  });
 });
 
 describe("browser cache", () => {

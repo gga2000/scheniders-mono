@@ -164,7 +164,9 @@ function checkFailedPage(retryPath: string): string {
 
 // The console serves no images of its own (public/ holds only the alerts
 // worker), so every other address, whatever it ends in, gets the access check
-// and the script policy: /merchants/x.png is still the console.
+// and the script policy: /merchants/x.png is still the console. Each skipped
+// address is matched whole (a folder with its slash, a file to its end):
+// "/favicon.icox" or "/_vercelx" is a console address like any other.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|_vercel|favicon.ico|support-sw\\.js).*)"],
+  matcher: ["/((?!_next/static/|_next/image$|_vercel/|favicon\\.ico$|support-sw\\.js$).*)"],
 };
