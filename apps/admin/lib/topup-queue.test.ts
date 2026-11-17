@@ -47,6 +47,12 @@ describe("lockedChip", () => {
     );
   });
 
+  it("says what a paused shop that is short still needs before the pause lifts", () => {
+    expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "limited" })).toBe(
+      "Locked, month unpaid · paused; needs 7,800 IQD, then opens once the pause lifts",
+    );
+  });
+
   it("is nothing for a shop that is not locked", () => {
     expect(lockedChip({ billing: { ...billing, locked: false, reason: null }, balance_iqd: 0, tenant_status: "limited" })).toBeNull();
     expect(lockedChip({ billing: null, balance_iqd: 0, tenant_status: "active" })).toBeNull();

@@ -88,13 +88,18 @@ export function amountStillOwed(row: Pick<TopupQueueRow, "billing" | "balance_iq
 /**
  * The locked chip on a payment: why it is locked and what opens it. A paused
  * shop's lock does not open with money until the pause lifts
- * (settle_billing_lock answers on_hold); null when the shop is not locked.
+ * (settle_billing_lock answers on_hold), and a short wallet still has to be
+ * paid first, so a paused shop says both; null when the shop is not locked.
  */
 export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | "tenant_status">): string | null {
   if (!row.billing?.locked) return null;
   const why = row.billing.reason === "unpaid" ? "Locked, month unpaid" : "Locked, trial ended";
-  if (row.tenant_status === "limited") return `${why} · paused, opens once the pause lifts`;
   const owed = amountStillOwed(row);
+  if (row.tenant_status === "limited") {
+    return owed > 0
+      ? `${why} · paused; needs ${formatIQD(owed)}, then opens once the pause lifts`
+      : `${why} · paused, opens once the pause lifts`;
+  }
   return owed > 0 ? `${why} · needs ${formatIQD(owed)} to open` : `${why} · this payment opens it`;
 }
 
