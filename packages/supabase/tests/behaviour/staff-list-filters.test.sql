@@ -4,7 +4,8 @@
 -- =============================================================================
 --
 -- WHAT THIS PROVES (after the staff_list_filters, staff_health_parts,
--- staff_locked_tab and staff_needs_attention_back migrations)
+-- staff_locked_tab, staff_needs_attention_back and
+-- staff_attention_paused_trial migrations)
 --   Access:
 --     * anon and authenticated can run none of the five; the service role can.
 --   Wallet balance:
@@ -12,7 +13,10 @@
 --   Needs attention (the old Merchants page's filter and stats strip):
 --     * a paying shop with money does not;
 --     * a paused shop and a cancelled shop do, whatever is in the wallet;
---     * a trial that ends within 3 days does, one that ends later does not;
+--     * a trial that ends within 3 Baghdad days does (23:59 on the third day
+--       too), one that ends later does not (00:01 on the fourth day);
+--     * a paused trial is a trial: ending in 2 days it does, in 4 days not;
+--       a paused paying shop with an old trial date does not;
 --     * under 5,000 IQD does, exactly 5,000 does not;
 --     * a locked shop does even with a full wallet: a trial that ended unpaid,
 --       and a paying shop whose month is unpaid.
@@ -84,6 +88,7 @@ CREATE TEMP TABLE tt_shops (
     status public.tenant_status NOT NULL,
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     trial_ends_at timestamptz,
+    restrictions jsonb NOT NULL DEFAULT '{}',
     balance numeric,          -- NULL: the shop has no wallet row
     orders integer,           -- NULL: the shop has no order at all
     want_attention boolean NOT NULL,
@@ -115,10 +120,20 @@ INSERT INTO tt_shops (name, status, plan, trial_ends_at, balance, orders, want_a
     ('internal, old trial date',         'trial',     'internal', now() - interval '300 days', 80000,  3,    true, false, 75),
     ('internal, paying',                 'active',    'internal', NULL,                        80000,  3,    false, false, 85),
     -- locked for an unpaid month with a full wallet
-    ('paying, month unpaid, full',       'active',    'growth',  NULL,                         80000,  60,   true, true,  95);
+    ('paying, month unpaid, full',       'active',    'growth',  NULL,                         80000,  60,   true, true,  95),
+    -- "ending" is 3 days on the Baghdad calendar, not 72 hours
+    ('trial, ends 23:59 on day 3',       'trial',     'starter', (((now() AT TIME ZONE 'Asia/Baghdad')::date + 3) + time '23:59') AT TIME ZONE 'Asia/Baghdad', 20000, 3, true, false, 65),
+    ('trial, ends 00:01 on day 4',       'trial',     'starter', (((now() AT TIME ZONE 'Asia/Baghdad')::date + 4) + time '00:01') AT TIME ZONE 'Asia/Baghdad', 20000, 3, false, false, 65),
+    -- paused: a paused trial is still a trial (restrictions set below)
+    ('paused trial, ends in 2 days',     'limited',   'starter', now() + interval '2 days',    20000,  3,    true, false, 60),
+    ('paused trial, ends in 4 days',     'limited',   'starter', now() + interval '4 days',    20000,  3,    false, false, 60),
+    ('paused paying, old trial date',    'limited',   'starter', now() - interval '300 days',  20000,  3,    false, false, 60);
 
-INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at)
-SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at FROM tt_shops s;
+UPDATE tt_shops SET restrictions = '{"status_before": "trial"}' WHERE name LIKE 'paused trial,%';
+UPDATE tt_shops SET restrictions = '{"status_before": "active"}' WHERE name = 'paused paying, old trial date';
+
+INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, restrictions)
+SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at, s.restrictions FROM tt_shops s;
 
 INSERT INTO public.wallet (tenant_id, balance_iqd)
 SELECT s.id, s.balance FROM tt_shops s WHERE s.balance IS NOT NULL;
@@ -222,7 +237,7 @@ BEGIN
     SELECT count(*) INTO _low FROM public.tenants t WHERE t.staff_wallet_balance < 10000 AND t.slug LIKE 'tt-%';
     SELECT count(*) INTO _at_risk FROM public.tenants t WHERE t.staff_health_score < 40 AND t.slug LIKE 'tt-%';
     RESET ROLE;
-    PERFORM pg_temp.check('filter: needs attention finds 9 shops, got ' || _attention, _attention = 9);
+    PERFORM pg_temp.check('filter: needs attention finds 11 shops, got ' || _attention, _attention = 11);
     PERFORM pg_temp.check('filter: locked finds 2 shops, got ' || _locked, _locked = 2);
     PERFORM pg_temp.check('filter: under 10,000 IQD finds 5 shops, got ' || _low, _low = 5);
     -- The wallet part and the balance filter put every shop in the same band.

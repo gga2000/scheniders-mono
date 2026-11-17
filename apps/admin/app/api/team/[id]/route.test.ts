@@ -131,11 +131,17 @@ describe("GET /api/team/[id] failed reads", () => {
   );
 
   it("reads every lead of the person, past the 1,000-row cap", async () => {
-    stub.state.tables.leads = Array.from({ length: 1205 }, (_, i) => ({
-      id: `lead-${String(i).padStart(5, "0")}`,
-      status: i < 5 ? "converted" : "new",
-      prospect_tenant_id: i < 2 ? "shop" : null,
-    }));
+    // Added by the person or handed to them; a colleague's own lead is not theirs.
+    stub.state.tables.leads = [
+      ...Array.from({ length: 1205 }, (_, i) => ({
+        id: `lead-${String(i).padStart(5, "0")}`,
+        status: i < 5 ? "converted" : "new",
+        prospect_tenant_id: i < 2 ? "shop" : null,
+        created_by: i % 2 === 0 ? STAFF : "someone-else",
+        assigned_to: i % 2 === 0 ? null : STAFF,
+      })),
+      { id: "lead-99999", status: "converted", prospect_tenant_id: "shop", created_by: "someone-else", assigned_to: null },
+    ];
     const res = await call(STAFF);
     expect(res.status).toBe(200);
     const { employee } = await res.json();

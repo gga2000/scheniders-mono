@@ -78,6 +78,27 @@ describe("GET /api/trials", () => {
     expect(body.trials[0]).not.toHaveProperty("wallet");
   });
 
+  it("keeps a paused trial, marked paused, and leaves out every other paused or paying shop", async () => {
+    stub.state.tables.tenants = [
+      trial(1, "2026-11-18T09:00:00Z"),
+      // Paused while on trial: its days run on, and it locks at their end.
+      trial(2, "2026-11-17T09:00:00Z", { status: "limited", restrictions: { status_before: "trial", paused_until: "2026-11-20T09:00:00Z" } }),
+      trial(3, "2026-11-30T09:00:00Z", { status: "limited", restrictions: { status_before: "active" } }),
+      trial(4, "2026-11-30T09:00:00Z", { status: "limited", restrictions: {} }),
+      trial(5, "2026-11-30T09:00:00Z", { status: "active" }),
+    ];
+
+    const body = await (await call()).json();
+
+    expect(body.trials.map((t: { id: string; paused: boolean; days_remaining: number }) => [t.id, t.paused, t.days_remaining])).toEqual([
+      ["shop-00002", true, 1],
+      ["shop-00001", false, 2],
+    ]);
+    expect(body.summary).toEqual({ total: 2, expiringSoon: 2, expired: 0, healthy: 0 });
+    // The pause's reason and dates stay on the shop page; the list says only that it is paused.
+    expect(body.trials[0]).not.toHaveProperty("restrictions");
+  });
+
   it("answers 500 when a page of trials fails, not with a short list", async () => {
     stub.state.failing.add("tenants");
     expect((await call()).status).toBe(500);

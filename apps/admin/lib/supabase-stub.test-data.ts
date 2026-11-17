@@ -1,8 +1,9 @@
 /*
  * A stand-in for the Supabase client in route tests. It behaves like the API
  * where that matters for these routes: a read answers with at most 1,000 rows
- * and says nothing when it cut the list; eq(), match(), in(), gt(), gte(), lt()
- * and lte() filter; order() sorts before range() cuts; and a function call goes
+ * and says nothing when it cut the list; eq(), match(), in(), gt(), gte(), lt(),
+ * lte() and or() filter (or() also answers the API's parse error for a filter
+ * it cannot read); order() sorts before range() cuts; and a function call goes
  * to the handler registered for it. So a wrong date window or a wrong sort
  * fails a test instead of passing unseen.
  */
@@ -35,7 +36,9 @@ export function supabaseStub() {
     const builder = {
       select: (...args: unknown[]) => note("select", ...args),
       or: (filter: string) => {
-        if (!apiCanParse(filter)) parseError = `failed to parse logic tree ((${filter}))`;
+        const parts = orParts(filter);
+        if (parts) rows = rows.filter((row) => parts.some((part) => partHolds(row, part)));
+        else parseError = `failed to parse logic tree ((${filter}))`;
         return note("or", filter);
       },
       gt: (column: string, value: unknown) => compareFilter("gt", column, value),
@@ -185,11 +188,12 @@ function matches(field: unknown, operator: string, value: unknown): boolean {
 }
 
 /**
- * Whether the API can read an "or" filter. Every part must be a plain column
- * name, an operator and a value, or and(...) of such parts: the live API
+ * The parts of an "or" filter, or null when the API cannot read it. Every part
+ * must be a column name (or a JSON field of one, "restrictions->>status_before"),
+ * an operator and a value, or and(...) / or(...) of such parts: the live API
  * answers a cast like "display_id::text.ilike.1%" with a parse error.
  */
-function apiCanParse(filter: string): boolean {
+function orParts(filter: string): string[] | null {
   const parts: string[] = [];
   let depth = 0;
   let inQuotes = false;
@@ -212,12 +216,49 @@ function apiCanParse(filter: string): boolean {
     part += ch;
   }
   parts.push(part);
-  if (inQuotes || depth !== 0) return false;
-  return parts.every((one) => {
-    const group = /^(?:and|or)\((.*)\)$/.exec(one);
-    if (group) return apiCanParse(group[1] ?? "");
-    return /^[a-z_][a-z0-9_]*\.(?:not\.)?(?:eq|neq|gt|gte|lt|lte|like|ilike|is|in)\..+$/.test(one);
+  if (inQuotes || depth !== 0) return null;
+  const readable = parts.every((one) => {
+    const group = GROUP.exec(one);
+    return group ? orParts(group[2] ?? "") !== null : LEAF.test(one);
   });
+  return readable ? parts : null;
+}
+
+const GROUP = /^(and|or)\((.*)\)$/;
+const LEAF = /^([a-z_][a-z0-9_]*(?:->>?[a-z_][a-z0-9_]*)*)\.(not\.)?(eq|neq|gt|gte|lt|lte|like|ilike|is|in)\.(.+)$/;
+
+/** Whether one part of a readable "or" filter holds for a row, as Postgres reads it. */
+function partHolds(row: Row, part: string): boolean {
+  const group = GROUP.exec(part);
+  if (group) {
+    const inner = orParts(group[2] ?? "") ?? [];
+    return group[1] === "and" ? inner.every((one) => partHolds(row, one)) : inner.some((one) => partHolds(row, one));
+  }
+  const [, column = "", not, operator = "", raw = ""] = LEAF.exec(part) ?? [];
+  const field = column.split(/->>?/).reduce<unknown>((value, key, i) => (i === 0 ? row[key] : (value as Row | null | undefined)?.[key]), null);
+  const value = raw.startsWith('"') ? raw.slice(1, -1).replace(/\\(.)/g, "$1") : raw;
+  if (operator === "is") {
+    const holds = value === "null" ? field === null || field === undefined : String(field) === value;
+    return not ? !holds : holds;
+  }
+  // Any other comparison with an empty value is neither true nor false in SQL: the row is left out.
+  if (field === null || field === undefined) return false;
+  const text = String(field);
+  let holds: boolean;
+  if (operator === "eq") holds = text === value;
+  else if (operator === "neq") holds = text !== value;
+  else if (operator === "in") holds = value.slice(1, -1).split(",").includes(text);
+  else if (operator === "like" || operator === "ilike") holds = likePattern(value, operator === "ilike").test(text);
+  else holds = matches(typeof field === "number" ? field : text, operator, typeof field === "number" ? Number(value) : value);
+  return not ? !holds : holds;
+}
+
+/** A LIKE pattern as a regular expression: % (or the API's *) is any text, _ one character. */
+function likePattern(pattern: string, ignoreCase: boolean): RegExp {
+  const source = [...pattern]
+    .map((ch) => (ch === "%" || ch === "*" ? ".*" : ch === "_" ? "." : ch.replace(/[.+?^${}()|[\]\\]/g, "\\$&")))
+    .join("");
+  return new RegExp(`^${source}$`, ignoreCase ? "isu" : "su");
 }
 
 /** One row of admin_merchant_list_stats for a shop with nothing. */

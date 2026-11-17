@@ -9,6 +9,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatUntilDay } from "@/lib/format";
 import { isStaffReason } from "@/lib/billing-lock-tools";
+import { effectiveStatus } from "@/lib/effective-status";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { ConfirmButton, postJson } from "./action-ui";
 
@@ -51,7 +52,9 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
     },
   });
 
-  const trialEnd = tenant.status === "trial" ? tenant.trial_ends_at : null;
+  // A paused trial is still a trial: its end day stands, and it has no month yet.
+  const onTrial = effectiveStatus(tenant.status, tenant.restrictions) === "trial";
+  const trialEnd = onTrial ? tenant.trial_ends_at : null;
   if (!trialEnd && !subscription) return null;
 
   // Our own shop is never billed: its month and renewal switch mean nothing.
@@ -76,7 +79,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
             <When end={trialEnd} now={now} soon={soon(trialEnd)} />
           </Fact>
         )}
-        {subscription && tenant.status !== "trial" && (
+        {subscription && !onTrial && (
           <Fact label="This month">
             {formatDay(subscription.current_period_start, now)} to {formatDay(subscription.current_period_end, now)}
             <When end={subscription.current_period_end} now={now} soon={soon(subscription.current_period_end)} />
