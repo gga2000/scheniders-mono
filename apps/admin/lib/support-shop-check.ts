@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { trialClock } from "./baghdad-day";
+import { dayOf, trialClock } from "./baghdad-day";
 import { formatUntilDay } from "./format";
 
 /**
@@ -67,16 +67,17 @@ const DAY_MS = 86_400_000;
 
 const iqd = (amount: number) => `${new Intl.NumberFormat("en-IQ").format(Math.round(amount))} IQD`;
 
-/** "today", "yesterday", "3 days ago"; "in 2 days" for the future. */
+/**
+ * "today", "yesterday", "3 days ago" on the Baghdad calendar, the days the
+ * shop page dates things by: a lock from 23:00 last night is "yesterday" at
+ * 10:00, not "today". "tomorrow" or "in 2 days" for the future.
+ */
 export function daysAgo(iso: string, nowMs: number): string {
-  const days = Math.floor((nowMs - Date.parse(iso)) / DAY_MS);
-  if (days < 0) {
-    const ahead = Math.ceil((Date.parse(iso) - nowMs) / DAY_MS);
-    return ahead <= 1 ? "within a day" : `in ${ahead} days`;
-  }
+  const days = Math.round((Date.parse(dayOf(nowMs)) - Date.parse(dayOf(iso))) / DAY_MS);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
-  return `${days} days ago`;
+  if (days === -1) return "tomorrow";
+  return days > 0 ? `${days} days ago` : `in ${-days} days`;
 }
 
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
