@@ -101,6 +101,7 @@ DECLARE
     _a uuid := gen_random_uuid();
     _b uuid := gen_random_uuid();
     _c uuid := gen_random_uuid();
+    _p uuid := gen_random_uuid();
     _gov1 text := 'TT1-' || left(gen_random_uuid()::text, 8);
     _gov2 text := 'TT2-' || left(gen_random_uuid()::text, 8);
     _city text := 'tt-city-' || left(gen_random_uuid()::text, 8);
@@ -123,6 +124,11 @@ BEGIN
         (_a, 'tt shop a', 'tt-a-' || _a, 'starter', 'active', '2026-11-02 10:00:00+03'),
         (_b, 'tt shop b', 'tt-b-' || _b, 'starter', 'active', '2026-06-15 10:00:00+03'),
         (_c, 'tt shop c', 'tt-c-' || _c, 'internal', 'active', '2026-10-31 22:00:00+00');
+    -- A prospect store built for a lead in November, with a fee: not a customer, in no cohort.
+    INSERT INTO public.tenants (id, business_name, slug, plan, status, created_at, is_prospect) VALUES
+        (_p, 'tt prospect', 'tt-p-' || _p, 'growth', 'trial', '2026-11-03 10:00:00+03', true);
+    INSERT INTO public.wallet_transactions (tenant_id, type, amount_iqd, balance_after_iqd, description, reference_id, created_at) VALUES
+        (_p, 'charge', -9000, 0, 'tt prospect monthly fee', 'subscription:tt-' || _p, '2026-11-04 12:00:00+03');
 
     INSERT INTO public.orders
         (tenant_id, order_id, customer_name, phone, items, price, status, created_at,
@@ -295,8 +301,9 @@ BEGIN
     -- Fees ----------------------------------------------------------------------
     PERFORM pg_temp.check('fees: twelve months, oldest first',
         jsonb_array_length(_i1->'monthly') = 12 AND _i1->'monthly'->11->>'month' = '2026-11' AND _i1->'monthly'->0->>'month' = '2025-12');
+    -- The prospect store's 9,000 is a fee like any other here (shop a's 20,000 plus it); only the cohorts leave it out.
     PERFORM pg_temp.check('fees: November by kind; upgrade and add-on are plan money, the refunded fee is taken off, the reversal and the bare charge are other',
-        pg_temp.num(_i1->'monthly'->11, 'subscription') - pg_temp.num(_i0->'monthly'->11, 'subscription') = 20000
+        pg_temp.num(_i1->'monthly'->11, 'subscription') - pg_temp.num(_i0->'monthly'->11, 'subscription') = 29000
         AND pg_temp.num(_i1->'monthly'->11, 'orders') - pg_temp.num(_i0->'monthly'->11, 'orders') = 55
         AND pg_temp.num(_i1->'monthly'->11, 'whatsapp') - pg_temp.num(_i0->'monthly'->11, 'whatsapp') = 30
         AND pg_temp.num(_i1->'monthly'->11, 'other') - pg_temp.num(_i0->'monthly'->11, 'other') = 26100);
@@ -321,7 +328,7 @@ BEGIN
         ((_i1->'feesDaily7'->>5)::numeric - (_i0->'feesDaily7'->>5)::numeric) = 55
         AND ((_i1->'feesDaily7'->>6)::numeric - (_i0->'feesDaily7'->>6)::numeric) = 30);
     -- Shops a and c both signed up in November on the Baghdad clock.
-    PERFORM pg_temp.check('cohorts: November has both shops and shop a''s fees in month 0',
+    PERFORM pg_temp.check('cohorts: November has both customer shops and shop a''s fees in month 0, not the prospect store or its fee',
         pg_temp.num(pg_temp.pick(_i1->'cohorts', 'cohort', '2026-11'), 'tenants')
         - pg_temp.num(pg_temp.pick(_i0->'cohorts', 'cohort', '2026-11'), 'tenants') = 2
         AND (pg_temp.pick(_i1->'cohorts', 'cohort', '2026-11')->'months'->>0)::numeric
