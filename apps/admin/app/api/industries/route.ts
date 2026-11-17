@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("industries")
       .select("*")
-      .order("sort_order", { ascending: true });
+      // As admin_move_industry reads the list: ties broken the same way, so a
+      // move goes past the neighbour staff see.
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) throw error;
 
