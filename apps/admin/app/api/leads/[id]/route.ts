@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { leadConvertedLockResponse, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
-import { logAdminAction } from "@/lib/activity-logger";
 import { notAnId } from "@/lib/route-id";
 import { leadUpdateSchema } from "@/lib/lead-update";
 import { changeLeads } from "@/lib/lead-change";
+import { deleteLeads } from "@/lib/lead-delete";
 
 // The lead with its industry and, once built, its prospect store's web address
 // (the Store tab shows and copies it).
@@ -166,34 +166,12 @@ export async function DELETE(
 
     // A lead with a prospect store is not deleted: its store would stay online
     // with the business's name, phone and address, and no screen could find
-    // it again. The filter is in the delete itself, so a store built at the
-    // same moment keeps its lead.
-    const { data: removed, error } = await supabase
-      .from("leads")
-      .delete()
-      .eq("id", id)
-      .is("prospect_tenant_id", null)
-      .select("merchant_name")
-      .maybeSingle();
-
-    if (error) throw error;
-
-    if (!removed) {
-      const { data: kept, error: readError } = await supabase
-        .from("leads")
-        .select("merchant_name")
-        .eq("id", id)
-        .not("prospect_tenant_id", "is", null)
-        .maybeSingle();
-      if (readError) throw readError;
-      if (kept) return NextResponse.json({ error: prospectStoreLeadsMessage([kept.merchant_name]) }, { status: 409 });
-    }
-
-    // A deleted lead takes its history with it: this row is what remains.
-    if (removed) {
-      await logAdminAction(admin, "delete_lead", {
-        details: { lead_id: id, merchant_name: removed.merchant_name },
-      });
+    // it again. The database skips such a lead in the delete itself, so a
+    // store built at the same moment keeps its lead, and writes the staff log
+    // row (all that remains of a deleted lead) in the same transaction.
+    const result = await deleteLeads(supabase, [id], admin.user, false);
+    if (result.removed.length === 0 && result.kept_with_store.length > 0) {
+      return NextResponse.json({ error: prospectStoreLeadsMessage(result.kept_with_store) }, { status: 409 });
     }
 
     return NextResponse.json({ success: true });

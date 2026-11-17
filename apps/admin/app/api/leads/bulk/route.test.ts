@@ -27,8 +27,7 @@ vi.mock("@/lib/activity-logger", () => ({ logAdminAction: async (...args: unknow
 const rpc = vi.fn();
 /** Every read and write on leads, as the chain the route built. */
 let reads: Array<{ method: string; args: unknown[] }[]>;
-/** What a delete answers (the rows it removed) and what a read answers. */
-let removedRows: Array<{ id: string; merchant_name: string }>;
+/** What a read of leads answers (the delete is a database call, `rpc`). */
 let storeRows: Array<{ merchant_name: string }>;
 function chain(steps: { method: string; args: unknown[] }[], answer: () => unknown): unknown {
   return new Proxy(() => undefined, {
@@ -48,7 +47,7 @@ vi.mock("@/lib/admin-supabase", () => ({
       const steps: { method: string; args: unknown[] }[] = [];
       reads.push(steps);
       return chain(steps, () => ({
-        data: steps.some((s) => s.method === "delete") ? removedRows : storeRows,
+        data: storeRows,
         error: null,
       }));
     },
@@ -67,7 +66,6 @@ const done = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   role = "support_staff";
   reads = [];
-  removedRows = [];
   storeRows = [];
   logged.length = 0;
   rpc.mockReset();
@@ -162,26 +160,27 @@ describe("POST /api/leads/bulk", () => {
     expect(logged).toEqual([]);
   });
 
-  it("deletes the ticked leads and keeps each name in the log, since their rows are gone", async () => {
+  it("deletes the ticked leads and writes the row naming each in the same database call", async () => {
     role = "super_admin";
-    removedRows = [
+    const removed = [
       { id: LEAD, merchant_name: "Kawkab" },
       { id: LEAD2, merchant_name: "Noor" },
     ];
+    rpc.mockResolvedValue({ data: { removed, kept_with_store: [] }, error: null });
     const res = await call({ action: "delete", lead_ids: [LEAD, LEAD2, LEAD3] });
 
     expect(await res.json()).toEqual({ success: true, found: 2, changed: 2 });
-    // First the check for prospect stores, then the delete, which skips them too.
+    // First the check for prospect stores (it only picks the words), then one
+    // call that deletes, skips a store built meanwhile, and logs.
+    expect(reads).toHaveLength(1);
     expect(reads[0].map((s) => s.method)).toEqual(["select", "in", "not", "order"]);
-    expect(reads[1]).toEqual([
-      { method: "delete", args: [] },
-      { method: "in", args: ["id", [LEAD, LEAD2, LEAD3]] },
-      { method: "is", args: ["prospect_tenant_id", null] },
-      { method: "select", args: ["id, merchant_name"] },
-    ]);
-    expect(logged).toEqual([
-      [expect.anything(), "bulk_leads", { details: { action: "delete", changed: 2, leads: removedRows } }],
-    ]);
+    expect(rpc).toHaveBeenCalledWith("admin_delete_leads", {
+      _lead_ids: [LEAD, LEAD2, LEAD3],
+      _admin_user_id: ME,
+      _actor_email: "me@staff.test",
+      _bulk: true,
+    });
+    expect(logged).toEqual([]);
   });
 
   it("refuses the whole press when a ticked lead has a prospect store, naming it, and deletes nothing", async () => {
@@ -195,12 +194,13 @@ describe("POST /api/leads/bulk", () => {
       '"Kawkab" has a prospect store, so it can\'t be deleted. Untick it and try again. Nothing was deleted.',
     );
     expect(reads[0]).toContainEqual({ method: "not", args: ["prospect_tenant_id", "is", null] });
-    expect(reads.some((steps) => steps.some((s) => s.method === "delete"))).toBe(false);
+    expect(rpc).not.toHaveBeenCalled();
     expect(logged).toEqual([]);
   });
 
-  it("writes no log row when every ticked lead was gone already", async () => {
+  it("answers nothing changed when every ticked lead was gone already", async () => {
     role = "super_admin";
+    rpc.mockResolvedValue({ data: { removed: [], kept_with_store: [] }, error: null });
     const res = await call({ action: "delete", lead_ids: [LEAD] });
 
     expect(await res.json()).toEqual({ success: true, found: 0, changed: 0 });

@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { convertedLeadsMessage, isConvertedLock, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { bulkLeadSchema, type BulkLeadResult } from "@/lib/lead-bulk";
 import { changeLeads, type LeadChange } from "@/lib/lead-change";
+import { deleteLeads } from "@/lib/lead-delete";
 
 type Supabase = ReturnType<typeof createAdminClient>;
 
@@ -90,23 +91,9 @@ async function deleteTicked(supabase: Supabase, admin: AdminContext, leadIds: st
   if (withStore.length > 0) {
     return NextResponse.json({ error: prospectStoreLeadsMessage(withStore, true) }, { status: 409 });
   }
-  const { data, error } = await supabase
-    .from("leads")
-    .delete()
-    .in("id", leadIds)
-    .is("prospect_tenant_id", null)
-    .select("id, merchant_name");
-  if (error) throw error;
-  const removed = data ?? [];
-  if (removed.length > 0) {
-    await logAdminAction(admin, "bulk_leads", {
-      details: {
-        action: "delete",
-        changed: removed.length,
-        leads: removed.map(({ id, merchant_name }) => ({ id, merchant_name })),
-      },
-    });
-  }
+  // The delete skips a lead whose store was built after the check above, and
+  // the staff log row naming each lead is written in the same transaction.
+  const { removed } = await deleteLeads(supabase, leadIds, admin.user, true);
   return answer({ success: true, found: removed.length, changed: removed.length });
 }
 
