@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { trialClock } from "./baghdad-day";
 import { daysAgo, shopCheckLines, ShopCheckSchema, type ShopCheck } from "./support-shop-check";
 
 const NOW = Date.parse("2026-11-16T12:00:00Z");
@@ -152,6 +153,31 @@ describe("shopCheckLines", () => {
       text: "2 errors sent with messages in 7 days. Newest today on /orders: Failed to save",
     });
     expect(errors.href).toContain(`tenant_id%3A${TENANT}`);
+  });
+
+  // Baghdad is UTC+3: 19:00Z is 22:00 there, 02:00Z is 05:00.
+  it.each([
+    ["Mon 22:00 to Thu 23:00 (3 days on Trials)", "2026-11-16T19:00:00Z", "2026-11-19T20:00:00Z", "Taking orders. Trial ends in 3 days.", "look"],
+    ["Mon 05:00 to Tue 08:00 (tomorrow on Trials)", "2026-11-16T02:00:00Z", "2026-11-17T05:00:00Z", "Taking orders. Trial ends tomorrow.", "look"],
+    ["Mon 22:00 to Tue 05:00 (under a day)", "2026-11-16T19:00:00Z", "2026-11-17T02:00:00Z", "Taking orders. Trial ends in 7 h.", "look"],
+    ["Mon 15:00 to Mon a week later", "2026-11-16T12:00:00Z", "2026-11-23T12:00:00Z", "Taking orders. Trial ends in 7 days.", "ok"],
+    ["ended this morning, not locked yet", "2026-11-16T12:00:00Z", "2026-11-16T05:00:00Z", "Trial ended today, not paid yet.", "look"],
+    ["ended two days ago, not locked yet", "2026-11-16T12:00:00Z", "2026-11-14T12:00:00Z", "Trial ended 2 days ago, not paid yet.", "look"],
+  ])("store: a trial %s counts days like Trials", (_name, now, end, text, state) => {
+    const check = healthy();
+    check.store = { ...check.store, status: "trial", trial_ends_at: end };
+    expect(shopCheckLines(check, TENANT, Date.parse(now)).find((l) => l.key === "store")).toMatchObject({ text, state });
+  });
+
+  it("names the same number of days as the Trials page at every hour of a Baghdad day", () => {
+    const end = "2026-11-21T03:30:00Z"; // Sat 06:30 in Baghdad
+    for (let hour = 0; hour < 24; hour += 1) {
+      const now = Date.parse("2026-11-16T00:00:00+03:00") + hour * 3_600_000;
+      const check = healthy();
+      check.store = { ...check.store, status: "trial", trial_ends_at: end };
+      const text = shopCheckLines(check, TENANT, now).find((l) => l.key === "store")?.text;
+      expect(text).toBe(`Taking orders. Trial ends in ${trialClock(end, now).days} days.`);
+    }
   });
 
   it("puts the store first and links to where staff fix it", () => {
