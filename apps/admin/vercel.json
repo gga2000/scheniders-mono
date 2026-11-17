@@ -10,5 +10,11 @@
       "**": false
     }
   },
-  "ignoreCommand": "bash ../../scripts/vercel-ignore-build.sh apps/admin packages/shared packages/supabase/src packages/supabase/package.json packages/ui"
+  "ignoreCommand": "bash ../../scripts/vercel-ignore-build.sh apps/admin packages/shared packages/supabase/src packages/supabase/package.json packages/ui",
+  "crons": [
+    {
+      "path": "/api/cron/hourly-jobs",
+      "schedule": "40 * * * *"
+    }
+  ]
 }

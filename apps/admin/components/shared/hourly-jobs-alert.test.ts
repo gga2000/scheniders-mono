@@ -27,8 +27,8 @@ describe("the hourly jobs row", () => {
     );
   });
 
-  // Round 14 (Reliability new 4): the run's own words, which the route sends to super admins only.
-  it("adds what a failed run said, when the login may read it", () => {
+  // Round 14 (Reliability new 4): the run's own words, which the route sends to every staff role.
+  it("adds what a failed run said", () => {
     const failed = { job: "refresh-lead-scores", problem: "failed", last_run: "2026-11-17T14:27:00Z" } as const;
     expect(jobLine({ ...failed, message: "ERROR: division by zero" }, NOW)).toBe(
       "The lead score refresh failed at Tue 17 Nov, 17:27. It said: ERROR: division by zero",

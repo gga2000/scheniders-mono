@@ -30,7 +30,7 @@ export function hourlyJobsCount(check: HourlyJobsCheck | undefined): number {
   return check ? check.pausesNotLifted.length + check.jobs.length : 0;
 }
 
-/** One line per job in trouble: what happened, when it last ran, and what a failed run said (super admins). */
+/** One line per job in trouble: what happened, when it last ran, and what a failed run said (every staff role). */
 export function jobLine({ job, problem, last_run, message }: JobProblem, now: Date = new Date()): string {
   const name = HOURLY_JOBS[job];
   if (problem === "not_scheduled") return `${name} is not scheduled.`;

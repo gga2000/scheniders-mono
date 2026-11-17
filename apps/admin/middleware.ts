@@ -53,6 +53,15 @@ async function checkAccess(request: NextRequest) {
     return NextResponse.json({ error: CROSS_SITE_WRITE }, { status: 403 });
   }
 
+  // Vercel's scheduler calls the scheduled checks with no staff session. Each
+  // checks the scheduler's secret itself and fails closed (lib/cron-auth.ts);
+  // only a read that carries a bearer token gets that far.
+  if (request.nextUrl.pathname.startsWith("/api/cron/")) {
+    return request.method === "GET" && bearerToken(request.headers)
+      ? NextResponse.next({ request })
+      : NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
