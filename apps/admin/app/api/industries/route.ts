@@ -50,9 +50,10 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Adds an industry through admin_add_industry: one transaction puts it last
- * in the list (it took the column default 0 and landed first, above every
- * other industry) and writes the staff log row.
+ * Adds an industry through admin_add_industry: one transaction puts it just
+ * before "Other" (it took the column default 0 and landed first, above every
+ * other industry) and writes the staff log row. A name already in the list
+ * is refused, so two staff adding it at once get one industry.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -74,6 +75,10 @@ export async function POST(request: NextRequest) {
       _admin_user_id: admin.user.id,
       _email: admin.user.email ?? null,
     });
+    // One industry per name (industries_name_key: trimmed, in any case).
+    if (error?.code === "23505") {
+      return NextResponse.json({ error: "An industry with this name already exists." }, { status: 409 });
+    }
     if (error) throw error;
 
     return NextResponse.json({ industry: addedSchema.parse(data) }, { status: 201 });

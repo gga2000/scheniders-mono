@@ -37,6 +37,18 @@ export function useCreateIndustry() {
   });
 }
 
+/**
+ * A colleague removed the industry first (404): the edit or the confirm that
+ * was open for it is closed, and the list read again shows it gone.
+ */
+export class IndustryGoneError extends Error {}
+
+/** The server's refusal as an Error; a 404 as IndustryGoneError. */
+async function refused(res: Response, fallback: string): Promise<Error> {
+  const words = await refusal(res, fallback);
+  return res.status === 404 ? new IndustryGoneError(words) : new Error(words);
+}
+
 type IndustryEdit = Partial<Pick<Industry, "name" | "name_ar" | "icon" | "color" | "avg_order_value_iqd" | "is_active">>;
 
 export function useUpdateIndustry() {
@@ -49,10 +61,11 @@ export function useUpdateIndustry() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error(await refusal(res, "Could not save the industry."));
+      if (!res.ok) throw await refused(res, "Could not save the industry.");
       return res.json();
     },
-    onSuccess: () => {
+    // A refused save ("no longer exists") also means the list is out of date.
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["industries"] });
     },
   });
@@ -89,7 +102,7 @@ export function useDeleteIndustry() {
   return useMutation({
     mutationFn: async (id: string): Promise<IndustryRemoval> => {
       const res = await adminFetch(`/api/industries/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(await refusal(res, "Could not delete the industry."));
+      if (!res.ok) throw await refused(res, "Could not delete the industry.");
       return res.json();
     },
     // A refused delete ("no longer exists") also means the list is out of date.

@@ -12,6 +12,7 @@ import {
   useUpdateIndustry,
   useMoveIndustry,
   useDeleteIndustry,
+  IndustryGoneError,
 } from "@/hooks/use-industries";
 import type { Industry } from "@/types/leads";
 import { LoadError } from "@/components/shared/load-error";
@@ -191,8 +192,15 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
           avg_order_value_iqd: editData.avg_order_value_iqd,
         },
       },
-      // A refused save keeps the row open with what was typed.
-      { onSuccess: () => setEditingId(null), onError: (error) => toast.error(error.message) }
+      // A refused save keeps the row open with what was typed, unless a
+      // colleague removed the industry: then there is nothing left to edit.
+      {
+        onSuccess: () => setEditingId(null),
+        onError: (error) => {
+          if (error instanceof IndustryGoneError) setEditingId(null);
+          toast.error(error.message);
+        },
+      }
     );
   }, [editingId, editData, updateIndustry]);
 
@@ -213,7 +221,11 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
           toast.success(`"${name}" switched off. ${leads} still use it, so it was not removed.`);
         }
       },
-      onError: (error) => toast.error(error.message),
+      // A colleague removed it first: the confirm closes and the list shows it gone.
+      onError: (error) => {
+        if (error instanceof IndustryGoneError) setDeleteConfirm(null);
+        toast.error(error.message);
+      },
     });
   }, [deleteConfirm, deleteIndustry]);
 
@@ -506,6 +518,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               {/* Edit */}
                               <button
                                 onClick={() => handleStartEdit(industry)}
+                                aria-label={`Edit ${industry.name}`}
                                 className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
                               >
                                 <Pencil className="w-3.5 h-3.5" />

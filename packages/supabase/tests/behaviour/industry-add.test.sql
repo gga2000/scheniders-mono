@@ -7,11 +7,18 @@
 --     * anon and authenticated cannot run it; the service role can.
 --   Place:
 --     * THE FIRST-PLACE CASE: an industry added from the console took the
---       column default 0 and landed above Fashion in every list. It now goes
---       last (the highest place + 1), even past "Other" at 99, and staff move
---       it from there;
---     * a second one goes after the first: no two share a place;
---     * a move after an add works and keeps every place apart.
+--       column default 0 and landed above Fashion in every list;
+--     * THE AFTER-OTHER CASE (20261117103651): it then went last, after the
+--       catch-all "Other", and staff moved it up past "Other" every time. It
+--       now goes just before "Other", which moves down one place;
+--     * a second one goes after the first and still before "Other": no two
+--       share a place;
+--     * a move after an add works and keeps every place apart;
+--     * with no "Other" in the list, a new industry goes last.
+--   One per name (20261117103651):
+--     * the same name again, in any case or with spaces, is refused
+--       (unique_violation) and writes nothing, no log row either;
+--     * an edit that renames an industry onto another's name is refused too.
 --   Row and log:
 --     * the answer is the new row; an empty Arabic name is stored as null;
 --     * one staff log row per add, naming who and which industry, in the
@@ -66,10 +73,12 @@ BEGIN
 
     -- THE FIRST-PLACE CASE.
     _r := public.admin_add_industry('Perfume', '  ', 'Sparkles', '#AA3366', 30000, _admin, 'ops@example.com');
-    PERFORM pg_temp.check('add: Perfume is not last: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Grocery,Other,Perfume');
+    PERFORM pg_temp.check('add: Perfume is not just before Other: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Grocery,Perfume,Other');
     PERFORM pg_temp.check('add: answer is not the row: ' || _r::text,
-        _r @> '{"name": "Perfume", "icon": "Sparkles", "color": "#AA3366", "avg_order_value_iqd": 30000, "sort_order": 100, "is_active": true}'
+        _r @> '{"name": "Perfume", "icon": "Sparkles", "color": "#AA3366", "avg_order_value_iqd": 30000, "sort_order": 99, "is_active": true}'
         AND _r ? 'id');
+    PERFORM pg_temp.check('add: Other did not move down one place',
+        (SELECT sort_order FROM public.industries WHERE name = 'Other') = 100);
     PERFORM pg_temp.check('add: an empty Arabic name was kept: ' || _r::text, _r -> 'name_ar' = 'null'::jsonb);
     _id := (_r ->> 'id')::uuid;
     PERFORM pg_temp.check('log: no row naming Perfume',
@@ -79,14 +88,33 @@ BEGIN
 
     -- A second one goes after the first.
     _r := public.admin_add_industry('Pets', 'حيوانات أليفة', 'PawPrint', '#336699', 25000, _admin, 'ops@example.com');
-    PERFORM pg_temp.check('second: Pets is not after Perfume: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Grocery,Other,Perfume,Pets');
+    PERFORM pg_temp.check('second: Pets is not after Perfume and before Other: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Grocery,Perfume,Pets,Other');
     PERFORM pg_temp.check('second: the Arabic name was lost: ' || _r::text, _r ->> 'name_ar' = 'حيوانات أليفة');
     PERFORM pg_temp.check('second: two industries share a place',
         (SELECT count(DISTINCT sort_order) FROM public.industries) = (SELECT count(*) FROM public.industries));
 
-    -- Staff move the new one up past Other: one press.
+    -- Staff move the new one up past Grocery: one press.
     _r := public.admin_move_industry(_id, -1, _admin, 'ops@example.com');
-    PERFORM pg_temp.check('move: Perfume did not pass Other: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Grocery,Perfume,Other,Pets');
+    PERFORM pg_temp.check('move: Perfume did not pass Grocery: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Perfume,Grocery,Pets,Other');
+    PERFORM pg_temp.check('move: two industries share a place',
+        (SELECT count(DISTINCT sort_order) FROM public.industries) = (SELECT count(*) FROM public.industries));
+
+    -- THE SAME NAME AGAIN: "  perfume " is Perfume.
+    BEGIN
+        _r := public.admin_add_industry('  perfume ', NULL, 'Sparkles', '#AA3366', 30000, _admin, 'ops@example.com');
+        PERFORM pg_temp.check('same name: a second Perfume was added', false);
+    EXCEPTION WHEN unique_violation THEN
+        NULL;
+    END;
+    PERFORM pg_temp.check('same name: the list changed: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Perfume,Grocery,Pets,Other');
+
+    -- An edit onto another industry's name.
+    BEGIN
+        UPDATE public.industries SET name = 'BEAUTY' WHERE name = 'Pets';
+        PERFORM pg_temp.check('rename: Pets became a second Beauty', false);
+    EXCEPTION WHEN unique_violation THEN
+        NULL;
+    END;
 
     -- An empty name writes nothing.
     BEGIN
@@ -97,8 +125,20 @@ BEGIN
     END;
     PERFORM pg_temp.check('empty name: a row was added', (SELECT count(*) FROM public.industries) = 6);
     SELECT count(*) INTO _logs FROM public.admin_activity_logs WHERE details ->> 'change' = 'added';
-    PERFORM pg_temp.check('empty name: wrote a log row, add rows now ' || _logs, _logs = 2);
+    PERFORM pg_temp.check('empty name or same name: wrote a log row, add rows now ' || _logs, _logs = 2);
 
+    RESET ROLE;
+END $$;
+
+-- With no "Other" in the list, a new industry goes last.
+DO $$
+DECLARE
+    _r jsonb;
+BEGIN
+    DELETE FROM public.industries WHERE name = 'Other';
+    SET LOCAL ROLE service_role;
+    _r := public.admin_add_industry('Toys', NULL, 'Blocks', '#336699', 20000, NULL, NULL);
+    PERFORM pg_temp.check('no Other: Toys is not last: ' || pg_temp.shown(), pg_temp.shown() = 'Fashion,Beauty,Perfume,Grocery,Pets,Toys');
     RESET ROLE;
 END $$;
 

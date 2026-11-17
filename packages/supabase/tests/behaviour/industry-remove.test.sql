@@ -14,6 +14,13 @@
 --   Refusals (nothing written, no log row):
 --     * an unknown industry: 'not_found';
 --     * no industry: an error.
+--   Taking turns (20261117103651):
+--     * it takes the industries table lock that admin_add_industry and
+--       admin_move_industry take, before its row lock: it took the row lock
+--       first and the table's write lock at its DELETE, so a remove and a
+--       move at the same instant could each wait for the other and one
+--       failed. (One session cannot race two, so this reads the lock this
+--       transaction holds and where the function takes it.)
 --
 -- RESULT: one row, 'ALL ASSERTIONS PASSED', or an error that lists every
 -- failed check.
@@ -96,6 +103,19 @@ BEGIN
         (SELECT is_active FROM public.industries WHERE name = 'Beauty') IS TRUE);
 
     RESET ROLE;
+END $$;
+
+DO $$
+DECLARE
+    _body constant text := (SELECT p.prosrc FROM pg_proc p WHERE p.oid = 'public.admin_remove_industry(uuid, uuid, text)'::regprocedure);
+BEGIN
+    PERFORM pg_temp.check('turns: the removes above hold no table lock on industries',
+        EXISTS (SELECT 1 FROM pg_locks l
+                 WHERE l.pid = pg_backend_pid()
+                   AND l.relation = 'public.industries'::regclass
+                   AND l.mode = 'ShareRowExclusiveLock'));
+    PERFORM pg_temp.check('turns: the table lock is not taken before the row lock',
+        position('LOCK TABLE public.industries IN SHARE ROW EXCLUSIVE MODE' IN _body) BETWEEN 1 AND position('FOR UPDATE' IN _body));
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1
