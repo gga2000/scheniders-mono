@@ -7,6 +7,7 @@ import { UserPlus, X, Loader2, Shield, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAddAdminUser } from "@/hooks/use-admin-user-mutations";
 import type { AdminRole } from "@/types/admin";
+import { ROLE_LABELS } from "@/lib/admin-access";
 
 interface AddEmployeeDialogProps {
   isOpen: boolean;
@@ -16,13 +17,13 @@ interface AddEmployeeDialogProps {
 const ROLE_OPTIONS: { value: AdminRole; label: string; hint: string; icon: typeof Shield }[] = [
   {
     value: "support_staff",
-    label: "Support staff",
+    label: ROLE_LABELS.support_staff,
     hint: "Trials, notes, support chats, view as merchant, export",
     icon: LifeBuoy,
   },
   {
     value: "super_admin",
-    label: "Super admin",
+    label: ROLE_LABELS.super_admin,
     hint: "Full control — wallets, plans, suspend, settings",
     icon: Shield,
   },

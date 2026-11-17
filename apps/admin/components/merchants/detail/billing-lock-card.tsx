@@ -13,6 +13,7 @@ import {
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { createRequestIds } from "@/lib/request-ids";
 import { formatDay, formatIQD } from "@/lib/format";
+import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -32,11 +33,6 @@ interface BillingLockCardProps {
 
 const ORDER_PRESETS = [10, 25, 50];
 const UNLOCK_PRESETS = [7, 30];
-
-const REASON_LABEL: Record<NonNullable<BillingLockSnapshot["reason"]>, string> = {
-  trial_ended: "Trial ended, not paid",
-  unpaid: "Month not paid",
-};
 
 type Action = { kind: "orders"; orders: number } | { kind: "unlock"; days: number };
 
@@ -120,7 +116,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
             Store locked
           </p>
           <p className="mt-1 text-[22px] font-semibold text-foreground">
-            {lock.reason ? REASON_LABEL[lock.reason] : "Locked"}
+            {lock.reason ? LOCK_REASON_WORDS[lock.reason] : "Locked"}
           </p>
           <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}

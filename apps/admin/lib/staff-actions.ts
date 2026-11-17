@@ -228,6 +228,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** A time as the database writes it: "2026-11-17T03:21:24.887769+00:00". */
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
+/**
+ * How a trial gift or a status change was made (`source`): one shop at a time
+ * is the usual way and says nothing; the Trials bulk bar does several.
+ */
+const SOURCE_WORDS: ReadonlyMap<string, string | null> = new Map([
+  ["single", null],
+  ["bulk", "several shops at once"],
+]);
+
 /** A plain value in words: a time on the console's clock, not the database's. */
 function valueText(value: string | number | boolean): string {
   if (typeof value === "string" && TIMESTAMP.test(value) && !Number.isNaN(Date.parse(value))) return formatDayTime(value);
@@ -249,8 +258,12 @@ export function staffLogSummary(action: string, details: Record<string, unknown>
       !ID_KEY.test(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean") ? [[key, value] as const] : [],
     )
     .filter(([, value]) => !(typeof value === "string" && (UUID.test(value) || value.trim() === "")))
-    .slice(0, 2)
-    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${valueText(value)}`);
+    .flatMap(([key, value]) => {
+      const source = key === "source" && typeof value === "string" ? SOURCE_WORDS.get(value) : undefined;
+      if (source !== undefined) return source ? [source] : [];
+      return [`${key.replace(/_/g, " ")}: ${valueText(value)}`];
+    })
+    .slice(0, 2);
   return parts.length > 0 ? parts.join(" | ") : null;
 }
 

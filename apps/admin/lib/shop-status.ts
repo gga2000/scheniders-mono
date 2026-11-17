@@ -10,6 +10,7 @@
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatIQD } from "@/lib/format";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
 
 export type ShopTone = "paying" | "trial" | "locked" | "paused" | "hold" | "ended" | "internal";
 
@@ -24,8 +25,6 @@ export interface ShopStatusLine {
 }
 
 type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy">;
-
-const LOCK_REASON = { trial_ended: "Trial ended, not paid", unpaid: "Month not paid" } as const;
 
 /** "Wallet 4,000 IQD, short by 5,000 IQD." when the wallet cannot pay `price`. */
 function shortBy(balance: number, price: number): string {
@@ -47,7 +46,7 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
   const price = billingLock?.price_iqd ?? 0;
 
   if (billingLock?.locked) {
-    const reason = billingLock.reason ? LOCK_REASON[billingLock.reason] : "Locked";
+    const reason = billingLock.reason ? LOCK_REASON_WORDS[billingLock.reason] : "Locked";
     const since = billingLock.since ? ` Locked since ${formatDay(billingLock.since, now)}.` : "";
     const amount = formatIQD(billingLock.price_iqd);
     const short = shortBy(balance, billingLock.price_iqd);

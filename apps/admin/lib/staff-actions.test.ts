@@ -139,7 +139,7 @@ describe("staffLogSummary", () => {
   it("leaves out what the step's own words already say", () => {
     const trial = { days: 7, reason: "Waiting for the bank", source: "single" };
     expect(staffActionText("extend_trial", trial)).toBe("Gave 7 free trial days");
-    expect(staffLogSummary("extend_trial", trial)).toBe("reason: Waiting for the bank | source: single");
+    expect(staffLogSummary("extend_trial", trial)).toBe("reason: Waiting for the bank");
 
     const edit = { merchant_name: "Kawkab Baghdad", was: "Kawkab", fields: ["merchant_name"], source: "form" };
     expect(staffActionText("edit_lead", edit)).toBe("Edited a lead: Kawkab Baghdad, was Kawkab (name)");
@@ -155,6 +155,14 @@ describe("staffLogSummary", () => {
 
     const bulk = { action: "change_status", status: "contacted", changed: 3 };
     expect(staffLogSummary("bulk_leads", bulk)).toBeNull();
+  });
+
+  // Round 13: "source: single" under a trial gift was a code word.
+  it("says how a step was made only when it was not one shop at a time", () => {
+    expect(staffLogSummary("extend_trial", { days: 7, source: "bulk", reason: "Eid" })).toBe("several shops at once | reason: Eid");
+    expect(staffLogSummary("status_change", { status: "trial", source: "single" })).toBeNull();
+    // A way the console does not know is kept as written.
+    expect(staffLogSummary("edit_lead", { merchant_name: "Kawkab", source: "form" })).toBe("source: form");
   });
 
   it("keeps a value the words did not use", () => {

@@ -2,6 +2,21 @@ import type { AdminRole } from "@/types/admin";
 
 const ALLOWED_ROLES: readonly AdminRole[] = ["super_admin", "support_staff"];
 
+function isAdminRole(role: unknown): role is AdminRole {
+  return ALLOWED_ROLES.some((allowed) => allowed === role);
+}
+
+/** Each role's name on screen. The database stores it as "super_admin". */
+export const ROLE_LABELS: Readonly<Record<AdminRole, string>> = {
+  super_admin: "Super admin",
+  support_staff: "Support staff",
+};
+
+/** A stored role in words; a role the console does not know is shown as stored. */
+export function roleLabel(role: string): string {
+  return isAdminRole(role) ? ROLE_LABELS[role] : role;
+}
+
 /**
  * What the browser learnt from the person's own `admin_users` row. A read that
  * failed (a network or database blip) is not an answer: it says nothing about
@@ -18,7 +33,7 @@ export function readAccessCheck(result: { data: unknown; error: unknown }): Acce
   const row = result.data as { admin_role?: unknown; is_active?: unknown } | null;
   if (!row || row.is_active !== true) return { kind: "none" };
   const role = row.admin_role;
-  return ALLOWED_ROLES.includes(role as AdminRole) ? { kind: "role", role: role as AdminRole } : { kind: "none" };
+  return isAdminRole(role) ? { kind: "role", role } : { kind: "none" };
 }
 
 /** The role the browser already knows, and whose it is. */
