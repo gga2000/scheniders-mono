@@ -290,8 +290,10 @@ export function useLeadFormController({
       } else {
         onClose();
       }
-    } catch {
-      toast.error("Something went wrong while saving.");
+    } catch (error) {
+      // A refused save rejects with the server's own words ("A lead can only
+      // go to an active staff member."); "try again" would never help there.
+      toast.error(error instanceof Error && error.message ? error.message : "Something went wrong while saving.");
     } finally {
       setSubmitting(false);
     }
