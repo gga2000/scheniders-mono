@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { LeadActivity, LeadActivityType } from "@/types/leads";
 import { useCreateActivity } from "@/hooks/use-lead-activities";
@@ -58,12 +58,24 @@ const QUICK_ADD_TYPES: { type: LeadActivityType; label: string }[] = [
 interface LeadActivityTimelineProps {
   activities: LeadActivity[];
   leadId: string;
+  /** Raised by the page's "Add Note": a note is picked and its box focused. 0 asks nothing. */
+  noteRequest?: number;
 }
 
-export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelineProps) {
+export function LeadActivityTimeline({ activities, leadId, noteRequest = 0 }: LeadActivityTimelineProps) {
   const [selectedType, setSelectedType] = useState<LeadActivityType>("note");
   const [description, setDescription] = useState("");
   const createActivity = useCreateActivity();
+  const inputRef = useRef<HTMLInputElement>(null);
+  // A new ask picks a note again, whatever kind was picked before.
+  const [seenRequest, setSeenRequest] = useState(noteRequest);
+  if (noteRequest !== seenRequest) {
+    setSeenRequest(noteRequest);
+    setSelectedType("note");
+  }
+  useEffect(() => {
+    if (noteRequest > 0) inputRef.current?.focus();
+  }, [noteRequest]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,6 +132,7 @@ export function LeadActivityTimeline({ activities, leadId }: LeadActivityTimelin
         {/* Input row */}
         <div className="flex items-center gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}

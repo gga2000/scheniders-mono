@@ -141,9 +141,6 @@ export function TeamCommissionDashboard({
                       Inactive
                     </span>
                   )}
-                  <button className="ml-auto text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors">
-                    Edit
-                  </button>
                 </div>
               </div>
             ))}
