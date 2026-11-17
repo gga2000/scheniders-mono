@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { adBreakEven, adReturn, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { adBreakEven, adReturn, adsWithoutLift, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
@@ -12,6 +12,8 @@ import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 interface DailyCostsProps {
     summary: FinanceSummary;
     statement: ProfitStatement;
+    /** The period before, when a comparison is on: says when ads that were new did not raise sales. */
+    previous: ProfitStatement | null;
     onOpenTab: (tab: FinanceTab) => void;
 }
 
@@ -32,13 +34,14 @@ function countOf(text: string): { count?: number } {
  * day pay the daily bill (ads, salaries, other costs), against how many the
  * shop delivers, as one bar drawn to scale with a name on each part.
  */
-export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
+export function DailyCosts({ summary, statement, previous, onOpenTab }: DailyCostsProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
     const spent = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
     const brought = adReturn(statement);
     const evenAds = adBreakEven(statement);
+    const noLift = adsWithoutLift(statement, previous);
     const even = breakEven(summary, statement);
     const bulk = bulkDays(summary.daily);
     // Only the daily costs this period has, so the brackets never name a cost that is zero.
@@ -154,6 +157,12 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                         {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
                         {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds) })}</>}
                     </p>
+                    {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
+                    {noLift !== null && (
+                        <p className="mt-1.5 text-left text-[13.5px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
+                            {noLift === 0 ? t("fin.ads.noLiftSame") : t("fin.ads.noLift", { pct: `${formatWhole(noLift)}%` })}
+                        </p>
+                    )}
                 </div>
             )}
             <div className="mt-4 border-t border-[var(--card-border)] pt-4">{cover}</div>
