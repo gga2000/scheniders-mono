@@ -8,9 +8,16 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-const { Passthrough } = vi.hoisted(() => ({
-  Passthrough: ({ children }: { children?: ReactNode }) => children,
-}));
+const { ProvidersStub, providerNonces } = vi.hoisted(() => {
+  const providerNonces: (string | undefined)[] = [];
+  return {
+    providerNonces,
+    ProvidersStub: ({ children, nonce }: { children?: ReactNode; nonce?: string }) => {
+      providerNonces.push(nonce);
+      return children;
+    },
+  };
+});
 
 interface LocalFontCall {
   src: string;
@@ -34,7 +41,7 @@ vi.mock("next/font/local", () => ({
     };
   },
 }));
-vi.mock("@/components/providers", () => ({ Providers: Passthrough }));
+vi.mock("@/components/providers", () => ({ Providers: ProvidersStub }));
 // The middleware's nonce for this response (lib/csp.ts).
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-nonce": "bm9uY2U=" }) }));
 
@@ -73,8 +80,11 @@ describe("admin root document", () => {
   });
 
   it("gives its before-paint script the response's nonce, so the script policy lets it run", async () => {
+    providerNonces.length = 0;
     const scripts = (await rootMarkup()).match(/<script\b[^>]*>/g);
     expect(scripts).toEqual(['<script nonce="bm9uY2U=">']);
+    // and hands it to the providers for the theme's script (components/providers.test.tsx).
+    expect(providerNonces).toEqual(["bm9uY2U="]);
   });
 
   it("defines the Geist variables as their subset faces, then one fallback", async () => {
