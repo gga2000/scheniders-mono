@@ -85,7 +85,8 @@ function req(
   token: string | null,
   body?: unknown,
 ): NextRequest {
-  const headers = new Headers({ "content-type": "application/json" });
+  // Sent from a console page, as the browser marks it: these tests are about roles, not other sites.
+  const headers = new Headers({ "content-type": "application/json", "sec-fetch-site": "same-origin" });
   if (token) headers.set("authorization", `Bearer ${token}`);
   return new NextRequest(`http://admin.test${pathname}`, {
     method,

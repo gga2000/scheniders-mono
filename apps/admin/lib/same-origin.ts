@@ -25,3 +25,17 @@ export function isOwnPageWrite(method: string, headers: Headers, host: string): 
 }
 
 export const CROSS_SITE_WRITE = "This change did not come from the staff console, so it was refused.";
+
+/**
+ * Whether a read that does something (the export starts a download and writes
+ * a staff-log row) was asked for by the console's own page, or typed by the
+ * person ("none": the address bar or a bookmark). A link, image or frame on
+ * another site sends "cross-site", so it cannot start one with the staff
+ * cookie. A request with no Sec-Fetch-Site came from no browser page.
+ */
+export function isOwnPageRead(headers: Headers): boolean {
+  const site = headers.get("sec-fetch-site");
+  return site === "same-origin" || site === "none";
+}
+
+export const CROSS_SITE_READ = "This download did not start from the staff console, so it was refused.";
