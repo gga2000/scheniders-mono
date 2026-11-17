@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { convertedLeadsMessage, leadConvertedLockResponse, prospectStoreLeadsMessage } from "./lead-converted-lock";
+import {
+    convertedLeadsDeleteMessage,
+    convertedLeadsMessage,
+    leadConvertedLockResponse,
+    prospectStoreLeadsMessage,
+} from "./lead-converted-lock";
 
 describe("leadConvertedLockResponse", () => {
     it("turns the database lock into a 409", async () => {
@@ -39,5 +44,17 @@ describe("prospectStoreLeadsMessage", () => {
         expect(prospectStoreLeadsMessage(["Kawkab", "Noor"], true)).toBe(
             '"Kawkab" and "Noor" have prospect stores, so they can\'t be deleted. Untick them and try again. Nothing was deleted.',
         );
+    });
+});
+
+describe("convertedLeadsDeleteMessage", () => {
+    it("says why a lead that became a shop is not deleted, and in the bulk bar which to untick", () => {
+        expect(convertedLeadsDeleteMessage(["Kawkab"])).toBe(
+            '"Kawkab" is already a store, so it can\'t be deleted. Its sale and commission stay on record.',
+        );
+        expect(convertedLeadsDeleteMessage(["Kawkab", "Noor"], true)).toBe(
+            '"Kawkab" and "Noor" are already stores, so they can\'t be deleted. Their sales and commission stay on record. Untick them and try again. Nothing was deleted.',
+        );
+        expect(convertedLeadsDeleteMessage(["A", "B", "C", "D"], true)).toMatch(/^"A", "B", "C" and 1 more are already stores/);
     });
 });
