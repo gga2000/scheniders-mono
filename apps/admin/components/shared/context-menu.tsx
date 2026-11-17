@@ -80,7 +80,7 @@ export function MerchantContextMenu({
     {
       label: "Open Storefront",
       icon: <Globe className="w-3.5 h-3.5" />,
-      action: () => window.open(`https://${storeAddress(merchantSlug)}`, "_blank"),
+      action: () => window.open(`https://${storeAddress(merchantSlug)}`, "_blank", "noopener,noreferrer"),
     },
   ];
   const items = allItems.filter((item) => !item.needs || can(item.needs));
