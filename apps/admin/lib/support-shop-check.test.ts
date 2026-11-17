@@ -206,9 +206,26 @@ describe("daysAgo", () => {
     [ago(0.2), "today"],
     [ago(1.5), "yesterday"],
     [ago(5), "5 days ago"],
-    [ago(-0.5), "within a day"],
+    [ago(-0.5), "tomorrow"],
     [ago(-3), "in 3 days"],
   ])("%s reads %s", (iso, expected) => {
     expect(daysAgo(iso, NOW)).toBe(expected);
+  });
+
+  // Baghdad is UTC+3: these are Mon 23:00 and Mon 23:50, seen on Tuesday.
+  it.each([
+    ["2026-11-16T20:00:00Z", "2026-11-17T07:00:00Z", "yesterday"],
+    ["2026-11-16T20:50:00Z", "2026-11-16T21:30:00Z", "yesterday"],
+    ["2026-11-16T21:30:00Z", "2026-11-17T20:30:00Z", "today"],
+  ])("counts Baghdad days: %s seen at %s is %s", (iso, now, expected) => {
+    expect(daysAgo(iso, Date.parse(now))).toBe(expected);
+  });
+
+  it("says a lock from last night began yesterday, as the shop page dates it", () => {
+    const check = healthy();
+    check.store.lock_reason = "trial_ended";
+    check.store.lock_since = "2026-11-16T20:00:00Z";
+    const store = shopCheckLines(check, TENANT, Date.parse("2026-11-17T07:00:00Z")).find((l) => l.key === "store");
+    expect(store?.text).toBe("Locked for payment since yesterday (trial ended).");
   });
 });
