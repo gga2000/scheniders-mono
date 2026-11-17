@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LeadFollowUp } from "@/types/leads";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { refusal } from "@/lib/refusal";
 
 export function useLeadFollowUps(leadId: string | null) {
   return useQuery<LeadFollowUp[]>({
@@ -17,14 +18,6 @@ export function useLeadFollowUps(leadId: string | null) {
     enabled: !!leadId,
     staleTime: 30_000,
   });
-}
-
-/** The server's own words for a refused write ("A follow-up can only go to ..."), else `fallback`. */
-async function refusal(res: Response, fallback: string): Promise<string> {
-  const body: unknown = await res.json().catch(() => null);
-  return typeof body === "object" && body !== null && "error" in body && typeof body.error === "string"
-    ? body.error
-    : fallback;
 }
 
 export function useCreateFollowUp() {
