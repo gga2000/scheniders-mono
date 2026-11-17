@@ -3,8 +3,8 @@ import { convertedLeadsDeleteMessage, leadConvertedLockResponse, prospectStoreLe
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
-import { editLead, INDUSTRY_GONE, isIndustryGone, leadPatchSchema, listsChangedText, staleLists } from "@/lib/lead-update";
-import { changeLeads } from "@/lib/lead-change";
+import { INDUSTRY_GONE, isIndustryGone, leadPatchSchema } from "@/lib/lead-update";
+import { saveLead } from "@/lib/lead-save";
 import { deleteLeads } from "@/lib/lead-delete";
 
 // The lead with its industry and, once built, its prospect store's web address
@@ -119,65 +119,19 @@ export async function PATCH(
     }
     const supabase = createAdminClient();
 
-    // An industry a colleague removed while this form was open: say so before
-    // anything is saved, so a press does not save the status and then fail.
-    if (rest.industry_id) {
-      const { data: industry, error: industryError } = await supabase
-        .from("industries")
-        .select("id")
-        .eq("id", rest.industry_id)
-        .maybeSingle();
-      if (industryError) throw industryError;
-      if (!industry) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
-    }
+    // One transaction under the lead's lock (lib/lead-save): a list a
+    // colleague changed since the form opened is refused before anything is
+    // written, and an error undoes the whole save, status and owner included.
+    const saved = await saveLead(supabase, id, { status, owner: assigned_to, changes: rest, was }, admin.user);
+    if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: saved.status });
 
-    // A list saved whole (phones, tags, branches) that a colleague changed
-    // since this form opened: refused before anything is saved, so their
-    // change stays. admin_edit_lead checks again under the lead's lock.
-    if (Object.keys(was).length > 0) {
-      const { data: stored, error: storedError } = await supabase
-        .from("leads")
-        .select("phone_numbers, tags, branches")
-        .eq("id", id)
-        .maybeSingle();
-      if (storedError) throw storedError;
-      if (!stored) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-      const stale = staleLists(stored, was);
-      if (stale.length > 0) return NextResponse.json({ error: listsChangedText(stale) }, { status: 409 });
-    }
-
-    // Status and owner go through the same rule as the bulk bar
-    // (lib/lead-change): compared with what is stored under a lock, so a form
-    // save that leaves them alone writes nothing, and a real change writes its
-    // history line and staff log row in the same transaction.
-    if (status !== undefined || assigned_to !== undefined) {
-      const result = await changeLeads(supabase, [id], { status, owner: assigned_to }, admin.user);
-      if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-      if (result.found === 0) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-    }
-
-    // The rest of the form: saved only where it really changed, with one
-    // edit_lead staff log row naming those fields, in the same transaction.
-    if (Object.keys(rest).length > 0) {
-      const edited = await editLead(supabase, id, rest, admin.user, was);
-      if (!edited.found) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-      // Changed between the read above and the lock.
-      if (edited.stale?.length) return NextResponse.json({ error: listsChangedText(edited.stale) }, { status: 409 });
-    }
-
-    const { data: lead, error } = await supabase
-      .from("leads")
-      .select(LEAD_WITH_PARTS)
-      .eq("id", id)
-      .maybeSingle();
-    if (error) throw error;
-    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-
-    return NextResponse.json({ lead });
+    // The form reads the lead again itself, so a read here could only fail
+    // after the save and say it had not saved.
+    return NextResponse.json({ saved: true });
   } catch (error) {
     const locked = leadConvertedLockResponse(error);
     if (locked) return locked;
-    // Removed between the check above and the save.
+    // An industry a colleague removed while this form was open.
     if (isIndustryGone(error)) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
     console.error("Lead PATCH error:", error);
     return NextResponse.json({ error: "Failed to update lead" }, { status: 500 });

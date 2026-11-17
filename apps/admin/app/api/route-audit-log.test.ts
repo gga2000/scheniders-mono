@@ -30,7 +30,7 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",
   "merchants/[id]/route.ts PATCH": "admin_update_shop",
-  "leads/[id]/route.ts PATCH": "admin_change_leads",
+  "leads/[id]/route.ts PATCH": "admin_save_lead",
   "leads/bulk/route.ts POST": "admin_change_leads",
   "leads/[id]/build-store/route.ts POST": "admin_build_prospect_store",
   "industries/[id]/move/route.ts POST": "admin_move_industry",
@@ -75,6 +75,17 @@ const handlers = routeFiles.flatMap((file) => {
 
 const mustLeaveATrace = handlers.filter((handler) => CHANGING.has(handler.method) || LOGGED_READS.has(handler.key));
 
+/** A database function writes the staff log row itself, or through a function it calls. */
+function writesStaffLog(fn: string, seen = new Set<string>()): boolean {
+  const definition = newestDefinition(fn);
+  if (/INSERT INTO public\.admin_activity_logs/i.test(definition)) return true;
+  seen.add(fn);
+  return [...definition.matchAll(/public\.(\w+)\(/g)]
+    .map((call) => call[1])
+    .filter((called) => !seen.has(called))
+    .some((called) => writesStaffLog(called, seen));
+}
+
 describe("every changing admin route leaves a trace", () => {
   it("finds the changing handlers", () => {
     expect(mustLeaveATrace.length).toBeGreaterThan(40);
@@ -83,9 +94,7 @@ describe("every changing admin route leaves a trace", () => {
   it.each(mustLeaveATrace.map((handler) => [handler.key, handler.body]))("%s", (key, body) => {
     const sqlFunction = LOGGED_IN_SQL[key];
     if (sqlFunction) {
-      expect(newestDefinition(sqlFunction), `${sqlFunction} must insert into admin_activity_logs`).toMatch(
-        /INSERT INTO public\.admin_activity_logs/i,
-      );
+      expect(writesStaffLog(sqlFunction), `${sqlFunction} must insert into admin_activity_logs`).toBe(true);
       return;
     }
     if (key in NO_STAFF_LOG) {

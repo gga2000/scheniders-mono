@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { leadToFormData } from "@/components/leads/lead-form-data";
 import type { Lead } from "@/types/leads";
-import { leadPatchSchema, leadUpdateSchema, listsChangedText, staleLists } from "./lead-update";
+import { leadPatchSchema, leadUpdateSchema, listsChangedText } from "./lead-update";
 
 // A lead as the API returns it, with the empty columns a real row has.
 const stored = {
@@ -75,27 +75,8 @@ describe("leadUpdateSchema", () => {
 
 /*
  * Round 11: phones, tags and branches are saved whole, so a save carries each
- * list it changed as the form opened it. The rule admin_edit_lead applies.
+ * list it changed as the form opened it, and admin_edit_lead compares them.
  */
-describe("staleLists", () => {
-  const phone = { title: "Owner", number: "07701234567" };
-
-  it("names a list stored now that is not as the form opened it", () => {
-    expect(staleLists({ tags: ["abaya", "called twice"] }, { tags: ["abaya"] })).toEqual(["tags"]);
-    expect(staleLists({ phone_numbers: [phone, phone] }, { phone_numbers: [phone] })).toEqual(["phone_numbers"]);
-  });
-
-  it("reads key order as Postgres does, and no list as an empty one", () => {
-    expect(staleLists({ phone_numbers: [{ number: "07701234567", title: "Owner" }] }, { phone_numbers: [phone] })).toEqual([]);
-    expect(staleLists({ tags: null }, { tags: [] })).toEqual([]);
-    expect(staleLists({ tags: [] }, { tags: null })).toEqual([]);
-  });
-
-  it("compares only the lists the save sent", () => {
-    expect(staleLists({ tags: ["changed"], branches: [] }, { branches: [] })).toEqual([]);
-  });
-});
-
 describe("listsChangedText", () => {
   it("names the lists in the form's words", () => {
     expect(listsChangedText(["tags"])).toBe(
