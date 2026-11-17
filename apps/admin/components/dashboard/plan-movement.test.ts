@@ -16,11 +16,15 @@ describe("PlanMovementWidget", () => {
   const html = renderToStaticMarkup(createElement(PlanMovementWidget, { movements }));
 
   it("heads each count with one short word, the full name on hover", () => {
-    for (const [label, title] of [["Up", "Upgrades"], ["Down", "Downgrades"], ["Ended", "Cancelled by staff"], ["New", "New signups"]]) {
+    for (const [label, title] of [["Up", "Upgrades"], ["Down", "Downgrades"], ["Lost", "Cancelled by staff"], ["New", "New signups"]]) {
       expect(html).toContain(`title="${title}"`);
       expect(html).toMatch(new RegExp(`>${label}</p>`));
     }
     expect(html).not.toContain("uppercase");
+  });
+
+  it("never says \"Ended\", the word Trials uses for a trial that ran out", () => {
+    expect(html).not.toMatch(/>Ended</);
   });
 
   it("counts the moves made and names each line", () => {

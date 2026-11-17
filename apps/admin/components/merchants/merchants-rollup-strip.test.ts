@@ -29,7 +29,7 @@ describe("MerchantsRollupStrip", () => {
   it("names the plan prices of active shops and our fees for what they are", () => {
     expect(html).toContain("Plan prices");
     expect(html).toContain("active shops, list price a month");
-    expect(html).toContain("not cancelled or on hold");
+    expect(html).toContain("not cancelled or suspended");
     expect(html).toMatch(/25,000<span[^>]*>IQD/);
     expect(html).toContain("Our fees");
     expect(html).toContain("last 30 days");
