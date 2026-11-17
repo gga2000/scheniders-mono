@@ -11,6 +11,7 @@ import { BillingCheckAlert, billingCheckCount, useBillingCheck } from "./billing
 import { PrimeLinkRequestsSection, usePrimeLinkRequests } from "./prime-link-requests-section";
 import { formatWhen } from "@/lib/format";
 import { staffActionText } from "@/lib/staff-actions";
+import { activityKind } from "@/lib/activity-kinds";
 
 interface Notification {
   id: string;
@@ -20,24 +21,32 @@ interface Notification {
   created_at: string;
 }
 
-// Icon and tint per step; the words come from staffActionText, as on the Team page.
-const ACTION_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
-  top_up_wallet: { icon: <Wallet className="w-3.5 h-3.5" />, color: "text-[var(--ink-green)]" },
-  change_plan: { icon: <Building2 className="w-3.5 h-3.5" />, color: "text-[var(--ink-blue)]" },
-  extend_trial: { icon: <Clock className="w-3.5 h-3.5" />, color: "text-[var(--ink-amber)]" },
-  suspend_tenant: { icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-[var(--ink-red)]" },
-  reactivate_tenant: { icon: <Check className="w-3.5 h-3.5" />, color: "text-[var(--ink-green)]" },
-  add_note: { icon: <Building2 className="w-3.5 h-3.5" />, color: "text-foreground/70" },
-};
+// Icon and tint per kind of step (lib/activity-kinds), keyed on the names the
+// console writes; the words come from staffActionText, as on the Team page.
+const FREE_TIME = new Set(["extend_trial", "extend_subscription", "convert_trial"]);
+const STOPPED = new Set(["suspended", "cancelled", "limited"]);
+
+function getActionConfig(action: string, details: Record<string, unknown> | null): { icon: React.ReactNode; color: string } {
+  if (action === "status_change") {
+    if (typeof details?.status === "string" && STOPPED.has(details.status)) {
+      return { icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-[var(--ink-red)]" };
+    }
+    if (details?.status === "active") return { icon: <Check className="w-3.5 h-3.5" />, color: "text-[var(--ink-green)]" };
+  }
+  if (FREE_TIME.has(action)) return { icon: <Clock className="w-3.5 h-3.5" />, color: "text-[var(--ink-amber)]" };
+  switch (activityKind(action)) {
+    case "money":
+      return { icon: <Wallet className="w-3.5 h-3.5" />, color: "text-[var(--ink-green)]" };
+    case "shop":
+      return { icon: <Building2 className="w-3.5 h-3.5" />, color: "text-[var(--ink-blue)]" };
+    case "notes":
+      return { icon: <Building2 className="w-3.5 h-3.5" />, color: "text-foreground/70" };
+    default:
+      return { icon: <Bell className="w-3.5 h-3.5" />, color: "text-foreground/70" };
+  }
+}
 
 const NO_NOTIFICATIONS: Notification[] = [];
-
-function getActionConfig(action: string) {
-  return ACTION_CONFIG[action] || {
-    icon: <Bell className="w-3.5 h-3.5" />,
-    color: "text-foreground/70",
-  };
-}
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -145,7 +154,7 @@ export function NotificationBell() {
                 </div>
               ) : (
                 notifications.map((notif) => {
-                  const config = getActionConfig(notif.action);
+                  const config = getActionConfig(notif.action, notif.details);
                   const isRead = readIds.has(notif.id);
 
                   return (
