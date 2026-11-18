@@ -14,6 +14,13 @@ export const STAFF_SIGN_IN_MAX_MS = 16 * 60 * 60 * 1000;
 /** What staff read when their sign-in has reached that age. */
 export const SIGN_IN_ENDED = "Your sign-in ended after 16 hours. Sign in again.";
 
+/**
+ * What staff read when the console gets a request with no sign-in behind it:
+ * they signed out in another tab, or the session was ended. A request after a
+ * sign-in that reached its age limit gets SIGN_IN_ENDED instead.
+ */
+export const SIGNED_OUT = "You are signed out. Sign in again.";
+
 /** What staff read when their login has no active staff row: removed, switched off, or never staff. */
 export const NO_CONSOLE_ACCESS = "This login has no access to the staff console.";
 

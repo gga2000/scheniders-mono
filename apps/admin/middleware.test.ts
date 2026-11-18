@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock, type MockInstance } fr
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { AuthApiError, AuthInvalidJwtError, AuthRetryableFetchError, AuthSessionMissingError } from "@supabase/supabase-js";
-import { NO_CONSOLE_ACCESS, isNoConsoleAccess } from "@/lib/staff-sign-in";
+import { NO_CONSOLE_ACCESS, SIGNED_OUT, SIGN_IN_ENDED, isNoConsoleAccess } from "@/lib/staff-sign-in";
 
 /**
  * The middleware decides who reaches the console. A database or auth-server
@@ -239,6 +239,22 @@ describe("how long a staff sign-in lasts", () => {
     expect((await call("/merchants")).headers.get("location")).toBe("https://console.test/login?next=%2Fmerchants");
   });
 
+  // Round 16 (ux new 2): a save after the sign-in ended toasted "Unauthorized".
+  it("tells a form's save why it was refused: the sign-in ended, or signed out", async () => {
+    sessionClaims = { data: { claims: claimsOf(SESSION, 17) }, error: null };
+    expect(await (await call("/api/leads")).json()).toEqual({ error: SIGN_IN_ENDED });
+
+    getUser = { data: { user: null }, error: new AuthSessionMissingError() };
+    const save = (cookie?: string) =>
+      middleware(new NextRequest("https://console.test/api/leads", { method: "POST", headers: { origin: "https://console.test", ...(cookie ? { cookie } : {}) } }));
+    const ended = await save("staff_sign_in_ended=1");
+    expect(ended.status).toBe(401);
+    expect(await ended.json()).toEqual({ error: SIGN_IN_ENDED });
+    const out = await save();
+    expect(out.status).toBe(401);
+    expect(await out.json()).toEqual({ error: SIGNED_OUT });
+  });
+
   it("clears the mark once staff are signed in again", async () => {
     sessionClaims = { data: { claims: claimsOf(SESSION, 1) }, error: null };
     const page = await middleware(new NextRequest("https://console.test/merchants", { headers: { cookie: "staff_sign_in_ended=1" } }));
@@ -305,7 +321,7 @@ describe("the API's token is the session the auth server answered for", () => {
     for (const token of ["other", "forged", "expired"]) {
       const response = await withToken(token);
       expect(response.status, token).toBe(401);
-      expect(await response.json()).toEqual({ error: "Unauthorized" });
+      expect(await response.json()).toEqual({ error: SIGNED_OUT });
     }
   });
 });

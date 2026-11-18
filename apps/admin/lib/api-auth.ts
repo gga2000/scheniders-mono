@@ -10,6 +10,7 @@ import {
   NO_ACCESS_HEADERS,
   NO_CONSOLE_ACCESS,
   SIGN_IN_ENDED,
+  SIGNED_OUT,
   bearerToken,
   signInEnded,
   verifyStaffToken,
@@ -63,6 +64,11 @@ async function adminFromCookies(): Promise<AdminContext | null> {
   return { user: { id: token.userId, email: token.email }, role };
 }
 
+/** A request with no usable sign-in, in staff's words (SIGNED_OUT unless told otherwise). */
+function signedOut(words: string = SIGNED_OUT): NextResponse {
+  return NextResponse.json({ error: words }, { status: 401 });
+}
+
 /**
  * The one place an `AdminAuthError` becomes a response. Anything else is a
  * genuine server failure: it is rethrown so the route's own error handling
@@ -71,9 +77,11 @@ async function adminFromCookies(): Promise<AdminContext | null> {
 function authFailureResponse(error: unknown): NextResponse {
   if (error instanceof AdminAuthError) {
     // A 403 here is always "no console access" (resolveAdminRole); a role
-    // missing one permission is answered by forbidden() below instead.
+    // missing one permission is answered by forbidden() below instead. A 401
+    // says the sign-in ended when it reached its age limit, else signed out:
+    // the guard's own reason ("Invalid access token") is not staff's words.
     return error.status === 401
-      ? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      ? signedOut(error.message === SIGN_IN_ENDED ? SIGN_IN_ENDED : SIGNED_OUT)
       : NextResponse.json({ error: NO_CONSOLE_ACCESS }, { status: 403, headers: NO_ACCESS_HEADERS });
   }
   throw error;
@@ -92,7 +100,7 @@ export async function requireBearerAdmin(
   request: NextRequest,
 ): Promise<AdminContext | NextResponse> {
   const token = bearerToken(request.headers);
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!token) return signedOut();
   try {
     return await requireAdmin(token);
   } catch (error) {
@@ -124,9 +132,7 @@ export async function requireAdminFromRequest(
   // No bearer token → fall back to the cookie session.
   try {
     const ctx = await adminFromCookies();
-    if (!ctx) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!ctx) return signedOut();
     return ctx;
   } catch (error) {
     return authFailureResponse(error);

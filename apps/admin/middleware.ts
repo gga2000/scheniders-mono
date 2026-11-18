@@ -5,6 +5,7 @@ import {
   NO_ACCESS_HEADERS,
   NO_CONSOLE_ACCESS,
   SIGN_IN_ENDED,
+  SIGNED_OUT,
   bearerToken,
   signInEnded,
   verifyStaffToken,
@@ -120,6 +121,11 @@ async function checkAccess(request: NextRequest) {
     if (pageAfterSignIn(asked) !== "/") url.searchParams.set(NEXT_PAGE, asked);
     return withSession(NextResponse.redirect(url));
   };
+  // An API request with no sign-in behind it. After a sign-in that reached its
+  // age limit (the mark below), staff read that; otherwise that they are
+  // signed out. Either way a form's save says why, not "Unauthorized".
+  const signedOut = (words: string = request.cookies.has(SIGN_IN_ENDED_MARK) ? SIGN_IN_ENDED : SIGNED_OUT) =>
+    withSession(NextResponse.json({ error: words }, { status: 401 }));
   // The check itself failed: say so and keep the staff member signed in,
   // instead of reading an outage as "signed out" or "forbidden". The edge
   // Sentry turns console.error into an event, so an outage of the console's
@@ -147,9 +153,7 @@ async function checkAccess(request: NextRequest) {
   //  - Pages → redirect to /login (except /login itself).
   if (!user) {
     if (!isCredentialRejection(userError)) return checkFailed("sign-in", userError);
-    if (isApi) {
-      return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
-    }
+    if (isApi) return signedOut();
     if (isLoginPage) {
       return supabaseResponse;
     }
@@ -167,7 +171,7 @@ async function checkAccess(request: NextRequest) {
     return checkFailed("sign-in", error);
   }
   if (!session) {
-    if (isApi) return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+    if (isApi) return signedOut();
     return isLoginPage ? supabaseResponse : toLogin();
   }
   if (signInEnded(session.signedInAt)) {
@@ -180,7 +184,7 @@ async function checkAccess(request: NextRequest) {
       secure: true,
       sameSite: "lax",
     });
-    if (isApi) return withSession(NextResponse.json({ error: SIGN_IN_ENDED }, { status: 401 }));
+    if (isApi) return signedOut(SIGN_IN_ENDED);
     return isLoginPage ? supabaseResponse : toLogin("expired");
   }
   if (request.cookies.has(SIGN_IN_ENDED_MARK)) supabaseResponse.cookies.delete(SIGN_IN_ENDED_MARK);
@@ -196,9 +200,7 @@ async function checkAccess(request: NextRequest) {
     } catch (error) {
       return checkFailed("sign-in", error);
     }
-    if (sentSession?.sessionId !== session.sessionId) {
-      return withSession(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
-    }
+    if (sentSession?.sessionId !== session.sessionId) return signedOut(SIGNED_OUT);
   }
 
   // Authenticated — verify admin-console access via the dedicated `admin_users`
