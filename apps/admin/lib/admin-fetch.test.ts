@@ -14,10 +14,18 @@ vi.mock("sonner", () => ({ toast }));
  * page with no reason. A failed answer on a browser with no session left now
  * reloads the page once, and the middleware sends it to the login page.
  */
-const auth = vi.hoisted(() => ({ session: null as { access_token: string } | null, error: null as Error | null }));
+const auth = vi.hoisted(() => ({
+  session: null as { access_token: string } | null,
+  error: null as Error | null,
+  /** The session token's claims, as the auth client checks them. */
+  claims: null as Record<string, unknown> | null,
+}));
 vi.mock("@supabase/ssr", () => ({
   createBrowserClient: () => ({
-    auth: { getSession: async () => ({ data: { session: auth.session }, error: auth.error }) },
+    auth: {
+      getSession: async () => ({ data: { session: auth.session }, error: auth.error }),
+      getClaims: async () => ({ data: auth.claims ? { claims: auth.claims } : null, error: null }),
+    },
   }),
 }));
 
@@ -295,5 +303,39 @@ describe("the console's calls to its API", () => {
     scan([...sourceFiles(path.join(ADMIN_DIR, "components")), ...sourceFiles(path.join(ADMIN_DIR, "hooks"))], PAGE_FETCH);
     scan(sourceFiles(path.join(ADMIN_DIR, "lib")), LIB_API_FETCH);
     expect(found).toEqual([]);
+  });
+});
+
+/*
+ * Round 16 (Reliability new 5): a second tab on "Your sign-in ended" could not
+ * tell the sign-in the console ended from one staff made since on another tab.
+ */
+describe("holdsLiveSignIn", () => {
+  const HOUR = 60 * 60 * 1000;
+  const signedIn = (hoursAgo: number) => ({
+    sub: "u1",
+    session_id: "s1",
+    exp: Math.floor((Date.now() + HOUR) / 1000),
+    amr: [{ method: "password", timestamp: Math.floor((Date.now() - hoursAgo * HOUR) / 1000) }],
+  });
+  afterEach(() => {
+    auth.claims = null;
+  });
+
+  it("is true for a sign-in made since: within the age limit", async () => {
+    auth.claims = signedIn(0.01);
+    const { holdsLiveSignIn } = await import("./admin-fetch");
+    expect(await holdsLiveSignIn()).toBe(true);
+  });
+
+  it("is false for the sign-in the console ended, still here because ending it failed", async () => {
+    auth.claims = signedIn(17);
+    const { holdsLiveSignIn } = await import("./admin-fetch");
+    expect(await holdsLiveSignIn()).toBe(false);
+  });
+
+  it("is false with no sign-in", async () => {
+    const { holdsLiveSignIn } = await import("./admin-fetch");
+    expect(await holdsLiveSignIn()).toBe(false);
   });
 });

@@ -13,6 +13,9 @@ const auth = vi.hoisted(() => ({
   signIn: vi.fn<SignIn>(async () => ({ error: null })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }));
+/** Whether the browser's sign-in is within the age limit: a new one, not the one the console ended. */
+const live = vi.hoisted(() => ({ signIn: false }));
+vi.mock("@/lib/admin-fetch", () => ({ holdsLiveSignIn: async () => live.signIn }));
 // Like the real hook, a sign-in shows the hook as loading while it runs, and
 // the page shows its spinner in place of the card meanwhile.
 vi.mock("@/hooks/use-admin-auth", async () => {
@@ -61,6 +64,7 @@ function open(address: string, user: { id: string } | null) {
 
 afterEach(() => {
   cleanup();
+  live.signIn = false;
   push.mockClear();
   auth.signIn.mockReset();
   captcha.mounts = 0;
@@ -74,6 +78,23 @@ describe("the login page", () => {
     expect(push).not.toHaveBeenCalled();
     // Round 14: the card is white in both themes; the dark theme's red on it was 1.76:1.
     expect(screen.getByRole("alert").className).not.toMatch(/var\(--/);
+  });
+
+  // Round 16 (Reliability new 5): with two tabs sent here, staff signed in on
+  // one, and the other kept saying the sign-in ended, inviting a second one.
+  it("goes on to the page asked for once a new sign-in is here, from this tab or another", async () => {
+    live.signIn = true;
+    open("/login?error=expired&next=%2Fmerchants", { id: "u1" });
+    await act(async () => {});
+    expect(push).toHaveBeenCalledWith("/merchants");
+  });
+
+  it("keeps the ended sign-in here, if ending it failed", async () => {
+    live.signIn = false;
+    open("/login?error=expired&next=%2Fmerchants", { id: "u1" });
+    await act(async () => {});
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe("Your sign-in ended after 16 hours. Sign in again.");
   });
 
   it("says when a login has no access to the console", () => {

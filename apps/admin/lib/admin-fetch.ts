@@ -2,7 +2,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { NEXT_PAGE, pageAfterSignIn } from "./page-after-sign-in";
-import { NO_CONSOLE_ACCESS, isNoConsoleAccess } from "./staff-sign-in";
+import { NO_CONSOLE_ACCESS, isNoConsoleAccess, signInEnded, verifyStaffToken } from "./staff-sign-in";
 
 let _client: ReturnType<typeof createBrowserClient> | null = null;
 
@@ -92,6 +92,17 @@ export function leaveWithoutAccess(): void {
   const login = new URLSearchParams({ error: "forbidden" });
   if (page !== "/") login.set(NEXT_PAGE, page);
   leave("no-access", `/login?${login.toString()}`);
+}
+
+/**
+ * Whether this browser holds a sign-in that is within the staff age limit.
+ * A sign-in the console ended is past it by definition, so a sign-in within it
+ * is a new one: made since, in this tab or another (round 16). Throws when the
+ * token could not be checked (its keys could not be read).
+ */
+export async function holdsLiveSignIn(): Promise<boolean> {
+  const token = await verifyStaffToken(getBrowserClient().auth);
+  return token !== null && !signInEnded(token.signedInAt);
 }
 
 /**
