@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { AuthApiError, AuthInvalidJwtError, AuthRetryableFetchError } from "@supabase/supabase-js";
-import { STAFF_SIGN_IN_MAX_MS, bearerToken, signInEnded, signInRefusedWords, verifyStaffToken } from "./staff-sign-in";
+import { AuthApiError, AuthInvalidJwtError, AuthRetryableFetchError, AuthUnknownError } from "@supabase/supabase-js";
+import {
+  SIGN_IN_SERVER_FAILED,
+  STAFF_SIGN_IN_MAX_MS,
+  bearerToken,
+  signInEnded,
+  signInRefusedWords,
+  verifyStaffToken,
+} from "./staff-sign-in";
 
 /**
  * Round 13: one staff sign-in was refreshed for 158 days, and every API read
@@ -121,9 +128,25 @@ describe("signInRefusedWords", () => {
     );
   });
 
+  // Round 15 and 16: a 500 at sign-in told staff to "check server logs",
+  // which they cannot read.
+  it("says the sign-in server broke, in staff's words, when it answers 500 or not at all in its own form", () => {
+    const broke = [
+      new AuthApiError("Unexpected failure, please check server logs for more information", 500, "unexpected_failure"),
+      new AuthApiError("Database error querying schema", 500, "unexpected_failure"),
+      new AuthApiError("Internal Server Error", 500, undefined),
+      new AuthUnknownError("Unexpected token '<', \"<html>\" is not valid JSON", new SyntaxError("Unexpected token")),
+    ];
+    for (const error of broke) {
+      const words = signInRefusedWords(error);
+      expect(words).toBe(SIGN_IN_SERVER_FAILED);
+      expect(words).not.toMatch(/server logs|unexpected|json/i);
+    }
+  });
+
   it("keeps the server's words for a refusal it does not know, so staff can pass them on", () => {
-    expect(signInRefusedWords(new AuthApiError("Database error querying schema", 500, "unexpected_failure"))).toBe(
-      "Could not sign in: Database error querying schema",
+    expect(signInRefusedWords(new AuthApiError("Email logins are disabled", 422, "email_provider_disabled"))).toBe(
+      "Could not sign in: Email logins are disabled",
     );
   });
 });
