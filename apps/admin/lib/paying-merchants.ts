@@ -6,7 +6,9 @@ import { dayOf } from "./baghdad-day";
  * merchant has a paid, non-trial month covering the moment counted (handoff
  * Q10), read from the ledger by admin_paying_merchants
  * (20261118233023_admin_paying_merchants.sql): the shops paying now, and the
- * count at the end of each past Baghdad month.
+ * count at the end of each past Baghdad month. The rule lives in
+ * paid_plan_months (20261118235058_admin_weekly_dashboard.sql), which the
+ * weekly dashboard reads too, so the two paying counts cannot differ.
  */
 
 /** Each team member's pay for a month: this, plus BONUS_PER_PAYER_IQD for every shop paying at the month's end. */
