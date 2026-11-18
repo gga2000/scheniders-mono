@@ -21,7 +21,7 @@ const call = (params = "") => GET(new NextRequest(`http://admin.test/api/merchan
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   status: "active",
   plan: "starter",
   trial_ends_at: null,
@@ -38,15 +38,20 @@ beforeEach(() => {
 });
 
 describe("GET /api/merchants/stats", () => {
-  it("leaves the demo store out of every count (Fermi B13)", async () => {
-    stub.state.tables.tenants = [shop(1), shop(2, { is_demo: true, wallet: { balance_iqd: 500000 } })];
+  it("leaves the demo store and prospect stores out of every count", async () => {
+    stub.state.tables.tenants = [
+      shop(1),
+      shop(2, { is_demo: true, is_prospect: false, wallet: { balance_iqd: 500000 } }),
+      // A store built for a lead before it signs up (build-store).
+      shop(3, { is_demo: false, is_prospect: true, status: "trial", wallet: { balance_iqd: 70000 } }),
+    ];
 
     const stats = await (await call()).json();
 
     expect(stats.total).toBe(1);
     expect(stats.total_wallet_iqd).toBe(20000);
     expect(stats.plan_prices_iqd).toBe(9000);
-    expect(stub.callsTo("tenants.eq")).toContainEqual(["is_demo", false]);
+    expect(stub.callsTo("tenants.match")).toContainEqual([{ is_demo: false, is_prospect: false }]);
   });
 
   it("counts every shop when there are more than one page of them", async () => {
@@ -163,6 +168,50 @@ describe("GET /api/merchants/stats", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("counts a paused trial's end as a trial's, and no other paused shop's", async () => {
+    vi.useFakeTimers({ now: Date.parse("2026-11-16T22:00:00+03:00"), toFake: ["Date"] });
+    try {
+      const paused = (before: string) => ({ status: "limited", restrictions: { status_before: before } });
+      stub.state.tables.tenants = [
+        // Paused on trial: one ends tonight, one ended at 21:00. Both are still trials.
+        shop(1, { ...paused("trial"), trial_ends_at: "2026-11-16T20:30:00Z" }),
+        shop(2, { ...paused("trial"), trial_ends_at: "2026-11-16T18:00:00Z" }),
+        // A paying shop paused, with an old trial date: not a trial.
+        shop(3, { ...paused("active"), trial_ends_at: "2026-11-16T18:00:00Z" }),
+      ];
+
+      const stats = await (await call()).json();
+
+      expect(stats.buckets.trials_today).toBe(1);
+      expect(stats.buckets.trials_expired).toBe(1);
+      // The Pipeline still has them in its Paused column.
+      expect(stats.status.limited).toBe(3);
+      expect(stats.status.trial).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts a paused trial on the Trial pill, and under the Trial filter", async () => {
+    const paused = (before: string) => ({ status: "limited", restrictions: { status_before: before } });
+    stub.state.tables.tenants = [
+      shop(1, { status: "trial" }),
+      shop(2, paused("trial")),
+      shop(3, paused("active")),
+      shop(4),
+    ];
+
+    const all = await (await call()).json();
+    expect(all.on_trial).toBe(2);
+    // The Pipeline's columns stay one per status.
+    expect(all.status).toEqual({ trial: 1, active: 1, limited: 2, suspended: 0, cancelled: 0 });
+
+    const trial = await (await call("status=trial")).json();
+    expect(trial.total).toBe(2);
+    expect(trial.on_trial).toBe(2);
+    expect(stub.callsTo("tenants.eq").filter(([column]) => column === "status")).toEqual([]);
   });
 
   it("counts sign-ups on whole Baghdad days, the last day included", async () => {

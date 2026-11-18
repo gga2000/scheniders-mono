@@ -17,7 +17,8 @@ CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'suspended', 'cance
 CREATE TABLE public.tenants (
     id uuid PRIMARY KEY,
     plan public.plan_tier NOT NULL,
-    status public.tenant_status NOT NULL
+    status public.tenant_status NOT NULL,
+    restrictions jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE public.plan_limits (

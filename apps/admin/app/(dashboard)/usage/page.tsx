@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Calendar, Clock, TrendingUp } from "lucide-react";
 import {
@@ -18,6 +18,7 @@ import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
 import { formatDay } from "@/lib/format";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface UsageData {
   heatmapData: Array<{ date: string; count: number }>;
@@ -45,13 +46,10 @@ function getHeatmapColor(count: number, maxCount: number): string {
 }
 
 export default function UsagePage() {
-  const [tenantFilter, setTenantFilter] = useState("");
-
   const { data, isLoading, isError, isFetching, refetch } = useQuery<UsageData>({
-    queryKey: ["admin", "usage", tenantFilter],
+    queryKey: ["admin", "usage"],
     queryFn: async () => {
-      const params = tenantFilter ? `?tenant_id=${tenantFilter}` : "";
-      const res = await fetch(`/api/usage${params}`);
+      const res = await adminFetch("/api/usage");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },

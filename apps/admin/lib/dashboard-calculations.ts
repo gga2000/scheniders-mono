@@ -7,6 +7,7 @@
 import type {
   PipelineStage,
   LeaderboardEntry,
+  GeoDistribution,
   GeoStats,
   HeatmapCell,
   FunnelStep,
@@ -23,9 +24,11 @@ import type {
   KpiData,
   PlatformOrderStat,
 } from "@/types/dashboard";
-import { addDays } from "./baghdad-day";
+import { addDays, dayOf } from "./baghdad-day";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
+import { effectiveStatus } from "./effective-status";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
+import { SHOP_GOVERNORATES, shopGovernorate } from "./shop-city";
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────
 
@@ -34,23 +37,50 @@ export interface DashboardTenant {
   business_name: string;
   plan: string;
   status: string;
+  /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+  restrictions: unknown;
   created_at: string;
   branding: { primary_color: string } | null;
   wallet_balance: number;
   team_members_count: number;
   /** What the onboarding steps read besides orders and the team (lib/onboarding-steps). */
-  setup: Pick<OnboardingFacts, "branding" | "configVersion" | "toppedUpIqd">;
+  setup: Pick<OnboardingFacts, "branding" | "storePublishes" | "toppedUpIqd">;
 }
 
-interface RawSubscriptionChange {
+/** A shop's subscription as Home reads it for Plan Movements. */
+export interface SubscriptionRow {
   tenant_id: string;
-  from_plan: string | null;
-  to_plan: string | null;
+  plan: string;
+  status: string;
+  pending_plan: string | null;
+}
+
+/** A status change on the staff log, as Home reads it for Plan Movements. */
+export interface ShopStepRow {
+  tenant_id: string | null;
+  action: string;
+  details: unknown;
+  created_at: string;
+}
+
+/** One change of a subscription's plan, whoever made it (subscription_plan_changes). */
+export interface PlanChangeRow {
+  tenant_id: string;
+  from_plan: string;
+  to_plan: string;
   changed_at: string;
-  type: string; // 'plan_change' | 'new' | 'cancellation'
+  /** The subscription was still on trial: the merchant's first plan choice. */
+  from_trial: boolean;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The middle of sorted numbers; with an even count, halfway between the two middle ones. */
+function median(sorted: number[]): number {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
 
 function daysBetween(a: Date, b: Date): number {
   return Math.floor(Math.abs(b.getTime() - a.getTime()) / DAY_MS);
@@ -125,12 +155,40 @@ export function calculateTopMerchants(
 
 // ─── Geographic Stats ───────────────────────────────────────────────────────
 
-export function calculateGeoStats(governorates90: DashboardStats["governorates90"]): GeoStats[] {
-  return governorates90.map((g) => ({
-    governorateCode: g.code,
-    orderCount: g.orders,
-    revenue: g.sales,
-  }));
+/**
+ * Orders and shop sales by governorate, last 90 days. An order with no
+ * governorate code is placed by the city typed on it, with the console's one
+ * city rule (the Merchants map's), so "بغداد" counts for Baghdad; what that
+ * rule cannot read is "unknown", never left out.
+ */
+export function calculateGeoStats(
+  governorates90: DashboardStats["governorates90"],
+  uncodedPlaces90: DashboardStats["uncodedPlaces90"],
+): GeoDistribution {
+  const byCode = new Map<string, GeoStats>();
+  const add = (code: string, orders: number, sales: number) => {
+    const row = byCode.get(code) ?? { governorateCode: code, orderCount: 0, revenue: 0 };
+    row.orderCount += orders;
+    row.revenue += sales;
+    byCode.set(code, row);
+  };
+  for (const g of governorates90) add(g.code, g.orders, g.sales);
+
+  const unknown = { orderCount: 0, revenue: 0 };
+  for (const place of uncodedPlaces90) {
+    const governorate = shopGovernorate(place.city);
+    if (governorate) {
+      add(governorate.code, place.orders, place.sales);
+    } else {
+      unknown.orderCount += place.orders;
+      unknown.revenue += place.sales;
+    }
+  }
+
+  const governorates = [...byCode.values()].sort(
+    (a, b) => b.orderCount - a.orderCount || a.governorateCode.localeCompare(b.governorateCode),
+  );
+  return { governorates, unknown };
 }
 
 // ─── Peak Hours Heatmap ─────────────────────────────────────────────────────
@@ -260,7 +318,7 @@ export function calculateWalletHealth(
   const warning = balances.filter((b) => b >= 10000 && b <= 50000).length;
   const critical = balances.filter((b) => b < 10000).length;
   const avgBalance = balances.length ? balances.reduce((a, b) => a + b, 0) / balances.length : 0;
-  const medianBalance = balances.length ? balances[Math.floor(balances.length / 2)] : 0;
+  const medianBalance = median(balances);
 
   return { healthy, warning, critical, avgBalance, medianBalance, topUpRateSparkline: topUpsDaily7 };
 }
@@ -286,21 +344,38 @@ const SLICE_COLORS = [
   "var(--pastel-pink)", "var(--pastel-purple)", "var(--pastel-mint)",
 ];
 
-/** Last 90 days. By plan is the fees we collected; by city and by source are the merchants' sales. */
+/** The most places the "by city" bars show. */
+const CITY_SLICES = 10;
+
+/**
+ * Last 90 days. By plan is the fees we collected; by city and by source are
+ * the merchants' sales. By city reads the map's numbers, so both say the same
+ * for Baghdad, and "Unknown city" is a bar of its own.
+ */
 export function calculateRevenueBreakdown(
   byPlan90: IncomeStats["byPlan90"],
-  cities90: DashboardStats["cities90"],
+  geo: GeoDistribution,
   sources90: DashboardStats["sources90"],
 ): RevenueBreakdown {
+  const places = [
+    ...geo.governorates.map((g) => ({
+      label: SHOP_GOVERNORATES.find((s) => s.code === g.governorateCode)?.name ?? g.governorateCode,
+      value: g.revenue,
+    })),
+    { label: "Unknown city", value: geo.unknown.revenue },
+  ]
+    .filter((place) => place.value > 0)
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .slice(0, CITY_SLICES);
+
   return {
     byPlan: byPlan90.map((p) => ({
       label: titleCase(p.plan),
       value: p.amount,
       color: PLAN_COLORS[p.plan] || "var(--pastel-mint)",
     })),
-    byCity: cities90.map((c, i) => ({
-      label: c.city,
-      value: c.sales,
+    byCity: places.map((place, i) => ({
+      ...place,
       color: SLICE_COLORS[i % SLICE_COLORS.length],
     })),
     bySource: sources90.map((s, i) => ({
@@ -317,24 +392,93 @@ const PLAN_RANK: Record<string, number> = {
   starter: 1, growth: 2, professional: 3, enterprise: 4,
 };
 
-export function calculatePlanMovements(changes: RawSubscriptionChange[]): PlanMovement[] {
-  return changes.map((c) => {
-    let type: PlanMovement["type"] = "new";
-    if (c.type === "cancellation") {
-      type = "cancellation";
-    } else if (c.from_plan && c.to_plan) {
-      type = (PLAN_RANK[c.to_plan] || 0) > (PLAN_RANK[c.from_plan] || 0)
-        ? "upgrade"
-        : "downgrade";
-    }
+/** A paid plan the card can rank; the house tier and anything unknown are left out. */
+const isRanked = (plan: unknown): plan is string => typeof plan === "string" && plan in PLAN_RANK;
 
-    return {
-      fromPlan: (c.from_plan || "new") as PlanMovement["fromPlan"],
-      toPlan: (c.to_plan || "cancelled") as PlanMovement["toPlan"],
-      count: 1,
-      type,
-    };
-  });
+/**
+ * The "Plan Movements (30d)" card, one line per shop and move. It reads what
+ * is on record for the last 30 days: the plan changes the database records
+ * whoever made them (the merchant, the renewal or staff), the staff log's
+ * status changes (subscriptions.cancelled_at is never written), the shops
+ * opened, and the plan changes still waiting for the next payment.
+ *
+ * - A shop counts once however often it changed: as cancelled when its last
+ *   status change was to cancelled (one cancelled and turned back on is no
+ *   cancellation), and as moved from its plan before the first plan change to
+ *   its plan after the last one.
+ * - New signups are the shops opened in the 30 days, one line per plan.
+ * - A trial's end that applies the merchant's first plan choice is no move:
+ *   every trial runs on Team, so counting it would file each new shop that
+ *   picks Start as a downgrade (20261117071812). A choice still waiting in a
+ *   trial is not listed either.
+ * - A waiting change has not happened, so it is listed as "waiting" and is
+ *   not counted as an upgrade or a downgrade.
+ *
+ * Only the shops in `shops` count (customer shops), so the demo store and
+ * prospect stores stay out, and the house tier is never a move.
+ */
+export function calculatePlanMovements(
+  rows: SubscriptionRow[],
+  statusSteps: ShopStepRow[],
+  planChanges: PlanChangeRow[],
+  shops: ReadonlyArray<Pick<DashboardTenant, "id" | "plan" | "status" | "restrictions" | "created_at">>,
+  now: Date,
+): PlanMovement[] {
+  const since = now.getTime() - 30 * DAY_MS;
+  const shopPlans = new Map(shops.map((shop) => [shop.id, shop.plan]));
+  const onTrial = new Set(
+    shops.filter((shop) => effectiveStatus(shop.status, shop.restrictions) === "trial").map((shop) => shop.id),
+  );
+  type Moved = { plan: string; status?: unknown; planBefore?: string; planAfter?: string };
+  const byShop = new Map<string, Moved>();
+  const shopOf = (tenantId: string | null): Moved | undefined => {
+    const plan = tenantId ? shopPlans.get(tenantId) : undefined;
+    if (!tenantId || plan === undefined) return undefined;
+    const shop = byShop.get(tenantId) ?? { plan };
+    byShop.set(tenantId, shop);
+    return shop;
+  };
+  const recent = (at: string) => Date.parse(at) >= since;
+  const byTime = (a: string, b: string) => Date.parse(a) - Date.parse(b);
+
+  // The log's ids are random, so the steps are put in time order here.
+  for (const step of statusSteps.filter((s) => recent(s.created_at)).sort((a, b) => byTime(a.created_at, b.created_at))) {
+    const shop = shopOf(step.tenant_id);
+    if (shop) shop.status = (step.details as { status?: unknown } | null)?.status;
+  }
+  for (const change of planChanges.filter((c) => recent(c.changed_at) && !c.from_trial).sort((a, b) => byTime(a.changed_at, b.changed_at))) {
+    const shop = shopOf(change.tenant_id);
+    if (!shop) continue;
+    shop.planBefore ??= change.from_plan;
+    shop.planAfter = change.to_plan;
+  }
+
+  const moves: PlanMovement[] = [];
+  for (const { plan, status, planBefore: from, planAfter: to } of byShop.values()) {
+    if (isRanked(from) && isRanked(to) && from !== to) {
+      moves.push({ fromPlan: from, toPlan: to, count: 1, type: PLAN_RANK[to] > PLAN_RANK[from] ? "upgrade" : "downgrade" });
+    }
+    if (status === "cancelled") moves.push({ fromPlan: plan, toPlan: "cancelled", count: 1, type: "cancellation" });
+  }
+
+  const opened = new Map<string, number>();
+  for (const shop of shops) {
+    if (recent(shop.created_at) && isRanked(shop.plan)) opened.set(shop.plan, (opened.get(shop.plan) ?? 0) + 1);
+  }
+  for (const plan of Object.keys(PLAN_RANK)) {
+    const count = opened.get(plan);
+    if (count) moves.push({ fromPlan: "new", toPlan: plan, count, type: "new" });
+  }
+
+  for (const s of rows) {
+    if (!shopPlans.has(s.tenant_id) || s.status === "cancelled") continue;
+    // In a trial (running, or locked after it) the choice is the first plan.
+    if (s.status === "trialing" || onTrial.has(s.tenant_id)) continue;
+    if (isRanked(s.plan) && isRanked(s.pending_plan) && s.pending_plan !== s.plan) {
+      moves.push({ fromPlan: s.plan, toPlan: s.pending_plan, count: 1, type: "waiting" });
+    }
+  }
+  return moves;
 }
 
 // ─── Top-Up Patterns ────────────────────────────────────────────────────────
@@ -419,7 +563,12 @@ const FIRST_ORDER_BUCKETS = [
   { label: "> 1 Month", min: 29, max: Infinity },
 ];
 
-/** From signup to the shop's first real order ever (not its first in the last 90 days). */
+/**
+ * From signup to the shop's first real order ever (not its first in the last
+ * 90 days), in Baghdad calendar days: joining at 23:00 and selling at 01:00 is
+ * one day. A shop whose first order is older than its signup brought its past
+ * orders with it, so it sold from its first day: "Same Day".
+ */
 export function calculateTimeToFirstOrder(
   tenants: DashboardTenant[],
   shops: DashboardStats["shops"],
@@ -433,7 +582,7 @@ export function calculateTimeToFirstOrder(
       counts.set("Never", (counts.get("Never") ?? 0) + 1);
       continue;
     }
-    const days = daysBetween(new Date(t.created_at), new Date(first));
+    const days = Math.max(0, Math.round((Date.parse(dayOf(first)) - Date.parse(dayOf(t.created_at))) / DAY_MS));
     const bucket = FIRST_ORDER_BUCKETS.find((b) => days >= b.min && days <= b.max);
     if (bucket) counts.set(bucket.label, (counts.get(bucket.label) ?? 0) + 1);
   }

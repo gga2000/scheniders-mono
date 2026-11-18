@@ -5,7 +5,9 @@ import { Star, Wallet, Clock, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAdminStore } from "@/store/use-admin-store";
+import { useWatchlist } from "@/hooks/use-watchlist";
 import { formatWhen } from "@/lib/format";
+import { adminFetch } from "@/lib/admin-fetch";
 
 function healthDotColor(status: string): string {
   switch (status) {
@@ -31,13 +33,18 @@ interface WatchlistMerchant {
 
 export function MerchantWatchlistWidget() {
   const starredMerchants = useAdminStore((s) => s.starredMerchants);
+  // The signed-in person's stars (WatchlistSync copies them into the store).
+  // With none in the store, "No starred merchants" is only true once they
+  // have been read: before that the tile is loading, and a failed read says so.
+  const stars = useWatchlist();
+  const starsUnread = starredMerchants.length === 0 && !stars.data;
 
   const { data: merchants = [], isLoading, isError } = useQuery<WatchlistMerchant[]>({
     queryKey: ["admin", "watchlist", starredMerchants],
     queryFn: async () => {
       if (starredMerchants.length === 0) return [];
       const ids = starredMerchants.join(",");
-      const res = await fetch(`/api/merchants?ids=${ids}`);
+      const res = await adminFetch(`/api/merchants?ids=${ids}`);
       if (!res.ok) throw new Error("Failed to fetch watchlist");
       const json = await res.json();
       return json.merchants ?? json;
@@ -54,7 +61,12 @@ export function MerchantWatchlistWidget() {
       </div>
 
       {/* Content */}
-      {starredMerchants.length === 0 ? (
+      {starsUnread && stars.isError ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
+          <p className="text-xs text-foreground/40">Your stars could not be loaded</p>
+        </div>
+      ) : starredMerchants.length === 0 && !starsUnread ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <Star className="w-8 h-8 text-foreground/15 mb-2" />
           <p className="text-xs text-foreground/40">No starred merchants</p>
@@ -64,9 +76,9 @@ export function MerchantWatchlistWidget() {
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
           <p className="text-xs text-foreground/40">Failed to load watchlist</p>
         </div>
-      ) : isLoading ? (
+      ) : isLoading || starsUnread ? (
         <div className="space-y-3">
-          {Array.from({ length: Math.min(starredMerchants.length, 3) }).map(
+          {Array.from({ length: Math.min(Math.max(starredMerchants.length, 1), 3) }).map(
             (_, i) => (
               <div
                 key={i}
@@ -91,7 +103,7 @@ export function MerchantWatchlistWidget() {
               />
 
               {/* Name */}
-              <span className="text-xs font-semibold text-foreground truncate flex-1 min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate name-dir flex-1 min-w-0">
                 {merchant.business_name}
               </span>
 

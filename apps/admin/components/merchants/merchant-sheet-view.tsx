@@ -212,7 +212,7 @@ export function MerchantSheetView({
                   </div>
                   <button
                     onClick={() => onOpenDetail(m.id)}
-                    className="font-black text-foreground tracking-tight truncate hover:underline text-left text-[12px] leading-tight"
+                    className="font-black text-foreground tracking-tight truncate name-dir hover:underline text-left text-[12px] leading-tight"
                   >
                     {m.business_name}
                   </button>

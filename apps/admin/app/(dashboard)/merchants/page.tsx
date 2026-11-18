@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInfiniteMerchants } from "@/hooks/use-infinite-merchants";
-import { useAdminStore } from "@/store/use-admin-store";
+import { merchantFiltersOn, useAdminStore } from "@/store/use-admin-store";
 import { useMerchantKeyboardNav } from "@/hooks/use-merchant-keyboard-nav";
 import { useLastActors } from "@/hooks/use-last-actors";
 import { MerchantCard } from "@/components/merchants/merchant-card";
@@ -30,7 +30,6 @@ import { KeyboardShortcutsOverlay } from "@/components/merchants/keyboard-shortc
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { LoadError } from "@/components/shared/load-error";
 import { downloadSelectedShops } from "@/lib/download-export";
-import { useRealtimePulse } from "@/store/use-realtime-pulse";
 import {
   EASE_CROSSFADE,
   STAGGER_CHILDREN,
@@ -106,16 +105,10 @@ export default function MerchantsPage() {
     searchQuery,
     clearFilters,
     setSearchQuery,
-    planFilter,
-    statusFilter,
-    cityFilter,
-    balanceFilter,
-    healthFilter,
   } = useAdminStore();
 
-  const pulsingMerchants = useRealtimePulse((s) => s.pulsing);
 
-  const hasActiveFilters = !!(planFilter || statusFilter || cityFilter || balanceFilter || healthFilter);
+  const hasActiveFilters = useAdminStore(merchantFiltersOn);
   const hasActiveSearch = !!searchQuery.trim();
 
   // ── Infinite scroll sentinel ─────────────────────────────────────────
@@ -304,6 +297,8 @@ export default function MerchantsPage() {
                 return (
                   <button
                     key={mode.value}
+                    type="button"
+                    aria-pressed={viewMode === mode.value}
                     onClick={() => setViewMode(mode.value)}
                     className={cn(
                       "p-1.5 rounded-lg transition-all",
@@ -370,7 +365,6 @@ export default function MerchantsPage() {
                 <MerchantCard
                   merchant={merchant}
                   isSelected={selectedMerchants.has(merchant.id)}
-                  isPulsing={pulsingMerchants.has(merchant.id)}
                   isStarred={starredMerchants.includes(merchant.id)}
                   index={idx}
                   lastActor={lastActorsMap[merchant.id] ?? null}

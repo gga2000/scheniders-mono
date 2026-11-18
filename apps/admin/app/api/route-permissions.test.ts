@@ -66,7 +66,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
-    auth: { getUser: async () => ({ data: { user: null }, error: null }) },
+    auth: { getClaims: async () => ({ data: null, error: null }) },
   }),
 }));
 
@@ -85,7 +85,8 @@ function req(
   token: string | null,
   body?: unknown,
 ): NextRequest {
-  const headers = new Headers({ "content-type": "application/json" });
+  // Sent from a console page, as the browser marks it: these tests are about roles, not other sites.
+  const headers = new Headers({ "content-type": "application/json", "sec-fetch-site": "same-origin" });
   if (token) headers.set("authorization", `Bearer ${token}`);
   return new NextRequest(`http://admin.test${pathname}`, {
     method,
@@ -306,7 +307,13 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./trial-checks/[id]/route");
       return POST(
-        req(`/api/trial-checks/${TENANT}`, "POST", t, { decision: "allow_trial", days: 7, reason: "same owner, new brand" }),
+        req(`/api/trial-checks/${TENANT}`, "POST", t, {
+          decision: "allow_trial",
+          days: 7,
+          reason: "same owner, new brand",
+          request_id: REQ,
+          seen_decided_at: null,
+        }),
         idParams,
       );
     },
@@ -336,11 +343,11 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
-    name: "POST /api/leads/bulk change_priority (any admin)",
+    name: "POST /api/leads/bulk change_status (any admin)",
     call: async (t) => {
       const { POST } = await import("./leads/bulk/route");
       return POST(
-        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_priority", payload: { priority: "high" } }),
+        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_status", payload: { status: "contacted" } }),
       );
     },
   },
@@ -677,6 +684,13 @@ describe("billing lock staff tools", () => {
     expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(404);
   });
 
+  it("a paused store is not unlocked: staff lift the pause first", async () => {
+    dbResult = { data: { success: false, error: "paused" }, error: null };
+    const res = await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("This store is paused. Lift the pause first, then unlock it");
+  });
+
   it("a database error or an unreadable answer is a 500, not a success", async () => {
     dbResult = { data: null, error: { code: "40P01", message: "deadlock detected" } };
     expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(500);
@@ -709,6 +723,16 @@ describe("billing lock staff tools", () => {
  */
 describe("one change per staff request", () => {
   const CALLS = [
+    {
+      name: "trial-checks",
+      role: "support",
+      body: { decision: "allow_trial", days: 7, reason: "same owner, new brand", seen_decided_at: null },
+      ok: { success: true, tenant_id: TENANT, decision: "allow_trial" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./trial-checks/[id]/route");
+        return POST(req(`/api/trial-checks/${TENANT}`, "POST", t, body), idParams);
+      },
+    },
     {
       name: "extend-trial",
       role: "support",
@@ -824,9 +848,7 @@ describe("every admin API handler is guarded", () => {
   const API_DIR = path.resolve(__dirname);
   // Routes never call `requireAdmin` directly: its typed AdminAuthError would
   // land in the handler's generic catch and come back as a 500.
-  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin)\(/;
-  // The OAuth callback runs before a session exists; middleware also exempts it.
-  const PUBLIC = new Set(["auth/callback/route.ts GET"]);
+  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin|requireCronAuth)\(/;
 
   const routeFiles = readdirSync(API_DIR, { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(`${path.sep}route.ts`) || f === "route.ts")
@@ -847,7 +869,7 @@ describe("every admin API handler is guarded", () => {
     expect(handlers.length).toBeGreaterThan(50);
   });
 
-  it.each(handlers.filter((h) => !PUBLIC.has(h.key)).map((h) => [h.key, h.body]))(
+  it.each(handlers.map((h) => [h.key, h.body]))(
     "%s calls a guard",
     (_key, body) => {
       expect(body).toMatch(GUARD);
@@ -906,8 +928,6 @@ describe("every role rule is proven from the source", () => {
     "leads/analyze-profile/route.ts POST": "reads a lead's public profile",
     "leads/[id]/route.ts PATCH": "sales work: edit a lead",
     "leads/[id]/activities/route.ts POST": "sales work: log a call or message",
-    "leads/[id]/competitors/route.ts POST": "sales work: note a competitor",
-    "leads/[id]/competitors/route.ts DELETE": "sales work: remove a competitor note",
     "leads/[id]/follow-ups/route.ts POST": "sales work: plan a follow-up",
     "leads/[id]/follow-ups/[fid]/route.ts PATCH": "sales work: mark a follow-up done",
   };

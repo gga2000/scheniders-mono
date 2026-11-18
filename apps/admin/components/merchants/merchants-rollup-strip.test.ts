@@ -15,6 +15,7 @@ const stats: MerchantsStats = {
   plan_prices_iqd: 25_000,
   fees_30d_iqd: 11_055,
   status: { trial: 1, active: 1, limited: 0, suspended: 0, cancelled: 0 },
+  on_trial: 1,
   buckets: { trials_today: 0, trials_expired: 0, suspended: 0, cancelled: 0, low_wallet: 1, attention: 1 },
   governorates: { BGD: 2 },
   unknown_city: 0,
@@ -28,7 +29,8 @@ describe("MerchantsRollupStrip", () => {
 
   it("names the plan prices of active shops and our fees for what they are", () => {
     expect(html).toContain("Plan prices");
-    expect(html).toContain("active shops, a month");
+    expect(html).toContain("active shops, list price a month");
+    expect(html).toContain("not cancelled or suspended");
     expect(html).toMatch(/25,000<span[^>]*>IQD/);
     expect(html).toContain("Our fees");
     expect(html).toContain("last 30 days");

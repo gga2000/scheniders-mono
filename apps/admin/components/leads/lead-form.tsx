@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/format";
 import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
@@ -47,24 +47,35 @@ import {
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { normalizeIraqiPhone } from "./lead-phone";
+import { useCan } from "@/hooks/use-admin-auth";
 import { LeadIndustryManager } from "./lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
+  type LeadFormDraftSave,
+  type LeadFormSubmitResult,
 } from "./use-lead-form-controller";
 
 interface LeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Persist the lead. Resolve `true` on success, `false` on failure. */
-  onSubmit: (data: LeadFormData) => Promise<boolean> | boolean | void;
+  /**
+   * Persist the lead. Resolve `true` on success, `false` on failure, "unchanged"
+   * when there was nothing to send. `changes`: only the fields that differ from
+   * the form as it opened (what an edit sends); `opened`: the form as it opened.
+   */
+  onSubmit: (
+    data: LeadFormData,
+    changes: Partial<LeadFormData>,
+    opened: LeadFormData,
+  ) => Promise<LeadFormSubmitResult> | LeadFormSubmitResult | void;
   initialData?: Partial<LeadFormData>;
   /**
    * If provided, an *accidental* dismissal (Escape / click-outside) with unsaved
    * content auto-saves the in-progress lead as a draft instead of discarding it.
    * The explicit Cancel/✕ buttons always discard.
    */
-  onSaveDraft?: (data: LeadFormData) => void;
+  onSaveDraft?: LeadFormDraftSave;
 }
 
 const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
@@ -429,7 +440,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
     estimatedDailyOrders,
     estimatedMonthlyRevenue,
     hasPrediction,
-    isDirty,
+    saveDraftOnClose,
     update,
     resetForm,
     handleAnalyze,
@@ -451,11 +462,16 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
   const [showIndustryDetail, setShowIndustryDetail] = useState(false);
   const [extras, setExtras] = useState({ website: false, email: false, notes: false });
   const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
+  // The industry list is a settings write (update_settings): support staff
+  // got a bare "Forbidden" at every step, so the link is not shown to them,
+  // as on the Settings page.
+  const canManageIndustries = useCan()("update_settings");
 
   // Re-derive what's revealed each time the dialog opens (so editing a lead that
   // already has a website/email/notes/niche shows those fields straight away).
-  useEffect(() => {
-    if (!open) return;
+  // Only on open, like the form itself: a new starting object while open must
+  // not fold away a field this person revealed.
+  const revealSaved = useEffectEvent(() => {
     setShowAutofill(false);
     setShowIndustryDetail(!!initialData?.industry_detail);
     setExtras({
@@ -463,16 +479,17 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
       email: !!initialData?.email,
       notes: !!initialData?.management_info,
     });
-  }, [open, initialData]);
+  });
+  useEffect(() => {
+    if (open) revealSaved();
+  }, [open]);
 
   // ANY dismissal with unsaved content (✕, Cancel, Escape, click-outside) saves
   // a draft rather than losing it — the form is never an accidental dead-end.
   // (A successful submit closes via the controller's onClose, which bypasses this.)
   const handleOpenChange = (v: boolean) => {
     if (!v && submitting) return;
-    if (!v && onSaveDraft && isDirty) {
-      onSaveDraft(form);
-    }
+    if (!v) saveDraftOnClose(onSaveDraft);
     onOpenChange(v);
   };
 
@@ -590,24 +607,27 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <FieldLabel>Industry</FieldLabel>
-                  <button
-                    type="button"
-                    onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] transition-colors hover:underline"
-                  >
-                    <Settings2 className="h-3 w-3" /> Manage
-                  </button>
+                  {canManageIndustries && (
+                    <button
+                      type="button"
+                      onClick={() => setIndustryMgrOpen(true)}
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] transition-colors hover:underline"
+                    >
+                      <Settings2 className="h-3 w-3" /> Manage
+                    </button>
+                  )}
                 </div>
                 <SelectField
                   value={form.industry_id ?? ""}
                   onChange={(e) => update("industry_id", e.target.value || null)}
                 >
                   <option value="">Select industry</option>
+                  {/* A switched-off industry is not offered, except the one this lead already has: it keeps it. */}
                   {(industries ?? [])
-                    .filter((i) => i.is_active)
+                    .filter((i) => i.is_active || i.id === initialData?.industry_id)
                     .map((i) => (
                       <option key={i.id} value={i.id}>
-                        {i.name_ar || i.name}
+                        {i.is_active ? i.name_ar || i.name : `${i.name_ar || i.name} (off)`}
                       </option>
                     ))}
                 </SelectField>
@@ -1281,10 +1301,12 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData, onSaveDraf
         </Dialog.Content>
       </Dialog.Portal>
 
-      <LeadIndustryManager
-        isOpen={industryMgrOpen}
-        onClose={() => setIndustryMgrOpen(false)}
-      />
+      {canManageIndustries && (
+        <LeadIndustryManager
+          isOpen={industryMgrOpen}
+          onClose={() => setIndustryMgrOpen(false)}
+        />
+      )}
     </Dialog.Root>
   );
 }

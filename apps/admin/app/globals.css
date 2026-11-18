@@ -17,6 +17,18 @@
 }
 
 /*
+ * A shop or lead name, Arabic or English, in a box that cuts it with "…".
+ * The console is left to right, so a box is cut on its right, where an
+ * Arabic name starts. Each name is laid out in the direction of its own first
+ * letter instead, so it is cut at its own end, and stays left-aligned like
+ * every other row. lib/name-direction.test.ts finds the names that need it.
+ */
+@utility name-dir {
+  unicode-bidi: plaintext;
+  text-align: left;
+}
+
+/*
  * Board v7: every text passes WCAG AA (4.5:1) on the page and on cards, in
  * light and dark. The console has two inks: foreground and muted (muted is
  * text-foreground/70 or var(--muted), never fainter). `--muted` labels 291
@@ -39,8 +51,28 @@
   --ink-fuchsia: #86198f;
   --ink-red: #991b1b;
   --ink-slate: #475569;
+  /* Peak Hours, quiet to busy. The shared pastels stay light in dark mode, so
+     there the quiet hours drew bright cream and the busy ones darker: the
+     scale read backwards. Dark mode climbs from the card to a bright amber. */
+  --heat-1: var(--pastel-yellow-light, #FEF3C7);
+  --heat-2: var(--pastel-yellow, #FBE38E);
+  --heat-3: #d97706;
+  /* Platform Activity, quiet to busy, in greens: the same reason as the heat
+     scale above. In light mode the greens deepen; in dark mode they climb
+     from the card to a bright green. */
+  --grow-1: #bbf7d0;
+  --grow-2: var(--pastel-green, #86efac);
+  --grow-3: #4ade80;
+  --grow-4: #16a34a;
 }
 .dark {
+  --heat-1: rgba(245, 158, 11, 0.22);
+  --heat-2: rgba(245, 158, 11, 0.5);
+  --heat-3: #fbbf24;
+  --grow-1: rgba(34, 197, 94, 0.2);
+  --grow-2: rgba(34, 197, 94, 0.4);
+  --grow-3: rgba(34, 197, 94, 0.65);
+  --grow-4: #4ade80;
   --muted: #a3a3a3;
   --ink-amber: #fcd34d;
   --ink-orange: #fdba74;
@@ -76,6 +108,19 @@ body {
 .pastel-card:hover {
   transform: none;
   box-shadow: var(--card-shadow);
+}
+
+/*
+ * Staff who chose an icons-only menu. Pages are built ahead of time with the
+ * full menu; lib/menu-choice.ts marks <html> before the first paint, and these
+ * rules give the page the narrow menu's room until the app comes alive and
+ * draws the icons. Without them the page jumped 184px sideways on every load.
+ * They are outside any layer, so they win over the shell's Tailwind classes.
+ */
+@media (min-width: 768px) {
+  html[data-menu="icons"] [data-admin-main] { margin-left: 88px; }
+  html[data-menu="icons"] [data-admin-menu]:not([data-collapsed]) { width: 72px; }
+  html[data-menu="icons"] [data-admin-menu]:not([data-collapsed]) > * { visibility: hidden; }
 }
 
 /* Trial countdown in dark mode */
@@ -141,24 +186,6 @@ body {
 }
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
-}
-
-/* Real-time pulse glow for recently updated cards */
-@keyframes pulse-glow {
-  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
-  50% { box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.25); }
-  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-}
-.animate-pulse-glow {
-  animation: pulse-glow 1s ease-in-out 2;
-}
-.dark .animate-pulse-glow {
-  animation: pulse-glow-dark 1s ease-in-out 2;
-}
-@keyframes pulse-glow-dark {
-  0% { box-shadow: 0 0 0 0 rgba(239, 255, 0, 0.4); }
-  50% { box-shadow: 0 0 12px 4px rgba(239, 255, 0, 0.15); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 255, 0, 0); }
 }
 
 /* Staleness overlays */

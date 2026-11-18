@@ -6,7 +6,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCan } from "@/hooks/use-admin-auth";
 import { PLAN_LABELS, type PlanTier } from "@/types/admin";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const PLAN_OPTIONS: Array<{
   value: PlanTier;
@@ -36,6 +38,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const can = useCan();
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +51,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
 
   const mutation = useMutation({
     mutationFn: async (newPlan: PlanTier) => {
-      const res = await fetch(`/api/merchants/${merchantId}`, {
+      const res = await adminFetch(`/api/merchants/${merchantId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: newPlan }),
@@ -84,6 +87,15 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   };
 
   const current = PLAN_OPTIONS.find((o) => o.value === plan);
+
+  // Without change_plan the server refuses every choice, so the plan is shown, not offered.
+  if (!can("change_plan")) {
+    return (
+      <span className={cn("px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider", planBadgeStyle[plan])}>
+        {current?.label ?? plan}
+      </span>
+    );
+  }
 
   return (
     <div ref={ref} className="relative">

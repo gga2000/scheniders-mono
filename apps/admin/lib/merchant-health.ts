@@ -5,12 +5,15 @@
  * orders of six months while the list read one month), so one shop could be
  * green with no flame here and red with a flame there.
  *
- * The score itself comes from the database (staff_health_score). This file
- * only says which band a score is in and when the flame shows.
+ * The score's parts come from the database (staff_health_parts) and the API
+ * adds them up (lib/shop-health-score). This file only says which band a
+ * score is in and when the flame shows.
  */
 import type { AdminTenant } from "@/types/admin";
-import { trialClock } from "@/lib/baghdad-day";
+import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
+import { effectiveStatus } from "@/lib/effective-status";
 import { ATTENTION_WALLET_IQD, HEALTH_AT_RISK_BELOW, HEALTH_HEALTHY_FROM } from "@/lib/merchant-filters";
+import { formatCount } from "@/lib/format";
 
 export type HealthBand = "healthy" | "warning" | "at_risk";
 
@@ -43,53 +46,59 @@ export function healthDotClass(score: number): string {
   return DOT[healthBand(score)];
 }
 
-/** Fewer orders than this in the newest usage month reads as "hardly selling". */
+/** Fewer real orders than this in 30 days reads as "hardly selling". */
 const FEW_ORDERS = 5;
-/** A trial ending within this many Baghdad days (or already ended) with no order yet is about to be lost. */
-const TRIAL_LAST_DAYS = 3;
 
 export interface ChurnFacts {
   status: string;
+  /** The pause, if any: a paused trial still ends (lib/effective-status). */
+  restrictions?: unknown;
   trialEndsAt: string | null;
   walletIqd: number;
-  /** Orders of the shop's newest usage month: the month the health score reads too. */
-  ordersNewestMonth: number;
+  /**
+   * The shop's real orders of the 30 Baghdad days that end today: the orders
+   * the health score's "orders" part counts too (staff_health_parts). Never the
+   * plan's usage counter, which misses store checkout orders.
+   */
+  orders30d: number;
 }
 
 /**
  * The flame: a shop staff should call before it is gone. Suspended, or nearly
- * out of money and hardly selling, or a trial about to end with no order.
+ * out of money and hardly selling, or a trial about to end with no order. A
+ * cancelled shop is already gone, so it never has one.
  */
 export function isChurnRisk(shop: ChurnFacts, now: number = Date.now()): boolean {
+  if (shop.status === "cancelled") return false;
   if (shop.status === "suspended") return true;
-  if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.ordersNewestMonth < FEW_ORDERS) return true;
-  if (shop.status === "trial" && shop.trialEndsAt) {
-    return trialClock(shop.trialEndsAt, now).days <= TRIAL_LAST_DAYS && shop.ordersNewestMonth === 0;
+  if (shop.walletIqd < ATTENTION_WALLET_IQD && shop.orders30d < FEW_ORDERS) return true;
+  if (effectiveStatus(shop.status, shop.restrictions) === "trial" && shop.trialEndsAt) {
+    return trialClock(shop.trialEndsAt, now).days <= TRIAL_ENDING_DAYS && shop.orders30d === 0;
   }
   return false;
 }
 
-/** The flame for a row of the Merchants list, whose `usage` is the newest usage month. */
+/** The flame for a row of the Merchants list, which carries the shop's real orders of 30 days. */
 export function listChurnRisk(shop: AdminTenant, now?: number): boolean {
   return isChurnRisk(
     {
       status: shop.status,
+      restrictions: shop.restrictions,
       trialEndsAt: shop.trial_ends_at,
       walletIqd: shop.wallet?.balance_iqd ?? 0,
-      ordersNewestMonth: shop.usage?.orders_count ?? 0,
+      orders30d: shop.orders_30d ?? 0,
     },
     now,
   );
 }
 
-/** Orders of the newest month among a shop's usage rows, in any order. 0 when it has none. */
-export function newestMonthOrders(
-  usage: ReadonlyArray<{ year: number; month: number; orders_count: number | null }>,
-): number {
-  const newest = usage.reduce<(typeof usage)[number] | null>(
-    (best, row) =>
-      best === null || row.year > best.year || (row.year === best.year && row.month > best.month) ? row : best,
-    null,
-  );
-  return newest?.orders_count ?? 0;
+/**
+ * The Shops at risk banner. A shop with a low wallet is in both lists (a low
+ * balance is one of the risk reasons), so it counts shops, not list rows:
+ * "2 issues" for one shop sent staff looking for a second.
+ */
+export function shopsAtRiskLine(atRisk: { tenant_id: string }[], lowWallets: { tenant_id: string }[]): string {
+  const shops = new Set([...atRisk, ...lowWallets].map((row) => row.tenant_id)).size;
+  const plural = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
+  return `${plural(shops, "shop needs", "shops need")} a look: ${formatCount(atRisk.length)} at risk, ${plural(lowWallets.length, "low wallet", "low wallets")}`;
 }

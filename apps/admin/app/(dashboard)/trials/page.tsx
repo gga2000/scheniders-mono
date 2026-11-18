@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Clock,
@@ -13,9 +14,12 @@ import { createRequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { useCan } from "@/hooks/use-admin-auth";
 import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatDayTime, formatIQD } from "@/lib/format";
+import { TRIAL_ENDING_DAYS } from "@/lib/baghdad-day";
+import { adminFetch } from "@/lib/admin-fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,6 +38,8 @@ interface Trial {
   balance_iqd: number;
   days_remaining: number;
   is_expired: boolean;
+  /** Paused while on trial: its days still run, and free days wait until the pause is lifted. */
+  paused: boolean;
 }
 
 interface TrialsSummary {
@@ -62,16 +68,23 @@ function trialDayLabel({ is_expired, days_remaining: days }: Pick<Trial, "is_exp
   return `${days} days left`;
 }
 
+/** The header line: an ended trial that is not paid yet is no longer "on trial". */
+function trialsLine({ total, expired }: TrialsSummary): string {
+  const running = total - expired;
+  const onTrial = `${running} ${running === 1 ? "shop" : "shops"} on trial`;
+  return expired > 0 ? `${onTrial}, ${expired} ended and not paid yet` : onTrial;
+}
+
 function getBarColor(days: number, ended: boolean): string {
   if (ended) return "bg-gray-400";
-  if (days <= 3) return "bg-red-500";
+  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500";
   if (days <= 7) return "bg-amber-500";
   return "bg-green-500";
 }
 
 function getBarBg(days: number, ended: boolean): string {
   if (ended) return "bg-gray-200";
-  if (days <= 3) return "bg-red-500/15";
+  if (days <= TRIAL_ENDING_DAYS) return "bg-red-500/15";
   if (days <= 7) return "bg-amber-500/15";
   return "bg-green-500/15";
 }
@@ -96,7 +109,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
   const mutation = useMutation({
     mutationFn: async (days: number) => {
       const request_id = requestIds.idFor(`${tenantId}:${days}:${reason.trim()}`);
-      const res = await fetch("/api/trials/extend", {
+      const res = await adminFetch("/api/trials/extend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim(), request_id }),
@@ -178,11 +191,13 @@ export default function TrialsPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialsResponse>({
     queryKey: ["admin", "trials"],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch("/api/trials"), "the trials");
+      const res = okOrLoadFailure(await adminFetch("/api/trials"), "the trials");
       return res.json();
     },
     staleTime: 30_000,
   });
+  // Only staff who may lift a pause are sent to the shop page to lift it.
+  const canLift = useCan()("reactivate_tenant");
 
   if (isError && !data) {
     return <LoadError what="the trials" error={error} onRetry={() => refetch()} retrying={isFetching} />;
@@ -204,9 +219,7 @@ export default function TrialsPage() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Trials</h1>
         <p className="text-[13px] text-foreground/70">
-          {isLoading
-            ? "Loading..."
-            : `${summary.total} active trial${summary.total !== 1 ? "s" : ""}`}
+          {isLoading ? "Loading..." : trialsLine(summary)}
         </p>
       </div>
 
@@ -215,9 +228,9 @@ export default function TrialsPage() {
 
       {/* Headline numbers, each naming its window (board v6: one surface). */}
       <NumberStrip columns={3} label="Trial numbers">
-        <NumberCell label="Shops on trial, now" value={isLoading ? "..." : formatCount(summary.total)} />
+        <NumberCell label="Shops on trial, now" value={isLoading ? "..." : formatCount(summary.total - summary.expired)} />
         <NumberCell
-          label="Ending in 3 days or less"
+          label={`Ending in ${TRIAL_ENDING_DAYS} days or less`}
           value={isLoading ? "..." : formatCount(summary.expiringSoon)}
           alert={summary.expiringSoon > 0}
         />
@@ -236,8 +249,8 @@ export default function TrialsPage() {
       ) : sortedTrials.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <Clock className="w-12 h-12 mb-3" />
-          <p className="text-lg font-semibold">No active trials</p>
-          <p className="text-sm mt-1">All merchants have been converted or there are no trials yet</p>
+          <p className="text-lg font-semibold">No shops on trial</p>
+          <p className="text-sm mt-1">No shop is on a trial, or past one and not paid yet.</p>
         </div>
       ) : (
         <div className="pastel-card divide-y divide-[var(--card-border)]">
@@ -253,7 +266,7 @@ export default function TrialsPage() {
                     {trial.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate">
+                    <p className="font-semibold text-foreground truncate name-dir">
                       {trial.business_name}
                     </p>
                     <p className="text-xs text-foreground/70 truncate">
@@ -283,7 +296,7 @@ export default function TrialsPage() {
                         className={`text-xs font-semibold ${
                           trial.is_expired
                             ? "text-foreground/70"
-                            : trial.days_remaining <= 3
+                            : trial.days_remaining <= TRIAL_ENDING_DAYS
                               ? "text-[var(--ink-red)]"
                               : trial.days_remaining <= 7
                                 ? "text-[var(--ink-amber)]"
@@ -306,7 +319,21 @@ export default function TrialsPage() {
                 <span className="text-sm font-medium text-foreground/70">
                   {formatIQD(trial.balance_iqd)}
                 </span>
-                <ExtendTrialButton tenantId={trial.id} />
+                {trial.paused && canLift ? (
+                  // The database gives trial days only to a shop on trial, not a paused one.
+                  <Link
+                    href={`/merchants/${trial.id}`}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-colors"
+                  >
+                    Paused: lift it to give days
+                  </Link>
+                ) : trial.paused ? (
+                  <span className="px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground/70 border border-[var(--card-border)]">
+                    Paused: ask a super admin to lift it
+                  </span>
+                ) : (
+                  <ExtendTrialButton tenantId={trial.id} />
+                )}
               </div>
             </div>
           ))}

@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { MENU, SETTINGS_SECTION, activeLink, activeSection, pageTitle } from "./admin-menu";
+import { MENU, SETTINGS_SECTION, activeLink, activeSection, linksFor, menuPages, pageTitle, waitingBadge } from "./admin-menu";
 
 /** Every page of the console, as a path ("/leads/analytics"); pages with an id are left out. */
 function consolePages(dir = join(__dirname, "..", "app", "(dashboard)"), base = ""): string[] {
@@ -60,5 +60,44 @@ describe("the console menu", () => {
     expect(pageTitle("/leads/analytics")).toBe("Lead numbers");
     expect(pageTitle("/activity")).toBe("Activity log");
     expect(pageTitle("/login")).toBeNull();
+  });
+});
+
+describe("links each login may open", () => {
+  const money = MENU.find((s) => s.label === "Money");
+  if (!money) throw new Error("no Money place");
+  const labels = (role: Parameters<typeof linksFor>[1]) => linksFor(money, role).map((l) => l.label);
+
+  it("leaves Wallets off the menu for support staff, whose login cannot read the wallets", () => {
+    expect(labels("support_staff")).toEqual(["Payments to check", "WhatsApp costs"]);
+    expect(menuPages("support_staff").map((p) => p.href)).not.toContain("/billing");
+  });
+
+  it("shows every link to a super admin, and while the role is still loading", () => {
+    expect(labels("super_admin")).toEqual(["Payments to check", "Wallets", "WhatsApp costs"]);
+    expect(labels(null)).toEqual(labels("super_admin"));
+    expect(menuPages().map((p) => p.href)).toContain("/billing");
+  });
+});
+
+describe("the count beside a place", () => {
+  it("counts what waits, and a 0 hides the badge", () => {
+    expect(waitingBadge({ data: 3, isError: false }, "receipts to check", "the receipts")).toEqual({
+      count: 3,
+      label: "3 receipts to check",
+    });
+    expect(waitingBadge({ data: undefined, isError: false }, "receipts to check", "the receipts").count).toBe(0);
+  });
+
+  it("says what it could not check when the count's read failed, in place of a 0 that hides the badge", () => {
+    expect(waitingBadge({ data: undefined, isError: true }, "receipts to check", "the receipts")).toEqual({
+      count: null,
+      label: "Could not check the receipts",
+    });
+    // A later read failed: the last count may be stale, so it is not shown as fact.
+    expect(waitingBadge({ data: 4, isError: true }, "waiting on us", "the support inbox")).toEqual({
+      count: null,
+      label: "Could not check the support inbox",
+    });
   });
 });

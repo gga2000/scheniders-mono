@@ -56,9 +56,10 @@ export async function GET(request: NextRequest) {
     const converted = allLeads.filter((l) => l.status === "converted").length;
     const conversion_rate = total > 0 ? (converted / total) * 100 : 0;
 
-    // Avg time to convert
+    // Avg time to convert, in whole days; none while no lead became a shop
+    // (a 0 read as "the same day").
     const convertedLeads = allLeads.filter((l) => l.converted_at);
-    let avg_time_to_convert_days = 0;
+    let avg_time_to_convert_days: number | null = null;
     if (convertedLeads.length > 0) {
       const totalDays = convertedLeads.reduce((sum, l) => {
         const created = new Date(l.created_at).getTime();

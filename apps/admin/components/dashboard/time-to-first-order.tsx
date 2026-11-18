@@ -51,7 +51,7 @@ export function TimeToFirstOrder({ buckets }: TimeToFirstOrderProps) {
           <Clock className="w-4 h-4 text-[var(--ink-violet)]" />
         </div>
         <h3 className="font-bold text-foreground text-sm">
-          Time to First Order
+          Time to First Order, every shop
         </h3>
       </div>
 

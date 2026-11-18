@@ -20,7 +20,7 @@ const call = () => GET(new NextRequest("http://admin.test/api/billing"));
 
 const shop = (n: number, wallet: Row | null = { balance_iqd: 10_000, threshold_iqd: 5_000, total_charged_iqd: 2_000, total_topped_up_iqd: 12_000 }): Row => ({
   id: `shop-${String(n).padStart(5, "0")}`,
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   business_name: `Shop ${n}`,
   plan: "starter",
   status: "active",
@@ -68,10 +68,10 @@ describe("GET /api/billing", () => {
   });
 
   it("leaves the demo store's wallet and ledger out (Fermi B13)", async () => {
-    stub.state.tables.tenants = [shop(1), { ...shop(2), is_demo: true }];
+    stub.state.tables.tenants = [shop(1), { ...shop(2), is_demo: true, is_prospect: false }];
     stub.state.tables.wallet_transactions = [
-      { id: "t-1", amount_iqd: -55, tenants: { business_name: "Shop 1", is_demo: false } },
-      { id: "t-2", amount_iqd: -9_000, tenants: { business_name: "Fermi B13", is_demo: true } },
+      { id: "t-1", amount_iqd: -55, tenants: { business_name: "Shop 1", is_demo: false, is_prospect: false } },
+      { id: "t-2", amount_iqd: -9_000, tenants: { business_name: "Fermi B13", is_demo: true, is_prospect: false } },
     ];
 
     const body = await (await call()).json();

@@ -9,6 +9,8 @@
  * in the last day reads "12 min ago" or "5 h ago"; anything older is its day.
  */
 
+import { trialClock } from "./baghdad-day";
+
 const WHOLE = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 /** 43800 -> "43,800 IQD". IQD has no smaller unit, so a fraction is rounded away. */
@@ -93,4 +95,17 @@ export function formatUntil(value: string | number | Date, now: Date = new Date(
   if (left < DAY_MS) return `in ${Math.floor(left / HOUR)} h`;
   const days = Math.floor(left / DAY_MS);
   return days === 1 ? "in 1 day" : `in ${days} days`;
+}
+
+/**
+ * How long until a trial or a month ends, as staff read it beside its date:
+ * hours or minutes under a day, then days on the Baghdad calendar, as the
+ * Trials page counts them (trialClock). A trial ending Fri 06:00 is "in 3
+ * days" on Tuesday evening on both screens; whole 24-hour spans said "in 2".
+ */
+export function formatUntilDay(value: string | number | Date, now: Date = new Date()): string {
+  const end = asDate(value);
+  if (end.getTime() - now.getTime() < DAY_MS) return formatUntil(end, now);
+  const { days } = trialClock(end.toISOString(), now);
+  return days === 1 ? "tomorrow" : `in ${days} days`;
 }

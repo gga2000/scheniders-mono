@@ -39,7 +39,6 @@ vi.mock("@/lib/api-auth", () => ({
   requireAdminPermission: vi.fn(async () => ({ user: { id: ADMIN_ID, email: "noor@example.com" }, role: "support_staff" })),
 }));
 vi.mock("@/lib/support-admin-name", () => ({ adminDisplayName: vi.fn(async () => "Noor") }));
-vi.mock("@/lib/activity-logger", () => ({ logAdminActivity: vi.fn(async () => undefined) }));
 vi.mock("@/lib/admin-env", () => ({ env: { PLATFORM_URL: "https://app.test" } }));
 
 const { POST } = await import("./route");
@@ -71,8 +70,8 @@ describe("POST /api/support/view: the viewer sign-in", () => {
       { data: { user: { id: VIEWER, app_metadata: { provider: "email", support_viewer: true } } }, error: null },
       ok,
       ok,
-      session,
       link,
+      session,
     );
     const res = await start();
     expect(res.status).toBe(200);

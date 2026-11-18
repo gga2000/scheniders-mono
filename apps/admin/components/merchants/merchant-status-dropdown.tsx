@@ -6,7 +6,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { TenantStatus } from "@/types/admin";
+import { useCan } from "@/hooks/use-admin-auth";
+import { statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
+import type { TenantStatus, TrialPayment } from "@/types/admin";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const STATUS_OPTIONS: Array<{
   value: TenantStatus;
@@ -16,16 +19,10 @@ const STATUS_OPTIONS: Array<{
 }> = [
   { value: "trial", label: "Trial", dot: "bg-amber-500" },
   { value: "active", label: "Active", dot: "bg-green-500" },
-  { value: "limited", label: "Limited", dot: "bg-yellow-500" },
+  { value: "limited", label: "Paused", dot: "bg-yellow-500" },
   { value: "suspended", label: "Suspended", dot: "bg-red-500", destructive: true },
   { value: "cancelled", label: "Cancelled", dot: "bg-gray-400", destructive: true },
 ];
-
-/**
- * What staff can pick here. "Limited" is a pause: the Pause button on the shop
- * page sets what is blocked and for how long, so it is shown, never picked.
- */
-const STATUS_CHOICES = STATUS_OPTIONS.filter((option) => option.value !== "limited");
 
 const statusBadgeStyle: Record<TenantStatus, string> = {
   active: "bg-green-100 text-green-800 dark:bg-green-400/15 dark:text-green-400",
@@ -38,16 +35,20 @@ const statusBadgeStyle: Record<TenantStatus, string> = {
 interface MerchantStatusDropdownProps {
   merchantId: string;
   status: TenantStatus;
+  /** Whether its trial was paid: which moves are offered, and what Active saves. */
+  trialPayment: TrialPayment;
 }
 
 export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   merchantId,
   status,
+  trialPayment,
 }: MerchantStatusDropdownProps) {
   const [open, setOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<TenantStatus | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const can = useCan();
 
   // Click outside
   useEffect(() => {
@@ -64,7 +65,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
 
   const mutation = useMutation({
     mutationFn: async (newStatus: TenantStatus) => {
-      const res = await fetch(`/api/merchants/${merchantId}`, {
+      const res = await adminFetch(`/api/merchants/${merchantId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -76,9 +77,18 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
       return res.json();
     },
     onMutate: async (newStatus) => {
-      // Optimistic update
+      // Optimistic update, with the status the server will save.
       await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      return { restore: patchMerchantInCache(queryClient, merchantId, { status: newStatus }) };
+      const saves = statusPickSaves({ status, trial_payment: trialPayment }, newStatus);
+      return { restore: patchMerchantInCache(queryClient, merchantId, { status: saves }) };
+    },
+    // A held trial that was never paid comes back as Trial when Active is
+    // picked: the card says so and shows Trial at once.
+    onSuccess: (answer, picked) => {
+      const landed = statusLandedText(picked, answer);
+      if (!landed) return;
+      patchMerchantInCache(queryClient, merchantId, { status: "trial" });
+      toast.info(landed);
     },
     // The server says why it refused (a paused shop, a trial, the demo store).
     // The card goes back to the real status at once, before the list is read again.
@@ -118,6 +128,23 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   };
 
   const current = STATUS_OPTIONS.find((o) => o.value === status);
+  // The current status, then only the moves admin_update_shop accepts. "Paused"
+  // is set by Pause on the shop page, and a paused shop has no move at all
+  // until its pause is lifted.
+  const menu = STATUS_OPTIONS.filter(
+    (o) => o.value === status || statusPickRefusal({ status, trial_payment: trialPayment }, o.value) === null,
+  );
+
+  // A status change goes through the same PATCH as a plan change, which needs
+  // change_plan; without it, or with no move to offer, the status is shown, not offered.
+  if (!can("change_plan") || menu.length < 2) {
+    return (
+      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1", statusBadgeStyle[status])}>
+        <span className={cn("w-1.5 h-1.5 rounded-full", current?.dot)} />
+        {current?.label ?? status}
+      </span>
+    );
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -160,7 +187,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
               </div>
             </div>
           ) : (
-            STATUS_CHOICES.map((opt) => (
+            menu.map((opt) => (
               <button
                 key={opt.value}
                 onClick={(e) => {

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { dayOf, TRIAL_ENDING_DAYS, trialClock } from "./baghdad-day";
+import { lockedBecause } from "./billing-lock-label";
+import { formatUntilDay } from "./format";
+import { pauseLiftOverdue } from "./tenant-pause";
 
 /**
  * "Check this shop" beside a support conversation. `support_shop_check`
@@ -63,16 +67,17 @@ const DAY_MS = 86_400_000;
 
 const iqd = (amount: number) => `${new Intl.NumberFormat("en-IQ").format(Math.round(amount))} IQD`;
 
-/** "today", "yesterday", "3 days ago"; "in 2 days" for the future. */
+/**
+ * "today", "yesterday", "3 days ago" on the Baghdad calendar, the days the
+ * shop page dates things by: a lock from 23:00 last night is "yesterday" at
+ * 10:00, not "today". "tomorrow" or "in 2 days" for the future.
+ */
 export function daysAgo(iso: string, nowMs: number): string {
-  const days = Math.floor((nowMs - Date.parse(iso)) / DAY_MS);
-  if (days < 0) {
-    const ahead = Math.ceil((Date.parse(iso) - nowMs) / DAY_MS);
-    return ahead <= 1 ? "within a day" : `in ${ahead} days`;
-  }
+  const days = Math.round((Date.parse(dayOf(nowMs)) - Date.parse(dayOf(iso))) / DAY_MS);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
-  return `${days} days ago`;
+  if (days === -1) return "tomorrow";
+  return days > 0 ? `${days} days ago` : `in ${-days} days`;
 }
 
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -84,7 +89,21 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
   if (s.status === "suspended") return { ...base, state: "broken", text: "Suspended. The store takes no orders." };
   if (s.lock_reason) {
     const since = s.lock_since ? ` since ${daysAgo(s.lock_since, nowMs)}` : "";
-    return { ...base, state: "broken", text: `Locked for payment${since} (${s.lock_reason.replace(/_/g, " ")}).` };
+    return { ...base, state: "broken", text: `${lockedBecause(s.lock_reason, since)}.` };
+  }
+  // A pause past its end date stops nothing, and the hourly lift takes it off
+  // within the hour. Past that the lift failed for this shop, and a super admin
+  // (the one role that may lift pauses) lifts it by hand. The shop page's Paused
+  // banner says the same.
+  if (s.paused && s.paused_until && Date.parse(s.paused_until) <= nowMs) {
+    const overdue = pauseLiftOverdue(s.paused_until, nowMs);
+    return {
+      ...base,
+      state: overdue ? "look" : "ok",
+      text: overdue
+        ? `Pause ended ${daysAgo(s.paused_until, nowMs)} but did not lift on its own. Nothing is stopped now. A super admin can lift it on the shop page.`
+        : `Pause ended ${daysAgo(s.paused_until, nowMs)}. Nothing is stopped now; it lifts on its own within the hour.`,
+    };
   }
   if (s.paused && s.blocks_new_orders) {
     return {
@@ -96,12 +115,16 @@ function storeLine(c: ShopCheck, tenantId: string, nowMs: number): CheckLine {
   if (s.paused) return { ...base, state: "look", text: "Paused by staff. Orders still come in." };
   if (s.is_prospect) return { ...base, state: "look", text: "Prospect store: built by us, takes no orders yet." };
   if (s.status === "trial" && s.trial_ends_at) {
-    const ends = Date.parse(s.trial_ends_at);
-    const soon = ends - nowMs < 3 * DAY_MS;
+    // Days on the Baghdad calendar, as Trials and the shop page count them.
+    const clock = trialClock(s.trial_ends_at, nowMs);
+    if (clock.ended) {
+      const when = clock.days === 0 ? "today" : clock.days === -1 ? "yesterday" : `${-clock.days} days ago`;
+      return { ...base, state: "look", text: `Trial ended ${when}, not paid yet.` };
+    }
     return {
       ...base,
-      state: soon ? "look" : "ok",
-      text: `Taking orders. Trial ends ${daysAgo(s.trial_ends_at, nowMs)}.`,
+      state: clock.days <= TRIAL_ENDING_DAYS ? "look" : "ok",
+      text: `Taking orders. Trial ends ${formatUntilDay(s.trial_ends_at, new Date(nowMs))}.`,
     };
   }
   return { ...base, state: "ok", text: "Open and taking orders." };

@@ -329,6 +329,34 @@ BEGIN
     PERFORM pg_temp.check('setup: only a call-back carries a topic', v_msg = 'refused');
 END $$;
 
+-- Today names a paused shop by what it was before the pause, as Needs us
+-- does: a paused trial keeps its trial end, a paused paying shop reads active.
+DO $$
+DECLARE
+    trial_shop uuid := 'c1000000-0000-4000-8000-00000000000c';
+    paid_shop uuid := 'c2000000-0000-4000-8000-00000000000c';
+    due jsonb;
+    row_ jsonb;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, display_id, status, restrictions, trial_ends_at, created_at) VALUES
+        (trial_shop, 'Paused trial', 12, 'limited', '{"status_before": "trial"}', '2026-11-25 10:00+03', '2026-11-18 10:00+03'),
+        (paid_shop, 'Paused paying', 13, 'limited', '{"status_before": "active"}', NULL, '2026-10-01 10:00+03');
+    INSERT INTO public.support_tasks (tenant_id, kind, due_at) VALUES
+        (trial_shop, 'trial_end', '2026-11-24 10:00+03'),
+        (paid_shop, 'first_order', '2026-11-24 10:00+03');
+
+    due := public.support_tasks_due('2026-11-24 12:00+03');
+    SELECT x INTO row_ FROM jsonb_array_elements(due) x WHERE x ->> 'tenant_id' = trial_shop::text;
+    PERFORM pg_temp.check('paused: a paused trial reads trial ' || coalesce(row_::text, 'missing'),
+        row_ ->> 'shop_status' = 'trial' AND (row_ ->> 'trial_ends_at')::timestamptz = '2026-11-25 10:00+03');
+    SELECT x INTO row_ FROM jsonb_array_elements(due) x WHERE x ->> 'tenant_id' = paid_shop::text;
+    PERFORM pg_temp.check('paused: a paused paying shop reads active ' || coalesce(row_::text, 'missing'),
+        row_ ->> 'shop_status' = 'active');
+    PERFORM pg_temp.check('paused: a shop that is not paused reads as it is',
+        EXISTS (SELECT 1 FROM jsonb_array_elements(due) x
+                WHERE x ->> 'business_name' = 'New shop' AND x ->> 'shop_status' = 'trial'));
+END $$;
+
 DO $$
 BEGIN
     IF current_setting('tt.failures') <> '' THEN

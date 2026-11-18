@@ -1,1 +1,1 @@
-tenant_billing_lock pause_tenant lift_tenant_pause admin_update_shop admin_extend_subscription
+tenant_effective_status admin_billing_reason tenant_billing_lock pause_tenant lift_tenant_pause admin_update_shop admin_extend_subscription

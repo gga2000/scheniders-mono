@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { AdminEmployee, CommissionType } from "@/types/leads";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
 
 interface TeamCommissionDashboardProps {
   employees: AdminEmployee[];
@@ -36,7 +37,14 @@ type Period = "month" | "quarter";
 export function TeamCommissionDashboard({
   employees,
 }: TeamCommissionDashboardProps) {
-  const { data: configs, isLoading: configsLoading } = useCommissionConfigs();
+  const {
+    data: configs,
+    isLoading: configsLoading,
+    isError: configsFailed,
+    error: configsError,
+    refetch: refetchConfigs,
+    isFetching: configsFetching,
+  } = useCommissionConfigs();
   const [period, setPeriod] = useState<Period>("month");
 
   const totals = useMemo(() => {
@@ -84,6 +92,14 @@ export function TeamCommissionDashboard({
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-foreground/70" />
           </div>
+        ) : configsFailed ? (
+          <LoadFailedLine
+            className="py-4"
+            what="the commission settings"
+            error={configsError}
+            onRetry={() => void refetchConfigs()}
+            retrying={configsFetching}
+          />
         ) : !configs || configs.length === 0 ? (
           <p className="text-sm text-foreground/70 py-4">
             No commission configurations set up yet.
@@ -125,9 +141,6 @@ export function TeamCommissionDashboard({
                       Inactive
                     </span>
                   )}
-                  <button className="ml-auto text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors">
-                    Edit
-                  </button>
                 </div>
               </div>
             ))}

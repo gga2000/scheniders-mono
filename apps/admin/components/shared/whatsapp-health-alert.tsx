@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatDayTime } from "@/lib/format";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 const healthSchema = z.object({ interaktEmpty: z.boolean(), since: z.string().nullable(), pausedShops: z.number().int() });
 
@@ -13,6 +14,8 @@ const healthSchema = z.object({ interaktEmpty: z.boolean(), since: z.string().nu
 export function useWhatsAppHealth() {
   return useQuery({
     queryKey: ["admin", "whatsapp-health"],
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async () => {
       const res = await adminFetch("/api/whatsapp-health");
       if (!res.ok) throw new Error(`WhatsApp health failed: ${res.status}`);

@@ -15,7 +15,7 @@ vi.mock("@/lib/api-auth", () => ({
 let stub: ReturnType<typeof supabaseStub>;
 vi.mock("@/lib/admin-supabase", () => ({ createAdminClient: () => stub.client }));
 
-const { GET } = await import("./route");
+const { GET, POST } = await import("./route");
 const call = (params = "") => GET(new NextRequest(`http://admin.test/api/leads?${params}`));
 
 beforeEach(() => {
@@ -85,4 +85,94 @@ describe("GET /api/leads sort", () => {
       expect(stub.tablesRead()).toEqual([]);
     },
   );
+});
+
+describe("POST /api/leads owner", () => {
+  /*
+   * A new lead took any assigned_to from the body: a lead could be created
+   * already owned by a login that is not staff, with no history line and no
+   * reassign_lead row. An owner is now given only through admin_change_leads.
+   */
+  it("creates a lead with no owner, whatever the body says", async () => {
+    const inserts: Record<string, unknown>[] = [];
+    const builder = {
+      insert: (row: Record<string, unknown>) => {
+        inserts.push(row);
+        return builder;
+      },
+      select: () => builder,
+      single: async () => ({ data: { id: "lead-2", merchant_name: "Kawkab" }, error: null }),
+    };
+    stub.client.from = () => builder as unknown as ReturnType<typeof stub.client.from>;
+    const res = await POST(
+      new NextRequest("http://admin.test/api/leads", {
+        method: "POST",
+        body: JSON.stringify({ merchant_name: "Kawkab", assigned_to: "1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d" }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).not.toHaveProperty("assigned_to");
+    expect(inserts[0]).not.toHaveProperty("assigned_at");
+    expect(inserts[0].created_by).toBe("a");
+  });
+});
+
+describe("POST /api/leads industry", () => {
+  // A colleague removed the picked industry while the form was open: the answer says so.
+  it("says the industry was just removed instead of failing", async () => {
+    const builder = {
+      insert: () => builder,
+      select: () => builder,
+      single: async () => ({
+        data: null,
+        error: { code: "23503", message: 'insert or update on table "leads" violates foreign key constraint "leads_industry_id_fkey"' },
+      }),
+    };
+    stub.client.from = () => builder as unknown as ReturnType<typeof stub.client.from>;
+    const res = await POST(
+      new NextRequest("http://admin.test/api/leads", {
+        method: "POST",
+        body: JSON.stringify({ merchant_name: "Kawkab", industry_id: "2f3e4d5c-6b7a-4980-a1b2-c3d4e5f6a7b8" }),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("This industry was just removed. Pick another one and save again.");
+  });
+});
+
+/*
+ * Round 13 (Reliability new 1, Sentry SCHENIDERS-1A). A page that starts past
+ * the last row (the list shrank while it was open) answered 500, so the table
+ * showed an error with no way back. It now answers no rows and the real total.
+ */
+describe("GET /api/leads past the end", () => {
+  it("answers a page past the last row with no rows and the real total", async () => {
+    stub.state.tables.leads = Array.from({ length: 28 }, (_, i) => ({ id: `lead-${i}`, merchant_name: `Lead ${i}` }));
+
+    const res = await call("page=6&limit=20");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ leads: [], total: 28, page: 6, limit: 20 });
+  });
+
+  it("counts the past-the-end total with the same filters", async () => {
+    stub.state.tables.leads = [
+      { id: "a", merchant_name: "Noor", status: "new" },
+      { id: "b", merchant_name: "Kawkab", status: "lost" },
+    ];
+
+    const res = await call("page=3&limit=20&status=new");
+
+    expect(await res.json()).toMatchObject({ leads: [], total: 1 });
+  });
+
+  it("still answers the last page with its rows", async () => {
+    stub.state.tables.leads = Array.from({ length: 28 }, (_, i) => ({ id: `lead-${i}`, merchant_name: `Lead ${i}` }));
+
+    const body = await (await call("page=2&limit=20")).json();
+
+    expect(body.leads).toHaveLength(8);
+    expect(body.total).toBe(28);
+  });
 });

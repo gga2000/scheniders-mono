@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
 import { everyRow } from "./every-row";
-import { staffReasonSchema } from "./staff-reason";
+import { REQUEST_REUSED } from "./billing-lock-tools";
+import { staffReasonSchema, staffRequestIdSchema } from "./staff-reason";
 import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
 
 /**
@@ -10,7 +11,8 @@ import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
  * store that matched an earlier store that is not paying: "review" for one
  * phone or email match, "no_trial" for a Prime match or two medium matches
  * (that one has already ended the trial). Staff read the rows here and decide
- * them through admin_trial_check_decide, which writes the staff log.
+ * them through admin_trial_check_decide_once, which writes the staff log and
+ * makes each request's change once.
  */
 
 /** The console's cache key for the list. */
@@ -49,6 +51,8 @@ const storeRowSchema = z.object({
   business_name: z.string(),
   display_id: z.number().int().nullable(),
   status: z.string(),
+  /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+  restrictions: z.unknown(),
   trial_ends_at: z.string().nullable(),
   contact_phone: z.string().nullable(),
   created_at: z.string(),
@@ -56,7 +60,7 @@ const storeRowSchema = z.object({
 
 const CHECK_COLUMNS =
   "tenant_id, verdict, signals, trial_withheld_at, staff_decision, staff_reason, decided_by_email, decided_at, created_at, updated_at";
-const STORE_COLUMNS = "id, business_name, display_id, status, trial_ends_at, contact_phone, created_at";
+const STORE_COLUMNS = "id, business_name, display_id, status, restrictions, trial_ends_at, contact_phone, created_at";
 
 /** An earlier store, without its phone: staff open its page for more. */
 export type TrialCheckStore = Omit<z.infer<typeof storeRowSchema>, "contact_phone">;
@@ -129,6 +133,7 @@ function withoutPhone(row: z.infer<typeof storeRowSchema>): TrialCheckStore {
     business_name: row.business_name,
     display_id: row.display_id,
     status: row.status,
+    restrictions: row.restrictions,
     trial_ends_at: row.trial_ends_at,
     created_at: row.created_at,
   };
@@ -178,37 +183,76 @@ export async function readTrialChecks(supabase: ReturnType<typeof createAdminCli
   };
 }
 
-/** What staff send: giving a trial back says for how many days. */
+/**
+ * When the row was last decided, as the person saw it (null: never). If it
+ * was decided since, by someone else or in another tab, the decision is
+ * refused, so the same days are never given twice from two screens.
+ */
+const seenDecidedAtSchema = z
+  .string({ error: "This page is out of date. Reload it and try again" })
+  .datetime({ offset: true, message: "This page is out of date. Reload it and try again" })
+  .nullable();
+
+/**
+ * What staff send: giving a trial back says for how many days. The request id
+ * (lib/request-ids.ts) makes a retry or a double click give the days once.
+ */
 export const trialCheckDecisionSchema = z.discriminatedUnion("decision", [
   z.object({
     decision: z.literal("allow_trial"),
     days: z.number().int().min(1).max(MAX_TRIAL_EXTENSION_DAYS),
     reason: staffReasonSchema,
+    request_id: staffRequestIdSchema,
+    seen_decided_at: seenDecidedAtSchema,
   }),
-  z.object({ decision: z.literal("end_trial"), reason: staffReasonSchema }),
-  z.object({ decision: z.literal("checked"), reason: staffReasonSchema }),
+  z.object({
+    decision: z.literal("end_trial"),
+    reason: staffReasonSchema,
+    request_id: staffRequestIdSchema,
+    seen_decided_at: seenDecidedAtSchema,
+  }),
+  z.object({
+    decision: z.literal("checked"),
+    reason: staffReasonSchema,
+    request_id: staffRequestIdSchema,
+    seen_decided_at: seenDecidedAtSchema,
+  }),
 ]);
 
 export type TrialCheckDecisionInput = z.infer<typeof trialCheckDecisionSchema>;
 
 export type TrialCheckDecideResult =
-  | { ok: true; tenantId: string; decision: TrialCheckDecision }
-  | { ok: false; status: 400 | 404; error: string };
+  /** `repeat`: this request was answered before; nothing changed this time. */
+  | { ok: true; tenantId: string; decision: TrialCheckDecision; repeat: boolean }
+  | { ok: false; status: 400 | 404 | 409; error: string };
 
-const REFUSALS: Record<string, { status: 400 | 404; error: string }> = {
+const REFUSALS: Record<string, { status: 400 | 404 | 409; error: string }> = {
   not_found: { status: 404, error: "This store has no trial check" },
   not_trial: { status: 400, error: "This store is not on a trial any more" },
+  decided_meanwhile: {
+    status: 409,
+    error: "Someone decided this store while you were looking. The list now shows that decision: check it before you decide.",
+  },
+  request_reused: REQUEST_REUSED,
 };
 
 const decideAnswerSchema = z.union([
-  z.object({ success: z.literal(true), tenant_id: z.string().uuid(), decision: decisionSchema }),
+  z.object({
+    success: z.literal(true),
+    tenant_id: z.string().uuid(),
+    decision: decisionSchema,
+    repeat: z.boolean().optional(),
+  }),
   z.object({ success: z.literal(false), error: z.string() }),
 ]);
 
 /**
  * Give the trial back (through admin_extend_trial, so it is never ended by the
  * check again), end it now, or mark the row checked. One transaction in
- * admin_trial_check_decide; it writes the staff log with the reason.
+ * admin_trial_check_decide; it writes the staff log with the reason. The
+ * _once wrapper keeps the first successful answer for the request id, so a
+ * repeat gets it back marked `repeat` and changes nothing; and it refuses a
+ * decision on a row decided since the person saw it (`decided_meanwhile`).
  */
 export async function decideTrialCheck(
   supabase: ReturnType<typeof createAdminClient>,
@@ -216,13 +260,15 @@ export async function decideTrialCheck(
   input: TrialCheckDecisionInput,
   actor: { id: string; email?: string | null },
 ): Promise<TrialCheckDecideResult> {
-  const { data, error } = await supabase.rpc("admin_trial_check_decide", {
+  const { data, error } = await supabase.rpc("admin_trial_check_decide_once", {
+    _request_id: input.request_id,
     _tenant_id: tenantId,
     _decision: input.decision,
     _reason: input.reason,
     _days: input.decision === "allow_trial" ? input.days : null,
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
+    _seen_decided_at: input.seen_decided_at,
   });
   if (error) throw error;
 
@@ -232,7 +278,7 @@ export async function decideTrialCheck(
     if (!refusal) throw new Error(`Unexpected trial check answer: ${answer.error}`);
     return { ok: false, ...refusal };
   }
-  return { ok: true, tenantId: answer.tenant_id, decision: answer.decision };
+  return { ok: true, tenantId: answer.tenant_id, decision: answer.decision, repeat: answer.repeat === true };
 }
 
 const MATCH_WHAT: Record<TrialCheckSource, string> = {
@@ -256,6 +302,6 @@ export function storeName(store: Pick<TrialCheckStore, "business_name" | "displa
 
 /** "Team member email matches #100123 Al Noor (cancelled)". */
 export function matchLine(match: TrialCheckMatch): string {
-  const status = match.store ? ` (${match.store.status})` : "";
+  const status = match.store ? ` (${match.store.status === "limited" ? "paused" : match.store.status})` : "";
   return `${MATCH_WHAT[match.source]} matches ${storeName(match.store)}${status}`;
 }

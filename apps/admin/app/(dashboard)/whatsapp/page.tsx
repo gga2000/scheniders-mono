@@ -107,6 +107,13 @@ function PauseButton({ shop, canPause }: { shop: WhatsAppReportShop; canPause: b
 }
 
 /**
+ * The first month with numbers: messages are counted from their charge
+ * (whatsapp_message_charges), which began on 16 Nov 2026 (Fermi B2). An
+ * earlier month read "0 delivered" though messages went out.
+ */
+const COUNTED_FROM_MONTH = "2026-11";
+
+/**
  * «WhatsApp» (Fermi B2): every shop sends from our one number. Shops pay each
  * delivered message from their wallet; we pay during the free trial. Shows a
  * month per shop, and which shops are paused to protect the number.
@@ -130,6 +137,8 @@ export default function WhatsAppPage() {
   }
 
   const canPause = role === "super_admin";
+  // The first month began on the 16th: its numbers say so where they are read.
+  const countedFrom = month === COUNTED_FROM_MONTH ? "counted from 16 Nov" : undefined;
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -138,7 +147,8 @@ export default function WhatsAppPage() {
           <h1 className="text-[22px] font-semibold text-foreground">WhatsApp costs</h1>
           <p className="text-[13px] text-foreground/70 max-w-2xl">
             Every shop sends from our one number. Shops pay each delivered message from their wallet; we pay during the
-            free trial. A shop whose messages mostly fail is paused so the number stays healthy. Months on Baghdad time.
+            free trial. A shop whose messages mostly fail is paused so the number stays healthy. Months on Baghdad time,
+            counted from 16 Nov 2026.
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-xl border border-[var(--card-border)] p-1" data-testid="whatsapp-month">
@@ -146,7 +156,9 @@ export default function WhatsAppPage() {
             type="button"
             aria-label="Previous month"
             onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            className="rounded-lg p-1.5 text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
+            disabled={month <= COUNTED_FROM_MONTH}
+            title={month <= COUNTED_FROM_MONTH ? "Counted from 16 Nov 2026" : undefined}
+            className="rounded-lg p-1.5 text-foreground/70 hover:bg-foreground/5 hover:text-foreground disabled:opacity-30"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -170,7 +182,11 @@ export default function WhatsAppPage() {
       ) : (
         <>
           <NumberStrip columns={4} label="WhatsApp numbers">
-            <NumberCell label={`Messages delivered, ${monthLabel(month)}`} value={number(data.totals.messages)} />
+            <NumberCell
+              label={`Messages delivered, ${monthLabel(month)}`}
+              value={number(data.totals.messages)}
+              note={countedFrom}
+            />
             <NumberCell label={`Shops paid, ${monthLabel(month)}`} value={iqd(data.totals.shopPaidIqd)} />
             <NumberCell
               label={`Trial messages on us, ${monthLabel(month)}`}
@@ -195,7 +211,10 @@ export default function WhatsAppPage() {
             {data.shops.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
                 <MessageCircleOff className="w-10 h-10 mb-2" />
-                <p className="text-sm">No messages delivered in {monthLabel(month)}.</p>
+                <p className="text-sm">
+                  No messages delivered in {monthLabel(month)}
+                  {countedFrom ? `, ${countedFrom}` : ""}.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">

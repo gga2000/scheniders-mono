@@ -7,7 +7,11 @@ import { decideTrialCheck, trialCheckDecisionSchema } from "@/lib/trial-checks";
 /**
  * Decide a flagged store (Fermi B5): give its trial back for some days, end
  * its trial now, or mark it checked. Each takes a reason for the staff log,
- * which admin_trial_check_decide writes in the same transaction.
+ * which admin_trial_check_decide writes in the same transaction. The request
+ * id makes a retry or a double click decide once
+ * (admin_trial_check_decide_once); a repeat answers `repeat: true`. A
+ * decision on a row decided since the person saw it (another person, another
+ * tab) is refused with 409.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminPermission(request, "review_trials");
@@ -21,14 +25,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const parsed = trialCheckDecisionSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+      // The first problem in words: a missing reason, too many days, or a page
+      // loaded before request ids ("Reload it and try again").
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
 
     const result = await decideTrialCheck(createAdminClient(), id, parsed.data, auth.user);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
-    return NextResponse.json({ success: true, decision: result.decision });
+    return NextResponse.json({ success: true, decision: result.decision, repeat: result.repeat });
   } catch (error) {
     console.error("Trial check decision error:", error);
     return NextResponse.json({ error: "Failed to save the decision" }, { status: 500 });

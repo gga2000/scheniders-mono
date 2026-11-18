@@ -1,14 +1,18 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
-import { formatDay, formatDayTime, formatUntil } from "@/lib/format";
-import { postJson } from "./action-ui";
+import { formatDay, formatDayTime, formatUntilDay } from "@/lib/format";
+import { isStaffReason } from "@/lib/billing-lock-tools";
+import { effectiveStatus } from "@/lib/effective-status";
+import { renewalWords } from "@/lib/shop-actions";
+import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { ConfirmButton, postJson } from "./action-ui";
 
 interface SubscriptionCardProps {
   merchantId: string;
@@ -26,6 +30,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *
  * Only a super admin may turn renewal on or off (change_plan); everyone else
  * reads whether it is on, with no switch that would only answer "Forbidden".
+ * Turning it off ends the shop's paid months, so the switch first asks why,
+ * as a hold does; turning it back on needs no reason.
  */
 export function SubscriptionCard({ merchantId, tenant, subscription }: SubscriptionCardProps) {
   const queryClient = useQueryClient();
@@ -34,15 +40,22 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
   const canSwitch = role ? hasPermission(role, "change_plan") : false;
 
   const autoRenew = subscription?.auto_renew ?? true;
+  const [stopping, setStopping] = useState(false);
+  const [why, setWhy] = useState("");
   const renew = useMutation({
-    mutationFn: (next: boolean) => postJson(`/api/merchants/${merchantId}`, { auto_renew: next }, "PATCH"),
+    mutationFn: (change: { auto_renew: boolean; reason?: string }) =>
+      postJson(`/api/merchants/${merchantId}`, change, "PATCH"),
     onSuccess: () => {
+      setStopping(false);
+      setWhy("");
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
     },
   });
 
-  const trialEnd = tenant.status === "trial" ? tenant.trial_ends_at : null;
+  // A paused trial is still a trial: its end day stands, and it has no month yet.
+  const onTrial = effectiveStatus(tenant.status, tenant.restrictions) === "trial";
+  const trialEnd = onTrial ? tenant.trial_ends_at : null;
   if (!trialEnd && !subscription) return null;
 
   // Our own shop is never billed: its month and renewal switch mean nothing.
@@ -67,7 +80,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
             <When end={trialEnd} now={now} soon={soon(trialEnd)} />
           </Fact>
         )}
-        {subscription && tenant.status !== "trial" && (
+        {subscription && !onTrial && (
           <Fact label="This month">
             {formatDay(subscription.current_period_start, now)} to {formatDay(subscription.current_period_end, now)}
             <When end={subscription.current_period_end} now={now} soon={soon(subscription.current_period_end)} />
@@ -82,7 +95,7 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   role="switch"
                   aria-checked={autoRenew}
                   aria-label="Renew each month"
-                  onClick={() => renew.mutate(!autoRenew)}
+                  onClick={() => (autoRenew ? setStopping((open) => !open) : renew.mutate({ auto_renew: true }))}
                   disabled={renew.isPending}
                   className={cn(
                     "relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50",
@@ -97,8 +110,40 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   />
                 </button>
               )}
-              {autoRenew ? "On: charges the wallet each month" : "Off: the month ends and is not renewed"}
+              {renewalWords(autoRenew, tenant.is_demo, tenant.status)}
             </span>
+            {stopping && autoRenew && (
+              <span className="mt-3 block max-w-sm font-normal">
+                <StaffReasonInput
+                  value={why}
+                  onChange={setWhy}
+                  placeholder="Why stop renewing? (the shop's timeline shows it)"
+                  className="mb-2"
+                />
+                <span className="mb-2 block text-[13px] leading-snug text-foreground/75">
+                  This month runs to its end, then the shop is not charged again and its paid time ends.
+                </span>
+                <span className="flex gap-2">
+                  <ConfirmButton
+                    tone="stop"
+                    disabled={!isStaffReason(why) || renew.isPending}
+                    onClick={() => renew.mutate({ auto_renew: false, reason: why.trim() })}
+                  >
+                    {renew.isPending ? "Saving..." : "Stop renewing"}
+                  </ConfirmButton>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStopping(false);
+                      setWhy("");
+                    }}
+                    className="shrink-0 rounded-lg px-4 py-2.5 text-[13px] font-semibold text-foreground ring-1 ring-foreground/15 hover:bg-foreground/5"
+                  >
+                    Keep renewing
+                  </button>
+                </span>
+              </span>
+            )}
             {renew.error && (
               <span role="alert" className="mt-1 block text-[13px] font-medium text-[var(--ink-red)]">
                 {renew.error.message}
@@ -120,11 +165,11 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** "in 3 days" beside a date, amber when it is under a day away. */
+/** "in 3 days" beside a date (Baghdad days, as Trials counts), amber when it is under a day away. */
 function When({ end, now, soon }: { end: string; now: Date; soon: boolean }) {
   return (
     <span className={cn("ml-2 text-[13px] font-medium", soon ? "text-[var(--ink-amber)]" : "text-foreground/70")}>
-      {formatUntil(end, now)}
+      {formatUntilDay(end, now)}
     </span>
   );
 }

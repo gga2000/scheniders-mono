@@ -1,16 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { z } from "zod";
 import { Check, Loader2, MessageCircle } from "lucide-react";
 import { PLATFORM_WHATSAPP_TEMPLATES } from "@scheniders/shared/whatsapp-templates";
-import { signupWhatsAppSettingsSchema, type SignupWhatsAppSettings } from "@scheniders/shared/signup-whatsapp";
+import { SIGNUP_WHATSAPP_OFF, signupWhatsAppSettingsSchema, type SignupWhatsAppSettings } from "@scheniders/shared/signup-whatsapp";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { cn } from "@/lib/utils";
 
-const KEY = ["admin", "signup-whatsapp"] as const;
 const responseSchema = z.object({ settings: signupWhatsAppSettingsSchema, updated_at: z.string().nullable() });
+
+/** Shared with the Settings page, which starts the read before the card is drawn. */
+export const signupWhatsAppQuery = queryOptions({
+  queryKey: ["admin", "signup-whatsapp"] as const,
+  queryFn: async () =>
+    responseSchema.parse(await okOrLoadFailure(await adminFetch("/api/settings/signup-whatsapp"), "the signup WhatsApp settings").json()),
+});
 
 /**
  * «WhatsApp at signup» (Fermi B11): the code a new owner proves their number
@@ -20,10 +27,7 @@ const responseSchema = z.object({ settings: signupWhatsAppSettingsSchema, update
  */
 export function SignupWhatsAppCard({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery({
-    queryKey: KEY,
-    queryFn: async () => responseSchema.parse(await okOrLoadFailure(await adminFetch("/api/settings/signup-whatsapp"), "the signup WhatsApp settings").json()),
-  });
+  const { data, isLoading, isError } = useQuery(signupWhatsAppQuery);
 
   const save = useMutation({
     mutationFn: async (settings: SignupWhatsAppSettings) => {
@@ -35,7 +39,7 @@ export function SignupWhatsAppCard({ canEdit }: { canEdit: boolean }) {
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(typeof body?.error === "string" ? body.error : `Save failed: ${res.status}`);
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: signupWhatsAppQuery.queryKey }),
   });
 
   return (
@@ -54,9 +58,8 @@ export function SignupWhatsAppCard({ canEdit }: { canEdit: boolean }) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/70">
-          <Loader2 className="w-5 h-5 animate-spin" />
-        </div>
+        // The form, greyed and switched off, holds the card's height until the settings arrive.
+        <SignupWhatsAppForm saved={SIGNUP_WHATSAPP_OFF} canEdit={canEdit} save={save} loading />
       ) : isError || !data ? (
         <p className="text-xs text-[var(--ink-red)]">Could not load the signup WhatsApp settings. Reload the page.</p>
       ) : (
@@ -104,18 +107,22 @@ function SignupWhatsAppForm({
   saved,
   canEdit,
   save,
+  loading = false,
 }: {
   saved: SignupWhatsAppSettings;
   canEdit: boolean;
   save: UseMutationResult<void, Error, SignupWhatsAppSettings>;
+  loading?: boolean;
 }) {
+  const editable = canEdit && !loading;
   const [form, setForm] = useState<SignupWhatsAppSettings>(saved);
   const dirty = form.phone_code !== saved.phone_code || form.welcome !== saved.welcome || form.welcome_video_url !== saved.welcome_video_url;
   const valid = signupWhatsAppSettingsSchema.safeParse(form);
 
   return (
     <form
-      className="grid gap-4"
+      aria-busy={loading || undefined}
+      className={cn("grid gap-4", loading && "opacity-50")}
       onSubmit={(e) => {
         e.preventDefault();
         if (valid.success) save.mutate(valid.data);
@@ -123,7 +130,7 @@ function SignupWhatsAppForm({
     >
       <Switch
         checked={form.phone_code}
-        disabled={!canEdit}
+        disabled={!editable}
         onChange={(on) => setForm((prev) => ({ ...prev, phone_code: on, welcome: on && prev.welcome }))}
         title="Ask for a WhatsApp code at signup"
         hint={`A new owner must type the 6-digit code we send before the store is made. Template: ${PLATFORM_WHATSAPP_TEMPLATES.signupCode.name} (Authentication, Arabic).`}
@@ -131,7 +138,7 @@ function SignupWhatsAppForm({
       />
       <Switch
         checked={form.welcome}
-        disabled={!canEdit || !form.phone_code}
+        disabled={!editable || !form.phone_code}
         onChange={(on) => setForm((prev) => ({ ...prev, welcome: on }))}
         title="Send the welcome message"
         hint={`After signup, the proven number gets the store link and the video below. Needs the code on. Template: ${PLATFORM_WHATSAPP_TEMPLATES.welcome.name} (Utility, Arabic).`}
@@ -143,7 +150,7 @@ function SignupWhatsAppForm({
           type="url"
           dir="ltr"
           value={form.welcome_video_url ?? ""}
-          disabled={!canEdit}
+          disabled={!editable}
           placeholder="https://youtu.be/…"
           onChange={(e) => setForm((prev) => ({ ...prev, welcome_video_url: e.target.value.trim() === "" ? null : e.target.value.trim() }))}
           className="rounded-xl bg-white/80 px-3 py-1.5 text-sm ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 disabled:opacity-60 dark:bg-white/10"
@@ -153,7 +160,7 @@ function SignupWhatsAppForm({
       </label>
       {canEdit && (
         <div className="flex items-center justify-end gap-3">
-          {!valid.success && <span className="text-xs text-[var(--ink-red)]">{valid.error.issues[0]?.message}</span>}
+          {!loading && !valid.success && <span className="text-xs text-[var(--ink-red)]">{valid.error.issues[0]?.message}</span>}
           {save.isError && <span className="text-xs text-[var(--ink-red)]">{save.error.message}</span>}
           {save.isSuccess && !dirty && (
             <span className="inline-flex items-center gap-1 text-xs text-[var(--ink-green)]">
@@ -163,7 +170,7 @@ function SignupWhatsAppForm({
           )}
           <button
             type="submit"
-            disabled={!dirty || !valid.success || save.isPending}
+            disabled={loading || !dirty || !valid.success || save.isPending}
             className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-40"
           >
             {save.isPending && <Loader2 className="w-3 h-3 animate-spin" />}

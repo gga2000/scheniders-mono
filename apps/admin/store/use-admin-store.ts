@@ -78,8 +78,16 @@ interface AdminSavedViewState {
 
 interface AdminStarredState {
   starredMerchants: string[];
+  /**
+   * Goes up each time the console forgets the signed-in person (someone
+   * else signed in on this browser). WatchlistSync starts over when it
+   * changes, so one person's stars are never sent as the next one's changes.
+   */
+  starsPerson: number;
   toggleStar: (id: string) => void;
   isStarred: (id: string) => boolean;
+  /** Clears the stars of a person who is no longer signed in here. */
+  forgetStars: () => void;
 }
 
 interface AdminColumnState {
@@ -144,6 +152,24 @@ const DEFAULT_SAVED_VIEWS: SavedView[] = [
 
 // ── Store ──────────────────────────────────────────────────────────────
 
+/**
+ * What the list shows has changed. A tick on a shop the new search or filter
+ * hides would still reach a bulk money, plan or trial action that names no
+ * shop, so every change of what is shown drops the ticks.
+ */
+const noTicks = () => ({ selectedMerchants: new Set<string>(), lastSelectedIndex: null });
+
+/**
+ * Whether a filter, not the search, narrows the merchant list. An empty list
+ * under one says no shop matches, not that no shop has signed up: the date
+ * range was left out, so "Today" with no new shop said "No merchants yet".
+ */
+export function merchantFiltersOn(
+  s: Pick<AdminFilterState, "planFilter" | "statusFilter" | "cityFilter" | "balanceFilter" | "healthFilter" | "dateRange">,
+): boolean {
+  return !!(s.planFilter || s.statusFilter || s.cityFilter || s.balanceFilter || s.healthFilter || s.dateRange.from || s.dateRange.to);
+}
+
 export const useAdminStore = create<AdminStore>()(
   persist(
     (set, get) => ({
@@ -161,15 +187,19 @@ export const useAdminStore = create<AdminStore>()(
       healthFilter: null,
       searchQuery: "",
       dateRange: { from: null, to: null },
-      setPlanFilter: (plan) => set({ planFilter: plan }),
-      setStatusFilter: (status) => set({ statusFilter: status }),
-      setCityFilter: (city) => set({ cityFilter: city }),
-      setBalanceFilter: (balance) => set({ balanceFilter: balance }),
-      setHealthFilter: (health) => set({ healthFilter: health }),
-      setSearchQuery: (query) => set({ searchQuery: query }),
-      setDateRange: (range) => set({ dateRange: range }),
+      setPlanFilter: (plan) => set((s) => (s.planFilter === plan ? s : { planFilter: plan, ...noTicks() })),
+      setStatusFilter: (status) => set((s) => (s.statusFilter === status ? s : { statusFilter: status, ...noTicks() })),
+      setCityFilter: (city) => set((s) => (s.cityFilter === city ? s : { cityFilter: city, ...noTicks() })),
+      setBalanceFilter: (balance) => set((s) => (s.balanceFilter === balance ? s : { balanceFilter: balance, ...noTicks() })),
+      setHealthFilter: (health) => set((s) => (s.healthFilter === health ? s : { healthFilter: health, ...noTicks() })),
+      setSearchQuery: (query) => set((s) => (s.searchQuery === query ? s : { searchQuery: query, ...noTicks() })),
+      setDateRange: (range) =>
+        set((s) =>
+          s.dateRange.from === range.from && s.dateRange.to === range.to ? s : { dateRange: range, ...noTicks() },
+        ),
       clearFilters: () =>
         set({
+          ...noTicks(),
           planFilter: null,
           statusFilter: null,
           cityFilter: null,
@@ -241,6 +271,8 @@ export const useAdminStore = create<AdminStore>()(
           return { starredMerchants: [...state.starredMerchants, id] };
         }),
       isStarred: (id) => get().starredMerchants.includes(id),
+      starsPerson: 0,
+      forgetStars: () => set((state) => ({ starredMerchants: [], starsPerson: state.starsPerson + 1 })),
 
       // ── Columns ──
       hiddenColumns: [],
@@ -291,9 +323,18 @@ export const useAdminStore = create<AdminStore>()(
         filterPresets: state.filterPresets,
         savedViews: state.savedViews,
         activeViewId: state.activeViewId,
-        starredMerchants: state.starredMerchants,
         hiddenColumns: state.hiddenColumns,
         columnOrder: state.columnOrder,
+      }),
+      // Stars are the signed-in person's own (admin_watchlist, read by
+      // WatchlistSync), so they are not kept in this browser. They used to be:
+      // every login on the browser shared them, a star taken off on another
+      // device came back from here, and the next person's first star sent the
+      // last person's to the server. A list still stored by then is ignored.
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<AdminStore>),
+        starredMerchants: current.starredMerchants,
       }),
     }
   )

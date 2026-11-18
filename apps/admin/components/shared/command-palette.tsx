@@ -8,6 +8,8 @@ import { menuPages } from "@/lib/admin-menu";
 import { MENU_ICONS } from "@/components/layout/menu-icons";
 import { EASE_CHROME } from "@/lib/animation-constants";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import type { AdminRole } from "@/types/admin";
 
 interface CommandItem {
   id: string;
@@ -15,21 +17,23 @@ interface CommandItem {
   sublabel?: string;
   icon: React.ReactNode;
   action: () => void;
-  category: "page" | "action" | "merchant";
+  category: "page" | "action";
 }
 
-/** Every page on the menu, under the place it sits in, in the menu's own words. */
-const PAGES = menuPages().map(({ label, href, section }) => {
-  const Icon = MENU_ICONS[section.icon];
-  return {
-    id: href,
-    label,
-    sublabel: label === section.label ? undefined : section.label,
-    icon: <Icon className="w-4 h-4" />,
-    href,
-    category: "page" as const,
-  };
-});
+/** Every page on the menu that `role` may open, under the place it sits in, in the menu's own words. */
+function pagesFor(role: AdminRole | null) {
+  return menuPages(role).map(({ label, href, section }) => {
+    const Icon = MENU_ICONS[section.icon];
+    return {
+      id: href,
+      label,
+      sublabel: label === section.label ? undefined : section.label,
+      icon: <Icon className="w-4 h-4" />,
+      href,
+      category: "page" as const,
+    };
+  });
+}
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -43,15 +47,16 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Build items with router-aware actions
+  const { role } = useAdminAuth();
   const items = useMemo(() => {
-    return PAGES.map(({ href, ...page }): CommandItem => ({
+    return pagesFor(role).map(({ href, ...page }): CommandItem => ({
       ...page,
       action: () => {
         router.push(href);
         onClose();
       },
     }));
-  }, [router, onClose]);
+  }, [router, onClose, role]);
 
   // Filter items by query
   const filtered = useMemo(() => {
@@ -128,7 +133,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Search pages, merchants, actions..."
+                  placeholder="Search pages and actions"
                   className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground/40 outline-none"
                 />
                 <kbd className="text-xs text-foreground/70 bg-foreground/5 px-1.5 py-0.5 rounded font-mono">

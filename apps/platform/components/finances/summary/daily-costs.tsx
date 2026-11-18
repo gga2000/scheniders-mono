@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { adReturn, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { adBreakEven, adReturn, adsWithoutLift, breakEven, bulkDays, perOrder, type FinanceSummary, type ProfitStatement } from "@/lib/finance/summary";
+import { formatChange, isShownChange } from "./change-chip";
 import { LOSS_COLOR, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { formatWhole, useMoneyText } from "./money";
@@ -12,6 +13,10 @@ import { CARD_FIGURE, CARD_LINK, SummaryCard } from "./summary-card";
 interface DailyCostsProps {
     summary: FinanceSummary;
     statement: ProfitStatement;
+    /** The period before, when a comparison is on: says when ads that were new did not raise sales. */
+    previous: ProfitStatement | null;
+    /** The period before had days of marking orders delivered in bulk, so comparing sales with it is rough. */
+    bulkBefore: boolean;
     onOpenTab: (tab: FinanceTab) => void;
 }
 
@@ -32,12 +37,14 @@ function countOf(text: string): { count?: number } {
  * day pay the daily bill (ads, salaries, other costs), against how many the
  * shop delivers, as one bar drawn to scale with a name on each part.
  */
-export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
+export function DailyCosts({ summary, statement, previous, bulkBefore, onOpenTab }: DailyCostsProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
     const spent = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
     const brought = adReturn(statement);
+    const evenAds = adBreakEven(statement);
+    const noLift = adsWithoutLift(statement, previous);
     const even = breakEven(summary, statement);
     const bulk = bulkDays(summary.daily);
     // Only the daily costs this period has, so the brackets never name a cost that is zero.
@@ -54,8 +61,9 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
     } else if (even && even.needed === 0) {
         cover = <p className={quiet} dir={dir} data-testid="break-even-free">{t("fin.even.free")}</p>;
     } else if (even && even.needed !== null) {
-        // Whole orders pay a bill, and the two parts of the bar must add up to the figure beside them.
-        const need = Math.ceil(even.needed);
+        // One decimal on both sides, as the per-order profit works out: rounding the bill up to whole
+        // orders would shrink the profit part of the bar by up to an order a day.
+        const need = Number(rate(even.needed));
         const have = Number(rate(even.delivered));
         const above = have >= need;
         cover = (
@@ -65,7 +73,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                         <>
                             <span className={label}>
                                 <span className={`${dot} bg-stone-900 dark:bg-stone-100`} aria-hidden="true" />
-                                <span dir={dir}>{t("fin.even.cover", { n: String(need), count: need })}</span>
+                                <span dir={dir}>{t("fin.even.cover", { n: rate(need), ...countOf(rate(need)) })}</span>
                             </span>
                             <span className={label}>
                                 <span className={dot} style={{ background: PROFIT_COLOR }} aria-hidden="true" />
@@ -80,7 +88,7 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                             </span>
                             <span className={label}>
                                 <span className={`${dot} border border-dashed border-stone-400`} aria-hidden="true" />
-                                <span dir={dir}>{t("fin.even.need", { n: String(need) })}</span>
+                                <span dir={dir}>{t("fin.even.need", { n: rate(need) })}</span>
                             </span>
                         </>
                     )}
@@ -109,7 +117,8 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                 {bulk && (
                     <p className="mt-1.5 text-left text-[12.5px] leading-relaxed text-muted" dir={dir} data-testid="break-even-bulk">
                         {t("fin.even.bulk", {
-                            share: String(Math.round(bulk.share * 100)),
+                            n: formatWhole(bulk.orders),
+                            total: formatWhole(bulk.total),
                             days: t("fin.even.bulk.days", { n: String(bulk.days), count: bulk.days }),
                         })}
                     </p>
@@ -148,7 +157,18 @@ export function DailyCosts({ summary, statement, onOpenTab }: DailyCostsProps) {
                     </span>
                     <p className="mt-2.5 text-left text-[13.5px] leading-relaxed text-muted" dir={dir}>
                         {t("fin.ads.spent", { spent: money(spent) })}
+                        {/* The line to judge the figure by, from this period's own goods, delivery and refunds. */}
+                        {evenAds !== null && <> {t("fin.ads.even", { n: formatWhole(evenAds), count: evenAds, now: formatWhole(brought) })}</>}
                     </p>
+                    {/* That line assumes every sale came from the ads; when sales did not rise as the ads began, say so beside it. */}
+                    {noLift !== null && (
+                        <p className="mt-1.5 text-left text-[13.5px] leading-relaxed text-foreground" dir={dir} data-testid="ads-no-lift">
+                            {/* Bulk-marked days in either period move sales between dates, so the comparison is rough: say so and point to new orders. */}
+                            {isShownChange(-noLift)
+                                ? t(bulk || bulkBefore ? "fin.ads.noLiftBulk" : "fin.ads.noLift", { pct: formatChange(noLift) })
+                                : t(bulk || bulkBefore ? "fin.ads.noLiftSameBulk" : "fin.ads.noLiftSame")}
+                        </p>
+                    )}
                 </div>
             )}
             <div className="mt-4 border-t border-[var(--card-border)] pt-4">{cover}</div>

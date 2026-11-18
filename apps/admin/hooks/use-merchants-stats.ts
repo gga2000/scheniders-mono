@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAdminStore } from "@/store/use-admin-store";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export interface MerchantsStats {
   total: number;
@@ -17,6 +18,8 @@ export interface MerchantsStats {
     suspended: number;
     cancelled: number;
   };
+  /** Shops on trial, paused or not: what the Trial pill lists. */
+  on_trial: number;
   buckets: {
     trials_today: number;
     trials_expired: number;
@@ -80,7 +83,7 @@ export function useMerchantsStats(options: UseMerchantsStatsOptions = {}) {
       if (dateRange.from) params.set("date_from", dateRange.from);
       if (dateRange.to) params.set("date_to", dateRange.to);
 
-      const res = await fetch(`/api/merchants/stats?${params.toString()}`);
+      const res = await adminFetch(`/api/merchants/stats?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch merchant stats");
       return res.json();
     },

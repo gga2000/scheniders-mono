@@ -58,10 +58,22 @@ const extended = (tenantId: string) => ({
   error: null,
 });
 
+// The shops' names, read only to name the shops a bulk action did not do.
+const NAMES: Record<string, string> = { [T1]: "Kut Shop", [T2]: "Najaf Gifts" };
+const namesTable = (table: string) => ({
+  select: () => ({
+    in: async (_column: string, ids: string[]) => ({
+      data: table === "tenants" ? ids.filter((id) => NAMES[id]).map((id) => ({ id, business_name: NAMES[id] })) : [],
+      error: null,
+    }),
+  }),
+});
+
 beforeEach(() => {
   state.role = "super_admin";
   rpc.mockReset();
   from.mockReset();
+  from.mockImplementation(namesTable);
   logAdminActivityBatch.mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -91,6 +103,37 @@ describe("POST /api/bulk top_up", () => {
     expect(from).not.toHaveBeenCalledWith("wallet_transactions");
   });
 
+  it("keeps the database's own words out of what staff see, and names the shop", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: { success: true, new_balance: 15000 }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'deadlock detected on relation "wallet"' } });
+    const body = await (await POST(topUp(10_000))).json();
+
+    expect(body.failed).toEqual([
+      {
+        tenant_id: T2,
+        name: "Najaf Gifts",
+        error: "The top-up could not be confirmed. Trying again adds it once at most.",
+      },
+    ]);
+    expect(JSON.stringify(body)).not.toMatch(/deadlock/);
+  });
+
+  it("still reports what was credited when the names cannot be read", async () => {
+    from.mockImplementation(() => ({
+      select: () => ({ in: async () => ({ data: null, error: { message: "timeout" } }) }),
+    }));
+    rpc
+      .mockResolvedValueOnce({ data: { success: true, new_balance: 15000 }, error: null })
+      .mockResolvedValueOnce({ data: { success: false, error: "No wallet found" }, error: null });
+    const body = await (await POST(topUp(10_000))).json();
+
+    expect(body.succeeded).toEqual([{ tenant_id: T1, new_balance: 15000, duplicate: false }]);
+    expect(body.failed).toEqual([
+      { tenant_id: T2, name: null, error: "This shop has no wallet yet, so nothing was added." },
+    ]);
+  });
+
   it("reports failure instead of success when a wallet could not be credited", async () => {
     rpc
       .mockResolvedValueOnce({ data: { success: true, new_balance: 15000 }, error: null })
@@ -100,7 +143,9 @@ describe("POST /api/bulk top_up", () => {
 
     expect(res.status).toBe(500);
     expect(body.success).toBe(false);
-    expect(body.failed).toEqual([{ tenant_id: T2, error: "No wallet found" }]);
+    expect(body.failed).toEqual([
+      { tenant_id: T2, name: "Najaf Gifts", error: "This shop has no wallet yet, so nothing was added." },
+    ]);
     expect(body.succeeded).toEqual([{ tenant_id: T1, new_balance: 15000, duplicate: false }]);
     // Only the credited tenant is audited as topped up.
     expect(logAdminActivityBatch).toHaveBeenCalledTimes(1);
@@ -214,7 +259,7 @@ describe("POST /api/bulk extend_trial", () => {
     expect(res.status).toBe(409);
     expect(body.success).toBe(false);
     expect(body.succeeded).toEqual([{ tenant_id: T1, trial_ends_at: "2026-12-01T00:00:00+00:00" }]);
-    expect(body.failed).toEqual([{ tenant_id: T2, error: "Tenant is not on a trial plan" }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "Tenant is not on a trial plan" }]);
   });
 
   it("reports a database error for one shop as a failure and still tries the rest", async () => {
@@ -225,7 +270,7 @@ describe("POST /api/bulk extend_trial", () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.failed).toEqual([{ tenant_id: T1, error: "Failed to extend trial" }]);
+    expect(body.failed).toEqual([{ tenant_id: T1, name: "Kut Shop", error: "Failed to extend trial" }]);
     expect(body.succeeded).toEqual([{ tenant_id: T2, trial_ends_at: "2026-12-01T00:00:00+00:00" }]);
   });
 
@@ -317,7 +362,7 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
     expect(body.success).toBe(false);
     expect(body.error).toBe("Not changed for 1 of 2 merchant(s); 1 were changed");
     expect(body.succeeded).toEqual([{ tenant_id: T1, status: "trial", plan: "starter" }]);
-    expect(body.failed).toEqual([{ tenant_id: T2, error: "This shop is paused. Resume it first." }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "This shop is paused. Lift the pause first (on its page)." }]);
   });
 
   it("suspend does not count the demo store as suspended", async () => {
@@ -328,7 +373,7 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
     expect(await res.json()).toMatchObject({
       success: false,
       succeeded: [],
-      failed: [{ tenant_id: T1, error: "This is the demo store. Its status does not change." }],
+      failed: [{ tenant_id: T1, name: "Kut Shop", error: "This is the demo store. Its status does not change." }],
     });
   });
 
@@ -340,7 +385,7 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.failed).toEqual([{ tenant_id: T1, error: "Failed to change this shop" }]);
+    expect(body.failed).toEqual([{ tenant_id: T1, name: "Kut Shop", error: "Failed to change this shop" }]);
     expect(body.succeeded).toEqual([{ tenant_id: T2, status: "suspended", plan: "starter" }]);
   });
 
@@ -376,5 +421,22 @@ describe("POST /api/bulk send_notification", () => {
     expect(logAdminActivityBatch).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * "Select all" can tick more shops than one action takes. The answer was
+ * "Invalid input"; now it says the limit and the count, and does nothing.
+ */
+describe("POST /api/bulk with more than 100 shops", () => {
+  it("is refused with the limit and the count, before any shop is touched", async () => {
+    const ids = Array.from({ length: 150 }, () => crypto.randomUUID());
+    const res = await POST(req({ action: "suspend", tenant_ids: ids }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Pick at most 100 shops (150 ticked)." });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+    expect(logAdminActivityBatch).not.toHaveBeenCalled();
   });
 });

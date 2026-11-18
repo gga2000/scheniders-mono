@@ -10,13 +10,14 @@ import {
     lensChange,
     throughLens,
     waterfall,
+    wholePercents,
     type CostLineId,
     type FinanceSummary,
     type Lens,
     type ProfitStatement as Statement,
 } from "@/lib/finance/summary";
 import { ChangeChip, isShownChange } from "./change-chip";
-import { COST_COLORS } from "./colors";
+import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import type { FinanceTab } from "./finance-tabs";
 import { LensSwitch } from "./lens-switch";
 import { COURIER_PAYMENTS_ID } from "./courier-payments";
@@ -35,10 +36,16 @@ interface ProfitStatementProps {
 /** 12 / 3.4 / 0.2: one decimal only under ten, so the column stays short. */
 function pct(share: number): string {
     const value = Math.abs(share) * 100;
-    return value >= 10 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, "");
+    // Whole percents, as the shares sit in one column; a decimal only for a share under 1%.
+    return value >= 1 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, "");
 }
 
-const ROW = "grid w-full grid-cols-[190px_minmax(0,1fr)_minmax(104px,auto)_minmax(150px,auto)] items-center gap-x-[18px]";
+/**
+ * Fixed side columns: every row is its own grid, so an `auto` column sized by one row's text (a long
+ * change label) shrank only that row's bar track and broke the staircase. Fixed widths keep every
+ * track the same length, so the bars line up to the pixel.
+ */
+const ROW = "grid w-full grid-cols-[190px_minmax(0,1fr)_112px_200px] items-center gap-x-[18px]";
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /**
@@ -58,14 +65,25 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const money = useMoneyText();
     // Refunds the courier paid that the shop has not marked yet: until it does, the net profit below is too high.
     const refundsOpen = summary.cash.statement.returns_open_orders;
+    // Delivered orders the ordinary delivery company has not put on a statement yet: its fee on them is
+    // only known from that statement, so the net profit below does not take it off yet.
+    const feePending = Math.max(summary.cash.split.unpaid_orders - summary.cash.split.unpaid_prime, 0);
     const [open, setOpen] = useState<CostLineId | null>(null);
     const [lens, setLens] = useState<Lens>("total");
     const steps = useMemo(() => new Map(waterfall(statement).map((step) => [step.id, step])), [statement]);
 
     const loss = statement.netProfit < 0;
+    /** What the cost bars leave of the track: the profit, drawn on its own row so the staircase ends in it. */
+    const leftShare = Math.max(1 - [...steps.values()].reduce((sum, step) => sum + step.width, 0), 0);
     const perThousand = statement.margin === null ? null : Math.round(Math.abs(statement.margin) * 1000);
     const shown = statement.lines.filter((line) => line.amount !== 0);
     const empty = statement.lines.filter((line) => line.amount === 0);
+    // The share column, costs then what is left: whole percents that add up to 100 (as in the products
+    // table) when every part is a whole point or more; otherwise each one on its own, a small one with a decimal.
+    const shareParts = [...shown.map((line) => line.share), statement.margin ?? 0];
+    const wholeShares = !loss && statement.sales > 0 && shareParts.every((share) => share * 100 >= 1);
+    const sharePercents = wholeShares ? wholePercents(shareParts).map(String) : shareParts.map((share) => pct(share));
+    const sharesOfSales = { lines: new Map(shown.map((line, i) => [line.id, sharePercents[i]])), left: sharePercents[shareParts.length - 1] };
     /** The change of a figure against the period before, through the chosen lens; null when it is not worth showing. */
     const change = (value: number, before: number | undefined) => {
         if (!previous || before === undefined || !isComparablePeriod(statement, previous)) return null;
@@ -75,6 +93,22 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
     const salesChange = change(statement.sales, previous?.sales);
     const netChange = change(statement.netProfit, previous?.netProfit);
     const lineChanges = new Map(shown.map((line) => [line.id, change(line.amount, previous?.lines.find((l) => l.id === line.id)?.amount)]));
+    /**
+     * A cost that was close to nothing in the period before (ten times smaller or less): its change is too
+     * big for an arrow, so the row says so in words, and when it explains most of a fall in profit, the
+     * net line names it, so a red arrow on net profit never stands without its cause.
+     */
+    const comparable = previous !== null && isComparablePeriod(statement, previous);
+    const beforeOf = (id: CostLineId) => previous?.lines.find((l) => l.id === id)?.amount ?? 0;
+    const newCosts = comparable ? shown.filter((line) => line.amount > 0 && beforeOf(line.id) * 10 <= line.amount) : [];
+    const profitFall = previous ? previous.netProfit - statement.netProfit : 0;
+    const fallCause =
+        netChange !== null && netChange < 0 && profitFall > 0
+            ? newCosts
+                  .map((line) => ({ line, rise: line.amount - beforeOf(line.id) }))
+                  .sort((x, y) => y.rise - x.rise)
+                  .find(({ rise }) => rise * 2 >= profitFall)?.line ?? null
+            : null;
     const compared = salesChange !== null || netChange !== null || [...lineChanges.values()].some((value) => value !== null);
     /** A comparison is on, but the period before sold too little to be a fair base: say why no arrow shows. */
     const tooThinBefore = previous !== null && !isComparablePeriod(statement, previous);
@@ -148,15 +182,23 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                 )}
                             </span>
                             <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
-                                {statement.sales > 0 ? t("fin.line.ofSales", { pct: pct(line.share) }) : ""}
+                                {statement.sales > 0 ? t("fin.line.ofSales", { pct: sharesOfSales.lines.get(line.id) ?? pct(line.share) }) : ""}
                             </span>
-                            <span className="flex items-baseline justify-end gap-3">
-                                {lineChange !== null && (
-                                    <span data-change={line.id}>
-                                        <ChangeChip value={lineChange} lowerIsBetter surface="card" />
+                            <span className="flex flex-col items-end">
+                                <span className="flex items-baseline justify-end gap-3">
+                                    {lineChange !== null && (
+                                        <span data-change={line.id}>
+                                            <ChangeChip value={lineChange} lowerIsBetter surface="card" />
+                                        </span>
+                                    )}
+                                    {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
+                                </span>
+                                {/* Under the amount, not beside it: beside it the label would need a wider column. */}
+                                {lineChange === null && newCosts.includes(line) && (
+                                    <span className="whitespace-nowrap text-right text-[12px] font-medium text-muted" dir={dir} data-change={line.id} data-new-cost>
+                                        {t("fin.line.newCost")}
                                     </span>
                                 )}
-                                {amount(line.amount, "text-[18px] font-semibold text-foreground", { minus: true })}
                             </span>
                         </button>
                         <AnimatePresence initial={false}>
@@ -176,41 +218,27 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                 );
             })}
 
-            {empty.length > 0 && (
-                <div
-                    className="flex items-center gap-4 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
-                    data-testid="statement-quiet"
-                >
-                    <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.none", { lines: empty.map((line) => t(`fin.line.${line.id}`)).join(language === "ar" ? "، " : ", ") })}{" "}
-                        <span className="font-medium text-foreground">{t("fin.statement.noneMeans")}</span>
+            {!loss && statement.sales > 0 && leftShare > 0 && (
+                <div className={cn(ROW, "border-t border-[var(--card-border)] py-[11px]")} data-testid="statement-left">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                        <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: PROFIT_COLOR }} aria-hidden="true" />
+                        <span className="truncate text-[15px] font-medium text-foreground" dir={dir}>{t("fin.line.left")}</span>
                     </span>
-                    <button
-                        type="button"
-                        onClick={() => onOpenTab("expenses")}
-                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
-                    >
-                        {t("fin.statement.addExpense")}
-                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                    </button>
-                </div>
-            )}
-
-            {refundsOpen > 0 && (
-                <div
-                    className="flex items-center gap-4 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px] text-muted"
-                    data-testid="statement-refunds-open"
-                >
-                    <span className="min-w-0 flex-1 text-left" dir={dir}>
-                        {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
+                    <span className="relative h-[30px]" aria-hidden="true">
+                        <motion.span
+                            className="absolute inset-y-0 left-0 min-w-[6px] rounded-[9px]"
+                            style={{ background: PROFIT_COLOR }}
+                            initial={reduceMotion ? false : { width: "0%" }}
+                            animate={{ width: `${leftShare * 100}%` }}
+                            transition={{ duration: 0.7, ease: EASE_OUT }}
+                        />
                     </span>
-                    <a
-                        href={`#${COURIER_PAYMENTS_ID}`}
-                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
-                    >
-                        {t("fin.alert.refundsOpen.open")}
-                        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                    </a>
+                    <span className="whitespace-nowrap text-right text-[13px] tabular-nums text-muted" dir={dir}>
+                        {statement.margin !== null && t("fin.line.ofSales", { pct: sharesOfSales.left })}
+                    </span>
+                    <span className="flex justify-end">
+                        {amount(statement.netProfit, "text-[18px] font-semibold text-emerald-600 dark:text-emerald-400")}
+                    </span>
                 </div>
             )}
 
@@ -220,6 +248,11 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-plain">
                         {perThousand !== null && t(loss ? "fin.statement.lose" : "fin.statement.keep", { n: formatWhole(perThousand) })}
                     </p>
+                    {fallCause && (
+                        <p className="mt-1 text-left text-[13.5px] leading-relaxed text-muted" dir={dir} data-testid="statement-fall-cause">
+                            {t("fin.statement.fallCause", { line: t(`fin.line.${fallCause.id}`), amount: money(fallCause.amount) })}
+                        </p>
+                    )}
                 </div>
                 <span className="flex shrink-0 items-baseline gap-3">
                     {netChange !== null && (
@@ -236,6 +269,56 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     )}
                 </span>
             </div>
+            {/* Under the net profit: why the figure above may be too high, under one heading, one cause a line,
+                each with what to do where there is something to do, rather than break the subtraction above. */}
+            {(empty.length > 0 || refundsOpen > 0 || feePending > 0) && (
+                <div className="mt-3 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px]" data-testid="statement-too-high">
+                    <p className="text-left font-medium text-foreground" dir={dir}>
+                        {t("fin.statement.tooHigh")}
+                    </p>
+                    <ul className="mt-1.5 space-y-1.5 text-muted">
+                        {empty.length > 0 && (
+                            <li className="flex items-center gap-4" data-testid="statement-quiet">
+                                <span className="min-w-0 flex-1 text-left" dir={dir}>
+                                    {t("fin.statement.none", {
+                                        // As a sentence ("in «Salaries» or in «Other costs»"), each line by its name on the card.
+                                        lines: empty
+                                            .map((line) => (language === "ar" ? `«${t(`fin.line.${line.id}`)}»` : `“${t(`fin.line.${line.id}`)}”`))
+                                            .join(t("fin.statement.none.or")),
+                                    })}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => onOpenTab("expenses")}
+                                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                >
+                                    {t("fin.statement.addExpense")}
+                                    <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                                </button>
+                            </li>
+                        )}
+                        {refundsOpen > 0 && (
+                            <li className="flex items-center gap-4" data-testid="statement-refunds-open">
+                                <span className="min-w-0 flex-1 text-left" dir={dir}>
+                                    {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
+                                </span>
+                                <a
+                                    href={`#${COURIER_PAYMENTS_ID}`}
+                                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                >
+                                    {t("fin.alert.refundsOpen.open")}
+                                    <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                                </a>
+                            </li>
+                        )}
+                        {feePending > 0 && (
+                            <li className="text-left" dir={dir} data-testid="statement-fee-pending">
+                                {t("fin.statement.feePending", { n: formatWhole(feePending), count: feePending })}
+                            </li>
+                        )}
+                    </ul>
+                </div>
+            )}
         </SummaryCard>
     );
 }

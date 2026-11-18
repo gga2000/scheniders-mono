@@ -12,30 +12,44 @@ import {
 } from "lucide-react";
 import { storeAddress } from "@scheniders/shared/store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
+import { shopFormHref } from "@/lib/shop-actions";
+import { useCan } from "@/hooks/use-admin-auth";
+import type { AdminAction } from "@/types/admin";
 
 interface ContextMenuItem {
   label: string;
   icon: ReactNode;
   action: () => void;
   variant?: "default" | "destructive";
+  /** Left out for anyone whose role may not do this. */
+  needs?: AdminAction;
 }
 
 interface ContextMenuProps {
   merchantId: string;
   merchantSlug: string;
+  /**
+   * Whether this login may give this shop free days (lib/shop-actions
+   * freeDaysKind): trial days on trial, or days on a paying shop's month.
+   * Where the shop page has no days form, the item would open the page and
+   * do nothing more.
+   */
+  freeDays: boolean;
   children: ReactNode;
 }
 
 export function MerchantContextMenu({
   merchantId,
   merchantSlug,
+  freeDays,
   children,
 }: ContextMenuProps) {
   const router = useRouter();
+  const can = useCan();
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const items: ContextMenuItem[] = [
+  const allItems: ContextMenuItem[] = [
     {
       label: "View Details",
       icon: <ExternalLink className="w-3.5 h-3.5" />,
@@ -44,13 +58,18 @@ export function MerchantContextMenu({
     {
       label: "Top Up Wallet",
       icon: <Wallet className="w-3.5 h-3.5" />,
-      action: () => router.push(`/billing?topup=${merchantId}`),
+      action: () => router.push(shopFormHref(merchantId, "money")),
+      needs: "top_up_wallet",
     },
-    {
-      label: "Extend Trial",
-      icon: <Clock className="w-3.5 h-3.5" />,
-      action: () => router.push(`/merchants/${merchantId}?action=extend-trial`),
-    },
+    ...(freeDays
+      ? [
+          {
+            label: "Give free days",
+            icon: <Clock className="w-3.5 h-3.5" />,
+            action: () => router.push(shopFormHref(merchantId, "days")),
+          },
+        ]
+      : []),
     {
       label: "Copy Slug",
       icon: <Copy className="w-3.5 h-3.5" />,
@@ -61,9 +80,10 @@ export function MerchantContextMenu({
     {
       label: "Open Storefront",
       icon: <Globe className="w-3.5 h-3.5" />,
-      action: () => window.open(`https://${storeAddress(merchantSlug)}`, "_blank"),
+      action: () => window.open(`https://${storeAddress(merchantSlug)}`, "_blank", "noopener,noreferrer"),
     },
   ];
+  const items = allItems.filter((item) => !item.needs || can(item.needs));
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

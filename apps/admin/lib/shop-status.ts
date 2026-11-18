@@ -10,6 +10,7 @@
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { formatDay, formatDayTime, formatIQD } from "@/lib/format";
 import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
 
 export type ShopTone = "paying" | "trial" | "locked" | "paused" | "hold" | "ended" | "internal";
 
@@ -23,9 +24,7 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
-type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "planLimits" | "billingLock" | "stoppedBy">;
-
-const LOCK_REASON = { trial_ended: "Trial ended, not paid", unpaid: "Month not paid" } as const;
+type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy">;
 
 /** "Wallet 4,000 IQD, short by 5,000 IQD." when the wallet cannot pay `price`. */
 function shortBy(balance: number, price: number): string {
@@ -39,18 +38,28 @@ function shortByThen(balance: number, price: number): string {
 }
 
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
-  const { tenant, wallet, subscription, planLimits, billingLock, stoppedBy } = detail;
+  const { tenant, wallet, subscription, billingLock, stoppedBy } = detail;
   const balance = wallet?.balance_iqd ?? 0;
-  const price = planLimits?.base_price_iqd ?? 0;
+  // What the trial's end or the next renewal takes: the plan the shop moves to,
+  // with its add-ons. billing_lock_snapshot adds it up as renew_subscription_core
+  // charges it; the plan's list price left the add-ons and a waiting plan out.
+  const price = billingLock?.price_iqd ?? 0;
 
   if (billingLock?.locked) {
-    const reason = billingLock.reason ? LOCK_REASON[billingLock.reason] : "Locked";
+    const reason = billingLock.reason ? LOCK_REASON_WORDS[billingLock.reason] : "Locked";
     const since = billingLock.since ? ` Locked since ${formatDay(billingLock.since, now)}.` : "";
+    const amount = formatIQD(billingLock.price_iqd);
+    const short = shortBy(balance, billingLock.price_iqd);
     return {
       tone: "locked",
       label: "Locked",
       sentence: `${reason}.${since}`,
-      next: `Paying ${formatIQD(billingLock.price_iqd)} from the wallet opens it again.${shortBy(balance, billingLock.price_iqd)}`,
+      // A paused shop is not charged, so money does not open its lock until
+      // the pause lifts (settle_billing_lock answers on_hold).
+      next:
+        tenant.status === "limited"
+          ? `Paused, so the lock stays until the pause lifts. Then paying ${amount} from the wallet opens it.${short}`
+          : `Paying ${amount} from the wallet opens it again.${short}`,
     };
   }
 
@@ -77,6 +86,11 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
 
   if (tenant.plan === "internal") {
     return { tone: "internal", label: "Internal", sentence: "Our own shop. It is never billed.", next: null };
+  }
+
+  // The demo store (Fermi B13): its month renews at no charge (renew_subscription_core).
+  if (tenant.is_demo) {
+    return { tone: "internal", label: "Demo", sentence: "The demo store. It is never charged.", next: null };
   }
 
   if (tenant.status === "trial") {

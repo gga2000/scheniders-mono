@@ -18,15 +18,26 @@ import {
   type TrialCheckDecisionInput,
   type TrialChecksResponse,
 } from "@/lib/trial-checks";
+import { isPausedTrial } from "@/lib/effective-status";
 import { formatDayTime } from "@/lib/format";
+import { createRequestIds } from "@/lib/request-ids";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const GIVE_BACK_DAYS = [3, 7];
+
+/** Which button was pressed; the reason and the request id are added on send. */
+type DecisionAsk = { decision: "allow_trial"; days: number } | { decision: "end_trial" } | { decision: "checked" };
 
 /** Where the flagged store's trial stands now. */
 function trialState(check: TrialCheck): string {
   const store = check.store;
   if (!store) return "Store deleted";
-  if (store.status !== "trial") return `Now ${store.status}`;
+  // The decisions wait for the pause to lift: the database gives days and ends
+  // only a trial that is not paused.
+  if (isPausedTrial(store.status, store.restrictions)) {
+    return store.trial_ends_at ? `Paused, trial until ${formatDayTime(store.trial_ends_at)}` : "Paused, on trial";
+  }
+  if (store.status !== "trial") return `Now ${store.status === "limited" ? "paused" : store.status}`;
   if (check.trial_withheld_at) return `Trial ended ${formatDayTime(check.trial_withheld_at)}`;
   if (store.trial_ends_at) return `Trial until ${formatDayTime(store.trial_ends_at)}`;
   return "On trial";
@@ -37,10 +48,20 @@ function DecideActions({ check }: { check: TrialCheck }) {
   const reasonOk = isStaffReason(reason);
   const queryClient = useQueryClient();
   const onTrial = check.store?.status === "trial";
+  // One id per ask: a retry after a lost answer or a double click gives the days once.
+  // The decision the row showed goes too: if someone decided it since, the server refuses.
+  const [requestIds] = useState(createRequestIds);
 
   const mutation = useMutation({
-    mutationFn: async (input: TrialCheckDecisionInput) => {
-      const res = await fetch(`/api/trial-checks/${check.tenant_id}`, {
+    mutationFn: async (ask: DecisionAsk) => {
+      const days = ask.decision === "allow_trial" ? ask.days : "";
+      const input: TrialCheckDecisionInput = {
+        ...ask,
+        reason: reason.trim(),
+        request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}:${reason.trim()}`),
+        seen_decided_at: check.decided_at,
+      };
+      const res = await adminFetch(`/api/trial-checks/${check.tenant_id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
@@ -52,10 +73,13 @@ function DecideActions({ check }: { check: TrialCheck }) {
       return res.json();
     },
     onSuccess: () => {
+      requestIds.done();
       queryClient.invalidateQueries({ queryKey: TRIAL_CHECKS_KEY });
       queryClient.invalidateQueries({ queryKey: ["admin", "trials"] });
       setReason("");
     },
+    // A refusal may mean the row changed (decided meanwhile): show what is there now.
+    onError: () => queryClient.invalidateQueries({ queryKey: TRIAL_CHECKS_KEY }),
   });
 
   const busy = mutation.isPending || !reasonOk;
@@ -72,7 +96,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
               key={days}
               type="button"
               disabled={busy}
-              onClick={() => mutation.mutate({ decision: "allow_trial", days, reason: reason.trim() })}
+              onClick={() => mutation.mutate({ decision: "allow_trial", days })}
               className={button}
             >
               <Undo2 className="w-3.5 h-3.5" />
@@ -83,7 +107,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
           <button
             type="button"
             disabled={busy}
-            onClick={() => mutation.mutate({ decision: "end_trial", reason: reason.trim() })}
+            onClick={() => mutation.mutate({ decision: "end_trial" })}
             className={button}
           >
             <Ban className="w-3.5 h-3.5" />
@@ -93,7 +117,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
         <button
           type="button"
           disabled={busy}
-          onClick={() => mutation.mutate({ decision: "checked", reason: reason.trim() })}
+          onClick={() => mutation.mutate({ decision: "checked" })}
           className={button}
         >
           <Check className="w-3.5 h-3.5" />
@@ -193,14 +217,20 @@ export function TrialChecksPanel() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialChecksResponse>({
     queryKey: TRIAL_CHECKS_KEY,
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch("/api/trial-checks"), "the trial checks");
+      const res = okOrLoadFailure(await adminFetch("/api/trial-checks"), "the trial checks");
       return res.json();
     },
     staleTime: 30_000,
   });
 
+  // A side card on the Trials page: its failure stays in the card, so the
+  // trial list and "Ends today" below it, which did load, stay in view.
   if (isError && !data) {
-    return <LoadError what="the trial checks" error={error} onRetry={() => refetch()} retrying={isFetching} />;
+    return (
+      <section className="pastel-card">
+        <LoadError compact what="the one-trial checks" error={error} onRetry={() => refetch()} retrying={isFetching} />
+      </section>
+    );
   }
   if (isLoading || !data || data.checks.length === 0) return null;
 

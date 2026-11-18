@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
+import { LoadError } from "@/components/shared/load-error";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_STATUS_UI,
@@ -100,7 +101,7 @@ function EmptyState() {
 // ── Main page ─────────────────────────────────────────────────────────
 
 export default function LeadAnalyticsPage() {
-  const { data, isLoading } = useLeadAnalytics();
+  const { data, isError, error, refetch, isFetching } = useLeadAnalytics();
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -111,9 +112,11 @@ export default function LeadAnalyticsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {isError ? (
+        <LoadError what="the lead numbers" error={error} onRetry={() => refetch()} retrying={isFetching} />
+      ) : !data ? (
         <LoadingState />
-      ) : !data || data.total_leads === 0 ? (
+      ) : data.total_leads === 0 ? (
         <EmptyState />
       ) : (
         <AnalyticsDashboard data={data} />
@@ -162,9 +165,15 @@ function AnalyticsDashboard({
         <NumberCell label="Became a shop, all time" value={`${data.conversion_rate.toFixed(1)}%`} note="of all leads" />
         <NumberCell
           label="Days from lead to shop, average"
-          value={`${data.avg_time_to_convert_days.toFixed(1)} days`}
+          value={
+            data.avg_time_to_convert_days === null
+              ? "None yet"
+              : `${data.avg_time_to_convert_days} ${data.avg_time_to_convert_days === 1 ? "day" : "days"}`
+          }
+          note={data.avg_time_to_convert_days === null ? "No lead has become a shop yet" : undefined}
         />
-        <NumberCell label="Est. revenue, all leads" value={formatIQD(data.total_estimated_revenue)} />
+        {/* The sum leaves out converted and lost leads (api/leads/analytics), and each lead gives its monthly sales. */}
+        <NumberCell label="Est. monthly sales, open leads" value={formatIQD(data.total_estimated_revenue)} />
       </NumberStrip>
 
       {/* ── Pipeline Funnel ──────────────────────────────────────── */}
@@ -503,13 +512,11 @@ function AnalyticsDashboard({
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
+const MONTH = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
+
+/** "2026-11" -> "Nov". The month is a calendar month, not an instant: read and named in UTC, it cannot shift. */
 function formatMonth(monthStr: string): string {
-  // Expects "YYYY-MM" or similar
-  try {
-    const [year, month] = monthStr.split("-");
-    const date = new Date(Number(year), Number(month) - 1);
-    return date.toLocaleString("en", { month: "short" });
-  } catch {
-    return monthStr;
-  }
+  const [year, month] = monthStr.split("-").map(Number);
+  if (!year || !month) return monthStr;
+  return MONTH.format(Date.UTC(year, month - 1, 1));
 }

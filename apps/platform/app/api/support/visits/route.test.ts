@@ -65,6 +65,18 @@ describe("GET /api/support/visits", () => {
         expect(state.calls).toEqual([{ method: "rpc", args: ["support_staff_visits", { p_tenant_id: TENANT }] }]);
     });
 
+    it("passes on the steps the staff console's shop page writes", async () => {
+        const visits = ["extend_subscription", "status_change", "auto_renew_on", "auto_renew_off"].map((action) => ({
+            action,
+            staff: "Noor",
+            at: "2026-11-17T10:00:00+00:00",
+        }));
+        state.result = { data: visits, error: null };
+        const res = await GET(request());
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({ success: true, data: visits });
+    });
+
     it("fails loudly on a step it does not know rather than showing a wrong line", async () => {
         state.result = { data: [{ action: "update_tags", staff: null, at: "2026-11-16T10:00:00Z" }], error: null };
         await expect(GET(request())).rejects.toThrow();

@@ -4,19 +4,27 @@ import { cookies } from "next/headers";
 import { isOAuthClientToken } from "@scheniders/shared";
 import { requireAdmin, resolveAdminRole } from "./admin-supabase";
 import { env } from "./admin-env";
-import { AdminAuthError, isCredentialRejection } from "./admin-auth-error";
+import { AdminAuthError } from "./admin-auth-error";
 import { hasPermission } from "./admin-permissions";
+import {
+  NO_ACCESS_HEADERS,
+  NO_CONSOLE_ACCESS,
+  SIGN_IN_ENDED,
+  SIGNED_OUT,
+  bearerToken,
+  signInEnded,
+  verifyStaffToken,
+} from "./staff-sign-in";
 import type { AdminAction, AdminRole } from "@/types/admin";
 
 export type AdminContext = { user: { id: string; email?: string | null }; role: AdminRole };
 
 /**
  * Resolve the admin context from the caller's cookie-based Supabase session —
- * the transport the browser uses for same-origin fetches. `getUser()` validates
- * the JWT against the auth server (not just the stored cookie). Returns null
- * when there is no authenticated session; throws `AdminAuthError(403)` when the
- * user is authenticated but lacks admin-console access, and a plain error when
- * the auth server or database fails.
+ * the transport the browser uses for same-origin fetches. Returns null when
+ * there is no valid session; throws `AdminAuthError(401)` for a sign-in past
+ * the staff age limit, `AdminAuthError(403)` when the user lacks
+ * admin-console access, and a plain error when the key read or database fails.
  */
 async function adminFromCookies(): Promise<AdminContext | null> {
   const cookieStore = await cookies();
@@ -42,28 +50,23 @@ async function adminFromCookies(): Promise<AdminContext | null> {
     },
   );
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    if (isCredentialRejection(error)) return null;
-    throw new Error(`Session validation failed: ${error?.message}`, { cause: error });
-  }
+  // The middleware asked the auth server about this session on the same
+  // request; here the token is checked once more, locally (lib/staff-sign-in.ts).
+  const token = await verifyStaffToken(supabase.auth);
+  if (!token) return null;
+  if (signInEnded(token.signedInAt)) throw new AdminAuthError(401, SIGN_IN_ENDED);
 
   // A Claude connector token planted in the session cookie is no admin session.
   const { data } = await supabase.auth.getSession();
   if (data.session && isOAuthClientToken(data.session.access_token)) return null;
 
-  const role = await resolveAdminRole(user.id);
-  return { user: { id: user.id, email: user.email }, role };
+  const role = await resolveAdminRole(token.userId);
+  return { user: { id: token.userId, email: token.email }, role };
 }
 
-const BEARER = /^Bearer\s+(\S+)\s*$/i;
-
-function bearerToken(request: NextRequest): string | null {
-  return request.headers.get("authorization")?.match(BEARER)?.[1] ?? null;
+/** A request with no usable sign-in, in staff's words (SIGNED_OUT unless told otherwise). */
+function signedOut(words: string = SIGNED_OUT): NextResponse {
+  return NextResponse.json({ error: words }, { status: 401 });
 }
 
 /**
@@ -73,10 +76,13 @@ function bearerToken(request: NextRequest): string | null {
  */
 function authFailureResponse(error: unknown): NextResponse {
   if (error instanceof AdminAuthError) {
-    return NextResponse.json(
-      { error: error.status === 401 ? "Unauthorized" : "Forbidden" },
-      { status: error.status },
-    );
+    // A 403 here is always "no console access" (resolveAdminRole); a role
+    // missing one permission is answered by forbidden() below instead. A 401
+    // says the sign-in ended when it reached its age limit, else signed out:
+    // the guard's own reason ("Invalid access token") is not staff's words.
+    return error.status === 401
+      ? signedOut(error.message === SIGN_IN_ENDED ? SIGN_IN_ENDED : SIGNED_OUT)
+      : NextResponse.json({ error: NO_CONSOLE_ACCESS }, { status: 403, headers: NO_ACCESS_HEADERS });
   }
   throw error;
 }
@@ -93,8 +99,8 @@ function authFailureResponse(error: unknown): NextResponse {
 export async function requireBearerAdmin(
   request: NextRequest,
 ): Promise<AdminContext | NextResponse> {
-  const token = bearerToken(request);
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = bearerToken(request.headers);
+  if (!token) return signedOut();
   try {
     return await requireAdmin(token);
   } catch (error) {
@@ -121,14 +127,12 @@ export async function requireAdminFromRequest(
   request: NextRequest,
 ): Promise<AdminContext | NextResponse> {
   // Explicit bearer token → validate strictly.
-  if (bearerToken(request)) return requireBearerAdmin(request);
+  if (bearerToken(request.headers)) return requireBearerAdmin(request);
 
   // No bearer token → fall back to the cookie session.
   try {
     const ctx = await adminFromCookies();
-    if (!ctx) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!ctx) return signedOut();
     return ctx;
   } catch (error) {
     return authFailureResponse(error);

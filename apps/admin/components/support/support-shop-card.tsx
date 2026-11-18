@@ -10,6 +10,7 @@ import { SupportViewButton } from "@/components/support/support-view-button";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportTakeShop } from "@/hooks/use-support-cases";
 import { SUPPORT_REASON_LABELS, SUPPORT_STATUS_LABELS, type SupportShopCard as ShopCard } from "@/lib/support";
+import { effectiveStatus } from "@/lib/effective-status";
 import { formatDay, formatIQD } from "@/lib/format";
 
 function isPlanTier(plan: string): plan is PlanTier {
@@ -61,8 +62,10 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
 
       <dl className="divide-y divide-[var(--card-border)] px-4">
         <Row label="Plan" value={planLabel} />
-        <Row label="Status" value={<span className="capitalize">{tenant.status}</span>} />
-        {tenant.status === "trial" && tenant.trial_ends_at && (
+        {/* "Paused", the word the shop page and the check above use for a pause. */}
+        <Row label="Status" value={<span className="capitalize">{tenant.status === "limited" ? "paused" : tenant.status}</span>} />
+        {/* A paused trial still ends, and "Needs us" lists it as "Trial ends soon". */}
+        {effectiveStatus(tenant.status, tenant.restrictions) === "trial" && tenant.trial_ends_at && (
           <Row label="Trial ends" value={formatDay(tenant.trial_ends_at)} />
         )}
         {shop.subscriptionEndsAt && <Row label="Renews" value={formatDay(shop.subscriptionEndsAt)} />}

@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useEffectEvent, useRef, useCallback } from "react";
 import type { LeadFormData, LeadPhoneNumber, LeadBranch } from "@/types/leads";
 import { useIndustries } from "@/hooks/use-industries";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { adminFetch } from "@/lib/admin-fetch";
 import { toast } from "sonner";
-import { normalizeIraqiPhone, isValidIraqiPhone } from "./lead-phone";
+import { isValidIraqiPhone } from "./lead-phone";
+import { leadFormChanges, normalizeLeadForm } from "./lead-form-data";
+import { LEAD_GONE_TOAST, LeadGoneError, LeadListsChangedError, type LeadList } from "@/lib/lead-update";
 
 export const EMPTY_PHONE: LeadPhoneNumber = { title: "", number: "" };
 export const EMPTY_BRANCH: LeadBranch = { name: "", city: "", address: "", phones: [{ ...EMPTY_PHONE }] };
@@ -45,11 +48,46 @@ export const DEFAULT_FORM: LeadFormData = {
 
 export const ANALYZABLE_PLATFORMS = new Set(["instagram"]);
 
+/** `form` with `lists` taken from `from`. */
+function withLists(form: LeadFormData, from: LeadFormData, lists: readonly LeadList[]): LeadFormData {
+  const next = { ...form };
+  const take = <K extends LeadList>(list: K) => {
+    next[list] = from[list];
+  };
+  lists.forEach(take);
+  return next;
+}
+
+/**
+ * The clash toast's id: one clash toast at a time (a second clash updates it),
+ * closed once a later save is not refused over the lists, so a saved lead
+ * never sits under "Nothing was saved".
+ */
+export const CLASH_TOAST = "lead-clash";
+
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+/** What a host's save answered: saved, failed, or had nothing to send. */
+export type LeadFormSubmitResult = boolean | "unchanged";
+
+/**
+ * A dismissal with unsaved content saves a draft: the whole form (a new
+ * lead), what changed since it opened and the form as it opened (a resumed
+ * draft, which sends only its changes, as the lead page does).
+ */
+export type LeadFormDraftSave = (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => void;
 
 interface UseLeadFormControllerArgs {
   open: boolean;
-  onSubmit: (data: LeadFormData) => Promise<boolean> | boolean | void;
+  /**
+   * `data` is the whole saved form; `changes` only the fields that differ from
+   * the form as it opened; `opened` the form as it opened.
+   */
+  onSubmit: (
+    data: LeadFormData,
+    changes: Partial<LeadFormData>,
+    opened: LeadFormData,
+  ) => Promise<LeadFormSubmitResult> | LeadFormSubmitResult | void;
   initialData?: Partial<LeadFormData>;
   /** Called after a successful single save (lets the host close the sheet/dialog). */
   onClose: () => void;
@@ -73,26 +111,54 @@ export function useLeadFormController({
 
   const isEdit = !!initialData;
 
-  // Snapshot of the form as it was on open — used to detect unsaved edits so an
-  // accidental dismissal can be auto-saved as a draft.
-  const baselineRef = useRef<string>("");
+  // The form as it was on open: what a save is compared with, and how unsaved
+  // edits are spotted so an accidental dismissal can be auto-saved as a draft.
+  const [opened, setOpened] = useState<LeadFormData>(DEFAULT_FORM);
+  // The lists a save was refused over, until the colleague's copy arrives.
+  const [clash, setClash] = useState<LeadList[] | null>(null);
 
   const resetForm = useCallback(() => {
     const initial = initialData ? { ...DEFAULT_FORM, ...initialData } : DEFAULT_FORM;
     setForm(initial);
-    baselineRef.current = JSON.stringify(initial);
+    setOpened(initial);
     setAnalyzeHandle("");
     setAnalyzeError(null);
     setAnalyzeSuccess(false);
     setErrors({});
+    setClash(null);
   }, [initialData]);
 
-  /** True when the form differs from its opened state (has unsaved content). */
-  const isDirty = JSON.stringify(form) !== baselineRef.current;
+  // A save refused because a colleague changed lists meanwhile reads the lead
+  // again (useUpdateLead). Once their lists arrive they replace this form's
+  // copy, as shown and as opened; every other typed field stays, so the next
+  // Save sends this person's changes over the colleague's lists.
+  if (clash && initialData) {
+    const fresh: LeadFormData = { ...DEFAULT_FORM, ...initialData };
+    if (clash.some((list) => JSON.stringify(fresh[list]) !== JSON.stringify(opened[list]))) {
+      setOpened(withLists(opened, fresh, clash));
+      setForm((prev) => withLists(prev, fresh, clash));
+      setClash(null);
+    }
+  }
 
+  /** True when the form differs from its opened state (has unsaved content). */
+  const isDirty = JSON.stringify(form) !== JSON.stringify(opened);
+  useLeaveGuard(open && isDirty);
+
+  /** On a dismissal: hand unsaved content to the host's draft save. */
+  const saveDraftOnClose = (onSaveDraft: LeadFormDraftSave | undefined) => {
+    if (onSaveDraft && isDirty) onSaveDraft(form, leadFormChanges(opened, normalizeLeadForm(form)), opened);
+  };
+
+  // The form starts from the lead as it is when the form opens, and only then.
+  // Hosts pass a new starting object on every render (a save in flight, a
+  // colleague's change read in the background); starting over on that would
+  // throw away what this person typed. A colleague's change is still safe:
+  // a save sends only the fields this person changed.
+  const resetOnOpen = useEffectEvent(() => resetForm());
   useEffect(() => {
-    if (open) resetForm();
-  }, [open, resetForm]);
+    if (open) resetOnOpen();
+  }, [open]);
 
   const update = <K extends keyof LeadFormData>(key: K, value: LeadFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -238,49 +304,27 @@ export function useLeadFormController({
     if (submitting) return;
     if (!validate()) return;
 
-    const normalized: LeadFormData = {
-      ...form,
-      merchant_name: form.merchant_name.trim(),
-      industry_detail: form.industry_detail.trim(),
-      // Store the handle without a leading "@" (users may type "@name").
-      handle: form.handle.trim().replace(/^@+/, ""),
-      website_url: form.website_url.trim(),
-      email: form.email.trim().toLowerCase(),
-      // DM-only pages keep no phone numbers.
-      page_phone: form.contact_via_dm || !form.page_phone ? "" : normalizeIraqiPhone(form.page_phone),
-      phone_numbers: form.contact_via_dm
-        ? []
-        : form.phone_numbers
-            .map((p) => ({
-              title: p.title.trim(),
-              number: p.number ? normalizeIraqiPhone(p.number) : "",
-            }))
-            .filter((p) => p.number || p.title),
-      // Online-only pages have no physical location (or branches).
-      ...(form.is_online_only ? { address: "", city: "", governorate_code: "", branches: [] } : {}),
-      // Trim/normalize branches; drop fully-empty ones and blank phone rows.
-      branches: form.is_online_only
-        ? []
-        : form.branches
-            .map((b) => ({
-              name: b.name.trim(),
-              city: b.city.trim(),
-              address: b.address.trim(),
-              phones: b.phones
-                .map((p) => ({
-                  title: p.title.trim(),
-                  number: p.number ? normalizeIraqiPhone(p.number) : "",
-                }))
-                .filter((p) => p.number || p.title),
-            }))
-            .filter((b) => b.name || b.city || b.address || b.phones.length > 0),
-    };
+    const normalized = normalizeLeadForm(form);
+    // Only what this person changed goes to an existing lead, so a colleague's
+    // edit made while this form was open is not written back over.
+    const changes = leadFormChanges(opened, normalized);
 
     setSubmitting(true);
+    setClash(null);
     try {
-      const result = await onSubmit(normalized);
+      const result = await onSubmit(normalized, changes, opened);
+      // The save was not refused over the lists: the last clash's words no
+      // longer hold. Closed here, not as the save starts: sonner closes a
+      // toast a frame or two late, and a quick second clash under the same id
+      // would be closed with it.
+      toast.dismiss(CLASH_TOAST);
       if (result === false) {
         toast.error("Couldn't save the lead. Please try again.");
+        return;
+      }
+      if (result === "unchanged") {
+        toast.info("Nothing changed");
+        onClose();
         return;
       }
       toast.success(isEdit ? "Lead updated" : `${normalized.merchant_name} added to pipeline`);
@@ -290,8 +334,21 @@ export function useLeadFormController({
       } else {
         onClose();
       }
-    } catch {
-      toast.error("Something went wrong while saving.");
+    } catch (error) {
+      if (error instanceof LeadListsChangedError) {
+        // Long enough to read: the form is about to show the colleague's lists.
+        setClash(error.lists);
+        toast.error(error.message, { id: CLASH_TOAST, duration: 15_000 });
+        return;
+      }
+      toast.dismiss(CLASH_TOAST);
+      if (error instanceof LeadGoneError) {
+        toast.error(error.message, { id: LEAD_GONE_TOAST });
+        return;
+      }
+      // A refused save rejects with the server's own words ("A lead can only
+      // go to an active staff member."); "try again" would never help there.
+      toast.error(error instanceof Error && error.message ? error.message : "Something went wrong while saving.");
     } finally {
       setSubmitting(false);
     }
@@ -317,7 +374,7 @@ export function useLeadFormController({
     estimatedMonthlyRevenue,
     hasPrediction,
     avgOrderValue,
-    isDirty,
+    saveDraftOnClose,
     update,
     resetForm,
     handleAnalyze,

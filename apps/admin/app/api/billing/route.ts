@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { everyRow } from "@/lib/every-row";
+import { CUSTOMER_SHOP, CUSTOMER_SHOP_EMBEDDED } from "@/lib/customer-shops";
 
 export async function GET(request: NextRequest) {
   // Billing data (wallet balances + transactions) is super_admin only —
@@ -20,15 +21,15 @@ export async function GET(request: NextRequest) {
         supabase
           .from("tenants")
           .select("id, business_name, plan, status, wallet(balance_iqd, threshold_iqd, total_charged_iqd, total_topped_up_iqd)")
-          // The demo store (Fermi B13) holds no real money.
-          .eq("is_demo", false)
+          // The demo store and prospect stores (lib/customer-shops) hold no real money.
+          .match(CUSTOMER_SHOP)
           .order("id", { ascending: true })
           .range(from, to),
       ),
       supabase
         .from("wallet_transactions")
         .select("*, tenants!inner(business_name)")
-        .eq("tenants.is_demo", false)
+        .match(CUSTOMER_SHOP_EMBEDDED)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(100),

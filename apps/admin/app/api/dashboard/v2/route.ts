@@ -22,6 +22,7 @@ import {
   calculatePlatformOrderStats,
   type DashboardTenant,
 } from "@/lib/dashboard-calculations";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 
 const DEFAULT_BRAND_COLOR = "#1E1E1E";
 
@@ -37,16 +38,17 @@ export async function GET(request: NextRequest) {
     // team members are read a page at a time for the same reason. A failed
     // read is an error for the whole page: empty lists drew zeros that read
     // like a quiet day.
-    const [stats, usage, income, shopRows, subscriptionRows, activityResult, memberRows] = await Promise.all([
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [stats, usage, income, shopRows, subscriptionRows, statusSteps, planChanges, activityResult, memberRows] = await Promise.all([
       fetchDashboardStats(supabase),
       fetchUsageStats(supabase, null),
       fetchIncomeStats(supabase),
       everyRow((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, created_at, branding, config_version, wallet(balance_iqd, total_topped_up_iqd)")
-          // The demo store (Fermi B13) is in no platform number.
-          .eq("is_demo", false)
+          .select("id, business_name, plan, status, restrictions, created_at, branding, store_config_rev, wallet(balance_iqd, total_topped_up_iqd)")
+          // The demo store and prospect stores (lib/customer-shops) are in no platform number.
+          .match(CUSTOMER_SHOP)
           .order("id", { ascending: true })
           .range(from, to),
       ),
@@ -54,6 +56,27 @@ export async function GET(request: NextRequest) {
         supabase
           .from("subscriptions")
           .select("tenant_id, plan, status, pending_plan")
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      // Plan Movements: a shop is cancelled by a staff step, which the staff
+      // log keeps with its day.
+      everyRow((from, to) =>
+        supabase
+          .from("admin_activity_logs")
+          .select("tenant_id, action, details, created_at")
+          .eq("action", "status_change")
+          .gte("created_at", monthAgo)
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      // Plan Movements: every plan change, by the merchant, the renewal or
+      // staff, as the database records it (20261117054950).
+      everyRow((from, to) =>
+        supabase
+          .from("subscription_plan_changes")
+          .select("tenant_id, from_plan, to_plan, changed_at, from_trial")
+          .gte("changed_at", monthAgo)
           .order("id", { ascending: true })
           .range(from, to),
       ),
@@ -84,37 +107,30 @@ export async function GET(request: NextRequest) {
         business_name: t.business_name,
         plan: t.plan,
         status: t.status,
+        restrictions: t.restrictions,
         created_at: t.created_at,
         branding: { primary_color: branding?.primary_color || DEFAULT_BRAND_COLOR },
         wallet_balance: Number(wallet?.balance_iqd) || 0,
         team_members_count: memberCountByTenant[t.id] || 0,
-        setup: { branding, configVersion: t.config_version, toppedUpIqd: toppedUp },
+        setup: { branding, storePublishes: t.store_config_rev, toppedUpIqd: toppedUp },
       };
     });
 
-    const subChanges = subscriptionRows
-      .filter((s) => s.pending_plan || s.status === "cancelled")
-      .map((s) => ({
-        tenant_id: s.tenant_id,
-        from_plan: s.plan,
-        to_plan: s.status === "cancelled" ? null : s.pending_plan,
-        changed_at: new Date().toISOString(),
-        type: s.status === "cancelled" ? "cancellation" : "plan_change",
-      }));
+    const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
 
     return NextResponse.json({
       kpis: calculateKpis(stats, income, tenants),
       platformStats: calculatePlatformOrderStats(stats.orders),
       pipeline: calculatePlatformPipeline(stats.statuses90),
       topMerchants: calculateTopMerchants(stats.shops, tenants),
-      geoStats: calculateGeoStats(stats.governorates90),
+      geoStats: geo,
       peakHours: calculatePeakHours(stats.hours90),
       funnel: calculateFulfillmentFunnel(stats.statuses90),
       growth: calculateGrowthMetrics(stats, tenants),
       walletHealth: calculateWalletHealth(tenants, income.topups.daily7),
       activityHeatmap: calculateActivityHeatmap(usage),
-      revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, stats.cities90, stats.sources90),
-      planMovements: calculatePlanMovements(subChanges),
+      revenueBreakdown: calculateRevenueBreakdown(income.byPlan90, geo, stats.sources90),
+      planMovements: calculatePlanMovements(subscriptionRows, statusSteps, planChanges, tenants, new Date()),
       topUpPatterns: calculateTopUpPatterns(income.topups.byDow),
       merchantLTV: calculateMerchantLTV(tenants, income.byTenant, stats.today),
       timeToFirstOrder: calculateTimeToFirstOrder(tenants, stats.shops),

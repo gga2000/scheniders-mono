@@ -6,6 +6,11 @@ import { StickyNote, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { formatWhen } from "@/lib/format";
+import { okOrLoadFailure } from "@/lib/load-failure";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { postJson } from "@/components/merchants/detail/action-ui";
+import { adminFetch } from "@/lib/admin-fetch";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 interface QuickNotePopoverProps {
   merchantId: string;
@@ -14,17 +19,24 @@ interface QuickNotePopoverProps {
 export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   const [open, setOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
+  // A note being written survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(open && noteText.trim() !== "");
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
   // Fetch latest notes
-  const { data: notes } = useQuery<
+  const {
+    data: notes,
+    isError: notesFailed,
+    error: notesError,
+    refetch: refetchNotes,
+    isFetching: notesFetching,
+  } = useQuery<
     Array<{ id: string; content: string; created_at: string; is_pinned: boolean }>
   >({
     queryKey: ["admin", "merchant-notes", merchantId],
     queryFn: async () => {
-      const res = await fetch(`/api/merchants/${merchantId}/notes?limit=3`);
-      if (!res.ok) throw new Error("Failed to fetch notes");
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants/${merchantId}/notes?limit=3`), "the notes");
       const data = await res.json();
       return data.notes ?? [];
     },
@@ -43,15 +55,8 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   }, [open]);
 
   const addNote = useMutation({
-    mutationFn: async (content: string) => {
-      const res = await fetch(`/api/merchants/${merchantId}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      if (!res.ok) throw new Error("Failed to add note");
-      return res.json();
-    },
+    // A refused save keeps the typed note and says why, in the server's words.
+    mutationFn: (content: string) => postJson(`/api/merchants/${merchantId}/notes`, { content }),
     onSuccess: () => {
       setNoteText("");
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant-notes", merchantId] });
@@ -115,10 +120,23 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
                 )}
               </button>
             </div>
+            {addNote.isError && (
+              <p role="alert" className="mt-1.5 text-[11px] text-[var(--ink-red)]">
+                Not saved. {addNote.error.message}
+              </p>
+            )}
           </div>
 
           {/* Recent notes */}
-          {notes && notes.length > 0 ? (
+          {notesFailed ? (
+            <LoadFailedLine
+              className="justify-center px-3 py-4 text-[11px]"
+              what="the notes"
+              error={notesError}
+              onRetry={() => void refetchNotes()}
+              retrying={notesFetching}
+            />
+          ) : notes && notes.length > 0 ? (
             <div className="max-h-40 overflow-y-auto">
               {notes.map((note) => (
                 <div

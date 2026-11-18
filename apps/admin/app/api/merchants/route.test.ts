@@ -22,7 +22,7 @@ const call = (params = "") => GET(new NextRequest(`http://admin.test/api/merchan
 
 const shop = (n: number, extra: Row = {}): Row => ({
   id: `shop-${n}`,
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   business_name: `Shop ${n}`,
   status: "active",
   plan: "starter",
@@ -30,6 +30,7 @@ const shop = (n: number, extra: Row = {}): Row => ({
   staff_shop_tags: null,
   wallet: { balance_iqd: 20000 },
   subscriptions: [],
+  staff_health_parts: { status: 15, wallet: 5, orders: 0 },
   ...extra,
 });
 
@@ -69,7 +70,7 @@ describe("GET /api/merchants", () => {
     expect(stub.state.rpcCalls).toEqual([
       { fn: "admin_merchant_list_stats", args: { _tenant_ids: ["shop-1", "shop-2"] } },
     ]);
-    expect(stub.tablesRead()).toEqual(["tenants", "admin_notes"]);
+    expect(stub.tablesRead()).toEqual(["tenants", "admin_notes", "subscriptions"]);
     expect(total).toBe(2);
     expect(merchants[0]).toMatchObject({
       id: "shop-1",
@@ -106,27 +107,43 @@ describe("GET /api/merchants", () => {
     expect(merchants[1].last_active_at).toBe("2026-11-16T05:30:00+00:00");
   });
 
-  it("sends the health score and its parts as the database worked them out", async () => {
+  it("sends the health parts as the database worked them out, and the score as their sum", async () => {
     // The browser used to work the score out itself, in five places. A paused
-    // shop with an empty wallet would be 20 by that sum: the row's 75 must come through.
+    // shop with an empty wallet would be 20 by that sum: the row's parts must come through.
     stub.state.tables.tenants = [
       shop(1, {
         status: "suspended",
         wallet: { balance_iqd: 0 },
-        staff_health_score: 75,
         staff_health_parts: { status: 15, wallet: 5, orders: 5 },
       }),
     ];
 
     const { merchants } = await (await call()).json();
 
-    expect(stub.callsTo("tenants.select")[0]?.[0]).toBe(
-      "*, wallet(*), subscriptions(*), staff_shop_tags(tags), staff_health_score, staff_health_parts",
-    );
+    // The score calls the parts, so reading both worked the parts out twice per row.
+    const columns = stub.callsTo("tenants.select")[0]?.[0];
+    expect(columns).toMatch(/, staff_health_parts$/);
+    expect(columns).not.toMatch(/staff_health_score/);
     expect(merchants[0]).toMatchObject({
       staff_health_score: 75,
       staff_health_parts: { status: 15, wallet: 5, orders: 5 },
     });
+  });
+
+  it("fails rather than show a made-up score when the parts are not numbers", async () => {
+    stub.state.tables.tenants = [shop(1, { staff_health_parts: { status: "15", wallet: 5 } })];
+    expect((await call()).status).toBe(500);
+  });
+
+  it("reads only the columns the list shows, never the store builder's pages", async () => {
+    // With "*" every shop on the page came with its store_config, drafts and
+    // v2 copies: 222 KB for two shops, read by no screen.
+    stub.state.tables.tenants = [shop(1)];
+    await call();
+
+    const columns = String(stub.callsTo("tenants.select")[0]?.[0]);
+    expect(columns).not.toMatch(/\*|store_config|metadata|subscriptions/);
+    expect(columns).toContain("wallet(balance_iqd, threshold_iqd, total_charged_iqd, total_topped_up_iqd)");
   });
 
   it("sends the staff tags from staff_shop_tags, and none for a shop never tagged", async () => {
@@ -175,6 +192,40 @@ describe("GET /api/merchants", () => {
 
   it("answers with an error when the pinned notes cannot be read", async () => {
     stub.state.failing.add("admin_notes");
+
+    expect((await call()).status).toBe(500);
+  });
+
+  /*
+   * Round 7: the card's menu offered free days only to a shop on trial. A
+   * paying shop gets free days on its month (lib/shop-actions), so the card
+   * needs to know whether that month is running, read the way the billing
+   * lock reads it: the newest subscription.
+   */
+  it("says whether each shop's newest subscription is running", async () => {
+    stub.state.tables.subscriptions = [
+      { tenant_id: "shop-1", status: "cancelled", created_at: "2026-11-10T08:00:00Z" },
+      { tenant_id: "shop-1", status: "active", created_at: "2026-10-01T08:00:00Z" },
+      { tenant_id: "shop-2", status: "past_due", created_at: "2026-11-01T08:00:00Z" },
+    ];
+
+    const { merchants } = await (await call()).json();
+
+    expect(stub.callsTo("subscriptions.order")).toEqual([["created_at", { ascending: false }]]);
+    expect(merchants.map((m: Row) => [m.id, m.subscription_running])).toEqual([
+      ["shop-1", false],
+      ["shop-2", true],
+    ]);
+  });
+
+  it("says no subscription is running for a shop with none", async () => {
+    const { merchants } = await (await call()).json();
+
+    expect(merchants.map((m: Row) => m.subscription_running)).toEqual([false, false]);
+  });
+
+  it("answers with an error when the subscriptions cannot be read", async () => {
+    stub.state.failing.add("subscriptions");
 
     expect((await call()).status).toBe(500);
   });
@@ -294,6 +345,26 @@ describe("GET /api/merchants", () => {
     expect(stub.callsTo("tenants.or")[0]?.[0]).toContain('merchant_code.ilike."%95%"');
   });
 
+  it("lists a paused trial under Trial, as Trials does, and still finds by search", async () => {
+    const paused = (before: string): Row => ({ status: "limited", restrictions: { status_before: before } });
+    stub.state.tables.tenants = [
+      shop(1, { status: "trial", business_name: "Noor trial" }),
+      shop(2, { ...paused("trial"), business_name: "Noor paused trial" }),
+      shop(3, { ...paused("active"), business_name: "Noor paused paying" }),
+      shop(4, { business_name: "Noor paying" }),
+      shop(5, { status: "trial", business_name: "Other trial" }),
+    ];
+
+    const { merchants, total } = await (await call("status=trial&search=Noor")).json();
+
+    expect(merchants.map((m: Row) => m.id).sort()).toEqual(["shop-1", "shop-2"]);
+    expect(total).toBe(2);
+    // No raw status filter: it would leave the paused trial out.
+    expect(stub.callsTo("tenants.eq").filter(([column]) => column === "status")).toEqual([]);
+    // The status and the search are two filters on one read; the API applies both.
+    expect(stub.callsTo("tenants.or")).toHaveLength(2);
+  });
+
   /*
    * "Needs attention", the balance bands and the health bands are database
    * functions over the shop (migration staff_list_filters). The route used to
@@ -312,7 +383,8 @@ describe("GET /api/merchants", () => {
       expect(stub.callsTo("tenants.filter")).toEqual([["staff_needs_attention", "eq", true]]);
       // No list of ids is sent back to the database, and "attention" is never read as a status.
       expect(stub.callsTo("tenants.in")).toEqual([]);
-      expect(stub.callsTo("tenants.eq")).toEqual([["is_demo", false]]);
+      expect(stub.callsTo("tenants.match")).toEqual([[{ is_demo: false, is_prospect: false }]]);
+      expect(stub.callsTo("tenants.eq")).toEqual([]);
       expect(total).toBe(1);
       expect(merchants.map((m: Row) => m.id)).toEqual(["shop-1150"]);
     });
@@ -351,9 +423,10 @@ describe("GET /api/merchants", () => {
     });
 
     it("puts the status, the balance band and the health band on one read", async () => {
-      await call("status=trial&balance=low&health=healthy");
+      await call("status=suspended&balance=low&health=healthy");
 
-      expect(stub.callsTo("tenants.eq")).toEqual([["is_demo", false], ["status", "trial"]]);
+      expect(stub.callsTo("tenants.match")).toEqual([[{ is_demo: false, is_prospect: false }]]);
+      expect(stub.callsTo("tenants.eq")).toEqual([["status", "suspended"]]);
       expect(stub.callsTo("tenants.filter")).toEqual([
         ["staff_wallet_balance", "gte", 10000],
         ["staff_wallet_balance", "lte", 50000],

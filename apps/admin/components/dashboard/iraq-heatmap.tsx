@@ -8,11 +8,11 @@ import {
   IRAQ_MAP_HEIGHT,
 } from "@scheniders/shared/iraq-map-paths";
 import { resolveGovernorate } from "@scheniders/shared";
-import type { GeoStats } from "@/types/dashboard";
-import { formatIQD } from "@/lib/format";
+import type { GeoDistribution, GeoStats } from "@/types/dashboard";
+import { formatCount, formatIQD } from "@/lib/format";
 
 interface IraqHeatmapProps {
-  geoStats: GeoStats[] | undefined;
+  geoStats: GeoDistribution | undefined;
 }
 
 type ViewMode = "orders" | "revenue";
@@ -56,7 +56,9 @@ function Skeleton() {
   );
 }
 
-export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
+export function IraqHeatmap({ geoStats: geo }: IraqHeatmapProps) {
+  const geoStats = geo?.governorates;
+  const unknown = geo?.unknown;
   const [view, setView] = useState<ViewMode>("orders");
   const [tooltip, setTooltip] = useState<{
     name: string;
@@ -105,7 +107,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
             <MapPin className="w-4 h-4 text-[var(--ink-blue)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
-            Geographic Distribution
+            Geographic Distribution, last 90 days
           </h3>
         </div>
         {/* View toggle */}
@@ -192,7 +194,7 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
                   </span>
                 </p>
                 <p className="text-foreground/70">
-                  Revenue:{" "}
+                  Shop sales:{" "}
                   <span className="font-semibold text-foreground">
                     {formatIQD(tooltip.revenue)}
                   </span>
@@ -213,6 +215,13 @@ export function IraqHeatmap({ geoStats }: IraqHeatmapProps) {
             ))}
             <span className="text-xs text-foreground/70">More</span>
           </div>
+          {/* Orders the map cannot place are counted here, not left out. */}
+          {unknown && (unknown.orderCount > 0 || unknown.revenue > 0) && (
+            <p className="text-xs text-foreground/70 text-center mt-2 tabular-nums">
+              Unknown city: {formatCount(unknown.orderCount)} {unknown.orderCount === 1 ? "order" : "orders"},{" "}
+              {formatIQD(unknown.revenue)} shop sales
+            </p>
+          )}
         </>
       )}
     </div>

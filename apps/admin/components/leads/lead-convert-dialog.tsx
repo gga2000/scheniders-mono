@@ -1,24 +1,20 @@
 "use client";
 
 import { PlatformChip } from "@/components/leads/lead-chips";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useEffectEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
 import { LEAD_TIER_CONFIG, LEAD_TIER_UI } from "@/types/leads";
 import { useConvertLead } from "@/hooks/use-lead-mutations";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import {
   Trophy,
   X,
   CheckCircle2,
   AlertTriangle,
   Store,
-  Phone,
-  UserPlus,
-  Wallet,
-  ArrowRightCircle,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { EASE_CHROME, STAGGER_CHILDREN } from "@/lib/animation-constants";
 
@@ -44,15 +40,17 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
   const convertLead = useConvertLead();
   const [notes, setNotes] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  // Notes being written survive an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(isOpen && !showSuccess && notes.trim() !== "");
 
-  // Reset on open
+  // Start over when the dialog opens, and only then.
+  const resetOnOpen = useEffectEvent(() => {
+    setNotes("");
+    setShowSuccess(false);
+    convertLead.reset();
+  });
   useEffect(() => {
-    if (isOpen) {
-      setNotes("");
-      setShowSuccess(false);
-      convertLead.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
+    if (isOpen) resetOnOpen();
   }, [isOpen]);
 
   // Build checklist
@@ -213,7 +211,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                       <div className="rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <h3 className="font-bold text-[var(--foreground)] text-base truncate">
+                            <h3 className="font-bold text-[var(--foreground)] text-base truncate name-dir">
                               {lead.merchant_name}
                             </h3>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">

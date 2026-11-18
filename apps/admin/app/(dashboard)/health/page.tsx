@@ -12,6 +12,10 @@ import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatIQD } from "@/lib/format";
+import { shopFormHref } from "@/lib/shop-actions";
+import { shopsAtRiskLine } from "@/lib/merchant-health";
+import { useCan } from "@/hooks/use-admin-auth";
+import { adminFetch } from "@/lib/admin-fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,7 +79,7 @@ function getRiskBarBg(score: number): string {
 // ---------------------------------------------------------------------------
 
 async function fetchHealth(): Promise<HealthData> {
-  const res = okOrLoadFailure(await fetch("/api/health"), "the health numbers");
+  const res = okOrLoadFailure(await adminFetch("/api/health"), "the health numbers");
   return res.json();
 }
 
@@ -84,6 +88,7 @@ async function fetchHealth(): Promise<HealthData> {
 // ---------------------------------------------------------------------------
 
 export default function HealthPage() {
+  const canTopUp = useCan()("top_up_wallet");
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<HealthData>({
     queryKey: ["admin", "health"],
     queryFn: fetchHealth,
@@ -102,7 +107,6 @@ export default function HealthPage() {
 
   const hasIssues =
     riskIndicators.length > 0 || lowBalanceWallets.length > 0;
-  const issueCount = riskIndicators.length + lowBalanceWallets.length;
 
   const activePercent =
     health && health.totalTenants > 0
@@ -128,11 +132,7 @@ export default function HealthPage() {
           {hasIssues ? (
             <>
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              {issueCount} issue{issueCount !== 1 ? "s" : ""} detected
-              &mdash; {riskIndicators.length} at-risk tenant
-              {riskIndicators.length !== 1 ? "s" : ""},&nbsp;
-              {lowBalanceWallets.length} low balance wallet
-              {lowBalanceWallets.length !== 1 ? "s" : ""}
+              {shopsAtRiskLine(riskIndicators, lowBalanceWallets)}
             </>
           ) : (
             <>
@@ -168,12 +168,11 @@ export default function HealthPage() {
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
-            Tenants at Risk
+            Shops at risk
           </h2>
           {!isLoading && (
             <span className="ml-auto text-xs text-foreground/70">
-              {riskIndicators.length} tenant
-              {riskIndicators.length !== 1 ? "s" : ""}
+              {riskIndicators.length} {riskIndicators.length === 1 ? "shop" : "shops"}
             </span>
           )}
         </div>
@@ -185,7 +184,7 @@ export default function HealthPage() {
         ) : riskIndicators.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
             <CheckCircle2 className="w-10 h-10 mb-2" />
-            <p className="text-sm font-medium">No tenants at risk</p>
+            <p className="text-sm font-medium">No shops at risk</p>
             <p className="text-xs mt-1">All merchants are operating normally</p>
           </div>
         ) : (
@@ -199,7 +198,7 @@ export default function HealthPage() {
                 <div className="md:w-1/4 min-w-0">
                   <Link
                     href={`/merchants/${ri.tenant_id}`}
-                    className="font-semibold text-foreground hover:underline truncate block"
+                    className="font-semibold text-foreground hover:underline truncate name-dir block"
                   >
                     {ri.business_name}
                   </Link>
@@ -330,13 +329,16 @@ export default function HealthPage() {
                         -{formatIQD(deficit)}
                       </td>
                       <td className="p-3 text-center">
-                        <Link
-                          href="/billing"
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-xs font-semibold transition-all border border-[var(--card-border)]"
-                        >
-                          <Wallet className="w-3 h-3" />
-                          Top Up
-                        </Link>
+                        {/* The shop page's Add money form exists only for a login that may top up. */}
+                        {canTopUp && (
+                          <Link
+                            href={shopFormHref(w.tenant_id, "money")}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground/70 hover:text-foreground text-xs font-semibold transition-all border border-[var(--card-border)]"
+                          >
+                            <Wallet className="w-3 h-3" />
+                            Top Up
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );

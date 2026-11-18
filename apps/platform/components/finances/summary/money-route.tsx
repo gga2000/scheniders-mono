@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { ArrowUpRight, ChevronRight } from "lucide-react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { STUCK_ORDERS_HREF } from "@/lib/orders/stuck-in-transit";
+import { cn } from "@/lib/utils";
 import type { CostLine, FinanceSummary } from "@/lib/finance/summary";
 import { COST_COLORS, PROFIT_COLOR } from "./colors";
 import { Money, formatWhole, useMoneyText } from "./money";
 import { COURIER_PAYMENTS_ID } from "./courier-payments";
 import { CARD_LINK, SummaryCard } from "./summary-card";
 import { UnpaidOrders } from "./unpaid-orders";
+
+/** The Orders page's «راجع» queue: the refused parcels Prime is bringing back. */
+const RETURNING_ORDERS_HREF = "/orders?queue=back";
 
 interface MoneyRouteProps {
     summary: FinanceSummary;
@@ -56,6 +61,19 @@ function PartRow({ part, label, note, amount, textDir, children }: PartRowProps)
     );
 }
 
+/** The link from the statements part to the courier payments card that takes it apart. */
+function NowLink({ href, label }: { href: string; label: string }) {
+    return (
+        <Link
+            href={href}
+            className="mt-1 block w-fit text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+            data-testid="money-from-now-link"
+        >
+            {label}
+        </Link>
+    );
+}
+
 /**
  * Where the period's sales are now. The delivered sales are cut in three,
  * order by order: what already reached the shop (after the delivery fee), the
@@ -70,7 +88,13 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const money = useMoneyText();
-    const { in_transit: road, returning, split } = summary.cash;
+    // The lines that match 6,810,500 to the payments card fold away, so the open card only shows parts that add up to "paid to you".
+    const [linesOpen, setLinesOpen] = useState(false);
+    const { in_transit: road, returning, split, reached: payments, statement } = summary.cash;
+    // What the statements finally paid for this period's orders: their price after the refunds and price
+    // differences on the same statements. The fees they took off prepaid orders are not in it: those orders
+    // are in "paid to you" after their fee already, so taking the fee off here too would count it twice.
+    const cashForNow = payments.payments > 0 ? split.reached_now + statement.returns + statement.price_gap : split.reached_now;
     const { orders, revenue } = summary.sales;
     // The note counts every unpaid order, so paid + unpaid adds up to the period's orders; the
     // list under it names those that still owe money, and a line there counts the ones that owe nothing.
@@ -106,11 +130,60 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                   total: money(delivery.amount),
                   extra: money(returnedFee + bills),
               });
+    // The statements also paid for orders not marked delivered (outside this card): when that is all
+    // that is left, name it, so the cash here and the payments card's total visibly agree.
+    const prepaidFees = payments.payments > 0 ? statement.prepaid_gap : 0;
+    const withRest = (statement.undelivered > 0 || prepaidFees !== 0) && cashForNow + prepaidFees + statement.undelivered === payments.amount;
+    // What the same statements took off the price of these orders: said as one figure, so 6,810,500 above
+    // and what actually reached the shop are never two unexplained amounts.
+    const nowGap = split.reached_now - cashForNow;
+    // Laid out as small lines with their amounts, not one paragraph of four figures.
+    const nowLines =
+        nowGap <= 0
+            ? []
+            : [
+                  { key: "gap", label: t("fin.money.from.nowGap"), amount: -nowGap, sign: true },
+                  { key: "paid", label: t("fin.money.from.nowPaid"), amount: cashForNow, sign: false },
+                  ...(withRest
+                      ? [
+                            ...(prepaidFees !== 0
+                                ? [
+                                      {
+                                          key: "prepaid",
+                                          label: t("fin.money.from.nowPrepaidFees", { n: formatWhole(statement.prepaid_orders), count: statement.prepaid_orders }),
+                                          amount: prepaidFees,
+                                          sign: true,
+                                      },
+                                  ]
+                                : []),
+                            ...(statement.undelivered > 0
+                                ? [
+                                      {
+                                          key: "undelivered",
+                                          label: t("fin.money.from.nowUndelivered", { count: statement.undelivered_orders }),
+                                          amount: statement.undelivered,
+                                          sign: true,
+                                      },
+                                  ]
+                                : []),
+                            { key: "total", label: t("fin.money.from.nowTotal"), amount: payments.amount, sign: false },
+                        ]
+                      : []),
+              ];
     // "Paid to you" by where its money came from, listed under it so the parts visibly add up.
     const fromElsewhere = split.reached_before > 0 || split.reached_other > 0 || split.reached_prepaid > 0;
     const sources = fromElsewhere
         ? [
-              { key: "now", label: t("fin.money.from.now"), note: null, amount: split.reached_now, href: `#${COURIER_PAYMENTS_ID}` },
+              {
+                  key: "now",
+                  label: t("fin.money.from.now"),
+                  // The statements' price of these orders is not the cash: the refunds, prepaid fees and price
+                  // differences on the same statements come off it (the payments card lists each one).
+                  note: null,
+                  lines: nowLines,
+                  amount: split.reached_now,
+                  href: `#${COURIER_PAYMENTS_ID}`,
+              },
               { key: "before", label: t("fin.money.from.before"), note: t("fin.money.from.beforeNote"), amount: split.reached_before, href: null },
               {
                   key: "prepaid",
@@ -125,6 +198,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
               { key: "other", label: t("fin.money.from.other"), note: null, amount: split.reached_other, href: null },
           ].filter((source) => source.amount > 0)
         : [];
+    const nowSource = sources.find((source) => source.key === "now");
 
     return (
         <SummaryCard
@@ -163,30 +237,84 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                         <PartRow
                             part="reached"
                             label={t("fin.money.reached")}
-                            note={t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders })}
+                            note={
+                                t("fin.money.reached.note", { n: formatWhole(split.reached_orders), count: split.reached_orders }) +
+                                // Said up front, so "paid to you" is not read as the cash the statements finally sent.
+                                (nowGap > 0 && split.reached_orders > 0 ? t("fin.money.reached.taken", { where: t("fin.money.from.nowMatch") }) : "")
+                            }
                             amount={split.reached}
                             textDir={dir}
                         >
                             {sources.length > 0 && (
-                                <dl className="mt-2 space-y-1 border-s-2 border-[var(--card-border)] ps-3" data-testid="money-reached-parts">
+                                <div className="mt-2 border-s-2 border-[var(--card-border)] ps-3" data-testid="money-reached-parts">
+                                <dl className="space-y-1">
                                     {sources.map((source) => (
-                                        <div key={source.key} className="flex items-baseline justify-between gap-4 text-[13px]">
+                                        <div key={source.key}>
+                                        <div className="flex items-baseline justify-between gap-4 text-[13px]">
                                             <dt className="min-w-0 text-left text-muted" dir={dir}>
                                                 {source.label}
                                                 {source.note && <span className="block text-[12px]">{source.note}</span>}
-                                                {/* The statement part is what the courier payments card takes apart: link the two. */}
-                                                {source.href && (
-                                                    <Link href={source.href} className="mt-0.5 block w-fit text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current" data-testid="money-from-now-link">
-                                                        {t("fin.money.from.nowLink")}
-                                                    </Link>
+                                                {/* The statement part is what the courier payments card takes apart: link the two,
+                                                    or, when the same statements took something off, fold the lines that match them. */}
+                                                {!(source.lines && source.lines.length > 0) && source.href && (
+                                                    <NowLink href={source.href} label={t("fin.money.from.nowLink")} />
                                                 )}
                                             </dt>
                                             <dd className="shrink-0">
                                                 <Money value={source.amount} className="font-semibold text-foreground" />
                                             </dd>
                                         </div>
+                                        </div>
                                     ))}
                                 </dl>
+                                {/* How the statements' part matches the delivery-company payments, folded under all the
+                                    parts so the open card still reads as one sum; it starts again from that part. */}
+                                {nowSource && nowSource.lines && nowSource.lines.length > 0 && (
+                                    <div className="mt-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setLinesOpen((open) => !open)}
+                                            aria-expanded={linesOpen}
+                                            className="flex w-fit items-center gap-1 text-left text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                            dir={dir}
+                                            data-testid="money-from-now-toggle"
+                                        >
+                                            <ChevronRight className={cn("size-3.5 transition-transform", linesOpen && "rotate-90")} aria-hidden="true" />
+                                            {t("fin.money.from.nowMatch")}
+                                        </button>
+                                        {linesOpen && (
+                                            <div className="mb-1 mt-1 ps-3">
+                                                <ul className="space-y-0.5 text-[12px] text-muted" data-testid="money-from-now-lines">
+                                                    {[
+                                                        // The figure above, named as the start of this sum rather than read as a new one.
+                                                        { key: "start", label: t("fin.money.from.nowStart", { label: nowSource.label }), amount: nowSource.amount, sign: false },
+                                                        ...nowSource.lines,
+                                                    ].map((line) => (
+                                                        <li
+                                                            key={line.key}
+                                                            className={cn(
+                                                                "flex items-baseline justify-between gap-4",
+                                                                // The running sums under a hairline, so the steps read as one subtraction.
+                                                                (line.key === "paid" || line.key === "total") && "border-t border-[var(--card-border)] pt-0.5 font-medium text-foreground",
+                                                            )}
+                                                            data-line={line.key}
+                                                        >
+                                                            <span className="min-w-0 text-left" dir={dir}>
+                                                                {line.label}
+                                                            </span>
+                                                            <span className="shrink-0 whitespace-nowrap tabular-nums" dir="ltr">
+                                                                {line.sign && line.amount > 0 && "+"}
+                                                                <Money value={line.amount} />
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                                {nowSource.href && <NowLink href={nowSource.href} label={t("fin.money.from.nowLink")} />}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                </div>
                             )}
                         </PartRow>
                         <PartRow
@@ -203,7 +331,7 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                             )}
                         </PartRow>
                         <PartRow part="unpaid" label={t("fin.money.unpaid")} note={unpaidNote} amount={split.unpaid} textDir={dir}>
-                            <UnpaidOrders orders={summary.cash.unpaid_list} total={split.unpaid_orders} />
+                            <UnpaidOrders orders={summary.cash.unpaid_list} total={split.unpaid_orders} totalPrime={split.unpaid_prime} />
                             {/* Shown whenever Prime holds unpaid orders, link row or not (the demo store has none). */}
                             {split.unpaid_prime > 0 && (
                                 <Link href="/prime" className={`${CARD_LINK} mt-1.5`}>
@@ -234,10 +362,22 @@ export function MoneyRoute({ summary, delivery }: MoneyRouteProps) {
                                 })}
                             </p>
                         )}
+                        {summary.cash.stuck.count > 0 && (
+                            <Link href={STUCK_ORDERS_HREF} className={`${CARD_LINK} mt-1.5`} data-testid="money-road-stuck-link">
+                                {t("fin.money.road.stuck.open")}
+                                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                            </Link>
+                        )}
                         {returning.count > 0 && (
                             <p className="mt-0.5 text-left text-[13px] leading-relaxed text-muted" dir={dir} data-testid="money-returning">
                                 {t("fin.money.returning", { n: formatWhole(returning.count), count: returning.count })}
                             </p>
+                        )}
+                        {returning.count > 0 && (
+                            <Link href={RETURNING_ORDERS_HREF} className={`${CARD_LINK} mt-1.5`} data-testid="money-returning-link">
+                                {t("fin.money.returning.open")}
+                                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                            </Link>
                         )}
                     </PartRow>
                 </ul>

@@ -42,7 +42,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
     clearFilters,
   } = useLeadStore();
 
-  const { data: industries } = useIndustries();
+  const { data: industries, isError: industriesFailed, refetch: refetchIndustries } = useIndustries();
   const filterCount = useActiveFilterCount();
 
   return (
@@ -150,17 +150,24 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
 
           {/* Industry */}
           <div className="relative">
+            {/* A failed read says so in the box, and opening the box asks again. */}
             <select
               value={industryFilter ?? ""}
               onChange={(e) => setIndustryFilter(e.target.value || null)}
-              className={cn(SELECT, industryFilter && SELECT_ACTIVE)}
+              onFocus={() => {
+                if (industriesFailed) void refetchIndustries();
+              }}
+              aria-invalid={industriesFailed || undefined}
+              title={industriesFailed ? "Could not load the industries. Open the box to try again." : undefined}
+              className={cn(SELECT, industryFilter && SELECT_ACTIVE, industriesFailed && "text-[var(--ink-red)]")}
             >
-              <option value="">All Industries</option>
-              {(industries ?? [])
-                .filter((i) => i.is_active)
+              <option value="">{industriesFailed ? "Industries did not load" : "All Industries"}</option>
+              {/* Switched-off industries last, marked: leads that used one keep it, so staff can still find them. */}
+              {[...(industries ?? [])]
+                .sort((a, b) => Number(b.is_active) - Number(a.is_active))
                 .map((industry) => (
                   <option key={industry.id} value={industry.id}>
-                    {industry.name}
+                    {industry.is_active ? industry.name : `${industry.name} (off)`}
                   </option>
                 ))}
             </select>

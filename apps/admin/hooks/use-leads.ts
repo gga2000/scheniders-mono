@@ -5,6 +5,7 @@ import type { Lead } from "@/types/leads";
 import { useLeadStore } from "@/store/use-lead-store";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 interface UseLeadsResponse {
   leads: Lead[];
@@ -72,6 +73,8 @@ export function useLeads(page = 1, limit = 20) {
 export function useLeadsWithNoOwner() {
   return useQuery<number>({
     queryKey: ["leads", "no-owner-count"],
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async () => {
       const res = await adminFetch("/api/leads/no-owner");
       if (!res.ok) throw new Error("Failed to count leads with no owner");

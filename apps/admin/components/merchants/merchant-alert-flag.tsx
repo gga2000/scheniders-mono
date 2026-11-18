@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AlertCircle, Clock, Ban, XCircle } from "lucide-react";
-import { trialClock } from "@/lib/baghdad-day";
+import { TRIAL_ENDING_DAYS, trialClock } from "@/lib/baghdad-day";
+import { effectiveStatus } from "@/lib/effective-status";
 import { cn } from "@/lib/utils";
-/** A list row or the shop record: the flag reads its status and trial end. */
+/** A list row or the shop record: the flag reads its status, pause and trial end. */
 interface AlertShop {
   status: string;
+  restrictions?: unknown;
   trial_ends_at: string | null;
 }
 
@@ -22,52 +24,25 @@ interface AlertInfo {
   severity: "critical" | "warning";
 }
 
-function daysSince(dateStr: string | null | undefined): number | null {
-  if (!dateStr) return null;
-  const diff = Date.now() - new Date(dateStr).getTime();
-  if (diff < 0) return null;
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
+/*
+ * The list row carries no date for a hold or a cancellation (the flag read
+ * suspended_at, cancelled_at and subscription_ends_at, which no row has, so
+ * "N days ago" never showed): it says what the status is.
+ */
 function computeAlert(merchant: AlertShop): AlertInfo | null {
   const status = merchant.status;
   const trialEnd = merchant.trial_ends_at;
-  const subEnd =
-    (merchant as { subscription_ends_at?: string | null }).subscription_ends_at ?? null;
-  const cancelledAt =
-    (merchant as { cancelled_at?: string | null }).cancelled_at ?? null;
-  const suspendedAt =
-    (merchant as { suspended_at?: string | null }).suspended_at ?? null;
 
   if (status === "suspended") {
-    const age = daysSince(suspendedAt);
-    return {
-      icon: Ban,
-      label: "Suspended",
-      detail:
-        age !== null
-          ? `Suspended ${age === 0 ? "today" : `${age} day${age === 1 ? "" : "s"} ago`}`
-          : "Account is currently suspended",
-      age,
-      severity: "critical",
-    };
+    return { icon: Ban, label: "Suspended", detail: "Account is currently suspended", age: null, severity: "critical" };
   }
 
   if (status === "cancelled") {
-    const age = daysSince(cancelledAt) ?? daysSince(subEnd);
-    return {
-      icon: XCircle,
-      label: "Cancelled",
-      detail:
-        age !== null
-          ? `Subscription cancelled ${age === 0 ? "today" : `${age} day${age === 1 ? "" : "s"} ago`}`
-          : "Subscription has been cancelled",
-      age,
-      severity: "critical",
-    };
+    return { icon: XCircle, label: "Cancelled", detail: "Subscription has been cancelled", age: null, severity: "critical" };
   }
 
-  if (status === "trial" && trialEnd) {
+  // A paused trial still ends (lib/effective-status), and "Needs attention" counts it.
+  if (effectiveStatus(status, merchant.restrictions) === "trial" && trialEnd) {
     // Baghdad calendar days, the same clock as the Merchants banner and the Trials page.
     const clock = trialClock(trialEnd);
     if (clock.ended) {
@@ -80,7 +55,7 @@ function computeAlert(merchant: AlertShop): AlertInfo | null {
         severity: "critical",
       };
     }
-    if (clock.days <= 3) {
+    if (clock.days <= TRIAL_ENDING_DAYS) {
       return {
         icon: Clock,
         label: "Trial ending",

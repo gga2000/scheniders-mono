@@ -63,9 +63,12 @@ export function dashboardStats(over: Partial<DashboardStats> = {}): DashboardSta
       },
     ],
     governorates90: [{ code: "BGD", orders: 500, sales: 15_000_000 }],
-    cities90: [
-      { city: "Baghdad", sales: 15_000_000 },
-      { city: "Basra", sales: 3_000_000 },
+    // Orders with no governorate code, by the city typed on them.
+    uncodedPlaces90: [
+      { city: "البصرة", orders: 100, sales: 3_000_000 },
+      { city: "بغداد", orders: 20, sales: 600_000 },
+      { city: "", orders: 5, sales: 200_000 },
+      { city: "Springfield", orders: 1, sales: 50_000 },
     ],
     sources90: [
       { source: "whatsapp", sales: 6_000_000 },

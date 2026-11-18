@@ -4,7 +4,8 @@
 -- =============================================================================
 --
 -- WHAT THIS PROVES (after the staff_list_filters, staff_health_parts,
--- staff_locked_tab and staff_needs_attention_back migrations)
+-- staff_locked_tab, staff_needs_attention_back and
+-- staff_attention_paused_trial migrations)
 --   Access:
 --     * anon and authenticated can run none of the five; the service role can.
 --   Wallet balance:
@@ -12,7 +13,10 @@
 --   Needs attention (the old Merchants page's filter and stats strip):
 --     * a paying shop with money does not;
 --     * a paused shop and a cancelled shop do, whatever is in the wallet;
---     * a trial that ends within 3 days does, one that ends later does not;
+--     * a trial that ends within 3 Baghdad days does (23:59 on the third day
+--       too), one that ends later does not (00:01 on the fourth day);
+--     * a paused trial is a trial: ending in 2 days it does, in 4 days not;
+--       a paused paying shop with an old trial date does not;
 --     * under 5,000 IQD does, exactly 5,000 does not;
 --     * a locked shop does even with a full wallet: a trial that ended unpaid,
 --       and a paying shop whose month is unpaid.
@@ -22,9 +26,13 @@
 --     * not a trial that ends soon, a low wallet, a paused or cancelled shop;
 --     * never our own (internal) shop, even with a trial date long gone.
 --   Health score:
---     * 50, plus or minus status, balance and the orders of the newest usage
---       month, also across a year change;
---     * every step of the balance and orders ladders, at its edges;
+--     * 50, plus or minus status, balance and the shop's real orders of the
+--       30 Baghdad days that end today (admin_order_facts): an order 30 days
+--       ago, a deleted, test or practice order, and the plan's usage counter
+--       never count;
+--     * every step of the balance and orders ladders, at its edges; the
+--       wallet adds 5 from exactly 10,000 IQD, the Merchants filter's and
+--       Home's "low" band (round 10);
 --     * the three parts the console shows (status, wallet, orders) are the
 --       numbers the score is made of: 50 plus the parts, kept in 0 to 100, is
 --       the score, for every shop.
@@ -73,15 +81,16 @@ BEGIN
     END LOOP;
 END $$;
 
--- The shops. One row each: name, status, plan, trial end, wallet, newest usage orders.
+-- The shops. One row each: name, status, plan, trial end, wallet, real orders of the last 30 days.
 CREATE TEMP TABLE tt_shops (
     name text PRIMARY KEY,
     id uuid NOT NULL DEFAULT gen_random_uuid(),
     status public.tenant_status NOT NULL,
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     trial_ends_at timestamptz,
+    restrictions jsonb NOT NULL DEFAULT '{}',
     balance numeric,          -- NULL: the shop has no wallet row
-    orders integer,           -- NULL: the shop has no usage row
+    orders integer,           -- NULL: the shop has no order at all
     want_attention boolean NOT NULL,
     want_locked boolean NOT NULL,
     want_score integer NOT NULL
@@ -93,7 +102,8 @@ INSERT INTO tt_shops (name, status, plan, trial_ends_at, balance, orders, want_a
     ('paying, 50,001 IQD, 51 orders',    'active',    'starter', NULL,                         50001,  51,   false, false, 95),
     ('paying, 50,000 IQD, 50 orders',    'active',    'starter', NULL,                         50000,  50,   false, false, 80),
     ('paying, 10,001 IQD, 11 orders',    'active',    'starter', NULL,                         10001,  11,   false, false, 80),
-    ('paying, 10,000 IQD, 10 orders',    'active',    'starter', NULL,                         10000,  10,   false, false, 60),
+    ('paying, 10,000 IQD, 10 orders',    'active',    'starter', NULL,                         10000,  10,   false, false, 75),
+    ('paying, 9,999 IQD, 10 orders',     'active',    'starter', NULL,                         9999,   10,   false, false, 60),
     ('paying, 5,000 IQD, 1 order',       'active',    'starter', NULL,                         5000,   1,    false, false, 60),
     ('paying, 4,999 IQD, 0 orders',      'active',    'starter', NULL,                         4999,   0,    true, false, 55),
     ('paying, no wallet, no usage',      'active',    'starter', NULL,                         NULL,   NULL, true, false, 55),
@@ -110,19 +120,46 @@ INSERT INTO tt_shops (name, status, plan, trial_ends_at, balance, orders, want_a
     ('internal, old trial date',         'trial',     'internal', now() - interval '300 days', 80000,  3,    true, false, 75),
     ('internal, paying',                 'active',    'internal', NULL,                        80000,  3,    false, false, 85),
     -- locked for an unpaid month with a full wallet
-    ('paying, month unpaid, full',       'active',    'growth',  NULL,                         80000,  60,   true, true,  95);
+    ('paying, month unpaid, full',       'active',    'growth',  NULL,                         80000,  60,   true, true,  95),
+    -- "ending" is 3 days on the Baghdad calendar, not 72 hours
+    ('trial, ends 23:59 on day 3',       'trial',     'starter', (((now() AT TIME ZONE 'Asia/Baghdad')::date + 3) + time '23:59') AT TIME ZONE 'Asia/Baghdad', 20000, 3, true, false, 65),
+    ('trial, ends 00:01 on day 4',       'trial',     'starter', (((now() AT TIME ZONE 'Asia/Baghdad')::date + 4) + time '00:01') AT TIME ZONE 'Asia/Baghdad', 20000, 3, false, false, 65),
+    -- paused: a paused trial is still a trial (restrictions set below)
+    ('paused trial, ends in 2 days',     'limited',   'starter', now() + interval '2 days',    20000,  3,    true, false, 60),
+    ('paused trial, ends in 4 days',     'limited',   'starter', now() + interval '4 days',    20000,  3,    false, false, 60),
+    ('paused paying, old trial date',    'limited',   'starter', now() - interval '300 days',  20000,  3,    false, false, 60);
 
-INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at)
-SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at FROM tt_shops s;
+UPDATE tt_shops SET restrictions = '{"status_before": "trial"}' WHERE name LIKE 'paused trial,%';
+UPDATE tt_shops SET restrictions = '{"status_before": "active"}' WHERE name = 'paused paying, old trial date';
+
+INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, restrictions)
+SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at, s.restrictions FROM tt_shops s;
 
 INSERT INTO public.wallet (tenant_id, balance_iqd)
 SELECT s.id, s.balance FROM tt_shops s WHERE s.balance IS NOT NULL;
 
--- The newest month wins, also across a year change: December 2025 is older than January 2026.
+-- Each shop's real orders, spread over the 30 Baghdad days that end today
+-- (the oldest at noon on the first of them). Around them, rows that must
+-- never count: an order from the day before the window, a deleted, a test, a
+-- practice and a till-take order today, and a plan counter of 999.
+INSERT INTO public.orders (tenant_id, order_id, customer_name, phone, items, price, status, created_at)
+SELECT s.id, 'tt-' || s.id || '-' || n, 'c', '07700000000', '[]', 1000, 'pending',
+       (((now() AT TIME ZONE 'Asia/Baghdad')::date - (n % 30)) + time '12:00') AT TIME ZONE 'Asia/Baghdad'
+FROM tt_shops s CROSS JOIN LATERAL generate_series(0, s.orders - 1) AS n
+WHERE s.orders > 0;
+
+INSERT INTO public.orders (tenant_id, order_id, customer_name, phone, items, price, status, created_at, deleted_at, is_test, guide_practice, take_kind)
+SELECT s.id, 'tt-' || s.id || '-x' || k, 'c', '07700000000', '[]', 1000, 'pending',
+       CASE WHEN k = 1 THEN (((now() AT TIME ZONE 'Asia/Baghdad')::date - 30) + time '23:59') AT TIME ZONE 'Asia/Baghdad' ELSE now() END,
+       CASE WHEN k = 2 THEN now() END,
+       k = 3,
+       k = 4,
+       CASE WHEN k = 5 THEN 'take' END
+FROM tt_shops s CROSS JOIN generate_series(1, 5) AS k
+WHERE s.orders IS NOT NULL;
+
 INSERT INTO public.usage_tracking (tenant_id, year, month, orders_count)
-SELECT s.id, 2026, 1, s.orders FROM tt_shops s WHERE s.orders IS NOT NULL
-UNION ALL
-SELECT s.id, 2025, 12, 999 FROM tt_shops s WHERE s.orders IS NOT NULL;
+SELECT s.id, 2026, 1, 999 FROM tt_shops s WHERE s.orders IS NOT NULL;
 
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at)
 SELECT s.id, 'growth'::public.plan_tier, 'active'::public.subscription_status, now() - interval '70 days', now() - interval '40 days', now() - interval '70 days'
@@ -181,7 +218,10 @@ BEGIN
             ('paused, empty, quiet',        '{"status": -20, "wallet": -10, "orders": 0}'::jsonb),
             ('trial, ends in 4 days',       '{"status": 5, "wallet": 5, "orders": 5}'::jsonb),
             ('paying, 10,001 IQD, 11 orders', '{"status": 15, "wallet": 5, "orders": 10}'::jsonb),
+            ('paying, 10,000 IQD, 10 orders', '{"status": 15, "wallet": 5, "orders": 5}'::jsonb),
+            ('paying, 9,999 IQD, 10 orders', '{"status": 15, "wallet": -10, "orders": 5}'::jsonb),
             ('paying, no wallet, no usage', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
+            ('paying, 4,999 IQD, 0 orders', '{"status": 15, "wallet": -10, "orders": 0}'::jsonb),
             ('limited, full wallet',        '{"status": 0, "wallet": 15, "orders": 0}'::jsonb)
         ) AS w(name, want)
         JOIN tt_shops s ON s.name = w.name
@@ -197,9 +237,14 @@ BEGIN
     SELECT count(*) INTO _low FROM public.tenants t WHERE t.staff_wallet_balance < 10000 AND t.slug LIKE 'tt-%';
     SELECT count(*) INTO _at_risk FROM public.tenants t WHERE t.staff_health_score < 40 AND t.slug LIKE 'tt-%';
     RESET ROLE;
-    PERFORM pg_temp.check('filter: needs attention finds 9 shops, got ' || _attention, _attention = 9);
+    PERFORM pg_temp.check('filter: needs attention finds 11 shops, got ' || _attention, _attention = 11);
     PERFORM pg_temp.check('filter: locked finds 2 shops, got ' || _locked, _locked = 2);
-    PERFORM pg_temp.check('filter: under 10,000 IQD finds 4 shops, got ' || _low, _low = 4);
+    PERFORM pg_temp.check('filter: under 10,000 IQD finds 5 shops, got ' || _low, _low = 5);
+    -- The wallet part and the balance filter put every shop in the same band.
+    SELECT count(*) INTO _low FROM public.tenants t
+    WHERE t.slug LIKE 'tt-%'
+      AND (t.staff_wallet_balance < 10000) <> ((public.staff_health_parts(t) ->> 'wallet')::integer = -10);
+    PERFORM pg_temp.check('wallet part and filter disagree on ' || _low || ' shops', _low = 0);
     PERFORM pg_temp.check('filter: health under 40 finds 1 shop, got ' || _at_risk, _at_risk = 1);
 
     SET LOCAL ROLE authenticated;

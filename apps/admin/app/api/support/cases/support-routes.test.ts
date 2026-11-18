@@ -65,7 +65,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
-    auth: { getUser: async () => ({ data: { user: null }, error: null }) },
+    auth: { getClaims: async () => ({ data: null, error: null }) },
   }),
 }));
 
@@ -372,7 +372,7 @@ describe("support shared problem spotter", () => {
     expect((await res.json()).spike).toMatchObject({ topic: "delivery", shops: 3 });
     expect(dbCalls).toContainEqual({ method: "from", args: ["support_messages"] });
     expect(dbCalls).toContainEqual({ method: "eq", args: ["sender_kind", "merchant"] });
-    expect(dbCalls).toContainEqual({ method: "eq", args: ["tenants.is_demo", false] });
+    expect(dbCalls).toContainEqual({ method: "match", args: [{ "tenants.is_demo": false, "tenants.is_prospect": false }] });
     const since = dbCalls.find((c) => c.method === "gte")?.args;
     expect(since?.[0]).toBe("created_at");
     const sinceMs = Date.parse(String(since?.[1]));
@@ -886,12 +886,12 @@ describe("support view as merchant", () => {
     expect(dbCalls).toHaveLength(0);
   });
 
-  it("opens the shop with my own viewer, logs the visit the merchant sees, and answers a one-time link", async () => {
+  it("opens the shop with my own viewer, has the database log the visit the merchant sees, and answers a one-time link", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
-      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
       link as unknown as DbResult,
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
     );
     const res = await start("support", { tenantId: TENANT, adminId: "11111111-1111-4111-8111-111111111111" });
     expect(res.status).toBe(200);
@@ -904,17 +904,15 @@ describe("support view as merchant", () => {
     expect(url.searchParams.get("next")).toBe("/orders");
     expect(rpcCall()?.args).toEqual([
       "support_view_start",
-      { p_admin_id: SUPPORT_ID, p_viewer_user_id: VIEWER, p_tenant_id: TENANT },
+      { p_admin_id: SUPPORT_ID, p_viewer_user_id: VIEWER, p_tenant_id: TENANT, p_actor_email: "agent@example.com" },
     ]);
     expect(dbCalls.find((c) => c.method === "generateLink")?.args[0]).toEqual({
       type: "magiclink",
       email: `support-viewer-${SUPPORT_ID}@usefermi.com`,
     });
-    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
-      admin_user_id: SUPPORT_ID,
-      tenant_id: TENANT,
-      action: "support_view",
-    });
+    // support_view_start writes the support_view row with the look (support-view
+    // suite): the route writes none in a second request.
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
     expect(dbCalls.some((c) => c.method === "createUser")).toBe(false);
   });
 
@@ -925,8 +923,8 @@ describe("support view as merchant", () => {
       { data: { user: { id: VIEWER } }, error: null } as unknown as DbResult,
       { data: null, error: null },
       { data: null, error: null },
-      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
       link as unknown as DbResult,
+      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
     );
     expect((await start("support", { tenantId: TENANT })).status).toBe(200);
     expect(dbCalls.find((c) => c.method === "createUser")?.args[0]).toMatchObject({
@@ -938,14 +936,24 @@ describe("support view as merchant", () => {
     expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toEqual({ user_id: VIEWER, admin_id: SUPPORT_ID });
   });
 
-  it("never answers a link made for another sign-in", async () => {
+  it("never answers a link made for another sign-in, and starts no look for it", async () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
-      { data: { session_id: "s1", expires_at: EXPIRES }, error: null },
       { data: { properties: { hashed_token: "hash-1" }, user: { id: "someone-else" } }, error: null } as unknown as DbResult,
     );
     expect((await start("support", { tenantId: TENANT })).status).toBe(500);
+    expect(rpcCall()).toBeUndefined();
+  });
+
+  it("starts no look, so logs no visit, when the sign-in link cannot be made", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { user_id: VIEWER }, error: null },
+      { data: { properties: null, user: null }, error: { message: "auth down" } } as unknown as DbResult,
+    );
+    expect((await start("support", { tenantId: TENANT })).status).toBe(500);
+    expect(rpcCall()).toBeUndefined();
   });
 
   it.each([
@@ -956,21 +964,25 @@ describe("support view as merchant", () => {
     dbQueue.push(
       { data: { display_name: "Noor", email: null }, error: null },
       { data: { user_id: VIEWER }, error: null },
+      link as unknown as DbResult,
       { data: null, error: { code: "P0001", message } },
     );
-    expect((await start("support", { tenantId: TENANT })).status).toBe(status);
-    expect(dbCalls.some((c) => c.method === "generateLink")).toBe(false);
+    const res = await start("support", { tenantId: TENANT });
+    expect(res.status).toBe(status);
+    // The link made before the refusal is never answered.
+    expect(JSON.stringify(await res.json())).not.toContain("hash-1");
   });
 
-  it("ends my own look", async () => {
+  it("ends my own look, and the database logs it in the same step", async () => {
     dbResult = { data: 1, error: null };
     expect((await stop("support")).status).toBe(200);
-    expect(rpcCall()?.args).toEqual(["support_view_end", { p_admin_id: SUPPORT_ID }]);
-    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
-      admin_user_id: SUPPORT_ID,
-      action: "support_view_end",
-      details: { ended: 1 },
-    });
+    expect(rpcCall()?.args).toEqual(["support_view_end", { p_admin_id: SUPPORT_ID, p_actor_email: "agent@example.com" }]);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("answers 500 when the look cannot be ended", async () => {
+    dbResult = { data: null, error: { code: "XX000", message: "down" } };
+    expect((await stop("support")).status).toBe(500);
   });
 });
 

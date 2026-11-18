@@ -6,8 +6,20 @@ import { readDayRange } from "@/lib/baghdad-day";
 import { fetchMerchantListStats } from "@/lib/console-stats";
 import { ATTENTION, computedShopFilters } from "@/lib/merchant-filters";
 import { merchantSearchFilter } from "@/lib/merchant-search";
+import { ON_TRIAL_FILTER } from "@/lib/effective-status";
 import { DEFAULT_MERCHANT_SORT, readMerchantSort } from "@/lib/merchant-sort";
 import { readShopCity } from "@/lib/shop-city";
+import { SHOP_COLUMNS, SHOP_WALLET_COLUMNS } from "@/lib/shop-columns";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { shopHealth } from "@/lib/shop-health-score";
+import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { trialPayment, type PickSubscription } from "@/lib/shop-status-choice";
+
+/**
+ * A shop's staff tags: staff_shop_tags is keyed by the shop, so the database
+ * sends one object, or null for a shop never tagged.
+ */
+const staffTagsSchema = z.object({ tags: z.array(z.string()) }).nullish();
 
 /** The "ids" query value, when it is given: shop ids. */
 const shopIdsSchema = z.array(z.string().uuid()).min(1).max(50).optional();
@@ -48,18 +60,21 @@ export async function GET(request: NextRequest) {
     // ── Main query ─────────────────────────────────────────────────────
     let query = supabase
       .from("tenants")
-      // The health score and its parts are the database's: the browser shows them and works nothing out.
-      // Staff tags live in staff_shop_tags, which merchants cannot read.
-      .select("*, wallet(*), subscriptions(*), staff_shop_tags(tags), staff_health_score, staff_health_parts", {
+      // The health parts are the database's; the score is their sum (lib/shop-health-score),
+      // so the parts are worked out once per row. Staff tags live in staff_shop_tags,
+      // which merchants cannot read.
+      .select(`${SHOP_COLUMNS}, wallet(${SHOP_WALLET_COLUMNS}), staff_shop_tags(tags), staff_health_parts`, {
         count: "exact",
       })
-      // The demo store (Fermi B13) has its own card, not a row among customers.
-      .eq("is_demo", false);
+      // The demo store and prospect stores (lib/customer-shops) have their own way in, not a row among customers.
+      .match(CUSTOMER_SHOP);
 
     if (ids.data) query = query.in("id", ids.data);
     if (plan) query = query.eq("plan", plan);
     // "attention" is not a value of the status column: it is one of the computed filters below.
-    if (status && status !== ATTENTION) query = query.eq("status", status);
+    // "trial" lists a paused trial too, as Trials does (lib/effective-status).
+    if (status === "trial") query = query.or(ON_TRIAL_FILTER);
+    else if (status && status !== ATTENTION) query = query.eq("status", status);
     // "بغداد", "Baghdad" and "baghdad " are one city: the same pattern the map reads.
     if (city.governorate) query = query.filter("city", "imatch", city.governorate.pattern);
     // Needs attention, the balance band and the health band are worked out in
@@ -104,7 +119,7 @@ export async function GET(request: NextRequest) {
     // it never draws a busy shop as a quiet one.
     const tenantIds = tenants.map((t) => t.id);
 
-    const [stats, pinned] = await Promise.all([
+    const [stats, pinned, subscriptions] = await Promise.all([
       fetchMerchantListStats(supabase, tenantIds),
       // Most recent pinned note per tenant wins.
       supabase
@@ -113,8 +128,21 @@ export async function GET(request: NextRequest) {
         .in("tenant_id", tenantIds)
         .eq("is_pinned", true)
         .order("updated_at", { ascending: false }),
+      // The newest subscription per shop, as the billing lock reads it: whether
+      // a paying shop has a month that free days can lengthen.
+      supabase
+        .from("subscriptions")
+        .select("tenant_id, status, current_period_end, created_at")
+        .in("tenant_id", tenantIds)
+        .order("created_at", { ascending: false }),
     ]);
     if (pinned.error) throw pinned.error;
+    if (subscriptions.error) throw subscriptions.error;
+
+    const newestSubscription = new Map<string, PickSubscription>();
+    for (const row of subscriptions.data ?? []) {
+      if (!newestSubscription.has(row.tenant_id)) newestSubscription.set(row.tenant_id, row);
+    }
 
     const pinnedNoteMap = new Map<string, { content: string; updated_at: string; admin_label: string | null }>();
     for (const note of pinned.data ?? []) {
@@ -128,14 +156,15 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Assemble enriched merchants ────────────────────────────────────
-    const merchants = tenants.map(({ staff_shop_tags: staffTags, ...tenant }) => {
+    const merchants = tenants.map(({ staff_shop_tags: staffTags, staff_health_parts: healthParts, ...tenant }) => {
       const row = stats.get(tenant.id);
       if (!row) throw new Error(`No list numbers for shop ${tenant.id}`);
 
       return {
         ...tenant,
+        ...shopHealth(healthParts),
         // One row per shop, so the API gives an object, or null for a shop never tagged.
-        tags: staffTags?.tags ?? [],
+        tags: staffTagsSchema.parse(staffTags)?.tags ?? [],
         // The later of the last wallet line and the last real order.
         last_active_at: laterOf(row.last_wallet_at, row.last_order_at),
         // Our fees (monthly fee, delivered orders, messages), not every wallet charge.
@@ -155,6 +184,9 @@ export async function GET(request: NextRequest) {
               },
         // A locked shop still has status "trial" or "active"; this is what tells them apart.
         billing_lock: row.lock_reason ? { reason: row.lock_reason, since: row.lock_since } : null,
+        subscription_running: isSubscriptionRunning(newestSubscription.get(tenant.id)?.status),
+        // Which status moves admin_update_shop accepts, and what it saves for Active.
+        trial_payment: trialPayment(newestSubscription.get(tenant.id), tenant.trial_ends_at),
         pinned_note: pinnedNoteMap.get(tenant.id) ?? null,
       };
     });

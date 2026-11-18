@@ -17,6 +17,8 @@ import type {
 } from "@/lib/support";
 import type { ShopCheck } from "@/lib/support-shop-check";
 import type { SupportSpike } from "@/lib/support-spike";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
+import { adminFetch } from "@/lib/admin-fetch";
 
 async function readJson<T>(res: Response): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
@@ -34,7 +36,7 @@ async function readJson<T>(res: Response): Promise<T> {
 export function useSupportCases(view: "open" | "solved") {
   return useQuery<SupportCasesResponse>({
     queryKey: ["admin", "support", "cases", view],
-    queryFn: async () => readJson<SupportCasesResponse>(await fetch(`/api/support/cases?view=${view}`)),
+    queryFn: async () => readJson<SupportCasesResponse>(await adminFetch(`/api/support/cases?view=${view}`)),
     refetchInterval: 10_000,
   });
 }
@@ -43,8 +45,10 @@ export function useSupportCases(view: "open" | "solved") {
 export function useSupportWaitingCount() {
   return useQuery<number>({
     queryKey: ["admin", "support", "waiting-count"],
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async () =>
-      (await readJson<{ waitingOnUs: number }>(await fetch("/api/support/cases?view=count"))).waitingOnUs,
+      (await readJson<{ waitingOnUs: number }>(await adminFetch("/api/support/cases?view=count"))).waitingOnUs,
     refetchInterval: 30_000,
   });
 }
@@ -53,7 +57,7 @@ export function useSupportWaitingCount() {
 export function useSupportCase(caseId: string | null) {
   return useQuery<SupportCaseDetailResponse>({
     queryKey: ["admin", "support", "case", caseId],
-    queryFn: async () => readJson<SupportCaseDetailResponse>(await fetch(`/api/support/cases/${caseId}`)),
+    queryFn: async () => readJson<SupportCaseDetailResponse>(await adminFetch(`/api/support/cases/${caseId}`)),
     enabled: caseId !== null,
     refetchInterval: 5_000,
   });
@@ -64,7 +68,7 @@ export function useSupportCaseAction(caseId: string) {
   return useMutation({
     mutationFn: async (action: CaseAction) =>
       readJson<{ success: true }>(
-        await fetch(`/api/support/cases/${caseId}`, {
+        await adminFetch(`/api/support/cases/${caseId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(action),
@@ -82,7 +86,7 @@ export function useSupportMarkSeen(caseId: string) {
   return useMutation({
     mutationFn: async () =>
       readJson<{ success: true; moved: boolean }>(
-        await fetch(`/api/support/cases/${caseId}`, {
+        await adminFetch(`/api/support/cases/${caseId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "seen" } satisfies CaseAction),
@@ -95,7 +99,7 @@ export function useSupportMarkSeen(caseId: string) {
 export function useSupportTeam() {
   return useQuery<SupportTeammate[]>({
     queryKey: ["admin", "support", "team"],
-    queryFn: async () => (await readJson<{ team: SupportTeammate[] }>(await fetch("/api/support/team"))).team,
+    queryFn: async () => (await readJson<{ team: SupportTeammate[] }>(await adminFetch("/api/support/team"))).team,
     staleTime: 5 * 60_000,
   });
 }
@@ -104,7 +108,7 @@ export function useSupportTeam() {
 export function useSupportScoreboard(days: ScoreboardDays) {
   return useQuery<SupportScoreboard>({
     queryKey: ["admin", "support", "scoreboard", days],
-    queryFn: async () => readJson<SupportScoreboard>(await fetch(`/api/support/scoreboard?days=${days}`)),
+    queryFn: async () => readJson<SupportScoreboard>(await adminFetch(`/api/support/scoreboard?days=${days}`)),
     refetchInterval: 60_000,
   });
 }
@@ -114,7 +118,7 @@ export function useSupportShopCheck(caseId: string, enabled: boolean) {
   return useQuery<{ tenantId: string; check: ShopCheck }>({
     queryKey: ["admin", "support", "shop-check", caseId],
     queryFn: async () =>
-      readJson<{ tenantId: string; check: ShopCheck }>(await fetch(`/api/support/cases/${caseId}/check`)),
+      readJson<{ tenantId: string; check: ShopCheck }>(await adminFetch(`/api/support/cases/${caseId}/check`)),
     enabled,
     staleTime: 30_000,
   });
@@ -124,7 +128,7 @@ export function useSupportShopCheck(caseId: string, enabled: boolean) {
 export function useSupportNeedsUs() {
   return useQuery<NeedsUsShop[]>({
     queryKey: ["admin", "support", "needs-us"],
-    queryFn: async () => (await readJson<{ shops: NeedsUsShop[] }>(await fetch("/api/support/needs-us"))).shops,
+    queryFn: async () => (await readJson<{ shops: NeedsUsShop[] }>(await adminFetch("/api/support/needs-us"))).shops,
     refetchInterval: 60_000,
   });
 }
@@ -135,7 +139,7 @@ export function useSupportStartConversation() {
   return useMutation({
     mutationFn: async (input: StartConversation) =>
       readJson<{ caseId: string; started: boolean }>(
-        await fetch("/api/support/needs-us", {
+        await adminFetch("/api/support/needs-us", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -149,7 +153,7 @@ export function useSupportStartConversation() {
 export function useSupportTasks() {
   return useQuery<{ tasks: SupportTask[]; me: string }>({
     queryKey: ["admin", "support", "tasks"],
-    queryFn: async () => readJson<{ tasks: SupportTask[]; me: string }>(await fetch("/api/support/tasks")),
+    queryFn: async () => readJson<{ tasks: SupportTask[]; me: string }>(await adminFetch("/api/support/tasks")),
     refetchInterval: 60_000,
   });
 }
@@ -160,7 +164,7 @@ export function useSupportLogTask() {
   return useMutation({
     mutationFn: async (input: TaskLogInput) =>
       readJson<{ success: true }>(
-        await fetch("/api/support/tasks", {
+        await adminFetch("/api/support/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -176,7 +180,7 @@ export function useSupportTakeShop() {
   return useMutation({
     mutationFn: async (tenantId: string) =>
       readJson<{ success: true }>(
-        await fetch("/api/support/owner", {
+        await adminFetch("/api/support/owner", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tenantId }),
@@ -191,7 +195,7 @@ export function useSupportViewStart() {
   return useMutation({
     mutationFn: async (tenantId: string) =>
       readJson<{ url: string; expiresAt: string }>(
-        await fetch("/api/support/view", {
+        await adminFetch("/api/support/view", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tenantId }),
@@ -203,7 +207,7 @@ export function useSupportViewStart() {
 /** End my look-only view now. */
 export function useSupportViewEnd() {
   return useMutation({
-    mutationFn: async () => readJson<{ success: true }>(await fetch("/api/support/view", { method: "DELETE" })),
+    mutationFn: async () => readJson<{ success: true }>(await adminFetch("/api/support/view", { method: "DELETE" })),
   });
 }
 
@@ -212,7 +216,7 @@ export function useSupportNotice() {
   return useQuery<SupportNotice | null>({
     queryKey: ["admin", "support", "notice"],
     queryFn: async () =>
-      (await readJson<{ notice: SupportNotice | null }>(await fetch("/api/support/notices"))).notice,
+      (await readJson<{ notice: SupportNotice | null }>(await adminFetch("/api/support/notices"))).notice,
     refetchInterval: 60_000,
   });
 }
@@ -221,7 +225,7 @@ export function useSupportNotice() {
 export function useSupportSpike() {
   return useQuery<SupportSpike | null>({
     queryKey: ["admin", "support", "spike"],
-    queryFn: async () => (await readJson<{ spike: SupportSpike | null }>(await fetch("/api/support/spike"))).spike,
+    queryFn: async () => (await readJson<{ spike: SupportSpike | null }>(await adminFetch("/api/support/spike"))).spike,
     refetchInterval: 60_000,
   });
 }
@@ -232,7 +236,7 @@ export function useSupportNoticePost() {
   return useMutation({
     mutationFn: async (input: NoticePostInput) =>
       readJson<{ notice: SupportNotice }>(
-        await fetch("/api/support/notices", {
+        await adminFetch("/api/support/notices", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -246,7 +250,7 @@ export function useSupportNoticePost() {
 export function useSupportNoticeEnd() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => readJson<{ ended: number }>(await fetch("/api/support/notices", { method: "DELETE" })),
+    mutationFn: async () => readJson<{ ended: number }>(await adminFetch("/api/support/notices", { method: "DELETE" })),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin", "support", "notice"] }),
   });
 }

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { countLine } from "@/lib/load-failure";
+import { lockReasonWords } from "@/lib/billing-lock-label";
 
 /**
  * Merchant support cases as the staff console sees them. The tables
@@ -183,6 +185,8 @@ export interface SupportShopCard {
     display_id: number | null;
     plan: string;
     status: string;
+    /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+    restrictions: unknown;
     city: string | null;
     contact_phone: string | null;
     trial_ends_at: string | null;
@@ -204,6 +208,15 @@ export interface SupportShopCard {
 export interface SupportCasesResponse {
   cases: SupportCaseRow[];
   waitingOnUs: number;
+}
+
+/** The Support header line. "No merchant is waiting" over a failed read would send staff away from a full inbox. */
+export function waitingOnUsLine(read: { count: number | undefined; isError: boolean }): string {
+  return countLine(read, {
+    loading: "Loading...",
+    failed: "Could not check who is waiting on us",
+    counted: (n) => (n === 0 ? "No merchant is waiting on us." : `${n} merchant${n === 1 ? "" : "s"} waiting on us`),
+  });
 }
 
 export interface SupportCaseDetailResponse {
@@ -283,8 +296,6 @@ export const StaffPushSubscriptionSchema = z.object({
 export const StaffPushRemoveSchema = z.object({
   endpoint: z.string().url().max(2000),
 });
-
-export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
 
 export const SUPPORT_SHOT_BUCKET = "support-shots";
 export const SUPPORT_VOICE_BUCKET = "support-voice";
@@ -428,9 +439,14 @@ export const SHOP_PROBLEM_LABELS: Record<ShopProblemCode, string> = {
   trial_ending: "Trial ends soon",
 };
 
-/** The first lines staff can send, in the merchant's Arabic; they edit before sending. */
+/**
+ * The first lines staff can send, in the merchant's Arabic; they edit before
+ * sending. Only staff pause a store (super admin, on the shop page), and a
+ * pause may leave new orders on, so the store_paused line says we paused it
+ * and nothing about orders (words agreed with support, 17 Nov).
+ */
 export const SHOP_PROBLEM_OPENERS: Record<ShopProblemCode, string> = {
-  store_paused: "هلا، لاحظنا أن متجرك متوقف حالياً وما يستقبل طلبات جديدة. نكدر نساعدك ترجعه يشتغل؟",
+  store_paused: "هلا، متجرك موقوف مؤقتاً من طرفنا. خلّينا نحجي عنه ونشوف شنو نحتاج حتى نرفع الإيقاف.",
   billing_locked: "هلا، لاحظنا أن متجرك مقفل بسبب الاشتراك. إذا تحتاج مساعدة بالدفع أو عندك سؤال، احنا هنا.",
   wallet_empty: "هلا، رصيد محفظتك خلص، فالطلبات الجديدة راح تتوقف. تحب نساعدك بالتعبئة؟",
   whatsapp_paused: "هلا، رسائل الواتساب لزبائنك متوقفة لأن أغلبها ما وصل. خلي نرتبها سوا حتى ترجع توصل.",
@@ -466,6 +482,12 @@ export const StartConversationSchema = z.object({
 
 export type StartConversation = z.infer<typeof StartConversationSchema>;
 
+/** Why WhatsApp sending is paused, in the WhatsApp page's words. */
+const WHATSAPP_PAUSE_WORDS: ReadonlyMap<string, string> = new Map([
+  ["failures", "failures"],
+  ["staff", "by staff"],
+]);
+
 /** What a problem's detail means in words, when there is one worth showing. */
 export function problemDetail(code: ShopProblemCode, detail: string | null): string | null {
   if (detail === null || detail.trim() === "") return null;
@@ -476,14 +498,32 @@ export function problemDetail(code: ShopProblemCode, detail: string | null): str
       return `none in 48 h, ${detail} in the 2 weeks before`;
     case "wallet_empty":
       return `${Number(detail).toLocaleString("en-US")} IQD`;
+    case "billing_locked":
+      return lockReasonWords(detail);
+    case "whatsapp_paused":
+      return WHATSAPP_PAUSE_WORDS.get(detail) ?? detail;
     default:
       return detail;
   }
 }
 
+type ShopProblem = NeedsUsShop["problems"][number];
+
 /** The problem to open with: the first by SHOP_PROBLEMS order (the store being down comes before a trial ending). */
-export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblemCode {
-  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0].code;
+export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblem {
+  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0];
+}
+
+/** Said when staff paused a shop's WhatsApp: its messages did not fail. */
+const WHATSAPP_PAUSED_BY_STAFF = "هلا، رسائل الواتساب لزبائنك متوقفة حالياً من طرفنا. خلّينا نحجي حتى نرجّعها.";
+
+/**
+ * The first line staff can send about a problem. A WhatsApp pause staff made
+ * (detail "staff") has its own line; the usual one says most messages failed.
+ */
+export function problemOpener(problem: Pick<ShopProblem, "code" | "detail">): string {
+  if (problem.code === "whatsapp_paused" && problem.detail === "staff") return WHATSAPP_PAUSED_BY_STAFF;
+  return SHOP_PROBLEM_OPENERS[problem.code];
 }
 
 /** "3 h ago", "2 d ago"; "just now" under a minute. */

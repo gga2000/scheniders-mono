@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export interface LastActor {
   display_name: string;
@@ -17,7 +18,7 @@ export function useLastActors(tenantIds: string[]) {
     queryKey: ["admin", "last-actors", sortedKey],
     queryFn: async () => {
       if (tenantIds.length === 0) return { actors: {} };
-      const res = await fetch("/api/admin/last-actors", {
+      const res = await adminFetch("/api/admin/last-actors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenant_ids: tenantIds }),
@@ -28,13 +29,4 @@ export function useLastActors(tenantIds: string[]) {
     enabled: tenantIds.length > 0,
     staleTime: 60_000,
   });
-}
-
-export function useLastActor(tenantId: string | null) {
-  const ids = tenantId ? [tenantId] : [];
-  const { data, ...rest } = useLastActors(ids);
-  return {
-    ...rest,
-    actor: tenantId ? data?.actors[tenantId] ?? null : null,
-  };
 }

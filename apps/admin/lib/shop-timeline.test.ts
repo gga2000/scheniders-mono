@@ -105,6 +105,8 @@ describe("changeTitle", () => {
     expect(changeTitle("add_lock_orders", { orders: 25 })).toBe("Gave 25 more store orders");
     expect(changeTitle("force_unlock", { days: 7 })).toBe("Unlocked for 7 days, no charge");
     expect(changeTitle("pause_tenant", { duration_days: null })).toBe("Paused, no end date");
+    expect(changeTitle("unpause_tenant", { status: "active" })).toBe("Pause lifted");
+    expect(changeTitle("unpause_tenant", { status: "active", ended: true })).toBe("Pause ended on its end date");
     expect(changeTitle("status_change", { status: "active", previous_status: "suspended" })).toBe("Reactivated");
     expect(changeTitle("plan_change", { plan: "starter" })).toBe("Moved to the Starter plan");
     expect(changeTitle("support_view", {})).toBe("Looked at the shop as the merchant");

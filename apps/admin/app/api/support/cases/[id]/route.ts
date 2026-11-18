@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { adminDisplayName } from "@/lib/support-admin-name";
 import { logAdminActivity } from "@/lib/activity-logger";
+import { lastDaysStart } from "@/lib/baghdad-day";
 import {
   CaseActionSchema,
   SUPPORT_CASE_COLUMNS,
@@ -41,21 +42,24 @@ async function loadShopCard(
   caseId: string,
   adminId: string,
 ): Promise<SupportShopCard> {
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Real orders (admin_order_facts: no deleted, draft or test rows, never
+  // the demo shop), and the week is 7 Baghdad days with today, as on the
+  // Merchants list. It counted every orders row over 7 × 24 hours before.
+  const weekStart = lastDaysStart(7);
   const [tenant, wallet, subscription, ordersWeek, ordersTotal, team, notes, earlier, owner, calls] = await Promise.all([
     supabase
       .from("tenants")
-      .select("id, business_name, display_id, plan, status, city, contact_phone, trial_ends_at, created_at")
+      .select("id, business_name, display_id, plan, status, restrictions, city, contact_phone, trial_ends_at, created_at")
       .eq("id", tenantId)
       .single(),
     supabase.from("wallet").select("balance_iqd").eq("tenant_id", tenantId).maybeSingle(),
     supabase.from("subscriptions").select("current_period_end").eq("tenant_id", tenantId).maybeSingle(),
     supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
+      .from("admin_order_facts")
+      .select("tenant_id", { count: "exact", head: true })
       .eq("tenant_id", tenantId)
-      .gte("created_at", weekAgo),
-    supabase.from("orders").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+      .gte("created_at", weekStart),
+    supabase.from("admin_order_facts").select("tenant_id", { count: "exact", head: true }).eq("tenant_id", tenantId),
     supabase
       .from("tenant_members")
       .select("id", { count: "exact", head: true })

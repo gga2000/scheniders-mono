@@ -33,6 +33,7 @@ CREATE TABLE public.tenants (
     id uuid PRIMARY KEY,
     plan public.plan_tier NOT NULL,
     status public.tenant_status NOT NULL,
+    restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,
     trial_ends_at timestamptz,
     lock_since timestamptz,
     lock_orders_left integer

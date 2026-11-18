@@ -21,6 +21,12 @@ interface DateRangePickerProps {
     epochDate?: string; // Financial epoch date — adds "Since Day Zero" preset
     /** The reader's language. Arabic also starts the week on Saturday, as in Iraq. */
     language?: "en" | "ar";
+    /**
+     * The zone whose calendar "today" is read on (e.g. "Asia/Baghdad"), for
+     * apps that count every day there whatever the browser's zone. Left out,
+     * today is the browser's own day.
+     */
+    timeZone?: string;
 }
 
 type PresetType = "dayZero" | "today" | "yesterday" | "thisWeek" | "thisMonth" | "thisYear" | "last7" | "last30" | "pastYear" | "custom";
@@ -96,11 +102,23 @@ const COPY: Record<"en" | "ar", Copy> = {
 
 type Preset = { id: PresetType; label: string; getRange: () => { from: string; to: string } };
 
+/**
+ * Now, as a calendar day: today in `timeZone` at local midnight, so the
+ * calendar math below (getDate, setDate, getDay) counts that zone's days.
+ * The only place this file reads the clock.
+ */
+function calendarNow(timeZone?: string): Date {
+    if (!timeZone) return new Date();
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(Date.now());
+    return parseDate(day);
+}
+
 /** The quick picks in the reader's language, with "Since day zero" first when the shop has an epoch. */
-function buildPresets(copy: Copy, epochDate?: string): Preset[] {
-    const today = () => formatLocalDate(new Date());
+function buildPresets(copy: Copy, epochDate?: string, timeZone?: string): Preset[] {
+    const now = () => calendarNow(timeZone);
+    const today = () => formatLocalDate(now());
     const daysAgo = (n: number) => {
-        const d = new Date();
+        const d = now();
         d.setDate(d.getDate() - n);
         return formatLocalDate(d);
     };
@@ -110,14 +128,14 @@ function buildPresets(copy: Copy, epochDate?: string): Preset[] {
         {
             id: "thisWeek",
             label: copy.presets.thisWeek,
-            getRange: () => ({ from: daysAgo((new Date().getDay() - copy.weekStart + 7) % 7), to: today() }),
+            getRange: () => ({ from: daysAgo((now().getDay() - copy.weekStart + 7) % 7), to: today() }),
         },
         {
             id: "thisMonth",
             label: copy.presets.thisMonth,
             getRange: () => {
-                const now = new Date();
-                return { from: formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)), to: today() };
+                const day = now();
+                return { from: formatLocalDate(new Date(day.getFullYear(), day.getMonth(), 1)), to: today() };
             },
         },
         { id: "last7", label: copy.presets.last7, getRange: () => ({ from: daysAgo(6), to: today() }) },
@@ -125,13 +143,13 @@ function buildPresets(copy: Copy, epochDate?: string): Preset[] {
         {
             id: "thisYear",
             label: copy.presets.thisYear,
-            getRange: () => ({ from: formatLocalDate(new Date(new Date().getFullYear(), 0, 1)), to: today() }),
+            getRange: () => ({ from: formatLocalDate(new Date(now().getFullYear(), 0, 1)), to: today() }),
         },
         {
             id: "pastYear",
             label: copy.presets.pastYear,
             getRange: () => {
-                const yearAgo = new Date();
+                const yearAgo = now();
                 yearAgo.setFullYear(yearAgo.getFullYear() - 1);
                 return { from: formatLocalDate(yearAgo), to: today() };
             },
@@ -172,12 +190,13 @@ export function DateRangePicker({
     inline = false,
     epochDate,
     language = "en",
+    timeZone,
 }: DateRangePickerProps) {
     const copy = COPY[language];
-    const presets = buildPresets(copy, epochDate);
+    const presets = buildPresets(copy, epochDate, timeZone);
     const [isOpen, setIsOpen] = useState(inline); // Start open if inline
     const [activePreset, setActivePreset] = useState<PresetType | null>(null);
-    const [viewDate, setViewDate] = useState(() => new Date());
+    const [viewDate, setViewDate] = useState(() => calendarNow(timeZone));
     const [selectingEnd, setSelectingEnd] = useState(false);
     const [tempFrom, setTempFrom] = useState<string | undefined>(dateFrom);
     const [tempTo, setTempTo] = useState<string | undefined>(dateTo);
@@ -294,7 +313,7 @@ export function DateRangePicker({
 
         const isToday = (day: number) => {
             if (!day) return false;
-            const today = new Date();
+            const today = calendarNow(timeZone);
             return (
                 day === today.getDate() &&
                 month === today.getMonth() &&

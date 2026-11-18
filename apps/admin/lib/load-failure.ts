@@ -49,3 +49,26 @@ export const LOAD_RETRIES = 2;
 export function shouldRetryLoad(failureCount: number, error: unknown): boolean {
   return loadFailureKind(error) === "failed" && failureCount < LOAD_RETRIES;
 }
+
+interface CountRead {
+  /** The count, once the read has answered. */
+  count: number | undefined;
+  isError: boolean;
+}
+
+interface CountWords {
+  loading: string;
+  failed: string;
+  counted: (count: number) => string;
+}
+
+/**
+ * The line a page header writes about a count it read. "0 leads" while the
+ * read is running, or after it failed, tells staff the list is empty when it
+ * may be full; the header says which of the three it is.
+ */
+export function countLine({ count, isError }: CountRead, words: CountWords): string {
+  if (isError) return words.failed;
+  if (count === undefined) return words.loading;
+  return words.counted(count);
+}

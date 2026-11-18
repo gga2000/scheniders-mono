@@ -8,7 +8,9 @@
 --   * it lists what the merchant should know about and leaves internal
 --     steps (notes, tags, call log) out;
 --   * it names the staff member by display name, never by email, and gives
---     null when there is no name.
+--     null when there is no name;
+--   * the shop page's names (plan_change, status_change, auto_renew_toggle,
+--     extend_subscription) reach the merchant as steps they can read.
 --
 -- RESULT: one row, 'ALL ASSERTIONS PASSED', or an error that lists every
 -- failed check.
@@ -41,6 +43,36 @@ INSERT INTO public.admin_activity_logs (admin_user_id, tenant_id, action, create
 SELECT 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002', 'support_view',
        '2026-11-15 00:00+00'::timestamptz + make_interval(mins => g)
 FROM generate_series(1, 60) g;
+
+-- The staff console's shop page (admin_update_shop) and free days on a paying shop.
+INSERT INTO public.admin_activity_logs (admin_user_id, tenant_id, action, details, created_at) VALUES
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'plan_change',
+        '{"plan":"pro","previous_plan":"basic"}', '2026-11-17 01:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'status_change',
+        '{"status":"suspended","previous_status":"active"}', '2026-11-17 02:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'status_change',
+        '{"status":"active","previous_status":"suspended"}', '2026-11-17 03:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'status_change',
+        '{"status":"limited","previous_status":"active"}', '2026-11-17 04:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'status_change',
+        '{"status":"active","previous_status":"trial"}', '2026-11-17 05:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'auto_renew_toggle',
+        '{"auto_renew":false}', '2026-11-17 06:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'auto_renew_toggle',
+        '{"auto_renew":true}', '2026-11-17 07:00+00'),
+    ('a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003', 'extend_subscription',
+        '{"days":7}', '2026-11-17 08:00+00');
+
+DO $$
+DECLARE
+    v jsonb := public.support_staff_visits('b0000000-0000-4000-8000-000000000003');
+    got text[];
+BEGIN
+    SELECT array_agg(e ->> 'action' ORDER BY ord) INTO got FROM jsonb_array_elements(v) WITH ORDINALITY AS x(e, ord);
+    PERFORM pg_temp.check('shop page: every step listed, newest first, in merchant words: ' || coalesce(got::text, 'null'),
+        got = ARRAY['extend_subscription', 'auto_renew_on', 'auto_renew_off', 'status_change',
+                    'status_change', 'reactivate', 'suspend', 'change_plan']);
+END $$;
 
 DO $$
 DECLARE

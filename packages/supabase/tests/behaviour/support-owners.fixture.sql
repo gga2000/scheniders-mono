@@ -22,11 +22,14 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 
+CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'suspended', 'cancelled', 'limited');
+
 CREATE TABLE public.tenants (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     business_name text NOT NULL,
     display_id bigint,
-    status text NOT NULL DEFAULT 'trial',
+    status public.tenant_status NOT NULL DEFAULT 'trial',
+    restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,
     is_demo boolean NOT NULL DEFAULT false,
     is_prospect boolean NOT NULL DEFAULT false,
     trial_ends_at timestamptz,

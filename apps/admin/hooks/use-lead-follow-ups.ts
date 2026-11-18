@@ -1,23 +1,8 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LeadFollowUp } from "@/types/leads";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminFetch } from "@/lib/admin-fetch";
-import { okOrLoadFailure } from "@/lib/load-failure";
-
-export function useLeadFollowUps(leadId: string | null) {
-  return useQuery<LeadFollowUp[]>({
-    queryKey: ["lead-follow-ups", leadId],
-    queryFn: async () => {
-      const res = await adminFetch(`/api/leads/${leadId}/follow-ups`);
-      okOrLoadFailure(res, "follow-ups");
-      const data = await res.json();
-      return data.follow_ups;
-    },
-    enabled: !!leadId,
-    staleTime: 30_000,
-  });
-}
+import { refusal } from "@/lib/refusal";
 
 export function useCreateFollowUp() {
   const qc = useQueryClient();
@@ -37,11 +22,15 @@ export function useCreateFollowUp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create follow-up");
+      if (!res.ok) throw new Error(await refusal(res, "Could not save the follow-up."));
       return res.json();
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["lead-follow-ups", vars.leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
+    },
+    // A refusal may mean a colleague deleted the lead: read it again, so the
+    // page says so (lead-detail's "deleted" state).
+    onError: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
   });
@@ -56,11 +45,15 @@ export function useCompleteFollowUp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_completed: true }),
       });
-      if (!res.ok) throw new Error("Failed to complete follow-up");
+      if (!res.ok) throw new Error(await refusal(res, "Could not mark the follow-up done."));
       return res.json();
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["lead-follow-ups", vars.leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
+    },
+    // A refusal may mean a colleague deleted the lead: read it again, so the
+    // page says so (lead-detail's "deleted" state).
+    onError: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["lead", vars.leadId] });
     },
   });

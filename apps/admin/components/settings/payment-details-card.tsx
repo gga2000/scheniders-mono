@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { z } from "zod";
 import { Check, Landmark, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
-import { paymentDetailsSchema, type PaymentDetails } from "@/lib/topup-queue";
+import { cn } from "@/lib/utils";
+import { EMPTY_PAYMENT_DETAILS, paymentDetailsSchema, type PaymentDetails } from "@/lib/topup-queue";
 
-const KEY = ["admin", "payment-details"] as const;
 const responseSchema = z.object({ details: paymentDetailsSchema, updated_at: z.string().nullable() });
+
+/** Shared with the Settings page, which starts the read before the card is drawn. */
+export const paymentDetailsQuery = queryOptions({
+  queryKey: ["admin", "payment-details"] as const,
+  queryFn: async () => responseSchema.parse(await okOrLoadFailure(await adminFetch("/api/settings/payment-details"), "the payment details").json()),
+});
 
 const FIELDS: { key: keyof PaymentDetails; label: string; hint: string; ltr?: boolean }[] = [
   { key: "qi_card", label: "Qi card number", hint: "Shops transfer to this number.", ltr: true },
@@ -26,10 +32,7 @@ const FIELDS: { key: keyof PaymentDetails; label: string; hint: string; ltr?: bo
  */
 export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery({
-    queryKey: KEY,
-    queryFn: async () => responseSchema.parse(await okOrLoadFailure(await adminFetch("/api/settings/payment-details"), "the payment details").json()),
-  });
+  const { data, isLoading, isError } = useQuery(paymentDetailsQuery);
 
   const save = useMutation({
     mutationFn: async (details: PaymentDetails) => {
@@ -41,7 +44,7 @@ export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(typeof body?.error === "string" ? body.error : `Save failed: ${res.status}`);
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: paymentDetailsQuery.queryKey }),
   });
 
   return (
@@ -59,9 +62,8 @@ export function PaymentDetailsCard({ canEdit }: { canEdit: boolean }) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/70">
-          <Loader2 className="w-5 h-5 animate-spin" />
-        </div>
+        // The empty form, greyed, holds the card's height until the details arrive.
+        <PaymentDetailsForm saved={EMPTY_PAYMENT_DETAILS} canEdit={canEdit} save={save} loading />
       ) : isError || !data ? (
         <p className="text-xs text-[var(--ink-red)]">Could not load the payment details. Reload the page.</p>
       ) : (
@@ -76,10 +78,12 @@ function PaymentDetailsForm({
   saved,
   canEdit,
   save,
+  loading = false,
 }: {
   saved: PaymentDetails;
   canEdit: boolean;
   save: UseMutationResult<void, Error, PaymentDetails>;
+  loading?: boolean;
 }) {
   const [form, setForm] = useState<PaymentDetails>(saved);
   const dirty = (Object.keys(form) as (keyof PaymentDetails)[]).some((k) => form[k] !== saved[k]);
@@ -87,7 +91,8 @@ function PaymentDetailsForm({
 
   return (
     <form
-      className="grid grid-cols-1 gap-3 md:grid-cols-2"
+      aria-busy={loading || undefined}
+      className={cn("grid grid-cols-1 gap-3 md:grid-cols-2", loading && "opacity-50")}
       onSubmit={(e) => {
         e.preventDefault();
         if (valid.success) save.mutate(valid.data);
@@ -100,7 +105,7 @@ function PaymentDetailsForm({
             type="text"
             dir={f.ltr ? "ltr" : "auto"}
             value={form[f.key]}
-            disabled={!canEdit}
+            disabled={!canEdit || loading}
             onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
             className="rounded-xl bg-white/80 px-3 py-1.5 text-sm ring-1 ring-foreground/10 outline-none focus:ring-foreground/30 disabled:opacity-60 dark:bg-white/10"
             data-testid={`payment-details-${f.key}`}
@@ -110,7 +115,7 @@ function PaymentDetailsForm({
       ))}
       {canEdit && (
         <div className="md:col-span-2 flex items-center justify-end gap-3">
-          {!valid.success && <span className="text-xs text-[var(--ink-red)]">{valid.error.issues[0]?.message}</span>}
+          {!loading && !valid.success && <span className="text-xs text-[var(--ink-red)]">{valid.error.issues[0]?.message}</span>}
           {save.isError && <span className="text-xs text-[var(--ink-red)]">{save.error.message}</span>}
           {save.isSuccess && !dirty && (
             <span className="inline-flex items-center gap-1 text-xs text-[var(--ink-green)]">
@@ -120,7 +125,7 @@ function PaymentDetailsForm({
           )}
           <button
             type="submit"
-            disabled={!dirty || !valid.success || save.isPending}
+            disabled={loading || !dirty || !valid.success || save.isPending}
             className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-1.5 text-xs font-semibold text-background disabled:opacity-40"
           >
             {save.isPending && <Loader2 className="w-3 h-3 animate-spin" />}

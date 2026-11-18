@@ -26,10 +26,10 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   stub.state.functions.admin_income_stats = () => ({ data: incomeStats(), error: null });
   stub.state.tables.tenants = [
-    { id: SHOP_A, is_demo: false, business_name: "Kut Shop", created_at: "2026-04-01T09:00:00Z" },
-    { id: SHOP_B, is_demo: false, business_name: "New Shop", created_at: "2026-11-02T09:00:00Z" },
-    { id: SHOP_C, is_demo: false, business_name: "Quiet Shop", created_at: "2026-11-03T09:00:00Z" },
-    { id: "demo", is_demo: true, business_name: "Fermi B13", created_at: "2026-11-10T09:00:00Z" },
+    { id: SHOP_A, is_demo: false, is_prospect: false, business_name: "Kut Shop", created_at: "2026-04-01T09:00:00Z" },
+    { id: SHOP_B, is_demo: false, is_prospect: false, business_name: "New Shop", created_at: "2026-11-02T09:00:00Z" },
+    { id: SHOP_C, is_demo: false, is_prospect: false, business_name: "Quiet Shop", created_at: "2026-11-03T09:00:00Z" },
+    { id: "demo", is_demo: true, is_prospect: false, business_name: "Fermi B13", created_at: "2026-11-10T09:00:00Z" },
   ];
 });
 
@@ -41,7 +41,7 @@ describe("GET /api/revenue", () => {
     expect(stub.tablesRead()).toEqual(["tenants"]);
     expect(stub.callsTo("tenants.select").flat().join(",")).not.toContain("wallet");
     // The demo store (Fermi B13) is in no platform number.
-    expect(stub.callsTo("tenants.eq")).toContainEqual(["is_demo", false]);
+    expect(stub.callsTo("tenants.match")).toContainEqual([{ is_demo: false, is_prospect: false }]);
   });
 
   it("counts our fees as income and reports other charges apart", async () => {
@@ -73,13 +73,29 @@ describe("GET /api/revenue", () => {
     // Three shops, one of which never paid: (31,960 + 9,000 + 0) / 3.
     expect(body.avgLTV).toBe(13_653);
     expect(body.ltvDistribution[0]).toEqual({ label: "0 IQD", count: 1 });
-    expect(body.cohorts.at(-1)).toEqual({ cohort: "2026-11", tenantCount: 2, months: [10_160, 0, 0, 0, 0, 0] });
+    expect(body.cohorts.at(-1)).toEqual({
+      cohort: "2026-11",
+      tenantCount: 2,
+      months: [10_160, null, null, null, null, null],
+    });
+  });
+
+  it("leaves a cohort's months still to come empty, and keeps 0 and a refund month as they are", async () => {
+    stub.state.functions.admin_income_stats = () => ({
+      data: { ...incomeStats(), cohorts: [{ cohort: "2026-09", tenants: 3, months: [5_000, 0, -1_000, 0, 0, 0] }] },
+      error: null,
+    });
+
+    const body = await (await call()).json();
+
+    // Today is 16 Nov: September's shops have lived through Sep, Oct and Nov (M0 to M2).
+    expect(body.cohorts).toEqual([{ cohort: "2026-09", tenantCount: 3, months: [5_000, 0, -1_000, null, null, null] }]);
   });
 
   it("averages fees over every shop past the first 1,000 rows", async () => {
     const quiet = Array.from({ length: SERVER_MAX_ROWS + 497 }, (_, i) => ({
       id: `quiet-${String(i).padStart(5, "0")}`,
-      is_demo: false,
+      is_demo: false, is_prospect: false,
       business_name: `Quiet ${i}`,
       created_at: "2026-10-01T09:00:00Z",
     }));

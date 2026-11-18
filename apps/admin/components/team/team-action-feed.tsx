@@ -3,59 +3,17 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Inbox } from "lucide-react";
-import type { AdminEmployeeTracking } from "@/types/leads";
+import type { StaffAction } from "@/types/leads";
 import { formatWhen } from "@/lib/format";
 
 interface TeamActionFeedProps {
-  actions: AdminEmployeeTracking[];
-  showUser?: boolean;
+  actions: StaffAction[];
 }
 
-// ── Action type to human-readable text ─────────────────────────────────
-const ACTION_TEXT_MAP: Record<string, (entity: string) => string> = {
-  "lead.create": (e) => `Added new lead ${e}`,
-  "lead.status_change": (e) => `Changed status of ${e}`,
-  "lead.convert": (e) => `Converted lead ${e}`,
-  "lead.store_build": (e) => `Built store for ${e}`,
-  "lead.call": (e) => `Called ${e}`,
-  "lead.whatsapp": (e) => `Sent WhatsApp to ${e}`,
-  "lead.email": (e) => `Emailed ${e}`,
-  "lead.note": (e) => `Added note on ${e}`,
-  "lead.follow_up": (e) => `Scheduled follow-up for ${e}`,
-  "lead.assign": (e) => `Assigned lead ${e}`,
-  "lead.score_change": (e) => `Score updated for ${e}`,
-  "lead.tag_change": (e) => `Updated tags on ${e}`,
-  "merchant.create": (e) => `Created merchant ${e}`,
-  "merchant.update": (e) => `Updated merchant ${e}`,
-  "merchant.suspend": (e) => `Suspended merchant ${e}`,
-  "merchant.reactivate": (e) => `Reactivated merchant ${e}`,
-  "merchant.top_up": (e) => `Topped up wallet for ${e}`,
-  "merchant.plan_change": (e) => `Changed plan for ${e}`,
-  "system.login": () => "Logged in",
-  "system.logout": () => "Logged out",
-  "system.export": (e) => `Exported ${e}`,
-};
-
-function getActionText(action: string, metadata: Record<string, unknown>): string {
-  const entity =
-    (metadata.merchant_name as string) ??
-    (metadata.lead_name as string) ??
-    (metadata.entity_name as string) ??
-    "";
-
-  const mapper = ACTION_TEXT_MAP[action];
-  if (mapper) return mapper(entity);
-
-  // Fallback: humanize the action string
-  const humanized = action
-    .replace(/[._]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-  return entity ? `${humanized} - ${entity}` : humanized;
-}
-
-function getActionCategory(action: string): "lead" | "merchant" | "system" {
-  if (action.startsWith("lead.")) return "lead";
-  if (action.startsWith("merchant.")) return "merchant";
+/** Lead work, a shop, or the console itself. */
+function getActionCategory(item: StaffAction): "lead" | "merchant" | "system" {
+  if (item.action.includes("lead")) return "lead";
+  if (item.shop) return "merchant";
   return "system";
 }
 
@@ -65,13 +23,12 @@ const categoryColors: Record<string, { dot: string; bg: string }> = {
   system: { dot: "bg-gray-400", bg: "bg-gray-500/5" },
 };
 
-export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
+export function TeamActionFeed({ actions }: TeamActionFeedProps) {
   const items = useMemo(() => {
     return actions.map((action) => {
-      const category = getActionCategory(action.action);
+      const category = getActionCategory(action);
       return {
         ...action,
-        text: getActionText(action.action, action.metadata),
         category,
         colors: categoryColors[category],
         relativeTime: formatWhen(action.created_at),
@@ -94,78 +51,40 @@ export function TeamActionFeed({ actions, showUser }: TeamActionFeedProps) {
   return (
     <div className="pastel-card p-5">
       <div className="space-y-0">
-        {items.map((item) => {
-          const userInitial = item.admin_user
-            ? (item.admin_user.display_name ?? item.admin_user.email)
-                .charAt(0)
-                .toUpperCase()
-            : null;
-
-          return (
-            <div
-              key={item.id}
-              className="flex gap-3 py-3 border-b border-[var(--card-border)] last:border-0"
-            >
-              {/* User avatar (optional) or category dot */}
-              <div className="mt-0.5 flex-shrink-0">
-                {showUser && item.admin_user ? (
-                  item.admin_user.avatar_url ? (
-                    <img
-                      src={item.admin_user.avatar_url}
-                      alt=""
-                      className="w-7 h-7 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-lg bg-foreground/10 flex items-center justify-center text-foreground text-xs font-bold">
-                      {userInitial}
-                    </div>
-                  )
-                ) : (
-                  <div className="mt-1">
-                    <div
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        item.colors.dot
-                      )}
-                    />
-                  </div>
-                )}
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="flex gap-3 py-3 border-b border-[var(--card-border)] last:border-0"
+          >
+            {/* Category dot */}
+            <div className="mt-0.5 flex-shrink-0">
+              <div className="mt-1">
+                <div className={cn("w-2 h-2 rounded-full", item.colors.dot)} />
               </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                {showUser && item.admin_user && (
-                  <p className="text-xs text-foreground/70 font-medium mb-0.5">
-                    {item.admin_user.display_name ??
-                      item.admin_user.email.split("@")[0]}
-                  </p>
-                )}
-                <p className="text-sm text-foreground">{item.text}</p>
-                {item.entity_type && (
-                  <span
-                    className={cn(
-                      "inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium",
-                      item.colors.bg,
-                      item.category === "lead"
-                        ? "text-[var(--ink-blue)]"
-                        : item.category === "merchant"
-                          ? "text-[var(--ink-violet)]"
-                          : "text-[var(--muted)]"
-                    )}
-                  >
-                    {item.entity_type}
-                    {item.entity_id ? ` #${item.entity_id.slice(0, 8)}` : ""}
-                  </span>
-                )}
-              </div>
-
-              {/* Timestamp */}
-              <span className="text-xs text-foreground/70 flex-shrink-0 mt-0.5 whitespace-nowrap">
-                {item.relativeTime}
-              </span>
             </div>
-          );
-        })}
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground">{item.text}</p>
+              {item.shop && (
+                <span
+                  className={cn(
+                    "inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium",
+                    item.colors.bg,
+                    item.category === "lead" ? "text-[var(--ink-blue)]" : "text-[var(--ink-violet)]"
+                  )}
+                >
+                  {item.shop.name ?? `Shop #${item.shop.id.slice(0, 8)}`}
+                </span>
+              )}
+            </div>
+
+            {/* Timestamp */}
+            <span className="text-xs text-foreground/70 flex-shrink-0 mt-0.5 whitespace-nowrap">
+              {item.relativeTime}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -6,6 +6,9 @@ import { logAdminAction } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
 import { dayOf, trialClock } from "@/lib/baghdad-day";
 import { everyRow } from "@/lib/every-row";
+import { CUSTOMER_SHOP, CUSTOMER_SHOP_EMBEDDED } from "@/lib/customer-shops";
+import { ON_TRIAL_FILTER } from "@/lib/effective-status";
+import { CROSS_SITE_READ, isOwnPageRead } from "@/lib/same-origin";
 
 const VALID_TYPES = ["merchants", "transactions", "trials"] as const;
 const VALID_FORMATS = ["csv", "json"] as const;
@@ -46,8 +49,8 @@ async function fetchMerchants(supabase: ReturnType<typeof createAdminClient>, id
         .select(
           "id, business_name, slug, plan, status, city, contact_email, contact_phone, created_at, wallet(balance_iqd, total_charged_iqd, total_topped_up_iqd)"
         )
-        // The demo store (Fermi B13) is no customer.
-        .eq("is_demo", false);
+        // The demo store and prospect stores (lib/customer-shops) are no customers.
+        .match(CUSTOMER_SHOP);
       if (only) query = query.in("id", [...only]);
       return query.order("created_at", { ascending: true }).order("id", { ascending: true }).range(from, to);
     });
@@ -88,8 +91,10 @@ async function fetchTransactions(supabase: ReturnType<typeof createAdminClient>)
     supabase
       .from("wallet_transactions")
       .select(
-        "id, tenant_id, type, amount_iqd, balance_after_iqd, description, created_at, tenants(business_name)"
+        "id, tenant_id, type, amount_iqd, balance_after_iqd, description, created_at, tenants!inner(business_name)"
       )
+      // The demo store and prospect stores hold no real money (lib/customer-shops), as on Wallets.
+      .match(CUSTOMER_SHOP_EMBEDDED)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .range(from, to)
@@ -117,7 +122,10 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
       .select(
         "id, business_name, slug, plan, trial_ends_at, city, contact_email, created_at"
       )
-      .eq("status", "trial")
+      // On trial, paused or not: the shops Trials lists (lib/effective-status).
+      .or(ON_TRIAL_FILTER)
+      // A prospect store is "trial" until its lead signs up; it is no customer's trial.
+      .match(CUSTOMER_SHOP)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to)
@@ -134,6 +142,10 @@ async function fetchTrials(supabase: ReturnType<typeof createAdminClient>) {
 
 /** GET /api/export?type=…&format=… — the whole list as a file. */
 export async function GET(request: NextRequest) {
+  // A GET that starts a file and logs it: only from the console's own pages.
+  if (!isOwnPageRead(request.headers)) {
+    return NextResponse.json({ error: CROSS_SITE_READ }, { status: 403 });
+  }
   const auth = await requireAdminPermission(request, "export_data");
   if (auth instanceof NextResponse) return auth;
 

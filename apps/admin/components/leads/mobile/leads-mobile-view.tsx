@@ -4,15 +4,18 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useInfiniteLeads } from "@/hooks/use-infinite-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
-import { useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
+import { useCreateLead, useDeleteLead } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
 import { LEAD_STATUS_CONFIG, LEAD_STATUS_UI } from "@/types/leads";
 import type { Lead, LeadFormData, LeadStatus } from "@/types/leads";
-import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
+import { DRAFT_PLACEHOLDER_NAME } from "../lead-form-data";
+import { useResumedDraft } from "../use-resumed-draft";
+import { leadsCountLine } from "../leads-count";
 import { LeadMobileRow } from "./lead-mobile-row";
 import { LeadRegisterSheet } from "./lead-register-sheet";
 import { AdvanceStageSheet } from "./advance-stage-sheet";
 import { toast } from "sonner";
+import { useCan } from "@/hooks/use-admin-auth";
 import {
   Search,
   X,
@@ -25,7 +28,6 @@ import {
 export function LeadsMobileView() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [stageLead, setStageLead] = useState<Lead | null>(null);
-  const [draftLead, setDraftLead] = useState<Lead | null>(null);
 
   const {
     data,
@@ -34,9 +36,11 @@ export function LeadsMobileView() {
     isFetchingNextPage,
     isLoading,
     isError,
+    refetch,
   } = useInfiniteLeads();
 
   const leads = data?.pages.flatMap((p) => p.leads) ?? [];
+  const resumed = useResumedDraft(leads);
   const total = data?.pages[0]?.total ?? 0;
 
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } =
@@ -46,15 +50,11 @@ export function LeadsMobileView() {
   const byStatus = analytics?.by_status;
 
   const createLead = useCreateLead();
-  const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
+  const can = useCan();
+  // A refused save rejects with the server's words; the form shows them.
   const handleCreate = (formData: LeadFormData): Promise<boolean> =>
-    new Promise((resolve) => {
-      createLead.mutate(formData, {
-        onSuccess: () => resolve(true),
-        onError: () => resolve(false),
-      });
-    });
+    createLead.mutateAsync(formData).then(() => true);
 
   // Auto-save an in-progress lead as a draft when the sheet is dismissed.
   const handleSaveDraft = (formData: LeadFormData) =>
@@ -67,9 +67,17 @@ export function LeadsMobileView() {
       {
         onSuccess: (res) => {
           const id = res?.lead?.id as string | undefined;
+          // Deleting needs delete_leads (api/leads/[id]): offer Discard only to a login that has it.
+          const discard = id && can("delete_leads") ? id : null;
           toast.success("Saved as draft", {
-            description: "Find it in your list — or discard it.",
-            action: id ? { label: "Discard", onClick: () => deleteLead.mutate(id) } : undefined,
+            description: discard ? "Find it in your list, or discard it." : "Find it in your list.",
+            action: discard
+              ? {
+                  label: "Discard",
+                  onClick: () =>
+                    deleteLead.mutate(discard, { onError: (e) => toast.error(`Could not discard the draft: ${e.message}`) }),
+                }
+              : undefined,
           });
         },
         onError: () => toast.error("Couldn't save the draft"),
@@ -81,7 +89,7 @@ export function LeadsMobileView() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
         <p className="text-[13px] text-foreground/70">
-          {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+          {leadsCountLine({ count: data?.pages[0]?.total, isError })}
         </p>
       </div>
 
@@ -168,7 +176,7 @@ export function LeadsMobileView() {
           </p>
           <button
             type="button"
-            onClick={() => fetchNextPage()}
+            onClick={() => void refetch()}
             className="rounded-xl border border-[var(--card-border)] px-5 py-2 text-sm font-semibold hover:bg-[var(--card-bg)] transition-colors"
           >
             Retry
@@ -189,7 +197,7 @@ export function LeadsMobileView() {
             <UserPlus className="h-7 w-7 text-[#FF8899]" />
           </div>
           <p className="text-sm font-bold text-[var(--foreground)]">
-            No prospects yet
+            No leads yet
           </p>
           <button
             type="button"
@@ -207,7 +215,7 @@ export function LeadsMobileView() {
               key={l.id}
               lead={l}
               onStatusTap={setStageLead}
-              onResumeDraft={setDraftLead}
+              onResumeDraft={resumed.resume}
             />
           ))}
         </div>
@@ -251,27 +259,7 @@ export function LeadsMobileView() {
       />
 
       {/* Resume an in-progress draft — saving promotes it to a real lead */}
-      <LeadRegisterSheet
-        key={draftLead?.id ?? "no-draft"}
-        open={!!draftLead}
-        onOpenChange={(v) => {
-          if (!v) setDraftLead(null);
-        }}
-        initialData={draftLead ? leadToFormData(draftLead) : undefined}
-        onSubmit={(formData) =>
-          new Promise<boolean>((resolve) => {
-            if (!draftLead) return resolve(false);
-            updateLead.mutate(
-              { id: draftLead.id, data: { ...formData, is_draft: false } },
-              { onSuccess: () => resolve(true), onError: () => resolve(false) },
-            );
-          })
-        }
-        onSaveDraft={(formData) => {
-          if (!draftLead) return;
-          updateLead.mutate({ id: draftLead.id, data: { ...formData, is_draft: true } });
-        }}
-      />
+      <LeadRegisterSheet key={resumed.formKey} {...resumed.form} />
 
       <AdvanceStageSheet lead={stageLead} onClose={() => setStageLead(null)} />
     </div>

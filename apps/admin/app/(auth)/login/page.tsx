@@ -1,13 +1,35 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
+import { NO_CONSOLE_ACCESS, SIGN_IN_ENDED } from "@/lib/staff-sign-in";
+import { NEXT_PAGE, pageAfterSignIn } from "@/lib/page-after-sign-in";
+import { holdsLiveSignIn } from "@/lib/admin-fetch";
 
 // Public Cloudflare Turnstile key. Unset = no box (only while Supabase CAPTCHA is off).
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+
+/** The reason in the address the console sent staff here with, if any. */
+function sentHereFor(): string {
+  return new URLSearchParams(window.location.search).get("error") ?? "";
+}
+
+/** The console page staff asked for before the console sent them here, or Home. */
+function pageAsked(): string {
+  return pageAfterSignIn(new URLSearchParams(window.location.search).get(NEXT_PAGE));
+}
+
+/** The address does not change while the login page is open. */
+const unwatched = () => () => {};
+
+/** Why the console sent staff here (middleware.ts), in words they can act on. */
+const SENT_HERE = new Map([
+  ["expired", SIGN_IN_ENDED],
+  ["forbidden", NO_CONSOLE_ACCESS],
+]);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,11 +42,39 @@ export default function LoginPage() {
   const captchaRef = useRef<TurnstileHandle>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaReady = TURNSTILE_SITE_KEY === "" || captchaToken !== null;
+  // The security check could not run (its script was blocked, or Cloudflare
+  // refused it): Sign in stays off, so say why and offer to run it again.
+  const [captchaFailed, setCaptchaFailed] = useState(false);
+  const [captchaRun, setCaptchaRun] = useState(0);
+  const onCaptchaToken = (token: string | null) => {
+    setCaptchaToken(token);
+    if (token) setCaptchaFailed(false);
+  };
 
+  // Read from the address itself, after the server's render (no Suspense needed).
+  const sentHere = SENT_HERE.get(useSyncExternalStore(unwatched, sentHereFor, () => "")) ?? null;
+
+  // A sign-in the console just ended is not sent back in: if ending it failed,
+  // the console would send it here again, round and round. A sign-in made
+  // since, in this tab or another, goes on (round 16: a second tab kept saying
+  // "Your sign-in ended" after staff signed in on the first).
   useEffect(() => {
-    if (user) {
-      router.push("/");
+    if (!user) return;
+    if (sentHereFor() !== "expired") {
+      router.push(pageAsked());
+      return;
     }
+    let current = true;
+    holdsLiveSignIn().then(
+      (live) => {
+        if (current && live) router.push(pageAsked());
+      },
+      // Could not check: the page stays, and its form still signs in.
+      (error: unknown) => console.error("[login] Could not check the sign-in", error),
+    );
+    return () => {
+      current = false;
+    };
   }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,12 +88,16 @@ export default function LoginPage() {
         setError(result.error);
       } else {
         router.refresh();
-        router.push("/");
+        router.push(pageAsked());
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to sign in");
+      setError(err instanceof Error ? `Could not sign in: ${err.message}` : "Could not sign in. Try again.");
     } finally {
       setLoading(false);
+      // A token works once. The box may not be on screen to drop it: the
+      // spinner stands in for the card while a sign-in runs, so a new box
+      // comes back and Sign in waits for its token.
+      setCaptchaToken(null);
       captchaRef.current?.reset();
     }
   };
@@ -72,10 +126,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="p-3 rounded-xl bg-red-500/5 border border-red-200 text-sm text-[var(--ink-red)]">
-            {error}
+        {/* Error. The card stays white in dark mode, so its red is the light one. */}
+        {(error ?? sentHere) && (
+          <div role="alert" className="p-3 rounded-xl bg-red-500/5 border border-red-200 text-sm text-[#991B1B]">
+            {error ?? sentHere}
           </div>
         )}
 
@@ -114,12 +168,29 @@ export default function LoginPage() {
           </div>
 
           <TurnstileBox
+            key={captchaRun}
             ref={captchaRef}
             siteKey={TURNSTILE_SITE_KEY}
-            onToken={setCaptchaToken}
+            onToken={onCaptchaToken}
+            onFailure={() => setCaptchaFailed(true)}
             language="en"
             frameClassName="rounded-xl border border-[#E7E5E4] bg-white"
           />
+          {captchaFailed && (
+            <div role="alert" className="flex items-center justify-between gap-3 text-sm text-[#991B1B]">
+              <span>The security check did not finish, so Sign in is off. If it fails again, refresh the page.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptchaFailed(false);
+                  setCaptchaRun((run) => run + 1);
+                }}
+                className="shrink-0 font-semibold text-[#1E1E1E] underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"

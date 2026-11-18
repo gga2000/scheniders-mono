@@ -13,6 +13,9 @@ import {
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
+import { staffActionText, staffLogSummary } from "@/lib/staff-actions";
+import { ACTIVITY_KINDS, isActivityKind, type ActivityKind } from "@/lib/activity-kinds";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -27,7 +30,7 @@ interface ActivityLog {
   admin_label: string | null;
   actor_email: string | null;
   created_at: string;
-  business_name?: string;
+  business_name: string | null;
 }
 
 interface ActivityResponse {
@@ -38,56 +41,26 @@ interface ActivityResponse {
 }
 
 /* ------------------------------------------------------------------ */
-/* Constants                                                           */
-/* ------------------------------------------------------------------ */
-
-const ACTION_OPTIONS = [
-  { value: "", label: "All Actions" },
-  { value: "login", label: "Login" },
-  { value: "create", label: "Create" },
-  { value: "update", label: "Update" },
-  { value: "delete", label: "Delete" },
-  { value: "top_up_wallet", label: "Top Up Wallet" },
-  { value: "change_plan", label: "Change Plan" },
-  { value: "extend_trial", label: "Extend Trial" },
-  { value: "suspend_tenant", label: "Suspend Tenant" },
-  { value: "impersonate", label: "Impersonate" },
-];
-
-/* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function getActionBadge(action: string): { bg: string; text: string } {
+/** The step in plain words (the Team page's words), tinted by its kind. */
+function getActionBadge(action: string, details: Record<string, unknown> | null): { bg: string; text: string } {
+  const text = staffActionText(action, details);
   const lower = action.toLowerCase();
   if (lower.includes("login") || lower.includes("auth") || lower.includes("sign") || lower.includes("impersonate")) {
-    return { bg: "bg-blue-500/15 text-[var(--ink-blue)]", text: action };
+    return { bg: "bg-blue-500/15 text-[var(--ink-blue)]", text };
   }
   if (lower.includes("create") || lower.includes("add") || lower.includes("new") || lower.includes("top_up")) {
-    return { bg: "bg-green-500/15 text-[var(--ink-green)]", text: action };
+    return { bg: "bg-green-500/15 text-[var(--ink-green)]", text };
   }
   if (lower.includes("update") || lower.includes("edit") || lower.includes("change") || lower.includes("extend")) {
-    return { bg: "bg-amber-500/15 text-[var(--ink-amber)]", text: action };
+    return { bg: "bg-amber-500/15 text-[var(--ink-amber)]", text };
   }
   if (lower.includes("delete") || lower.includes("remove") || lower.includes("suspend") || lower.includes("cancel")) {
-    return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text: action };
+    return { bg: "bg-rose-500/15 text-[var(--ink-red)]", text };
   }
-  return { bg: "bg-gray-500/15 text-[var(--muted)]", text: action };
-}
-
-function summarizeDetails(details: Record<string, unknown> | null): string {
-  if (!details || Object.keys(details).length === 0) return "\u2014";
-
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(details)) {
-    if (value === null || value === undefined) continue;
-    if (typeof value === "object") continue;
-    const displayKey = key.replace(/_/g, " ");
-    parts.push(`${displayKey}: ${String(value)}`);
-    if (parts.length >= 2) break;
-  }
-
-  return parts.length > 0 ? parts.join(" | ") : "\u2014";
+  return { bg: "bg-gray-500/15 text-[var(--muted)]", text };
 }
 
 function shortenId(id: string): string {
@@ -115,18 +88,18 @@ function actorLabel(log: {
 
 export default function ActivityLogPage() {
   const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<ActivityKind | null>(null);
   const limit = 50;
 
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("limit", String(limit));
-  if (actionFilter) params.set("action", actionFilter);
+  if (kindFilter) params.set("kind", kindFilter);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ActivityResponse>({
-    queryKey: ["admin", "activity", page, actionFilter],
+    queryKey: ["admin", "activity", page, kindFilter],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch(`/api/activity?${params.toString()}`), "the activity log");
+      const res = okOrLoadFailure(await adminFetch(`/api/activity?${params.toString()}`), "the activity log");
       return res.json();
     },
     staleTime: 30_000,
@@ -158,33 +131,35 @@ export default function ActivityLogPage() {
           {/* Action Filter Pill */}
           <div className="relative inline-flex items-center">
             <select
-              value={actionFilter ?? ""}
+              aria-label="Kind of step"
+              value={kindFilter ?? ""}
               onChange={(e) => {
-                setActionFilter(e.target.value || null);
+                setKindFilter(isActivityKind(e.target.value) ? e.target.value : null);
                 setPage(1);
               }}
               className={`
                 appearance-none pr-7 pl-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer
                 ${
-                  actionFilter
+                  kindFilter
                     ? "border-[#1E1E1E] text-[#1E1E1E] bg-[var(--card-bg)] shadow-sm"
                     : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30 bg-[var(--card-bg)]"
                 }
               `}
             >
-              {ACTION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              <option value="">All steps</option>
+              {ACTIVITY_KINDS.map((kind) => (
+                <option key={kind.value} value={kind.value}>
+                  {kind.label}
                 </option>
               ))}
             </select>
             <ChevronDown className="pointer-events-none absolute right-2 h-3 w-3 text-foreground/70" />
           </div>
 
-          {actionFilter && (
+          {kindFilter && (
             <button
               onClick={() => {
-                setActionFilter(null);
+                setKindFilter(null);
                 setPage(1);
               }}
               className="text-xs text-foreground/70 hover:text-foreground underline transition-colors"
@@ -203,8 +178,17 @@ export default function ActivityLogPage() {
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
           <FileText className="w-12 h-12 mb-3" />
-          <p className="text-lg font-semibold">No activity logged yet</p>
-          <p className="text-sm mt-1">Actions performed in the admin panel will appear here.</p>
+          {kindFilter ? (
+            <>
+              <p className="text-lg font-semibold">No steps of this kind</p>
+              <p className="text-sm mt-1">Clear the filter to see every step.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-semibold">No activity logged yet</p>
+              <p className="text-sm mt-1">Actions performed in the admin panel will appear here.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="pastel-card overflow-hidden">
@@ -222,7 +206,7 @@ export default function ActivityLogPage() {
                     Details
                   </th>
                   <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-                    Tenant
+                    Shop
                   </th>
                   <th className="p-3 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Admin
@@ -231,7 +215,7 @@ export default function ActivityLogPage() {
               </thead>
               <tbody>
                 {logs.map((log) => {
-                  const badge = getActionBadge(log.action);
+                  const badge = getActionBadge(log.action, log.details);
                   return (
                     <tr
                       key={log.id}
@@ -250,7 +234,7 @@ export default function ActivityLogPage() {
                         </span>
                       </td>
                       <td className="p-3 text-foreground/70 max-w-xs truncate">
-                        {summarizeDetails(log.details)}
+                        {staffLogSummary(log.action, log.details) ?? "\u2014"}
                       </td>
                       <td className="p-3 text-foreground/70">
                         {log.business_name || (log.tenant_id ? shortenId(log.tenant_id) : "\u2014")}

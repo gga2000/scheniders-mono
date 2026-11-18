@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { SPIKE_WINDOW_MINUTES, findSpike, type SpikeMessage } from "@/lib/support-spike";
+import { CUSTOMER_SHOP_EMBEDDED } from "@/lib/customer-shops";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,9 @@ export async function GET(request: NextRequest) {
   const since = new Date(Date.now() - SPIKE_WINDOW_MINUTES * 60_000).toISOString();
   const { data, error } = await createAdminClient()
     .from("support_messages")
-    .select("tenant_id, body, context, tenants!inner(is_demo)")
+    .select("tenant_id, body, context, tenants!inner(is_demo, is_prospect)")
     .eq("sender_kind", "merchant")
-    .eq("tenants.is_demo", false)
+    .match(CUSTOMER_SHOP_EMBEDDED)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(MESSAGE_LIMIT);

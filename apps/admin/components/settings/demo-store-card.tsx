@@ -16,6 +16,16 @@ import {
 
 const KEY = ["admin", "demo-store"] as const;
 
+const RESET_NOTE =
+  "Reset puts back the same store with dates moved to today; anything recorded in it is lost. Open signs this " +
+  "browser in to the merchant app as the demo owner, so use a private window if you are signed in to a real " +
+  "store there.";
+
+/** A pale button the size of a real one, so the card keeps its height while loading. */
+function ButtonShape({ label }: { label: string }) {
+  return <span className="inline-flex rounded-xl bg-foreground/5 px-4 py-1.5 text-xs text-transparent">{label}</span>;
+}
+
 async function post(action: DemoAction): Promise<unknown> {
   const res = await adminFetch("/api/demo-store", {
     method: "POST",
@@ -92,8 +102,15 @@ export function DemoStoreCard() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-6 text-foreground/70">
-          <Loader2 className="w-5 h-5 animate-spin" />
+        // The store's own layout in outline, so its line, buttons and note
+        // arrive without pushing the cards below down.
+        <div className="space-y-3" aria-busy="true">
+          <p className="w-64 max-w-full rounded-md bg-foreground/5 text-xs">&nbsp;</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <ButtonShape label="Open as its owner" />
+            <ButtonShape label="Reset demo data" />
+          </div>
+          <p className="text-xs text-foreground/70">{RESET_NOTE}</p>
         </div>
       ) : isError || !data ? (
         <p className="text-xs text-[var(--ink-red)]">Could not load the demo store. Reload the page.</p>
@@ -174,11 +191,7 @@ export function DemoStoreCard() {
               </button>
             )}
           </div>
-          <p className="text-xs text-foreground/70">
-            Reset puts back the same store with dates moved to today; anything recorded in it is lost. Open signs this
-            browser in to the merchant app as the demo owner, so use a private window if you are signed in to a real
-            store there.
-          </p>
+          <p className="text-xs text-foreground/70">{RESET_NOTE}</p>
         </div>
       )}
 

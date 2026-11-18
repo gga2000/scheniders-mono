@@ -13,10 +13,14 @@ import {
   SETTINGS_SECTION,
   activeLink,
   activeSection,
+  linksFor,
+  waitingBadge,
+  type MenuBadge,
   type MenuCount,
   type MenuSection,
 } from "@/lib/admin-menu";
 import { MENU_ICONS } from "./menu-icons";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 
 /** The pink mark of the merchant app, used for the open place. */
@@ -32,16 +36,16 @@ interface AdminSidebarProps {
   onSignOut: () => void;
 }
 
-type Waiting = Record<MenuCount, { count: number; label: string }>;
+type Waiting = Record<MenuCount, MenuBadge>;
 
 function useWaiting(): Waiting {
-  const leads = useLeadsWithNoOwner().data ?? 0;
-  const support = useSupportWaitingCount().data ?? 0;
-  const payments = useTopupRequests().data?.length ?? 0;
+  const leads = useLeadsWithNoOwner();
+  const support = useSupportWaitingCount();
+  const payments = useTopupRequests();
   return {
-    leads: { count: leads, label: `${leads} leads with no owner` },
-    support: { count: support, label: `${support} waiting on us` },
-    payments: { count: payments, label: `${payments} receipts to check` },
+    leads: waitingBadge(leads, "leads with no owner", "the leads with no owner"),
+    support: waitingBadge(support, "waiting on us", "the support inbox"),
+    payments: waitingBadge({ data: payments.data?.length, isError: payments.isError }, "receipts to check", "the receipts"),
   };
 }
 
@@ -60,9 +64,11 @@ function MenuEntry({
   onNavigate: () => void;
 }) {
   const Icon = MENU_ICONS[section.icon];
+  const links = linksFor(section, useAdminAuth().role);
   const open = activeSection(pathname)?.href === section.href;
   const page = activeLink(pathname);
-  const badge = section.count && waiting[section.count].count > 0 ? waiting[section.count] : null;
+  const waits = section.count ? waiting[section.count] : null;
+  const badge = waits && waits.count !== 0 ? waits : null;
 
   return (
     <div>
@@ -85,19 +91,21 @@ function MenuEntry({
         {badge && (
           <span
             aria-label={badge.label}
+            title={badge.count === null ? badge.label : undefined}
             className={cn(
-              "flex items-center justify-center rounded-full bg-red-600 font-semibold text-white tabular-nums",
+              "flex items-center justify-center rounded-full font-semibold text-white tabular-nums",
+              badge.count === null ? "bg-zinc-600" : "bg-red-600",
               collapsed ? "absolute right-2 top-2 h-2 w-2 text-[0px]" : "ml-auto h-6 min-w-6 px-1.5 text-[13px]",
             )}
           >
-            {badge.count > 99 ? "99+" : badge.count}
+            {badge.count === null ? "?" : badge.count > 99 ? "99+" : badge.count}
           </span>
         )}
       </Link>
 
-      {open && !collapsed && section.links.length > 1 && (
+      {open && !collapsed && links.length > 1 && (
         <div className="mt-1 mb-2 ml-[22px] space-y-0.5 border-l border-white/10 pl-3">
-          {section.links.map((link) => {
+          {links.map((link) => {
             const here = page === link.href;
             return (
               <Link
@@ -205,6 +213,8 @@ export function AdminSidebar({
   if (!isMobile) {
     return (
       <aside
+        data-admin-menu
+        data-collapsed={collapsed || undefined}
         className={cn(
           "fixed left-4 top-4 bottom-4 z-50 flex flex-col rounded-[28px] border border-white/5 bg-[#1E1E1E] py-6 text-white shadow-lg shadow-black/20",
           "transition-[width] duration-300 ease-out",

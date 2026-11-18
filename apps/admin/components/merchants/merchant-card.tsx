@@ -27,11 +27,13 @@ import { LastActorBadge } from "./last-actor-badge";
 import type { LastActor } from "@/hooks/use-last-actors";
 import { listChurnRisk } from "@/lib/merchant-health";
 import { formatCount, formatWhen } from "@/lib/format";
+import { useCan } from "@/hooks/use-admin-auth";
+import { freeDaysKind } from "@/lib/shop-actions";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
   isSelected: boolean;
-  isPulsing?: boolean;
   isStarred?: boolean;
   index?: number;
   lastActor?: LastActor | null;
@@ -46,14 +48,13 @@ function lastActiveLine(dateStr: string): { text: string; color: string } {
   const days = (Date.now() - new Date(dateStr).getTime()) / 86_400_000;
   const color =
     days < 1 ? "text-green-600 dark:text-green-400" : days < 7 ? "text-amber-600 dark:text-amber-400" : "text-foreground/40";
-  return { text: formatWhen(dateStr), color };
+  return { text: `Active ${formatWhen(dateStr)}`, color };
 }
 
 
 export function MerchantCard({
   merchant,
   isSelected,
-  isPulsing,
   isStarred,
   index,
   lastActor,
@@ -62,6 +63,18 @@ export function MerchantCard({
   onSelectWithShift,
   onToggleStar,
 }: MerchantCardProps) {
+  const can = useCan();
+  // The shop page's rule: a shop on trial gets trial days, a paying shop days on its month.
+  const freeDays = freeDaysKind(
+    {
+      status: merchant.status,
+      locked: merchant.billing_lock != null,
+      subscriptionRunning: merchant.subscription_running ?? false,
+      // The list holds customer shops only (lib/customer-shops), never the demo store.
+      demo: false,
+    },
+    can,
+  );
   const logoChar = merchant.business_name?.charAt(0)?.toUpperCase() || "?";
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const healthScore = merchant.staff_health_score;
@@ -78,7 +91,7 @@ export function MerchantCard({
   const queryClient = useQueryClient();
   const tagsMutation = useMutation({
     mutationFn: async (tags: string[]) => {
-      const res = await fetch(`/api/merchants/${merchant.id}/tags`, {
+      const res = await adminFetch(`/api/merchants/${merchant.id}/tags`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tags }),
@@ -114,14 +127,13 @@ export function MerchantCard({
   };
 
   return (
-    <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug}>
+    <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug} freeDays={freeDays !== null}>
       <div
         className={cn(
           "pastel-card group relative overflow-hidden p-5 transition-all duration-200",
           "hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5",
           isSelected &&
-            "ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]",
-          isPulsing && "animate-pulse-glow"
+            "ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]"
         )}
       >
         {/* Decorative ambient gradient — emanates from logo color */}
@@ -221,9 +233,13 @@ export function MerchantCard({
             {logoChar}
           </div>
           <div className="min-w-0 flex-1">
+            {/* max-w-full: a block button is as wide as its text, so without it a
+                long name ran under the status chips and never got its "…".
+                The title shows the whole name when it is cut. */}
             <button
               onClick={() => onOpenDetail?.(merchant.id)}
-              className="text-[15px] font-black text-foreground tracking-tight truncate block text-left hover:underline cursor-pointer leading-tight"
+              title={merchant.business_name}
+              className="text-[15px] font-black text-foreground tracking-tight truncate name-dir block max-w-full text-left hover:underline cursor-pointer leading-tight"
             >
               {merchant.business_name}
             </button>
@@ -252,6 +268,7 @@ export function MerchantCard({
             <MerchantStatusDropdown
               merchantId={merchant.id}
               status={merchant.status}
+              trialPayment={merchant.trial_payment ?? "paid"}
             />
             {merchant.billing_lock && <LockedChip lock={merchant.billing_lock} />}
           </div>
@@ -335,16 +352,21 @@ export function MerchantCard({
 
         {/* Footer: quick-action toolbar */}
         <div className="relative mt-4 pt-3 border-t border-[var(--card-border)] flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onOpenDetail?.(merchant.id)}
-            className="flex-1 flex items-center justify-center gap-1 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/20 dark:text-emerald-400 text-[11px] font-bold transition-colors"
-            title="Top up wallet"
-            aria-label="Top up wallet"
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            Top Up
-          </button>
+          {/* Only for someone who may add money; the note and link keep their place. */}
+          {can("top_up_wallet") ? (
+            <button
+              type="button"
+              onClick={() => onOpenDetail?.(merchant.id)}
+              className="flex-1 flex items-center justify-center gap-1 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/20 dark:text-emerald-400 text-[11px] font-bold transition-colors"
+              title="Top up wallet"
+              aria-label="Top up wallet"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              Top Up
+            </button>
+          ) : (
+            <span className="flex-1" />
+          )}
           <QuickNotePopover merchantId={merchant.id} />
           <Link
             href={`/merchants/${merchant.id}`}

@@ -5,14 +5,15 @@ import { AlertTriangle, CheckCircle2, Loader2, MessageSquareText, Send, UserRoun
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { useSupportNeedsUs, useSupportStartConversation } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
 import {
   SHOP_PROBLEM_LABELS,
-  SHOP_PROBLEM_OPENERS,
   formatAgo,
   leadProblem,
   problemDetail,
+  problemOpener,
   type NeedsUsShop,
 } from "@/lib/support";
 
@@ -79,6 +80,8 @@ export function SupportNeedsUs({ onOpenCase }: SupportNeedsUsProps) {
 function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; onOpenCase: (caseId: string) => void }) {
   const start = useSupportStartConversation();
   const [draft, setDraft] = useState<string | null>(null);
+  // A first message not yet sent survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(draft !== null && draft.trim() !== "");
   const openCase = shop.open_case;
 
   const send = () => {
@@ -125,7 +128,7 @@ function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; on
           {!openCase && draft === null && shop.owner_name !== null && (
             <button
               type="button"
-              onClick={() => setDraft(SHOP_PROBLEM_OPENERS[leadProblem(shop.problems)])}
+              onClick={() => setDraft(problemOpener(leadProblem(shop.problems)))}
               className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-3.5 py-1.5 text-xs font-semibold text-[var(--primary-fg)]"
             >
               <Send className="h-3.5 w-3.5" />

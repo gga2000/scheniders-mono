@@ -170,7 +170,7 @@ export function MerchantsCompareDialog({
                     {m.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-foreground truncate leading-tight">
+                    <p className="text-sm font-black text-foreground truncate name-dir leading-tight">
                       {m.business_name}
                     </p>
                     <p className="text-[10px] text-foreground/50 truncate font-medium">

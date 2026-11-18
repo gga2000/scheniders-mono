@@ -4,12 +4,10 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
+// A note is its words. The old `mentions` list, which no screen sends, wrote
+// staff log rows under any id or name it was given; it is no longer read.
 const CreateNoteSchema = z.object({
   content: z.string().min(1).max(2000),
-  mentions: z.array(z.string()).optional(),
 });
 
 export async function GET(
@@ -100,29 +98,6 @@ export async function POST(
       .single();
 
     if (error) throw error;
-
-    // If there are mentions, log activity for each mentioned user
-    if (parsed.data.mentions?.length) {
-      // Best-effort: don't fail the note creation if notifications fail
-      try {
-        await supabase
-          .from("admin_activity_logs")
-          .insert(
-            parsed.data.mentions.map((userId) => ({
-              admin_user_id: UUID_RE.test(userId) ? userId : null,
-              admin_label: UUID_RE.test(userId) ? null : userId,
-              tenant_id: id,
-              action: "mention_in_note",
-              details: {
-                note_id: data.id,
-                content: parsed.data.content.substring(0, 100),
-              },
-            }))
-          );
-      } catch (err) {
-        console.error("Failed to log mentions:", err);
-      }
-    }
 
     return NextResponse.json({ note: data }, { status: 201 });
   } catch (error) {

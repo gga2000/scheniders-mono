@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 import type { AdminTenant, TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
+import { useCan } from "@/hooks/use-admin-auth";
+import { STATUS_REFUSALS, stageMoveNote, statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
+import { adminFetch } from "@/lib/admin-fetch";
 
 type StageKey = TenantStatus;
 
@@ -92,9 +95,10 @@ const STAGE_BY_STATUS: Record<TenantStatus, Stage> = {
 const STAGES = Object.values(STAGE_BY_STATUS);
 
 /**
- * A pause is set and lifted with Pause and Resume on the shop page, which keep
- * its end date and what it blocks; the database refuses a plain status change
- * to or from it. So paused shops are shown here but not dragged in or out.
+ * A pause is set and lifted on the shop page (Pause, "Lift the pause now"),
+ * which keeps its end date and what it blocks; the database refuses a plain
+ * status change to or from it. So paused shops are shown here but not dragged
+ * in or out.
  */
 const isPaused = (status: StageKey) => status === "limited";
 
@@ -113,6 +117,9 @@ export function MerchantsKanbanView({
   onOpenDetail,
 }: MerchantsKanbanViewProps) {
   const queryClient = useQueryClient();
+  // Moving a card changes the shop's status (PATCH, change_plan); without it
+  // the cards stay put instead of ending in a refusal.
+  const canMove = useCan()("change_plan");
   // Column totals are counted by the server over every matching shop; the
   // cards are the pages of the list loaded so far.
   const { data: stats } = useMerchantsStats();
@@ -122,7 +129,11 @@ export function MerchantsKanbanView({
     id: string;
     name: string;
     from: StageKey;
+    /** The column it was dropped on. */
     to: StageKey;
+    /** What the server will save: a trial never paid dropped on Active goes back to Trial. */
+    saves: TenantStatus;
+    trialEndsAt: string | null;
   } | null>(null);
 
   const buckets = useMemo(() => {
@@ -138,7 +149,7 @@ export function MerchantsKanbanView({
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TenantStatus }) => {
-      const res = await fetch(`/api/merchants/${id}`, {
+      const res = await adminFetch(`/api/merchants/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -149,8 +160,11 @@ export function MerchantsKanbanView({
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (answer, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      // A held trial that was never paid comes back as Trial when Active is picked.
+      const landed = statusLandedText(status, answer);
+      if (landed) toast.info(landed);
     },
     // The server says why a move was refused (a trial, the demo store).
     onError: (error: Error) => {
@@ -184,11 +198,22 @@ export function MerchantsKanbanView({
         setDraggingId(null);
         return;
       }
+      const shop = { status: from, trial_payment: merchant.trial_payment ?? "paid" } as const;
+      const refusal = statusPickRefusal(shop, target);
+      if (refusal) {
+        // Said before a confirm that the server would only refuse.
+        toast.error(STATUS_REFUSALS[refusal]);
+        setHoverCol(null);
+        setDraggingId(null);
+        return;
+      }
       setPendingMove({
         id,
         name: merchant.business_name,
         from,
         to: target,
+        saves: statusPickSaves(shop, target),
+        trialEndsAt: merchant.trial_ends_at,
       });
       setHoverCol(null);
       setDraggingId(null);
@@ -278,7 +303,7 @@ export function MerchantsKanbanView({
                     <KanbanCard
                       key={m.id}
                       merchant={m}
-                      canDrag={!isPaused(stage.key)}
+                      canDrag={canMove && !isPaused(stage.key)}
                       isDragging={draggingId === m.id}
                       onDragStart={(e) => handleDragStart(e, m)}
                       onDragEnd={handleDragEnd}
@@ -321,12 +346,12 @@ export function MerchantsKanbanView({
               <p className="text-sm font-black text-foreground tracking-tight mb-4 leading-snug">
                 Move <span className="text-violet-600 dark:text-violet-400">{pendingMove.name}</span> from{" "}
                 {STAGES.find((s) => s.key === pendingMove.from)?.label} to{" "}
-                {STAGES.find((s) => s.key === pendingMove.to)?.label}?
+                {STAGES.find((s) => s.key === pendingMove.saves)?.label}?
               </p>
               <div className="flex items-center gap-2 mb-5">
                 {(() => {
                   const fromStage = STAGES.find((s) => s.key === pendingMove.from);
-                  const toStage = STAGES.find((s) => s.key === pendingMove.to);
+                  const toStage = STAGES.find((s) => s.key === pendingMove.saves);
                   if (!fromStage || !toStage) return null;
                   const FromIcon = fromStage.icon;
                   const ToIcon = toStage.icon;
@@ -356,28 +381,24 @@ export function MerchantsKanbanView({
                 })()}
               </div>
               <p className="text-[11px] text-foreground/55 mb-4 leading-snug">
-                {pendingMove.to === "trial"
-                  ? "Note: Moving back to trial does not reset the trial end date — extend it from the detail panel."
-                  : pendingMove.to === "suspended"
-                    ? "The merchant will lose dashboard access until reactivated."
-                    : pendingMove.to === "cancelled"
-                      ? "The merchant will be marked as churned."
-                      : "The merchant's status will update immediately."}
+                {stageMoveNote(pendingMove.to, pendingMove.saves, pendingMove.trialEndsAt, new Date())}
               </p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
+                    // The status the confirm names: if the trial was paid
+                    // meanwhile, the server refuses Trial and says why.
                     statusMutation.mutate({
                       id: pendingMove.id,
-                      status: pendingMove.to as TenantStatus,
+                      status: pendingMove.saves,
                     });
                     setPendingMove(null);
                   }}
                   disabled={statusMutation.isPending}
                   className={cn(
                     "flex-1 px-4 py-2.5 rounded-xl text-xs font-black text-white shadow-sm ring-1 ring-white/20 transition-all bg-gradient-to-br hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50",
-                    STAGES.find((s) => s.key === pendingMove.to)?.gradient ??
+                    STAGES.find((s) => s.key === pendingMove.saves)?.gradient ??
                       "from-foreground to-foreground"
                   )}
                 >
@@ -441,7 +462,7 @@ function KanbanCard({
           {merchant.business_name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-foreground truncate leading-tight">
+          <p className="text-xs font-black text-foreground truncate name-dir leading-tight">
             {merchant.business_name}
           </p>
           <p className="text-[9px] text-foreground/45 truncate font-medium">

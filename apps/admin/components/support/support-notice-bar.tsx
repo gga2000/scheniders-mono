@@ -5,6 +5,7 @@ import { Loader2, Megaphone, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import {
   useSupportNotice,
   useSupportNoticeEnd,
@@ -34,6 +35,9 @@ export function SupportNoticeBar() {
 
   const live = notice.data ?? null;
   const text = body.trim();
+  // A notice not yet posted, typed or taken from the problem spotter, survives
+  // an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(writing && text !== "");
 
   const submit = () => {
     if (text === "" || post.isPending) return;

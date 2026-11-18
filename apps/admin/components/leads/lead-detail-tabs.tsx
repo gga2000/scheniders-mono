@@ -20,6 +20,7 @@ import {
   Mail,
 } from "lucide-react";
 import { formatDay, formatWhen } from "@/lib/format";
+import { storeAddress } from "@scheniders/shared/store-address";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
         </h3>
         <div className="space-y-3">
           {lead.contact_via_dm && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#A78BFA]/10 text-[#A78BFA]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-500/12 text-[var(--ink-violet)]">
               <MessageCircle className="w-4 h-4 shrink-0" />
               <span className="text-xs font-semibold">Direct messages only — no phone on file</span>
             </div>
@@ -149,7 +150,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
         </h3>
         <div className="space-y-3">
           {lead.is_online_only ? (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#A78BFA]/10 text-[#A78BFA]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-500/12 text-[var(--ink-violet)]">
               <Globe className="w-4 h-4 shrink-0" />
               <span className="text-xs font-semibold">Online shop only — no physical location</span>
             </div>
@@ -493,7 +494,8 @@ export function CompetitorsContent({
 
 // ── Store Tab ──────────────────────────────────────────────────────────
 
-export function StoreContent({ lead }: { lead: Lead }) {
+/** `onBuildStore` opens the build form; without it (no form here) the button is left out. */
+export function StoreContent({ lead, onBuildStore }: { lead: Lead; onBuildStore?: () => void }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (text: string) => {
@@ -510,15 +512,23 @@ export function StoreContent({ lead }: { lead: Lead }) {
         <p className="text-sm text-[var(--muted)] mb-6 max-w-sm text-center">
           Build a prospect store to showcase what their online presence could look like.
         </p>
-        <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#A78BFA] text-white text-sm font-bold hover:brightness-110 transition-all shadow-sm">
-          <Store className="w-4 h-4" />
-          Build Store
-        </button>
+        {onBuildStore && (
+          <button
+            type="button"
+            onClick={onBuildStore}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--ink-violet)] text-[var(--card-bg)] text-sm font-bold hover:brightness-110 transition-all shadow-sm"
+          >
+            <Store className="w-4 h-4" />
+            Build Store
+          </button>
+        )}
       </div>
     );
   }
 
   const storeUrl = `/merchants/${lead.prospect_tenant_id}`;
+  // The store's own address, which a prospect can open; the shop page link is for staff.
+  const address = lead.prospect_tenant?.slug ? storeAddress(lead.prospect_tenant.slug) : null;
 
   return (
     <div className="space-y-4">
@@ -530,7 +540,7 @@ export function StoreContent({ lead }: { lead: Lead }) {
         </h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[var(--muted)]">Tenant ID</span>
+            <span className="text-xs text-[var(--muted)]">Shop ID</span>
             <span className="text-sm font-mono font-medium text-[var(--foreground)]">
               {lead.prospect_tenant_id}
             </span>
@@ -541,6 +551,19 @@ export function StoreContent({ lead }: { lead: Lead }) {
               <span className="text-sm font-medium text-[var(--foreground)]">
                 {formatDay(lead.store_built_at)}
               </span>
+            </div>
+          )}
+          {address && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--muted)]">Web Address</span>
+              <a
+                href={`https://${address}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-sm font-medium text-[var(--primary)] hover:underline"
+              >
+                {address} <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
           )}
           <div className="flex items-center justify-between">
@@ -559,22 +582,26 @@ export function StoreContent({ lead }: { lead: Lead }) {
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-[var(--foreground)]">Store Preview</h3>
-          <button
-            onClick={() => handleCopy(`${window.location.origin}${storeUrl}`)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
-              copied
-                ? "border-emerald-500/30 text-[var(--ink-green)] bg-emerald-500/10"
-                : "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)]"
-            )}
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {copied ? "Copied!" : "Copy Link"}
-          </button>
+          {address && (
+            <button
+              onClick={() => handleCopy(`https://${address}`)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
+                copied
+                  ? "border-emerald-500/30 text-[var(--ink-green)] bg-emerald-500/10"
+                  : "border-[var(--card-border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+              )}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {copied ? "Copied!" : "Copy Link"}
+            </button>
+          )}
         </div>
         <div className="rounded-xl border border-[var(--card-border)] bg-black/5 dark:bg-white/5 p-8 flex flex-col items-center justify-center text-center">
           <Store className="w-8 h-8 text-[var(--muted)] mb-2" />
-          <p className="text-sm font-medium text-[var(--foreground)]">{lead.merchant_name}</p>
+          <p className="text-sm font-medium text-[var(--foreground)]">
+            {lead.prospect_tenant?.business_name ?? lead.merchant_name}
+          </p>
           <p className="text-xs text-[var(--muted)] mt-1">Prospect Store</p>
         </div>
       </div>

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
+import { convertedLeadsDeleteMessage, leadConvertedLockResponse, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission, requireBearerAdmin } from "@/lib/api-auth";
-import { logAdminAction } from "@/lib/activity-logger";
 import { notAnId } from "@/lib/route-id";
+import { INDUSTRY_GONE, isIndustryGone, leadPatchSchema } from "@/lib/lead-update";
+import { saveLead } from "@/lib/lead-save";
+import { deleteLeads } from "@/lib/lead-delete";
+
+// The lead with its industry and, once built, its prospect store's web address
+// (the Store tab shows and copies it).
+const LEAD_WITH_PARTS = "*, industry:industries(*), prospect_tenant:tenants!leads_prospect_tenant_id_fkey(slug, business_name)";
 
 export async function GET(
   _request: NextRequest,
@@ -22,7 +28,7 @@ export async function GET(
       await Promise.all([
         supabase
           .from("leads")
-          .select("*, industry:industries(*)")
+          .select(LEAD_WITH_PARTS)
           .eq("id", id)
           .single(),
         supabase
@@ -52,28 +58,28 @@ export async function GET(
       }
       throw leadResult.error;
     }
+    // A part that failed must fail the page: answered as [], it read as "no
+    // history", "no follow-ups" or "no owner" for a lead that has them.
+    if (activitiesResult.error) throw activitiesResult.error;
+    if (followUpsResult.error) throw followUpsResult.error;
+    if (socialLinksResult.error) throw socialLinksResult.error;
+    if (competitorsResult.error) throw competitorsResult.error;
 
-    // Fetch assigned user info if assigned_to exists
-    let assigned_user = null;
-    if (leadResult.data.assigned_to) {
-      const { data: user } = await supabase
+    // A person whose profile is gone shows no name; a failed read is an error.
+    const profile = async (userId: string | null) => {
+      if (!userId) return null;
+      const { data, error } = await supabase
         .from("user_profiles")
         .select("id, display_name, email, avatar_url")
-        .eq("id", leadResult.data.assigned_to)
-        .single();
-      assigned_user = user;
-    }
-
-    // Fetch created_by user info
-    let created_by_user = null;
-    if (leadResult.data.created_by) {
-      const { data: user } = await supabase
-        .from("user_profiles")
-        .select("id, display_name, email, avatar_url")
-        .eq("id", leadResult.data.created_by)
-        .single();
-      created_by_user = user;
-    }
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    const [assigned_user, created_by_user] = await Promise.all([
+      profile(leadResult.data.assigned_to),
+      profile(leadResult.data.created_by),
+    ]);
 
     return NextResponse.json({
       lead: {
@@ -81,10 +87,10 @@ export async function GET(
         assigned_user,
         created_by_user,
       },
-      activities: activitiesResult.data ?? [],
-      follow_ups: followUpsResult.data ?? [],
-      social_links: socialLinksResult.data ?? [],
-      competitors: competitorsResult.data ?? [],
+      activities: activitiesResult.data,
+      follow_ups: followUpsResult.data,
+      social_links: socialLinksResult.data,
+      competitors: competitorsResult.data,
     });
   } catch (error) {
     console.error("Lead GET error:", error);
@@ -103,58 +109,31 @@ export async function PATCH(
     const { id } = await params;
     const missing = notAnId(id);
     if (missing) return missing;
-    const body = await request.json();
+    const parsed = leadPatchSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid lead" }, { status: 400 });
+    }
+    const { status, assigned_to, was = {}, ...rest } = parsed.data;
+    if (status === undefined && assigned_to === undefined && Object.keys(rest).length === 0) {
+      return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
+    }
     const supabase = createAdminClient();
 
-    // If status is changing, log an activity
-    if (body.status) {
-      const { data: current } = await supabase
-        .from("leads")
-        .select("status")
-        .eq("id", id)
-        .single();
+    // One transaction under the lead's lock (lib/lead-save): a list a
+    // colleague changed since the form opened is refused before anything is
+    // written, and an error undoes the whole save, status and owner included.
+    const saved = await saveLead(supabase, id, { status, owner: assigned_to, changes: rest, was }, admin.user);
+    // A clash names its lists, so the form can take the colleague's in.
+    if (!saved.ok) return NextResponse.json({ error: saved.error, stale: saved.stale }, { status: saved.status });
 
-      if (current && current.status !== body.status) {
-        await supabase.from("lead_activities").insert({
-          lead_id: id,
-          activity_type: "status_change",
-          title: `Status changed from ${current.status} to ${body.status}`,
-          metadata: { from: current.status, to: body.status },
-          created_by: admin.user.id,
-        });
-
-        // Update last_contacted_at if moving to contacted
-        if (body.status === "contacted") {
-          body.last_contacted_at = new Date().toISOString();
-        }
-      }
-    }
-
-    // If assigned_to is changing, log activity and set assigned_at
-    if (body.assigned_to !== undefined) {
-      body.assigned_at = body.assigned_to ? new Date().toISOString() : null;
-    }
-
-    // Whitelist allowed fields
-    const ALLOWED_FIELDS = ["merchant_name", "industry_id", "industry_detail", "platform", "platform_url", "handle", "follower_count", "post_count", "management_name", "management_info", "page_phone", "phone_numbers", "contact_via_dm", "website_url", "email", "avg_view_count", "avg_like_count", "avg_comments_count", "avg_order_count", "address", "city", "governorate_code", "is_online_only", "branches", "status", "priority", "assigned_to", "tags", "source_campaign", "source_medium", "source_referrer", "next_follow_up_at", "custom_fields", "last_contacted_at", "assigned_at", "is_draft"] as const;
-    const updateData: Record<string, unknown> = {};
-    for (const key of ALLOWED_FIELDS) {
-      if (key in body) updateData[key] = body[key];
-    }
-
-    const { data: lead, error } = await supabase
-      .from("leads")
-      .update(updateData)
-      .eq("id", id)
-      .select("*, industry:industries(*)")
-      .single();
-
-    if (error) throw error;
-
-    return NextResponse.json({ lead });
+    // The form reads the lead again itself, so a read here could only fail
+    // after the save and say it had not saved.
+    return NextResponse.json({ saved: true });
   } catch (error) {
     const locked = leadConvertedLockResponse(error);
     if (locked) return locked;
+    // An industry a colleague removed while this form was open.
+    if (isIndustryGone(error)) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
     console.error("Lead PATCH error:", error);
     return NextResponse.json({ error: "Failed to update lead" }, { status: 500 });
   }
@@ -173,20 +152,18 @@ export async function DELETE(
     if (missing) return missing;
     const supabase = createAdminClient();
 
-    const { data: removed, error } = await supabase
-      .from("leads")
-      .delete()
-      .eq("id", id)
-      .select("merchant_name")
-      .maybeSingle();
-
-    if (error) throw error;
-
-    // A deleted lead takes its history with it: this row is what remains.
-    if (removed) {
-      await logAdminAction(admin, "delete_lead", {
-        details: { lead_id: id, merchant_name: removed.merchant_name },
-      });
+    // A lead that became a shop, or has a prospect store, is not deleted: its
+    // sale and commission stay on record, and a prospect store would stay
+    // online with no lead to find it by. The database skips such a lead in the
+    // delete itself, so one converted or built at the same moment is kept, and
+    // writes the staff log row (all that remains of a deleted lead) in the
+    // same transaction.
+    const result = await deleteLeads(supabase, [id], admin.user, false);
+    if (result.kept_converted.length > 0) {
+      return NextResponse.json({ error: convertedLeadsDeleteMessage(result.kept_converted) }, { status: 409 });
+    }
+    if (result.kept_with_store.length > 0) {
+      return NextResponse.json({ error: prospectStoreLeadsMessage(result.kept_with_store) }, { status: 409 });
     }
 
     return NextResponse.json({ success: true });

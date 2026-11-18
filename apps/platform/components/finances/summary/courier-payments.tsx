@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { FileUp } from "lucide-react";
+import { ChevronRight, FileUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { FinanceSummary } from "@/lib/finance/summary";
 import { Money, formatWhole, useMoneyText } from "./money";
@@ -26,6 +28,8 @@ interface Part {
     orders?: StatementOrder[];
     /** Show what the statement gave each order beside its code (when the amounts can differ). */
     amounts?: boolean;
+    /** Nothing for the shop to do: its explanation folds behind the label, as a profit line's detail does. */
+    quiet?: boolean;
 }
 
 /** The amount most of the given amounts share (the larger deduction on a tie). */
@@ -94,6 +98,14 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
     const other = gap - statement.returns - statement.prepaid_gap - statement.price_gap - statement.undelivered;
     const ordersOf = (kind: StatementOrder["kind"]) => orders.filter((order) => order.kind === kind);
     const counted = (key: string, n: number) => t(key, { n: formatWhole(n), count: n });
+    const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+    const toggle = (key: string) =>
+        setOpened((was) => {
+            const next = new Set(was);
+            if (!next.delete(key)) next.add(key);
+            return next;
+        });
+    const prepaidElsewhere = Math.max(split.reached_prepaid_orders - statement.prepaid_orders, 0);
     // A prepaid order loses the whole delivery fee; one the statement credited with some money loses less, so say why.
     const prepaidNote = (prepaid: StatementOrder[]) => {
         const fee = usualAmount(prepaid.map((order) => order.amount));
@@ -108,6 +120,11 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                     net: money(-order.amount),
                 }),
             ),
+            // "Paid to you" counts more prepaid orders than these statements list: say where the rest are,
+            // so the two counts on the page are not read as missing fees.
+            ...(prepaidElsewhere > 0
+                ? [t("fin.money.cash.part.prepaidElsewhere", { n: formatWhole(prepaidElsewhere), count: prepaidElsewhere })]
+                : []),
         ].join(" ");
     };
     const parts: Part[] =
@@ -129,6 +146,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                                   })
                                 : t("fin.money.cash.part.refundsNoteMore", { amount: money(summary.refunds.amount) }),
                       amount: refundsDone,
+                      quiet: true,
                   },
                   {
                       key: "refunds-open",
@@ -146,6 +164,7 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
                       orders: ordersOf("prepaid"),
                       // One odd row (a statement listing an order at 1 dinar) explains an odd total.
                       amounts: true,
+                      quiet: true,
                   },
                   {
                       key: "price",
@@ -197,22 +216,48 @@ export function CourierPayments({ summary, onAddPayment }: CourierPaymentsProps)
             )}
             {parts.length > 0 && (
                 <dl className="mt-3 divide-y divide-[var(--card-border)]" data-testid="money-payments-parts">
-                    {parts.map((part) => (
-                        <div key={part.key} className="flex items-baseline justify-between gap-4 py-2 text-[13px] first:pt-0 last:pb-0" data-part={part.key}>
-                            <dt className="min-w-0 text-left text-foreground" dir={dir}>
-                                {part.label}
-                                {part.note && <span className="block text-[12px] leading-relaxed text-muted">{part.note}</span>}
-                                {part.orders && part.orders.length > 0 && <OrderLinks orders={part.orders} withAmounts={part.amounts} />}
-                            </dt>
-                            <dd className="shrink-0">
-                                {/* A difference that adds to the payments carries its sign, like the ones that take away. */}
-                                <span className="whitespace-nowrap font-semibold text-foreground" dir="ltr">
-                                    {part.key !== "now" && part.amount > 0 && "+"}
-                                    <Money value={part.amount} />
-                                </span>
-                            </dd>
-                        </div>
-                    ))}
+                    {parts.map((part) => {
+                        // A quiet line with something behind it folds; a line the shop must act on stays open.
+                        const folds = part.quiet === true && (part.note !== undefined || (part.orders?.length ?? 0) > 0);
+                        const open = !folds || opened.has(part.key);
+                        return (
+                            <div key={part.key} className="flex items-baseline justify-between gap-4 py-2 text-[13px] first:pt-0 last:pb-0" data-part={part.key}>
+                                <dt className="min-w-0 text-left text-foreground" dir={dir}>
+                                    {folds ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => toggle(part.key)}
+                                            aria-expanded={open}
+                                            className="inline-flex items-baseline gap-1.5 text-left decoration-foreground/30 underline-offset-4 hover:underline"
+                                            data-fold={part.key}
+                                        >
+                                            {part.label}
+                                            <ChevronRight
+                                                className={cn("size-3 shrink-0 self-center text-muted transition-transform", open && "rotate-90")}
+                                                aria-hidden="true"
+                                            />
+                                        </button>
+                                    ) : (
+                                        part.label
+                                    )}
+                                    {/* A note the shop must act on reads in full colour; one that only explains stays grey. */}
+                                    {open && part.note && (
+                                        <span className={cn("block text-[12px] leading-relaxed", part.quiet ? "text-muted" : "text-foreground")} data-note={part.key}>
+                                            {part.note}
+                                        </span>
+                                    )}
+                                    {open && part.orders && part.orders.length > 0 && <OrderLinks orders={part.orders} withAmounts={part.amounts} />}
+                                </dt>
+                                <dd className="shrink-0">
+                                    {/* A difference that adds to the payments carries its sign, like the ones that take away. */}
+                                    <span className="whitespace-nowrap font-semibold text-foreground" dir="ltr">
+                                        {part.key !== "now" && part.amount > 0 && "+"}
+                                        <Money value={part.amount} />
+                                    </span>
+                                </dd>
+                            </div>
+                        );
+                    })}
                 </dl>
             )}
             {why && (

@@ -74,3 +74,5 @@ ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 
 -- tenants.is_demo (Fermi B13): the demo store is never charged, never sends.
 ALTER TABLE public.tenants ADD COLUMN is_demo boolean NOT NULL DEFAULT false;
+-- tenants.is_prospect: a store staff built for a lead, not a customer.
+ALTER TABLE public.tenants ADD COLUMN is_prospect boolean NOT NULL DEFAULT false;
