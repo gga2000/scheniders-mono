@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { Lead } from "@/types/leads";
 import { LEAD_TIER_CONFIG, LEAD_TIER_UI } from "@/types/leads";
 import { useConvertLead } from "@/hooks/use-lead-mutations";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import {
   Trophy,
   X,
@@ -39,6 +40,8 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
   const convertLead = useConvertLead();
   const [notes, setNotes] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  // Notes being written survive an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(isOpen && !showSuccess && notes.trim() !== "");
 
   // Start over when the dialog opens, and only then.
   const resetOnOpen = useEffectEvent(() => {

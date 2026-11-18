@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { Lead, Industry } from "@/types/leads";
 import { useBuildStore } from "@/hooks/use-lead-mutations";
 import { useIndustries } from "@/hooks/use-industries";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import {
   Store,
   X,
@@ -79,6 +80,15 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
   const [description, setDescription] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#1E1E1E");
   const [products, setProducts] = useState<ProductRow[]>([emptyProduct()]);
+  // The name the form started from, so a changed name counts as typing.
+  const [startName, setStartName] = useState(lead.merchant_name);
+  const typed =
+    businessName !== startName ||
+    customSlug.trim() !== "" ||
+    description.trim() !== "" ||
+    products.some((p) => p.name.trim() !== "" || p.price !== "" || p.image_url.trim() !== "");
+  // A store being set up survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(isOpen && typed);
 
   // The address the database will make: from the web address when one is
   // typed, else from the name; its last 8 characters are made at the build.
@@ -91,6 +101,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
   const resetOnOpen = useEffectEvent(() => {
     setMode("quick");
     setBusinessName(lead.merchant_name);
+    setStartName(lead.merchant_name);
     setIndustryId(lead.industry_id ?? "");
     setTemplate("general");
     setCustomSlug("");
