@@ -75,6 +75,15 @@ export function trialClock(trialEndsAt: string, now: Date | number = Date.now())
 }
 
 /**
+ * Which day of a shop's life today is, on the Baghdad calendar: 1 on the day
+ * it signed up, 2 the day after, whatever the hour. A shop that signed up at
+ * 23:50 is on day 2 ten minutes later, as its owner counts it.
+ */
+export function dayNumber(since: string, now: Date | number = Date.now()): number {
+  return Math.round((Date.parse(dayOf(now)) - Date.parse(dayOf(since))) / DAY_MS) + 1;
+}
+
+/**
  * The `date_from` and `date_to` days of a list request ('2026-11-16') as the
  * instants that hold those Baghdad days, both whole days included: from 00:00
  * on the first day up to, not including, 00:00 the day after the last. A
