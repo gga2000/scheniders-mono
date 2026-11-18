@@ -18,6 +18,7 @@ import {
 import { LoadError } from "@/components/shared/load-error";
 import { formatCount, formatIQD } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -56,7 +57,7 @@ export default function RevenuePage() {
   const { data, isLoading, isError, isFetching, refetch } = useQuery<RevenueData>({
     queryKey: ["admin", "revenue"],
     queryFn: async () => {
-      const res = await fetch("/api/revenue");
+      const res = await adminFetch("/api/revenue");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },

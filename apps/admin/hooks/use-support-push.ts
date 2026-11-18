@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /** Public VAPID key; the same pair the merchant app and the push senders use. */
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() ?? "";
@@ -21,7 +22,7 @@ function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
 }
 
 async function send(method: "POST" | "DELETE", body: unknown): Promise<void> {
-  const res = await fetch("/api/support/push", {
+  const res = await adminFetch("/api/support/push", {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

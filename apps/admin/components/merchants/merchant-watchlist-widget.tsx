@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useAdminStore } from "@/store/use-admin-store";
 import { useWatchlist } from "@/hooks/use-watchlist";
 import { formatWhen } from "@/lib/format";
+import { adminFetch } from "@/lib/admin-fetch";
 
 function healthDotColor(status: string): string {
   switch (status) {
@@ -43,7 +44,7 @@ export function MerchantWatchlistWidget() {
     queryFn: async () => {
       if (starredMerchants.length === 0) return [];
       const ids = starredMerchants.join(",");
-      const res = await fetch(`/api/merchants?ids=${ids}`);
+      const res = await adminFetch(`/api/merchants?ids=${ids}`);
       if (!res.ok) throw new Error("Failed to fetch watchlist");
       const json = await res.json();
       return json.merchants ?? json;

@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/shared/notification-bell";
 import { usePageHeader } from "@/store/use-page-header";
 import { pageTitle as menuPageTitle } from "@/lib/admin-menu";
 import { roleLabel } from "@/lib/admin-access";
+import { adminFetch } from "@/lib/admin-fetch";
 
 
 interface MerchantResult {
@@ -81,7 +82,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
     setIsLoading(true);
     let found: MerchantResult[] | null = null;
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `/api/merchants?search=${encodeURIComponent(searchQuery)}&limit=5`
       );
       const data: { merchants?: MerchantResult[] } | null = res.ok ? await res.json() : null;

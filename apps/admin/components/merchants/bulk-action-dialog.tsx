@@ -8,6 +8,7 @@ import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
+import { adminFetch } from "@/lib/admin-fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,7 +93,7 @@ export function BulkActionDialog({
       tenant_ids: string[];
       params?: Record<string, unknown>;
     }) => {
-      const res = await fetch("/api/bulk", {
+      const res = await adminFetch("/api/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

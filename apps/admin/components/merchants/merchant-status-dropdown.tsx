@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
 import { statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
 import type { TenantStatus, TrialPayment } from "@/types/admin";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const STATUS_OPTIONS: Array<{
   value: TenantStatus;
@@ -64,7 +65,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
 
   const mutation = useMutation({
     mutationFn: async (newStatus: TenantStatus) => {
-      const res = await fetch(`/api/merchants/${merchantId}`, {
+      const res = await adminFetch(`/api/merchants/${merchantId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),

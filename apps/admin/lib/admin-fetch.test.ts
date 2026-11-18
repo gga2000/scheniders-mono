@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { AuthApiError, AuthRetryableFetchError } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NO_ACCESS_HEADERS, NO_CONSOLE_ACCESS } from "./staff-sign-in";
@@ -258,5 +260,40 @@ describe("leaveWithoutAccess", () => {
     } finally {
       typed();
     }
+  });
+});
+
+/*
+ * Round 16 (ux new 4): 52 calls went to the console's API with the browser's
+ * plain fetch. They never saw a removed role's "no console access" mark, so
+ * Support sat on "Could not load support conversations" for up to a minute,
+ * waiting for a call that did go through adminFetch. Every call from a page
+ * now does; the API's own outside calls (app/api) are not the console's.
+ */
+describe("the console's calls to its API", () => {
+  const ADMIN_DIR = path.resolve(__dirname, "..");
+  const sourceFiles = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const full = path.join(dir, name);
+      if (statSync(full).isDirectory()) return name === "node_modules" || name.startsWith(".") ? [] : sourceFiles(full);
+      return /\.tsx?$/.test(name) && !/\.test(-data)?\.tsx?$/.test(name) ? [full] : [];
+    });
+  /** Any plain fetch on a page; in lib/, a plain fetch of an /api address. */
+  const PAGE_FETCH = /(?<![\w.$])fetch\(/g;
+  const LIB_API_FETCH = /(?<![\w.$])fetch\(\s*["'`]\/api/g;
+
+  it("all go through adminFetch", () => {
+    const found: string[] = [];
+    const scan = (files: string[], pattern: RegExp) => {
+      for (const file of files) {
+        const hits = readFileSync(file, "utf8").match(pattern) ?? [];
+        for (const hit of hits) found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${hit}`);
+      }
+    };
+    const apiDir = path.join(ADMIN_DIR, "app", "api") + path.sep;
+    scan(sourceFiles(path.join(ADMIN_DIR, "app")).filter((file) => !file.startsWith(apiDir)), PAGE_FETCH);
+    scan([...sourceFiles(path.join(ADMIN_DIR, "components")), ...sourceFiles(path.join(ADMIN_DIR, "hooks"))], PAGE_FETCH);
+    scan(sourceFiles(path.join(ADMIN_DIR, "lib")), LIB_API_FETCH);
+    expect(found).toEqual([]);
   });
 });

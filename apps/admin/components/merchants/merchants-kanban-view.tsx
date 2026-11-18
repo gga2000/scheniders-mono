@@ -20,6 +20,7 @@ import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
 import { STATUS_REFUSALS, stageMoveNote, statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
+import { adminFetch } from "@/lib/admin-fetch";
 
 type StageKey = TenantStatus;
 
@@ -148,7 +149,7 @@ export function MerchantsKanbanView({
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TenantStatus }) => {
-      const res = await fetch(`/api/merchants/${id}`, {
+      const res = await adminFetch(`/api/merchants/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),

@@ -11,6 +11,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 /** What the stars read gives: the server's stars, still loading, or failed after its retries. */
 let read: { data?: { watchlist: { tenant_id: string }[] }; isError: boolean } = { isError: false };
+// The console's API calls go through adminFetch, which adds the session's
+// token; here it passes each call to the fetch the test answers.
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: (input: string, init?: RequestInit) => fetch(input, init) }));
 vi.mock("@/hooks/use-watchlist", () => ({ useWatchlist: () => read }));
 vi.stubGlobal("fetch", () =>
   Promise.resolve(new Response(JSON.stringify({ merchants: [{ id: "a", business_name: "Shop A", status: "active" }] }))),

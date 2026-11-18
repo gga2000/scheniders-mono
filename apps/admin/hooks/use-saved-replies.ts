@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SavedReplyInput, SupportSavedReply } from "@/lib/support";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const KEY = ["admin", "support", "replies"] as const;
 
@@ -18,7 +19,7 @@ async function readJson<T>(res: Response): Promise<T> {
 }
 
 const send = (url: string, method: "POST" | "PATCH" | "DELETE", body?: SavedReplyInput) =>
-  fetch(url, {
+  adminFetch(url, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
@@ -29,7 +30,7 @@ export function useSavedReplies() {
   return useQuery<SupportSavedReply[]>({
     queryKey: KEY,
     queryFn: async () =>
-      (await readJson<{ replies: SupportSavedReply[] }>(await fetch("/api/support/replies"))).replies,
+      (await readJson<{ replies: SupportSavedReply[] }>(await adminFetch("/api/support/replies"))).replies,
     staleTime: 60_000,
   });
 }

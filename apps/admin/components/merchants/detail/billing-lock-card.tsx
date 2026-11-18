@@ -14,6 +14,7 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { createRequestIds } from "@/lib/request-ids";
 import { formatDay, formatIQD } from "@/lib/format";
 import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -64,7 +65,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
         action.kind === "orders"
           ? { orders: action.orders, reason: reason.trim(), request_id }
           : { days: action.days, reason: reason.trim(), request_id };
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

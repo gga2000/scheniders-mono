@@ -21,6 +21,7 @@ import {
 import { isPausedTrial } from "@/lib/effective-status";
 import { formatDayTime } from "@/lib/format";
 import { createRequestIds } from "@/lib/request-ids";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const GIVE_BACK_DAYS = [3, 7];
 
@@ -60,7 +61,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
         request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}:${reason.trim()}`),
         seen_decided_at: check.decided_at,
       };
-      const res = await fetch(`/api/trial-checks/${check.tenant_id}`, {
+      const res = await adminFetch(`/api/trial-checks/${check.tenant_id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
@@ -216,7 +217,7 @@ export function TrialChecksPanel() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialChecksResponse>({
     queryKey: TRIAL_CHECKS_KEY,
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch("/api/trial-checks"), "the trial checks");
+      const res = okOrLoadFailure(await adminFetch("/api/trial-checks"), "the trial checks");
       return res.json();
     },
     staleTime: 30_000,

@@ -29,6 +29,7 @@ import { listChurnRisk } from "@/lib/merchant-health";
 import { formatCount, formatWhen } from "@/lib/format";
 import { useCan } from "@/hooks/use-admin-auth";
 import { freeDaysKind } from "@/lib/shop-actions";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface MerchantCardProps {
   merchant: AdminTenant;
@@ -90,7 +91,7 @@ export function MerchantCard({
   const queryClient = useQueryClient();
   const tagsMutation = useMutation({
     mutationFn: async (tags: string[]) => {
-      const res = await fetch(`/api/merchants/${merchant.id}/tags`, {
+      const res = await adminFetch(`/api/merchants/${merchant.id}/tags`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tags }),

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
 import { PLAN_LABELS, type PlanTier } from "@/types/admin";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const PLAN_OPTIONS: Array<{
   value: PlanTier;
@@ -50,7 +51,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
 
   const mutation = useMutation({
     mutationFn: async (newPlan: PlanTier) => {
-      const res = await fetch(`/api/merchants/${merchantId}`, {
+      const res = await adminFetch(`/api/merchants/${merchantId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: newPlan }),

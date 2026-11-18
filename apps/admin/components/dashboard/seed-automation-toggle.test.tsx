@@ -8,6 +8,9 @@ import { cleanup, render, screen } from "@testing-library/react";
  * says the state could not be read.
  */
 
+// The console's API calls go through adminFetch, which adds the session's
+// token; here it passes each call to the fetch the test answers.
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: (input: string, init?: RequestInit) => fetch(input, init) }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 vi.mock("@/hooks/use-admin-auth", () => ({ useCan: () => () => true }));
 
