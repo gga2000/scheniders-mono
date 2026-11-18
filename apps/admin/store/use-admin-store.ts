@@ -159,6 +159,17 @@ const DEFAULT_SAVED_VIEWS: SavedView[] = [
  */
 const noTicks = () => ({ selectedMerchants: new Set<string>(), lastSelectedIndex: null });
 
+/**
+ * Whether a filter, not the search, narrows the merchant list. An empty list
+ * under one says no shop matches, not that no shop has signed up: the date
+ * range was left out, so "Today" with no new shop said "No merchants yet".
+ */
+export function merchantFiltersOn(
+  s: Pick<AdminFilterState, "planFilter" | "statusFilter" | "cityFilter" | "balanceFilter" | "healthFilter" | "dateRange">,
+): boolean {
+  return !!(s.planFilter || s.statusFilter || s.cityFilter || s.balanceFilter || s.healthFilter || s.dateRange.from || s.dateRange.to);
+}
+
 export const useAdminStore = create<AdminStore>()(
   persist(
     (set, get) => ({

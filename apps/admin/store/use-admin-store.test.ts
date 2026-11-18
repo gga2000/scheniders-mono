@@ -7,7 +7,7 @@ vi.stubGlobal("localStorage", {
   setItem: (key: string, value: string) => void memory.set(key, value),
   removeItem: (key: string) => void memory.delete(key),
 });
-const { useAdminStore } = await import("./use-admin-store");
+const { merchantFiltersOn, useAdminStore } = await import("./use-admin-store");
 
 /*
  * Ticks survived a search. Tick #100095, search "100012", tick it: the list
@@ -90,3 +90,33 @@ describe("stars", () => {
   });
 });
 
+
+/*
+ * Round 16: Merchants with "Today" picked and no shop signed up today said
+ * "No merchants yet. Merchants will appear here once they sign up", as if
+ * there were none at all: the date range did not count as a filter.
+ */
+describe("merchantFiltersOn", () => {
+  beforeEach(() => store().clearFilters());
+
+  it("is off with no filter, and the search alone does not count", () => {
+    expect(merchantFiltersOn(store())).toBe(false);
+    store().setSearchQuery("kut");
+    expect(merchantFiltersOn(store())).toBe(false);
+  });
+
+  it.each([
+    ["the plan filter", () => store().setPlanFilter("growth")],
+    ["the status filter", () => store().setStatusFilter("trial")],
+    ["the city filter", () => store().setCityFilter("baghdad")],
+    ["the balance filter", () => store().setBalanceFilter("low")],
+    ["the health filter", () => store().setHealthFilter("at_risk")],
+    ["a date range's first day", () => store().setDateRange({ from: "2026-11-18", to: null })],
+    ["a date range's last day", () => store().setDateRange({ from: null, to: "2026-11-18" })],
+  ])("is on with %s, and off again once the filters are cleared", (_name, set) => {
+    set();
+    expect(merchantFiltersOn(store())).toBe(true);
+    store().clearFilters();
+    expect(merchantFiltersOn(store())).toBe(false);
+  });
+});
