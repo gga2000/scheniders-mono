@@ -438,6 +438,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
           dateFrom={dateRange.from ?? undefined}
           dateTo={dateRange.to ?? undefined}
           onDateChange={(from, to) => setDateRange({ from: from ?? null, to: to ?? null })}
+          timeZone="Asia/Baghdad"
         />
         {activeFilterCount > 0 && (
           <button
