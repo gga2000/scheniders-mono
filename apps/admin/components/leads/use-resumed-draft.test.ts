@@ -160,6 +160,44 @@ describe("useResumedDraft: opening", () => {
   });
 });
 
+describe("useResumedDraft: opening after its own save", () => {
+  /*
+   * Round 16 (Structure new 8): the test above answers the read inside the
+   * same step as the save, so a form that opened as the save answered, before
+   * the read after it, still passed. Here the read is held on its own.
+   */
+  it("stays closed once the save has answered, until the read after it answers too", async () => {
+    let answerSave: (response: Response) => void = () => {};
+    patch.mockReturnValueOnce(new Promise<Response>((resolve) => (answerSave = resolve)));
+    const { result } = setup();
+    const opened = leadToFormData(draft());
+    const changes: Partial<LeadFormData> = { phone_numbers: [MINE, THEIRS] };
+
+    act(() => result.current.form.onSaveDraft({ ...opened, ...changes }, changes, opened));
+    act(() => result.current.form.onOpenChange(false));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    act(() => result.current.resume(draft()));
+
+    // From here, each read of the lead waits until the test answers it.
+    const reads: Array<() => void> = [];
+    const after = { lead: draft({ phone_numbers: [MINE, THEIRS] }), activities: [], follow_ups: [], social_links: [], competitors: [] };
+    adminFetch.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === "PATCH"
+        ? patch(url, init)
+        : new Promise<Response>((resolve) => reads.push(() => resolve(new Response(JSON.stringify(after))))),
+    );
+    await act(async () => answerSave(ok()));
+    await waitFor(() => expect(reads.length).toBeGreaterThan(0));
+    expect(result.current.form.open).toBe(false);
+
+    await act(async () => {
+      for (const answer of reads) answer();
+    });
+    await waitFor(() => expect(result.current.form.open).toBe(true));
+    expect(result.current.form.initialData?.phone_numbers).toEqual([MINE, THEIRS]);
+  });
+});
+
 describe("useResumedDraft: closing with changes", () => {
   it("sends only the changes with their lists as opened, and leaves the draft mark and the owner alone", async () => {
     patch.mockResolvedValueOnce(ok());
