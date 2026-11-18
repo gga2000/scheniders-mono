@@ -200,3 +200,63 @@ describe("a page that staff chose to stay on", () => {
     expect(toast.warning).toHaveBeenCalledTimes(2);
   });
 });
+
+/*
+ * Round 16 (ux new 4): a role removed while the tab was away. The browser read
+ * "no row" and signed out, and the page then reloaded to the login page with
+ * no reason. It now goes to the login page that says why, and keeps the page.
+ */
+describe("leaveWithoutAccess", () => {
+  const assign = vi.fn(beforeReload);
+  beforeEach(() => assign.mockClear());
+  const at = (path: string) => {
+    const url = new URL(path, "https://console.test");
+    vi.stubGlobal("location", { ...window.location, pathname: url.pathname, search: url.search, reload, assign });
+  };
+
+  it("goes to the login page that says this login has no access, with the page it was on", async () => {
+    at("/merchants?tab=all");
+    const { leaveWithoutAccess } = await import("./admin-fetch");
+    leaveWithoutAccess();
+    expect(assign).toHaveBeenCalledWith("/login?error=forbidden&next=%2Fmerchants%3Ftab%3Dall");
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("leaves once, and a signed-out read after it does not reload over it", async () => {
+    at("/support");
+    auth.session = null;
+    const { leaveWithoutAccess, leaveIfSignedOut } = await import("./admin-fetch");
+    leaveWithoutAccess();
+    leaveWithoutAccess();
+    await leaveIfSignedOut();
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("keeps the page asked for when it starts on the login page", async () => {
+    at("/login?next=%2Fleads");
+    const { leaveWithoutAccess } = await import("./admin-fetch");
+    leaveWithoutAccess();
+    expect(assign).toHaveBeenCalledWith("/login?error=forbidden&next=%2Fleads");
+  });
+
+  it("stays on a login page that already says so, so a failed sign-out cannot send it round and round", async () => {
+    at("/login?error=forbidden&next=%2Fleads");
+    const { leaveWithoutAccess } = await import("./admin-fetch");
+    leaveWithoutAccess();
+    expect(assign).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("says why on a page staff stay on", async () => {
+    const typed = typingUnsaved();
+    try {
+      at("/leads");
+      const { leaveWithoutAccess } = await import("./admin-fetch");
+      leaveWithoutAccess();
+      expect(toast.error).toHaveBeenCalledWith(NO_CONSOLE_ACCESS, expect.objectContaining({ duration: Infinity }));
+    } finally {
+      typed();
+    }
+  });
+});

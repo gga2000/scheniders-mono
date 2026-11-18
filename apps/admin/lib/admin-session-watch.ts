@@ -31,15 +31,22 @@ export interface SessionSource<Profile> {
    * pages, stars). Called when someone else signs in, before their first read.
    */
   forgetPerson(): void;
+  /**
+   * Takes the page to the login page, which says this login has no console
+   * access. Called after the sign-out here: the browser then holds no session,
+   * so a reload would reach the login page with no reason.
+   */
+  leaveNoAccess(): void;
 }
 
 /**
  * Follows the signed-in session and the person's console access (#1285). A
  * failed read of the staff row is not "no access": it keeps the role already
  * known for that person, and only a row that answers "no" signs out, this
- * browser only. A new token is not read again, since it changes nobody's
- * access and the server checks every request. Only the newest answer counts,
- * and a sign-out drops any answer still on its way. Returns the way to stop.
+ * browser only, and then leaves for the login page with the reason. A new
+ * token is not read again, since it changes nobody's access and the server
+ * checks every request. Only the newest answer counts, and a sign-out drops
+ * any answer still on its way. Returns the way to stop.
  */
 export function watchAdminSession<Profile>(
   source: SessionSource<Profile>,
@@ -69,6 +76,7 @@ export function watchAdminSession<Profile>(
       known = null;
       show({ kind: "no_access" });
       await source.signOutHere();
+      if (!stopped) source.leaveNoAccess();
       return;
     }
     const role = step.kind === "unknown" ? null : step.role;
