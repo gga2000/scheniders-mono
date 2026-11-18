@@ -124,7 +124,7 @@ export function MerchantsCompareDialog({
               <Activity className="w-4 h-4" />
             </span>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50">
+              <p className="text-xs font-black text-foreground/70">
                 Compare
               </p>
               <h2 className="text-lg font-black tracking-tight text-foreground">
@@ -135,7 +135,7 @@ export function MerchantsCompareDialog({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
             aria-label="Close compare"
           >
             <X className="w-4 h-4" />
@@ -173,7 +173,7 @@ export function MerchantsCompareDialog({
                     <p className="text-sm font-black text-foreground truncate name-dir leading-tight">
                       {m.business_name}
                     </p>
-                    <p className="text-[10px] text-foreground/50 truncate font-medium">
+                    <p className="text-xs text-foreground/70 truncate font-medium">
                       {m.slug}
                     </p>
                   </div>
@@ -181,7 +181,7 @@ export function MerchantsCompareDialog({
                 <div className="flex items-center gap-1 mt-2.5 flex-wrap">
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
+                      "px-2 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
                       statusGrad
                     )}
                   >
@@ -189,7 +189,7 @@ export function MerchantsCompareDialog({
                   </span>
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
+                      "px-2 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br",
                       planGrad
                     )}
                   >
@@ -203,7 +203,7 @@ export function MerchantsCompareDialog({
                       onOpenDetail(m.id);
                       onClose();
                     }}
-                    className="absolute top-2 right-2 p-1 rounded-lg text-foreground/30 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    className="absolute top-2 right-2 p-1 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
                     title="Open details"
                   >
                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -228,7 +228,7 @@ export function MerchantsCompareDialog({
                   gridTemplateColumns: `120px repeat(${merchants.length}, minmax(0, 1fr))`,
                 }}
               >
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black text-foreground/55">
+                <div className="flex items-center gap-2 text-xs font-black text-foreground/70">
                   <Icon className="w-3.5 h-3.5 text-foreground/40" />
                   {row.label}
                 </div>
@@ -267,7 +267,7 @@ export function MerchantsCompareDialog({
                         {row.format(v)}
                       </span>
                       {row.suffix && (
-                        <span className="text-[9px] font-bold text-foreground/40">
+                        <span className="text-xs font-bold text-foreground/70">
                           {row.suffix}
                         </span>
                       )}
@@ -324,7 +324,7 @@ function CompareInfoRow({
         gridTemplateColumns: `120px repeat(${merchants.length}, minmax(0, 1fr))`,
       }}
     >
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider font-black text-foreground/55">
+      <div className="flex items-center gap-2 text-xs font-black text-foreground/70">
         <Icon className="w-3.5 h-3.5 text-foreground/40" />
         {label}
       </div>

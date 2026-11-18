@@ -35,7 +35,7 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
   if (!actor) return null;
 
   const dimensions = size === "xs" ? "w-5 h-5" : "w-6 h-6";
-  const text = size === "xs" ? "text-[9px]" : "text-[10px]";
+  const text = size === "xs" ? "text-xs" : "text-xs";
   const initials = actor.display_name.charAt(0).toUpperCase();
   const verb = ACTION_LABELS[actor.action] ?? actor.action.replace(/_/g, " ");
 
@@ -68,7 +68,7 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
         </div>
       )}
       {showLabel && (
-        <span className="text-[10px] font-semibold text-foreground/60 truncate max-w-[80px]">
+        <span className="text-xs font-semibold text-foreground/70 truncate max-w-[80px]">
           {actor.display_name}
         </span>
       )}
@@ -83,24 +83,24 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
                 className="w-7 h-7 rounded-full object-cover shrink-0"
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-[10px] font-black shrink-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-black shrink-0">
                 {initials}
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[11px] font-bold text-foreground truncate leading-tight">
+              <p className="text-xs font-bold text-foreground truncate leading-tight">
                 {actor.display_name}
               </p>
               {actor.email && (
-                <p className="text-[10px] text-foreground/45 truncate leading-tight">
+                <p className="text-xs text-foreground/70 truncate leading-tight">
                   {actor.email}
                 </p>
               )}
             </div>
           </div>
-          <p className="text-[10px] text-foreground/60 mt-1.5 leading-snug">
+          <p className="text-xs text-foreground/70 mt-1.5 leading-snug">
             <span className="font-semibold text-foreground/80">{verb}</span>
-            <span className="text-foreground/40"> · {formatWhen(actor.when)}</span>
+            <span className="text-foreground/70"> · {formatWhen(actor.when)}</span>
           </p>
         </div>
       )}

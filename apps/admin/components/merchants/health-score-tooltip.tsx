@@ -70,7 +70,7 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
           setOpen(!open);
         }}
         className={cn(
-          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all",
+          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold cursor-pointer transition-all",
           healthChipClass(score)
         )}
         title={`Health score: ${score}/100`}
@@ -92,11 +92,11 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
           onMouseLeave={handleMouseLeave}
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-semibold text-foreground/50 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-foreground/70">
               Health Breakdown
             </span>
             <span className={cn(
-              "px-2 py-0.5 rounded-full text-[11px] font-bold",
+              "px-2 py-0.5 rounded-full text-xs font-bold",
               healthChipClass(score)
             )}>
               {score}/100
@@ -106,7 +106,7 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
           <div className="space-y-2">
             {breakdown.map((comp) => (
               <div key={comp.label} className="flex items-center gap-2">
-                <span className="text-[10px] text-foreground/60 w-12 shrink-0">{comp.label}</span>
+                <span className="text-xs text-foreground/70 w-12 shrink-0">{comp.label}</span>
                 <div className="flex-1 h-1.5 rounded-full bg-foreground/[0.06] overflow-hidden">
                   <div
                     className={cn("h-full rounded-full transition-all", comp.color)}
@@ -116,8 +116,8 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
                   />
                 </div>
                 <span className={cn(
-                  "text-[10px] font-bold w-8 text-right",
-                  comp.value > 0 ? "text-green-600" : comp.value < 0 ? "text-red-500" : "text-foreground/30"
+                  "text-xs font-bold w-8 text-right",
+                  comp.value > 0 ? "text-green-600" : comp.value < 0 ? "text-red-500" : "text-foreground/70"
                 )}>
                   {comp.value > 0 ? `+${comp.value}` : comp.value}
                 </span>
@@ -126,12 +126,12 @@ export function HealthScoreTooltip({ merchant, score, isChurnRisk }: HealthScore
           </div>
 
           <div className="mt-2.5 pt-2 border-t border-[var(--card-border)] flex items-center justify-between">
-            <span className="text-[10px] text-foreground/50">Base score</span>
-            <span className="text-[10px] font-bold text-foreground/50">50</span>
+            <span className="text-xs text-foreground/70">Base score</span>
+            <span className="text-xs font-bold text-foreground/70">50</span>
           </div>
 
           {isChurnRisk && (
-            <div className="mt-2 px-2 py-1.5 rounded-lg bg-red-50 dark:bg-red-400/10 text-[10px] text-red-600 dark:text-red-400 font-semibold flex items-center gap-1">
+            <div className="mt-2 px-2 py-1.5 rounded-lg bg-red-50 dark:bg-red-400/10 text-xs text-red-600 dark:text-red-400 font-semibold flex items-center gap-1">
               <Flame className="w-3 h-3" />
               At risk of churning
             </div>

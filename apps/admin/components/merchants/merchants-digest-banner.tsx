@@ -75,7 +75,7 @@ export function MerchantsDigestBanner() {
               <Sparkles className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.1em] font-black text-foreground/50">
+              <p className="text-xs font-black text-foreground/70">
                 Daily Digest
               </p>
               <p className="text-sm font-black text-foreground truncate">
@@ -86,7 +86,7 @@ export function MerchantsDigestBanner() {
           <button
             type="button"
             onClick={handleDismiss}
-            className="shrink-0 p-1.5 rounded-full text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="shrink-0 p-1.5 rounded-full text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
             title="Hide for this session"
             aria-label="Dismiss digest banner"
           >
@@ -114,7 +114,7 @@ export function MerchantsDigestBanner() {
                 <span className="text-base font-black tabular-nums leading-none">
                   {card.count}
                 </span>
-                <span className="text-[11px] font-bold opacity-90">
+                <span className="text-xs font-bold opacity-90">
                   {card.label}
                 </span>
                 <ArrowRight className="w-3 h-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />

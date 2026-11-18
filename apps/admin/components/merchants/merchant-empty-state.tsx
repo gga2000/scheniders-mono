@@ -35,7 +35,7 @@ export function MerchantEmptyState({
         <h3 className="text-sm font-bold text-foreground mb-1">
           No results for &lsquo;{searchQuery}&rsquo;
         </h3>
-        <p className="text-xs text-foreground/50 mb-5 max-w-[260px]">
+        <p className="text-xs text-foreground/70 mb-5 max-w-[260px]">
           Try adjusting your search term or clearing it to see all merchants.
         </p>
         <button
@@ -67,7 +67,7 @@ export function MerchantEmptyState({
         <h3 className="text-sm font-bold text-foreground mb-1">
           No merchants match your filters
         </h3>
-        <p className="text-xs text-foreground/50 mb-5 max-w-[260px]">
+        <p className="text-xs text-foreground/70 mb-5 max-w-[260px]">
           Try broadening your filter criteria or clearing all filters to see
           every merchant.
         </p>
@@ -104,7 +104,7 @@ export function MerchantEmptyState({
       <h3 className="text-sm font-bold text-foreground mb-1">
         No merchants yet
       </h3>
-      <p className="text-xs text-foreground/50 max-w-[240px]">
+      <p className="text-xs text-foreground/70 max-w-[240px]">
         Merchants will appear here once they sign up on the platform.
       </p>
     </motion.div>

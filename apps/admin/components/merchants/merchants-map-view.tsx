@@ -104,7 +104,7 @@ export function MerchantsMapView() {
               Merchants by Governorate
             </h3>
           </div>
-          <span className="text-xs text-foreground/50 tabular-nums">
+          <span className="text-xs text-foreground/70 tabular-nums">
             {isError ? "The counts did not load" : stats ? `${stats.total} total` : "—"}
             {stats && stats.unknown_city > 0 && (
               <span className="text-amber-600 dark:text-amber-400 ml-1.5">
@@ -210,7 +210,7 @@ export function MerchantsMapView() {
               }}
             >
               <p className="font-bold text-foreground">{tooltip.gov.name}</p>
-              <p className="text-foreground/60 mt-0.5">
+              <p className="text-foreground/70 mt-0.5">
                 {tooltip.gov.count}{" "}
                 {tooltip.gov.count === 1 ? "merchant" : "merchants"}
               </p>
@@ -220,7 +220,7 @@ export function MerchantsMapView() {
 
         {/* Legend */}
         <div className="flex items-center gap-1 mt-3 justify-center">
-          <span className="text-[10px] text-foreground/50">Less</span>
+          <span className="text-xs text-foreground/70">Less</span>
           {HEAT_SCALE.map((c, i) => (
             <div
               key={i}
@@ -228,7 +228,7 @@ export function MerchantsMapView() {
               style={{ backgroundColor: c }}
             />
           ))}
-          <span className="text-[10px] text-foreground/50">More</span>
+          <span className="text-xs text-foreground/70">More</span>
         </div>
       </div>
 
@@ -248,14 +248,14 @@ export function MerchantsMapView() {
                   <h4 className="font-black text-lg text-foreground tracking-tight">
                     {selectedGovernorate.name}
                   </h4>
-                  <p className="text-[11px] text-foreground/55 font-medium mt-0.5">
+                  <p className="text-xs text-foreground/70 font-medium mt-0.5">
                     {stats.total}{" "}
                     {stats.total === 1 ? "merchant" : "merchants"}
                   </p>
                 </div>
                 <button
                   onClick={() => setCityFilter(null)}
-                  className="p-1 rounded-lg hover:bg-foreground/5 text-foreground/40 hover:text-foreground transition-colors"
+                  className="p-1 rounded-lg hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors"
                   aria-label="Close detail"
                 >
                   <X className="w-4 h-4" />
@@ -267,7 +267,7 @@ export function MerchantsMapView() {
                 <div className="rounded-xl bg-white/70 dark:bg-white/5 p-2.5">
                   <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
                     <Wallet className="w-3 h-3" />
-                    <span className="text-[9px] uppercase tracking-wider font-black">
+                    <span className="text-xs font-black">
                       Wallet
                     </span>
                   </div>
@@ -275,7 +275,7 @@ export function MerchantsMapView() {
                     {new Intl.NumberFormat("en-IQ").format(
                       stats.total_wallet_iqd
                     )}{" "}
-                    <span className="text-[10px] font-bold text-foreground/40">
+                    <span className="text-xs font-bold text-foreground/70">
                       IQD
                     </span>
                   </p>
@@ -283,7 +283,7 @@ export function MerchantsMapView() {
                 <div className="rounded-xl bg-white/70 dark:bg-white/5 p-2.5">
                   <div className="flex items-center gap-1.5 text-violet-700 dark:text-violet-300">
                     <TrendingUp className="w-3 h-3" />
-                    <span className="text-[9px] uppercase tracking-wider font-black">
+                    <span className="text-xs font-black">
                       Our fees, 30 days
                     </span>
                   </div>
@@ -291,7 +291,7 @@ export function MerchantsMapView() {
                     {new Intl.NumberFormat("en-IQ").format(
                       stats.fees_30d_iqd
                     )}{" "}
-                    <span className="text-[10px] font-bold text-foreground/40">
+                    <span className="text-xs font-bold text-foreground/70">
                       IQD
                     </span>
                   </p>
@@ -311,11 +311,11 @@ export function MerchantsMapView() {
                   .map((b) => (
                     <div
                       key={b.label}
-                      className="flex items-center justify-between text-[11px]"
+                      className="flex items-center justify-between text-xs"
                     >
                       <span className="flex items-center gap-1.5">
                         <span className={cn("w-1.5 h-1.5 rounded-full", b.color)} />
-                        <span className="text-foreground/65">{b.label}</span>
+                        <span className="text-foreground/70">{b.label}</span>
                       </span>
                       <span className="font-bold text-foreground tabular-nums">
                         {b.count}
@@ -324,7 +324,7 @@ export function MerchantsMapView() {
                   ))}
               </div>
 
-              <p className="text-[10px] text-foreground/45 font-medium mt-3 pt-3 border-t border-foreground/10">
+              <p className="text-xs text-foreground/70 font-medium mt-3 pt-3 border-t border-foreground/10">
                 List below filtered to {selectedGovernorate.name}
               </p>
             </motion.div>
@@ -336,10 +336,10 @@ export function MerchantsMapView() {
               className="rounded-2xl bg-foreground/[0.02] border border-foreground/[0.06] p-6 text-center"
             >
               <Building2 className="w-7 h-7 text-foreground/30 mx-auto mb-2" />
-              <p className="text-xs text-foreground/55 font-medium">
+              <p className="text-xs text-foreground/70 font-medium">
                 Click a governorate to see breakdown
               </p>
-              <p className="text-[10px] text-foreground/35 mt-1">
+              <p className="text-xs text-foreground/70 mt-1">
                 Selecting also filters the list view by city
               </p>
             </motion.div>
@@ -348,7 +348,7 @@ export function MerchantsMapView() {
 
         {/* Top governorates list */}
         <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-3 flex-1">
-          <p className="text-[10px] uppercase tracking-wider font-black text-foreground/50 px-1 mb-2">
+          <p className="text-xs font-black text-foreground/70 px-1 mb-2">
             Top Governorates
           </p>
           <div className="space-y-0.5">

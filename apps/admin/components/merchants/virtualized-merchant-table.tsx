@@ -22,7 +22,7 @@ import { healthChipClass, listChurnRisk } from "@/lib/merchant-health";
 import { formatCount, formatWhen } from "@/lib/format";
 
 const DENSITY_CONFIG: Record<TableDensity, { rowHeight: number; cellPy: string; fontSize: string }> = {
-  compact: { rowHeight: 52, cellPy: "py-1.5", fontSize: "text-[11px]" },
+  compact: { rowHeight: 52, cellPy: "py-1.5", fontSize: "text-xs" },
   comfortable: { rowHeight: 68, cellPy: "py-2.5", fontSize: "text-xs" },
   spacious: { rowHeight: 84, cellPy: "py-3.5", fontSize: "text-xs" },
 };
@@ -125,7 +125,7 @@ export function VirtualizedMerchantTable({
             const sortInfo = getSortInfo(colId);
             const isNumeric = ["balance", "orders", "health", "revenue"].includes(colId);
             const headerClass = cn(
-              "flex-1 min-w-0 px-3 py-3 text-[9px] font-black text-foreground/45 uppercase tracking-[0.1em] select-none flex items-center gap-1",
+              "flex-1 min-w-0 px-3 py-3 text-xs font-black text-foreground/70 select-none flex items-center gap-1",
               isNumeric && "justify-end",
               colId === "business" && "flex-[2]",
               colId === "tags" && "flex-[1.5]",
@@ -156,7 +156,7 @@ export function VirtualizedMerchantTable({
                       <ArrowDown className="w-3 h-3 text-foreground" />
                     )}
                     {sortInfo.rank && (
-                      <span className="text-[8px] font-black text-foreground/60 bg-foreground/10 rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                      <span className="text-xs font-black text-foreground/70 bg-foreground/10 rounded-full min-w-[18px] h-[18px] px-1 leading-none flex items-center justify-center">
                         {sortInfo.rank}
                       </span>
                     )}
@@ -269,7 +269,7 @@ function renderCell(
       return (
         <div className="flex items-center gap-2.5 min-w-0 w-full">
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-[11px] shrink-0 ring-1 ring-black/5 shadow-sm"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0 ring-1 ring-black/5 shadow-sm"
             style={{ backgroundColor: logoBg }}
           >
             {m.business_name.charAt(0).toUpperCase()}
@@ -281,11 +281,11 @@ function renderCell(
             >
               {m.business_name}
             </button>
-            <div className="text-[10px] text-foreground/50 truncate mt-0.5">
+            <div className="text-xs text-foreground/70 truncate mt-0.5">
               {m.contact_email ? (
-                <CopyableText value={m.contact_email} className="text-[10px] text-foreground/50" />
+                <CopyableText value={m.contact_email} className="text-xs text-foreground/70" />
               ) : (
-                <CopyableText value={m.slug} className="text-[10px] text-foreground/50" />
+                <CopyableText value={m.slug} className="text-xs text-foreground/70" />
               )}
             </div>
           </div>
@@ -297,7 +297,7 @@ function renderCell(
       return (
         <span
           className={cn(
-            "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider w-fit",
+            "px-2.5 py-0.5 rounded-full text-xs font-black w-fit",
             PLAN_PILL[m.plan],
           )}
         >
@@ -310,7 +310,7 @@ function renderCell(
       return (
         <span
           className={cn(
-            "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 w-fit",
+            "px-2.5 py-0.5 rounded-full text-xs font-black flex items-center gap-1 w-fit",
             STATUS_PILL[m.status],
           )}
         >
@@ -328,7 +328,7 @@ function renderCell(
               {m.city}
             </>
           ) : (
-            <span className="text-foreground/25">—</span>
+            <span className="text-foreground/70">—</span>
           )}
         </span>
       );
@@ -337,12 +337,12 @@ function renderCell(
       const balance = m.wallet?.balance_iqd ?? 0;
       return (
         <div className="flex flex-col items-end leading-tight">
-          <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
+          <span className="text-xs font-black text-foreground/70">
             Balance
           </span>
           <span className="font-black tabular-nums text-foreground text-[13px]">
             {formatCount(balance)}
-            <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
+            <span className="text-xs font-bold text-foreground/70 ml-1">IQD</span>
           </span>
         </div>
       );
@@ -353,7 +353,7 @@ function renderCell(
       const orders = m.orders_30d ?? 0;
       return (
         <div className="flex flex-col items-end leading-tight">
-          <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
+          <span className="text-xs font-black text-foreground/70">
             Orders
           </span>
           <span className="font-black tabular-nums text-foreground text-[13px]">
@@ -369,7 +369,7 @@ function renderCell(
           {churn && <Flame className="w-3 h-3 text-rose-500" />}
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black tabular-nums",
+              "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-black tabular-nums",
               healthChipClass(healthScore),
             )}
           >
@@ -382,12 +382,12 @@ function renderCell(
     case "revenue": {
       return (
         <div className="flex flex-col items-end leading-tight">
-          <span className="text-[9px] uppercase tracking-[0.1em] font-black text-foreground/45">
+          <span className="text-xs font-black text-foreground/70">
             Our fees
           </span>
           <span className="font-black tabular-nums text-foreground/85 text-[13px]">
             {formatCount(m.fees_30d)}
-            <span className="text-[9px] font-bold text-foreground/40 ml-1">IQD</span>
+            <span className="text-xs font-bold text-foreground/70 ml-1">IQD</span>
           </span>
         </div>
       );
@@ -395,27 +395,27 @@ function renderCell(
 
     case "lastActive":
       return (
-        <span className="text-foreground/55 text-[10px] font-medium">
-          {m.last_active_at ? formatWhen(m.last_active_at) : <span className="text-foreground/25">—</span>}
+        <span className="text-foreground/70 text-xs font-medium">
+          {m.last_active_at ? formatWhen(m.last_active_at) : <span className="text-foreground/70">—</span>}
         </span>
       );
 
     case "tags":
       if (!m.tags || m.tags.length === 0) {
-        return <span className="text-foreground/25">—</span>;
+        return <span className="text-foreground/70">—</span>;
       }
       return (
         <div className="flex items-center gap-1 flex-wrap">
           {m.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-[9px] font-bold text-foreground/65 truncate max-w-[80px]"
+              className="px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-xs font-bold text-foreground/70 truncate max-w-[80px]"
             >
               {tag}
             </span>
           ))}
           {m.tags.length > 3 && (
-            <span className="text-[9px] text-foreground/40 font-bold">+{m.tags.length - 3}</span>
+            <span className="text-xs text-foreground/70 font-bold">+{m.tags.length - 3}</span>
           )}
         </div>
       );
@@ -428,7 +428,7 @@ function renderCell(
       return (
         <button
           onClick={() => onOpenDetail(m.id)}
-          className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+          className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
           aria-label="View details"
         >
           <ExternalLink className="w-3.5 h-3.5" />
