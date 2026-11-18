@@ -25,13 +25,16 @@ let leaving = false;
  * What a page that tried to leave says when staff chose to stay on it: why it
  * tried, and how to keep what they typed. A signed-out page can save again
  * once staff sign in, in a new tab so this one keeps the typing.
+ *
+ * Words only, with no button: the typing is often in a dialog (Add Lead),
+ * which keeps clicks off the rest of the page, so a button here could not be
+ * pressed, and a click outside the dialog would close it.
  */
 function sayWhyStayed(reason: LeaveReason): void {
   if (reason === "no-access") {
     toast.error(NO_CONSOLE_ACCESS, {
       id: STAYED_NOTICE,
       duration: Infinity,
-      closeButton: true,
       description: "This page can no longer save. Copy what you typed before you leave it.",
     });
     return;
@@ -39,16 +42,7 @@ function sayWhyStayed(reason: LeaveReason): void {
   toast.warning("You are signed out.", {
     id: STAYED_NOTICE,
     duration: Infinity,
-    closeButton: true,
     description: "What you typed is still here. Sign in again in a new tab, then save it here.",
-    action: {
-      label: "Sign in",
-      onClick: (event) => {
-        // The notice stays until a save goes through (signedInAgain).
-        event.preventDefault();
-        window.open("/login", "_blank", "noopener");
-      },
-    },
   });
 }
 

@@ -124,11 +124,9 @@ describe("a page that staff chose to stay on", () => {
   let typed: () => void = () => undefined;
   afterEach(() => typed());
 
-  it("says it is signed out, keeps the typing, and offers a sign-in in a new tab", async () => {
+  it("says it is signed out and that the typing is kept, until a save goes through", async () => {
     typed = typingUnsaved();
     auth.session = null;
-    const open = vi.fn();
-    vi.stubGlobal("open", open);
     const { leaveIfSignedOut } = await import("./admin-fetch");
     await leaveIfSignedOut();
     expect(reload).toHaveBeenCalledTimes(1);
@@ -138,12 +136,11 @@ describe("a page that staff chose to stay on", () => {
     expect(options).toMatchObject({
       duration: Infinity,
       description: "What you typed is still here. Sign in again in a new tab, then save it here.",
-      action: { label: "Sign in" },
     });
-    const click = { preventDefault: vi.fn() };
-    options.action.onClick(click);
-    expect(open).toHaveBeenCalledWith("/login", "_blank", "noopener");
-    expect(click.preventDefault).toHaveBeenCalled();
+    // Live, round 16 (#1455): under the Add Lead dialog a button in the notice
+    // could not be pressed, and a click outside the dialog closes it.
+    expect(options).not.toHaveProperty("action");
+    expect(options).not.toHaveProperty("closeButton");
   });
 
   it("says nothing when the page leaves, with nothing unsaved", async () => {
@@ -155,13 +152,17 @@ describe("a page that staff chose to stay on", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("tells a login with no console access why, with no sign-in to offer", async () => {
+  it("tells a login with no console access why", async () => {
     typed = typingUnsaved();
     auth.session = { access_token: "jwt" };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 403, headers: NO_ACCESS_HEADERS })));
     const { adminFetch } = await import("./admin-fetch");
     await adminFetch("/api/leads");
-    expect(toast.error).toHaveBeenCalledWith(NO_CONSOLE_ACCESS, expect.not.objectContaining({ action: expect.anything() }));
+    expect(toast.error).toHaveBeenCalledWith(NO_CONSOLE_ACCESS, {
+      id: expect.any(String),
+      duration: Infinity,
+      description: "This page can no longer save. Copy what you typed before you leave it.",
+    });
     expect(toast.warning).not.toHaveBeenCalled();
   });
 
