@@ -6,6 +6,8 @@ import { X, Plus, Trash2, Tags } from "lucide-react";
 import type { ProductAttributeDef } from "@scheniders/shared";
 import type { AttributeDefWrite } from "@/hooks/use-product-attributes-query";
 import { useLanguage } from "@/hooks/use-language";
+import { useBusinessTypes } from "@/hooks/use-tenant";
+import { examplePlaceholder } from "@/lib/business-types";
 import { cn } from "@/lib/utils";
 
 type Kind = ProductAttributeDef["kind"];
@@ -184,6 +186,8 @@ export function AttributeFormModal({
     existingKeys: string[];
 }) {
     const { t } = useLanguage();
+    // Examples from what the store sells (B10); neutral for a store that never said.
+    const businessTypes = useBusinessTypes();
     const [form, setForm] = useState<AttributeFormData>(EMPTY);
     const [saving, setSaving] = useState(false);
     const [serverError, setServerError] = useState<string | null>(null);
@@ -265,7 +269,7 @@ export function AttributeFormModal({
                                         // The key is ASCII by constraint, so the Arabic
                                         // name cannot seed it — only the English one does.
                                         onChange={(e) => set("name_ar", e.target.value)}
-                                        placeholder="العائلة العطرية"
+                                        placeholder={examplePlaceholder(businessTypes, "attribute_i18n", "ar", "مثال: الخامة")}
                                     />
                                 </div>
                                 <div>
@@ -282,7 +286,7 @@ export function AttributeFormModal({
                                                 key: mode === "add" && (!f.key || f.key === toAttributeKey(f.name_en)) ? toAttributeKey(v) : f.key,
                                             }));
                                         }}
-                                        placeholder="Scent family"
+                                        placeholder={examplePlaceholder(businessTypes, "attribute_i18n", "en", "e.g. Material")}
                                     />
                                 </div>
                             </div>

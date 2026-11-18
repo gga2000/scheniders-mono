@@ -1,9 +1,14 @@
 import { z } from "zod";
 import type { PlanTier, TenantStatus } from "@/types/admin";
 import type { createAdminClient } from "./admin-supabase";
+import { STATUS_REFUSALS } from "./shop-status-choice";
 
-/** What staff ask for. Any part may be left out; at least one is set. */
-export type ShopChange = { status?: TenantStatus; plan?: PlanTier; auto_renew?: boolean };
+/**
+ * What staff ask for. Any part may be left out; at least one of status, plan
+ * and auto_renew is set. `reason` is staff's own words, kept on each staff log
+ * row of the change (a hold from the shop page asks for one).
+ */
+export type ShopChange = { status?: TenantStatus; plan?: PlanTier; auto_renew?: boolean; reason?: string };
 
 export type ShopUpdateActor = { id: string; email?: string | null };
 
@@ -25,14 +30,21 @@ export type ShopUpdateResult =
   | { ok: true; shop: UpdatedShop }
   | { ok: false; status: 404 | 409; error: string };
 
+/**
+ * The demo store (Fermi B13) stays open for everyone who is shown it: no
+ * status change and no pause. Said the same way wherever staff meet it.
+ */
+export const DEMO_STORE_REFUSAL = "This is the demo store. Its status does not change.";
+
 /** Why the database refused, in words staff can act on. */
-const REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
+export const SHOP_UPDATE_REFUSALS: Record<string, { status: 404 | 409; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
-  demo_store: { status: 409, error: "This is the demo store. Its status does not change." },
-  use_pause: { status: 409, error: "Use Pause to limit a shop: it sets what is blocked and for how long." },
-  paused: { status: 409, error: "This shop is paused. Resume it first." },
-  still_trial: { status: 409, error: "This shop is on trial. Use Convert to paid to make it a paying shop." },
-  not_trialing: { status: 409, error: "This shop's subscription is not a trial, so it cannot go back to Trial." },
+  demo_store: { status: 409, error: DEMO_STORE_REFUSAL },
+  // The status moves the card menu and the Pipeline also hold back (lib/shop-status-choice).
+  use_pause: { status: 409, error: STATUS_REFUSALS.use_pause },
+  paused: { status: 409, error: STATUS_REFUSALS.paused },
+  still_trial: { status: 409, error: STATUS_REFUSALS.still_trial },
+  not_trialing: { status: 409, error: STATUS_REFUSALS.not_trialing },
   no_subscription: { status: 409, error: "This shop has no subscription yet." },
   subscription_ended: {
     status: 409,
@@ -67,12 +79,13 @@ export async function updateShop(
     _admin_user_id: actor.id,
     _actor_email: actor.email ?? null,
     _source: source,
+    ...(change.reason ? { _reason: change.reason } : {}),
   });
   if (error) throw error;
 
   const refused = refusedSchema.safeParse(data);
   if (refused.success) {
-    const refusal = REFUSALS[refused.data.error];
+    const refusal = SHOP_UPDATE_REFUSALS[refused.data.error];
     if (!refusal) throw new Error(`Unexpected refusal from admin_update_shop: ${refused.data.error}`);
     return { ok: false, ...refusal };
   }

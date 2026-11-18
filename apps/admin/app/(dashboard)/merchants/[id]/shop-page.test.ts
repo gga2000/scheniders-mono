@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,7 +61,7 @@ describe("the shop page, when the shop cannot be read", () => {
 const shop = {
   tenant: {
     id: "t1", display_id: 100012, business_name: "Scheniders Iraq", slug: "scheniders-iraq", plan: "starter",
-    status: "active", trial_ends_at: null, branding: null, settings: null, store_config: null,
+    status: "active", trial_ends_at: null, branding: null, settings: null, store_config_rev: 2,
     contact_email: null, contact_phone: null, address: null, city: "Baghdad", created_at: "2026-04-09T00:00:00Z",
     restrictions: null, staff_health_score: 80, staff_health_parts: { status: 40, wallet: 20, orders: 20 },
   },
@@ -220,12 +220,30 @@ describe("the Usage and Team tabs, in plain words", () => {
       },
     };
     const html = render();
-    expect(html).toContain("Orders counted this month");
+    expect(html).toContain("Orders counted for the plan this month");
     expect(html).toContain(" of 500 the plan allows");
+    // The plan's counter is not the shop's orders, and the tab says where those are.
+    expect(html).toContain("not the shop&#x27;s orders");
+    expect(html).toContain("Orders, all time");
+    expect(html).not.toContain("no order limit");
     expect(html).toContain("328");
     expect(html).toContain("Oct 2026");
     expect(html).not.toContain("billed");
     expect(html).not.toMatch(/Charged/);
+  });
+
+  it("says when the plan has no order limit, as every plan has today", () => {
+    search = new URLSearchParams("tab=Usage");
+    query = {
+      ...query,
+      data: {
+        ...shop,
+        planLimits: { plan: "starter", max_orders_per_month: -1, max_team_members: 3, base_price_iqd: 9000, order_price_iqd: 55, overage_price_iqd: 0, features: {} },
+      },
+    };
+    const html = render();
+    expect(html).toContain("This plan has no order limit.");
+    expect(html).not.toContain("the plan allows");
   });
 
   it("lists the team owner first, with the role and since when in words", () => {

@@ -191,7 +191,7 @@ vi.mock("next/navigation", () => ({
 const { BillingSettings } = await import("./billing-settings");
 
 function tenant(status: string, trialEndsAt: string | null): TenantSummary {
-    return { id: "t1", status, trial_ends_at: trialEndsAt, plan: "starter", restrictions: null, display_id: 1, is_demo: false, created_at: "2026-01-01T00:00:00Z" };
+    return { id: "t1", status, trial_ends_at: trialEndsAt, plan: "starter", restrictions: null, display_id: 1, is_demo: false, created_at: "2026-01-01T00:00:00Z", business_types: [] };
 }
 
 function tx(partial: Partial<WalletTransaction>): WalletTransaction {

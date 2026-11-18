@@ -4135,6 +4135,7 @@ export type Database = {
           completed_at: string | null
           confirmation_dispatched_at: string | null
           contact_count: number | null
+          courier_name: string | null
           created_at: string
           customer_name: string
           deleted_at: string | null
@@ -4235,6 +4236,7 @@ export type Database = {
           completed_at?: string | null
           confirmation_dispatched_at?: string | null
           contact_count?: number | null
+          courier_name?: string | null
           created_at?: string
           customer_name: string
           deleted_at?: string | null
@@ -4335,6 +4337,7 @@ export type Database = {
           completed_at?: string | null
           confirmation_dispatched_at?: string | null
           contact_count?: number | null
+          courier_name?: string | null
           created_at?: string
           customer_name?: string
           deleted_at?: string | null
@@ -6813,40 +6816,149 @@ export type Database = {
       shipping_export_log: {
         Row: {
           company: string
+          courier_name: string | null
           created_at: string
           error_message: string | null
           exported_by: string | null
           failure_stage: string | null
           id: string
           order_count: number
+          order_ids: string[] | null
           succeeded: boolean
           tenant_id: string
         }
         Insert: {
           company: string
+          courier_name?: string | null
           created_at?: string
           error_message?: string | null
           exported_by?: string | null
           failure_stage?: string | null
           id?: string
           order_count: number
+          order_ids: string[] | null
           succeeded: boolean
           tenant_id: string
         }
         Update: {
           company?: string
+          courier_name?: string | null
           created_at?: string
           error_message?: string | null
           exported_by?: string | null
           failure_stage?: string | null
           id?: string
           order_count?: number
+          order_ids?: string[] | null
           succeeded?: boolean
           tenant_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "shipping_export_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_export_templates: {
+        Row: {
+          columns: Json
+          created_at: string
+          created_by: string | null
+          file_format: string
+          id: string
+          name: string
+          phone_format: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          columns: Json
+          created_at?: string
+          created_by?: string | null
+          file_format?: string
+          id?: string
+          name: string
+          phone_format?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          columns?: Json
+          created_at?: string
+          created_by?: string | null
+          file_format?: string
+          id?: string
+          name?: string
+          phone_format?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_export_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signup_phone_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string | null
+          message_id: string | null
+          phone: string
+          tenant_id: string | null
+          used_at: string | null
+          verified_at: string | null
+          welcome_error: string | null
+          welcome_message_id: string | null
+          welcome_sent_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip?: string | null
+          message_id?: string | null
+          phone: string
+          tenant_id?: string | null
+          used_at?: string | null
+          verified_at?: string | null
+          welcome_error?: string | null
+          welcome_message_id?: string | null
+          welcome_sent_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          message_id?: string | null
+          phone?: string
+          tenant_id?: string | null
+          used_at?: string | null
+          verified_at?: string | null
+          welcome_error?: string | null
+          welcome_message_id?: string | null
+          welcome_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signup_phone_codes_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -8088,10 +8200,12 @@ export type Database = {
           address: string | null
           branding: Json
           business_name: string
+          business_types: string[]
           city: string | null
           config_version: number
           contact_email: string | null
           contact_phone: string | null
+          contact_phone_verified_at: string | null
           created_at: string
           display_id: number
           id: string
@@ -8116,10 +8230,12 @@ export type Database = {
           address?: string | null
           branding?: Json
           business_name: string
+          business_types?: string[]
           city?: string | null
           config_version?: number
           contact_email?: string | null
           contact_phone?: string | null
+          contact_phone_verified_at?: string | null
           created_at?: string
           display_id?: number
           id?: string
@@ -8144,10 +8260,12 @@ export type Database = {
           address?: string | null
           branding?: Json
           business_name?: string
+          business_types?: string[]
           city?: string | null
           config_version?: number
           contact_email?: string | null
           contact_phone?: string | null
+          contact_phone_verified_at?: string | null
           created_at?: string
           display_id?: number
           id?: string
@@ -9579,7 +9697,7 @@ export type Database = {
       get_topup_payment_details: { Args: never; Returns: Json }
       get_user_tenant_ids: { Args: never; Returns: string[] }
       guide_end_practice_orders: {
-        Args: { _tenant_id: string }
+        Args: { _store_orders_since?: string; _tenant_id: string }
         Returns: number
       }
       guide_start_practice_orders: {
@@ -9613,9 +9731,11 @@ export type Database = {
       log_shipping_export: {
         Args: {
           p_company: string
+          p_courier_name?: string
           p_error_message?: string
           p_failure_stage?: string
           p_order_count: number
+          p_order_ids?: string[]
           p_succeeded: boolean
           p_tenant_id: string
         }
@@ -9647,6 +9767,10 @@ export type Database = {
         Returns: number
       }
       mark_notifications_read: { Args: never; Returns: undefined }
+      mark_orders_sent_with_courier: {
+        Args: { p_courier_name: string; p_order_ids: string[]; p_tenant_id: string }
+        Returns: number
+      }
       merge_orders_atomic: {
         Args: {
           _archive_order_id: string
@@ -9982,6 +10106,21 @@ export type Database = {
           _qi_status: string
         }
         Returns: Json
+      }
+      signup_phone_code_check: {
+        Args: { p_code_hash: string; p_phone: string }
+        Returns: {
+          proof: string | null
+          result: string
+        }[]
+      }
+      shipping_export_history: {
+        Args: { p_order_ids: string[]; p_tenant_id: string }
+        Returns: {
+          courier: string
+          order_id: string
+          sent_at: string
+        }[]
       }
       shield_impact: {
         Args: { p_from: string; p_to: string }

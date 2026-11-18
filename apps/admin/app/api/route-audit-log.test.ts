@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { newestDefinition } from "@/lib/sql-migrations.test-data";
 
 /*
  * Round 1 of the staff console audit found 7 of 40 changing routes writing an
@@ -14,9 +15,8 @@ import { describe, expect, it } from "vitest";
  */
 
 const API_DIR = path.resolve(__dirname);
-const MIGRATIONS_DIR = path.resolve(__dirname, "../../../../packages/supabase/migrations");
 const CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const LOGS = /\b(logAdminAction|logAdminActivity)\(/;
+const LOGS = /\b(logAdminAction|logAdminActivity|logAdminActivityBatch)\(/;
 
 /** Reads that are logged all the same: they carry shop data out of the console. */
 const LOGGED_READS = new Set(["export/route.ts GET"]);
@@ -30,21 +30,31 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",
   "merchants/[id]/route.ts PATCH": "admin_update_shop",
+  "leads/[id]/route.ts PATCH": "admin_save_lead",
+  "leads/bulk/route.ts POST": "admin_change_leads",
+  "leads/[id]/build-store/route.ts POST": "admin_build_prospect_store",
+  "industries/[id]/move/route.ts POST": "admin_move_industry",
+  "leads/[id]/route.ts DELETE": "admin_delete_leads",
+  "industries/[id]/route.ts DELETE": "admin_remove_industry",
+  "industries/[id]/route.ts PATCH": "admin_edit_industry",
+  "industries/route.ts POST": "admin_add_industry",
+  "support/view/route.ts POST": "support_view_start",
+  "support/view/route.ts DELETE": "support_view_end",
 };
 
 /** Handlers that write no staff log row, each with why. */
 const NO_STAFF_LOG: Record<string, string> = {
+  "admin/last-actors/route.ts POST": "reads the log; POST only carries the list of shop ids",
   "admin/leads-table-layout/route.ts PUT": "the column layout of the leads table: no shop, money or access changes",
+  "admin/watchlist/route.ts POST": "a person's own watch list",
+  "admin/watchlist/[tenantId]/route.ts DELETE": "a person's own watch list",
   "support/push/route.ts POST": "a person's own device for support alerts; the row names its owner",
   "support/push/route.ts DELETE": "a person's own device for support alerts",
   "merchants/[id]/notes/route.ts POST": "the note row is the record: it names its author and the shop",
   "leads/route.ts POST": "a new sales lead; the lead row records who created it",
-  "leads/[id]/route.ts PATCH": "everyday sales edit; a status change is written to the lead's own history",
   "leads/[id]/activities/route.ts POST": "is the lead's own history",
   "leads/[id]/follow-ups/route.ts POST": "a sales reminder on a lead",
   "leads/[id]/follow-ups/[fid]/route.ts PATCH": "a sales reminder on a lead",
-  "leads/[id]/competitors/route.ts POST": "a sales note on a lead",
-  "leads/[id]/competitors/route.ts DELETE": "a sales note on a lead",
   "leads/analyze-profile/route.ts POST": "reads a public profile and saves nothing",
 };
 
@@ -65,22 +75,15 @@ const handlers = routeFiles.flatMap((file) => {
 
 const mustLeaveATrace = handlers.filter((handler) => CHANGING.has(handler.method) || LOGGED_READS.has(handler.key));
 
-/** The newest definition of a database function, from its CREATE to the next one. */
-function newestDefinition(fn: string): string {
-  const files = readdirSync(MIGRATIONS_DIR)
-    .filter((file) => file.endsWith(".sql"))
-    .sort()
-    .reverse();
-  const start = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${fn}\\(`, "i");
-  for (const file of files) {
-    const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-    const at = sql.search(start);
-    if (at === -1) continue;
-    const rest = sql.slice(at + 1);
-    const next = rest.search(/CREATE OR REPLACE FUNCTION /i);
-    return next === -1 ? rest : rest.slice(0, next);
-  }
-  return "";
+/** A database function writes the staff log row itself, or through a function it calls. */
+function writesStaffLog(fn: string, seen = new Set<string>()): boolean {
+  const definition = newestDefinition(fn);
+  if (/INSERT INTO public\.admin_activity_logs/i.test(definition)) return true;
+  seen.add(fn);
+  return [...definition.matchAll(/public\.(\w+)\(/g)]
+    .map((call) => call[1])
+    .filter((called) => !seen.has(called))
+    .some((called) => writesStaffLog(called, seen));
 }
 
 describe("every changing admin route leaves a trace", () => {
@@ -91,9 +94,7 @@ describe("every changing admin route leaves a trace", () => {
   it.each(mustLeaveATrace.map((handler) => [handler.key, handler.body]))("%s", (key, body) => {
     const sqlFunction = LOGGED_IN_SQL[key];
     if (sqlFunction) {
-      expect(newestDefinition(sqlFunction), `${sqlFunction} must insert into admin_activity_logs`).toMatch(
-        /INSERT INTO public\.admin_activity_logs/i,
-      );
+      expect(writesStaffLog(sqlFunction), `${sqlFunction} must insert into admin_activity_logs`).toBe(true);
       return;
     }
     if (key in NO_STAFF_LOG) {

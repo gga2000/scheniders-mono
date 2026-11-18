@@ -14,6 +14,20 @@ export function callBackWhen(dueAt: string, now: number): { key: "support.callBa
     return due.getTime() > now + 60_000 ? { key: "support.callBack.at", at: due } : { key: "support.callBack.soon" };
 }
 
+type Translate = ReturnType<typeof useLanguage>["t"];
+
+/** "Usually within minutes" or "Support opens at 9:00", for a call due at `dueAt`. */
+export function callBackWhenText(t: Translate, language: string, dueAt: string, now: number): string {
+    const when = callBackWhen(dueAt, now);
+    if (when.key === "support.callBack.soon") return t("support.callBack.soon");
+    const time = when.at.toLocaleTimeString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "Asia/Baghdad",
+    });
+    return t("support.callBack.at", { time });
+}
+
 /**
  * "Call me back" in the Help chat: the merchant leaves a number and the call
  * lands in the staff console's Today list. Once asked, it says which number
@@ -94,15 +108,6 @@ export function SupportCallBack({ thread }: { thread: SupportThread | undefined 
     }
 
     if (callBack) {
-        const when = callBackWhen(callBack.due_at, now);
-        const time =
-            when.key === "support.callBack.at"
-                ? when.at.toLocaleTimeString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      timeZone: "Asia/Baghdad",
-                  })
-                : "";
         return (
             <div className="flex items-center gap-3 border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5">
                 <PhoneCall className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -110,9 +115,7 @@ export function SupportCallBack({ thread }: { thread: SupportThread | undefined 
                     <p dir="auto" className="text-sm font-semibold text-foreground">
                         {t("support.callBack.asked", { phone: formatIraqiPhoneDisplay(callBack.phone) })}
                     </p>
-                    <p dir="auto" className="text-xs text-muted">
-                        {when.key === "support.callBack.at" ? t("support.callBack.at", { time }) : t("support.callBack.soon")}
-                    </p>
+                    <p dir="auto" className="text-xs text-muted">{callBackWhenText(t, language, callBack.due_at, now)}</p>
                 </div>
                 <button type="button" onClick={startEditing} className="shrink-0 text-xs font-semibold text-foreground underline-offset-2 hover:underline">
                     {t("support.callBack.change")}

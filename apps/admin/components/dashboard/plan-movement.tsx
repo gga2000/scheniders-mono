@@ -7,14 +7,23 @@ interface PlanMovementProps {
   movements: PlanMovement[] | undefined;
 }
 
+/**
+ * `pill` names the move on its line; `label` heads its count and `title` says
+ * it in full on hover. A count's tile is about 73 px wide on Home, so its label
+ * is one short word: "Cancellations" in capitals needed 118 px and ran into
+ * the next tile. "Lost", not "Ended": Trials says "ended" of a trial that ran
+ * out, a different count; "Cancelled" (63 px) does not fit.
+ */
 const TYPE_STYLES: Record<
   PlanMovement["type"],
-  { bg: string; text: string; label: string }
+  { bg: string; text: string; label: string; title: string; pill: string }
 > = {
-  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Upgrades" },
-  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Downgrades" },
-  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Cancellations" },
-  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New Signups" },
+  upgrade: { bg: "bg-green-500/15", text: "text-[var(--ink-green)]", label: "Up", title: "Upgrades", pill: "upgrade" },
+  downgrade: { bg: "bg-red-500/15", text: "text-[var(--ink-red)]", label: "Down", title: "Downgrades", pill: "downgrade" },
+  cancellation: { bg: "bg-gray-500/15", text: "text-[var(--muted)]", label: "Lost", title: "Cancelled by staff", pill: "cancellation" },
+  new: { bg: "bg-blue-500/15", text: "text-[var(--ink-blue)]", label: "New", title: "New signups", pill: "new" },
+  // Set for the next payment, not made yet: listed, not counted above.
+  waiting: { bg: "bg-amber-500/15", text: "text-[var(--ink-amber)]", label: "Waiting", title: "Waiting", pill: "at next payment" },
 };
 
 function Skeleton() {
@@ -39,12 +48,10 @@ function formatPlan(plan: string): string {
 }
 
 export function PlanMovementWidget({ movements }: PlanMovementProps) {
-  // Aggregate counts by type
+  // Moves made in the last 30 days, by type; a waiting change is not one yet.
   const summary = { upgrade: 0, downgrade: 0, cancellation: 0, new: 0 };
-  if (movements) {
-    for (const m of movements) {
-      summary[m.type] += m.count;
-    }
+  for (const m of movements ?? []) {
+    if (m.type !== "waiting") summary[m.type] += m.count;
   }
 
   return (
@@ -76,12 +83,13 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
               return (
                 <div
                   key={type}
+                  title={style.title}
                   className={`rounded-xl px-3 py-2.5 ${style.bg} text-center`}
                 >
                   <p className={`text-xl font-bold ${style.text}`}>
                     {summary[type]}
                   </p>
-                  <p className={`text-xs font-semibold uppercase tracking-wider ${style.text}`}>
+                  <p className={`text-xs font-semibold ${style.text}`}>
                     {style.label}
                   </p>
                 </div>
@@ -114,7 +122,7 @@ export function PlanMovementWidget({ movements }: PlanMovementProps) {
                     <span
                       className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}
                     >
-                      {m.type}
+                      {style.pill}
                     </span>
                   </div>
                 </div>

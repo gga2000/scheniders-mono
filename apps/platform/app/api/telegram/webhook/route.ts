@@ -19,6 +19,7 @@ import {
 } from "@/lib/telegram-product-match";
 import { withFailureReport } from "@/lib/job-monitor";
 import { formatIqdNumber } from "@scheniders/shared";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -282,10 +283,12 @@ async function handleProductReply(
 
     const extracted = pending.extracted as ExtractedCustomer;
     const item: OrderItem = {
-        name: match.product.name,
+        name: match.product.product_name,
         quantity: match.quantity,
         price: match.product.price,
         product_id: match.product.id,
+        variant_id: match.product.variant_id ?? undefined,
+        variant_name: match.product.variant_name ?? undefined,
         is_ai_extracted: true,
     };
 
@@ -516,6 +519,10 @@ async function canCreateOrders(link: EmployeeLink): Promise<boolean> {
     return memberHasPermission({ userId: link.user_profile_id, tenantId: link.tenant_id, role }, PERMISSIONS.CREATE_ORDERS);
 }
 
+/**
+ * The store's products, one line per size or colour for a product sold in
+ * sizes, so the number the employee replies with names the exact size.
+ */
 async function loadProducts(tenantId: string): Promise<CatalogProduct[]> {
     const supabase = createSupabaseServiceClient();
     const { data, error } = await supabase
@@ -526,11 +533,41 @@ async function loadProducts(tenantId: string): Promise<CatalogProduct[]> {
         .or("is_supply.is.null,is_supply.eq.false")
         .order("name");
     if (error || !data) return [];
-    return data.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: Number(p.price) || 0,
-    }));
+
+    const variantsByProduct = new Map<string, { id: string; name: string; price: number | null }[]>();
+    if (data.length > 0) {
+        const { data: variants, error: variantError } = await supabase
+            .from("product_variants")
+            .select("id, product_id, name, price")
+            .eq("tenant_id", tenantId)
+            .in("product_id", data.map((p) => p.id))
+            .or("is_enabled.is.null,is_enabled.eq.true")
+            .order("display_order", { ascending: true, nullsFirst: false });
+        // Without the sizes the employee would pick a product with no size and
+        // the courier would get a parcel nobody can pack, so no list at all.
+        if (variantError) return [];
+        for (const v of variants ?? []) {
+            const list = variantsByProduct.get(v.product_id) ?? [];
+            list.push({ id: v.id, name: v.name.trim(), price: v.price });
+            variantsByProduct.set(v.product_id, list);
+        }
+    }
+
+    return data.flatMap((p): CatalogProduct[] => {
+        const productPrice = Number(p.price) || 0;
+        const variants = variantsByProduct.get(p.id) ?? [];
+        if (variants.length === 0) {
+            return [{ id: p.id, name: p.name, price: productPrice, product_name: p.name, variant_id: null, variant_name: null }];
+        }
+        return variants.map((v) => ({
+            id: p.id,
+            name: orderItemLabel({ name: p.name, variant_name: v.name }),
+            price: v.price ?? productPrice,
+            product_name: p.name,
+            variant_id: v.id,
+            variant_name: v.name || null,
+        }));
+    });
 }
 
 // ─── Misc helpers ────────────────────────────────────────────────────────────

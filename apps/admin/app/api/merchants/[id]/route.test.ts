@@ -37,7 +37,7 @@ const TABLES: Record<string, Answer> = {
       plan: "starter",
       status: "trial",
       trial_ends_at: "2026-11-10T00:00:00Z",
-      staff_health_score: 65,
+      is_demo: false,
       staff_health_parts: { status: 5, wallet: 5, orders: 5 },
     },
     error: null,
@@ -127,12 +127,22 @@ describe("GET /api/merchants/[id] billing lock", () => {
     expect(body.billingLock).toMatchObject({ locked: false, reason: null, orders_left: null });
   });
 
-  it("reads the health score and its parts from the database, as the list does", async () => {
+  it("reads only the shop columns the page shows, never the store builder's pages", async () => {
+    rpc.mockResolvedValue({ data: LOCKED, error: null });
+    await call();
+
+    const columns = String(selects.find(([table]) => table === "tenants")?.[1]);
+    expect(columns).not.toMatch(/\*|store_config,|store_config$|metadata/);
+    expect(columns).toContain("store_config_rev");
+  });
+
+  it("reads the health parts and the demo flag from the database and sends the score as their sum, as the list does", async () => {
     rpc.mockResolvedValue({ data: LOCKED, error: null });
     const body = await (await call()).json();
 
-    expect(selects).toContainEqual(["tenants", "*, staff_health_score, staff_health_parts"]);
+    expect(selects).toContainEqual(["tenants", expect.stringMatching(/, store_config_rev, staff_health_parts, is_demo$/)]);
     expect(body.tenant).toMatchObject({
+      is_demo: false,
       staff_health_score: 65,
       staff_health_parts: { status: 5, wallet: 5, orders: 5 },
     });
@@ -230,7 +240,7 @@ describe("PATCH /api/merchants/[id]", () => {
 
   it("changes status, plan and auto-renew in one database call, with the acting admin, and writes no table itself", async () => {
     rpc.mockResolvedValue(changed({ status: "suspended", auto_renew: false, changed: ["status_change", "auto_renew_toggle"] }));
-    const res = await patch({ status: "suspended", plan: "starter", auto_renew: false });
+    const res = await patch({ status: "suspended", plan: "starter", auto_renew: false, reason: "Owner closing for winter" });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
@@ -250,9 +260,56 @@ describe("PATCH /api/merchants/[id]", () => {
       _admin_user_id: "admin-1",
       _actor_email: "a@b.co",
       _source: "single",
+      _reason: "Owner closing for winter",
     });
     // The shop, its subscription and the log rows are the database call's.
     expect(writes).toEqual([]);
+  });
+
+  it("passes staff's reason for a hold on to the staff log, trimmed", async () => {
+    rpc.mockResolvedValue(changed({ status: "suspended", changed: ["status_change"] }));
+    const res = await patch({ status: "suspended", reason: "  Owner asked to stop for a month " });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith(
+      "admin_update_shop",
+      expect.objectContaining({ _status: "suspended", _reason: "Owner asked to stop for a month" }),
+    );
+  });
+
+  it("refuses to stop renewal without a reason, before the database", async () => {
+    const res = await patch({ auto_renew: false });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Say why renewal stops.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("turns renewal back on without asking why", async () => {
+    rpc.mockResolvedValue(changed({ auto_renew: true, changed: ["auto_renew_toggle"] }));
+    const res = await patch({ auto_renew: true });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("admin_update_shop", expect.not.objectContaining({ _reason: expect.anything() }));
+  });
+
+  it("passes staff's reason for a plan change on to the staff log", async () => {
+    rpc.mockResolvedValue(changed({ plan: "internal", changed: ["plan_change"] }));
+    const res = await patch({ plan: "internal", reason: "Our own test shop" });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith(
+      "admin_update_shop",
+      expect.objectContaining({ _plan: "internal", _reason: "Our own test shop" }),
+    );
+  });
+
+  it("refuses a reason too short to say anything, before the database", async () => {
+    const res = await patch({ status: "suspended", reason: "no" });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/at least 3 characters/);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("answers with the status the shop really has: a suspended trial comes back on trial", async () => {
@@ -264,8 +321,8 @@ describe("PATCH /api/merchants/[id]", () => {
   });
 
   it.each([
-    ["still_trial", 409, "This shop is on trial. Use Convert to paid to make it a paying shop."],
-    ["paused", 409, "This shop is paused. Resume it first."],
+    ["still_trial", 409, 'This shop is on trial. Open its page and use "Start paid time, no charge" to make it a paying shop.'],
+    ["paused", 409, "This shop is paused. Lift the pause first (on its page)."],
     ["use_pause", 409, "Use Pause to limit a shop: it sets what is blocked and for how long."],
     ["demo_store", 409, "This is the demo store. Its status does not change."],
     ["not_found", 404, "Merchant not found"],

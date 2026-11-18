@@ -114,16 +114,31 @@ SELECT pg_temp.check(pg_temp.raises($$INSERT INTO public.prime_connections VALUE
   'nor switched on later');
 SELECT pg_temp.check(pg_temp.raises($$INSERT INTO public.prime_connections VALUES ('10000000-0000-4000-8000-000000000001', 'm', 2, true)$$) = 'ok',
   'a real shop still links');
+-- Fermi B4 (20261116192057) replaced the 6-argument log_shipping_export with
+-- one that also takes the orders and the courier, and dropped the old one.
+-- This suite loads an older migration whole, so drop the old one here too.
+DROP FUNCTION public.log_shipping_export(uuid, text, integer, boolean, text, text);
+INSERT INTO public.orders (id, tenant_id, status) VALUES
+    ('0b000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'confirmed'),
+    ('0b000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-00000000000d', 'confirmed');
 SET test.role = 'authenticated';
 SET test.member_of = 'd0000000-0000-4000-8000-00000000000d';
 SELECT pg_temp.check(public.log_shipping_export('d0000000-0000-4000-8000-00000000000d', 'prime', 3, true) IS NULL, 'a demo export returns no record');
 SET test.member_of = '10000000-0000-4000-8000-000000000001';
 SELECT pg_temp.check(public.log_shipping_export('10000000-0000-4000-8000-000000000001', 'prime', 3, true) IS NOT NULL, 'a real export is recorded');
+SELECT pg_temp.check(public.log_shipping_export(
+    '10000000-0000-4000-8000-000000000001', 'other', 2, true, NULL, NULL,
+    ARRAY['0b000000-0000-4000-8000-000000000001', '0b000000-0000-4000-8000-000000000002']::uuid[], '  Kwick  ') IS NOT NULL,
+  'an export in a store''s own layout is recorded');
 RESET test.member_of;
 RESET test.role;
-SELECT pg_temp.check((SELECT count(*) FROM public.shipping_export_log) = 1
+SELECT pg_temp.check((SELECT count(*) FROM public.shipping_export_log) = 2
                      AND NOT EXISTS (SELECT 1 FROM public.shipping_export_log WHERE tenant_id = 'd0000000-0000-4000-8000-00000000000d'),
-  'only the real export is in the log');
+  'only the real exports are in the log');
+SELECT pg_temp.check((SELECT order_ids = ARRAY['0b000000-0000-4000-8000-000000000001']::uuid[] AND courier_name = 'Kwick'
+                        FROM public.shipping_export_log WHERE company = 'other'),
+  'the log keeps only the store''s own orders, and the courier''s name trimmed');
+DELETE FROM public.orders WHERE id IN ('0b000000-0000-4000-8000-000000000001', '0b000000-0000-4000-8000-000000000002');
 
 -- 5. Shield. R2, R3, R4 and D each have 40 delivered parcels (enough to count
 -- for the network); one phone was refused at R2, R3 and D.

@@ -34,6 +34,8 @@ CREATE TABLE public.tenants (
     id uuid PRIMARY KEY,
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     status public.tenant_status NOT NULL DEFAULT 'active',
+    restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,
+    is_prospect boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 GRANT SELECT, UPDATE ON public.tenants TO authenticated;
@@ -125,7 +127,9 @@ CREATE TABLE public.shipping_export_log (
     order_count integer NOT NULL,
     succeeded boolean NOT NULL,
     failure_stage text,
-    error_message text
+    error_message text,
+    order_ids uuid[],
+    courier_name text
 );
 
 CREATE TABLE public.prime_connections (

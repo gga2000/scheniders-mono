@@ -17,12 +17,17 @@ const state = vi.hoisted(() => ({
 
 class FakeQuery implements PromiseLike<{ data: Row[] | null; error: null }> {
     private filters: [string, unknown][] = [];
+    private within: [string, unknown[]][] = [];
     constructor(private readonly table: string) {}
     select() {
         return this;
     }
     eq(column: string, value: unknown) {
         this.filters.push([column, value]);
+        return this;
+    }
+    in(column: string, values: unknown[]) {
+        this.within.push([column, values]);
         return this;
     }
     or() {
@@ -46,8 +51,10 @@ class FakeQuery implements PromiseLike<{ data: Row[] | null; error: null }> {
         return this;
     }
     private rows(): Row[] {
-        return (state.tables[this.table] ?? []).filter((r) =>
-            this.filters.every(([c, v]) => r[c] === v),
+        return (state.tables[this.table] ?? []).filter(
+            (r) =>
+                this.filters.every(([c, v]) => r[c] === v) &&
+                this.within.every(([c, values]) => values.includes(r[c])),
         );
     }
     async maybeSingle() {
@@ -200,6 +207,33 @@ describe("telegram webhook: deactivated profiles (F-087)", () => {
         await POST(update("1"));
         expect(state.createOrder).toHaveBeenCalledTimes(1);
         expect(state.createOrder.mock.calls[0][1]).toBe(TENANT);
+    });
+});
+
+describe("telegram webhook: sizes and colours (B10)", () => {
+    it("lists each size on its own line and records the size picked on the order", async () => {
+        seed(true);
+        state.tables.products.push({ id: "p2", tenant_id: TENANT, name: "قميص", price: 20000, is_archived: false });
+        state.tables.product_variants = [
+            { id: "v-m", product_id: "p2", tenant_id: TENANT, name: "M / أبيض", price: null },
+            { id: "v-xl", product_id: "p2", tenant_id: TENANT, name: "XL / أبيض", price: 22000 },
+            { id: "v-other-store", product_id: "p2", tenant_id: "tenant-b", name: "S", price: 1 },
+        ];
+        linkTelegramUser();
+        // Catalog order: Perfume (1), قميص M (2), قميص XL (3).
+        await POST(update("3 x 2"));
+        expect(state.createOrder).toHaveBeenCalledTimes(1);
+        const order = state.createOrder.mock.calls[0][0] as { items: Record<string, unknown>[]; price: number };
+        expect(order.items[0]).toMatchObject({
+            product_id: "p2",
+            variant_id: "v-xl",
+            variant_name: "XL / أبيض",
+            name: "قميص",
+            price: 22000,
+            quantity: 2,
+        });
+        expect(order.price).toBe(44000);
+        expect(state.sent.at(-1)).toContain("قميص (XL / أبيض)");
     });
 });
 

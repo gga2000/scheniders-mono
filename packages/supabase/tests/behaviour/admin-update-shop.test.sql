@@ -10,15 +10,22 @@
 --       the status before;
 --     * THE MONEY CASE: 'active' over a shop on trial is refused. The old
 --       route wrote it, the subscription stayed 'trialing', and the billing
---       lock never held the shop after its trial ended;
+--       lock never held the shop after its trial ended. A locked trial
+--       ('past_due') is refused too, and back from hold it is a trial again;
 --     * a suspended shop whose trial was never converted comes back on trial
 --       when 'active' is asked, and the lock holds it once the trial is over;
 --     * 'trial' over a paying shop is refused (its old trial date would lock
---       it at once); 'trial' for a shop with no subscription is allowed;
+--       it at once); 'trial' for a shop with no subscription is allowed, and
+--       so is 'trial' for a held trial that was never paid (round 13: one
+--       rule for 'trial' and 'active' over it);
 --     * 'limited' is refused (pause_tenant sets it), and no status is written
 --       over a paused shop (lift_tenant_pause gives its status back);
 --     * the demo store's status does not change; its plan can;
 --     * the status it already has: nothing written, no log row.
+--   Reason:
+--     * staff's reason for a hold is on the log row, trimmed; with none given
+--       the row has no reason key; one under 3 characters is refused before
+--       any write. The old signature without a reason is gone.
 --   Plan:
 --     * the shop and its newest subscription get the plan together, one log
 --       row names the plan before and a change waiting for the renewal, and
@@ -29,7 +36,8 @@
 --       function set it, and the shop sat on a paid plan with no bill;
 --     * a shop behind on payment ('past_due') can change plan: its next
 --       top-up pays at that plan;
---     * the house tier ('internal', never billed) can be set on any shop.
+--     * the house tier ('internal', never billed) can be set on any shop;
+--     * the plan record (subscription_plan_changes) gets one row per change.
 --   Auto-renew:
 --     * written to the newest subscription, logged once, a repeat is nothing;
 --     * refused for a shop with no subscription.
@@ -63,8 +71,10 @@ END $$;
 -- Catalog ---------------------------------------------------------------------
 DO $$
 DECLARE
-    _fn constant text := 'public.admin_update_shop(uuid, public.tenant_status, public.plan_tier, boolean, uuid, text, text)';
+    _fn constant text := 'public.admin_update_shop(uuid, public.tenant_status, public.plan_tier, boolean, uuid, text, text, text)';
 BEGIN
+    PERFORM pg_temp.check('the old signature without a reason is still there',
+        to_regprocedure('public.admin_update_shop(uuid, public.tenant_status, public.plan_tier, boolean, uuid, text, text)') IS NULL);
     PERFORM pg_temp.check('access: anon can run it', NOT has_function_privilege('anon', _fn, 'EXECUTE'));
     PERFORM pg_temp.check('access: authenticated can run it', NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
     PERFORM pg_temp.check('access: the service role cannot run it', has_function_privilege('service_role', _fn, 'EXECUTE'));
@@ -88,6 +98,7 @@ INSERT INTO tt_shops (name, status, trial_ends_at, sub) VALUES
     ('trial',                      'trial',     now() + interval '3 days', 'trialing'),
     ('trial, over',                'trial',     now() - interval '1 hour', 'trialing'),
     ('paying',                     'active',    now() - interval '40 days', 'active'),
+    ('hold with a reason',         'active',    now() - interval '40 days', 'active'),
     ('suspended in its trial',     'suspended', now() - interval '1 hour', 'trialing'),
     ('suspended, paying',          'suspended', NULL,                      'active'),
     ('cancelled, paying',          'cancelled', NULL,                      'cancelled'),
@@ -171,6 +182,27 @@ BEGIN
     PERFORM pg_temp.check('money: the log row does not say what the shop went back to',
         EXISTS (SELECT 1 FROM public.admin_activity_logs l WHERE l.tenant_id = _id AND l.action = 'status_change'
                    AND l.details @> '{"status": "trial", "previous_status": "suspended", "source": "single"}'::jsonb));
+
+    -- On hold with staff's reason ---------------------------------------------------
+    SELECT id INTO _id FROM tt_shops WHERE name = 'hold with a reason';
+    _res := public.admin_update_shop(_id, 'suspended', NULL, NULL, _admin, 'ops@example.com', 'single', '  Owner asked to stop for a month  ');
+    PERFORM pg_temp.check('reason: hold refused: ' || _res::text, _res ->> 'status' = 'suspended');
+    SELECT count(*) INTO _n FROM public.admin_activity_logs l
+     WHERE l.tenant_id = _id AND l.action = 'status_change'
+       AND l.details = '{"status": "suspended", "previous_status": "active", "source": "single", "reason": "Owner asked to stop for a month"}'::jsonb;
+    PERFORM pg_temp.check('reason: wanted one log row with the trimmed reason, got ' || _n, _n = 1);
+
+    -- A reason too short is refused before any write.
+    BEGIN
+        PERFORM public.admin_update_shop(_id, 'active', NULL, NULL, _admin, 'ops@example.com', 'single', ' no ');
+        _n := 1;
+    EXCEPTION WHEN invalid_parameter_value THEN
+        _n := 0;
+    END;
+    PERFORM pg_temp.check('reason: a 2-character reason did not raise', _n = 0);
+    PERFORM pg_temp.check('reason: the refused change was written',
+        EXISTS (SELECT 1 FROM public.tenants t WHERE t.id = _id AND t.status = 'suspended')
+        AND (SELECT count(*) FROM public.admin_activity_logs l WHERE l.tenant_id = _id) = 1);
 
     -- A paying shop ---------------------------------------------------------------
     SELECT id INTO _id FROM tt_shops WHERE name = 'paying';
@@ -256,6 +288,12 @@ BEGIN
     _res := public.admin_update_shop(_id, NULL, 'growth', NULL, _admin, 'ops@example.com');
     SELECT count(*) INTO _n FROM public.admin_activity_logs l WHERE l.tenant_id = _id;
     PERFORM pg_temp.check('plan twice: a second log row was written', _n = 1 AND _res -> 'changed' = '[]'::jsonb);
+    -- The plan record Plan Movements reads (20261117054950): one row, from the
+    -- subscription's plan before, however often staff pressed.
+    SELECT count(*) INTO _n FROM public.subscription_plan_changes c
+     WHERE c.tenant_id = _id AND c.from_plan = 'starter' AND c.to_plan = 'growth';
+    PERFORM pg_temp.check('plan: wanted one plan record row, got ' || _n,
+        _n = 1 AND NOT EXISTS (SELECT 1 FROM public.subscription_plan_changes c WHERE c.tenant_id = _id AND c.to_plan <> 'growth'));
 
     -- The shop says growth, its subscription says starter: asked growth, both growth.
     SELECT id INTO _id FROM tt_shops WHERE name = 'shop and subscription differ';
@@ -439,6 +477,68 @@ BEGIN
     END;
     PERFORM set_config('test.role', '', true);
     PERFORM pg_temp.check('extend: a merchant ran it', _n = 0);
+END $$;
+
+-- A locked trial (20261117102504). Its trial ended unpaid, so the billing
+-- lock made its subscription 'past_due', and the shop is still 'trial'.
+-- 'active' is refused: it would count a shop that never paid as Active and
+-- paying, and turn its lock to 'unpaid' so its lock orders were charged. Put
+-- on hold and brought back, it is a trial again (its period still ends at its
+-- trial end); a paying shop behind on its month comes back active.
+DO $$
+DECLARE
+    _admin constant uuid := 'aaaaaaaa-1111-4222-8333-444444444444';
+    _ended constant timestamptz := now() - interval '1 day';
+    _locked constant uuid := gen_random_uuid();
+    _held constant uuid := gen_random_uuid();
+    _held_paying constant uuid := gen_random_uuid();
+    _held_trial constant uuid := gen_random_uuid();
+    _res jsonb;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, slug, plan, status, trial_ends_at, is_demo) VALUES
+        (_locked, 'tt locked trial', 'tt-' || _locked, 'starter', 'trial', _ended, false),
+        (_held, 'tt locked trial on hold', 'tt-' || _held, 'starter', 'suspended', _ended, false),
+        (_held_paying, 'tt paying, behind, on hold', 'tt-' || _held_paying, 'starter', 'suspended', now() - interval '70 days', false),
+        (_held_trial, 'tt locked trial on hold, Trial asked', 'tt-' || _held_trial, 'starter', 'suspended', _ended, false);
+    INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end) VALUES
+        (_locked, 'starter', 'past_due', _ended - interval '7 days', _ended),
+        (_held, 'starter', 'past_due', _ended - interval '7 days', _ended),
+        (_held_paying, 'starter', 'past_due', now() - interval '31 days', now() - interval '1 day'),
+        (_held_trial, 'starter', 'past_due', _ended - interval '7 days', _ended);
+
+    SET LOCAL ROLE service_role;
+    _res := public.admin_update_shop(_locked, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('locked trial: active was not refused: ' || _res::text, _res ->> 'error' = 'still_trial');
+    _res := public.admin_update_shop(_locked, 'active', NULL, NULL, _admin, 'ops@example.com', 'bulk');
+    PERFORM pg_temp.check('locked trial: bulk active was not refused: ' || _res::text, _res ->> 'error' = 'still_trial');
+    _res := public.admin_update_shop(_held, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('locked trial on hold: did not come back on trial: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res ->> 'status' = 'trial');
+    -- Trial is the move it gets either way, so Trial is not refused (round 13).
+    _res := public.admin_update_shop(_held_trial, 'trial', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('locked trial on hold: Trial was refused: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res ->> 'status' = 'trial');
+    -- A shop that paid for a month cannot go back to Trial, behind or not.
+    _res := public.admin_update_shop(_held_paying, 'trial', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('paying shop on hold: Trial was not refused: ' || _res::text, _res ->> 'error' = 'not_trialing');
+    _res := public.admin_update_shop(_held_paying, 'active', NULL, NULL, _admin, 'ops@example.com', 'single');
+    PERFORM pg_temp.check('paying shop on hold: did not come back active: ' || _res::text,
+        (_res ->> 'success')::boolean AND _res ->> 'status' = 'active');
+    RESET ROLE;
+
+    PERFORM pg_temp.check('locked trial: its status changed',
+        (SELECT status = 'trial' FROM public.tenants WHERE id = _locked));
+    PERFORM pg_temp.check('locked trial: a refusal wrote a log row',
+        NOT EXISTS (SELECT 1 FROM public.admin_activity_logs WHERE tenant_id = _locked));
+    PERFORM pg_temp.check('locked trial: the lock no longer says trial_ended',
+        (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_locked)));
+    PERFORM pg_temp.check('locked trial back from hold: the lock does not hold it as an ended trial',
+        (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_held)));
+    PERFORM pg_temp.check('locked trial back as Trial: the lock does not hold it as an ended trial',
+        (SELECT reason = 'trial_ended' FROM public.tenant_billing_lock(_held_trial)));
+    PERFORM pg_temp.check('locked trial back as Trial: its log row does not say trial',
+        EXISTS (SELECT 1 FROM public.admin_activity_logs
+                 WHERE tenant_id = _held_trial AND details ->> 'status' = 'trial'));
 END $$;
 
 -- Every failed check is collected, then raised together, so psql -v ON_ERROR_STOP=1

@@ -13,6 +13,8 @@ import {
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { createRequestIds } from "@/lib/request-ids";
 import { formatDay, formatIQD } from "@/lib/format";
+import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -23,15 +25,15 @@ interface BillingLockCardProps {
    * admin's (the database refuses it too).
    */
   canForceUnlock: boolean;
+  /**
+   * The shop is paused: money does not open the lock and the database refuses
+   * a free unlock until the pause lifts (settle_billing_lock, admin_force_unlock).
+   */
+  shopPaused: boolean;
 }
 
 const ORDER_PRESETS = [10, 25, 50];
 const UNLOCK_PRESETS = [7, 30];
-
-const REASON_LABEL: Record<NonNullable<BillingLockSnapshot["reason"]>, string> = {
-  trial_ended: "Trial ended, not paid",
-  unpaid: "Month not paid",
-};
 
 type Action = { kind: "orders"; orders: number } | { kind: "unlock"; days: number };
 
@@ -42,7 +44,7 @@ type Action = { kind: "orders"; orders: number } | { kind: "unlock"; days: numbe
  * Free trial days (which also open a store locked at the end of its trial)
  * are under Give free days at the top of the page.
  */
-export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLockCardProps) {
+export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }: BillingLockCardProps) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const [customOrders, setCustomOrders] = useState("");
@@ -63,7 +65,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
         action.kind === "orders"
           ? { orders: action.orders, reason: reason.trim(), request_id }
           : { days: action.days, reason: reason.trim(), request_id };
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -115,11 +117,13 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
             Store locked
           </p>
           <p className="mt-1 text-[22px] font-semibold text-foreground">
-            {lock.reason ? REASON_LABEL[lock.reason] : "Locked"}
+            {lock.reason ? LOCK_REASON_WORDS[lock.reason] : "Locked"}
           </p>
           <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}
-            Paying {formatIQD(lock.price_iqd)} from the wallet unlocks it
+            {shopPaused
+              ? `Paused: once the pause lifts, paying ${formatIQD(lock.price_iqd)} from the wallet unlocks it`
+              : `Paying ${formatIQD(lock.price_iqd)} from the wallet unlocks it`}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -193,7 +197,12 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock }: BillingLoc
               </div>
             </div>
 
-            {canForceUnlock && (
+            {canForceUnlock && shopPaused && (
+              <p className="text-[13px] text-foreground/70" data-testid="billing-lock-paused">
+                Unlock free works once the pause lifts.
+              </p>
+            )}
+            {canForceUnlock && !shopPaused && (
               <div>
                 <p className="mb-2 text-[13px] font-medium text-foreground">Unlock free (no charge)</p>
                 <div className="flex flex-wrap items-center gap-1.5">

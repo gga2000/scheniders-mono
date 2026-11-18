@@ -611,10 +611,11 @@ export function VariantMatrixTable({
 
                                     {/* Price */}
                                     <div className="flex items-center gap-2">
-                                        <label className="text-xs font-medium text-muted w-12 shrink-0">
+                                        <label htmlFor="variant-all-price" className="text-xs font-medium text-muted w-12 shrink-0">
                                             {t("products.vm.price")}
                                         </label>
                                         <input
+                                            id="variant-all-price"
                                             type="number"
                                             value={applyAllPrice || ""}
                                             onChange={(e) =>
@@ -642,10 +643,11 @@ export function VariantMatrixTable({
 
                                     {showCost && (
                                                                         <div className="flex items-center gap-2">
-                                        <label className="text-xs font-medium text-muted w-12 shrink-0">
+                                        <label htmlFor="variant-all-cost" className="text-xs font-medium text-muted w-12 shrink-0">
                                             {t("products.vm.cost")}
                                         </label>
                                         <input
+                                            id="variant-all-cost"
                                             type="number"
                                             value={applyAllCost || ""}
                                             onChange={(e) =>
@@ -674,10 +676,11 @@ export function VariantMatrixTable({
 
                                     {/* Stock */}
                                     <div className="flex items-center gap-2">
-                                        <label className="text-xs font-medium text-muted w-12 shrink-0">
+                                        <label htmlFor="variant-all-stock" className="text-xs font-medium text-muted w-12 shrink-0">
                                             {t("products.vm.stock")}
                                         </label>
                                         <input
+                                            id="variant-all-stock"
                                             type="number"
                                             value={applyAllStock || ""}
                                             onChange={(e) =>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Trophy } from "lucide-react";
 import { Sparkline } from "@/components/shared/sparkline";
 import type { LeaderboardEntry } from "@/types/dashboard";
 import { formatIQD } from "@/lib/format";
@@ -9,11 +10,6 @@ interface TopMerchantsProps {
   merchants: LeaderboardEntry[] | undefined;
 }
 
-const medals: Record<number, string> = {
-  0: "\u{1F947}",
-  1: "\u{1F948}",
-  2: "\u{1F949}",
-};
 
 
 function SkeletonRow() {
@@ -39,9 +35,9 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
     <div className="pastel-card p-5">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-yellow)]/40 flex items-center justify-center">
-          <span className="text-sm">&#127942;</span>
+          <Trophy className="w-4 h-4 text-[var(--ink-amber)]" />
         </div>
-        <h3 className="font-bold text-foreground text-sm">Top Merchants</h3>
+        <h3 className="font-bold text-foreground text-sm">Top Merchants, last 90 days</h3>
       </div>
 
       {!merchants ? (
@@ -66,7 +62,7 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
               >
                 {/* Rank */}
                 <span className="w-6 text-center text-sm font-bold text-foreground/70 flex-shrink-0">
-                  {idx in medals ? medals[idx] : idx + 1}
+                  {idx + 1}
                 </span>
 
                 {/* Avatar */}

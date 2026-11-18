@@ -1,13 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
-import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
+import { generateSlug, ensureUniqueSlug, isSlugFree, suggestFreeSlug } from '@/lib/tenant';
+import { normalizeSlug, slugRejection } from '@/lib/tenant-slug';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { requestIp } from '@/lib/request-ip';
 import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { buildStarterStoreConfigV2, SIGNUP_TEMPLATE_ID } from '@/lib/starter-store';
 import { DEFAULT_PACK_ID } from '@/lib/store-templates/content-packs';
+import { attributeTemplatesFor, BUSINESS_TYPE_IDS, mergeAttributeSets, packIdFor } from '@/lib/business-types';
 import { withFailureReport } from "@/lib/job-monitor";
+import { normalizeIraqiMobile } from '@scheniders/shared';
+import { env } from '@/lib/env';
+import { buildStorefrontUrl } from '@/lib/storefront-url';
+import { linkSignupProof, loadSignupWhatsApp, releaseSignupProof, sendSignupWelcome, spendSignupProof } from '@/lib/signup-phone-code';
 
 /**
  * Every self-serve signup starts a 7-day trial on Team, with no order cap
@@ -32,7 +39,29 @@ const signupSchema = z.object({
     business_name: z.string().trim().min(1).max(120),
     contact_phone: optionalText,
     city: optionalText,
+    /**
+     * «شنو تبيع؟» (Fermi B10), in the order ticked. The form asks for at least
+     * one; a page loaded before the question existed sends none, and that
+     * store starts neutral like every store made before it.
+     */
+    business_types: z
+        .array(z.enum(BUSINESS_TYPE_IDS))
+        .max(BUSINESS_TYPE_IDS.length)
+        .optional()
+        .transform((types) => [...new Set(types ?? [])]),
+    /**
+     * The store's address the merchant chose (Fermi B11). Taken exactly or
+     * refused: a store never ends up on an address its owner did not pick.
+     * A page loaded before the field existed sends none, and the address is
+     * made from the store's name as before.
+     */
+    slug: z.string().max(64).optional().transform((v) => (v === undefined ? undefined : normalizeSlug(v))),
     captcha_token: z.string().optional(),
+    /**
+     * The proof /api/auth/phone-code/verify handed back for contact_phone
+     * (Fermi B11). Needed while the console's code switch is on.
+     */
+    phone_proof: z.uuid().optional(),
 });
 
 // Two sign-ups picking the same free slug at once: the loser's insert hits the
@@ -40,11 +69,6 @@ const signupSchema = z.object({
 const SLUG_ATTEMPTS = 3;
 const UNIQUE_VIOLATION = '23505';
 
-function clientIp(request: NextRequest): string {
-    const real = request.headers.get('x-real-ip');
-    if (real) return real.trim();
-    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-}
 
 // =============================================
 // POST /api/auth/signup
@@ -53,7 +77,7 @@ function clientIp(request: NextRequest): string {
 
 async function handlePOST(request: NextRequest) {
     try {
-        const ip = clientIp(request);
+        const ip = requestIp(request);
         const limit = await consumeRateLimit(`signup:${ip}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
         if (limit.error) {
             // Fails open so signup keeps working, but never silently.
@@ -73,7 +97,7 @@ async function handlePOST(request: NextRequest) {
                 { status: 400 },
             );
         }
-        const { email, password, business_name, contact_phone, city, captcha_token } = parsed.data;
+        const { email, password, business_name, contact_phone: typedPhone, city, business_types, slug: chosenSlug, captcha_token, phone_proof } = parsed.data;
 
         // This route creates the account with the service role, so Supabase's
         // own CAPTCHA never sees it: check the Turnstile token here first.
@@ -95,10 +119,46 @@ async function handlePOST(request: NextRequest) {
 
         const adminClient = createSupabaseServiceClient();
 
-        // The store's slug is chosen before any account exists: ensureUniqueSlug
-        // throws when its lookup fails, and failing here leaves nothing behind.
-        const baseSlug = generateSlug(business_name);
-        const firstSlug = await ensureUniqueSlug(baseSlug);
+        // The store's slug is chosen before any account exists: the lookups
+        // throw when they fail, and failing here leaves nothing behind.
+        const baseSlug = chosenSlug ?? generateSlug(business_name);
+        if (chosenSlug !== undefined) {
+            const rejection = slugRejection(chosenSlug);
+            if (rejection) {
+                return NextResponse.json(
+                    { error: 'This store address cannot be used.', code: 'slug_invalid', reason: rejection },
+                    { status: 422 },
+                );
+            }
+            if (!(await isSlugFree(chosenSlug))) {
+                return NextResponse.json(
+                    { error: 'This store address is taken.', code: 'slug_taken', suggestion: await suggestFreeSlug(chosenSlug) },
+                    { status: 409 },
+                );
+            }
+        }
+        const firstSlug = chosenSlug ?? (await ensureUniqueSlug(baseSlug));
+
+        // ── 0. The owner's mobile, proven by a WhatsApp code (B11) ──
+        // While the console's switch is on, the store is made only for a
+        // number its owner proved; the proof is spent here and given back if
+        // the account is not made.
+        const signupWhatsApp = await loadSignupWhatsApp(adminClient);
+        let verified: { phone: string; proof: string } | null = null;
+        if (signupWhatsApp.phone_code) {
+            const phone = normalizeIraqiMobile(typedPhone);
+            if (!phone || !phone_proof || !(await spendSignupProof(adminClient, phone_proof, phone))) {
+                return NextResponse.json(
+                    { error: 'Confirm your WhatsApp number first.', code: 'phone_unverified' },
+                    { status: 422 },
+                );
+            }
+            verified = { phone, proof: phone_proof };
+        }
+        const contact_phone = verified?.phone ?? typedPhone;
+        const giveBackProof = async () => {
+            if (verified) await releaseSignupProof(adminClient, verified.proof);
+        };
 
         // ── 1. Create Supabase auth user ──
         // Unconfirmed: the browser then asks Supabase to send the confirm mail, and
@@ -110,6 +170,7 @@ async function handlePOST(request: NextRequest) {
         });
 
         if (authError) {
+            await giveBackProof();
             if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
                 return NextResponse.json(
                     { error: 'An account with this email already exists' },
@@ -129,7 +190,7 @@ async function handlePOST(request: NextRequest) {
         // still runs and seeds the merchant's real choice over it.
         const starterConfig = buildStarterStoreConfigV2({
             templateId: SIGNUP_TEMPLATE_ID,
-            packId: DEFAULT_PACK_ID,
+            packId: packIdFor(business_types) ?? DEFAULT_PACK_ID,
             businessName: business_name,
             whatsappNumber: contact_phone ?? undefined,
             source: 'signup',
@@ -147,7 +208,9 @@ async function handlePOST(request: NextRequest) {
                 config_version: 2,
                 contact_email: email,
                 contact_phone,
+                contact_phone_verified_at: verified ? new Date().toISOString() : null,
                 city,
+                business_types,
                 store_config: {
                     template: 'general',
                     hero: {
@@ -171,7 +234,9 @@ async function handlePOST(request: NextRequest) {
             .single();
 
         let created = await insertTenant(firstSlug);
-        for (let attempt = 1; attempt < SLUG_ATTEMPTS && created.error?.code === UNIQUE_VIOLATION; attempt++) {
+        // An address the merchant chose is never swapped for another; one made
+        // from the name moves on to the next free one.
+        for (let attempt = 1; chosenSlug === undefined && attempt < SLUG_ATTEMPTS && created.error?.code === UNIQUE_VIOLATION; attempt++) {
             // A failed lookup keeps the unique-violation error, which rolls the user back below.
             const nextSlug = await ensureUniqueSlug(baseSlug).catch((lookupErr: unknown) => {
                 reportOrderError(lookupErr, { operation: 'signup-slug-retry' });
@@ -185,11 +250,21 @@ async function handlePOST(request: NextRequest) {
         if (tenantError) {
             // Rollback: delete the auth user
             await adminClient.auth.admin.deleteUser(userId);
+            await giveBackProof();
+            if (chosenSlug !== undefined && tenantError.code === UNIQUE_VIOLATION) {
+                // Another sign-up took the chosen address a moment ago.
+                return NextResponse.json(
+                    { error: 'This store address is taken.', code: 'slug_taken' },
+                    { status: 409 },
+                );
+            }
             return NextResponse.json(
                 { error: `Failed to create tenant: ${tenantError.message}` },
                 { status: 500 }
             );
         }
+
+        if (verified) await linkSignupProof(adminClient, verified.proof, tenant.id);
 
         // ── 3. Create user profile ──
         const { error: profileError } = await adminClient
@@ -206,6 +281,7 @@ async function handlePOST(request: NextRequest) {
             // Rollback
             await adminClient.auth.admin.deleteUser(userId);
             await adminClient.from('tenants').delete().eq('id', tenant.id);
+            await giveBackProof();
             return NextResponse.json(
                 { error: `Failed to create user profile: ${profileError.message}` },
                 { status: 500 }
@@ -302,6 +378,53 @@ async function handlePOST(request: NextRequest) {
                 .from('tenants')
                 .update({ status: 'incomplete' })
                 .eq('id', tenant.id);
+        }
+
+        // ── 8. Starter attributes for what the store sells (B10) ──
+        // A clothing shop opens its attributes screen to a size chart, a
+        // furniture shop to its dimensions. Keys the onboarding wizard seeds
+        // later are skipped there, never doubled. The store works without
+        // them and the merchant can add the same set on the attributes
+        // screen, so a failure is reported, not a reason to hold the store.
+        const starterAttributes = mergeAttributeSets(
+            ...attributeTemplatesFor(business_types).map((template) => template.attributes),
+        );
+        if (starterAttributes.length > 0) {
+            const { error: attributesError } = await adminClient
+                .from('product_attribute_defs')
+                .upsert(
+                    starterAttributes.map((attribute) => ({ ...attribute, tenant_id: tenant.id })),
+                    { onConflict: 'tenant_id,key', ignoreDuplicates: true },
+                );
+            if (attributesError) {
+                reportOrderError(new Error(`Starter attributes not saved: ${attributesError.message}`), {
+                    operation: 'signup-starter-attributes',
+                    tenantId: tenant.id,
+                });
+                setupErrors.push(`product_attribute_defs: ${attributesError.message}`);
+            }
+        }
+
+        // ── 9. Welcome on WhatsApp (B11) ──
+        // To the proven number only, after the response: the merchant is not
+        // kept waiting on WhatsApp, and a failed send is reported, never a
+        // reason to fail the signup.
+        const welcomeVideo = signupWhatsApp.welcome ? signupWhatsApp.welcome_video_url : null;
+        if (verified && welcomeVideo) {
+            const welcome = {
+                proof: verified.proof,
+                tenantId: tenant.id,
+                phone: verified.phone,
+                businessName: business_name,
+                storeUrl: buildStorefrontUrl({
+                    slug: tenant.slug,
+                    customDomain: null,
+                    rootDomain: env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN,
+                    hostname: request.nextUrl.host,
+                }),
+                videoUrl: welcomeVideo,
+            };
+            after(() => sendSignupWelcome(adminClient, welcome));
         }
 
         return NextResponse.json({

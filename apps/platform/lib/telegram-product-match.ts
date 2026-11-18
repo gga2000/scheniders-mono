@@ -8,12 +8,23 @@
  *   "3*2", "3 2"    → same
  *   "ويفر"          → fuzzy match by name, quantity 1
  *   "ويفر x 2"      → fuzzy match by name, quantity 2
+ *   "قميص XL"       → the XL entry of a product sold in sizes
+ *
+ * A product sold in sizes or colours is listed once per size, so the number
+ * picks the exact size. A name that fits several sizes of one product picks
+ * none: the employee answers with the number instead of the bot guessing.
  */
 
 export interface CatalogProduct {
+    /** The product's id, the same for every size of it. */
     id: string;
+    /** What the employee reads and types: «قميص (XL / أبيض)». */
     name: string;
     price: number;
+    /** The product's own name, without the size. */
+    product_name: string;
+    variant_id: string | null;
+    variant_name: string | null;
 }
 
 export interface ProductMatch {
@@ -31,13 +42,19 @@ function parseQuantity(raw: string | undefined): number {
 }
 
 /**
- * Crude fuzzy match: case-insensitive substring; if multiple match, prefer
- * the one whose name starts with the query, then the shortest name.
+ * Crude fuzzy match: every word of the query appears in the name, ignoring
+ * case. If several match, prefer the one whose name starts with the query,
+ * then the shortest name. Sizes of one product never win by name length:
+ * when the best match is one size among several, nothing is picked.
  */
 function fuzzyByName(query: string, products: CatalogProduct[]): CatalogProduct | null {
     const q = query.trim().toLowerCase();
     if (!q) return null;
-    const candidates = products.filter((p) => p.name.toLowerCase().includes(q));
+    const words = q.split(/\s+/);
+    const candidates = products.filter((p) => {
+        const name = p.name.toLowerCase();
+        return words.every((w) => name.includes(w));
+    });
     if (candidates.length === 0) return null;
     candidates.sort((a, b) => {
         const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1;
@@ -45,7 +62,9 @@ function fuzzyByName(query: string, products: CatalogProduct[]): CatalogProduct 
         if (aStarts !== bStarts) return aStarts - bStarts;
         return a.name.length - b.name.length;
     });
-    return candidates[0];
+    const best = candidates[0];
+    const otherSizes = candidates.filter((c) => c.id === best.id && c.variant_id !== best.variant_id);
+    return best.variant_id && otherSizes.length > 0 ? null : best;
 }
 
 export function matchProductReply(

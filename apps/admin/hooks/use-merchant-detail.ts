@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import type { HealthParts, TenantRestrictions } from "@/types/admin";
 import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export interface PlanLimits {
   plan: string;
@@ -31,13 +32,16 @@ export interface MerchantDetail {
       secondary_color: string;
     } | null;
     settings: Record<string, unknown> | null;
-    store_config: Record<string, unknown> | null;
+    /** How many times the store builder was published (raised only by a publish). */
+    store_config_rev: number | null;
     contact_email: string | null;
     contact_phone: string | null;
     address: string | null;
     city: string | null;
     created_at: string;
     is_prospect?: boolean;
+    /** The demo store (Fermi B13): never charged. */
+    is_demo: boolean;
     prospect_lead_id?: string | null;
     restrictions?: TenantRestrictions | null;
     /** 0 to 100, worked out by the database, the same number as in the list. */
@@ -113,7 +117,7 @@ export function useMerchantDetail(id: string) {
   return useQuery<MerchantDetail>({
     queryKey: ["admin", "merchant", id],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch(`/api/merchants/${id}`), "this shop");
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants/${id}`), "this shop");
       return res.json();
     },
     staleTime: 30_000,
@@ -125,7 +129,7 @@ export function useMerchantRecentOrders(id: string, limit = 10) {
   return useQuery<{ orders: RecentOrder[] }>({
     queryKey: ["admin", "merchant", id, "recent-orders", limit],
     queryFn: async () => {
-      const res = await fetch(`/api/merchants/${id}/orders?limit=${limit}`);
+      const res = await adminFetch(`/api/merchants/${id}/orders?limit=${limit}`);
       okOrLoadFailure(res, "recent orders");
       return res.json();
     },

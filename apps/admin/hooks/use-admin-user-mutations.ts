@@ -34,25 +34,3 @@ export function useAddAdminUser() {
     },
   });
 }
-
-/** Revoke admin-console access (removes the admin_users row only). */
-export function useRemoveAdminUser() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await adminFetch(
-        `/api/admin-users?userId=${encodeURIComponent(userId)}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to remove admin employee");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-team"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-    },
-  });
-}

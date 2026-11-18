@@ -8,14 +8,41 @@
  * typing its address (Lead numbers) is on the menu now.
  */
 
-export type MenuIcon = "today" | "merchants" | "leads" | "support" | "money" | "numbers" | "settings";
+import { hasPermission } from "./admin-permissions";
+import type { AdminAction, AdminRole } from "@/types/admin";
+
+export type MenuIcon = "dashboard" | "merchants" | "leads" | "support" | "money" | "numbers" | "settings";
 
 /** Work waiting on staff, counted beside a place on the menu. */
 export type MenuCount = "leads" | "support" | "payments";
 
+/** The badge beside a place: how many wait, or null when the count could not be read. */
+export interface MenuBadge {
+  count: number | null;
+  label: string;
+}
+
+/**
+ * One badge from its count's read. A failed count is not 0: the badge says
+ * "?" so a queue does not look empty exactly when its read is failing.
+ * `counted` follows the number ("3 receipts to check"); `queue` names what
+ * could not be read ("Could not check the receipts").
+ */
+export function waitingBadge(
+  read: { data: number | undefined; isError: boolean },
+  counted: string,
+  queue: string,
+): MenuBadge {
+  if (read.isError) return { count: null, label: `Could not check ${queue}` };
+  const count = read.data ?? 0;
+  return { count, label: `${count} ${counted}` };
+}
+
 export interface MenuLink {
   label: string;
   href: string;
+  /** The step the page's read needs (lib/admin-permissions); a login without it is not shown the link. */
+  needs?: AdminAction;
 }
 
 export interface MenuSection {
@@ -29,7 +56,7 @@ export interface MenuSection {
 }
 
 export const MENU: readonly MenuSection[] = [
-  { label: "Today", href: "/", icon: "today", links: [] },
+  { label: "Dashboard", href: "/", icon: "dashboard", links: [] },
   {
     label: "Merchants",
     href: "/merchants",
@@ -58,7 +85,8 @@ export const MENU: readonly MenuSection[] = [
     count: "payments",
     links: [
       { label: "Payments to check", href: "/payments" },
-      { label: "Wallets", href: "/billing" },
+      // api/billing needs adjust_balance: support staff landed on "Your login cannot open the wallets".
+      { label: "Wallets", href: "/billing", needs: "adjust_balance" },
       { label: "WhatsApp costs", href: "/whatsapp" },
     ],
   },
@@ -69,7 +97,6 @@ export const MENU: readonly MenuSection[] = [
     links: [
       { label: "Our fees", href: "/revenue" },
       { label: "Orders by hour", href: "/usage" },
-      { label: "Platform numbers", href: "/numbers" },
     ],
   },
 ];
@@ -86,6 +113,16 @@ export const SETTINGS_SECTION: MenuSection = {
 };
 
 const ALL_SECTIONS: readonly MenuSection[] = [...MENU, SETTINGS_SECTION];
+
+/**
+ * The pages under a place that `role` may open. While the role is not known
+ * yet every link shows, so a super admin's menu never grows under the
+ * pointer; the page itself still says when a login cannot open it.
+ */
+export function linksFor(section: MenuSection, role: AdminRole | null): MenuLink[] {
+  if (role === null) return section.links;
+  return section.links.filter((link) => !link.needs || hasPermission(role, link.needs));
+}
 
 /** Whether `pathname` is `href` or a page inside it ("/merchants/123" is in "/merchants"). */
 function within(pathname: string, href: string): boolean {
@@ -128,11 +165,11 @@ export function pageTitle(pathname: string): string | null {
 }
 
 /** Every page on the menu once, with the place it sits under: what the command palette lists. */
-export function menuPages(): { label: string; href: string; section: MenuSection }[] {
+export function menuPages(role: AdminRole | null = null): { label: string; href: string; section: MenuSection }[] {
   const seen = new Set<string>();
   const pages: { label: string; href: string; section: MenuSection }[] = [];
   for (const section of ALL_SECTIONS) {
-    for (const href of [section.href, ...section.links.map((l) => l.href)]) {
+    for (const href of [section.href, ...linksFor(section, role).map((l) => l.href)]) {
       if (seen.has(href)) continue;
       seen.add(href);
       pages.push({ label: pageTitle(href) ?? section.label, href, section });

@@ -86,6 +86,13 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).toContain("34,750");
         expect(html).toContain('aria-label="122658090"');
     });
+    it("prints the size or colour so the packer picks the right one", () => {
+        const html = generateDispatchLabelHTML(
+            order({ items: [{ name: "قميص", variant_name: "XL / أبيض", quantity: 2, price: 20000 }] }),
+            { showBarcode: false },
+        );
+        expect(html).toContain("قميص (XL / أبيض) × 2");
+    });
     it("leaves out the backup phone, notes and barcode when absent", () => {
         const html = generateDispatchLabelHTML(order({ secondary_phone: undefined, notes: "" }), { showBarcode: false });
         expect(html).not.toContain("احتياط");

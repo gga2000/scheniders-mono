@@ -6,6 +6,8 @@ import { Package, Search, X, Check, Plus, Minus, ChevronDown, ChevronLeft, Layer
 import { cn, formatIQD } from "@/lib/utils";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import type { Product } from "@/lib/supabase";
+import type { ProductVariant } from "@/types/product";
+import type { PickedOrderLine } from "@/types/order";
 import { useLanguage } from "@/hooks/use-language";
 import { useRecentOrderLines } from "@/hooks/use-recent-order-lines";
 import { foldUnitsSold, sortByRecentSales } from "@/lib/product-recent-sales";
@@ -13,20 +15,38 @@ import { foldUnitsSold, sortByRecentSales } from "@/lib/product-recent-sales";
 interface ProductPickerProps {
     open: boolean;
     onClose: () => void;
-    onSelect: (product: { product_id: string; name: string; price: number; quantity: number; image_url?: string; tag_color?: string; is_open_box?: boolean }) => void;
+    onSelect: (line: PickedOrderLine) => void;
 }
 
-interface SelectedProduct {
+interface SelectedLine {
     product: Product;
+    /** The size or colour, for a product sold by variant. */
+    variant: ProductVariant | null;
     quantity: number;
     isOpenBox: boolean;
 }
+
+/**
+ * The sizes and colours still on sale, in the merchant's order. Only an
+ * explicit `is_enabled: false` takes one off sale, as on the storefront. A
+ * product with any is sold as one of them: a line with no size has nothing
+ * for the packer to pick and moves stock on the wrong row.
+ */
+export function sellableVariants(product: Product): ProductVariant[] {
+    return (product.variants ?? [])
+        .filter((v) => v.is_enabled !== false)
+        .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+}
+
+const lineKey = (productId: string, variantId?: string | null) => (variantId ? `${productId}:${variantId}` : productId);
 
 export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     const { products, loading } = useProductsCrud();
     const { data: recentLines } = useRecentOrderLines(open);
     const [search, setSearch] = useState("");
-    const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
+    const [selectedLines, setSelectedLines] = useState<Map<string, SelectedLine>>(new Map());
+    /** Products sold in sizes whose size chips are showing. */
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const { t } = useLanguage();
 
     const [fillerOpen, setFillerOpen] = useState(false);
@@ -51,57 +71,90 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
     }, [products, search, recentLines]);
 
     const totalShown = mainProducts.length + fillerProducts.length;
+    const pickedProductIds = useMemo(
+        () => new Set(Array.from(selectedLines.values(), (line) => line.product.id)),
+        [selectedLines],
+    );
     const selectedFillerCount = fillerProducts.reduce(
-        (n, p) => n + (selectedProducts.has(p.id) ? 1 : 0), 0
+        (n, p) => n + (pickedProductIds.has(p.id) ? 1 : 0), 0
     );
     // Derived, not stored: searching a real product name and being told there
     // is nothing — with the answer one collapsed click away — is the failure
     // this guards against.
     const fillerExpanded = fillerOpen || (search.trim().length > 0 && mainProducts.length === 0);
 
+    /** A plain product toggles in or out; one sold in sizes shows or hides its sizes. */
     const toggleProduct = (product: Product) => {
-        setSelectedProducts(prev => {
+        if (sellableVariants(product).length > 0) {
+            setExpanded(prev => {
+                const next = new Set(prev);
+                if (next.has(product.id)) next.delete(product.id);
+                else next.add(product.id);
+                return next;
+            });
+            return;
+        }
+        setSelectedLines(prev => {
             const newMap = new Map(prev);
             if (newMap.has(product.id)) {
                 newMap.delete(product.id);
             } else {
-                newMap.set(product.id, { product, quantity: 1, isOpenBox: false });
+                newMap.set(product.id, { product, variant: null, quantity: 1, isOpenBox: false });
             }
             return newMap;
         });
     };
 
-    const setOpenBox = (productId: string, isOpenBox: boolean) => {
-        setSelectedProducts(prev => {
+    const toggleVariant = (product: Product, variant: ProductVariant) => {
+        const key = lineKey(product.id, variant.id);
+        setSelectedLines(prev => {
             const newMap = new Map(prev);
-            const item = newMap.get(productId);
-            if (item) newMap.set(productId, { ...item, isOpenBox });
+            if (newMap.has(key)) newMap.delete(key);
+            else newMap.set(key, { product, variant, quantity: 1, isOpenBox: false });
             return newMap;
         });
     };
 
-    const updateQuantity = (productId: string, delta: number) => {
-        setSelectedProducts(prev => {
+    const setOpenBox = (key: string, isOpenBox: boolean) => {
+        setSelectedLines(prev => {
             const newMap = new Map(prev);
-            const item = newMap.get(productId);
+            const item = newMap.get(key);
+            if (item) newMap.set(key, { ...item, isOpenBox });
+            return newMap;
+        });
+    };
+
+    const updateQuantity = (key: string, delta: number) => {
+        setSelectedLines(prev => {
+            const newMap = new Map(prev);
+            const item = newMap.get(key);
             if (item) {
                 const newQty = Math.max(1, item.quantity + delta);
-                newMap.set(productId, { ...item, quantity: newQty });
+                newMap.set(key, { ...item, quantity: newQty });
             }
+            return newMap;
+        });
+    };
+
+    const removeLine = (key: string) => {
+        setSelectedLines(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(key);
             return newMap;
         });
     };
 
     const handleConfirm = () => {
-        selectedProducts.forEach(({ product, quantity, isOpenBox }) => {
+        selectedLines.forEach(({ product, variant, quantity, isOpenBox }) => {
             onSelect({
                 product_id: product.id,
+                ...(variant ? { variant_id: variant.id, variant_name: variant.name } : {}),
                 // Order snapshots carry the internal ops name; the marketing
                 // title (products.name) stays customer-facing on the storefront.
                 name: product.short_name?.trim() || product.name,
-                price: product.price,
+                price: variant?.price ?? product.price,
                 quantity: quantity,
-                image_url: product.image_url || "",
+                image_url: variant?.image_url || product.image_url || "",
                 tag_color: product.tag_color || "#22c55e", // Include product color, default to green
                 is_open_box: isOpenBox,
             });
@@ -111,15 +164,126 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
 
     const handleClose = () => {
         setSearch("");
-        setSelectedProducts(new Map());
+        setSelectedLines(new Map());
+        setExpanded(new Set());
         onClose();
+    };
+
+    /** Quantity stepper and remove button of one picked line. */
+    const lineControls = (key: string, quantity: number) => (
+        <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center bg-white border border-[var(--card-border)] rounded-lg overflow-hidden">
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); updateQuantity(key, -1); }}
+                    className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                    <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-8 text-center text-sm font-bold">{quantity}</span>
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); updateQuantity(key, 1); }}
+                    className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                    <Plus className="w-3.5 h-3.5" />
+                </button>
+            </div>
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); removeLine(key); }}
+                className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
+            >
+                <X className="w-4 h-4" />
+            </button>
+        </div>
+    );
+
+    /** A product sold in sizes: its row opens chips, one per size or colour, each picked on its own. */
+    const renderVariantRow = (product: Product, variants: ProductVariant[]) => {
+        const isOpen = expanded.has(product.id);
+        const picked = variants
+            .map((variant) => ({ variant, key: lineKey(product.id, variant.id) }))
+            .filter(({ key }) => selectedLines.has(key));
+        return (
+            <div
+                key={product.id}
+                className={cn(
+                    "rounded-xl transition-all",
+                    picked.length > 0 ? "bg-[var(--pastel-green-light)] ring-1 ring-green-300" : isOpen ? "bg-[var(--background)]" : "",
+                )}
+                data-testid="picker-variant-product"
+            >
+                <button
+                    type="button"
+                    onClick={() => toggleProduct(product)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center gap-3 p-2.5 rounded-xl text-start hover:bg-[var(--background)] transition-colors"
+                >
+                    <ProductThumb product={product} />
+                    <span className="flex-1 min-w-0">
+                        <span className="block font-semibold text-sm text-foreground truncate">{product.name}</span>
+                        <span className="block text-[11px] text-muted">
+                            {isOpen ? t("orders.productPicker.pickVariant") : t("orders.productPicker.variantCount", { count: String(variants.length) })}
+                        </span>
+                    </span>
+                    {isOpen
+                        ? <ChevronDown className="w-4 h-4 text-muted shrink-0" />
+                        : <ChevronLeft className="w-4 h-4 text-muted shrink-0" />}
+                </button>
+                {isOpen && (
+                    <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5" dir="auto">
+                        {variants.map((variant) => {
+                            const key = lineKey(product.id, variant.id);
+                            const left = (variant.stock_quantity ?? 0) - (variant.reserved_quantity ?? 0);
+                            const isPicked = selectedLines.has(key);
+                            return (
+                                <button
+                                    key={variant.id}
+                                    type="button"
+                                    onClick={() => toggleVariant(product, variant)}
+                                    aria-pressed={isPicked}
+                                    className={cn(
+                                        "flex flex-col items-start rounded-lg border px-2.5 py-1.5 text-start transition-colors",
+                                        isPicked
+                                            ? "border-green-600 bg-green-600 text-white"
+                                            : left > 0
+                                              ? "border-[var(--card-border)] bg-white hover:border-green-400"
+                                              : "border-dashed border-gray-300 bg-white text-gray-400 hover:border-gray-400",
+                                    )}
+                                >
+                                    <span className="text-sm font-semibold leading-tight">{variant.name}</span>
+                                    <span className={cn("text-[11px] tabular-nums leading-tight", isPicked ? "text-white/85" : left > 0 ? "text-gray-500" : "")}>
+                                        {formatIQD(variant.price ?? product.price)}
+                                        {" · "}
+                                        {left > 0 ? t("orders.productPicker.variantLeft", { count: String(left) }) : t("orders.productPicker.variantSoldOut")}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+                {picked.map(({ variant, key }) => {
+                    const line = selectedLines.get(key);
+                    if (!line) return null;
+                    return (
+                        <div key={key} className="flex items-center gap-3 px-2.5 pb-2.5" data-testid="picker-variant-line">
+                            <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">{variant.name}</span>
+                            {lineControls(key, line.quantity)}
+                        </div>
+                    );
+                })}
+            </div>
+        );
     };
 
     // One renderer for both lists — main stock and filler rows are identical;
     // only where they sit differs.
     const renderRow = (product: Product) => {
-        const isSelected = selectedProducts.has(product.id);
-        const selectedData = selectedProducts.get(product.id);
+        const variants = sellableVariants(product);
+        if (variants.length > 0) return renderVariantRow(product, variants);
+        const isSelected = selectedLines.has(product.id);
+        const selectedData = selectedLines.get(product.id);
 
         return (
             <div
@@ -132,21 +296,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                 )}
                 onClick={() => !isSelected && toggleProduct(product)}
             >
-                {/* Product Image */}
-                {product.image_url ? (
-                    <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-12 h-12 rounded-lg object-cover shrink-0"
-                    />
-                ) : (
-                    <div
-                        className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: product.tag_color || '#e5e7eb' }}
-                    >
-                        <Package className="w-5 h-5 text-white/80" />
-                    </div>
-                )}
+                <ProductThumb product={product} />
 
                 {/* Product Info */}
                 <div className="flex-1 min-w-0">
@@ -187,29 +337,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
 
                 {/* Quantity Controls or Checkbox */}
                 {isSelected && selectedData ? (
-                    <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex items-center bg-white border border-[var(--card-border)] rounded-lg overflow-hidden">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, -1); }}
-                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-                            >
-                                <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-8 text-center text-sm font-bold">{selectedData.quantity}</span>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, 1); }}
-                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}
-                            className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
+                    lineControls(product.id, selectedData.quantity)
                 ) : (
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleProduct(product); }}
@@ -222,9 +350,9 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
         );
     };
 
-    const totalSelected = selectedProducts.size;
-    const totalValue = Array.from(selectedProducts.values()).reduce(
-        (sum, { product, quantity }) => sum + (product.price * quantity), 0
+    const totalSelected = selectedLines.size;
+    const totalValue = Array.from(selectedLines.values()).reduce(
+        (sum, { product, variant, quantity }) => sum + ((variant?.price ?? product.price) * quantity), 0
     );
 
     // A Radix dialog, not a bare body portal: opened over another Radix
@@ -361,6 +489,23 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                 </DialogPrimitive.Content>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>
+    );
+}
+
+function ProductThumb({ product }: { product: Product }) {
+    return product.image_url ? (
+        <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-12 h-12 rounded-lg object-cover shrink-0"
+        />
+    ) : (
+        <div
+            className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
+            style={{ backgroundColor: product.tag_color || '#e5e7eb' }}
+        >
+            <Package className="w-5 h-5 text-white/80" />
+        </div>
     );
 }
 

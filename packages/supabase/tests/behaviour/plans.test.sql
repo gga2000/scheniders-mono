@@ -281,3 +281,66 @@ SELECT pg_temp.check((SELECT r->>'outcome' = 'on_hold' AND r ? 'demo' IS NOT TRU
                                (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011')) r)
                      AND (SELECT status::text FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-000000000011') = 'active',
                      'a demo store on staff hold stays on hold, untouched');
+
+-- 15. Every real plan change is on record with its day (20261117054950), for
+-- the staff console's Plan Movements: the merchant's upgrade (6) and the
+-- waiting plans the renewal applied (12, 14). A choice made in the trial (3),
+-- a downgrade called off (8), a refusal (4, 7, 11) and a renewal that keeps
+-- the plan (13) are not changes.
+SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_plan || '>' || to_plan ORDER BY id)
+                        FROM public.subscription_plan_changes)
+                     = ARRAY['0b:starter>growth', '0e:growth>starter', '10:growth>professional'],
+                     'three changes on record: the upgrade and two renewals onto a waiting plan');
+SELECT pg_temp.check((SELECT bool_and(changed_at > now() - interval '1 minute') FROM public.subscription_plan_changes),
+                     'each with its day');
+SELECT pg_temp.check((SELECT relrowsecurity FROM pg_class WHERE oid = 'public.subscription_plan_changes'::regclass)
+                     AND NOT has_table_privilege('anon', 'public.subscription_plan_changes', 'SELECT')
+                     AND NOT has_table_privilege('authenticated', 'public.subscription_plan_changes', 'SELECT')
+                     AND has_table_privilege('service_role', 'public.subscription_plan_changes', 'SELECT'),
+                     'only the staff console server reads the record');
+
+-- 16. A trial's end applies the merchant's first choice; the record says it
+-- came from the trial (20261117071812), so Plan Movements does not count it
+-- as an upgrade or a downgrade. It is on record even when the first payment
+-- fails and the shop is locked. The changes in 15 were not from a trial.
+SELECT pg_temp.as_admin('a0000000-0000-4000-8000-00000000000a');
+SELECT pg_temp.check((SELECT r->>'kind' = 'pick' FROM public.change_plan('a0000000-0000-4000-8000-00000000000a', 'professional', true) r),
+                     'the trial shop picks Business');
+UPDATE public.subscriptions SET current_period_end = now() - interval '1 minute'
+ WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a';
+SELECT pg_temp.check((SELECT r->>'outcome' = 'locked'
+                        FROM public.renew_subscription_core(
+                               (SELECT id FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a'),
+                               (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a')) r)
+                     AND pg_temp.plan_of('a0000000-0000-4000-8000-00000000000a') = 'professional',
+                     'the trial ends on Business with an empty wallet: locked');
+SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_plan || '>' || to_plan || ':' || from_trial ORDER BY id)
+                        FROM public.subscription_plan_changes)
+                     = ARRAY['0b:starter>growth:false', '0e:growth>starter:false', '10:growth>professional:false',
+                             '0a:growth>professional:true'],
+                     'the first choice is on record as from the trial; the others are not');
+
+-- 17. Staff change the plan of a locked trial shop (20261117091510): the
+-- subscription is 'past_due' but the shop is still 'trial', so it is still
+-- the first choice, not a move. Statements in admin_update_shop's order: the
+-- shop's plan, then the subscription's. A locked trial that became 'active'
+-- (by paying, or by convert-trial; staff can no longer set it,
+-- 20261117102504) is a paying shop by then: a plan change is a real move.
+SELECT pg_temp.check((SELECT t.status = 'trial' AND s.status = 'past_due'
+                        FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id
+                       WHERE t.id = 'a0000000-0000-4000-8000-00000000000a'),
+                     'the locked trial shop is trial on the shop and past_due on the subscription');
+UPDATE public.tenants SET plan = 'starter' WHERE id = 'a0000000-0000-4000-8000-00000000000a';
+UPDATE public.subscriptions SET plan = 'starter', updated_at = now() WHERE tenant_id = 'a0000000-0000-4000-8000-00000000000a';
+INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
+  ('a0000000-0000-4000-8000-000000000012', 'growth', 'trial', now() - interval '1 day');
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, pending_plan) VALUES
+  ('a0000000-0000-4000-8000-000000000012', 'growth', 'past_due', now() - interval '8 days', now() - interval '1 day', NULL);
+UPDATE public.tenants SET status = 'active' WHERE id = 'a0000000-0000-4000-8000-000000000012';
+UPDATE public.tenants SET plan = 'starter' WHERE id = 'a0000000-0000-4000-8000-000000000012';
+UPDATE public.subscriptions SET plan = 'starter', updated_at = now() WHERE tenant_id = 'a0000000-0000-4000-8000-000000000012';
+SELECT pg_temp.check((SELECT array_agg(right(tenant_id::text, 2) || ':' || from_plan || '>' || to_plan || ':' || from_trial ORDER BY id)
+                        FROM public.subscription_plan_changes)
+                     = ARRAY['0b:starter>growth:false', '0e:growth>starter:false', '10:growth>professional:false',
+                             '0a:growth>professional:true', '0a:professional>starter:true', '12:growth>starter:false'],
+                     'a staff change on a locked trial is from the trial; after staff made the shop active it is a move');

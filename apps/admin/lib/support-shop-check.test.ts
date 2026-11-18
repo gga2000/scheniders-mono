@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { trialClock } from "./baghdad-day";
 import { daysAgo, shopCheckLines, ShopCheckSchema, type ShopCheck } from "./support-shop-check";
 
 const NOW = Date.parse("2026-11-16T12:00:00Z");
@@ -58,6 +59,21 @@ describe("shopCheckLines", () => {
     ["locked for payment", { lock_reason: "trial_ended", lock_since: ago(2) }, "broken"],
     ["paused with new orders blocked", { status: "limited", paused: true, blocks_new_orders: true }, "broken"],
     ["paused without blocking orders", { status: "limited", paused: true }, "look"],
+    [
+      "paused until tomorrow, new orders blocked",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(-1) },
+      "broken",
+    ],
+    [
+      "a pause that ended 10 minutes ago",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(10 / 1440) },
+      "ok",
+    ],
+    [
+      "a pause that ended yesterday and is still on",
+      { status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) },
+      "look",
+    ],
     ["a prospect store", { is_prospect: true }, "look"],
     ["a trial ending tomorrow", { status: "trial", trial_ends_at: ago(-1) }, "look"],
     ["a trial ending in a week", { status: "trial", trial_ends_at: ago(-7) }, "ok"],
@@ -67,11 +83,25 @@ describe("shopCheckLines", () => {
     expect(line(check, "store").state).toBe(state);
   });
 
+  it("says an ended pause lifts within the hour, as the hourly lift does", () => {
+    const check = healthy();
+    check.store = { ...check.store, status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(10 / 1440) };
+    expect(line(check, "store").text).toBe("Pause ended today. Nothing is stopped now; it lifts on its own within the hour.");
+  });
+
+  it("says a pause the hourly lift missed needs lifting by hand", () => {
+    const check = healthy();
+    check.store = { ...check.store, status: "limited", paused: true, blocks_new_orders: true, paused_until: ago(1) };
+    expect(line(check, "store").text).toBe(
+      "Pause ended yesterday but did not lift on its own. Nothing is stopped now. A super admin can lift it on the shop page.",
+    );
+  });
+
   it("says why a store is locked, in plain words", () => {
     const check = healthy();
     check.store.lock_reason = "trial_ended";
     check.store.lock_since = ago(2);
-    expect(line(check, "store").text).toBe("Locked for payment since 2 days ago (trial ended).");
+    expect(line(check, "store").text).toBe("Locked since 2 days ago: trial ended, not paid.");
   });
 
   it("products: an empty store is broken, products with no stock are worth a look", () => {
@@ -154,6 +184,31 @@ describe("shopCheckLines", () => {
     expect(errors.href).toContain(`tenant_id%3A${TENANT}`);
   });
 
+  // Baghdad is UTC+3: 19:00Z is 22:00 there, 02:00Z is 05:00.
+  it.each([
+    ["Mon 22:00 to Thu 23:00 (3 days on Trials)", "2026-11-16T19:00:00Z", "2026-11-19T20:00:00Z", "Taking orders. Trial ends in 3 days.", "look"],
+    ["Mon 05:00 to Tue 08:00 (tomorrow on Trials)", "2026-11-16T02:00:00Z", "2026-11-17T05:00:00Z", "Taking orders. Trial ends tomorrow.", "look"],
+    ["Mon 22:00 to Tue 05:00 (under a day)", "2026-11-16T19:00:00Z", "2026-11-17T02:00:00Z", "Taking orders. Trial ends in 7 h.", "look"],
+    ["Mon 15:00 to Mon a week later", "2026-11-16T12:00:00Z", "2026-11-23T12:00:00Z", "Taking orders. Trial ends in 7 days.", "ok"],
+    ["ended this morning, not locked yet", "2026-11-16T12:00:00Z", "2026-11-16T05:00:00Z", "Trial ended today, not paid yet.", "look"],
+    ["ended two days ago, not locked yet", "2026-11-16T12:00:00Z", "2026-11-14T12:00:00Z", "Trial ended 2 days ago, not paid yet.", "look"],
+  ])("store: a trial %s counts days like Trials", (_name, now, end, text, state) => {
+    const check = healthy();
+    check.store = { ...check.store, status: "trial", trial_ends_at: end };
+    expect(shopCheckLines(check, TENANT, Date.parse(now)).find((l) => l.key === "store")).toMatchObject({ text, state });
+  });
+
+  it("names the same number of days as the Trials page at every hour of a Baghdad day", () => {
+    const end = "2026-11-21T03:30:00Z"; // Sat 06:30 in Baghdad
+    for (let hour = 0; hour < 24; hour += 1) {
+      const now = Date.parse("2026-11-16T00:00:00+03:00") + hour * 3_600_000;
+      const check = healthy();
+      check.store = { ...check.store, status: "trial", trial_ends_at: end };
+      const text = shopCheckLines(check, TENANT, now).find((l) => l.key === "store")?.text;
+      expect(text).toBe(`Taking orders. Trial ends in ${trialClock(end, now).days} days.`);
+    }
+  });
+
   it("puts the store first and links to where staff fix it", () => {
     const lines = shopCheckLines(healthy(), TENANT, NOW);
     expect(lines[0].key).toBe("store");
@@ -180,9 +235,26 @@ describe("daysAgo", () => {
     [ago(0.2), "today"],
     [ago(1.5), "yesterday"],
     [ago(5), "5 days ago"],
-    [ago(-0.5), "within a day"],
+    [ago(-0.5), "tomorrow"],
     [ago(-3), "in 3 days"],
   ])("%s reads %s", (iso, expected) => {
     expect(daysAgo(iso, NOW)).toBe(expected);
+  });
+
+  // Baghdad is UTC+3: these are Mon 23:00 and Mon 23:50, seen on Tuesday.
+  it.each([
+    ["2026-11-16T20:00:00Z", "2026-11-17T07:00:00Z", "yesterday"],
+    ["2026-11-16T20:50:00Z", "2026-11-16T21:30:00Z", "yesterday"],
+    ["2026-11-16T21:30:00Z", "2026-11-17T20:30:00Z", "today"],
+  ])("counts Baghdad days: %s seen at %s is %s", (iso, now, expected) => {
+    expect(daysAgo(iso, Date.parse(now))).toBe(expected);
+  });
+
+  it("says a lock from last night began yesterday, as the shop page dates it", () => {
+    const check = healthy();
+    check.store.lock_reason = "trial_ended";
+    check.store.lock_since = "2026-11-16T20:00:00Z";
+    const store = shopCheckLines(check, TENANT, Date.parse("2026-11-17T07:00:00Z")).find((l) => l.key === "store");
+    expect(store?.text).toBe("Locked since yesterday: trial ended, not paid.");
   });
 });

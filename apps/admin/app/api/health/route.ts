@@ -1,28 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
+import { lockedBecause } from "@/lib/billing-lock-label";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
-import { usageMonthNow } from "@/lib/usage-month";
+import { CUSTOMER_SHOP } from "@/lib/customer-shops";
+import { effectiveStatus } from "@/lib/effective-status";
 
 interface TenantRow {
   id: string;
   business_name: string;
   plan: string;
   status: string;
+  /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+  restrictions: unknown;
   city: string | null;
   created_at: string;
+  /** The health score's parts; `orders` is 0 only for a shop with no real order in 30 days. */
+  staff_health_parts: { orders: number };
 }
+
+/** Billing-locked shops (admin_locked_shops), shop id to reason: their status still reads "trial" or "active". */
+const lockedShopsSchema = z.record(z.string(), z.enum(["trial_ended", "unpaid"]));
 
 interface WalletRow {
   tenant_id: string;
   balance_iqd: number;
   threshold_iqd: number;
-}
-
-interface UsageRow {
-  tenant_id: string;
-  orders_count: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -35,17 +40,16 @@ export async function GET(request: NextRequest) {
     const twentyFourHoursAgo = new Date(
       now.getTime() - 24 * 60 * 60 * 1000
     ).toISOString();
-    const usageMonth = usageMonthNow(now);
 
     // Every list is read to its last row and a failed read throws: a short or
     // empty list here would say "no shops at risk" when the truth is unknown.
-    const [tenants, wallets, ordersResult, usage] = await Promise.all([
+    const [tenants, wallets, ordersResult, locksResult] = await Promise.all([
       everyRow<TenantRow>((from, to) =>
         supabase
           .from("tenants")
-          .select("id, business_name, plan, status, city, created_at")
-          // The demo store (Fermi B13) is never a shop at risk.
-          .eq("is_demo", false)
+          .select("id, business_name, plan, status, restrictions, city, created_at, staff_health_parts")
+          // The demo store and prospect stores (lib/customer-shops) are never shops at risk.
+          .match(CUSTOMER_SHOP)
           .order("id")
           .range(from, to)
       ),
@@ -63,24 +67,18 @@ export async function GET(request: NextRequest) {
         .from("admin_order_facts")
         .select("id", { count: "exact", head: true })
         .gte("created_at", twentyFourHoursAgo),
-      everyRow<UsageRow>((from, to) =>
-        supabase
-          .from("usage_tracking")
-          .select("tenant_id, orders_count")
-          .eq("year", usageMonth.year)
-          .eq("month", usageMonth.month)
-          .order("tenant_id")
-          .range(from, to)
-      ),
+      // The same lock rule as the Merchants list and the shop page.
+      supabase.rpc("admin_locked_shops"),
     ]);
 
     if (ordersResult.error) throw ordersResult.error;
+    if (locksResult.error) throw locksResult.error;
+    const locked = lockedShopsSchema.parse(locksResult.data);
     const ordersLast24h = ordersResult.count ?? 0;
 
     // Build lookup maps
     const tenantMap = new Map(tenants.map((t) => [t.id, t]));
     const walletMap = new Map(wallets.map((w) => [w.tenant_id, w]));
-    const usageMap = new Map(usage.map((u) => [u.tenant_id, u]));
 
     // ---------------------------------------------------------------------------
     // Platform Health
@@ -88,7 +86,8 @@ export async function GET(request: NextRequest) {
 
     const totalTenants = tenants.length;
     const activeTenants = tenants.filter((t) => t.status === "active").length;
-    const trialTenants = tenants.filter((t) => t.status === "trial").length;
+    // A paused trial too, as Trials and the Merchants Trial pill count it.
+    const trialTenants = tenants.filter((t) => effectiveStatus(t.status, t.restrictions) === "trial").length;
     const suspendedTenants = tenants.filter(
       (t) => t.status === "suspended"
     ).length;
@@ -107,11 +106,12 @@ export async function GET(request: NextRequest) {
     }[] = [];
 
     for (const tenant of tenants) {
+      // A cancelled shop has already left: it is no longer at risk of leaving.
+      if (tenant.status === "cancelled") continue;
       let riskScore = 0;
       const reasons: string[] = [];
 
       const wallet = walletMap.get(tenant.id);
-      const tenantUsage = usageMap.get(tenant.id);
 
       // +3 if balance < threshold (low balance)
       if (wallet && wallet.balance_iqd < wallet.threshold_iqd) {
@@ -119,16 +119,25 @@ export async function GET(request: NextRequest) {
         reasons.push("Low balance");
       }
 
-      // +2 if no orders this month
-      if (!tenantUsage || tenantUsage.orders_count === 0) {
+      // +2 if no real order in the 30 Baghdad days that end today: the orders
+      // the health score counts, never the plan's usage counter, which misses
+      // store checkout orders and keeps removed ones.
+      if (tenant.staff_health_parts.orders === 0) {
         riskScore += 2;
-        reasons.push("No orders this month");
+        reasons.push("No orders in 30 days");
       }
 
       // +2 if suspended
       if (tenant.status === "suspended") {
         riskScore += 2;
         reasons.push("Suspended");
+      }
+
+      // +3 if locked: the shop cannot take orders until it pays.
+      const lock = locked[tenant.id];
+      if (lock) {
+        riskScore += 3;
+        reasons.push(lockedBecause(lock));
       }
 
       if (riskScore >= 3) {
@@ -150,11 +159,16 @@ export async function GET(request: NextRequest) {
     // Low Balance Wallets
     // ---------------------------------------------------------------------------
 
+    // Only the wallets of shops still with us: the wallet list holds every
+    // shop's, the demo store, prospect stores and cancelled shops too.
     const lowBalanceWallets = wallets
-      .filter((w) => w.balance_iqd < w.threshold_iqd)
-      .map((w) => ({
+      .flatMap((w) => {
+        const shop = tenantMap.get(w.tenant_id);
+        return shop && shop.status !== "cancelled" && w.balance_iqd < w.threshold_iqd ? [{ w, shop }] : [];
+      })
+      .map(({ w, shop }) => ({
         tenant_id: w.tenant_id,
-        business_name: tenantMap.get(w.tenant_id)?.business_name ?? "Unknown",
+        business_name: shop.business_name,
         balance_iqd: w.balance_iqd,
         threshold_iqd: w.threshold_iqd,
       }))

@@ -1,12 +1,16 @@
 /*
  * A stand-in for the Supabase client in route tests. It behaves like the API
  * where that matters for these routes: a read answers with at most 1,000 rows
- * and says nothing when it cut the list, eq() and in() filter, and a function
- * call goes to the handler registered for it.
+ * and says nothing when it cut the list; eq(), match(), in(), gt(), gte(), lt(),
+ * lte() and or() filter (or() also answers the API's parse error for a filter
+ * it cannot read); order() sorts before range() cuts, and a counted read
+ * whose range starts past the last row is refused (PGRST103), as PostgREST
+ * answers 416; and a function call goes to the handler registered for it. So a wrong date window or a wrong sort
+ * fails a test instead of passing unseen.
  */
 
 export type Row = Record<string, unknown>;
-type Answer = { data: unknown; error: { message: string } | null };
+type Answer = { data: unknown; error: { code?: string; message: string; details?: string } | null };
 
 export const SERVER_MAX_ROWS = 1000;
 
@@ -25,20 +29,34 @@ export function supabaseStub() {
     let rows = state.tables[table] ?? [];
     let window: [number, number] = [0, SERVER_MAX_ROWS - 1];
     let parseError: string | null = null;
+    let counted = false;
+    const sorts: Sort[] = [];
     const note = (method: string, ...args: unknown[]) => {
       state.calls.push({ on: `${table}.${method}`, args });
       return builder;
     };
     const builder = {
-      select: (...args: unknown[]) => note("select", ...args),
+      select: (...args: unknown[]) => {
+        const options = args[1];
+        counted = typeof options === "object" && options !== null && "count" in options;
+        return note("select", ...args);
+      },
       or: (filter: string) => {
-        if (!apiCanParse(filter)) parseError = `failed to parse logic tree ((${filter}))`;
+        const parts = orParts(filter);
+        if (parts) rows = rows.filter((row) => parts.some((part) => partHolds(row, part)));
+        else parseError = `failed to parse logic tree ((${filter}))`;
         return note("or", filter);
       },
-      gte: (...args: unknown[]) => note("gte", ...args),
-      lte: (...args: unknown[]) => note("lte", ...args),
-      lt: (...args: unknown[]) => note("lt", ...args),
-      order: (...args: unknown[]) => note("order", ...args),
+      gt: (column: string, value: unknown) => compareFilter("gt", column, value),
+      gte: (column: string, value: unknown) => compareFilter("gte", column, value),
+      lt: (column: string, value: unknown) => compareFilter("lt", column, value),
+      lte: (column: string, value: unknown) => compareFilter("lte", column, value),
+      // The first order() is the main sort, as in the API; ascending puts empty values last.
+      order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => {
+        const ascending = options?.ascending ?? true;
+        sorts.push({ column, ascending, nullsFirst: options?.nullsFirst ?? !ascending });
+        return options ? note("order", column, options) : note("order", column);
+      },
       // "tenants.is_demo" filters on an embedded row, as an inner join does.
       eq: (column: string, value: unknown) => {
         rows = rows.filter((row) => fieldOf(row, column) === value);
@@ -53,6 +71,11 @@ export function supabaseStub() {
         rows = rows.filter((row) => values.includes(fieldOf(row, column)));
         return note("in", column, values);
       },
+      // match({ a: 1, "tenants.b": 2 }) is eq() on each column, as in the API.
+      match: (query: Record<string, unknown>) => {
+        rows = rows.filter((row) => Object.entries(query).every(([column, value]) => fieldOf(row, column) === value));
+        return note("match", query);
+      },
       neq: (column: string, value: unknown) => {
         rows = rows.filter((row) => fieldOf(row, column) !== value);
         return note("neq", column, value);
@@ -65,15 +88,44 @@ export function supabaseStub() {
         window = [window[0], window[0] + count - 1];
         return note("limit", count);
       },
+      // One row: single() wants exactly one (PGRST116 otherwise), maybeSingle() one or none.
+      single: async (): Promise<Answer> => one(true),
+      maybeSingle: async (): Promise<Answer> => one(false),
       then: (resolve: (answer: Answer & { count: number | null }) => void) => {
         if (state.failing.has(table)) {
           return resolve({ data: null, error: { message: "connection lost" }, count: null });
         }
         if (parseError) return resolve({ data: null, error: { message: parseError }, count: null });
+        if (counted && window[0] > rows.length) {
+          const details = `An offset of ${window[0]} was requested, but there are only ${rows.length} rows.`;
+          return resolve({ data: null, error: { code: "PGRST103", message: "Requested range not satisfiable", details }, count: null });
+        }
         const last = Math.min(window[1], window[0] + SERVER_MAX_ROWS - 1);
-        return resolve({ data: rows.slice(window[0], last + 1), error: null, count: rows.length });
+        return resolve({ data: sorted().slice(window[0], last + 1), error: null, count: rows.length });
       },
     };
+    function compareFilter(operator: "gt" | "gte" | "lt" | "lte", column: string, value: unknown) {
+      rows = rows.filter((row) => matches(fieldOf(row, column), operator, value));
+      return note(operator, column, value);
+    }
+    function sorted(): Row[] {
+      if (sorts.length === 0) return rows;
+      return [...rows].sort((a, b) => {
+        for (const sort of sorts) {
+          const order = sortOrder(fieldOf(a, sort.column), fieldOf(b, sort.column), sort);
+          if (order !== 0) return order;
+        }
+        return 0;
+      });
+    }
+    function one(exactlyOne: boolean): Answer {
+      note(exactlyOne ? "single" : "maybeSingle");
+      if (state.failing.has(table)) return { data: null, error: { message: "connection lost" } };
+      if (rows.length > 1 || (exactlyOne && rows.length === 0)) {
+        return { data: null, error: { code: "PGRST116", message: `JSON object requested, ${rows.length} rows returned` } };
+      }
+      return { data: sorted()[0] ?? null, error: null };
+    }
     return builder;
   }
 
@@ -96,26 +148,62 @@ function fieldOf(row: Row, column: string): unknown {
   return rest.reduce<unknown>((value, key) => (value as Row | null | undefined)?.[key], row[first ?? ""]);
 }
 
+type Sort = { column: string; ascending: boolean; nullsFirst: boolean };
+
+/** One row before (-1) or after (1) another for one order() call. */
+function sortOrder(a: unknown, b: unknown, sort: Sort): number {
+  const aEmpty = a === null || a === undefined;
+  const bEmpty = b === null || b === undefined;
+  if (aEmpty || bEmpty) {
+    if (aEmpty && bEmpty) return 0;
+    return aEmpty === sort.nullsFirst ? -1 : 1;
+  }
+  const order = compareValues(a, b);
+  return sort.ascending ? order : -order;
+}
+
+/**
+ * Compare two values as Postgres would for these tests: numbers by size,
+ * timestamps by time (so "…Z" and "…+00:00" agree), other text and booleans
+ * as they sort. Two kinds that Postgres would not compare throw, so a test
+ * with the wrong kind of value fails loudly.
+ */
+function compareValues(a: unknown, b: unknown): number {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  if (typeof a === "boolean" && typeof b === "boolean") return Number(a) - Number(b);
+  if (typeof a === "string" && typeof b === "string") {
+    const time = /^\d{4}-\d{2}-\d{2}/;
+    if (time.test(a) && time.test(b)) return Date.parse(a) - Date.parse(b);
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+  throw new Error(`the stub cannot compare ${JSON.stringify(a)} with ${JSON.stringify(b)}`);
+}
+
 function matches(field: unknown, operator: string, value: unknown): boolean {
   if (operator === "eq") return field === value;
   if (operator === "neq") return field !== value;
   if (operator === "is") return String(field) === String(value);
   // PostgREST writes a list as "(a,b)".
   if (operator === "in" && typeof value === "string") return value.slice(1, -1).split(",").includes(String(field));
-  if (typeof field !== "number" || typeof value !== "number") return false;
-  if (operator === "lt") return field < value;
-  if (operator === "lte") return field <= value;
-  if (operator === "gt") return field > value;
-  if (operator === "gte") return field >= value;
+  if (operator === "not.in" && typeof value === "string") return !value.slice(1, -1).split(",").includes(String(field));
+  // Postgres ~*: a case-insensitive pattern.
+  if (operator === "imatch" && typeof value === "string") return typeof field === "string" && new RegExp(value, "iu").test(field);
+  // A comparison with an empty value is never true in SQL.
+  if (field === null || field === undefined) return false;
+  if (operator === "lt") return compareValues(field, value) < 0;
+  if (operator === "lte") return compareValues(field, value) <= 0;
+  if (operator === "gt") return compareValues(field, value) > 0;
+  if (operator === "gte") return compareValues(field, value) >= 0;
   throw new Error(`the stub has no "${operator}" filter`);
 }
 
 /**
- * Whether the API can read an "or" filter. Every part must be a plain column
- * name, an operator and a value, or and(...) of such parts: the live API
+ * The parts of an "or" filter, or null when the API cannot read it. Every part
+ * must be a column name (or a JSON field of one, "restrictions->>status_before"),
+ * an operator and a value, or and(...) / or(...) of such parts: the live API
  * answers a cast like "display_id::text.ilike.1%" with a parse error.
  */
-function apiCanParse(filter: string): boolean {
+function orParts(filter: string): string[] | null {
   const parts: string[] = [];
   let depth = 0;
   let inQuotes = false;
@@ -138,12 +226,56 @@ function apiCanParse(filter: string): boolean {
     part += ch;
   }
   parts.push(part);
-  if (inQuotes || depth !== 0) return false;
-  return parts.every((one) => {
-    const group = /^(?:and|or)\((.*)\)$/.exec(one);
-    if (group) return apiCanParse(group[1] ?? "");
-    return /^[a-z_][a-z0-9_]*\.(?:not\.)?(?:eq|neq|gt|gte|lt|lte|like|ilike|is|in)\..+$/.test(one);
+  if (inQuotes || depth !== 0) return null;
+  const readable = parts.every((one) => {
+    const group = GROUP.exec(one);
+    return group ? orParts(group[2] ?? "") !== null : LEAF.test(one);
   });
+  return readable ? parts : null;
+}
+
+/** Whether a row passes an "or" filter as the API reads it; throws on one the API cannot read. */
+export function rowPassesOr(row: Row, filter: string): boolean {
+  const parts = orParts(filter);
+  if (!parts) throw new Error(`failed to parse logic tree ((${filter}))`);
+  return parts.some((part) => partHolds(row, part));
+}
+
+const GROUP = /^(and|or)\((.*)\)$/;
+const LEAF = /^([a-z_][a-z0-9_]*(?:->>?[a-z_][a-z0-9_]*)*)\.(not\.)?(eq|neq|gt|gte|lt|lte|like|ilike|is|in)\.(.+)$/;
+
+/** Whether one part of a readable "or" filter holds for a row, as Postgres reads it. */
+function partHolds(row: Row, part: string): boolean {
+  const group = GROUP.exec(part);
+  if (group) {
+    const inner = orParts(group[2] ?? "") ?? [];
+    return group[1] === "and" ? inner.every((one) => partHolds(row, one)) : inner.some((one) => partHolds(row, one));
+  }
+  const [, column = "", not, operator = "", raw = ""] = LEAF.exec(part) ?? [];
+  const field = column.split(/->>?/).reduce<unknown>((value, key, i) => (i === 0 ? row[key] : (value as Row | null | undefined)?.[key]), null);
+  const value = raw.startsWith('"') ? raw.slice(1, -1).replace(/\\(.)/g, "$1") : raw;
+  if (operator === "is") {
+    const holds = value === "null" ? field === null || field === undefined : String(field) === value;
+    return not ? !holds : holds;
+  }
+  // Any other comparison with an empty value is neither true nor false in SQL: the row is left out.
+  if (field === null || field === undefined) return false;
+  const text = String(field);
+  let holds: boolean;
+  if (operator === "eq") holds = text === value;
+  else if (operator === "neq") holds = text !== value;
+  else if (operator === "in") holds = value.slice(1, -1).split(",").includes(text);
+  else if (operator === "like" || operator === "ilike") holds = likePattern(value, operator === "ilike").test(text);
+  else holds = matches(typeof field === "number" ? field : text, operator, typeof field === "number" ? Number(value) : value);
+  return not ? !holds : holds;
+}
+
+/** A LIKE pattern as a regular expression: % (or the API's *) is any text, _ one character. */
+function likePattern(pattern: string, ignoreCase: boolean): RegExp {
+  const source = [...pattern]
+    .map((ch) => (ch === "%" || ch === "*" ? ".*" : ch === "_" ? "." : ch.replace(/[.+?^${}()|[\]\\]/g, "\\$&")))
+    .join("");
+  return new RegExp(`^${source}$`, ignoreCase ? "isu" : "su");
 }
 
 /** One row of admin_merchant_list_stats for a shop with nothing. */

@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { hasPermission } from "@/lib/admin-permissions";
-import { endAfterDays, freeDaysKind, isSubscriptionRunning, moreActions, typedAmount, type ShopFacts } from "./shop-actions";
+import {
+  endAfterDays,
+  freeDaysKind,
+  isSubscriptionRunning,
+  moreActions,
+  reactivateComeback,
+  reactivateWords,
+  renewalWords,
+  shopFormFrom,
+  shopFormHref,
+  typedAmount,
+  type ShopFacts,
+} from "./shop-actions";
 import type { AdminRole } from "@/types/admin";
 
 const as = (role: AdminRole) => (action: Parameters<typeof hasPermission>[1]) => hasPermission(role, action);
@@ -8,6 +20,7 @@ const shop = (facts: Partial<ShopFacts> = {}): ShopFacts => ({
   status: "active",
   locked: false,
   subscriptionRunning: true,
+  demo: false,
   ...facts,
 });
 
@@ -43,12 +56,30 @@ describe("More", () => {
 
   it("brings a shop on hold back, and does not pause or hold it again", () => {
     expect(moreActions(shop({ status: "suspended" }), as("super_admin"))).toEqual(["plan", "reactivate", "note"]);
-    expect(moreActions(shop({ status: "limited" }), as("super_admin"))).toEqual(["plan", "hold", "note"]);
+  });
+
+  it("does not offer a paused shop a pause or a hold, which the database refuses until the pause is lifted", () => {
+    expect(moreActions(shop({ status: "limited" }), as("super_admin"))).toEqual(["plan", "note"]);
+    expect(moreActions(shop({ status: "limited", locked: true }), as("super_admin"))).toEqual(["orders", "plan", "note"]);
   });
 
   it("shows support staff only what their login may do", () => {
     expect(moreActions(shop(), as("support_staff"))).toEqual(["note"]);
     expect(moreActions(shop({ status: "trial", locked: true }), as("support_staff"))).toEqual(["orders", "note"]);
+  });
+});
+
+describe("the demo store", () => {
+  // Each of these was offered, filled in, and then refused by the database
+  // ("The demo store has no paid time to extend"; "This is the demo store.
+  // Its status does not change.").
+  it("offers no free days, pause or hold, since the database refuses them for it", () => {
+    expect(freeDaysKind(shop({ demo: true }), as("super_admin"))).toBeNull();
+    expect(moreActions(shop({ demo: true }), as("super_admin"))).toEqual(["plan", "note"]);
+  });
+
+  it("still offers what works on it", () => {
+    expect(moreActions(shop({ demo: true }), as("support_staff"))).toEqual(["note"]);
   });
 });
 
@@ -65,6 +96,67 @@ describe("where free days end", () => {
   });
 });
 
+describe("what Reactivate says", () => {
+  const now = new Date("2026-11-16T09:00:00Z");
+
+  it("says a shop that paid comes back active and is charged as usual", () => {
+    expect(reactivateWords("active", "2026-11-01T09:00:00Z", now)).toBe(
+      "The shop is active again now, and its monthly fee is charged as usual.",
+    );
+  });
+
+  it("says a trial that was never paid comes back as a trial, locked once it has ended", () => {
+    expect(reactivateWords("trial", "2026-11-10T09:00:00Z", now)).toBe(
+      "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays.",
+    );
+    expect(reactivateWords("trial", "2026-11-20T09:00:00Z", now)).toBe(
+      "The shop goes back to its trial now: its trial was never paid.",
+    );
+  });
+
+  it("says a shop whose last month is unpaid comes back locked until its wallet covers the month", () => {
+    expect(reactivateWords("active_unpaid", null, now)).toBe(
+      "The shop is active again now, but its last month is not paid, so it stays locked until its wallet covers the month.",
+    );
+  });
+});
+
+/*
+ * Round 15: admin_update_shop saves Active for a held shop that is not a never-
+ * paid trial, and tenant_billing_lock locks an active shop whose subscription
+ * is past_due at once (never the internal plan).
+ */
+describe("what a shop on hold comes back as", () => {
+  it("a trial never paid comes back as a trial", () => {
+    expect(reactivateComeback(true, "trialing", "starter")).toBe("trial");
+  });
+
+  it("a paid shop whose last month is unpaid comes back active and locked", () => {
+    expect(reactivateComeback(false, "past_due", "starter")).toBe("active_unpaid");
+  });
+
+  it("a paid shop in good standing, or on the internal plan, comes back active", () => {
+    expect(reactivateComeback(false, "active", "starter")).toBe("active");
+    expect(reactivateComeback(false, null, "starter")).toBe("active");
+    expect(reactivateComeback(false, "past_due", "internal")).toBe("active");
+  });
+});
+
+describe("the renewal line", () => {
+  it("says a shop that is not running is not charged while it stays so", () => {
+    expect(renewalWords(true, false, "active")).toBe("On: charges the wallet each month");
+    expect(renewalWords(true, false, "trial")).toBe("On: charges the wallet each month");
+    expect(renewalWords(true, false, "limited")).toBe("On: not charged while paused, then charges the wallet each month");
+    expect(renewalWords(true, false, "suspended")).toBe("On: not charged while on hold, then charges the wallet each month");
+    expect(renewalWords(true, false, "cancelled")).toBe("On: not charged while cancelled");
+  });
+
+  it("says the demo store is never charged, and an ended renewal is off", () => {
+    expect(renewalWords(true, true, "active")).toBe("On: renews each month, never charged (demo store)");
+    expect(renewalWords(false, false, "suspended")).toBe("Off: the month ends and is not renewed");
+  });
+});
+
 describe("small readers", () => {
   it("reads a typed amount with or without separators, and nothing else", () => {
     expect(typedAmount("10,000")).toBe(10_000);
@@ -77,5 +169,28 @@ describe("small readers", () => {
     expect(["trialing", "active", "past_due"].every(isSubscriptionRunning)).toBe(true);
     expect(isSubscriptionRunning("cancelled")).toBe(false);
     expect(isSubscriptionRunning(undefined)).toBe(false);
+  });
+});
+
+describe("links that open a shop page form", () => {
+  it("open the shop's own page, with the form named in the link", () => {
+    expect(shopFormHref("t1", "money")).toBe("/merchants/t1?action=add-money");
+    expect(shopFormHref("t1", "days")).toBe("/merchants/t1?action=free-days");
+  });
+
+  it("read back the form each link names", () => {
+    for (const form of ["money", "days"] as const) {
+      const action = new URL(shopFormHref("t1", form), "https://admin.test").searchParams.get("action");
+      expect(shopFormFrom(action)).toBe(form);
+    }
+  });
+
+  it("still open free days from the menu's old extend-trial link", () => {
+    expect(shopFormFrom("extend-trial")).toBe("days");
+  });
+
+  it("open nothing for no action or a word it does not know", () => {
+    expect(shopFormFrom(null)).toBeNull();
+    expect(shopFormFrom("delete-shop")).toBeNull();
   });
 });

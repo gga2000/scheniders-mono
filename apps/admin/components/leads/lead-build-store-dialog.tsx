@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useEffectEvent, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn, slugify } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Lead, Industry } from "@/types/leads";
 import { useBuildStore } from "@/hooks/use-lead-mutations";
 import { useIndustries } from "@/hooks/use-industries";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import {
   Store,
   X,
@@ -22,6 +24,7 @@ import {
   Zap,
 } from "lucide-react";
 import { storeAddress } from "@scheniders/shared/store-address";
+import { prospectAddressPreview } from "@/lib/prospect-store-address";
 import { EASE_CHROME } from "@/lib/animation-constants";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -60,6 +63,8 @@ const emptyProduct = (): ProductRow => ({ name: "", price: "", image_url: "" });
 
 export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDialogProps) {
   const buildStore = useBuildStore();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const { data: industries } = useIndustries();
 
   // Mode
@@ -75,30 +80,39 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
   const [description, setDescription] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#1E1E1E");
   const [products, setProducts] = useState<ProductRow[]>([emptyProduct()]);
+  // The name the form started from, so a changed name counts as typing.
+  const [startName, setStartName] = useState(lead.merchant_name);
+  const typed =
+    businessName !== startName ||
+    customSlug.trim() !== "" ||
+    description.trim() !== "" ||
+    products.some((p) => p.name.trim() !== "" || p.price !== "" || p.image_url.trim() !== "");
+  // A store being set up survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(isOpen && typed);
 
-  // Derived slug
-  const slug = useMemo(() => {
-    if (mode === "advanced" && customSlug.trim()) {
-      return slugify(customSlug);
-    }
-    return slugify(businessName);
-  }, [mode, customSlug, businessName]);
+  // The address the database will make: from the web address when one is
+  // typed, else from the name; its last 8 characters are made at the build.
+  const addressFrom = mode === "advanced" && customSlug.trim() ? customSlug : businessName;
+  const addressPreview = prospectAddressPreview(addressFrom);
 
-  // Reset form when dialog opens
+  // Start from the lead when the dialog opens, and only then: a fresh read of
+  // the lead while it is open (a colleague's edit, a refetch on focus) keeps
+  // what was typed.
+  const resetOnOpen = useEffectEvent(() => {
+    setMode("quick");
+    setBusinessName(lead.merchant_name);
+    setStartName(lead.merchant_name);
+    setIndustryId(lead.industry_id ?? "");
+    setTemplate("general");
+    setCustomSlug("");
+    setDescription("");
+    setPrimaryColor("#1E1E1E");
+    setProducts([emptyProduct()]);
+    buildStore.reset();
+  });
   useEffect(() => {
-    if (isOpen) {
-      setMode("quick");
-      setBusinessName(lead.merchant_name);
-      setIndustryId(lead.industry_id ?? "");
-      setTemplate("general");
-      setCustomSlug("");
-      setDescription("");
-      setPrimaryColor("#1E1E1E");
-      setProducts([emptyProduct()]);
-      buildStore.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
-  }, [isOpen, lead]);
+    if (isOpen) resetOnOpen();
+  }, [isOpen]);
 
   // Product row helpers
   const addProduct = () => {
@@ -117,16 +131,30 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
     );
   };
 
+  // A refusal is said at the end of a body that scrolls: in Advanced, with
+  // products, it sat below the fold and the press seemed to do nothing.
+  useEffect(() => {
+    if (buildStore.isError) errorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [buildStore.isError, buildStore.error]);
+
   // Submit
   const handleSubmit = () => {
+    // A field the browser already knows is wrong (an image that is not a full
+    // link, as the server requires) is pointed at before anything is sent.
+    const wrong = Array.from(bodyRef.current?.querySelectorAll("input") ?? []).find((input) => !input.checkValidity());
+    if (wrong) {
+      wrong.reportValidity();
+      return;
+    }
+
     const data: Record<string, unknown> = {
       business_name: businessName,
       industry_id: industryId || null,
       template,
-      slug,
     };
 
     if (mode === "advanced") {
+      if (customSlug.trim()) data.slug = customSlug;
       data.description = description || null;
       data.primary_color = primaryColor;
       data.products = products
@@ -140,7 +168,16 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
 
     buildStore.mutate(
       { leadId: lead.id, data },
-      { onSuccess: () => onClose() }
+      {
+        onSuccess: ({ tenant }) => {
+          // The address is only known now: its last 8 characters are random.
+          const address = storeAddress(tenant.slug);
+          toast.success(`Store built at ${address}`, {
+            action: { label: "Copy", onClick: () => void navigator.clipboard.writeText(`https://${address}`) },
+          });
+          onClose();
+        },
+      }
     );
   };
 
@@ -191,7 +228,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
               </div>
 
               {/* ── Body ────────────────────────────────────────── */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              <div ref={bodyRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 {/* Mode Toggle */}
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--foreground)]/5 w-fit">
                   <button
@@ -228,6 +265,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                   <input
                     type="text"
                     value={businessName}
+                    maxLength={200}
                     onChange={(e) => setBusinessName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
                     placeholder="e.g. Zara Baghdad"
@@ -307,11 +345,12 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                       {/* Custom Slug */}
                       <div>
                         <label className="block text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1.5">
-                          Custom Slug
+                          Web Address
                         </label>
                         <input
                           type="text"
                           value={customSlug}
+                          maxLength={60}
                           onChange={(e) => setCustomSlug(e.target.value)}
                           className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
                           placeholder="e.g. zara-baghdad"
@@ -325,6 +364,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                         </label>
                         <textarea
                           value={description}
+                          maxLength={2000}
                           onChange={(e) => setDescription(e.target.value)}
                           rows={3}
                           className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow resize-none"
@@ -378,6 +418,7 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                               <input
                                 type="text"
                                 value={product.name}
+                                maxLength={200}
                                 onChange={(e) => updateProduct(index, "name", e.target.value)}
                                 className="flex-1 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
                                 placeholder="Product name"
@@ -391,7 +432,10 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                                 placeholder="Price (IQD)"
                               />
                               <input
-                                type="text"
+                                type="url"
+                                inputMode="url"
+                                pattern="https?://.+"
+                                title="A full web link, such as https://…/photo.jpg"
                                 value={product.image_url}
                                 onChange={(e) => updateProduct(index, "image_url", e.target.value)}
                                 className="w-36 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition-shadow"
@@ -428,15 +472,14 @@ export function LeadBuildStoreDialog({ isOpen, onClose, lead }: LeadBuildStoreDi
                   <ChevronRight className="w-4 h-4 text-[var(--muted)]" />
                   <p className="text-xs text-[var(--muted)]">
                     This will create a prospect store at{" "}
-                    <span className="font-semibold text-[var(--foreground)]">
-                      {storeAddress(slug || "...")}
-                    </span>
+                    <span className="font-semibold text-[var(--foreground)]">{addressPreview}</span>. The
+                    x&apos;s become 8 random characters when you build.
                   </p>
                 </div>
 
                 {/* Error State */}
                 {buildStore.isError && (
-                  <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
+                  <div ref={errorRef} role="alert" className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-[var(--ink-red)] font-medium">
                     {buildStore.error?.message || "Failed to build store. Please try again."}
                   </div>
                 )}

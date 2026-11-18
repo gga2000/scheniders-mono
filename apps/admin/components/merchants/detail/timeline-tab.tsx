@@ -6,10 +6,12 @@ import { Loader2, Pencil, StickyNote, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { hasPermission } from "@/lib/admin-permissions";
 import { formatCount, formatDay, formatDayKey, formatTime } from "@/lib/format";
 import { groupOrderFees, type TimelineEntry, type TimelineKind } from "@/lib/shop-timeline";
 import { Choice, ErrorLine, postJson } from "./action-ui";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface TimelinePage {
   entries: TimelineEntry[];
@@ -40,7 +42,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const query = typeof pageParam === "string" ? `?before=${encodeURIComponent(pageParam)}` : "";
-      const res = await fetch(`/api/merchants/${merchantId}/timeline${query}`);
+      const res = await adminFetch(`/api/merchants/${merchantId}/timeline${query}`);
       if (!res.ok) throw new Error("Could not load the timeline.");
       return res.json();
     },
@@ -55,6 +57,8 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
     },
   });
   const canNote = role ? hasPermission(role, "add_note") : false;
+  // A note being written survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(canNote && note.trim() !== "");
   const submit = () => {
     const content = note.trim();
     if (content && !addNote.isPending) addNote.mutate(content);

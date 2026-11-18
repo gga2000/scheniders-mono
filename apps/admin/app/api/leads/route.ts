@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { containsAny } from "@/lib/search-filter";
+import { DEFAULT_LEAD_SORT, readLeadSort } from "@/lib/lead-sort";
+import { INDUSTRY_GONE, isIndustryGone } from "@/lib/lead-update";
 
 /** The leads search box looks in these: name, page owner, handle, phone and city. */
 const LEAD_SEARCH_COLUMNS = ["merchant_name", "management_name", "handle", "page_phone", "city"] as const;
+
+/** PostgREST's answer to a page that starts past the last row ("Requested range not satisfiable"). */
+const PAST_THE_END = "PGRST103";
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,43 +32,49 @@ export async function GET(request: NextRequest) {
     const scoreMin = searchParams.get("score_min");
     const scoreMax = searchParams.get("score_max");
     const search = searchParams.get("search");
-    const sortParam = searchParams.get("sort") ?? "created_at:desc";
+    const sort = readLeadSort(searchParams.get("sort") || DEFAULT_LEAD_SORT);
+    if ("error" in sort) return NextResponse.json({ error: sort.error }, { status: 400 });
 
     const supabase = createAdminClient();
 
-    let query = supabase
-      .from("leads")
-      .select(
-        "*, industry:industries(*), created_by_user:user_profiles!leads_created_by_fkey(id, display_name, email, avatar_url)",
-        { count: "exact" }
-      );
+    // The filtered, sorted list, rows `from` to `to`, with the count of all of it.
+    const read = (from: number, to: number) => {
+      let query = supabase
+        .from("leads")
+        .select(
+          "*, industry:industries(*), created_by_user:user_profiles!leads_created_by_fkey(id, display_name, email, avatar_url)",
+          { count: "exact" }
+        );
 
-    if (status) query = query.eq("status", status);
-    if (platform) query = query.eq("platform", platform);
-    if (priority) query = query.eq("priority", priority);
-    if (tier) query = query.eq("tier", tier);
-    if (industryId) query = query.eq("industry_id", industryId);
-    if (assignedTo) query = query.eq("assigned_to", assignedTo);
-    if (hasStore === "true") query = query.not("prospect_tenant_id", "is", null);
-    if (hasStore === "false") query = query.is("prospect_tenant_id", null);
-    if (scoreMin) query = query.gte("lead_score", Number(scoreMin));
-    if (scoreMax) query = query.lte("lead_score", Number(scoreMax));
+      if (status) query = query.eq("status", status);
+      if (platform) query = query.eq("platform", platform);
+      if (priority) query = query.eq("priority", priority);
+      if (tier) query = query.eq("tier", tier);
+      if (industryId) query = query.eq("industry_id", industryId);
+      if (assignedTo) query = query.eq("assigned_to", assignedTo);
+      if (hasStore === "true") query = query.not("prospect_tenant_id", "is", null);
+      if (hasStore === "false") query = query.is("prospect_tenant_id", null);
+      if (scoreMin) query = query.gte("lead_score", Number(scoreMin));
+      if (scoreMax) query = query.lte("lead_score", Number(scoreMax));
 
-    if (search?.trim()) query = query.or(containsAny(LEAD_SEARCH_COLUMNS, search));
+      if (search?.trim()) query = query.or(containsAny(LEAD_SEARCH_COLUMNS, search));
 
-    // Sort
-    const sortParts = sortParam.split(",").filter(Boolean);
-    for (const part of sortParts) {
-      const [col, dir] = part.split(":");
-      if (col) {
-        query = query.order(col, { ascending: dir === "asc" });
+      for (const { column, ascending } of sort) {
+        query = query.order(column, { ascending, nullsFirst: false });
       }
+
+      return query.range(from, to);
+    };
+
+    const { data: leads, error, count } = await read(offset, offset + limit - 1);
+
+    // A page past the end (the list shrank while it was open): no rows, and
+    // the real total, so the table can move back to its last page.
+    if (error?.code === PAST_THE_END) {
+      const first = await read(0, 0);
+      if (first.error) throw first.error;
+      return NextResponse.json({ leads: [], total: first.count ?? 0, page, limit });
     }
-
-    query = query.range(offset, offset + limit - 1);
-
-    const { data: leads, error, count } = await query;
-
     if (error) throw error;
 
     return NextResponse.json({
@@ -114,8 +125,8 @@ export async function POST(request: NextRequest) {
         is_online_only: body.is_online_only ?? false,
         branches: body.branches || [],
         priority: body.priority || "medium",
-        assigned_to: body.assigned_to || null,
-        assigned_at: body.assigned_to ? new Date().toISOString() : null,
+        // A new lead has no owner: an owner is given only through admin_change_leads,
+        // which checks active staff and writes the history and reassign_lead rows.
         tags: body.tags || [],
         source_campaign: body.source_campaign || null,
         source_medium: body.source_medium || null,
@@ -132,6 +143,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ lead }, { status: 201 });
   } catch (error) {
+    if (isIndustryGone(error)) return NextResponse.json({ error: INDUSTRY_GONE }, { status: 409 });
     console.error("Leads POST error:", error);
     return NextResponse.json({ error: "Failed to create lead" }, { status: 500 });
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
+import { NOT_OWN_STEPS_LIST, STAFF_LOG_COLUMNS, toStaffAction } from "@/lib/staff-actions";
 
 export async function GET(
   request: NextRequest,
@@ -21,17 +22,20 @@ export async function GET(
 
     const supabase = createAdminClient();
 
+    // The staff log: what this person did, newest first.
     const { data, error, count } = await supabase
-      .from("admin_employee_tracking")
-      .select("*", { count: "exact" })
+      .from("admin_activity_logs")
+      .select(STAFF_LOG_COLUMNS, { count: "exact" })
       .eq("admin_user_id", id)
+      .filter("action", "not.in", NOT_OWN_STEPS_LIST)
       .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
     return NextResponse.json({
-      actions: data ?? [],
+      actions: (data ?? []).map(toStaffAction),
       total: count ?? 0,
     });
   } catch (error) {

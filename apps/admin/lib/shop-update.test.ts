@@ -52,6 +52,15 @@ describe("updateShop", () => {
     });
   });
 
+  it("sends staff's reason when there is one, and leaves it out when not", async () => {
+    const { rpc, supabase } = client(done());
+    await updateShop(supabase, TENANT, { status: "suspended", reason: "Owner asked to stop" }, ACTOR);
+    expect(rpc).toHaveBeenCalledWith("admin_update_shop", expect.objectContaining({ _reason: "Owner asked to stop" }));
+
+    await updateShop(supabase, TENANT, { status: "suspended" }, ACTOR);
+    expect(rpc).toHaveBeenLastCalledWith("admin_update_shop", expect.not.objectContaining({ _reason: expect.anything() }));
+  });
+
   it("sends auto-renew false as false, not as nothing asked", async () => {
     const { rpc, supabase } = client(done({ auto_renew: false, changed: ["auto_renew_toggle"] }));
     await updateShop(supabase, TENANT, { auto_renew: false }, ACTOR);
@@ -73,9 +82,9 @@ describe("updateShop", () => {
     ["not_found", 404, "Merchant not found"],
     ["demo_store", 409, "This is the demo store. Its status does not change."],
     ["use_pause", 409, "Use Pause to limit a shop: it sets what is blocked and for how long."],
-    ["paused", 409, "This shop is paused. Resume it first."],
-    ["still_trial", 409, "This shop is on trial. Use Convert to paid to make it a paying shop."],
-    ["not_trialing", 409, "This shop's subscription is not a trial, so it cannot go back to Trial."],
+    ["paused", 409, "This shop is paused. Lift the pause first (on its page)."],
+    ["still_trial", 409, 'This shop is on trial. Open its page and use "Start paid time, no charge" to make it a paying shop.'],
+    ["not_trialing", 409, "This shop's subscription is no longer an unpaid trial, so it cannot go back to Trial."],
     ["no_subscription", 409, "This shop has no subscription yet."],
     [
       "subscription_ended",

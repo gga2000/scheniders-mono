@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { LeadFollowUp } from "@/types/leads";
 import { useCreateFollowUp, useCompleteFollowUp } from "@/hooks/use-lead-follow-ups";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   CalendarPlus,
   Check,
@@ -15,7 +16,9 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { formatDayTime } from "@/lib/format";
+import { formatDayKey, formatDayTime } from "@/lib/format";
+import { baghdadWallTime } from "@/lib/baghdad-day";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 // ── Date Helpers ────────────────────────────────────────────────────────
 
@@ -23,10 +26,9 @@ function isOverdue(date: string): boolean {
   return new Date(date) < new Date();
 }
 
+/** Today on the Baghdad calendar, as every day in the console is counted. */
 function isToday(date: string): boolean {
-  const d = new Date(date);
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
+  return formatDayKey(date) === formatDayKey(new Date());
 }
 
 // ── Props ───────────────────────────────────────────────────────────────
@@ -46,6 +48,8 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  // A follow-up being written survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(showForm && (title.trim() !== "" || description.trim() !== "" || scheduledAt !== ""));
 
   const createFollowUp = useCreateFollowUp();
   const completeFollowUp = useCompleteFollowUp();
@@ -64,14 +68,16 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !scheduledAt) return;
+    // The time box has no zone: its time is Baghdad's, as every time the console shows.
+    const scheduled = baghdadWallTime(scheduledAt);
+    if (!title.trim() || scheduled === null) return;
 
     createFollowUp.mutate(
       {
         leadId,
         title: title.trim(),
         description: description.trim() || undefined,
-        scheduled_at: new Date(scheduledAt).toISOString(),
+        scheduled_at: scheduled,
       },
       {
         onSuccess: () => {
@@ -80,12 +86,14 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
           setScheduledAt("");
           setShowForm(false);
         },
+        // The form stays open with what was typed; the toast says why.
+        onError: (error) => toast.error(error.message),
       }
     );
   }
 
   function handleComplete(followUpId: string) {
-    completeFollowUp.mutate({ leadId, followUpId });
+    completeFollowUp.mutate({ leadId, followUpId }, { onError: (error) => toast.error(error.message) });
   }
 
   // ── Empty State ─────────────────────────────────────────────────────
@@ -204,6 +212,7 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
               />
               <input
                 type="datetime-local"
+                aria-label="When, in Baghdad time"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
                 required

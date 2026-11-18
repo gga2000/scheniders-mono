@@ -33,4 +33,8 @@ export const SUPPORT_VIEW_REFUSALS: Record<string, { status: number; error: stri
   },
   support_view_not_your_viewer: { status: 409, error: "Your viewer sign-in does not match. Try again." },
   support_shop_not_found: { status: 404, error: "This shop no longer exists." },
+  support_viewer_email_taken: {
+    status: 409,
+    error: "View as merchant is off for you: your viewer sign-in address is already in use. Tell the developers.",
+  },
 };

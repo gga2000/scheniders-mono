@@ -1,122 +1,128 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
-import { forbidden, requireBearerAdmin } from "@/lib/api-auth";
-import { logAdminAction } from "@/lib/activity-logger";
+import { forbidden, requireBearerAdmin, type AdminContext } from "@/lib/api-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { leadConvertedLockResponse } from "@/lib/lead-converted-lock";
+import { convertedLeadsDeleteMessage, convertedLeadsMessage, isConvertedLock, prospectStoreLeadsMessage } from "@/lib/lead-converted-lock";
+import { bulkLeadSchema, type BulkLeadResult } from "@/lib/lead-bulk";
+import { changeLeads, type LeadChange } from "@/lib/lead-change";
+import { deleteLeads } from "@/lib/lead-delete";
 
-const leadIds = z.array(z.uuid()).min(1, "lead_ids required").max(100, "Max 100 leads per bulk action");
+type Supabase = ReturnType<typeof createAdminClient>;
 
-const bodySchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("change_status"),
-    lead_ids: leadIds,
-    payload: z.object({ status: z.enum(["new", "contacted", "interested", "store_built", "lost"]) }),
-  }),
-  z.object({
-    action: z.literal("assign"),
-    lead_ids: leadIds,
-    payload: z.object({ assigned_to: z.uuid().nullable() }),
-  }),
-  z.object({
-    action: z.literal("change_priority"),
-    lead_ids: leadIds,
-    payload: z.object({ priority: z.enum(["low", "medium", "high", "urgent"]) }),
-  }),
-  z.object({ action: z.literal("delete"), lead_ids: leadIds }),
-  z.object({
-    action: z.literal("add_tag"),
-    lead_ids: leadIds,
-    payload: z.object({ tag: z.string().trim().min(1).max(50) }),
-  }),
-]);
-
+/**
+ * The Leads bulk bar. Each press answers and logs what really changed: a lead
+ * already in that state, or deleted meanwhile, is not counted as changed.
+ */
 export async function POST(request: NextRequest) {
   try {
     const admin = await requireBearerAdmin(request);
     if (admin instanceof NextResponse) return admin;
 
-    const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+    const parsed = bulkLeadSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid bulk action" }, { status: 400 });
     }
     const body = parsed.data;
-    const { lead_ids } = body;
-
-    // Deleting needs delete_leads; the other edits are everyday sales work.
+    // Deleting needs delete_leads; the other steps are everyday sales work.
     if (body.action === "delete" && !hasPermission(admin.role, "delete_leads")) {
       return forbidden("delete_leads");
     }
-
     const supabase = createAdminClient();
 
     switch (body.action) {
-      case "change_status": {
-        const { error } = await supabase
-          .from("leads")
-          .update({ status: body.payload.status })
-          .in("id", lead_ids);
-        if (error) throw error;
-        break;
-      }
-      case "assign": {
-        const { error } = await supabase
-          .from("leads")
-          .update({
-            assigned_to: body.payload.assigned_to,
-            assigned_at: body.payload.assigned_to ? new Date().toISOString() : null,
-          })
-          .in("id", lead_ids);
-        if (error) throw error;
-        break;
-      }
-      case "change_priority": {
-        const { error } = await supabase
-          .from("leads")
-          .update({ priority: body.payload.priority })
-          .in("id", lead_ids);
-        if (error) throw error;
-        break;
-      }
-      case "delete": {
-        const { error } = await supabase
-          .from("leads")
-          .delete()
-          .in("id", lead_ids);
-        if (error) throw error;
-        break;
-      }
-      case "add_tag": {
-        const { tag } = body.payload;
-        const { data: leads, error } = await supabase
-          .from("leads")
-          .select("id, tags")
-          .in("id", lead_ids);
-        if (error) throw error;
-
-        for (const lead of leads ?? []) {
-          const currentTags: string[] = lead.tags || [];
-          if (currentTags.includes(tag)) continue;
-          const { error: tagError } = await supabase
-            .from("leads")
-            .update({ tags: [...currentTags, tag] })
-            .eq("id", lead.id);
-          if (tagError) throw tagError;
-        }
-        break;
-      }
+      case "change_status":
+        return await changeTicked(supabase, admin, body.lead_ids, { status: body.payload.status });
+      case "assign_to_me":
+        return await changeTicked(supabase, admin, body.lead_ids, {
+          owner: admin.user.id,
+          takeOwned: body.take_from_others ?? false,
+        });
+      case "delete":
+        return await deleteTicked(supabase, admin, body.lead_ids);
     }
-
-    await logAdminAction(admin, "bulk_leads", {
-      details: { action: body.action, count: lead_ids.length, lead_ids },
-    });
-
-    return NextResponse.json({ success: true, affected: lead_ids.length });
   } catch (error) {
-    const locked = leadConvertedLockResponse(error);
-    if (locked) return locked;
     console.error("Bulk action error:", error);
     return NextResponse.json({ error: "Bulk action failed" }, { status: 500 });
   }
+}
+
+/**
+ * Status and owner follow the lead form's rule (lib/lead-change): a history
+ * line per changed lead, last contacted, and a reassign_lead row per moved
+ * lead with its name and its "from". A status press writes one bulk_leads
+ * row saying how many leads moved to which status. The database writes every
+ * row in the same transaction as the change.
+ */
+async function changeTicked(
+  supabase: Supabase,
+  admin: AdminContext,
+  leadIds: string[],
+  change: LeadChange,
+): Promise<NextResponse> {
+  let result: Awaited<ReturnType<typeof changeLeads>>;
+  try {
+    result = await changeLeads(supabase, leadIds, change, admin.user, true);
+  } catch (error) {
+    if (!isConvertedLock(error)) throw error;
+    return NextResponse.json({ error: convertedLeadsMessage(await namesWithShop(supabase, leadIds, "converted_tenant_id")) }, { status: 409 });
+  }
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error, ...(result.ownedByOthers ? { owned_by_others: result.ownedByOthers } : {}) },
+      { status: result.status },
+    );
+  }
+
+  const changed = change.status !== undefined ? result.statusChanged : result.moved;
+  return answer({ success: true, found: result.found, changed });
+}
+
+/**
+ * A deleted lead takes its history with it: the log row keeps each name, as
+ * for one lead. A ticked lead that became a shop, or has a prospect store,
+ * stops the whole press and is named (lib/lead-converted-lock); the delete
+ * itself skips such a lead too, so one converted or built at the same moment
+ * is kept, and the answer names it.
+ */
+async function deleteTicked(supabase: Supabase, admin: AdminContext, leadIds: string[]): Promise<NextResponse> {
+  const shops = await namesWithShop(supabase, leadIds, "converted_tenant_id");
+  if (shops.length > 0) {
+    return NextResponse.json({ error: convertedLeadsDeleteMessage(shops, true) }, { status: 409 });
+  }
+  const withStore = await namesWithShop(supabase, leadIds, "prospect_tenant_id");
+  if (withStore.length > 0) {
+    return NextResponse.json({ error: prospectStoreLeadsMessage(withStore, true) }, { status: 409 });
+  }
+  // The staff log row naming each lead is written in the same transaction.
+  const result = await deleteLeads(supabase, leadIds, admin.user, true);
+  const kept = [...result.kept_converted, ...result.kept_with_store];
+  return answer({
+    success: true,
+    found: result.removed.length + kept.length,
+    changed: result.removed.length,
+    ...(kept.length > 0 ? { kept } : {}),
+  });
+}
+
+/**
+ * The ticked leads with a shop, by name, for a refusal: already a store
+ * (converted_tenant_id) or with a prospect store (prospect_tenant_id).
+ */
+async function namesWithShop(
+  supabase: Supabase,
+  leadIds: string[],
+  shop: "converted_tenant_id" | "prospect_tenant_id",
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("leads")
+    .select("merchant_name")
+    .in("id", leadIds)
+    .not(shop, "is", null)
+    .order("merchant_name");
+  if (error) throw error;
+  return (data ?? []).map((lead) => lead.merchant_name);
+}
+
+function answer(result: BulkLeadResult): NextResponse {
+  return NextResponse.json(result);
 }

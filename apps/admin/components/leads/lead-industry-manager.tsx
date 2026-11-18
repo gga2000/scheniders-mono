@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -9,9 +10,13 @@ import {
   useIndustries,
   useCreateIndustry,
   useUpdateIndustry,
+  useMoveIndustry,
   useDeleteIndustry,
+  IndustryGoneError,
 } from "@/hooks/use-industries";
 import type { Industry } from "@/types/leads";
+import { industryChanges, industryForm, type IndustryForm } from "@/lib/industry-edit";
+import { LoadError } from "@/components/shared/load-error";
 import {
   X,
   Settings,
@@ -81,15 +86,7 @@ interface LeadIndustryManagerProps {
 
 // ── New Industry Form ──────────────────────────────────────────────────
 
-interface NewIndustryFormData {
-  name: string;
-  name_ar: string;
-  icon: string;
-  color: string;
-  avg_order_value_iqd: number;
-}
-
-const INITIAL_FORM: NewIndustryFormData = {
+const INITIAL_FORM: IndustryForm = {
   name: "",
   name_ar: "",
   icon: "ShoppingBag",
@@ -100,19 +97,19 @@ const INITIAL_FORM: NewIndustryFormData = {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProps) {
-  const { data: industries = [] } = useIndustries();
+  const { data: industries = [], isLoading, isError, error, refetch, isFetching } = useIndustries();
   const createIndustry = useCreateIndustry();
   const updateIndustry = useUpdateIndustry();
+  const moveIndustry = useMoveIndustry();
   const deleteIndustry = useDeleteIndustry();
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState<NewIndustryFormData>(INITIAL_FORM);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<NewIndustryFormData>>({});
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    industry: Industry;
-    linkedLeads: number;
-  } | null>(null);
+  const [formData, setFormData] = useState<IndustryForm>(INITIAL_FORM);
+  // The row being edited: what it opened with, and what is typed now.
+  const [editing, setEditing] = useState<{ id: string; opened: IndustryForm } | null>(null);
+  const [editData, setEditData] = useState<IndustryForm>(INITIAL_FORM);
+  const editingId = editing?.id ?? null;
+  const [deleteConfirm, setDeleteConfirm] = useState<Industry | null>(null);
 
   // Sort industries by sort_order
   const sorted = [...industries].sort((a, b) => a.sort_order - b.sort_order);
@@ -134,80 +131,89 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
           setFormData(INITIAL_FORM);
           setShowAddForm(false);
         },
+        onError: (error) => toast.error(error.message),
       }
     );
   }, [formData, createIndustry]);
 
   const handleToggleActive = useCallback(
     (industry: Industry) => {
-      updateIndustry.mutate({
-        id: industry.id,
-        data: { is_active: !industry.is_active },
-      });
+      updateIndustry.mutate(
+        { id: industry.id, data: { is_active: !industry.is_active } },
+        { onError: (error) => toast.error(`Could not turn ${industry.is_active ? "off" : "on"} "${industry.name}": ${error.message}`) },
+      );
     },
     [updateIndustry]
   );
 
-  const handleMoveUp = useCallback(
-    (index: number) => {
-      if (index <= 0) return;
-      const current = sorted[index];
-      const above = sorted[index - 1];
-      updateIndustry.mutate({ id: current.id, data: { sort_order: above.sort_order } });
-      updateIndustry.mutate({ id: above.id, data: { sort_order: current.sort_order } });
-    },
-    [sorted, updateIndustry]
-  );
+  // One write: the server moves the industry past its neighbour and renumbers
+  // the list, so two industries never share a place.
+  const move = (industry: Industry, direction: "up" | "down") => {
+    moveIndustry.mutate(
+      { id: industry.id, direction },
+      { onError: (error) => toast.error(`Could not move "${industry.name}": ${error.message}`) },
+    );
+  };
 
-  const handleMoveDown = useCallback(
-    (index: number) => {
-      if (index >= sorted.length - 1) return;
-      const current = sorted[index];
-      const below = sorted[index + 1];
-      updateIndustry.mutate({ id: current.id, data: { sort_order: below.sort_order } });
-      updateIndustry.mutate({ id: below.id, data: { sort_order: current.sort_order } });
-    },
-    [sorted, updateIndustry]
-  );
+  const handleMoveUp = (index: number) => {
+    if (index > 0) move(sorted[index], "up");
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < sorted.length - 1) move(sorted[index], "down");
+  };
 
   const handleStartEdit = (industry: Industry) => {
-    setEditingId(industry.id);
-    setEditData({
-      name: industry.name,
-      name_ar: industry.name_ar || "",
-      icon: industry.icon,
-      color: industry.color,
-      avg_order_value_iqd: industry.avg_order_value_iqd,
-    });
+    const opened = industryForm(industry);
+    setEditing({ id: industry.id, opened });
+    setEditData(opened);
   };
 
+  // Only the fields changed in the row are sent, so a colleague's change to
+  // another field meanwhile stands. A save that changed nothing just closes.
   const handleSaveEdit = useCallback(() => {
-    if (!editingId) return;
+    if (!editing) return;
+    const data = industryChanges(editing.opened, editData);
+    if (Object.keys(data).length === 0) {
+      setEditing(null);
+      return;
+    }
     updateIndustry.mutate(
+      { id: editing.id, data },
+      // A refused save keeps the row open with what was typed, unless a
+      // colleague removed the industry: then there is nothing left to edit.
       {
-        id: editingId,
-        data: {
-          name: editData.name?.trim(),
-          name_ar: editData.name_ar?.trim() || null,
-          icon: editData.icon,
-          color: editData.color,
-          avg_order_value_iqd: editData.avg_order_value_iqd,
+        onSuccess: () => setEditing(null),
+        onError: (error) => {
+          if (error instanceof IndustryGoneError) setEditing(null);
+          toast.error(error.message);
         },
-      },
-      { onSuccess: () => setEditingId(null) }
+      }
     );
-  }, [editingId, editData, updateIndustry]);
+  }, [editing, editData, updateIndustry]);
 
-  const handleDeleteClick = (industry: Industry) => {
-    // In a real app we'd check the server for linked leads.
-    // For now, simulate: if industry has an id it may be referenced.
-    setDeleteConfirm({ industry, linkedLeads: 0 });
-  };
+  const handleDeleteClick = (industry: Industry) => setDeleteConfirm(industry);
 
+  // The server decides: an industry no lead uses is removed; one that leads
+  // use is switched off and they keep it. Staff are told which happened.
   const handleConfirmDelete = useCallback(() => {
     if (!deleteConfirm) return;
-    deleteIndustry.mutate(deleteConfirm.industry.id, {
-      onSuccess: () => setDeleteConfirm(null),
+    const { id, name } = deleteConfirm;
+    deleteIndustry.mutate(id, {
+      onSuccess: (answer) => {
+        setDeleteConfirm(null);
+        if (answer.result === "removed") {
+          toast.success(`"${name}" removed.`);
+        } else {
+          const leads = `${answer.leads_using_it} lead${answer.leads_using_it === 1 ? "" : "s"}`;
+          toast.success(`"${name}" switched off. ${leads} still use it, so it was not removed.`);
+        }
+      },
+      // A colleague removed it first: the confirm closes and the list shows it gone.
+      onError: (error) => {
+        if (error instanceof IndustryGoneError) setDeleteConfirm(null);
+        toast.error(error.message);
+      },
     });
   }, [deleteConfirm, deleteIndustry]);
 
@@ -293,7 +299,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                             onChange={(e) =>
                               setFormData((p) => ({ ...p, name_ar: e.target.value }))
                             }
-                            placeholder="e.g. ازياء"
+                            placeholder="مثال: أزياء"
                             className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-transparent text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-all"
                           />
                         </div>
@@ -391,7 +397,13 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
 
               {/* ── Industry List ───────────────────────────── */}
               <div className="px-6 py-4">
-                {sorted.length === 0 ? (
+                {isError ? (
+                  <LoadError compact what="the industries" error={error} onRetry={() => refetch()} retrying={isFetching} />
+                ) : isLoading ? (
+                  <div className="py-12 text-center">
+                    <p className="text-sm text-[var(--muted)]">Loading industries...</p>
+                  </div>
+                ) : sorted.length === 0 ? (
                   <div className="py-12 text-center">
                     <p className="text-sm text-[var(--muted)]">
                       No industries yet. Add one above.
@@ -475,14 +487,16 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               <div className="flex flex-col shrink-0">
                                 <button
                                   onClick={() => handleMoveUp(index)}
-                                  disabled={index === 0}
+                                  aria-label={`Move ${industry.name} up`}
+                                  disabled={index === 0 || moveIndustry.isPending}
                                   className="p-0.5 text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 >
                                   <ChevronUp className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleMoveDown(index)}
-                                  disabled={index === sorted.length - 1}
+                                  aria-label={`Move ${industry.name} down`}
+                                  disabled={index === sorted.length - 1 || moveIndustry.isPending}
                                   className="p-0.5 text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                 >
                                   <ChevronDown className="w-3.5 h-3.5" />
@@ -492,6 +506,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               {/* Edit */}
                               <button
                                 onClick={() => handleStartEdit(industry)}
+                                aria-label={`Edit ${industry.name}`}
                                 className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -500,6 +515,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               {/* Delete */}
                               <button
                                 onClick={() => handleDeleteClick(industry)}
+                                aria-label={`Delete ${industry.name}`}
                                 className="p-1.5 rounded-lg text-[var(--muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -513,7 +529,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               <div className="grid grid-cols-2 gap-2">
                                 <input
                                   type="text"
-                                  value={editData.name || ""}
+                                  value={editData.name}
                                   onChange={(e) =>
                                     setEditData((p) => ({ ...p, name: e.target.value }))
                                   }
@@ -523,7 +539,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                                 <input
                                   type="text"
                                   dir="rtl"
-                                  value={editData.name_ar || ""}
+                                  value={editData.name_ar}
                                   onChange={(e) =>
                                     setEditData((p) => ({ ...p, name_ar: e.target.value }))
                                   }
@@ -580,7 +596,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                                 </label>
                                 <input
                                   type="number"
-                                  value={editData.avg_order_value_iqd || 0}
+                                  value={editData.avg_order_value_iqd}
                                   onChange={(e) =>
                                     setEditData((p) => ({
                                       ...p,
@@ -602,7 +618,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                                   {updateIndustry.isPending ? "Saving..." : "Save"}
                                 </button>
                                 <button
-                                  onClick={() => setEditingId(null)}
+                                  onClick={() => setEditing(null)}
                                   className="px-4 py-1.5 rounded-lg text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
                                 >
                                   Cancel
@@ -639,23 +655,12 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
               </div>
               <div>
                 <Dialog.Title className="text-sm font-bold text-[var(--foreground)] mb-1">
-                  Delete &ldquo;{deleteConfirm?.industry.name}&rdquo;?
+                  Delete &ldquo;{deleteConfirm?.name}&rdquo;?
                 </Dialog.Title>
-                {deleteConfirm && deleteConfirm.linkedLeads > 0 ? (
-                  <p className="text-xs text-[var(--muted)]">
-                    This industry is linked to{" "}
-                    <span className="font-semibold text-[var(--ink-red)]">
-                      {deleteConfirm.linkedLeads}
-                    </span>{" "}
-                    lead{deleteConfirm.linkedLeads !== 1 ? "s" : ""}. Removing it
-                    will set their industry to uncategorized. Continue?
-                  </p>
-                ) : (
-                  <p className="text-xs text-[var(--muted)]">
-                    This industry will be permanently removed. This action cannot
-                    be undone.
-                  </p>
-                )}
+                <p className="text-xs text-[var(--muted)]">
+                  If no lead uses it, it is removed for good. If leads use it, it
+                  is switched off instead and those leads keep it.
+                </p>
               </div>
             </div>
 

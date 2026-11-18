@@ -36,22 +36,30 @@ import {
 } from "lucide-react";
 import { BottomSheet } from "./bottom-sheet";
 import { normalizeIraqiPhone } from "../lead-phone";
+import { useCan } from "@/hooks/use-admin-auth";
 import { LeadIndustryManager } from "../lead-industry-manager";
 import {
   useLeadFormController,
   ANALYZABLE_PLATFORMS,
+  type LeadFormDraftSave,
+  type LeadFormSubmitResult,
 } from "../use-lead-form-controller";
 
 interface LeadRegisterSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: LeadFormData) => Promise<boolean>;
+  /**
+   * `changes`: only the fields that differ from the form as it opened (what an
+   * edit sends); `opened`: the form as it opened. Resolve "unchanged" when
+   * there was nothing to send.
+   */
+  onSubmit: (data: LeadFormData, changes: Partial<LeadFormData>, opened: LeadFormData) => Promise<LeadFormSubmitResult>;
   initialData?: Partial<LeadFormData>;
   /**
    * If provided, closing the sheet (swipe / tap-outside / back) with unsaved
    * content auto-saves the in-progress lead as a draft instead of losing it.
    */
-  onSaveDraft?: (data: LeadFormData) => void;
+  onSaveDraft?: LeadFormDraftSave;
 }
 
 const PLATFORM_ICONS: Record<LeadSourcePlatform, LucideIcon> = {
@@ -82,6 +90,10 @@ export function LeadRegisterSheet({
 }: LeadRegisterSheetProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [industryMgrOpen, setIndustryMgrOpen] = useState(false);
+  // The industry list is a settings write (update_settings): support staff
+  // got a bare "Forbidden" at every step, so the link is not shown to them,
+  // as on the Settings page.
+  const canManageIndustries = useCan()("update_settings");
   const [showIndustryDetail, setShowIndustryDetail] = useState(false);
 
   const {
@@ -102,7 +114,7 @@ export function LeadRegisterSheet({
     estimatedMonthlyRevenue,
     isOrdersOverride,
     hasPrediction,
-    isDirty,
+    saveDraftOnClose,
     update,
     handleAnalyze,
     addPhone,
@@ -128,7 +140,7 @@ export function LeadRegisterSheet({
   // draft rather than discarding — there's no explicit discard button on mobile.
   const handleSheetClose = (v: boolean) => {
     if (!v && submitting) return;
-    if (!v && onSaveDraft && isDirty) onSaveDraft(form);
+    if (!v) saveDraftOnClose(onSaveDraft);
     onOpenChange(v);
   };
 
@@ -369,13 +381,15 @@ export function LeadRegisterSheet({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className={cn(LABEL, "mb-0")}>Industry</label>
-                  <button
-                    type="button"
-                    onClick={() => setIndustryMgrOpen(true)}
-                    className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] hover:underline"
-                  >
-                    <Settings2 className="w-3 h-3" /> Manage
-                  </button>
+                  {canManageIndustries && (
+                    <button
+                      type="button"
+                      onClick={() => setIndustryMgrOpen(true)}
+                      className="flex items-center gap-1 text-xs font-medium text-[var(--ink-blue)] hover:underline"
+                    >
+                      <Settings2 className="w-3 h-3" /> Manage
+                    </button>
+                  )}
                 </div>
                 <div className="relative">
                   <select
@@ -854,10 +868,12 @@ export function LeadRegisterSheet({
         </div>
       </div>
     </BottomSheet>
-    <LeadIndustryManager
-      isOpen={industryMgrOpen}
-      onClose={() => setIndustryMgrOpen(false)}
-    />
+    {canManageIndustries && (
+      <LeadIndustryManager
+        isOpen={industryMgrOpen}
+        onClose={() => setIndustryMgrOpen(false)}
+      />
+    )}
     </>
   );
 }

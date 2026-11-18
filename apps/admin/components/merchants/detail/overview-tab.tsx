@@ -45,7 +45,12 @@ export function OverviewTab({
   return (
     <div className="space-y-4">
       {billingLock?.locked && (
-        <BillingLockCard merchantId={merchantId} lock={billingLock} canForceUnlock={canForceUnlock} />
+        <BillingLockCard
+          merchantId={merchantId}
+          lock={billingLock}
+          canForceUnlock={canForceUnlock}
+          shopPaused={tenant.status === "limited"}
+        />
       )}
 
       <SubscriptionCard merchantId={merchantId} tenant={tenant} subscription={subscription} />

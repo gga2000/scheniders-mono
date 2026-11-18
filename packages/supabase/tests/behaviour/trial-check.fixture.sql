@@ -52,6 +52,7 @@ CREATE TABLE public.tenants (
     business_name text NOT NULL DEFAULT 'shop',
     plan public.plan_tier NOT NULL,
     status public.tenant_status NOT NULL,
+    restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,
     trial_ends_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     contact_email text,

@@ -101,15 +101,16 @@ DECLARE
     _a uuid := gen_random_uuid();
     _b uuid := gen_random_uuid();
     _c uuid := gen_random_uuid();
+    _p uuid := gen_random_uuid();
     _gov1 text := 'TT1-' || left(gen_random_uuid()::text, 8);
     _gov2 text := 'TT2-' || left(gen_random_uuid()::text, 8);
     _city text := 'tt-city-' || left(gen_random_uuid()::text, 8);
+    _place text := 'tt-place-' || left(gen_random_uuid()::text, 8);
     _src text := 'tt-src-' || left(gen_random_uuid()::text, 8);
     _d0 jsonb; _d1 jsonb;
     _u0 jsonb; _u1 jsonb; _ua jsonb;
     _i0 jsonb; _i1 jsonb;
     _shop jsonb;
-    _city_row jsonb;
     _n integer := 0;
 BEGIN
     INSERT INTO tt_ids VALUES ('a', _a), ('b', _b), ('c', _c);
@@ -123,6 +124,11 @@ BEGIN
         (_a, 'tt shop a', 'tt-a-' || _a, 'starter', 'active', '2026-11-02 10:00:00+03'),
         (_b, 'tt shop b', 'tt-b-' || _b, 'starter', 'active', '2026-06-15 10:00:00+03'),
         (_c, 'tt shop c', 'tt-c-' || _c, 'internal', 'active', '2026-10-31 22:00:00+00');
+    -- A prospect store built for a lead in November, with a fee: not a customer, in no cohort.
+    INSERT INTO public.tenants (id, business_name, slug, plan, status, created_at, is_prospect) VALUES
+        (_p, 'tt prospect', 'tt-p-' || _p, 'growth', 'trial', '2026-11-03 10:00:00+03', true);
+    INSERT INTO public.wallet_transactions (tenant_id, type, amount_iqd, balance_after_iqd, description, reference_id, created_at) VALUES
+        (_p, 'charge', -9000, 0, 'tt prospect monthly fee', 'subscription:tt-' || _p, '2026-11-04 12:00:00+03');
 
     INSERT INTO public.orders
         (tenant_id, order_id, customer_name, phone, items, price, status, created_at,
@@ -136,8 +142,8 @@ BEGIN
         (_a, 'TT-' || _a || '-3', 'tt', '0', '[]', 20000, 'delivered', '2026-10-31 21:30:00+00', '2026-11-03 12:00:00+03', NULL, NULL, _gov1, _city, _src),
         -- a4: made in October, completed 01:00 Baghdad on 1 November, no delivered_at.
         (_a, 'TT-' || _a || '-4', 'tt', '0', '[]', 30000, 'completed', '2026-10-20 10:00:00+03', NULL, '2026-10-31 22:00:00+00', NULL, _gov2, NULL, NULL),
-        -- a5: delivered 23:00 Baghdad on 31 October.
-        (_a, 'TT-' || _a || '-5', 'tt', '0', '[]', 5000, 'delivered', '2026-10-25 10:00:00+03', '2026-10-31 23:00:00+03', NULL, NULL, NULL, NULL, NULL),
+        -- a5: delivered 23:00 Baghdad on 31 October; an empty governorate code and a typed city.
+        (_a, 'TT-' || _a || '-5', 'tt', '0', '[]', 5000, 'delivered', '2026-10-25 10:00:00+03', '2026-10-31 23:00:00+03', NULL, NULL, '', ' ' || _place || ' ', NULL),
         -- a6: a delivered return: an order, never money.
         (_a, 'TT-' || _a || '-6', 'tt', '0', '[]', 9000, 'delivered', '2026-11-10 12:00:00+03', '2026-11-11 12:00:00+03', NULL, true, NULL, NULL, NULL),
         -- a7: completed with no date: in no day or month.
@@ -263,11 +269,14 @@ BEGIN
         pg_temp.pick(_d1->'governorates90', 'code', _gov1) @> '{"orders": 1, "sales": 20000}'::jsonb);
     PERFORM pg_temp.check('governorate 2: order made earlier, money earned inside 90 days',
         pg_temp.pick(_d1->'governorates90', 'code', _gov2) @> '{"orders": 1, "sales": 30000}'::jsonb);
-    _city_row := pg_temp.pick(_d1->'cities90', 'city', _city);
-    PERFORM pg_temp.check('cities: top ten by sales',
-        (_city_row->>'sales')::numeric = 20000
-        OR (jsonb_array_length(_d1->'cities90') = 10
-            AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(_d1->'cities90') AS e WHERE (e->>'sales')::numeric < 20000)));
+    PERFORM pg_temp.check('governorates: an empty code is no governorate',
+        NOT EXISTS (SELECT 1 FROM jsonb_array_elements(_d1->'governorates90') AS e WHERE e->>'code' = ''));
+    PERFORM pg_temp.check('places without a code: by the city typed, trimmed',
+        pg_temp.pick(_d1->'uncodedPlaces90', 'city', _place) @> '{"orders": 1, "sales": 5000}'::jsonb);
+    PERFORM pg_temp.check('cities90 is gone: the console places orders itself', NOT (_d1 ? 'cities90'));
+    PERFORM pg_temp.check('places without a code: an order with no city is under ""',
+        coalesce((pg_temp.pick(_d1->'uncodedPlaces90', 'city', '')->>'orders')::int, 0)
+        - coalesce((pg_temp.pick(_d0->'uncodedPlaces90', 'city', '')->>'orders')::int, 0) = 8);
     PERFORM pg_temp.check('sources: named source', (pg_temp.pick(_d1->'sources90', 'source', _src)->>'sales')::numeric = 20000);
     PERFORM pg_temp.check('sources: no source reads as direct',
         coalesce((pg_temp.pick(_d1->'sources90', 'source', 'direct')->>'sales')::numeric, 0)
@@ -292,8 +301,9 @@ BEGIN
     -- Fees ----------------------------------------------------------------------
     PERFORM pg_temp.check('fees: twelve months, oldest first',
         jsonb_array_length(_i1->'monthly') = 12 AND _i1->'monthly'->11->>'month' = '2026-11' AND _i1->'monthly'->0->>'month' = '2025-12');
+    -- The prospect store's 9,000 is a fee like any other here (shop a's 20,000 plus it); only the cohorts leave it out.
     PERFORM pg_temp.check('fees: November by kind; upgrade and add-on are plan money, the refunded fee is taken off, the reversal and the bare charge are other',
-        pg_temp.num(_i1->'monthly'->11, 'subscription') - pg_temp.num(_i0->'monthly'->11, 'subscription') = 20000
+        pg_temp.num(_i1->'monthly'->11, 'subscription') - pg_temp.num(_i0->'monthly'->11, 'subscription') = 29000
         AND pg_temp.num(_i1->'monthly'->11, 'orders') - pg_temp.num(_i0->'monthly'->11, 'orders') = 55
         AND pg_temp.num(_i1->'monthly'->11, 'whatsapp') - pg_temp.num(_i0->'monthly'->11, 'whatsapp') = 30
         AND pg_temp.num(_i1->'monthly'->11, 'other') - pg_temp.num(_i0->'monthly'->11, 'other') = 26100);
@@ -318,7 +328,7 @@ BEGIN
         ((_i1->'feesDaily7'->>5)::numeric - (_i0->'feesDaily7'->>5)::numeric) = 55
         AND ((_i1->'feesDaily7'->>6)::numeric - (_i0->'feesDaily7'->>6)::numeric) = 30);
     -- Shops a and c both signed up in November on the Baghdad clock.
-    PERFORM pg_temp.check('cohorts: November has both shops and shop a''s fees in month 0',
+    PERFORM pg_temp.check('cohorts: November has both customer shops and shop a''s fees in month 0, not the prospect store or its fee',
         pg_temp.num(pg_temp.pick(_i1->'cohorts', 'cohort', '2026-11'), 'tenants')
         - pg_temp.num(pg_temp.pick(_i0->'cohorts', 'cohort', '2026-11'), 'tenants') = 2
         AND (pg_temp.pick(_i1->'cohorts', 'cohort', '2026-11')->'months'->>0)::numeric

@@ -1,14 +1,23 @@
 import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
-import { courierSheet, courierWorkbook, type CourierCompany } from "@/lib/shipping/courier-sheets";
+import { courierSheet, courierWorkbook, type CourierCompany, type CourierSheet } from "@/lib/shipping/courier-sheets";
+import type { FileFormat } from "@/lib/shipping/export-columns";
 import { htmlToPlainText } from "@/lib/utils/html-to-plain-text";
 
 export { cleanPhoneForExport } from "@/lib/shipping/courier-sheets";
 
-async function downloadCourierSheet(company: CourierCompany, orderIds: string[], ordersData: Order[], filename?: string) {
-    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
-    const sheet = courierSheet(company, selectedOrders);
+/**
+ * Download a courier sheet: Excel opening right to left, or CSV in UTF-8 with
+ * a BOM so Excel keeps the Arabic. `sheet.filename` names the file; a CSV
+ * takes its name with the extension swapped.
+ */
+export async function downloadShippingSheet(sheet: CourierSheet, fileFormat: FileFormat = "xlsx"): Promise<void> {
+    const base = sheet.filename.replace(/\.(xlsx|csv)$/i, "");
+    if (fileFormat === "csv") {
+        downloadCsv(sheet.headers, sheet.rows.map((row) => sheet.headers.map((h) => row[h] ?? "")), base);
+        return;
+    }
 
     // Dynamically import xlsx library
     const xlsxModule = await import('xlsx');
@@ -19,12 +28,17 @@ async function downloadCourierSheet(company: CourierCompany, orderIds: string[],
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename ?? sheet.filename;
+    link.download = `${base}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
 
+async function downloadCourierSheet(company: CourierCompany, orderIds: string[], ordersData: Order[], filename?: string) {
+    const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
+    const sheet = courierSheet(company, selectedOrders);
+    await downloadShippingSheet(filename ? { ...sheet, filename } : sheet);
     return { success: true, count: selectedOrders.length };
 }
 
@@ -131,9 +145,13 @@ export function downloadCsv(headers: readonly string[], rows: readonly (readonly
     downloadFile(`\uFEFF${csvContent}`, `${filename}.csv`, "text/csv;charset=utf-8;");
 }
 
-/** Quote a CSV cell; a leading = + - @ would run as a formula in Excel, so prefix it with a quote mark. */
+/**
+ * Quote a CSV cell; a leading = + - @ would run as a formula in Excel, so prefix
+ * it with a quote mark. A plain number is safe, signed or not: that keeps an
+ * international phone (+9647…) intact for a courier's upload.
+ */
 function csvCell(value: string): string {
-    const isNumber = /^-?\d+(\.\d+)?$/.test(value);
+    const isNumber = /^[-+]?\d+(\.\d+)?$/.test(value);
     const safe = !isNumber && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
     return `"${safe.replace(/"/g, '""')}"`;
 }

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
 import { HoldForm } from "./hold-form";
+import { PlanForm } from "./plan-form";
 
 /*
  * Each shop action is a short form whose button says what will happen, so the
@@ -58,9 +59,53 @@ describe("Give free days", () => {
 });
 
 describe("On hold", () => {
-  it("says no monthly fee is charged before putting a shop on hold", () => {
-    const html = render(createElement(HoldForm, { shopId: "t1", mode: "hold", onDone: () => {} }));
+  it("says no monthly fee is charged, and waits for a reason before putting a shop on hold", () => {
+    const html = render(createElement(HoldForm, { shopId: "t1", mode: "hold", comeback: "active", trialEndsAt: null, onDone: () => {} }));
     expect(html).toContain("No monthly fee is charged while it is on hold.");
+    expect(html).toContain('aria-label="Reason"');
     expect(confirmButton(html)).toContain(">Put on hold<");
+    expect(confirmButton(html)).toMatch(DISABLED);
+  });
+
+  it("brings a shop back without asking why", () => {
+    const html = render(
+      createElement(HoldForm, { shopId: "t1", mode: "reactivate", comeback: "active", trialEndsAt: null, onDone: () => {} }),
+    );
+    expect(html).toContain("The shop is active again now, and its monthly fee is charged as usual.");
+    expect(html).not.toContain('aria-label="Reason"');
+    expect(confirmButton(html)).not.toMatch(DISABLED);
+  });
+
+  it("says a held trial that was never paid comes back as a locked trial, not active", () => {
+    const html = render(
+      createElement(HoldForm, {
+        shopId: "t1",
+        mode: "reactivate",
+        comeback: "trial",
+        trialEndsAt: "2026-11-10T09:00:00Z",
+        onDone: () => {},
+      }),
+    );
+    expect(html).toContain("Its trial ended unpaid, so it stays locked until it pays.");
+    expect(html).not.toContain("monthly fee is charged");
+  });
+
+  // Round 15: a paid shop whose last month was unpaid, then put on hold, was
+  // told "active again now… charged as usual"; it comes back locked at once.
+  it("says a held shop whose last month is unpaid comes back locked until its wallet covers the month", () => {
+    const html = render(
+      createElement(HoldForm, { shopId: "t1", mode: "reactivate", comeback: "active_unpaid", trialEndsAt: null, onDone: () => {} }),
+    );
+    expect(html).toContain("its last month is not paid, so it stays locked until its wallet covers the month.");
+    expect(html).not.toContain("charged as usual");
+  });
+});
+
+describe("Change plan", () => {
+  it("asks why the plan changes, and waits for a choice and a reason", () => {
+    const html = render(createElement(PlanForm, { shopId: "t1", plan: "starter", onDone: () => {} }));
+    expect(html).toContain('aria-label="Reason"');
+    expect(html).not.toContain(">Starter<");
+    expect(confirmButton(html)).toMatch(DISABLED);
   });
 });

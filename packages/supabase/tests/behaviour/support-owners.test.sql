@@ -257,9 +257,104 @@ BEGIN
     PERFORM pg_temp.check('onboard: call-back first, plan still made',
         (SELECT count(*) FROM public.support_tasks WHERE tenant_id = '80000000-0000-4000-8000-000000000008') = 5);
     PERFORM pg_temp.check('access: anon call back',
-        NOT has_function_privilege('anon', 'public.support_request_call_back(uuid,uuid,text,text)', 'EXECUTE'));
+        NOT has_function_privilege('anon', 'public.support_request_call_back(uuid,uuid,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated call back',
+        NOT has_function_privilege('authenticated', 'public.support_request_call_back(uuid,uuid,text,text,text)', 'EXECUTE'));
     PERFORM pg_temp.check('access: service call back',
-        has_function_privilege('service_role', 'public.support_request_call_back(uuid,uuid,text,text)', 'EXECUTE'));
+        has_function_privilege('service_role', 'public.support_request_call_back(uuid,uuid,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: the 4-argument call back is gone',
+        to_regprocedure('public.support_request_call_back(uuid,uuid,text,text)') IS NULL);
+END $$;
+
+-- B11: «تريد نساعدك بالإعداد؟» is a call-back marked setup.
+DO $$
+DECLARE
+    shop uuid := '90000000-0000-4000-8000-000000000009';
+    member uuid := 'b1000000-0000-4000-8000-000000000001';
+    r jsonb;
+    again jsonb;
+    v_msg text;
+    row_ jsonb;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, display_id, status, trial_ends_at, created_at)
+    VALUES (shop, 'Setup shop', 9, 'trial', NULL, clock_timestamp() - interval '1 hour');
+
+    BEGIN
+        PERFORM public.support_request_call_back(shop, member, 'Huda', '07701234567', 'billing');
+        v_msg := 'none';
+    EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
+    END;
+    PERFORM pg_temp.check('setup: unknown topic refused ' || v_msg, v_msg = 'support_bad_topic');
+
+    r := public.support_request_call_back(shop, member, 'Huda', '07701234567', 'setup');
+    PERFORM pg_temp.check('setup: a call-back marked setup ' || r::text,
+        r ->> 'topic' = 'setup'
+        AND (SELECT kind = 'call_back' AND topic = 'setup' AND phone = '07701234567'
+             FROM public.support_tasks WHERE id = (r ->> 'task_id')::uuid));
+    PERFORM pg_temp.check('setup: the chat line says it is for setup',
+        (SELECT count(*) FROM public.support_messages m
+         WHERE m.tenant_id = shop AND m.body = 'أريد مساعدة مجانية بإعداد متجري. اتصلوا بي على 07701234567'
+           AND m.context ->> 'callBack' = '07701234567' AND m.context ->> 'topic' = 'setup') = 1);
+
+    again := public.support_request_call_back(shop, member, 'Huda', '07701234567');
+    PERFORM pg_temp.check('setup: a plain call-back on top keeps it setup and says nothing new',
+        again ->> 'task_id' = r ->> 'task_id' AND again ->> 'topic' = 'setup'
+        AND (SELECT count(*) FROM public.support_messages WHERE tenant_id = shop) = 1);
+
+    again := public.support_request_call_back(shop, member, 'Huda', '07809876543');
+    PERFORM pg_temp.check('setup: a new number keeps it setup',
+        again ->> 'task_id' = r ->> 'task_id'
+        AND (SELECT topic = 'setup' AND phone = '07809876543' FROM public.support_tasks WHERE id = (r ->> 'task_id')::uuid));
+
+    SELECT x INTO row_ FROM jsonb_array_elements(public.support_tasks_due(clock_timestamp())) x
+    WHERE x ->> 'tenant_id' = shop::text AND x ->> 'kind' = 'call_back';
+    PERFORM pg_temp.check('setup: Today shows the topic ' || coalesce(row_::text, 'missing'), row_ ->> 'topic' = 'setup');
+
+    -- A plain call-back that later asks for setup help becomes a setup call.
+    PERFORM public.support_task_log((r ->> 'task_id')::uuid, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'done', 'called');
+    r := public.support_request_call_back(shop, member, 'Huda', '07701234567');
+    PERFORM pg_temp.check('setup: a plain call-back has no topic',
+        (SELECT topic IS NULL FROM public.support_tasks WHERE id = (r ->> 'task_id')::uuid));
+    again := public.support_request_call_back(shop, member, 'Huda', '07701234567', 'setup');
+    PERFORM pg_temp.check('setup: same number, now for setup: the task says setup and staff are told',
+        again ->> 'task_id' = r ->> 'task_id'
+        AND (SELECT topic = 'setup' FROM public.support_tasks WHERE id = (r ->> 'task_id')::uuid)
+        AND (SELECT count(*) FROM public.support_messages m WHERE m.tenant_id = shop AND m.context ->> 'topic' = 'setup') = 2);
+
+    BEGIN
+        INSERT INTO public.support_tasks (tenant_id, kind, due_at, topic) VALUES (shop, 'store_check', clock_timestamp(), 'setup');
+        v_msg := 'none';
+    EXCEPTION WHEN check_violation THEN v_msg := 'refused';
+    END;
+    PERFORM pg_temp.check('setup: only a call-back carries a topic', v_msg = 'refused');
+END $$;
+
+-- Today names a paused shop by what it was before the pause, as Needs us
+-- does: a paused trial keeps its trial end, a paused paying shop reads active.
+DO $$
+DECLARE
+    trial_shop uuid := 'c1000000-0000-4000-8000-00000000000c';
+    paid_shop uuid := 'c2000000-0000-4000-8000-00000000000c';
+    due jsonb;
+    row_ jsonb;
+BEGIN
+    INSERT INTO public.tenants (id, business_name, display_id, status, restrictions, trial_ends_at, created_at) VALUES
+        (trial_shop, 'Paused trial', 12, 'limited', '{"status_before": "trial"}', '2026-11-25 10:00+03', '2026-11-18 10:00+03'),
+        (paid_shop, 'Paused paying', 13, 'limited', '{"status_before": "active"}', NULL, '2026-10-01 10:00+03');
+    INSERT INTO public.support_tasks (tenant_id, kind, due_at) VALUES
+        (trial_shop, 'trial_end', '2026-11-24 10:00+03'),
+        (paid_shop, 'first_order', '2026-11-24 10:00+03');
+
+    due := public.support_tasks_due('2026-11-24 12:00+03');
+    SELECT x INTO row_ FROM jsonb_array_elements(due) x WHERE x ->> 'tenant_id' = trial_shop::text;
+    PERFORM pg_temp.check('paused: a paused trial reads trial ' || coalesce(row_::text, 'missing'),
+        row_ ->> 'shop_status' = 'trial' AND (row_ ->> 'trial_ends_at')::timestamptz = '2026-11-25 10:00+03');
+    SELECT x INTO row_ FROM jsonb_array_elements(due) x WHERE x ->> 'tenant_id' = paid_shop::text;
+    PERFORM pg_temp.check('paused: a paused paying shop reads active ' || coalesce(row_::text, 'missing'),
+        row_ ->> 'shop_status' = 'active');
+    PERFORM pg_temp.check('paused: a shop that is not paused reads as it is',
+        EXISTS (SELECT 1 FROM jsonb_array_elements(due) x
+                WHERE x ->> 'business_name' = 'New shop' AND x ->> 'shop_status' = 'trial'));
 END $$;
 
 DO $$

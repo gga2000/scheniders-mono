@@ -45,4 +45,19 @@ describe("courier sheets", () => {
         expect(row["السعر مع التوصيل"]).toBe(0);
         expect(row["الملاحظات"]).toBe("طلب مدفوع مسبقا - call first");
     });
+
+    it("reads a phone typed in Arabic digits instead of dropping it", () => {
+        const [row] = primeSheet([order({ phone: "٠٧٧٠١٢٣٤٥٦٧", secondary_phone: "+964 780 111 2223" })]).rows;
+        expect(row["هاتف المستلم"]).toBe("7701234567");
+        expect(row["هاتف المستلم 2"]).toBe("7801112223");
+    });
+
+    it("names the size or colour of each item for the courier", () => {
+        const items = [
+            { name: "قميص", variant_name: "XL / أبيض", quantity: 1, price: 20000 },
+            { name: "Serum", quantity: 1, price: 25000 },
+        ] as CourierSheetOrder["items"];
+        expect(waseetSheet([order({ items })]).rows[0]["نوع البضاعه"]).toBe("قميص (XL / أبيض) + Serum");
+        expect(primeSheet([order({ items })]).rows[0]["نوع البضاعة"]).toBe("قميص (XL / أبيض) + Serum");
+    });
 });

@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import type { StoreConfigV2 } from "@scheniders/shared";
+import { authedFetch } from "@/lib/authed-fetch";
 import { supabase } from "@/lib/supabase";
 import { foundationStatus, type FoundationStatus } from "@/lib/merchant-guide/foundation";
 import type { PracticeOrder } from "@/lib/merchant-guide/first-order";
@@ -26,6 +27,7 @@ const firstOrderSchema = z.object({
     later_at: z.string().optional(),
     done_at: z.string().optional(),
     seen: z.array(z.enum(["statuses", "whatsapp"])).optional(),
+    courier: z.enum(["prime", "other"]).optional(),
 });
 
 const tourRecordSchema = z.object({
@@ -98,38 +100,60 @@ async function fetchProgress(tenantId: string, userId: string): Promise<GuidePro
     return data ? progressSchema.parse(data) : null;
 }
 
+/** A product a shopper can buy today, before stock: live, priced, with a photo. */
+function readyProductsQuery(columns: string) {
+    return supabase
+        .from("products")
+        .select(columns, { count: "exact" })
+        .eq("status", "active")
+        .eq("is_visible", true)
+        .eq("is_supply", false)
+        .gt("price", 0)
+        .not("image_url", "is", null)
+        .neq("image_url", "");
+}
+
+const readyProductSchema = z.object({
+    name: z.string(),
+    image_url: z.string().nullable(),
+    price: z.coerce.number(),
+    created_at: z.string(),
+});
+
 async function fetchShop(tenantId: string): Promise<GuideShopState> {
-    const [tenantRes, productsRes] = await Promise.all([
+    const [tenantRes, plainRes, sizedRes] = await Promise.all([
         supabase
             .from("tenants")
             .select("slug, store_config_v2, store_config_v2_draft")
             .eq("id", tenantId)
             .single(),
-        supabase
-            .from("products")
-            // The count says whether a ready product exists; the first one is
-            // drawn on the done card.
-            .select("name, image_url, price", { count: "exact" })
+        // The count says whether a ready product exists; the oldest one is
+        // drawn on the done card. A product with stock on its own row...
+        readyProductsQuery("name, image_url, price, created_at")
             .eq("tenant_id", tenantId)
-            .eq("status", "active")
-            .eq("is_visible", true)
-            .eq("is_supply", false)
-            .gt("price", 0)
             .gt("stock_quantity", 0)
-            .not("image_url", "is", null)
-            .neq("image_url", "")
+            .order("created_at", { ascending: true })
+            .limit(1),
+        // ...or one sold in sizes, whose stock is on its sizes only (B10):
+        // an enabled size with stock makes it ready.
+        readyProductsQuery("name, image_url, price, created_at, product_variants!inner(id)")
+            .eq("tenant_id", tenantId)
+            .gt("product_variants.stock_quantity", 0)
+            .or("is_enabled.is.null,is_enabled.eq.true", { referencedTable: "product_variants" })
             .order("created_at", { ascending: true })
             .limit(1),
     ]);
     if (tenantRes.error) throw tenantRes.error;
-    if (productsRes.error) throw productsRes.error;
+    if (plainRes.error) throw plainRes.error;
+    if (sizedRes.error) throw sizedRes.error;
     const tenant = tenantRes.data as {
         slug: string;
         store_config_v2: StoreConfigV2 | null;
         store_config_v2_draft: StoreConfigV2 | null;
     };
     const working = tenant.store_config_v2_draft ?? tenant.store_config_v2;
-    const first = productsRes.data?.[0];
+    const first = [...z.array(readyProductSchema).parse(plainRes.data ?? []), ...z.array(readyProductSchema).parse(sizedRes.data ?? [])]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
     return {
         slug: tenant.slug,
         working,
@@ -137,7 +161,7 @@ async function fetchShop(tenantId: string): Promise<GuideShopState> {
         status: foundationStatus({
             working,
             published: tenant.store_config_v2,
-            readyProducts: productsRes.count ?? 0,
+            readyProducts: (plainRes.count ?? 0) + (sizedRes.count ?? 0),
         }),
     };
 }
@@ -212,29 +236,63 @@ const practiceOrderSchema = z.object({
     id: z.string(),
     status: z.string(),
     print_count: z.number().nullable(),
+    source: z.string().nullable(),
 });
+
+const PRACTICE_COLUMNS = "id, status, print_count, source";
 
 export function practiceOrdersKey(tenantId: string) {
     return ["merchant-guide-practice-orders", tenantId] as const;
 }
 
-/** This shop's live practice orders (binned ones are gone). */
-export function usePracticeOrders(tenantId: string | null, enabled: boolean) {
+/**
+ * This shop's live practice orders (binned ones are gone), and the test
+ * orders the merchant placed on their own store (draft view) since the phase
+ * started. Off until the phase starts.
+ */
+export function usePracticeOrders(tenantId: string | null, startedAt: string | null) {
+    const enabled = startedAt !== null && !!tenantId;
     return useQuery({
-        queryKey: practiceOrdersKey(tenantId ?? ""),
+        queryKey: [...practiceOrdersKey(tenantId ?? ""), startedAt],
         queryFn: async (): Promise<PracticeOrder[]> => {
-            const { data, error } = await supabase
-                .from("orders")
-                .select("id, status, print_count")
-                .eq("tenant_id", required(tenantId, "store"))
-                .eq("guide_practice", true)
-                .is("deleted_at", null);
-            if (error) throw error;
-            return z.array(practiceOrderSchema).parse(data);
+            const store = required(tenantId, "store");
+            const [practice, fromStore] = await Promise.all([
+                supabase.from("orders").select(PRACTICE_COLUMNS).eq("tenant_id", store).eq("guide_practice", true).is("deleted_at", null),
+                supabase
+                    .from("orders")
+                    .select(PRACTICE_COLUMNS)
+                    .eq("tenant_id", store)
+                    .eq("is_test", true)
+                    .eq("guide_practice", false)
+                    .eq("source", "storefront")
+                    .gte("created_at", required(startedAt, "phase start"))
+                    .is("deleted_at", null),
+            ]);
+            if (practice.error) throw practice.error;
+            if (fromStore.error) throw fromStore.error;
+            return z.array(practiceOrderSchema).parse([...practice.data, ...fromStore.data]);
         },
-        enabled: enabled && !!tenantId,
+        enabled,
         refetchInterval: enabled ? PRACTICE_REFRESH_MS : false,
         refetchOnWindowFocus: true,
+    });
+}
+
+const storeOrderLinkSchema = z.object({ success: z.literal(true), data: z.object({ url: z.string().url() }) });
+
+/** Opens the shop's own store in draft view, where an order is a test order. A fresh link lasts 2 hours. */
+export function useStoreOrderLink(enabled: boolean) {
+    return useQuery({
+        queryKey: ["merchant-guide-store-order-link"],
+        queryFn: async (): Promise<string> => {
+            const res = await authedFetch("/api/guide/store-order-link");
+            if (!res.ok) throw new Error(`Store order link failed: ${res.status}`);
+            return storeOrderLinkSchema.parse(await res.json()).data.url;
+        },
+        enabled,
+        staleTime: 30 * 60_000,
+        refetchInterval: 30 * 60_000,
+        retry: 1,
     });
 }
 
@@ -259,9 +317,13 @@ export function usePracticeOrderActions(tenantId: string | null) {
             await refresh();
         },
     });
+    // Ends the practice orders and, from the phase's start, the merchant's own test orders from their store.
     const end = useMutation({
-        mutationFn: async () => {
-            const { error } = await supabase.rpc("guide_end_practice_orders", { _tenant_id: required(tenantId, "store") });
+        mutationFn: async (since: string | undefined) => {
+            const { error } = await supabase.rpc("guide_end_practice_orders", {
+                _tenant_id: required(tenantId, "store"),
+                ...(since ? { _store_orders_since: since } : {}),
+            });
             if (error) throw error;
             await refresh();
         },

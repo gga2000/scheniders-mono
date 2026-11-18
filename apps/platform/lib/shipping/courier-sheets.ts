@@ -1,8 +1,10 @@
 import type * as XLSXTypes from "xlsx";
+import { toLatinDigits } from "@scheniders/shared";
 import type { Order } from "@/types/order";
 import { extractGovernorate } from "@/lib/address-validator";
 import { computeCodAmount } from "@/lib/order-money";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 /**
  * The courier upload sheets (Prime and Al-Waseet), as plain rows. The orders
@@ -55,14 +57,15 @@ const PREPAID_NOTE = "طلب مدفوع مسبقا";
 
 /**
  * Helper to clean phone numbers for export
+ * - Reads Arabic digits as digits
  * - Removes 964 prefix
  * - Removes leading zeros
  * - Removes non-digit characters
  */
 export function cleanPhoneForExport(phone: string): string {
     if (!phone) return "";
-    // Remove all non-digit characters
-    let cleaned = phone.replace(/\D/g, "");
+    // Arabic digits first: \D would otherwise drop them and leave no phone.
+    let cleaned = toLatinDigits(phone).replace(/\D/g, "");
     // Remove 964 country code prefix
     if (cleaned.startsWith("964")) {
         cleaned = cleaned.substring(3);
@@ -76,9 +79,12 @@ export function cleanPhoneForExport(phone: string): string {
 export const totalQuantity = (order: CourierSheetOrder) =>
     order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
 
-/** What the parcel holds, as the courier sees it. */
+/** What the parcel holds, as the courier sees it, with the size or colour. */
 export const productType = (order: CourierSheetOrder) =>
-    mergeOrderItems(order.items).map((item) => item.name).filter(Boolean).join(" + ") || "ملابس";
+    mergeOrderItems(order.items)
+        .filter((item) => item.name)
+        .map(orderItemLabel)
+        .join(" + ") || "ملابس";
 
 // Prepaid orders: courier must not collect COD, so the amount is 0
 // (computeCodAmount) and a note flags it as already paid for the courier.
@@ -95,6 +101,27 @@ export function courierGovernorateCode(
     if (stored) return stored;
     if (!order.city) return "";
     return extractGovernorate(order.city, undefined, order.address_details).governorate?.code || "";
+}
+
+/** The governorate's Arabic name (بغداد, البصرة…), or "" when none can be read. */
+export function governorateNameAr(
+    order: Pick<CourierSheetOrder, "validated_governorate_code" | "governorate_code" | "city" | "address_details">,
+): string {
+    const govCode = order.validated_governorate_code || order.governorate_code || "";
+    if (govCode) {
+        // INT-3: the code was passed in the `city` slot. The signature is
+        // extractGovernorate(city?, governorateCode?, addressDetails?), so the
+        // code-resolution branch never ran. That branch is not merely tidier:
+        // 16 of the 18 canonical codes return null from the city slot, and
+        // only BGD and KOT happen to resolve there — which is why a spot-check
+        // with Baghdad looks fine. 214 real orders hold one of the other 16
+        // codes with a city that names no province, and for those the courier
+        // received an empty governorate while the data sat in the row.
+        const { governorate } = extractGovernorate(undefined, govCode, undefined);
+        if (governorate?.nameAr) return governorate.nameAr;
+    }
+    if (!order.city) return "";
+    return extractGovernorate(order.city, undefined, order.address_details).governorate?.nameAr || "";
 }
 
 const today = () => new Date().toISOString().split("T")[0];
@@ -175,31 +202,11 @@ export function waseetSheet(orders: CourierSheetOrder[]): CourierSheet {
     ];
 
     const rows = orders.map((order) => {
-        // Get governorate Arabic name
-        let govName = "";
-        const govCode = order.validated_governorate_code || order.governorate_code || "";
-        if (govCode) {
-            // INT-3: the code was passed in the `city` slot. The signature is
-            // extractGovernorate(city?, governorateCode?, addressDetails?), so the
-            // code-resolution branch never ran. That branch is not merely tidier:
-            // 16 of the 18 canonical codes return null from the city slot, and
-            // only BGD and KOT happen to resolve there — which is why a spot-check
-            // with Baghdad looks fine. 214 real orders hold one of the other 16
-            // codes with a city that names no province, and for those the courier
-            // received an empty governorate while the data sat in the row.
-            const { governorate } = extractGovernorate(undefined, govCode, undefined);
-            govName = governorate?.nameAr || "";
-        }
-        if (!govName && order.city) {
-            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
-            govName = governorate?.nameAr || "";
-        }
-
         return {
             "اسم الزبون": order.customer_name || "",
             "رقم الهاتف الاساسي": cleanPhoneForExport(order.phone),
             "رقم الهاتف الثانوي": cleanPhoneForExport(order.secondary_phone || ""),
-            "المحافظة": govName,
+            "المحافظة": governorateNameAr(order),
             "المنطقة": order.address_details || "",
             "نوع البضاعه": productType(order),
             "عدد القطع": totalQuantity(order),
@@ -223,11 +230,16 @@ export function courierSheet(company: CourierCompany, orders: CourierSheetOrder[
     return company === "prime" ? primeSheet(orders) : waseetSheet(orders);
 }
 
-/** The sheet as an .xlsx workbook. The caller passes the loaded `xlsx` module. */
+/**
+ * The sheet as an .xlsx workbook, opening right to left (Arabic columns read
+ * from the right). The view does not change a cell, so courier uploads read it
+ * as before. The caller passes the loaded `xlsx` module.
+ */
 export function courierWorkbook(XLSX: typeof XLSXTypes, sheet: CourierSheet): XLSXTypes.WorkBook {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(sheet.rows, { header: sheet.headers });
     worksheet["!cols"] = sheet.widths.map((wch) => ({ wch }));
     XLSX.utils.book_append_sheet(workbook, worksheet, sheet.sheetName);
+    workbook.Workbook = { ...workbook.Workbook, Views: [{ RTL: true }] };
     return workbook;
 }

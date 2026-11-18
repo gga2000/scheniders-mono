@@ -345,6 +345,36 @@ export function adReturn(statement: ProfitStatement): number | null {
     return ads > 0 ? Math.round((statement.sales / ads) * 1000) : null;
 }
 
+/**
+ * The ads figure (sales per 1,000 of ads) at which the ads eat all that sales leave after goods, delivery
+ * and refunds: above it the ads pay for themselves. Null with no ads, or when nothing is left before ads.
+ */
+export function adBreakEven(statement: ProfitStatement): number | null {
+    const ads = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
+    const before = (["product_cost", "delivery", "refunds"] as const).reduce(
+        (sum, id) => sum + (statement.lines.find((l) => l.id === id)?.amount ?? 0),
+        0,
+    );
+    const kept = statement.sales - before;
+    return ads > 0 && kept > 0 ? Math.round((statement.sales / kept) * 1000) : null;
+}
+
+/**
+ * When the period before had almost no ads (a tenth of today's or less) and sold as much or more, the ads did
+ * not visibly raise sales: the break-even line alone, which assumes every sale came from the ads, would then
+ * say they paid off. Returns how much sales fell against the period before, in percent of it (0 for no
+ * fall), or null when there is nothing to say (no ads, no fair base, ads not new, or sales rose).
+ */
+export function adsWithoutLift(statement: ProfitStatement, before: ProfitStatement | null): number | null {
+    const ads = statement.lines.find((l) => l.id === "ads")?.amount ?? 0;
+    if (!before || ads <= 0 || !isComparablePeriod(statement, before)) return null;
+    const adsBefore = before.lines.find((l) => l.id === "ads")?.amount ?? 0;
+    if (adsBefore * 10 > ads) return null;
+    // The same base as the profit card's sales arrow (the period before), so both show one percent.
+    const fall = ((before.sales - statement.sales) / before.sales) * 100;
+    return fall >= 0 ? fall : null;
+}
+
 export interface ProfitBar {
     /** First and last Baghdad day the bar covers (the same day for a daily bar). */
     from: string;
@@ -530,11 +560,12 @@ const BULK_DAY_OVER_USUAL = 3;
  * and what part of the orders they hold. Daily averages over such a period are
  * rough. Null when no day stands out.
  */
-export function bulkDays(daily: readonly { orders: number }[]): { days: number; share: number } | null {
+export function bulkDays(daily: readonly { orders: number }[]): { days: number; orders: number; total: number; share: number } | null {
     const bulk = bulkOf(daily);
     if (bulk.length === 0) return null;
     const total = daily.reduce((sum, day) => sum + day.orders, 0);
-    return { days: bulk.length, share: bulk.reduce((sum, day) => sum + day.orders, 0) / total };
+    const orders = bulk.reduce((sum, day) => sum + day.orders, 0);
+    return { days: bulk.length, orders, total, share: orders / total };
 }
 
 /** The dates of the bulk-marked days (as `bulkDays` counts them), so the chart can say its big days were bulk marking. */

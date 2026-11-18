@@ -7,6 +7,9 @@ const envSchema = z.object({
   // The merchant app's address (https://schenidersapp.xyz today). The demo
   // store's "open" link signs in there. Server-only.
   PLATFORM_URL: z.string().url().optional(),
+  // The bearer token Vercel's scheduler sends to /api/cron/* (lib/cron-auth.ts).
+  // Server-only. Unset, every scheduled check refuses to run and says so.
+  CRON_SECRET: z.string().optional(),
 });
 
 function getEnv() {
@@ -16,6 +19,7 @@ function getEnv() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
     PLATFORM_URL: process.env.PLATFORM_URL?.trim() || undefined,
+    CRON_SECRET: process.env.CRON_SECRET?.trim() || undefined,
   };
 
   // Only validate at runtime (not during build)

@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { AdminAuthError } from "@/lib/admin-auth-error";
+import { NO_CONSOLE_ACCESS, SIGNED_OUT, SIGN_IN_ENDED, isNoConsoleAccess } from "@/lib/staff-sign-in";
 
 /**
  * Auth failures must come back as 401/403, and real server failures as 500 —
@@ -50,8 +51,22 @@ vi.mock("@/lib/admin-supabase", () => ({
   resolveAdminRole: vi.fn(),
 }));
 
-/** What the cookie session's `getUser()` answers (no bearer token sent). */
-let cookieGetUser: () => Promise<{ data: { user: { id: string } | null }; error: unknown }>;
+type CookieClaims = { data: { claims: Record<string, unknown> } | null; error: unknown };
+/** What the local check of the cookie session's token answers (no bearer token sent). */
+let cookieGetClaims: () => Promise<CookieClaims>;
+const HOUR = 60 * 60 * 1000;
+/** The claims of the cookie session's token, signed in `hoursAgo` hours ago. */
+const cookieClaims = (hoursAgo = 1): CookieClaims => ({
+  data: {
+    claims: {
+      sub: ADMIN.user.id,
+      session_id: "22222222-2222-4222-8222-222222222222",
+      exp: Math.floor((Date.now() + HOUR) / 1000),
+      amr: [{ method: "password", timestamp: Math.floor((Date.now() - hoursAgo * HOUR) / 1000) }],
+    },
+  },
+  error: null,
+});
 /** The access token stored in the cookie session. */
 let cookieAccessToken = "app-session-token";
 
@@ -61,7 +76,7 @@ vi.mock("next/headers", () => ({
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
     auth: {
-      getUser: () => cookieGetUser(),
+      getClaims: () => cookieGetClaims(),
       getSession: async () => ({ data: { session: { access_token: cookieAccessToken } } }),
     },
   }),
@@ -73,7 +88,7 @@ beforeEach(() => {
   consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
   createAdminClient.mockClear();
   dbResult = { data: [], error: null };
-  cookieGetUser = async () => ({ data: { user: null }, error: null });
+  cookieGetClaims = async () => ({ data: null, error: null });
 });
 
 function req(pathname: string, method: string, authorization: string | null): NextRequest {
@@ -127,8 +142,9 @@ describe("bearer-only CRM routes map auth failures to 401/403", () => {
   it("covers the lead, industry and team handlers", () => {
     const files = new Set(BEARER_HANDLERS.map((h) => h.file.split("/")[0]));
     expect(files).toEqual(new Set(["industries", "leads", "team"]));
-    // Writes that need a named permission moved to requireAdminPermission (route-permissions.test.ts).
-    expect(BEARER_HANDLERS.length).toBeGreaterThanOrEqual(21);
+    // Writes that need a named permission moved to requireAdminPermission (route-permissions.test.ts);
+    // the unread history and follow-up lists (GET) went in round 12.
+    expect(BEARER_HANDLERS.length).toBeGreaterThanOrEqual(17);
   });
 
   it.each(BEARER_HANDLERS)("$name — no Authorization header → 401", async (h) => {
@@ -146,14 +162,17 @@ describe("bearer-only CRM routes map auth failures to 401/403", () => {
   it.each(BEARER_HANDLERS)("$name — rejected token → 401", async (h) => {
     const res = await call(h, `Bearer ${TOKENS.rejected}`);
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: "Unauthorized" });
+    // Round 16 (ux new 2): a save after the sign-in ended said "Unauthorized".
+    expect(await res.json()).toEqual({ error: SIGNED_OUT });
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
   it.each(BEARER_HANDLERS)("$name — authenticated non-admin → 403", async (h) => {
     const res = await call(h, `Bearer ${TOKENS.outsider}`);
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: "Forbidden" });
+    // Marked, so an open page leaves for the login page (lib/admin-fetch.ts).
+    expect(isNoConsoleAccess(res)).toBe(true);
+    expect(await res.json()).toEqual({ error: NO_CONSOLE_ACCESS });
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
@@ -224,25 +243,36 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
   it("no session cookie → 401", async () => {
     const res = await requireAdminFromRequest(req("/x", "GET", null));
     expect((res as NextResponse).status).toBe(401);
+    expect(await (res as NextResponse).json()).toEqual({ error: SIGNED_OUT });
   });
 
-  it("cookie session the auth server rejects → 401", async () => {
-    const { AuthApiError } = await import("@supabase/supabase-js");
-    cookieGetUser = async () => ({ data: { user: null }, error: new AuthApiError("bad_jwt", 403, "bad_jwt") });
+  it("cookie session token that does not check out → 401", async () => {
+    const { AuthInvalidJwtError } = await import("@supabase/supabase-js");
+    cookieGetClaims = async () => ({ data: null, error: new AuthInvalidJwtError("Invalid JWT signature") });
     const res = await requireAdminFromRequest(req("/x", "GET", null));
     expect((res as NextResponse).status).toBe(401);
   });
 
-  it("cookie session check that cannot reach the auth server propagates", async () => {
+  it("cookie session signed in more than 16 hours ago → 401", async () => {
+    const { resolveAdminRole } = await import("@/lib/admin-supabase");
+    vi.mocked(resolveAdminRole).mockClear();
+    cookieGetClaims = async () => cookieClaims(17);
+    const res = await requireAdminFromRequest(req("/x", "GET", null));
+    expect((res as NextResponse).status).toBe(401);
+    expect(await (res as NextResponse).json()).toEqual({ error: SIGN_IN_ENDED });
+    expect(resolveAdminRole).not.toHaveBeenCalled();
+  });
+
+  it("cookie session check that cannot read the keys propagates", async () => {
     const { AuthRetryableFetchError } = await import("@supabase/supabase-js");
-    cookieGetUser = async () => ({ data: { user: null }, error: new AuthRetryableFetchError("fetch failed", 0) });
-    await expect(requireAdminFromRequest(req("/x", "GET", null))).rejects.toThrow(/Session validation failed/);
+    cookieGetClaims = async () => ({ data: null, error: new AuthRetryableFetchError("fetch failed", 0) });
+    await expect(requireAdminFromRequest(req("/x", "GET", null))).rejects.toThrow(/Access-token check failed/);
   });
 
   it("valid cookie user without admin access → 403; admin_users outage propagates", async () => {
     const { resolveAdminRole } = await import("@/lib/admin-supabase");
     const resolve = vi.mocked(resolveAdminRole);
-    cookieGetUser = async () => ({ data: { user: { id: ADMIN.user.id } }, error: null });
+    cookieGetClaims = async () => cookieClaims();
 
     resolve.mockRejectedValueOnce(new AdminAuthError(403, "No admin-console access"));
     const res = await requireAdminFromRequest(req("/x", "GET", null));
@@ -255,7 +285,7 @@ describe("requireAdminFromRequest (bearer or cookie transport)", () => {
   it("a Claude connector token in the session cookie is no admin session → 401", async () => {
     const { resolveAdminRole } = await import("@/lib/admin-supabase");
     vi.mocked(resolveAdminRole).mockClear();
-    cookieGetUser = async () => ({ data: { user: { id: ADMIN.user.id } }, error: null });
+    cookieGetClaims = async () => cookieClaims();
     cookieAccessToken = `h.${Buffer.from(JSON.stringify({ sub: ADMIN.user.id, client_id: "claude" })).toString("base64url")}.s`;
     try {
       const res = await requireAdminFromRequest(req("/x", "GET", null));

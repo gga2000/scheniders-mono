@@ -12,7 +12,6 @@ import { TeamPerformanceChart } from "@/components/team/team-performance-chart";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
-  UserCircle,
   Loader2,
   Lock,
   CheckCircle2,
@@ -24,6 +23,8 @@ import {
 } from "@/types/leads";
 import { formatDay } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { LoadError } from "@/components/shared/load-error";
+import { roleLabel } from "@/lib/admin-access";
 
 const tabs = ["Actions", "Commissions", "Achievements", "Performance"] as const;
 type Tab = (typeof tabs)[number];
@@ -38,10 +39,11 @@ const commissionStatusStyles: Record<CommissionStatus, string> = {
 
 export default function TeamMemberDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading } = useAdminEmployeeDetail(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = useAdminEmployeeDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>("Actions");
   const [actionPage, setActionPage] = useState(1);
-  const { data: actionsData } = useEmployeeActions(id, actionPage);
+  const actionsQuery = useEmployeeActions(id, actionPage);
+  const actionsData = actionsQuery.data;
 
   if (isLoading) {
     return (
@@ -51,7 +53,9 @@ export default function TeamMemberDetailPage() {
     );
   }
 
-  if (!data) {
+  // A failed read says so (a missing person gets "Could not find"); it never
+  // draws a page of zeros or "not found" for someone who exists.
+  if (isError || !data) {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Link
@@ -61,10 +65,7 @@ export default function TeamMemberDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Team
         </Link>
-        <div className="flex flex-col items-center justify-center py-20 text-foreground/70">
-          <UserCircle className="w-12 h-12 mb-3" />
-          <p className="text-lg font-semibold">Employee not found</p>
-        </div>
+        <LoadError what="this team member" error={error} onRetry={() => refetch()} retrying={isFetching} />
       </div>
     );
   }
@@ -72,14 +73,9 @@ export default function TeamMemberDetailPage() {
   const { employee, recent_actions, commissions, achievements } = data;
   const initial = (employee.display_name ?? employee.email).charAt(0).toUpperCase();
 
-  const roleStyles: Record<string, string> = {
-    admin: "bg-purple-500/15 text-[var(--ink-violet)]",
-    manager: "bg-blue-500/15 text-[var(--ink-blue)]",
-    agent: "bg-green-500/15 text-[var(--ink-green)]",
-  };
-
   const totalPages = actionsData ? Math.ceil(actionsData.total / 50) : 1;
-  const paginatedActions = actionsData?.actions ?? recent_actions;
+  // Until page 1 loads, the newest of the chart's steps stand in for it.
+  const paginatedActions = actionsData?.actions ?? recent_actions.slice(0, 50);
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -112,13 +108,8 @@ export default function TeamMemberDetailPage() {
             </h1>
             <p className="text-sm text-foreground/70 truncate">{employee.email}</p>
           </div>
-          <span
-            className={cn(
-              "px-2.5 py-1 rounded-full text-xs font-semibold capitalize shrink-0",
-              roleStyles[employee.role] ?? "bg-gray-500/15 text-[var(--muted)]"
-            )}
-          >
-            {employee.role}
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-gray-500/15 text-[var(--muted)]">
+            {roleLabel(employee.role)}
           </span>
         </div>
       </div>
@@ -140,7 +131,7 @@ export default function TeamMemberDetailPage() {
             className={cn(
               "px-4 py-2.5 text-sm font-semibold transition-colors",
               activeTab === tab
-                ? "text-foreground border-b-2 border-[#1E1E1E]"
+                ? "text-foreground border-b-2 border-foreground"
                 : "text-foreground/70 hover:text-foreground"
             )}
           >
@@ -150,7 +141,19 @@ export default function TeamMemberDetailPage() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "Actions" && (
+      {activeTab === "Actions" && actionsQuery.isError && (
+        <section className="pastel-card">
+          <LoadError
+            compact
+            what="these steps"
+            error={actionsQuery.error}
+            onRetry={() => actionsQuery.refetch()}
+            retrying={actionsQuery.isFetching}
+          />
+        </section>
+      )}
+
+      {activeTab === "Actions" && !actionsQuery.isError && (
         <div className="space-y-4">
           <TeamActionFeed actions={paginatedActions} />
           {totalPages > 1 && (

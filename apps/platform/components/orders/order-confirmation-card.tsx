@@ -21,6 +21,7 @@ import {
     Truck,
 } from "lucide-react";
 import { useState } from "react";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 interface OrderConfirmationCardProps {
     order: Order;
@@ -194,7 +195,7 @@ export function OrderConfirmationCard({ order, onClose }: OrderConfirmationCardP
                             <div className="space-y-2">
                                 {mergeOrderItems(order.items).map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between text-sm">
-                                        <span className="text-foreground">{item.name}</span>
+                                        <span className="text-foreground">{orderItemLabel(item)}</span>
                                         <div className="flex items-center gap-3">
                                             <span className="text-muted">×{item.quantity}</span>
                                             <span className="font-mono font-bold">{formatIQD(item.price * item.quantity)}</span>

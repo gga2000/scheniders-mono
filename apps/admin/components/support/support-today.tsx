@@ -8,14 +8,15 @@ import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
 import { useSupportLogTask, useSupportTakeShop, useSupportTasks } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
+import { formatDay } from "@/lib/format";
 import { SupportCallList } from "@/components/support/support-call-list";
 import {
   CALL_OUTCOMES,
   CALL_OUTCOME_LABELS,
-  SUPPORT_TASK_LABELS,
   callBackNumber,
   formatDue,
   sortTasks,
+  taskLabel,
   type CallOutcome,
   type SupportTask,
 } from "@/lib/support";
@@ -82,7 +83,7 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
   const log = useSupportLogTask();
   const take = useSupportTakeShop();
   const [note, setNote] = useState("");
-  const label = SUPPORT_TASK_LABELS[task.kind];
+  const label = taskLabel(task);
   const late = Date.parse(task.due_at) < now;
 
   const record = (outcome: CallOutcome) => {
@@ -178,7 +179,7 @@ function TaskRow({ task, isMine, now }: { task: SupportTask; isMine: boolean; no
           {task.orders === 0 ? "No orders yet" : `${task.orders.toLocaleString("en-US")} orders`}
         </span>
         {task.shop_status === "trial" && task.trial_ends_at && (
-          <span>Trial ends {new Date(task.trial_ends_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+          <span>Trial ends {formatDay(task.trial_ends_at)}</span>
         )}
       </p>
 

@@ -4,16 +4,18 @@
 // GuideFirstOrder — phase 2 of the guide, on the Orders page and the desk
 // =====================================================================
 // Offers three practice orders on the first visit to Orders after the
-// basics, then walks four stops (lib/merchant-guide/first-order.ts): what
-// each status means, confirming one, the WhatsApp bot, and printing at the
-// dispatch desk. Ending the phase bins the practice orders.
+// basics, then walks six stops (lib/merchant-guide/first-order.ts): what
+// each status means, an order from the merchant's own store, confirming one,
+// switching on the WhatsApp bot, who delivers, and printing at the dispatch
+// desk. Ending the phase bins the practice orders and the store test orders.
 // =====================================================================
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CheckCheck, FlaskConical, MessageCircle } from "lucide-react";
+import { CheckCheck, ExternalLink, FlaskConical, Loader2, MessageCircle, Truck } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useAutoSend } from "@/hooks/use-auto-send";
+import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { toast } from "@/hooks/use-toast";
 import {
     FIRST_ORDER_PLACES,
@@ -21,6 +23,8 @@ import {
     STATUS_WALK,
     firstOrderDoneCount,
     firstOrderView,
+    type FirstOrderCourier,
+    type FirstOrderFacts,
     type FirstOrderReadStop,
     type FirstOrderRecord,
     type FirstOrderStop,
@@ -32,7 +36,7 @@ import { GuideNote } from "./guide-note";
 import { GuidePill } from "./guide-pill";
 import { GuideSpotlight } from "./guide-spotlight";
 import { useGuideVoice } from "./use-guide-voice";
-import { usePracticeOrderActions, usePracticeOrders } from "./use-merchant-guide-data";
+import { usePracticeOrderActions, usePracticeOrders, useStoreOrderLink } from "./use-merchant-guide-data";
 import { useTargetBox } from "./use-target-rect";
 import { useMissingAfterGrace } from "./use-missing-after-grace";
 
@@ -58,15 +62,22 @@ export function GuideFirstOrder({
 }) {
     const pathname = usePathname() ?? "/";
     const { t } = useLanguage();
-    const started = !!record?.started_at && !record.done_at;
-    const ordersQ = usePracticeOrders(tenantId, started);
+    const startedAt = record?.started_at && !record.done_at ? record.started_at : null;
+    const ordersQ = usePracticeOrders(tenantId, startedAt);
     const actions = usePracticeOrderActions(tenantId);
+    const autoSend = useAutoSend();
+    const prime = usePrimeConnection();
     // Captured once per render pass for the "Later" check; a day-long wait needs no ticking clock.
     const [now] = useState(() => Date.now());
-    const view = firstOrderView(record, ordersQ.isSuccess ? ordersQ.data : null, pathname.startsWith("/orders"), now);
+    // Both switches are read before a stop shows, so a done stop never flashes.
+    const facts: FirstOrderFacts | null =
+        autoSend.isLoading || !(prime.checked || prime.failed) ? null : { autoSendOn: autoSend.enabled, primeLinked: prime.connected };
+    const view = firstOrderView(record, ordersQ.isSuccess ? ordersQ.data : null, facts, pathname.startsWith("/orders"), now);
 
     const start = async (): Promise<void> => {
         try {
+            // Trying again after the practice orders ran out first bins that run's store orders.
+            if (startedAt) await actions.end(startedAt);
             await actions.start();
             onPatch({ started_at: new Date().toISOString(), seen: [] });
         } catch {
@@ -75,7 +86,7 @@ export function GuideFirstOrder({
     };
     const finish = async (): Promise<void> => {
         try {
-            await actions.end();
+            await actions.end(startedAt ?? undefined);
             onPatch({ done_at: new Date().toISOString() });
         } catch {
             toast.error(t("guide.saveFailed"));
@@ -109,7 +120,7 @@ export function GuideFirstOrder({
                     onToggleSound={onToggleSound}
                     pillLeft={pillLeft}
                     primary={{ label: actions.starting ? t("guide.fo.starting") : t("guide.fo.tryAgain"), onClick: start, busy: actions.starting }}
-                    secondary={{ label: t("guide.fo.close"), onClick: () => onPatch({ done_at: new Date().toISOString() }) }}
+                    secondary={{ label: t("guide.fo.close"), onClick: finish }}
                 />
             );
         case "finished":
@@ -129,12 +140,13 @@ export function GuideFirstOrder({
                 <FirstOrderStopCard
                     key={view.stop}
                     stop={view.stop}
-                    done={firstOrderDoneCount(record ?? {}, ordersQ.data ?? [])}
+                    done={firstOrderDoneCount(record ?? {}, ordersQ.data ?? [], facts ?? { autoSendOn: false, primeLinked: false })}
                     locale={locale}
                     soundOn={soundOn}
                     onToggleSound={onToggleSound}
                     pillLeft={pillLeft}
                     onSeen={(stop) => onPatch({ seen: [...(record?.seen ?? []), stop] })}
+                    onCourier={(courier) => onPatch({ courier })}
                 />
             );
     }
@@ -148,6 +160,7 @@ function FirstOrderStopCard({
     onToggleSound,
     pillLeft,
     onSeen,
+    onCourier,
 }: {
     stop: FirstOrderStop;
     done: number;
@@ -156,6 +169,7 @@ function FirstOrderStopCard({
     onToggleSound: () => void;
     pillLeft: number;
     onSeen: (stop: FirstOrderReadStop) => void;
+    onCourier: (courier: FirstOrderCourier) => void;
 }) {
     const { t } = useLanguage();
     const dir = useTextDir();
@@ -165,7 +179,8 @@ function FirstOrderStopCard({
     const [minimized, setMinimized] = useState(false);
     const place = FIRST_ORDER_PLACES[stop];
 
-    const onPage = pathname.startsWith(place.path);
+    // A stop with nothing to light up (the store order, the courier) happens on any page.
+    const onPage = place.selector === null || pathname.startsWith(place.path);
     const box = useTargetBox(onPage && !minimized ? place.selector : null);
     const missing = useMissingAfterGrace(place.selector, box !== null);
     const autoOff = stop === "whatsapp" && !autoSend.isLoading && !autoSend.enabled;
@@ -180,7 +195,14 @@ function FirstOrderStopCard({
     const heading = `${label} · ${t(place.labelKey)} · ${t("guide.progress", { done: FIRST_ORDER_STOPS.indexOf(stop) + 1, total: FIRST_ORDER_STOPS.length })}`;
     // The confirm button sits on a practice card; a filter or a status tab can hide it.
     const hiddenCard = stop === "confirm" && onPage && missing;
-    const readStop = stop === "statuses" || stop === "whatsapp" ? stop : null;
+    const next =
+        !onPage
+            ? undefined
+            : stop === "statuses"
+              ? { label: t("guide.next"), onClick: () => onSeen("statuses") }
+              : stop === "whatsapp"
+                ? { label: t("guide.fo.switchOn"), onClick: autoSend.toggle, busy: autoSend.isToggling || autoSend.isLoading }
+                : undefined;
 
     return (
         <>
@@ -194,10 +216,35 @@ function FirstOrderStopCard({
                 box={box}
                 dockLeft={pillLeft}
                 onGo={!onPage ? () => router.push(place.path) : undefined}
-                next={onPage && readStop ? { label: t("guide.next"), onClick: () => onSeen(readStop) } : undefined}
+                next={next}
                 onMinimize={() => setMinimized(true)}
             >
                 {stop === "statuses" && onPage && <StatusWalk />}
+                {stop === "store_order" && <StoreOrderButton />}
+                {stop === "courier" && (
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onCourier("prime");
+                                router.push("/prime");
+                            }}
+                            data-testid="merchant-guide-courier-prime"
+                            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 text-sm font-semibold hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]"
+                        >
+                            {t("guide.fo.courierPrime")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onCourier("other")}
+                            data-testid="merchant-guide-courier-other"
+                            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 text-sm font-semibold hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]"
+                        >
+                            <Truck className="h-4 w-4" aria-hidden="true" />
+                            <span dir={dir}>{t("guide.fo.courierOther")}</span>
+                        </button>
+                    </div>
+                )}
                 {stop === "whatsapp" && onPage && (
                     <>
                         {autoOff && (
@@ -210,6 +257,14 @@ function FirstOrderStopCard({
                             <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                             {t(autoSend.enabled ? "guide.fo.autoOn" : "guide.fo.autoOff")}
                         </span>
+                        <button
+                            type="button"
+                            onClick={() => onSeen("whatsapp")}
+                            data-testid="merchant-guide-not-now"
+                            className="justify-self-start text-xs text-neutral-400 underline-offset-2 hover:text-white hover:underline"
+                        >
+                            {t("guide.fo.notNow")}
+                        </button>
                     </>
                 )}
                 {stop === "dispatch" && onPage && (
@@ -226,6 +281,41 @@ function FirstOrderStopCard({
             </GuideCoachCard>
             <GuidePill left={pillLeft} label={label} done={done} total={FIRST_ORDER_STOPS.length} />
         </>
+    );
+}
+
+/** Opens the shop's own store in a new tab, in draft view: an order there is a test order. */
+function StoreOrderButton() {
+    const { t } = useLanguage();
+    const dir = useTextDir();
+    const link = useStoreOrderLink(true);
+    const CLASS =
+        "inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#EFFF00] px-4 text-sm font-bold text-neutral-900 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white";
+    if (link.isError) {
+        return (
+            <button type="button" onClick={() => void link.refetch()} className={CLASS}>
+                <span dir={dir}>{t("guide.fo.storeLinkFailed")}</span>
+            </button>
+        );
+    }
+    return (
+        <div className="grid gap-2">
+            {link.data ? (
+                <a href={link.data} target="_blank" rel="noopener noreferrer" data-testid="merchant-guide-open-store" className={CLASS}>
+                    <span dir={dir}>{t("guide.fo.openStore")}</span>
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                </a>
+            ) : (
+                <span className={cn(CLASS, "opacity-60")} aria-busy="true">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span dir={dir}>{t("guide.fo.openStore")}</span>
+                </span>
+            )}
+            <span dir={dir} className="inline-flex items-center gap-1.5 text-xs text-neutral-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                {t("guide.fo.storeWaiting")}
+            </span>
+        </div>
     );
 }
 

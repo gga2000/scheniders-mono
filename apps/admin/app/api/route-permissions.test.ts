@@ -66,7 +66,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@supabase/ssr", () => ({
   createServerClient: () => ({
-    auth: { getUser: async () => ({ data: { user: null }, error: null }) },
+    auth: { getClaims: async () => ({ data: null, error: null }) },
   }),
 }));
 
@@ -85,7 +85,8 @@ function req(
   token: string | null,
   body?: unknown,
 ): NextRequest {
-  const headers = new Headers({ "content-type": "application/json" });
+  // Sent from a console page, as the browser marks it: these tests are about roles, not other sites.
+  const headers = new Headers({ "content-type": "application/json", "sec-fetch-site": "same-origin" });
   if (token) headers.set("authorization", `Bearer ${token}`);
   return new NextRequest(`http://admin.test${pathname}`, {
     method,
@@ -136,6 +137,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
         req("/api/billing/topup", "POST", t, {
           tenant_id: TENANT,
           amount: 5000,
+          description: "Qi transfer, receipt 12",
           request_id: "55555555-5555-4555-8555-555555555555",
         }),
       );
@@ -211,18 +213,6 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./team/commissions/route");
       return POST(req("/api/team/commissions", "POST", t, { name: "x", type: "per_order" }));
-    },
-  },
-  {
-    name: "POST /api/team/commissions/calculate (manage_commissions)",
-    call: async (t) => {
-      const { POST } = await import("./team/commissions/calculate/route");
-      return POST(
-        req("/api/team/commissions/calculate", "POST", t, {
-          period_start: "2026-10-01",
-          period_end: "2026-10-31",
-        }),
-      );
     },
   },
   {
@@ -317,7 +307,13 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { POST } = await import("./trial-checks/[id]/route");
       return POST(
-        req(`/api/trial-checks/${TENANT}`, "POST", t, { decision: "allow_trial", days: 7, reason: "same owner, new brand" }),
+        req(`/api/trial-checks/${TENANT}`, "POST", t, {
+          decision: "allow_trial",
+          days: 7,
+          reason: "same owner, new brand",
+          request_id: REQ,
+          seen_decided_at: null,
+        }),
         idParams,
       );
     },
@@ -347,11 +343,11 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
-    name: "POST /api/leads/bulk change_priority (any admin)",
+    name: "POST /api/leads/bulk change_status (any admin)",
     call: async (t) => {
       const { POST } = await import("./leads/bulk/route");
       return POST(
-        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_priority", payload: { priority: "high" } }),
+        req("/api/leads/bulk", "POST", t, { lead_ids: [LEAD], action: "change_status", payload: { status: "contacted" } }),
       );
     },
   },
@@ -377,6 +373,13 @@ const ANY_ADMIN: Case[] = [
     },
   },
   {
+    name: "PUT /api/merchants/[id]/tags (manage_tags)",
+    call: async (t) => {
+      const { PUT } = await import("./merchants/[id]/tags/route");
+      return PUT(req(`/api/merchants/${TENANT}/tags`, "PUT", t, { tags: ["vip"] }), idParams);
+    },
+  },
+  {
     name: "GET /api/merchants/[id]/orders",
     call: async (t) => {
       const { GET } = await import("./merchants/[id]/orders/route");
@@ -388,6 +391,15 @@ const ANY_ADMIN: Case[] = [
     call: async (t) => {
       const { GET } = await import("./merchants/[id]/timeline/route");
       return GET(req(`/api/merchants/${TENANT}/timeline`, "GET", t), idParams);
+    },
+  },
+  {
+    name: "DELETE /api/admin/watchlist/[tenantId]",
+    call: async (t) => {
+      const { DELETE } = await import("./admin/watchlist/[tenantId]/route");
+      return DELETE(req(`/api/admin/watchlist/${TENANT}`, "DELETE", t), {
+        params: Promise.resolve({ tenantId: TENANT }),
+      });
     },
   },
 ];
@@ -432,6 +444,19 @@ describe("handlers open to every active admin", () => {
 });
 
 describe("actor attribution", () => {
+  it("watchlist DELETE removes only the caller's own entry", async () => {
+    dbResult = { data: null, error: null };
+    const { DELETE } = await import("./admin/watchlist/[tenantId]/route");
+    const res = await DELETE(req(`/api/admin/watchlist/${TENANT}`, "DELETE", "support"), {
+      params: Promise.resolve({ tenantId: TENANT }),
+    });
+
+    expect(res.status).toBe(200);
+    const eqs = dbCalls.filter((c) => c.method === "eq").map((c) => c.args);
+    expect(eqs).toContainEqual(["admin_user_id", SUPPORT_ID]);
+    expect(eqs).toContainEqual(["tenant_id", TENANT]);
+  });
+
   it("a new note is attributed to the admin who wrote it, not 'system'", async () => {
     dbResult = { data: { id: "n1" }, error: null };
     const { POST } = await import("./merchants/[id]/notes/route");
@@ -659,6 +684,13 @@ describe("billing lock staff tools", () => {
     expect((await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ })).status).toBe(404);
   });
 
+  it("a paused store is not unlocked: staff lift the pause first", async () => {
+    dbResult = { data: { success: false, error: "paused" }, error: null };
+    const res = await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("This store is paused. Lift the pause first, then unlock it");
+  });
+
   it("a database error or an unreadable answer is a 500, not a success", async () => {
     dbResult = { data: null, error: { code: "40P01", message: "deadlock detected" } };
     expect((await lockOrders("support", { orders: 10, reason: "courier delay", request_id: REQ })).status).toBe(500);
@@ -691,6 +723,16 @@ describe("billing lock staff tools", () => {
  */
 describe("one change per staff request", () => {
   const CALLS = [
+    {
+      name: "trial-checks",
+      role: "support",
+      body: { decision: "allow_trial", days: 7, reason: "same owner, new brand", seen_decided_at: null },
+      ok: { success: true, tenant_id: TENANT, decision: "allow_trial" },
+      call: async (t: string, body: unknown) => {
+        const { POST } = await import("./trial-checks/[id]/route");
+        return POST(req(`/api/trial-checks/${TENANT}`, "POST", t, body), idParams);
+      },
+    },
     {
       name: "extend-trial",
       role: "support",
@@ -806,9 +848,7 @@ describe("every admin API handler is guarded", () => {
   const API_DIR = path.resolve(__dirname);
   // Routes never call `requireAdmin` directly: its typed AdminAuthError would
   // land in the handler's generic catch and come back as a 500.
-  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin)\(/;
-  // The OAuth callback runs before a session exists; middleware also exempts it.
-  const PUBLIC = new Set(["auth/callback/route.ts GET"]);
+  const GUARD = /\b(requireAdminPermission|requireAdminFromRequest|requireBearerAdmin|requireCronAuth)\(/;
 
   const routeFiles = readdirSync(API_DIR, { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(`${path.sep}route.ts`) || f === "route.ts")
@@ -829,7 +869,7 @@ describe("every admin API handler is guarded", () => {
     expect(handlers.length).toBeGreaterThan(50);
   });
 
-  it.each(handlers.filter((h) => !PUBLIC.has(h.key)).map((h) => [h.key, h.body]))(
+  it.each(handlers.map((h) => [h.key, h.body]))(
     "%s calls a guard",
     (_key, body) => {
       expect(body).toMatch(GUARD);
@@ -879,14 +919,15 @@ describe("every role rule is proven from the source", () => {
 
   /** Writes open to every active admin, each with the reason. */
   const OPEN_WRITES: Record<string, string> = {
+    "admin/last-actors/route.ts POST": "a read: the ids are sent in the body",
+    "admin/watchlist/route.ts POST": "each admin's own watchlist",
+    "admin/watchlist/[tenantId]/route.ts DELETE": "each admin's own watchlist",
     "leads/route.ts POST": "sales work: add a lead",
     "leads/import/route.ts POST": "sales work: import leads",
     "leads/bulk/route.ts POST": "sales work; delete needs delete_leads, checked in the handler",
     "leads/analyze-profile/route.ts POST": "reads a lead's public profile",
     "leads/[id]/route.ts PATCH": "sales work: edit a lead",
     "leads/[id]/activities/route.ts POST": "sales work: log a call or message",
-    "leads/[id]/competitors/route.ts POST": "sales work: note a competitor",
-    "leads/[id]/competitors/route.ts DELETE": "sales work: remove a competitor note",
     "leads/[id]/follow-ups/route.ts POST": "sales work: plan a follow-up",
     "leads/[id]/follow-ups/[fid]/route.ts PATCH": "sales work: mark a follow-up done",
   };
@@ -918,6 +959,7 @@ describe("every role rule is proven from the source", () => {
         "merchants/[id]/route.ts PATCH",
         "admin-users/route.ts POST",
         "admin-users/route.ts DELETE",
+        "seed-automation/route.ts POST",
         "billing/route.ts GET",
         "admin/leads-table-layout/route.ts PUT",
         "billing/topup/route.ts POST",

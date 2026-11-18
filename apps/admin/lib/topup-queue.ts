@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { lockedBecause } from "@/lib/billing-lock-label";
+import { formatIQD } from "@/lib/format";
 
 /**
  * Shops that paid us by transfer and uploaded the receipt (Fermi B3). Read
@@ -84,6 +86,24 @@ export function amountStillOwed(row: Pick<TopupQueueRow, "billing" | "balance_iq
   return Math.max(0, row.billing.price_iqd - row.balance_iqd);
 }
 
+/**
+ * The locked chip on a payment: why it is locked and what opens it. A paused
+ * shop's lock does not open with money until the pause lifts
+ * (settle_billing_lock answers on_hold), and a short wallet still has to be
+ * paid first, so a paused shop says both; null when the shop is not locked.
+ */
+export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | "tenant_status">): string | null {
+  if (!row.billing?.locked) return null;
+  const why = lockedBecause(row.billing.reason);
+  const owed = amountStillOwed(row);
+  if (row.tenant_status === "limited") {
+    return owed > 0
+      ? `${why} · paused; needs ${formatIQD(owed)}, then opens once the pause lifts`
+      : `${why} · paused, opens once the pause lifts`;
+  }
+  return owed > 0 ? `${why} · needs ${formatIQD(owed)} to open` : `${why} · this payment opens it`;
+}
+
 /** Why staff should look twice before approving, in plain words; empty when nothing stands out. */
 export function topupWarnings(row: Pick<TopupQueueRow, "same_file" | "same_amount_recent" | "tenant_id">): string[] {
   const warnings: string[] = [];
@@ -133,4 +153,19 @@ export function readPaymentDetails(value: unknown): PaymentDetails {
     working_hours: pick("working_hours"),
     legal_name: pick("legal_name"),
   };
+}
+
+const alreadyDecidedSchema = z.object({ outcome: z.enum(["approved", "rejected"]).nullable() });
+
+/**
+ * What staff are told when a receipt they decide was decided first, by a
+ * colleague or by their own earlier click. The server answers 409 and
+ * changes nothing; the page used to treat that as its own success and say
+ * nothing.
+ */
+export function alreadyDecidedText(body: unknown): string {
+  const parsed = alreadyDecidedSchema.safeParse(body);
+  const outcome = parsed.success ? parsed.data.outcome : null;
+  const done = outcome === "approved" ? "approved" : outcome === "rejected" ? "refused" : "decided";
+  return `This receipt was already ${done}, so your decision changed nothing.`;
 }

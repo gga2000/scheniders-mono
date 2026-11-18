@@ -8,6 +8,9 @@
 --   a new request id gives them again; one id may cover several shops;
 --   a refusal is not kept, so the same request may ask again;
 --   an id used for a different action is refused, nothing changes;
+--   a trial check decision on a row decided since the person saw it is
+--   refused and changes nothing; a repeat of a decided request still gets
+--   its first answer;
 --   only the service role may call the wrappers; no browser role reads the
 --   table or calls the helpers.
 
@@ -16,6 +19,7 @@
 INSERT INTO public.tenants (id) VALUES
   ('40000000-0000-4000-8000-00000000000a'),
   ('40000000-0000-4000-8000-00000000000b');
+INSERT INTO public.trial_checks (tenant_id) VALUES ('40000000-0000-4000-8000-00000000000b');
 
 DO $t$
 DECLARE
@@ -78,6 +82,38 @@ BEGIN
         RAISE EXCEPTION 'retry after a refusal answered %', again;
     END IF;
 
+    -- A trial check decision: giving 7 days back twice on one request gives them once.
+    first := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000006', b, 'allow_trial', 'owner explained', 7);
+    again := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000006', b, 'allow_trial', 'owner explained', 7);
+    SELECT count(*) INTO calls FROM public.stub_calls WHERE fn = 'trial_check_decide';
+    IF calls <> 1 THEN RAISE EXCEPTION 'repeat decision gave the days again: % calls', calls; END IF;
+    IF again <> first || '{"repeat": true}' THEN
+        RAISE EXCEPTION 'repeat decision answered %, first was %', again, first;
+    END IF;
+    -- Someone else, or a second tab, saw b undecided and gives 7 days too: refused.
+    again := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000007', b, 'allow_trial', 'owner explained', 7);
+    IF again <> '{"success": false, "error": "decided_meanwhile"}' THEN
+        RAISE EXCEPTION 'a decision on a row decided meanwhile answered %', again;
+    END IF;
+    SELECT count(*) INTO calls FROM public.stub_calls WHERE fn = 'trial_check_decide';
+    IF calls <> 1 THEN RAISE EXCEPTION 'a stale screen gave the days again: % calls', calls; END IF;
+    -- The first request, retried after that, still gets its own answer back.
+    again := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000006', b, 'allow_trial', 'owner explained', 7);
+    IF again <> first || '{"repeat": true}' THEN
+        RAISE EXCEPTION 'retry of a decided request answered %', again;
+    END IF;
+    -- After a reload the page shows the decision; deciding on it goes through.
+    again := public.admin_trial_check_decide_once('41000000-0000-4000-8000-000000000007', b, 'checked', 'seen the new decision', NULL,
+        NULL, NULL, (SELECT decided_at FROM public.trial_checks WHERE tenant_id = b));
+    IF again -> 'success' <> 'true' THEN
+        RAISE EXCEPTION 'a decision on what the page shows was refused: %', again;
+    END IF;
+    -- The same id for free days on that shop is another action: refused.
+    again := public.admin_extend_trial_once('41000000-0000-4000-8000-000000000006', b, 7, 'owner explained');
+    IF again <> '{"success": false, "error": "request_reused"}' THEN
+        RAISE EXCEPTION 'decision id reused for free days answered %', again;
+    END IF;
+
     -- A missing request id is an error, not a free pass.
     BEGIN
         PERFORM public.admin_extend_trial_once(NULL, a, 7, 'no id');
@@ -112,6 +148,10 @@ BEGIN
     END IF;
     IF NOT has_function_privilege('service_role', 'public.admin_add_lock_orders_once(uuid, uuid, integer, text, uuid, text, boolean)', 'EXECUTE') THEN
         RAISE EXCEPTION 'service_role may not call admin_add_lock_orders_once';
+    END IF;
+    IF has_function_privilege('authenticated', 'public.admin_trial_check_decide_once(uuid, uuid, text, text, integer, uuid, text, timestamptz)', 'EXECUTE')
+       OR NOT has_function_privilege('service_role', 'public.admin_trial_check_decide_once(uuid, uuid, text, text, integer, uuid, text, timestamptz)', 'EXECUTE') THEN
+        RAISE EXCEPTION 'admin_trial_check_decide_once grants are wrong';
     END IF;
     IF has_function_privilege('service_role', 'public.staff_action_keep(uuid, uuid, text, jsonb)', 'EXECUTE')
        OR has_function_privilege('authenticated', 'public.staff_action_seen(uuid, uuid, text)', 'EXECUTE') THEN

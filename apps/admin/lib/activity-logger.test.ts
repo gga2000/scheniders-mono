@@ -16,7 +16,7 @@ vi.mock("./admin-supabase", () => ({
 const captureException = vi.fn();
 vi.mock("@sentry/nextjs", () => ({ captureException }));
 
-const { logAdminAction, logAdminActivity } = await import("./activity-logger");
+const { logAdminAction, logAdminActivity, logAdminActivityBatch } = await import("./activity-logger");
 
 const UUID = "11111111-2222-3333-4444-555555555555";
 
@@ -110,6 +110,37 @@ describe("logAdminActivity", () => {
   });
 });
 
+describe("logAdminActivityBatch", () => {
+  it("writes one row per tenant in a single insert, sharing the envelope", async () => {
+    await logAdminActivityBatch({
+      adminUserId: UUID,
+      actorEmail: "admin@example.com",
+      tenantIds: ["t-1", "t-2", "t-3"],
+      action: "bulk_suspend",
+      details: { reason: "nonpayment" },
+    });
+
+    expect(insert).toHaveBeenCalledTimes(1);
+    const rows = inserted[0] as Record<string, unknown>[];
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.tenant_id)).toEqual(["t-1", "t-2", "t-3"]);
+
+    for (const row of rows) {
+      expect(Object.keys(row).sort()).toEqual([...COLUMNS].sort());
+      expect(row).not.toHaveProperty("admin_id");
+      expect(row.admin_user_id).toBe(UUID);
+      expect(row.action).toBe("bulk_suspend");
+      expect(row.details).toEqual({ reason: "nonpayment" });
+    }
+  });
+
+  it("does not touch the database for an empty tenant list", async () => {
+    await logAdminActivityBatch({ adminUserId: UUID, tenantIds: [], action: "bulk_suspend" });
+    expect(from).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+});
+
 describe("logAdminAction", () => {
   it("logs under the admin who made the request", async () => {
     await logAdminAction({ user: { id: UUID, email: "boss@example.com" } }, "update_tags", {
@@ -142,14 +173,14 @@ describe("a log row that is not written", () => {
   it("is reported when the request itself fails, and does not fail the action", async () => {
     insert.mockImplementationOnce(() => Promise.reject(new Error("fetch failed")));
     await expect(
-      logAdminActivity({ adminUserId: UUID, action: "extend_trial", tenantId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" }),
+      logAdminActivityBatch({ adminUserId: UUID, action: "bulk_action", tenantIds: ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"] }),
     ).resolves.toBeUndefined();
     expect(captureException).toHaveBeenCalledTimes(1);
     expect(String(captureException.mock.calls[0][0])).toContain("fetch failed");
   });
 
   it("reports nothing when the row is written", async () => {
-    await logAdminAction({ user: { id: UUID } }, "add_note");
+    await logAdminAction({ user: { id: UUID } }, "update_tags");
     expect(captureException).not.toHaveBeenCalled();
   });
 });

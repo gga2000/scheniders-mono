@@ -23,7 +23,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
             </h2>
 
             <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label htmlFor="product-url-handle" className="block text-sm font-medium text-foreground mb-2">
                     {t("products.ed.urlHandle")}
                 </label>
                 <div className="flex gap-2">
@@ -32,6 +32,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                             /products/
                         </span>
                         <input
+                            id="product-url-handle"
                             type="text"
                             value={formData.slug}
                             onChange={(e) => {
@@ -59,11 +60,12 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label htmlFor="product-website-price" className="block text-sm font-medium text-foreground mb-2">
                     {t("products.ed.websitePrice")}
                     <span className="text-xs text-muted ms-1">{t("products.ed.websitePriceHint")}</span>
                 </label>
                 <input
+                    id="product-website-price"
                     type="number"
                     value={formData.website_price ?? ""}
                     onChange={(e) => {

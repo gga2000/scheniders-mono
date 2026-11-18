@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import type { ActivityDay } from "@/types/dashboard";
+import { formatCount } from "@/lib/format";
 
 interface ActivityHeatmapProps {
   days: ActivityDay[] | undefined;
@@ -16,6 +17,7 @@ interface TooltipState {
 }
 
 const CELL_SIZE = 12;
+const MIN_WIDTH = 640;
 const GAP = 2;
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 const MONTH_NAMES = [
@@ -23,13 +25,14 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+/** Tokens in app/globals.css: the busier the day, the stronger the green, in both themes. */
 function getColorLevel(count: number, max: number): string {
   if (count === 0) return "var(--card-border, #e5e7eb)";
   const ratio = count / max;
-  if (ratio <= 0.25) return "#bbf7d0"; // pastel-green-light
-  if (ratio <= 0.5) return "var(--pastel-green, #86efac)";
-  if (ratio <= 0.75) return "#4ade80";
-  return "#16a34a";
+  if (ratio <= 0.25) return "var(--grow-1)";
+  if (ratio <= 0.5) return "var(--grow-2)";
+  if (ratio <= 0.75) return "var(--grow-3)";
+  return "var(--grow-4)";
 }
 
 function SkeletonContent() {
@@ -54,14 +57,17 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       countMap.set(d.date, d.count);
     }
 
-    // Sort dates and figure out range
+    // Sort dates and figure out range. Every date is a calendar day, so all
+    // the math runs in UTC: read at local midnight, toISOString() gave the
+    // day before in Baghdad, so each cell showed yesterday's count and
+    // today's was never drawn.
     const sortedDates = [...days].sort((a, b) => a.date.localeCompare(b.date));
-    const startDate = new Date(sortedDates[0].date + "T00:00:00");
-    const endDate = new Date(sortedDates[sortedDates.length - 1].date + "T00:00:00");
+    const startDate = new Date(sortedDates[0].date + "T00:00:00Z");
+    const endDate = new Date(sortedDates[sortedDates.length - 1].date + "T00:00:00Z");
 
     // Align start to Sunday
     const alignedStart = new Date(startDate);
-    alignedStart.setDate(alignedStart.getDate() - alignedStart.getDay());
+    alignedStart.setUTCDate(alignedStart.getUTCDate() - alignedStart.getUTCDay());
 
     // Build grid cells
     const cells: Array<{
@@ -78,7 +84,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
 
     while (current <= endDate) {
       const dateStr = current.toISOString().slice(0, 10);
-      const dayOfWeek = current.getDay(); // row
+      const dayOfWeek = current.getUTCDay(); // row
       const diffDays = Math.floor(
         (current.getTime() - alignedStart.getTime()) / (1000 * 60 * 60 * 24)
       );
@@ -88,14 +94,14 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       if (count > mMax) mMax = count;
 
       // Track month boundaries
-      const month = current.getMonth();
+      const month = current.getUTCMonth();
       if (month !== lastMonth) {
         mLabels.push({ label: MONTH_NAMES[month], col });
         lastMonth = month;
       }
 
       cells.push({ date: dateStr, count, col, row: dayOfWeek });
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     const totalWeeks = cells.length > 0 ? cells[cells.length - 1].col + 1 : 0;
@@ -107,6 +113,14 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       monthLabels: mLabels,
     };
   }, [days]);
+
+  // The year scales to the tile's width; below MIN_WIDTH it scrolls, and it
+  // opens on the newest week rather than hiding it off the right edge.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [weeks]);
 
   const labelWidth = 34;
   const headerHeight = 20;
@@ -121,7 +135,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
           <div className="w-8 h-8 rounded-xl bg-[var(--pastel-green)]/40 flex items-center justify-center">
             <BarChart3 className="w-4 h-4 text-[var(--ink-green)]" />
           </div>
-          <h3 className="font-bold text-foreground text-sm">Platform Activity</h3>
+          <h3 className="font-bold text-foreground text-sm">Platform Activity, last 12 months</h3>
         </div>
         {/* Color scale legend */}
         <div className="flex items-center gap-1 text-xs text-foreground/70">
@@ -151,12 +165,12 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
           No activity data yet.
         </p>
       ) : (
-        <div className="overflow-x-auto -mx-2 px-2 relative">
+        <div ref={scrollRef} className="overflow-x-auto -mx-2 px-2 relative">
           <svg
-            width={svgWidth}
-            height={svgHeight}
+            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+            width="100%"
             className="block"
-            style={{ minWidth: svgWidth }}
+            style={{ minWidth: MIN_WIDTH }}
           >
             {/* Month labels */}
             {monthLabels.map((m, i) => (
@@ -222,7 +236,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               }}
             >
               <span className="font-semibold text-foreground">
-                {tooltip.count} {tooltip.count === 1 ? "action" : "actions"}
+                {formatCount(tooltip.count)} {tooltip.count === 1 ? "order" : "orders"}
               </span>
               <span className="text-foreground/70 ml-1.5">{tooltip.date}</span>
             </div>

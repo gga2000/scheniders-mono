@@ -8,15 +8,27 @@ import { updateShop } from "@/lib/shop-update";
 import { z } from "zod";
 import { PLAN_TIERS } from "@/types/admin";
 import { notAnId } from "@/lib/route-id";
+import { staffReasonSchema } from "@/lib/staff-reason";
+import { SHOP_COLUMNS } from "@/lib/shop-columns";
+import { shopHealth } from "@/lib/shop-health-score";
 
 const patchSchema = z
   .object({
     status: z.enum(["active", "trial", "limited", "suspended", "cancelled"]).optional(),
     plan: z.enum(PLAN_TIERS).optional(),
     auto_renew: z.boolean().optional(),
+    // Staff's words, kept on the staff log rows. The shop page asks for them
+    // on a hold and a plan change; the Merchants card menus (the owner's page)
+    // do not yet, so they stay optional there.
+    reason: staffReasonSchema.optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {
     message: "At least one field required",
+  })
+  // Stopping renewal ends the shop's paid months; only the shop page sends it.
+  .refine((d) => d.auto_renew !== false || d.reason, {
+    message: "Say why renewal stops.",
+    path: ["reason"],
   });
 
 /**
@@ -95,8 +107,12 @@ export async function GET(
       planLimitsResult,
       billingLock,
     ] = await Promise.all([
-      // The health score and its parts, as the list shows them.
-      supabase.from("tenants").select("*, staff_health_score, staff_health_parts").eq("id", id).single(),
+      // The health parts, as the list reads them; the score is their sum (lib/shop-health-score).
+      supabase
+        .from("tenants")
+        .select(`${SHOP_COLUMNS}, store_config_rev, staff_health_parts, is_demo`)
+        .eq("id", id)
+        .single(),
       // A shop built from a lead may have no wallet or subscription yet: no row is not an error.
       supabase.from("wallet").select("*").eq("tenant_id", id).maybeSingle(),
       supabase.from("subscriptions").select("*").eq("tenant_id", id).maybeSingle(),
@@ -149,7 +165,8 @@ export async function GET(
       if (result.error) throw result.error;
     }
 
-    const tenant = tenantResult.data;
+    const { staff_health_parts: healthParts, ...shop } = tenantResult.data;
+    const tenant = { ...shop, ...shopHealth(healthParts) };
     const stoppedBy = await readStoppedBy(supabase, id, tenant.status);
     const planLimits = (planLimitsResult.data ?? []).find(
       (p: { plan: string }) => p.plan === tenant.plan

@@ -23,11 +23,14 @@ $roles$;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
 
+-- As live: a shop's status is this enum (tenant_effective_status reads it).
+CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'limited', 'suspended', 'cancelled');
+
 CREATE TABLE public.tenants (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     business_name text NOT NULL,
     display_id bigint,
-    status text NOT NULL DEFAULT 'active',
+    status public.tenant_status NOT NULL DEFAULT 'active',
     is_demo boolean NOT NULL DEFAULT false,
     is_prospect boolean NOT NULL DEFAULT false,
     restrictions jsonb NOT NULL DEFAULT '{}'::jsonb,

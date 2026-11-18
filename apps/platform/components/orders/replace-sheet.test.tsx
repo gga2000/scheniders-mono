@@ -50,7 +50,7 @@ describe("ReplaceSheet", () => {
         fireEvent.click(createButton());
         await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
             lines: [{ index: 0, quantity: 1 }],
-            outItems: [{ productId: "p-new", name: "New perfume", price: 20000, quantity: 1 }],
+            outItems: [{ productId: "p-new", variantId: null, variantName: null, name: "New perfume", price: 20000, quantity: 1 }],
             chargeFee: true,
             note: "",
         }));

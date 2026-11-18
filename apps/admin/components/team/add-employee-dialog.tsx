@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { UserPlus, X, Loader2, Shield, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAddAdminUser } from "@/hooks/use-admin-user-mutations";
 import type { AdminRole } from "@/types/admin";
+import { ROLE_LABELS } from "@/lib/admin-access";
 
 interface AddEmployeeDialogProps {
   isOpen: boolean;
@@ -16,13 +17,13 @@ interface AddEmployeeDialogProps {
 const ROLE_OPTIONS: { value: AdminRole; label: string; hint: string; icon: typeof Shield }[] = [
   {
     value: "support_staff",
-    label: "Support staff",
+    label: ROLE_LABELS.support_staff,
     hint: "Trials, notes, support chats, view as merchant, export",
     icon: LifeBuoy,
   },
   {
     value: "super_admin",
-    label: "Super admin",
+    label: ROLE_LABELS.super_admin,
     hint: "Full control — wallets, plans, suspend, settings",
     icon: Shield,
   },
@@ -36,15 +37,16 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
   const [adminRole, setAdminRole] = useState<AdminRole>("support_staff");
   const [password, setPassword] = useState("");
 
+  // Start over when the dialog opens, and only then.
+  const resetOnOpen = useEffectEvent(() => {
+    setEmail("");
+    setDisplayName("");
+    setAdminRole("support_staff");
+    setPassword("");
+    addAdminUser.reset();
+  });
   useEffect(() => {
-    if (isOpen) {
-      setEmail("");
-      setDisplayName("");
-      setAdminRole("support_staff");
-      setPassword("");
-      addAdminUser.reset();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens; the mutation object is new every render
+    if (isOpen) resetOnOpen();
   }, [isOpen]);
 
   const handleSubmit = () => {
@@ -186,14 +188,14 @@ export function AddEmployeeDialog({ isOpen, onClose }: AddEmployeeDialogProps) {
                     type="text"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 8 chars — only for a brand-new email"
+                    placeholder="Min 8 chars"
                     autoComplete="off"
                     className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] text-[var(--foreground)] text-sm placeholder:text-[var(--muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                   />
                   <p className="text-xs text-[var(--muted)] mt-1.5 leading-snug">
-                    Leave blank to add an existing main-app user — they keep their
-                    current password. A password is required only when the email
-                    has no account yet (or to reset an existing one).
+                    Needed for a new email, and for an existing login that is not
+                    staff yet: it gets this password and every sign-in on it ends.
+                    Leave blank only to change a staff member&apos;s role.
                   </p>
                 </div>
               </div>

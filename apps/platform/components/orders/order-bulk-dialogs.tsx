@@ -88,12 +88,12 @@ export function OrderBulkDialogs({
         executeDelete,
         shipConfirmOpen,
         setShipConfirmOpen,
-        shipConfirmCompany,
         shipConfirmKey,
         handleShipExport,
         moveTransitOpen,
         setMoveTransitOpen,
         pendingTransitIds,
+        pendingTransitCourier,
         handleConfirmMoveToTransit,
         rescheduleOpen,
         setRescheduleOpen,
@@ -217,7 +217,6 @@ export function OrderBulkDialogs({
                 key={shipConfirmKey}
                 open={shipConfirmOpen}
                 onOpenChange={setShipConfirmOpen}
-                company={shipConfirmCompany}
                 orders={selectedOrders.size > 0
                     ? orders.filter(o => selectedOrders.has(o.id))
                     : filteredOrders
@@ -226,7 +225,7 @@ export function OrderBulkDialogs({
                 hasSelection={selectedOrders.size > 0}
                 ordersAreComplete={ordersAreComplete}
                 getDispatchTwin={getDispatchTwin}
-                onConfirmExport={(options) => handleShipExport(shipConfirmCompany, options)}
+                onConfirmExport={({ target, ...options }) => handleShipExport(target, options)}
             />
 
             {/* Post-export: prompt to move exported orders to In Transit */}
@@ -234,6 +233,7 @@ export function OrderBulkDialogs({
                 open={moveTransitOpen}
                 onOpenChange={setMoveTransitOpen}
                 count={pendingTransitIds.length}
+                courierName={pendingTransitCourier}
                 onConfirm={handleConfirmMoveToTransit}
             />
 

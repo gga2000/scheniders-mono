@@ -22,7 +22,8 @@ import { RecentOrdersSection } from "@/components/merchants/detail/recent-orders
 import { formatCount, formatIQD } from "@/lib/format";
 import { shopStatusLine } from "@/lib/shop-status";
 import { ShopStatus } from "@/components/merchants/detail/shop-status";
-import { isSubscriptionRunning } from "@/lib/shop-actions";
+import { isSubscriptionRunning, reactivateComeback, shopFormFrom } from "@/lib/shop-actions";
+import { trialPayment } from "@/lib/shop-status-choice";
 import { PLAN_LABELS, PLAN_TIERS, type TenantRestrictions } from "@/types/admin";
 import { CopyableText } from "@/components/shared/copyable-text";
 import { LoadError } from "@/components/shared/load-error";
@@ -55,6 +56,8 @@ export default function MerchantDetailPage() {
   const searchParams = useSearchParams();
   const { data, isLoading, isError, error, refetch, isFetching } = useMerchantDetail(id);
   const [activeTab, setActiveTab] = useState<Tab>(() => tabFrom(searchParams.get("tab")));
+  // "Top Up Wallet" or "Extend Trial" from a card's menu, or "Top Up" on Shops at risk.
+  const [startForm] = useState(() => shopFormFrom(searchParams.get("action")));
   // "Add a note" opens the Timeline with the note box ready to type in.
   const [focusNote, setFocusNote] = useState(false);
   // "View as merchant" opens the merchant's own app; the server only allows it with handle_support.
@@ -200,10 +203,13 @@ export default function MerchantDetailPage() {
           status: tenant.status,
           locked: !!data.billingLock?.locked,
           subscriptionRunning: isSubscriptionRunning(subscription?.status),
+          demo: tenant.is_demo,
         }}
         plan={tenant.plan}
         balance={wallet?.balance_iqd ?? 0}
         freeDaysFrom={tenant.status === "trial" ? tenant.trial_ends_at : (subscription?.current_period_end ?? null)}
+        comeback={reactivateComeback(trialPayment(subscription, tenant.trial_ends_at) === "never_paid", subscription?.status, tenant.plan)}
+        trialEndsAt={tenant.trial_ends_at}
         onGiveOrders={() => {
           setActiveTab("Overview");
           // The tab switch has rendered by the next frame, so the lock card is there.
@@ -217,6 +223,7 @@ export default function MerchantDetailPage() {
           setFocusNote(true);
           setActiveTab("Timeline");
         }}
+        startOpen={startForm}
       />
 
       {tenant.status === "limited" && (
@@ -249,6 +256,8 @@ export default function MerchantDetailPage() {
         {tabs.map((tab) => (
           <button
             key={tab}
+            type="button"
+            aria-pressed={activeTab === tab}
             onClick={() => {
               setFocusNote(false);
               setActiveTab(tab);
@@ -280,11 +289,14 @@ export default function MerchantDetailPage() {
       {activeTab === "Team" && <TeamTab team={team} />}
       {activeTab === "Onboarding" && (
         <OnboardingChecklist
-          tenant={tenant}
-          orderCount={orderCount}
-          teamCount={team.length}
+          facts={{
+            orders: orderCount,
+            activeMembers: team.filter((member) => member.status === "active").length,
+            branding: tenant.branding,
+            storePublishes: tenant.store_config_rev,
+            toppedUpIqd: wallet?.total_topped_up_iqd ?? 0,
+          }}
           walletBalance={wallet?.balance_iqd ?? 0}
-          hasStorefront={!!(tenant.store_config && Object.keys(tenant.store_config).length > 0)}
         />
       )}
     </div>

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 import type { FinanceSummary } from "@/lib/finance/summary";
 import { Money, formatWhole } from "./money";
 import { CARD_LINK } from "./summary-card";
@@ -13,6 +15,8 @@ interface UnpaidOrdersProps {
     orders: readonly UnpaidOrder[];
     /** Every unpaid delivered order of the period, the listed ones included. */
     total: number;
+    /** Of `total`, the orders Prime holds: the rest are at the ordinary delivery company. */
+    totalPrime: number;
 }
 
 /** The server lists at most this many: past it, the rest are only counted. */
@@ -35,7 +39,7 @@ function daysSince(day: string, now: Date): number {
  * leaves out owe nothing after the delivery fee (a free replacement), unless
  * the list is full, in which case the rest are simply not shown.
  */
-export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
+export function UnpaidOrders({ orders, total, totalPrime }: UnpaidOrdersProps) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const dayFormat = useMemo(
@@ -43,19 +47,26 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
         [language],
     );
     const [open, setOpen] = useState(false);
+    const [feeOpen, setFeeOpen] = useState(false);
     const rest = Math.max(total - orders.length, 0);
     const folds = orders.length > SHOW_ALL_UP_TO;
     const visible = folds && !open ? orders.slice(0, SHOWN_FOLDED) : orders;
     const now = new Date();
     if (orders.length === 0 && rest === 0) return null;
     const anyLate = orders.some((order) => daysSince(order.day, now) > LATE_AFTER_DAYS);
+    // The courier's fee is only known from its statement, so its rows still show the full price.
+    const anyCourier = orders.some((order) => !order.prime);
 
     const restNote =
         rest === 0
             ? null
             : orders.length >= UNPAID_LIST_CAP
               ? t("fin.money.unpaid.more", { shown: formatWhole(orders.length), n: formatWhole(rest), count: orders.length })
-              : t("fin.money.unpaid.rest", { n: formatWhole(rest), count: rest });
+              : // The ordinary delivery company's fee is unknown until its statement, so an order of its own
+                // is left off the list only when it is free; Prime's fee is known, so a cheap one can be too.
+                totalPrime - orders.filter((order) => order.prime).length > 0
+                ? t("fin.money.unpaid.rest", { n: formatWhole(rest), count: rest })
+                : t("fin.money.unpaid.restFree", { n: formatWhole(rest), count: rest });
 
     return (
         <div className="mt-2.5" data-testid="money-unpaid-list">
@@ -117,6 +128,27 @@ export function UnpaidOrders({ orders, total }: UnpaidOrdersProps) {
                 <p className="mt-2 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-rest">
                     {restNote}
                 </p>
+            )}
+            {/* Why less may come than the rows say: background, so it folds; the late and the count lines stay open. */}
+            {anyCourier && (
+                <div className="mt-2">
+                    <button
+                        type="button"
+                        className="flex items-center gap-1 text-left text-[12px] font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                        aria-expanded={feeOpen}
+                        onClick={() => setFeeOpen((was) => !was)}
+                        dir={dir}
+                        data-testid="money-unpaid-courier-fee-toggle"
+                    >
+                        <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", feeOpen && "rotate-90")} aria-hidden="true" />
+                        {t("fin.money.unpaid.courierFeeWhy")}
+                    </button>
+                    {feeOpen && (
+                        <p className="mt-1 text-left text-[12px] leading-relaxed text-muted" dir={dir} data-testid="money-unpaid-courier-fee">
+                            {t("fin.money.unpaid.courierFeeNote")}
+                        </p>
+                    )}
+                </div>
             )}
         </div>
     );

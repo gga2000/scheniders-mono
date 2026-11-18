@@ -14,13 +14,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: false,
-    include: [
-      "app/**/*.test.ts",
-      "components/**/*.test.ts",
-      "hooks/**/*.test.ts",
-      "lib/**/*.test.ts",
-      // Root-document test: renders app/layout.tsx to static markup.
-      "app/*.test.tsx",
-    ],
+    // .tsx too: a test that renders a component is picked up wherever it lives.
+    include: ["{app,components,hooks,lib,store}/**/*.test.{ts,tsx}", "middleware.test.ts", "vercel.test.ts"],
   },
 });

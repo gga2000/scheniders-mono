@@ -27,6 +27,7 @@ import {
     DropdownMenuTrigger,
 } from "@scheniders/ui/dropdown-menu";
 import { RefundOrderChip, OriginalRefundChip } from "@/components/orders/refund-chips";
+import { CourierNameChip } from "@/components/orders/card/courier-name-chip";
 
 interface MobileOrderCardProps {
     order: Order;
@@ -319,6 +320,7 @@ export const MobileOrderCard = memo(function MobileOrderCard({
                             الوسيط
                         </span>
                     )}
+                    <CourierNameChip order={order} size="mobile" />
 
                     {/* Time Stack (Time above Time Ago) */}
                     <div className="flex flex-col items-end gap-1 opacity-80 mt-1 pr-1">

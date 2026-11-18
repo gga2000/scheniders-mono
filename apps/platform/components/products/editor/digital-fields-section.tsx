@@ -125,8 +125,9 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
 
                 {/* Or paste URL */}
                 <div>
-                    <label className="block text-xs text-muted mb-1">{t("products.digital.pasteUrl")}</label>
+                    <label htmlFor="product-download-url" className="block text-xs text-muted mb-1">{t("products.digital.pasteUrl")}</label>
                     <input
+                        id="product-download-url"
                         type="url"
                         value={formData.download_url || ""}
                         onChange={(e) => updateField("download_url", e.target.value)}
@@ -138,12 +139,13 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
 
             {/* License Key Pattern */}
             <div>
-                <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                <label htmlFor="product-license-pattern" className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
                     <Key className="w-4 h-4 text-muted" />
                     {t("products.digital.licensePattern")}
                     <span className="text-xs text-muted">{t("products.digital.optional")}</span>
                 </label>
                 <input
+                    id="product-license-pattern"
                     type="text"
                     value={formData.license_key_pattern || ""}
                     onChange={(e) => updateField("license_key_pattern", e.target.value)}

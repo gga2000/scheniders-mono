@@ -3,9 +3,29 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminAction } from "@/lib/activity-logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-const ADMIN_ROLES = new Set(["super_admin", "support_staff"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** What the Add employee form sends. Empty strings read as "not given". */
+const addStaffSchema = z.object({
+  email: z
+    .string({ error: "A valid email is required" })
+    .trim()
+    .toLowerCase()
+    .regex(EMAIL_RE, { error: "A valid email is required" }),
+  adminRole: z.enum(["super_admin", "support_staff"], { error: "adminRole must be 'super_admin' or 'support_staff'" }),
+  displayName: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => v || null),
+  password: z
+    .string()
+    .nullish()
+    .transform((v) => v || null)
+    .refine((v) => v === null || v.length >= 8, { error: "Password must be at least 8 characters" }),
+});
 
 /**
  * Find an auth user's id by email. The admin API can't filter by email, so we
@@ -18,7 +38,9 @@ async function findAuthUserIdByEmail(
 ): Promise<string | null> {
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
-    if (error || !data?.users?.length) break;
+    // A failed page is not "no such login": that would try to create a second one.
+    if (error) throw error;
+    if (!data.users.length) break;
     const match = data.users.find((u) => (u.email ?? "").toLowerCase() === email);
     if (match) return match.id;
     if (data.users.length < 200) break;
@@ -70,9 +92,12 @@ export async function GET(request: NextRequest) {
 /**
  * Grant admin-console access to a person (super_admin only).
  *
- * - Existing user (matched by email) → just adds an `admin_users` row; they sign
- *   in with their EXISTING password (this is the "copy a main-app employee"
- *   case). Their main-app role is left untouched.
+ * - Existing staff (matched by email) → a role change; a password is optional
+ *   and resets theirs.
+ * - Existing login that is not staff yet → a new password is required. The
+ *   reset ends every sign-in on that login, so console access never goes to
+ *   whoever already knew its old password. Logins that sign in to a store are
+ *   refused.
  * - Brand-new email → creates an auth user (password required) plus a minimal
  *   user_profiles row with NO tenant membership (so zero main-app access), then
  *   adds the `admin_users` row.
@@ -83,42 +108,39 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const adminRole = ADMIN_ROLES.has(body.adminRole) ? (body.adminRole as string) : null;
-    const displayName = body.displayName ? String(body.displayName).trim() : null;
-    const password = body.password ? String(body.password) : null;
-
-    if (!email || !EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
+    // No body or a broken one reads as an empty form, so the reason names the first missing field.
+    const parsed = addStaffSchema.safeParse((await request.json().catch(() => null)) ?? {});
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
     }
-    if (!adminRole) {
-      return NextResponse.json(
-        { error: "adminRole must be 'super_admin' or 'support_staff'" },
-        { status: 400 },
-      );
-    }
-    if (password && password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 },
-      );
-    }
+    const { email, adminRole, displayName, password } = parsed.data;
 
     const supabase = createAdminClient();
 
-    // 1. Resolve to an existing user, preferring the cheap profile lookup.
-    const { data: existingProfile } = await supabase
+    // 1. Resolve to an existing user, preferring the cheap profile lookup. A
+    // failed lookup stops here: read as "no profile", it sent an existing
+    // login down the path for new people.
+    const { data: existingProfile, error: profileLookupErr } = await supabase
       .from("user_profiles")
       .select("id, display_name")
       // Exact match: emails are stored lower-case, and ilike treats "_" and "%"
       // as wildcards, so "john_doe@" would match a different person's "john1doe@".
       .eq("email", email)
       .maybeSingle();
+    if (profileLookupErr) throw profileLookupErr;
 
     let userId: string | null = existingProfile?.id ?? null;
     if (!userId) userId = await findAuthUserIdByEmail(supabase, email);
     const existingAccount = userId !== null;
+
+    // Your own role and password are not changed from here: another super
+    // admin does it, so nobody demotes themselves by mistake.
+    if (userId === auth.user.id) {
+      return NextResponse.json(
+        { error: "You cannot change your own access. Ask another super admin." },
+        { status: 400 },
+      );
+    }
 
     // 2. Brand-new person → create the auth user (needs a password).
     if (!userId) {
@@ -147,7 +169,7 @@ export async function POST(request: NextRequest) {
 
       // Minimal profile so actor joins / display work. role keeps its 'employee'
       // default and there's NO tenant membership → no main-app access.
-      await supabase
+      const { error: profileErr } = await supabase
         .from("user_profiles")
         .upsert(
           {
@@ -158,6 +180,12 @@ export async function POST(request: NextRequest) {
           },
           { onConflict: "id" },
         );
+      if (profileErr) {
+        return NextResponse.json(
+          { error: `The login was created, but its profile could not be saved. Add the person again. (${profileErr.message})` },
+          { status: 500 },
+        );
+      }
     } else {
       // An existing login can belong to someone other than the mailbox owner:
       // store admins create staff logins with a password they choose, and
@@ -188,10 +216,51 @@ export async function POST(request: NextRequest) {
           { status: 409 },
         );
       }
+      // Nothing proves who knows this login's password: a store may have made
+      // it, and its emails are not checked. A new password, set below before
+      // access is granted, ends every sign-in on it (the auth server logs the
+      // login out everywhere on an admin password change).
+      if (!alreadyStaff && !password) {
+        return NextResponse.json(
+          {
+            error:
+              "This email already has a login. Set a new password for it: the old one stops working and every sign-in on it ends.",
+          },
+          { status: 400 },
+        );
+      }
     }
     if (userId && existingAccount && password) {
-      // Existing user and a password was supplied → reset it as a convenience.
-      await supabase.auth.admin.updateUserById(userId, { password });
+      // Existing login and a password: reset it before access is granted (for a
+      // login that is not staff yet it was required above). A refused reset
+      // stops here: access is not granted, and the log never says a password
+      // was set when it was not.
+      const { error: resetErr } = await supabase.auth.admin.updateUserById(userId, { password });
+      if (resetErr) {
+        return NextResponse.json(
+          { error: `Could not set the new password: ${resetErr.message}` },
+          { status: resetErr.status && resetErr.status < 500 ? 400 : 500 },
+        );
+      }
+    }
+
+    // An existing login with no profile row: the first try created the login
+    // but could not save its profile, and the person was added again. Without
+    // the row their Team page answers "Could not find" and their name falls
+    // back to the email everywhere, so it is written before access is granted.
+    if (existingAccount && !existingProfile) {
+      const { error: profileErr } = await supabase
+        .from("user_profiles")
+        .upsert(
+          { id: userId, email, display_name: displayName || email.split("@")[0], is_active: true },
+          { onConflict: "id" },
+        );
+      if (profileErr) {
+        return NextResponse.json(
+          { error: `Could not save this person's profile, so access was not given. Try again. (${profileErr.message})` },
+          { status: 500 },
+        );
+      }
     }
 
     // 3. Grant admin-console access (idempotent).
@@ -232,7 +301,7 @@ export async function POST(request: NextRequest) {
 /**
  * Revoke a person's admin-console access (super_admin only). Removes only the
  * `admin_users` row — their auth account and main-app access are untouched.
- * Guards against self-removal and removing the last active super admin.
+ * Guards against self-removal here; the database keeps one active super admin.
  */
 export async function DELETE(request: NextRequest) {
   const auth = await requireAdminPermission(request, "manage_admins");
@@ -241,6 +310,11 @@ export async function DELETE(request: NextRequest) {
   const userId = new URL(request.url).searchParams.get("userId");
   if (!userId) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+  }
+  // A login id is a uuid: anything else is nobody on the staff list, not a
+  // failed read (the database refuses to compare it, which read as a 500).
+  if (!z.uuid().safeParse(userId).success) {
+    return NextResponse.json({ error: "Not an admin user" }, { status: 404 });
   }
   if (userId === auth.user.id) {
     return NextResponse.json(
@@ -251,29 +325,22 @@ export async function DELETE(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: target } = await supabase
+  // A failed read is an error, not "not an admin user".
+  const { data: target, error: readError } = await supabase
     .from("admin_users")
     .select("admin_role, email")
     .eq("user_id", userId)
     .maybeSingle();
+  if (readError) {
+    console.error("Remove admin access: reading the admin row failed", readError);
+    return NextResponse.json({ error: "Could not read this admin. Try again." }, { status: 500 });
+  }
   if (!target) {
     return NextResponse.json({ error: "Not an admin user" }, { status: 404 });
   }
 
-  if (target.admin_role === "super_admin") {
-    const { count } = await supabase
-      .from("admin_users")
-      .select("user_id", { count: "exact", head: true })
-      .eq("admin_role", "super_admin")
-      .eq("is_active", true);
-    if ((count ?? 0) <= 1) {
-      return NextResponse.json(
-        { error: "Cannot remove the last super admin" },
-        { status: 400 },
-      );
-    }
-  }
-
+  // The last active super admin cannot go: the table refuses it
+  // (admin_users_keep_a_super_admin), even when two removals run at once.
   const { error } = await supabase.from("admin_users").delete().eq("user_id", userId);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

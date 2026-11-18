@@ -48,7 +48,9 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
     const rows = useMemo(() => {
         const q = query.trim().toLowerCase();
         return products
-            .filter((p) => !p.is_archived && !p.is_supply && !p.is_filler)
+            // A product sold in sizes is counted size by size on its own page:
+            // a count here would set a number no order sells from.
+            .filter((p) => !p.is_archived && !p.is_supply && !p.is_filler && !p.stock_by_size)
             .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q))
             .sort((a, b) => Number(needsCount(b)) - Number(needsCount(a)) || a.name.localeCompare(b.name));
     }, [products, query]);

@@ -69,6 +69,16 @@ describe("GET /api/leads/analytics", () => {
     ]);
   });
 
+  it("gives no average time to become a shop while no lead has, instead of 0 days", async () => {
+    expect((await (await call()).json()).avg_time_to_convert_days).toBeNull();
+
+    stub.state.tables.leads = [
+      lead(1, { status: "converted", created_at: "2026-11-01T09:00:00Z", converted_at: "2026-11-04T09:00:00Z" }),
+      lead(2, { status: "converted", created_at: "2026-11-01T09:00:00Z", converted_at: "2026-11-06T09:00:00Z" }),
+    ];
+    expect((await (await call()).json()).avg_time_to_convert_days).toBe(4);
+  });
+
   it("reads pages in a fixed order and leaves drafts out", async () => {
     stub.state.tables.leads = [lead(1), lead(2, { is_draft: true })];
 

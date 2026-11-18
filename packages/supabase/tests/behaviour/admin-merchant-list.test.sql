@@ -24,6 +24,8 @@
 --       once at sign-up) changes nothing;
 --     * a shop whose trial ended unpaid, or whose month is unpaid, is reported
 --       locked with the reason; a paying shop and an internal shop are not;
+--       admin_locked_shops (Shops at risk) lists the same locked shops, and
+--       still lists them while staff have paused them;
 --     * a shop with no rows at all still gets a row of zeros and blanks;
 --     * a shop asked for twice comes back once; a shop not asked for never does.
 --   Merchants page header:
@@ -34,8 +36,8 @@
 --       who added the lead and the person it is assigned to;
 --     * a draft lead is not counted;
 --     * 1,500 logged actions count as 1,500;
---     * paid commissions are earned, pending ones are pending, approved ones
---       are neither;
+--     * every commission is earned; the ones not paid yet (pending or
+--       approved) are waiting, so earned minus waiting is what was paid;
 --     * a member of staff with nothing still gets a row of zeros.
 --   Search by shop number (merchant_code):
 --     * the number reads as six digits, padded when shorter and never cut when
@@ -73,7 +75,8 @@ BEGIN
     FOREACH _fn IN ARRAY ARRAY[
         'public.admin_merchant_list_stats(uuid[], timestamptz)',
         'public.admin_fees_30d(uuid[], timestamptz)',
-        'public.admin_team_counts()'
+        'public.admin_team_counts()',
+        'public.admin_locked_shops()'
     ] LOOP
         PERFORM pg_temp.check('access: anon can run ' || _fn, NOT has_function_privilege('anon', _fn, 'EXECUTE'));
         PERFORM pg_temp.check('access: authenticated can run ' || _fn, NOT has_function_privilege('authenticated', _fn, 'EXECUTE'));
@@ -235,6 +238,30 @@ BEGIN
     SELECT * INTO _r FROM public.admin_merchant_list_stats(ARRAY[_internal], _now) s;
     PERFORM pg_temp.check('internal shop: never locked', _r.lock_reason IS NULL);
 
+    -- Shops at risk: every locked shop, by the same rule as the list.
+    PERFORM pg_temp.check('locked shops: the ended trial and the unpaid month, nothing else, got '
+            || (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+                 WHERE k IN (_busy::text, _quiet::text, _trial::text, _unpaid::text, _internal::text, _other::text))::text,
+        (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+          WHERE k IN (_busy::text, _quiet::text, _trial::text, _unpaid::text, _internal::text, _other::text))
+        = jsonb_build_object(_trial::text, 'trial_ended', _unpaid::text, 'unpaid'));
+
+    -- A staff pause is not a billing state (20261117102504): paused, the
+    -- ended trial and the unpaid month are still locked and still listed.
+    UPDATE public.tenants
+       SET restrictions = jsonb_build_object('new_orders', false, 'status_before', status::text),
+           status = 'limited'
+     WHERE id IN (_trial, _unpaid);
+    PERFORM pg_temp.check('locked shops: a paused locked shop drops off Shops at risk, got '
+            || coalesce((SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+                          WHERE k IN (_trial::text, _unpaid::text))::text, 'none'),
+        (SELECT jsonb_object_agg(k, v) FROM jsonb_each_text(public.admin_locked_shops()) e (k, v)
+          WHERE k IN (_trial::text, _unpaid::text))
+        = jsonb_build_object(_trial::text, 'trial_ended', _unpaid::text, 'unpaid'));
+    UPDATE public.tenants
+       SET status = (restrictions ->> 'status_before')::public.tenant_status, restrictions = '{}'
+     WHERE id IN (_trial, _unpaid);
+
     -- Page header: one number for a set of shops ----------------------------------
     PERFORM pg_temp.check('header: fees of the shops asked for are 9,085, got '
             || public.admin_fees_30d(ARRAY[_busy, _quiet, _trial], _now),
@@ -298,9 +325,14 @@ BEGIN
         -- Someone who is no longer staff.
         ('converted', _gone, _gone, _shop, false);
 
-    INSERT INTO public.admin_employee_tracking (admin_user_id, action)
-    SELECT _sara, 'tt action' FROM generate_series(1, 1500);
-    INSERT INTO public.admin_employee_tracking (admin_user_id, action) VALUES (_omar, 'tt action'), (_gone, 'tt action');
+    -- The staff log: 1,500 steps by Sara, one by Omar, one by someone gone.
+    INSERT INTO public.admin_activity_logs (admin_user_id, action)
+    SELECT _sara, 'extend_trial' FROM generate_series(1, 1500);
+    INSERT INTO public.admin_activity_logs (admin_user_id, action) VALUES (_omar, 'top_up_wallet'), (_gone, 'top_up_wallet');
+    -- Not Sara's own steps: a note that names her, and the end of a visit already counted.
+    INSERT INTO public.admin_activity_logs (admin_user_id, action) VALUES (_sara, 'mention_in_note'), (_sara, 'support_view_end');
+    -- The old table nothing writes is not read any more.
+    INSERT INTO public.admin_employee_tracking (admin_user_id, action) VALUES (_new, 'tt action');
 
     INSERT INTO public.admin_employee_commissions (admin_user_id, period_start, period_end, amount_earned, status) VALUES
         (_omar, '2026-10-01', '2026-10-31', 25000, 'paid'),
@@ -313,16 +345,17 @@ BEGIN
     PERFORM pg_temp.check('team: Sara added 3, converted 1, built 2, got '
             || _r.leads_added || '/' || _r.leads_converted || '/' || _r.stores_built,
         _r.leads_added = 3 AND _r.leads_converted = 1 AND _r.stores_built = 2);
-    PERFORM pg_temp.check('team: Sara has 1,500 actions, got ' || _r.total_actions, _r.total_actions = 1500);
+    PERFORM pg_temp.check('team: Sara has 1,500 actions from the staff log, got ' || _r.total_actions, _r.total_actions = 1500);
     PERFORM pg_temp.check('team: Sara has no commission', _r.commission_earned = 0 AND _r.commission_pending = 0);
 
     SELECT * INTO _r FROM public.admin_team_counts() c WHERE c.user_id = _omar;
     PERFORM pg_temp.check('team: Omar added 1, converted 1, built 1, got '
             || _r.leads_added || '/' || _r.leads_converted || '/' || _r.stores_built,
         _r.leads_added = 1 AND _r.leads_converted = 1 AND _r.stores_built = 1);
-    PERFORM pg_temp.check('team: Omar earned 40,000 and has 8,000 pending, got '
+    -- Paid 40,000, pending 8,000, approved 3,000: earned 51,000, waiting 11,000, paid 51,000 - 11,000.
+    PERFORM pg_temp.check('team: Omar earned 51,000 and has 11,000 waiting, got '
             || _r.commission_earned || '/' || _r.commission_pending,
-        _r.commission_earned = 40000 AND _r.commission_pending = 8000 AND _r.total_actions = 1);
+        _r.commission_earned = 51000 AND _r.commission_pending = 11000 AND _r.total_actions = 1);
 
     SELECT * INTO _r FROM public.admin_team_counts() c WHERE c.user_id = _new;
     PERFORM pg_temp.check('team: someone with nothing has no row', FOUND);

@@ -73,6 +73,11 @@ export interface Product {
     feature_cards?: ProductFeatureCard[] | null;
     // Computed fields (not in DB)
     variants?: ProductVariant[];
+    /**
+     * Sold in sizes: stock, reserved and open-box are the sum of the enabled
+     * sizes (lib/products/size-stock.ts), and stock is changed per size.
+     */
+    stock_by_size?: boolean;
     /** Primary supplier first. Loaded by the list query; the Supplies tab and reorder drawer read it. */
     suppliers?: ProductSupplier[];
     times_sold?: number;

@@ -19,6 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useLeadDetail } from "@/hooks/use-lead-detail";
 import { loadFailureKind } from "@/lib/load-failure";
+import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { LEAD_GONE } from "@/lib/lead-update";
 import {
   LEAD_STATUS_CONFIG,
   LEAD_PRIORITY_CONFIG,
@@ -36,10 +38,9 @@ import { LeadFollowUpList } from "@/components/leads/lead-follow-up-list";
 import { QuickNoteSheet } from "@/components/leads/mobile/quick-note-sheet";
 import { AdvanceStageSheet } from "@/components/leads/mobile/advance-stage-sheet";
 import { LeadRegisterSheet } from "@/components/leads/mobile/lead-register-sheet";
-import { leadToFormData } from "@/components/leads/lead-form-data";
+import { leadToFormData, listsAsOpened } from "@/components/leads/lead-form-data";
 import { leadPhone, toIntlIraqi } from "@/components/leads/lead-phone";
 import { useUpdateLead } from "@/hooks/use-lead-mutations";
-import type { LeadFormData } from "@/types/leads";
 
 // ── Tabs ─────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ type Tab = (typeof tabs)[number];
 
 export function LeadMobileDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, isError, error } = useLeadDetail(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = useLeadDetail(id);
   const [tab, setTab] = useState<Tab>("Overview");
   const [noteOpen, setNoteOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
@@ -67,8 +68,10 @@ export function LeadMobileDetail() {
   }
 
   // Error
-  // A lead that does not exist (404) falls through to "not found" below.
-  if (isError && loadFailureKind(error) !== "missing") {
+  // A lead that does not exist (404) falls through to "not found" below. A
+  // failed read again (after a save, or a colleague's clash) keeps the lead
+  // and any open form on screen, with a line that says so.
+  if (isError && !data && loadFailureKind(error) !== "missing") {
     return (
       <div className="p-4 space-y-4">
         <Link
@@ -126,6 +129,15 @@ export function LeadMobileDetail() {
         <ArrowLeft className="w-4 h-4" />
         Back
       </Link>
+      {isError && (
+        <LoadFailedLine
+          what="this lead again"
+          error={error}
+          gone={LEAD_GONE}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+        />
+      )}
 
       {/* ── Header Card ───────────────────────────────────────────── */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5">
@@ -135,7 +147,7 @@ export function LeadMobileDetail() {
             {lead.merchant_name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-[var(--foreground)] truncate">
+            <h1 className="text-xl font-bold text-[var(--foreground)] truncate name-dir">
               {lead.merchant_name}
             </h1>
             {lead.management_name && (
@@ -267,7 +279,7 @@ export function LeadMobileDetail() {
         <button
           onClick={() => {
             if (intl) {
-              window.open(`https://wa.me/${intl}`, "_blank");
+              window.open(`https://wa.me/${intl}`, "_blank", "noopener,noreferrer");
             } else {
               toast.info("No WhatsApp number on file");
             }
@@ -302,13 +314,12 @@ export function LeadMobileDetail() {
         open={editOpen}
         onOpenChange={setEditOpen}
         initialData={leadToFormData(lead)}
-        onSubmit={(formData: LeadFormData) =>
-          new Promise<boolean>((resolve) => {
-            updateLead.mutate(
-              { id: lead.id, data: formData },
-              { onSuccess: () => resolve(true), onError: () => resolve(false) },
-            );
-          })
+        onSubmit={(_, changes, opened) =>
+          // Only the fields this person changed: a colleague's edit since the form opened stays.
+          // A list is sent whole, so it goes with the copy it was changed from.
+          Object.keys(changes).length === 0
+            ? Promise.resolve("unchanged" as const)
+            : updateLead.mutateAsync({ id: lead.id, data: changes, was: listsAsOpened(opened, changes) }).then(() => true)
         }
       />
       <QuickNoteSheet

@@ -94,9 +94,32 @@ describe("POST /api/merchants/[id]/pause", () => {
   });
 
   it("answers 404 for a shop that does not exist, and logs nothing", async () => {
+    stub.state.tables.tenants = [];
     stub.state.functions.pause_tenant = () => ({ data: [], error: null });
 
     expect((await call()).status).toBe(404);
+    expect(logAdminActivity).not.toHaveBeenCalled();
+  });
+
+  // The database never pauses the demo store (Fermi B13): it answers no row.
+  // The route used to say "Merchant not found" for it, and before the database
+  // refused, a pause stopped the store a merchant was being shown from taking orders.
+  it("says the demo store is not paused, and logs nothing", async () => {
+    stub.state.tables.tenants = [{ id: SHOP, is_demo: true }];
+    stub.state.functions.pause_tenant = () => ({ data: [], error: null });
+
+    const res = await call();
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "This is the demo store. Its status does not change." });
+    expect(logAdminActivity).not.toHaveBeenCalled();
+  });
+
+  it("does not call an unpaused shop paused when the database wrote nothing", async () => {
+    stub.state.tables.tenants = [{ id: SHOP, is_demo: false }];
+    stub.state.functions.pause_tenant = () => ({ data: [], error: null });
+
+    expect((await call()).status).toBe(500);
     expect(logAdminActivity).not.toHaveBeenCalled();
   });
 

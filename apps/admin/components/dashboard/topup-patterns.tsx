@@ -57,7 +57,7 @@ export function TopUpPatterns({ patterns }: TopUpPatternsProps) {
         <div className="w-8 h-8 rounded-xl bg-[var(--pastel-blue)]/40 flex items-center justify-center">
           <Wallet className="w-4 h-4 text-[var(--ink-blue)]" />
         </div>
-        <h3 className="font-bold text-foreground text-sm">Top-Up Patterns</h3>
+        <h3 className="font-bold text-foreground text-sm">Top-Up Patterns, last 90 days</h3>
       </div>
 
       {!patterns ? (

@@ -102,7 +102,8 @@ export const LEAD_TIER_CONFIG: Record<LeadTier, { label: string; minFollowers: n
 export const LEAD_TIER_UI: Record<LeadTier, UiHue> = {
   bronze: uiHue("orange"),
   silver: uiHue("slate"),
-  gold: uiHue("amber"),
+  // Yellow, not amber: amber and Bronze's orange read as one colour.
+  gold: uiHue("yellow"),
   diamond: uiHue("cyan"),
   legendary: uiHue("fuchsia"),
 };
@@ -123,11 +124,14 @@ export const PLATFORM_CONFIG: Record<LeadSourcePlatform, { label: string; icon: 
 
 // ── Pipeline flow (valid transitions) ───────────────────────────────────
 
+// Moves a person can make by hand (the board and the phone "Move" sheet).
+// "converted" is never one: it comes only from Convert, which links the store
+// and records who closed it; the server refuses it as a plain status change.
 export const LEAD_STATUS_FLOW: Record<LeadStatus, LeadStatus[]> = {
   new: ["contacted", "lost"],
   contacted: ["interested", "lost"],
-  interested: ["store_built", "converted", "lost"],
-  store_built: ["converted", "lost"],
+  interested: ["store_built", "lost"],
+  store_built: ["lost"],
   converted: [],
   lost: ["new"],
 };
@@ -220,6 +224,8 @@ export interface Lead {
   assigned_at: string | null;
 
   prospect_tenant_id: string | null;
+  /** The prospect store's name and web address part; only the single-lead read has them. */
+  prospect_tenant?: { slug: string; business_name: string } | null;
   store_built_at: string | null;
 
   converted_tenant_id: string | null;
@@ -296,17 +302,6 @@ export interface LeadCompetitor {
   competitor_tenant?: { id: string; business_name: string; slug: string } | null;
 }
 
-export interface OutreachTemplate {
-  id: string;
-  name: string;
-  stage: LeadStatus;
-  message_template: string;
-  is_active: boolean;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 // ── Team & Commission Types ─────────────────────────────────────────────
 
 export interface AdminEmployee {
@@ -327,15 +322,15 @@ export interface AdminEmployee {
   achievements: string[];
 }
 
-export interface AdminEmployeeTracking {
+/** One step a member of staff took, from the staff log (lib/staff-actions.ts). */
+export interface StaffAction {
   id: string;
-  admin_user_id: string;
   action: string;
-  entity_type: string | null;
-  entity_id: string | null;
-  metadata: Record<string, unknown>;
+  /** What the step did, in plain words. */
+  text: string;
+  /** The shop it was about; the name is null when the shop is gone. */
+  shop: { id: string; name: string | null } | null;
   created_at: string;
-  admin_user?: { display_name: string | null; email: string; avatar_url: string | null } | null;
 }
 
 export interface CommissionConfig {
@@ -401,7 +396,8 @@ export interface LeadAnalytics {
   by_tier: Record<LeadTier, number>;
   by_industry: { industry_name: string; count: number }[];
   conversion_rate: number;
-  avg_time_to_convert_days: number;
+  /** Whole days; null while no lead has become a shop. */
+  avg_time_to_convert_days: number | null;
   total_estimated_revenue: number;
   top_employees: {
     user_id: string;
@@ -456,17 +452,4 @@ export interface LeadFormData {
   tags: string[];
   source_campaign: string;
   source_medium: string;
-}
-
-export interface LeadFilters {
-  status: LeadStatus | null;
-  platform: LeadSourcePlatform | null;
-  priority: LeadPriority | null;
-  tier: LeadTier | null;
-  industry_id: string | null;
-  assigned_to: string | null;
-  has_store: boolean | null;
-  score_min: number | null;
-  score_max: number | null;
-  search: string;
 }

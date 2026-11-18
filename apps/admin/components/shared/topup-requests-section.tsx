@@ -8,6 +8,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { TOPUP_QUEUE_KEY, topupQueueItemSchema, topupWarnings, type TopupQueueItem } from "@/lib/topup-queue";
 import { formatIQD, formatWhen } from "@/lib/format";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 const responseSchema = z.object({ requests: z.array(topupQueueItemSchema) });
 
@@ -18,6 +19,8 @@ const METHOD_LABEL: Record<TopupQueueItem["method"], string> = { zain_cash: "Zai
 export function useTopupRequests() {
   return useQuery({
     queryKey: TOPUP_QUEUE_KEY,
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async (): Promise<TopupQueueItem[]> => {
       const res = okOrLoadFailure(await adminFetch("/api/wallet-topup-requests"), "the payments");
       return responseSchema.parse(await res.json()).requests;
@@ -48,7 +51,7 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
           <Link key={req.id} href="/payments" className="flex items-start gap-3 px-4 py-3 hover:bg-foreground/[0.03]">
             <span className="mt-0.5 text-[var(--ink-green)]"><Wallet className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{req.business_name ?? req.tenant_id}</p>
+              <p className="text-xs font-medium text-foreground truncate name-dir">{req.business_name ?? req.tenant_id}</p>
               <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
                 {formatIQD(req.amount_iqd)} by {METHOD_LABEL[req.method]}
               </p>

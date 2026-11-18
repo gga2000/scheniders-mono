@@ -1,4 +1,3 @@
-import type { PlanTier } from "./admin";
 
 // ─── KPI Stats ──────────────────────────────────────────────────────────────
 export interface KpiData {
@@ -36,6 +35,13 @@ export interface GeoStats {
   governorateCode: string;
   orderCount: number;
   revenue: number;
+}
+
+/** Last 90 days: orders made and shop sales earned, by the governorate they went to. */
+export interface GeoDistribution {
+  governorates: GeoStats[];
+  /** Orders whose place the console cannot tell: no governorate code, and a city it cannot read. */
+  unknown: { orderCount: number; revenue: number };
 }
 
 // ─── Peak Hours Heatmap ─────────────────────────────────────────────────────
@@ -98,10 +104,12 @@ export interface RevenueBreakdown {
 
 // ─── Plan Movement ──────────────────────────────────────────────────────────
 export interface PlanMovement {
-  fromPlan: PlanTier | "new" | "cancelled";
-  toPlan: PlanTier | "cancelled";
+  /** Plan names as the database writes them (any of the plan_tier values), or "cancelled". */
+  fromPlan: string;
+  toPlan: string;
   count: number;
-  type: "upgrade" | "downgrade" | "cancellation" | "new";
+  /** "waiting": a change set for the next payment, not made yet. */
+  type: "upgrade" | "downgrade" | "cancellation" | "new" | "waiting";
 }
 
 // ─── Top-Up Patterns ────────────────────────────────────────────────────────
@@ -174,7 +182,7 @@ export interface DashboardV2Stats {
   // Widgets
   pipeline: PipelineStage[];
   topMerchants: LeaderboardEntry[];
-  geoStats: GeoStats[];
+  geoStats: GeoDistribution;
   peakHours: HeatmapCell[];
   funnel: FunnelStep[];
   growth: GrowthMetric[];

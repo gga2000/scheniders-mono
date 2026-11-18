@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
@@ -20,6 +21,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.50.1",
     "@tanstack/react-query": "^5.90.16",
+    "@tanstack/react-virtual": "^3.13.23",
     "@vercel/analytics": "^2.0.1",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
@@ -34,12 +36,15 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@playwright/test": "1.59.1",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.1",
+    "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

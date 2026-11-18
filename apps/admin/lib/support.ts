@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { countLine } from "@/lib/load-failure";
+import { lockReasonWords } from "@/lib/billing-lock-label";
 
 /**
  * Merchant support cases as the staff console sees them. The tables
@@ -34,6 +36,16 @@ export const SUPPORT_REASON_LABELS: Record<SupportReason, string> = {
   other: "Other",
 };
 
+/** Why a merchant said the answer did not solve it (support_cases.no_reason). */
+export const SUPPORT_NO_REASONS = ["still_broken", "unclear", "too_slow"] as const;
+export type SupportNoReason = (typeof SUPPORT_NO_REASONS)[number];
+
+export const SUPPORT_NO_REASON_LABELS: Record<SupportNoReason, string> = {
+  still_broken: "Still not working",
+  unclear: "The answer was unclear",
+  too_slow: "We took too long",
+};
+
 export type SupportStatus = "waiting_us" | "waiting_merchant" | "solved";
 
 export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
@@ -42,17 +54,28 @@ export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
   solved: "Solved",
 };
 
+/** The longest staff note, and the longest note that goes with a hand-over. */
+export const NOTE_MAX_LENGTH = 2000;
+
 export const CaseActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("reply"), body: z.string().trim().min(1).max(4000) }),
   z.object({ action: z.literal("solve"), reason: z.enum(SUPPORT_REASONS) }),
   z.object({ action: z.literal("assign") }),
+  /** Staff have the conversation open: the merchant sees "Seen by <name>". */
+  z.object({ action: z.literal("seen") }),
+  z.object({ action: z.literal("note"), body: z.string().trim().min(1).max(NOTE_MAX_LENGTH) }),
+  z.object({
+    action: z.literal("hand_over"),
+    toAdminId: z.string().uuid(),
+    note: z.string().trim().max(NOTE_MAX_LENGTH).optional(),
+  }),
 ]);
 
 export type CaseAction = z.infer<typeof CaseActionSchema>;
 
 /** The `support_cases` columns (plus the shop) every list and detail read selects. */
 export const SUPPORT_CASE_COLUMNS =
-  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, created_at, tenants(business_name, display_id, plan, status)";
+  "id, tenant_id, opened_by_name, status, owner_admin_id, owner_name, reason, first_reply_at, waiting_since, solved_at, rating, reopened_count, last_message_at, last_message_preview, last_sender_kind, started_by, no_reason, created_at, tenants(business_name, display_id, plan, status)";
 
 export interface SupportCaseShop {
   business_name: string;
@@ -73,6 +96,8 @@ export interface SupportCaseRow {
   waiting_since: string | null;
   solved_at: string | null;
   rating: "yes" | "no" | null;
+  /** The latest reason the merchant gave for a No; it stays after a new solve. */
+  no_reason: SupportNoReason | null;
   reopened_count: number;
   last_message_at: string;
   last_message_preview: string;
@@ -113,6 +138,46 @@ export interface SupportMessageRow {
   voice_url: string | null;
 }
 
+/**
+ * A line only staff see inside a conversation (`support_case_notes`): a note,
+ * or a hand-over to a teammate with an optional note. The merchant's Help chat
+ * never reads this table.
+ */
+export interface SupportCaseNote {
+  id: string;
+  kind: "note" | "handover";
+  admin_name: string;
+  body: string | null;
+  to_name: string | null;
+  created_at: string;
+}
+
+export const SUPPORT_CASE_NOTE_COLUMNS = "id, kind, admin_name, body, to_name, created_at";
+
+/** A teammate a conversation can be handed to. */
+export interface SupportTeammate {
+  id: string;
+  name: string;
+  isMe: boolean;
+}
+
+/** One timeline for the conversation: messages and staff notes, oldest first. */
+export type SupportTimelineItem =
+  | { type: "message"; at: string; message: SupportMessageRow }
+  | { type: "note"; at: string; note: SupportCaseNote };
+
+export function supportTimeline(messages: SupportMessageRow[], notes: SupportCaseNote[]): SupportTimelineItem[] {
+  const items: SupportTimelineItem[] = [
+    ...messages.map((message): SupportTimelineItem => ({ type: "message", at: message.created_at, message })),
+    ...notes.map((note): SupportTimelineItem => ({ type: "note", at: note.created_at, note })),
+  ];
+  // Stable: a message and a note at the same moment keep messages first.
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => Date.parse(a.item.at) - Date.parse(b.item.at) || a.index - b.index)
+    .map(({ item }) => item);
+}
+
 export interface SupportShopCard {
   tenant: {
     id: string;
@@ -120,6 +185,8 @@ export interface SupportShopCard {
     display_id: number | null;
     plan: string;
     status: string;
+    /** The pause, if any: a paused trial is still a trial (lib/effective-status). */
+    restrictions: unknown;
     city: string | null;
     contact_phone: string | null;
     trial_ends_at: string | null;
@@ -143,9 +210,19 @@ export interface SupportCasesResponse {
   waitingOnUs: number;
 }
 
+/** The Support header line. "No merchant is waiting" over a failed read would send staff away from a full inbox. */
+export function waitingOnUsLine(read: { count: number | undefined; isError: boolean }): string {
+  return countLine(read, {
+    loading: "Loading...",
+    failed: "Could not check who is waiting on us",
+    counted: (n) => (n === 0 ? "No merchant is waiting on us." : `${n} merchant${n === 1 ? "" : "s"} waiting on us`),
+  });
+}
+
 export interface SupportCaseDetailResponse {
   case: SupportCaseRow;
   messages: SupportMessageRow[];
+  notes: SupportCaseNote[];
   shop: SupportShopCard;
 }
 
@@ -164,6 +241,10 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   support_bad_outcome: { status: 400, error: "Pick done, no answer or later." },
   support_notice_bad_body: { status: 400, error: "A notice needs a text of up to 300 letters." },
   support_notice_bad_hours: { status: 400, error: "A notice runs for 1 to 72 hours." },
+  support_note_bad_body: { status: 400, error: "A note needs a text of up to 2,000 letters." },
+  support_handover_bad_target: { status: 400, error: "Pick a teammate who answers support." },
+  support_empty_name: { status: 400, error: "Your console name is empty. Set a name first." },
+  support_handover_same_owner: { status: 409, error: "This teammate already owns the conversation." },
 };
 
 export function supportRefusal(error: { code?: string; message?: string } | null):
@@ -215,8 +296,6 @@ export const StaffPushSubscriptionSchema = z.object({
 export const StaffPushRemoveSchema = z.object({
   endpoint: z.string().url().max(2000),
 });
-
-export type StaffPushSubscription = z.infer<typeof StaffPushSubscriptionSchema>;
 
 export const SUPPORT_SHOT_BUCKET = "support-shots";
 export const SUPPORT_VOICE_BUCKET = "support-voice";
@@ -305,6 +384,7 @@ export const SupportScoreboardSchema = z.object({
   rated_no: count,
   reopened: count,
   reasons: z.array(z.object({ reason: z.enum(SUPPORT_REASONS), count })),
+  no_reasons: z.array(z.object({ reason: z.enum(SUPPORT_NO_REASONS), count })),
   by_staff: z.array(z.object({ name: z.string(), solved: count, rated_yes: count, rated_no: count })),
   waiting_now: count,
   oldest_wait_s: seconds,
@@ -359,9 +439,14 @@ export const SHOP_PROBLEM_LABELS: Record<ShopProblemCode, string> = {
   trial_ending: "Trial ends soon",
 };
 
-/** The first lines staff can send, in the merchant's Arabic; they edit before sending. */
+/**
+ * The first lines staff can send, in the merchant's Arabic; they edit before
+ * sending. Only staff pause a store (super admin, on the shop page), and a
+ * pause may leave new orders on, so the store_paused line says we paused it
+ * and nothing about orders (words agreed with support, 17 Nov).
+ */
 export const SHOP_PROBLEM_OPENERS: Record<ShopProblemCode, string> = {
-  store_paused: "هلا، لاحظنا أن متجرك متوقف حالياً وما يستقبل طلبات جديدة. نكدر نساعدك ترجعه يشتغل؟",
+  store_paused: "هلا، متجرك موقوف مؤقتاً من طرفنا. خلّينا نحجي عنه ونشوف شنو نحتاج حتى نرفع الإيقاف.",
   billing_locked: "هلا، لاحظنا أن متجرك مقفل بسبب الاشتراك. إذا تحتاج مساعدة بالدفع أو عندك سؤال، احنا هنا.",
   wallet_empty: "هلا، رصيد محفظتك خلص، فالطلبات الجديدة راح تتوقف. تحب نساعدك بالتعبئة؟",
   whatsapp_paused: "هلا، رسائل الواتساب لزبائنك متوقفة لأن أغلبها ما وصل. خلي نرتبها سوا حتى ترجع توصل.",
@@ -397,6 +482,12 @@ export const StartConversationSchema = z.object({
 
 export type StartConversation = z.infer<typeof StartConversationSchema>;
 
+/** Why WhatsApp sending is paused, in the WhatsApp page's words. */
+const WHATSAPP_PAUSE_WORDS: ReadonlyMap<string, string> = new Map([
+  ["failures", "failures"],
+  ["staff", "by staff"],
+]);
+
 /** What a problem's detail means in words, when there is one worth showing. */
 export function problemDetail(code: ShopProblemCode, detail: string | null): string | null {
   if (detail === null || detail.trim() === "") return null;
@@ -407,14 +498,32 @@ export function problemDetail(code: ShopProblemCode, detail: string | null): str
       return `none in 48 h, ${detail} in the 2 weeks before`;
     case "wallet_empty":
       return `${Number(detail).toLocaleString("en-US")} IQD`;
+    case "billing_locked":
+      return lockReasonWords(detail);
+    case "whatsapp_paused":
+      return WHATSAPP_PAUSE_WORDS.get(detail) ?? detail;
     default:
       return detail;
   }
 }
 
+type ShopProblem = NeedsUsShop["problems"][number];
+
 /** The problem to open with: the first by SHOP_PROBLEMS order (the store being down comes before a trial ending). */
-export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblemCode {
-  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0].code;
+export function leadProblem(problems: NeedsUsShop["problems"]): ShopProblem {
+  return [...problems].sort((a, b) => SHOP_PROBLEMS.indexOf(a.code) - SHOP_PROBLEMS.indexOf(b.code))[0];
+}
+
+/** Said when staff paused a shop's WhatsApp: its messages did not fail. */
+const WHATSAPP_PAUSED_BY_STAFF = "هلا، رسائل الواتساب لزبائنك متوقفة حالياً من طرفنا. خلّينا نحجي حتى نرجّعها.";
+
+/**
+ * The first line staff can send about a problem. A WhatsApp pause staff made
+ * (detail "staff") has its own line; the usual one says most messages failed.
+ */
+export function problemOpener(problem: Pick<ShopProblem, "code" | "detail">): string {
+  if (problem.code === "whatsapp_paused" && problem.detail === "staff") return WHATSAPP_PAUSED_BY_STAFF;
+  return SHOP_PROBLEM_OPENERS[problem.code];
 }
 
 /** "3 h ago", "2 d ago"; "just now" under a minute. */
@@ -437,6 +546,17 @@ export const SUPPORT_TASK_LABELS: Record<SupportTaskKind, { title: string; hint:
   trial_end: { title: "Before the trial ends", hint: "A day before. Answer questions about the plans." },
   call_back: { title: "Call back", hint: "The merchant asked for a call from the Help chat. Call the number below." },
 };
+
+/** A call-back the merchant asked for from the setup wizard: «تريد نساعدك بالإعداد؟» (Fermi B11). */
+export const SETUP_HELP_LABEL = {
+  title: "Setup help",
+  hint: "A new shop asked for free help setting up. Call, then set up the store with them.",
+};
+
+/** What the Today row says a task is: a setup-help call reads as its own kind. */
+export function taskLabel(task: Pick<SupportTask, "kind" | "topic">): { title: string; hint: string } {
+  return task.topic === "setup" ? SETUP_HELP_LABEL : SUPPORT_TASK_LABELS[task.kind];
+}
 
 export const CALL_OUTCOMES = ["done", "no_answer", "later"] as const;
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
@@ -464,6 +584,8 @@ const callSchema = z.object({
 export const SupportTaskSchema = z.object({
   id: z.string().uuid(),
   kind: z.enum(SUPPORT_TASK_KINDS),
+  /** Only on call-backs: "setup" when asked from the setup wizard. */
+  topic: z.enum(["setup"]).nullable(),
   due_at: z.string(),
   attempts: z.number().int().min(0),
   /** Only on call-backs: the number the merchant left, 07XXXXXXXXX. */

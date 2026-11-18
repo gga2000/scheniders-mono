@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  alreadyDecidedText,
   amountStillOwed,
   EMPTY_PAYMENT_DETAILS,
+  lockedChip,
   paymentDetailsSchema,
   readPaymentDetails,
   receiptKind,
@@ -26,6 +28,40 @@ describe("amountStillOwed", () => {
   it("is zero for a shop that is not locked, whatever its wallet", () => {
     expect(amountStillOwed({ billing: { ...billing, locked: false, reason: null }, balance_iqd: -5000 })).toBe(0);
     expect(amountStillOwed({ billing: null, balance_iqd: 0 })).toBe(0);
+  });
+});
+
+describe("lockedChip", () => {
+  const billing = { locked: true, reason: "unpaid" as const, plan: "basic", price_iqd: 9000 };
+
+  it("says what still opens a locked shop, or that this payment does", () => {
+    expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "active" })).toBe("Locked: month not paid · needs 7,800 IQD to open");
+    expect(lockedChip({ billing: { ...billing, reason: "trial_ended" }, balance_iqd: 9000, tenant_status: "trial" })).toBe(
+      "Locked: trial ended, not paid · this payment opens it",
+    );
+  });
+
+  it("does not promise a paused shop opens with the money: it opens once the pause lifts", () => {
+    expect(lockedChip({ billing, balance_iqd: 9000, tenant_status: "limited" })).toBe(
+      "Locked: month not paid · paused, opens once the pause lifts",
+    );
+  });
+
+  it("says what a paused shop that is short still needs before the pause lifts", () => {
+    expect(lockedChip({ billing, balance_iqd: 1200, tenant_status: "limited" })).toBe(
+      "Locked: month not paid · paused; needs 7,800 IQD, then opens once the pause lifts",
+    );
+  });
+
+  it("says Locked without a reason rather than guess one", () => {
+    expect(lockedChip({ billing: { ...billing, reason: null }, balance_iqd: 9000, tenant_status: "active" })).toBe(
+      "Locked · this payment opens it",
+    );
+  });
+
+  it("is nothing for a shop that is not locked", () => {
+    expect(lockedChip({ billing: { ...billing, locked: false, reason: null }, balance_iqd: 0, tenant_status: "limited" })).toBeNull();
+    expect(lockedChip({ billing: null, balance_iqd: 0, tenant_status: "active" })).toBeNull();
   });
 });
 
@@ -116,5 +152,21 @@ describe("payment details", () => {
     expect(readPaymentDetails(null)).toEqual(EMPTY_PAYMENT_DETAILS);
     expect(readPaymentDetails("text")).toEqual(EMPTY_PAYMENT_DETAILS);
     expect(readPaymentDetails({ qi_card: " 77 ", zain_cash: 123 })).toEqual({ ...EMPTY_PAYMENT_DETAILS, qi_card: "77" });
+  });
+});
+
+describe("alreadyDecidedText", () => {
+  it("says how the receipt was decided before this click", () => {
+    expect(alreadyDecidedText({ error: "Request already decided", outcome: "approved" })).toBe(
+      "This receipt was already approved, so your decision changed nothing.",
+    );
+    expect(alreadyDecidedText({ error: "Request already decided", outcome: "rejected" })).toBe(
+      "This receipt was already refused, so your decision changed nothing.",
+    );
+  });
+
+  it("still says it was decided when the answer does not say how", () => {
+    expect(alreadyDecidedText(null)).toBe("This receipt was already decided, so your decision changed nothing.");
+    expect(alreadyDecidedText({ outcome: "lost" })).toBe("This receipt was already decided, so your decision changed nothing.");
   });
 });

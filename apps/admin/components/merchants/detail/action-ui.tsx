@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /*
  * The parts every shop action panel shares: a title, a row of choices, the
@@ -83,7 +84,7 @@ export function ErrorLine({ error }: { error: Error | null }) {
 
 /** Posts JSON and throws the API's own error message when it refuses. */
 export async function postJson(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<unknown> {
-  const res = await fetch(url, {
+  const res = await adminFetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

@@ -17,7 +17,13 @@ interface ProductInventorySectionProps {
 export function ProductInventorySection({ formData, updateField, reservedQuantity = 0 }: ProductInventorySectionProps) {
     const { t } = useLanguage();
     const textDir = useTextDir();
-    const available = formData.stock_quantity - reservedQuantity;
+    // A product sold in sizes keeps its stock on its sizes (B10): the field
+    // shows their total as the sizes table changes, and is not typed into,
+    // since a number here would move nothing an order sells from.
+    const sizes = formData.variants.filter((v) => v.is_enabled !== false);
+    const bySize = sizes.length > 0;
+    const stock = bySize ? sizes.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) : formData.stock_quantity;
+    const available = stock - reservedQuantity;
     const isLowStock = available > 0 && available <= formData.low_stock_threshold;
     const isOutOfStock = available <= 0;
 
@@ -47,12 +53,19 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                         type="number"
                         // 0 shows as the empty field with its "0" placeholder: a
                         // number input keeps a typed-after "0", so 20 read "020".
-                        value={formData.stock_quantity === 0 ? "" : formData.stock_quantity}
+                        value={stock === 0 ? "" : stock}
                         onChange={(e) => updateField("stock_quantity", parseWholeNumber(e.target.value) ?? 0)}
+                        readOnly={bySize}
+                        aria-describedby={bySize ? "product-stock-by-size" : undefined}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all read-only:opacity-70"
                     />
+                    {bySize && (
+                        <p id="product-stock-by-size" dir={textDir} className="text-left mt-1.5 text-xs text-muted">
+                            {t("products.ed.stockBySize")}
+                        </p>
+                    )}
                 </div>
 
                 <div>

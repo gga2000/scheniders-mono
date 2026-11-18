@@ -48,6 +48,10 @@ export const supportContextSchema = z.object({
 
 export type SupportContext = z.infer<typeof supportContextSchema>;
 
+/** Why a merchant said the answer did not solve it. Same list as support_cases.no_reason. */
+export const SUPPORT_NO_REASONS = ["still_broken", "unclear", "too_slow"] as const;
+export type SupportNoReason = (typeof SUPPORT_NO_REASONS)[number];
+
 export const supportPostSchema = z.discriminatedUnion("action", [
     z.object({
         action: z.literal("send"),
@@ -56,6 +60,8 @@ export const supportPostSchema = z.discriminatedUnion("action", [
     }),
     z.object({ action: z.literal("rate"), caseId: z.string().uuid(), rating: z.enum(["yes", "no"]) }),
     z.object({ action: z.literal("read") }),
+    /** Why the answer did not solve it, right after the merchant said No. */
+    z.object({ action: z.literal("noReason"), caseId: z.string().uuid(), reason: z.enum(SUPPORT_NO_REASONS) }),
     z.object({
         action: z.literal("callBack"),
         /** Any way an Iraqi mobile is typed; stored as 07XXXXXXXXX. */
@@ -70,6 +76,8 @@ export const supportPostSchema = z.discriminatedUnion("action", [
                 }
                 return phone;
             }),
+        /** "setup": free help setting up the store, asked from the setup wizard (B11). */
+        topic: z.literal("setup").optional(),
     }),
 ]);
 
@@ -114,6 +122,16 @@ export interface SupportThread {
     contactPhone: string | null;
     /** What support has told every merchant right now ("Prime is slow today"), if anything. */
     notice: SupportNotice | null;
+    /** A staff member opened the conversation after the merchant's last message, before replying. */
+    seen: SupportSeen | null;
+    /** The merchant just said No on the latest case and has not said why yet. */
+    askWhy: boolean;
+}
+
+export interface SupportSeen {
+    /** The staff member's name, as on their replies. */
+    name: string;
+    at: string;
 }
 
 export interface SupportNotice {
@@ -128,6 +146,8 @@ export interface SupportCallBack {
     phone: string;
     /** When staff are due to call: now, or 9 AM Baghdad when asked overnight. */
     due_at: string;
+    /** "setup" when the merchant asked for help setting up their store, else null. */
+    topic: "setup" | null;
 }
 
 /**
@@ -140,6 +160,9 @@ const REFUSALS: Record<string, number> = {
     support_case_not_found: 404,
     support_case_not_solved: 409,
     support_already_rated: 409,
+    support_not_said_no: 409,
+    support_already_answered: 409,
+    support_bad_no_reason: 400,
     support_bad_phone: 400,
     support_call_back_unavailable: 409,
 };
@@ -159,8 +182,12 @@ export const STAFF_VISIT_ACTIONS = [
     "impersonate",
     "support_view",
     "extend_trial",
+    "extend_subscription",
     "convert_trial",
     "change_plan",
+    "status_change",
+    "auto_renew_on",
+    "auto_renew_off",
     "pause_tenant",
     "unpause_tenant",
     "suspend",

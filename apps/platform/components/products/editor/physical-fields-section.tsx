@@ -14,10 +14,11 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
         <div className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-weight" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.weight")}
                     </label>
                     <input
+                        id="product-weight"
                         type="number"
                         value={formData.weight ?? ""}
                         onChange={(e) => updateField("weight", e.target.value === "" ? null : parseFloat(e.target.value))}
@@ -27,10 +28,11 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-length" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.length")}
                     </label>
                     <input
+                        id="product-length"
                         type="number"
                         value={formData.dimensions_length ?? ""}
                         onChange={(e) => updateField("dimensions_length", e.target.value === "" ? null : parseFloat(e.target.value))}
@@ -40,10 +42,11 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-width" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.width")}
                     </label>
                     <input
+                        id="product-width"
                         type="number"
                         value={formData.dimensions_width ?? ""}
                         onChange={(e) => updateField("dimensions_width", e.target.value === "" ? null : parseFloat(e.target.value))}
@@ -53,10 +56,11 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-height" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.height")}
                     </label>
                     <input
+                        id="product-height"
                         type="number"
                         value={formData.dimensions_height ?? ""}
                         onChange={(e) => updateField("dimensions_height", e.target.value === "" ? null : parseFloat(e.target.value))}

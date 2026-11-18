@@ -66,10 +66,27 @@ export interface OrderItem {
     sku?: string;
     product_id?: string;
     variant_id?: string;
+    /** The size/colour picked, e.g. "M / أسود"; kept apart from `name`. */
+    variant_name?: string;
     image_url?: string;
     tag_color?: string;
     is_open_box?: boolean;
     is_ai_extracted?: boolean;
+}
+
+/** One line the picker hands back: a product, or one size or colour of it. */
+export interface PickedOrderLine {
+    product_id: string;
+    /** Set when the product is sold in sizes or colours: the one picked. */
+    variant_id?: string;
+    /** The size or colour as the merchant named it, e.g. "M / أسود". */
+    variant_name?: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image_url?: string;
+    tag_color?: string;
+    is_open_box?: boolean;
 }
 
 export interface Order {
@@ -213,6 +230,8 @@ export interface Order {
     abandoned_cart_order_id?: string | null;
     // Delivery company tracking
     delivery_company?: 'prime' | 'waseet' | null;
+    /** The courier the merchant handed it to through an export file (Fermi B4), by name. */
+    courier_name?: string | null;
     // Al-Waseet specific fields
     waseet_qr_id?: string;
     waseet_qr_link?: string;

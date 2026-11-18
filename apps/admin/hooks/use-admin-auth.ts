@@ -9,9 +9,16 @@ import {
   createElement,
   type ReactNode,
 } from "react";
-import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
-import type { AdminRole } from "@/types/admin";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AdminAction, AdminRole } from "@/types/admin";
+import { hasPermission } from "@/lib/admin-permissions";
+import { readAccessCheck, type AccessCheck } from "@/lib/admin-access";
+import { signInRefusedWords } from "@/lib/staff-sign-in";
+import { leaveWithoutAccess } from "@/lib/admin-fetch";
+import { watchAdminSession } from "@/lib/admin-session-watch";
+import { useAdminStore } from "@/store/use-admin-store";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,11 +36,18 @@ interface AdminAuthState {
   profile: AdminProfile | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * The read of the person's own staff row failed and no role is known yet,
+   * so controls that need a role are hidden. Not the same as "no access".
+   */
+  accessCheckFailed: boolean;
 }
 
 interface AdminAuthContextValue extends AdminAuthState {
   signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  /** Reads the person's staff row again after a failed read. */
+  recheckAccess: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,8 +59,6 @@ const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefi
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const ALLOWED_ROLES: AdminRole[] = ["super_admin", "support_staff"];
 
 /**
  * Create a browser-side Supabase client (anon key) for auth operations.
@@ -64,29 +76,21 @@ function makeBrowserClient() {
 }
 
 /**
- * Resolve the signed-in user's admin-console role from the dedicated
- * `admin_users` table (decoupled from the main app's user_profiles.role).
- * Reads the user's own row via their session — the `admin_users_read_own`
- * RLS policy permits exactly that. Returns null when there's no active admin
- * row or the role isn't allowed.
+ * The signed-in person's admin-console role from the dedicated `admin_users`
+ * table (decoupled from the main app's user_profiles.role). Reads the user's
+ * own row via their session; the `admin_users_read_own` RLS policy permits
+ * exactly that. A failed read is its own answer (lib/admin-access).
  */
-async function fetchAdminRole(
+async function fetchAccessCheck(
   userId: string,
   supabase: ReturnType<typeof makeBrowserClient>
-): Promise<AdminRole | null> {
-  const { data, error } = await supabase
+): Promise<AccessCheck> {
+  const result = await supabase
     .from("admin_users")
     .select("admin_role, is_active")
     .eq("user_id", userId)
-    .single();
-
-  if (error || !data) return null;
-
-  const row = data as Record<string, unknown>;
-  if (row.is_active !== true) return null;
-
-  const role = row.admin_role as string;
-  return ALLOWED_ROLES.includes(role as AdminRole) ? (role as AdminRole) : null;
+    .maybeSingle();
+  return readAccessCheck(result);
 }
 
 /**
@@ -124,75 +128,56 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessCheckFailed, setAccessCheckFailed] = useState(false);
+  // Bumped by "Try again": the session is read and checked once more.
+  const [recheckCount, setRecheckCount] = useState(0);
 
   // Stable reference — created once
   const [supabase] = useState(makeBrowserClient);
+  const queryClient = useQueryClient();
 
-  // ── Bootstrap: check existing session & subscribe to auth changes ──
-  useEffect(() => {
-    let mounted = true;
+  // ── Bootstrap: follow the session and the person's access (lib/admin-session-watch) ──
+  useEffect(
+    () =>
+      watchAdminSession<AdminProfile>(
+        {
+          onAuthStateChange: (listener) => {
+            const {
+              data: { subscription },
+            } = supabase.auth.onAuthStateChange(listener);
+            return () => subscription.unsubscribe();
+          },
+          signOutHere: () => supabase.auth.signOut({ scope: "local" }),
+          readAccess: (userId) => fetchAccessCheck(userId, supabase),
+          readProfile: (userId) => fetchProfile(userId, supabase),
+          forgetPerson: () => {
+            queryClient.clear();
+            useAdminStore.getState().forgetStars();
+          },
+          leaveNoAccess: leaveWithoutAccess,
+        },
+        (view) => {
+          if (view.kind === "signed_in") {
+            setUser(view.user);
+            setRole(view.role);
+            setProfile((previous) => view.profile ?? (view.keepProfile ? previous : null));
+            setAccessCheckFailed(view.checkFailed);
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
+          if (view.kind === "no_access") setError("You do not have admin access.");
+          setUser(null);
+          setRole(null);
+          setProfile(null);
+          setAccessCheckFailed(false);
+          setIsLoading(false);
+        },
+      ),
+    [supabase, recheckCount, queryClient],
+  );
 
-    async function handleSession(sessionUser: User | null) {
-      if (!sessionUser) {
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
-
-      const [adminRole, profileRow] = await Promise.all([
-        fetchAdminRole(sessionUser.id, supabase),
-        fetchProfile(sessionUser.id, supabase),
-      ]);
-
-      if (!mounted) return;
-
-      if (!adminRole) {
-        // Not an admin — sign them out
-        setError("You do not have admin access.");
-        await supabase.auth.signOut();
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setUser(sessionUser);
-      setRole(adminRole);
-      setProfile(profileRow);
-      setError(null);
-      setIsLoading(false);
-    }
-
-    // 1. Check for an existing session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      if (mounted) handleSession(session?.user ?? null);
-    });
-
-    // 2. Subscribe to auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      if (!mounted) return;
-      if (_event === "SIGNED_OUT") {
-        setUser(null);
-        setRole(null);
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
-      if (session?.user) {
-        handleSession(session.user);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
+  const recheckAccess = useCallback(() => setRecheckCount((n) => n + 1), []);
 
   // ── Auth actions ──
   const signIn = useCallback(
@@ -205,9 +190,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         options: { captchaToken },
       });
       if (signInError) {
+        const words = signInRefusedWords(signInError);
         setIsLoading(false);
-        setError(signInError.message);
-        return { error: signInError.message };
+        setError(words);
+        return { error: words };
       }
       // onAuthStateChange will handle the rest
       return { error: null };
@@ -222,6 +208,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setProfile(null);
     setError(null);
+    setAccessCheckFailed(false);
     setIsLoading(false);
   }, [supabase]);
 
@@ -231,8 +218,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     profile,
     isLoading,
     error,
+    accessCheckFailed,
     signIn,
     signOut,
+    recheckAccess,
   };
 
   return createElement(AdminAuthContext.Provider, { value }, children);
@@ -248,4 +237,14 @@ export function useAdminAuth(): AdminAuthContextValue {
     throw new Error("useAdminAuth must be used within an AdminAuthProvider");
   }
   return context;
+}
+
+/**
+ * Whether the signed-in person's role may do `action` (lib/admin-permissions),
+ * and false until the role is known. Screens use it to leave out a control
+ * the server would refuse with a 403.
+ */
+export function useCan(): (action: AdminAction) => boolean {
+  const { role } = useAdminAuth();
+  return useCallback((action: AdminAction) => (role ? hasPermission(role, action) : false), [role]);
 }

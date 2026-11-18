@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { LEAD_SORT_OPTIONS } from "@/lib/lead-sort";
 import { useLeadStore, useActiveFilterCount } from "@/store/use-lead-store";
 import { useIndustries } from "@/hooks/use-industries";
 import {
@@ -16,14 +17,6 @@ import {
   type LeadSourcePlatform,
 } from "@/types/leads";
 import { Search, X, Filter, ChevronDown, ArrowUpDown } from "lucide-react";
-
-const SORT_OPTIONS = [
-  { value: "created_at:desc", label: "Newest" },
-  { value: "lead_score:desc", label: "Highest score" },
-  { value: "follower_count:desc", label: "Most followers" },
-  { value: "estimated_daily_orders:desc", label: "Most est. orders" },
-  { value: "merchant_name:asc", label: "Name (A–Z)" },
-];
 
 const SELECT =
   "appearance-none pl-3 pr-8 py-1.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-xs text-[var(--foreground)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 transition-shadow";
@@ -49,7 +42,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
     clearFilters,
   } = useLeadStore();
 
-  const { data: industries } = useIndustries();
+  const { data: industries, isError: industriesFailed, refetch: refetchIndustries } = useIndustries();
   const filterCount = useActiveFilterCount();
 
   return (
@@ -85,7 +78,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
               className={cn(SELECT, "pl-8")}
               title="Sort leads"
             >
-              {SORT_OPTIONS.map((o) => (
+              {LEAD_SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -157,17 +150,24 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
 
           {/* Industry */}
           <div className="relative">
+            {/* A failed read says so in the box, and opening the box asks again. */}
             <select
               value={industryFilter ?? ""}
               onChange={(e) => setIndustryFilter(e.target.value || null)}
-              className={cn(SELECT, industryFilter && SELECT_ACTIVE)}
+              onFocus={() => {
+                if (industriesFailed) void refetchIndustries();
+              }}
+              aria-invalid={industriesFailed || undefined}
+              title={industriesFailed ? "Could not load the industries. Open the box to try again." : undefined}
+              className={cn(SELECT, industryFilter && SELECT_ACTIVE, industriesFailed && "text-[var(--ink-red)]")}
             >
-              <option value="">All Industries</option>
-              {(industries ?? [])
-                .filter((i) => i.is_active)
+              <option value="">{industriesFailed ? "Industries did not load" : "All Industries"}</option>
+              {/* Switched-off industries last, marked: leads that used one keep it, so staff can still find them. */}
+              {[...(industries ?? [])]
+                .sort((a, b) => Number(b.is_active) - Number(a.is_active))
                 .map((industry) => (
                   <option key={industry.id} value={industry.id}>
-                    {industry.name}
+                    {industry.is_active ? industry.name : `${industry.name} (off)`}
                   </option>
                 ))}
             </select>

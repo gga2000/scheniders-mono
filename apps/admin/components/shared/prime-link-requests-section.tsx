@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatWhen } from "@/lib/format";
+import { SHELL_READ, useAfterPageReads } from "@/hooks/use-after-page-reads";
 
 const outcomeSchema = z.enum(["not_linked", "shared_account", "choose_shop", "no_shop", "prime_down"]).nullable();
 
@@ -43,6 +44,8 @@ const WAITING_ON: Record<NonNullable<PrimeLinkRequest["outcome"]> | "unchecked",
 export function usePrimeLinkRequests() {
   return useQuery({
     queryKey: PRIME_REQUESTS_KEY,
+    meta: SHELL_READ,
+    enabled: useAfterPageReads(),
     queryFn: async (): Promise<PrimeLinkRequest[]> => {
       const res = await adminFetch("/api/prime-link-requests");
       if (!res.ok) throw new Error(`Prime link requests failed: ${res.status}`);
@@ -89,7 +92,7 @@ export function PrimeLinkRequestsSection({ requests }: { requests: PrimeLinkRequ
           <div key={req.id} className="flex items-start gap-3 px-4 py-3">
             <span className="mt-0.5 text-[#315EA8]"><Truck className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{req.tenants?.business_name ?? req.tenant_id}</p>
+              <p className="text-xs font-medium text-foreground truncate name-dir">{req.tenants?.business_name ?? req.tenant_id}</p>
               <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
                 Prime account {req.prime_phone}
                 {req.prime_name ? ` · ${req.prime_name}` : ""}

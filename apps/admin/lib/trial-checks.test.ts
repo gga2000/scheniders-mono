@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { supabaseStub } from "./supabase-stub.test-data";
+import { REQUEST_REUSED } from "./billing-lock-tools";
 import type { createAdminClient } from "./admin-supabase";
 import {
   DECIDED_SHOWN,
@@ -25,6 +26,7 @@ function store(id: string, display_id: number, extra: Record<string, unknown> = 
     business_name: `Shop ${display_id}`,
     display_id,
     status: "trial",
+    restrictions: {},
     trial_ends_at: "2026-11-23T10:00:00Z",
     contact_phone: "07701234567",
     created_at: "2026-11-16T10:00:00Z",
@@ -79,6 +81,7 @@ describe("readTrialChecks", () => {
           business_name: "Shop 100100",
           display_id: 100100,
           status: "cancelled",
+          restrictions: {},
           trial_ends_at: "2026-11-23T10:00:00Z",
           created_at: "2026-11-16T10:00:00Z",
         },
@@ -144,61 +147,118 @@ describe("readTrialChecks", () => {
 });
 
 describe("decisions", () => {
-  it("giving a trial back needs the days; the others need only a reason", () => {
-    expect(trialCheckDecisionSchema.safeParse({ decision: "allow_trial", reason: "same owner" }).success).toBe(false);
-    expect(trialCheckDecisionSchema.safeParse({ decision: "allow_trial", days: 91, reason: "same owner" }).success).toBe(false);
-    expect(trialCheckDecisionSchema.safeParse({ decision: "allow_trial", days: 7, reason: "same owner" }).success).toBe(true);
-    expect(trialCheckDecisionSchema.safeParse({ decision: "end_trial", reason: "ok" }).success).toBe(false);
-    expect(trialCheckDecisionSchema.safeParse({ decision: "checked", reason: "family shop" }).success).toBe(true);
-    expect(trialCheckDecisionSchema.safeParse({ decision: "delete", reason: "family shop" }).success).toBe(false);
+  const REQ = "0b7d3f4e-8c1a-4f2b-9d6e-5a4c3b2a1f00";
+  const SEEN = "2026-11-16T22:21:19.123456+00:00";
+
+  it("giving a trial back needs the days; every decision needs a reason and a request id", () => {
+    const ask = (body: Record<string, unknown>) =>
+      trialCheckDecisionSchema.safeParse({ request_id: REQ, seen_decided_at: null, ...body }).success;
+    expect(ask({ decision: "allow_trial", reason: "same owner" })).toBe(false);
+    expect(ask({ decision: "allow_trial", days: 91, reason: "same owner" })).toBe(false);
+    expect(ask({ decision: "allow_trial", days: 7, reason: "same owner" })).toBe(true);
+    expect(ask({ decision: "end_trial", reason: "ok" })).toBe(false);
+    expect(ask({ decision: "checked", reason: "family shop" })).toBe(true);
+    expect(ask({ decision: "delete", reason: "family shop" })).toBe(false);
   });
 
-  it("sends the decision with the staff member, and days only when giving the trial back", async () => {
-    stub.state.functions.admin_trial_check_decide = (args) => ({
+  it("a page loaded before request ids is asked to reload", () => {
+    const parsed = trialCheckDecisionSchema.safeParse({ decision: "allow_trial", days: 7, reason: "same owner" });
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0]?.message).toBe("This page is out of date. Reload it and try again");
+  });
+
+  it("a page that does not say what decision it showed is asked to reload", () => {
+    const base = { decision: "checked", reason: "family shop", request_id: REQ };
+    for (const seen of [undefined, "", "yesterday"]) {
+      const parsed = trialCheckDecisionSchema.safeParse({ ...base, seen_decided_at: seen });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error?.issues[0]?.message).toBe("This page is out of date. Reload it and try again");
+    }
+    expect(trialCheckDecisionSchema.safeParse({ ...base, seen_decided_at: null }).success).toBe(true);
+    expect(trialCheckDecisionSchema.safeParse({ ...base, seen_decided_at: "2026-11-16T22:21:19.123456+00:00" }).success).toBe(true);
+  });
+
+  it("sends the decision once per request, with the staff member, what the page showed, and days only when giving the trial back", async () => {
+    stub.state.functions.admin_trial_check_decide_once = (args) => ({
       data: { success: true, tenant_id: args._tenant_id, decision: args._decision },
       error: null,
     });
 
     await expect(
-      decideTrialCheck(client(), NEW, { decision: "allow_trial", days: 7, reason: "same owner" }, ADMIN),
-    ).resolves.toEqual({ ok: true, tenantId: NEW, decision: "allow_trial" });
-    await decideTrialCheck(client(), NEW, { decision: "end_trial", reason: "same Prime login" }, ADMIN);
+      decideTrialCheck(client(), NEW, { decision: "allow_trial", days: 7, reason: "same owner", request_id: REQ, seen_decided_at: null }, ADMIN),
+    ).resolves.toEqual({ ok: true, tenantId: NEW, decision: "allow_trial", repeat: false });
+    await decideTrialCheck(client(), NEW, { decision: "end_trial", reason: "same Prime login", request_id: REQ, seen_decided_at: SEEN }, ADMIN);
 
-    expect(stub.state.rpcCalls.map((c) => c.args)).toEqual([
-      {
-        _tenant_id: NEW,
-        _decision: "allow_trial",
-        _reason: "same owner",
-        _days: 7,
-        _admin_user_id: ADMIN.id,
-        _actor_email: ADMIN.email,
-      },
-      {
-        _tenant_id: NEW,
-        _decision: "end_trial",
-        _reason: "same Prime login",
-        _days: null,
-        _admin_user_id: ADMIN.id,
-        _actor_email: ADMIN.email,
-      },
+    expect(stub.state.rpcCalls.map((c) => [c.fn, c.args])).toEqual([
+      [
+        "admin_trial_check_decide_once",
+        {
+          _request_id: REQ,
+          _tenant_id: NEW,
+          _decision: "allow_trial",
+          _reason: "same owner",
+          _days: 7,
+          _admin_user_id: ADMIN.id,
+          _actor_email: ADMIN.email,
+          _seen_decided_at: null,
+        },
+      ],
+      [
+        "admin_trial_check_decide_once",
+        {
+          _request_id: REQ,
+          _tenant_id: NEW,
+          _decision: "end_trial",
+          _reason: "same Prime login",
+          _days: null,
+          _admin_user_id: ADMIN.id,
+          _actor_email: ADMIN.email,
+          _seen_decided_at: SEEN,
+        },
+      ],
     ]);
   });
 
+  it("a repeat of an answered request says so and changes nothing", async () => {
+    stub.state.functions.admin_trial_check_decide_once = (args) => ({
+      data: { success: true, tenant_id: args._tenant_id, decision: "allow_trial", repeat: true },
+      error: null,
+    });
+    await expect(
+      decideTrialCheck(client(), NEW, { decision: "allow_trial", days: 7, reason: "same owner", request_id: REQ, seen_decided_at: null }, ADMIN),
+    ).resolves.toEqual({ ok: true, tenantId: NEW, decision: "allow_trial", repeat: true });
+  });
+
   it("turns the database's refusals into answers staff can read", async () => {
-    stub.state.functions.admin_trial_check_decide = () => ({ data: { success: false, error: "not_trial" }, error: null });
-    await expect(decideTrialCheck(client(), NEW, { decision: "end_trial", reason: "same owner" }, ADMIN)).resolves.toEqual(
-      { ok: false, status: 400, error: "This store is not on a trial any more" },
-    );
+    const checked = { decision: "checked", reason: "same owner", request_id: REQ, seen_decided_at: null } as const;
+    stub.state.functions.admin_trial_check_decide_once = () => ({ data: { success: false, error: "not_trial" }, error: null });
+    await expect(
+      decideTrialCheck(client(), NEW, { decision: "end_trial", reason: "same owner", request_id: REQ, seen_decided_at: null }, ADMIN),
+    ).resolves.toEqual({ ok: false, status: 400, error: "This store is not on a trial any more" });
 
-    stub.state.functions.admin_trial_check_decide = () => ({ data: { success: false, error: "not_found" }, error: null });
-    await expect(decideTrialCheck(client(), NEW, { decision: "checked", reason: "same owner" }, ADMIN)).resolves.toEqual(
-      { ok: false, status: 404, error: "This store has no trial check" },
-    );
+    stub.state.functions.admin_trial_check_decide_once = () => ({ data: { success: false, error: "not_found" }, error: null });
+    await expect(decideTrialCheck(client(), NEW, checked, ADMIN)).resolves.toEqual({
+      ok: false,
+      status: 404,
+      error: "This store has no trial check",
+    });
 
-    stub.state.functions.admin_trial_check_decide = () => ({ data: { success: false, error: "odd" }, error: null });
-    await expect(decideTrialCheck(client(), NEW, { decision: "checked", reason: "same owner" }, ADMIN)).rejects.toThrow(
-      "Unexpected trial check answer: odd",
-    );
+    stub.state.functions.admin_trial_check_decide_once = () => ({
+      data: { success: false, error: "request_reused" },
+      error: null,
+    });
+    await expect(decideTrialCheck(client(), NEW, checked, ADMIN)).resolves.toEqual({ ok: false, ...REQUEST_REUSED });
+
+    stub.state.functions.admin_trial_check_decide_once = () => ({
+      data: { success: false, error: "decided_meanwhile" },
+      error: null,
+    });
+    const meanwhile = await decideTrialCheck(client(), NEW, checked, ADMIN);
+    expect(meanwhile).toMatchObject({ ok: false, status: 409 });
+    expect(meanwhile.ok === false && meanwhile.error).toMatch(/while you were looking/);
+
+    stub.state.functions.admin_trial_check_decide_once = () => ({ data: { success: false, error: "odd" }, error: null });
+    await expect(decideTrialCheck(client(), NEW, checked, ADMIN)).rejects.toThrow("Unexpected trial check answer: odd");
   });
 });
 

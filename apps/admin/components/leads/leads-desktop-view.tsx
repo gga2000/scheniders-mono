@@ -5,23 +5,26 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/use-leads";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
+import { useLeadsTableLayout } from "@/hooks/use-leads-table-layout";
 import {
   useCreateLead,
   useUpdateLead,
   useDeleteLead,
-  useBulkLeadAction,
 } from "@/hooks/use-lead-mutations";
 import { useLeadStore } from "@/store/use-lead-store";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { LeadFilterBar } from "@/components/leads/lead-filter-bar";
 import { LeadForm } from "@/components/leads/lead-form";
+import { LeadBulkBar } from "@/components/leads/lead-bulk-bar";
 import { LeadCard } from "@/components/leads/lead-card";
 import { LeadKanban } from "@/components/leads/lead-kanban";
 import { LeadImportDialog } from "@/components/leads/lead-import-dialog";
 import { LeadsTable } from "@/components/leads/leads-table";
-import { leadToFormData, DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
+import { DRAFT_PLACEHOLDER_NAME } from "@/components/leads/lead-form-data";
+import { useResumedDraft } from "@/components/leads/use-resumed-draft";
 import type { LeadFormData, Lead } from "@/types/leads";
 import { leadPhone, toIntlIraqi } from "./lead-phone";
+import { LEADS_PAGE_SIZE, leadsCountLine, pageAfterShrink } from "./leads-count";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -34,50 +37,61 @@ import {
   AlertTriangle,
   SlidersHorizontal,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount } from "@/lib/format";
 
 
 export function LeadsDesktopView() {
   const router = useRouter();
-  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [draftLead, setDraftLead] = useState<Lead | null>(null);
   // Column-edit mode is owned here so the "Edit columns" button can sit in the
   // filter row; <LeadsTable> consumes it. super_admin only (the route 403s others).
   const [columnsEditing, setColumnsEditing] = useState(false);
 
   const { role } = useAdminAuth();
+  const can = useCan();
   const canEditLayout = role === "super_admin";
 
-  const { viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
+  const { page, setPage, viewMode, setViewMode, selectedLeads, toggleLead, selectAll, clearSelection } =
     useLeadStore();
 
   // Leave edit mode if the table view is no longer active.
   useEffect(() => {
     if (viewMode !== "table") setColumnsEditing(false);
   }, [viewMode]);
-  const { data, isLoading, isError } = useLeads(page, viewMode === "kanban" ? 100 : 20);
-  const { data: analytics } = useLeadAnalytics();
+  const { data, isLoading, isError, refetch } = useLeads(page, viewMode === "kanban" ? 100 : LEADS_PAGE_SIZE);
+  // The table's shared column layout is read with the page, beside the leads,
+  // and the table waits for it: read only once the table drew, it arrived
+  // seconds later and moved every column under the pointer. A failed read
+  // stops the wait, and the table uses the default columns.
+  const layout = useLeadsTableLayout();
+  const waitingForColumns = viewMode === "table" && layout.isPending;
+  const { data: analytics, isError: analyticsFailed, refetch: refetchAnalytics, isFetching: analyticsRetrying } = useLeadAnalytics();
+  // While loading "...", after a failed read a dash and a line that says so: never a number that is not known.
+  const leadNumber = (pick: (a: NonNullable<typeof analytics>) => number) =>
+    analytics ? formatCount(pick(analytics)) : analyticsFailed ? "—" : "...";
   const lastTrend = analytics?.monthly_trends?.[analytics.monthly_trends.length - 1];
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
-  const bulkAction = useBulkLeadAction();
 
   const leads = data?.leads ?? [];
+  const resumed = useResumedDraft(leads);
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = Math.ceil(total / LEADS_PAGE_SIZE);
 
-  const handleCreateLead = (formData: LeadFormData) =>
-    new Promise<boolean>((resolve) => {
-      createLead.mutate(formData, {
-        onSuccess: () => resolve(true),
-        onError: () => resolve(false),
-      });
-    });
+  // The list shrank under the open page (a delete, a colleague's change): the
+  // read answers no rows and the real total, and the table moves to the new last page.
+  useEffect(() => {
+    if (!data || viewMode === "kanban") return;
+    const moveTo = pageAfterShrink(page, data.total);
+    if (moveTo !== null) setPage(moveTo);
+  }, [data, page, viewMode, setPage]);
+
+  // A refused save rejects with the server's words; the form shows them.
+  const handleCreateLead = (formData: LeadFormData) => createLead.mutateAsync(formData).then(() => true);
 
   // Auto-save an in-progress lead as a draft when the form is dismissed.
   const handleSaveDraft = (formData: LeadFormData) =>
@@ -90,9 +104,17 @@ export function LeadsDesktopView() {
       {
         onSuccess: (res) => {
           const id = res?.lead?.id as string | undefined;
+          // Deleting needs delete_leads (api/leads/[id]): offer Discard only to a login that has it.
+          const discard = id && can("delete_leads") ? id : null;
           toast.success("Saved as draft", {
-            description: "Find it in your list — or discard it.",
-            action: id ? { label: "Discard", onClick: () => deleteLead.mutate(id) } : undefined,
+            description: discard ? "Find it in your list, or discard it." : "Find it in your list.",
+            action: discard
+              ? {
+                  label: "Discard",
+                  onClick: () =>
+                    deleteLead.mutate(discard, { onError: (e) => toast.error(`Could not discard the draft: ${e.message}`) }),
+                }
+              : undefined,
           });
         },
         onError: () => toast.error("Couldn't save the draft"),
@@ -101,7 +123,7 @@ export function LeadsDesktopView() {
 
   // Drafts reopen the editor (resume); real leads open their detail page.
   const openLead = (lead: Lead) => {
-    if (lead.is_draft) setDraftLead(lead);
+    if (lead.is_draft) resumed.resume(lead);
     else router.push(`/leads/${lead.id}`);
   };
 
@@ -114,7 +136,7 @@ export function LeadsDesktopView() {
   const handleQuickWhatsApp = useCallback((lead: Lead) => {
     const p = leadPhone(lead);
     const intl = p && toIntlIraqi(p);
-    if (intl) window.open(`https://wa.me/${intl}`, "_blank");
+    if (intl) window.open(`https://wa.me/${intl}`, "_blank", "noopener,noreferrer");
     else toast.info("No WhatsApp number on file");
   }, []);
 
@@ -125,7 +147,7 @@ export function LeadsDesktopView() {
         <div>
           <h1 className="text-[22px] font-semibold text-foreground">Leads</h1>
           <p className="text-[13px] text-foreground/70">
-            {total.toLocaleString()} {total === 1 ? "lead" : "leads"} in the pipeline
+            {leadsCountLine({ count: data?.total, isError })}
           </p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -138,6 +160,8 @@ export function LeadsDesktopView() {
             ].map(({ mode, icon: Icon, label }) => (
               <button
                 key={mode}
+                type="button"
+                aria-pressed={viewMode === mode}
                 onClick={() => setViewMode(mode)}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
@@ -175,27 +199,36 @@ export function LeadsDesktopView() {
       <NumberStrip columns={4} label="Lead numbers">
         <NumberCell
           label="Leads, now"
-          value={analytics ? formatCount(analytics.total_leads) : "..."}
+          value={leadNumber((a) => a.total_leads)}
           note={lastTrend ? `${formatCount(lastTrend.added)} added this month` : undefined}
         />
         <NumberCell
           label="New, not contacted yet"
-          value={analytics ? formatCount(analytics.by_status.new ?? 0) : "..."}
+          value={leadNumber((a) => a.by_status.new ?? 0)}
         />
         <NumberCell
           label="Interested or store built, now"
-          value={
-            analytics
-              ? formatCount((analytics.by_status.interested ?? 0) + (analytics.by_status.store_built ?? 0))
-              : "..."
-          }
+          value={leadNumber((a) => (a.by_status.interested ?? 0) + (a.by_status.store_built ?? 0))}
         />
         <NumberCell
           label="Converted, all time"
-          value={analytics ? formatCount(analytics.by_status.converted ?? 0) : "..."}
+          value={leadNumber((a) => a.by_status.converted ?? 0)}
           note={analytics ? `${analytics.conversion_rate.toFixed(1)}% of all leads` : undefined}
         />
       </NumberStrip>
+      {analyticsFailed && !analytics && (
+        <p className="-mt-2 flex items-center gap-2 text-xs text-[var(--ink-red)]" role="alert">
+          Could not load the lead numbers.
+          <button
+            type="button"
+            onClick={() => refetchAnalytics()}
+            disabled={analyticsRetrying}
+            className="font-semibold underline disabled:opacity-50"
+          >
+            {analyticsRetrying ? "Loading" : "Try again"}
+          </button>
+        </p>
+      )}
 
       {/* Workspace Panel */}
       <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">
@@ -232,13 +265,13 @@ export function LeadsDesktopView() {
               Something went wrong while fetching leads. Please try again.
             </p>
             <button
-              onClick={() => setPage(1)}
+              onClick={() => void refetch()}
               className="px-6 py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] text-sm font-bold hover:brightness-110 transition-all"
             >
               Retry
             </button>
           </div>
-        ) : isLoading ? (
+        ) : isLoading || waitingForColumns ? (
           viewMode === "table" ? (
             <div className="divide-y divide-[var(--card-border)]">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -267,7 +300,7 @@ export function LeadsDesktopView() {
             <div className="w-16 h-16 rounded-2xl bg-foreground/[0.05] flex items-center justify-center mb-4">
               <UserPlus className="w-8 h-8 text-[#FF8899]" />
             </div>
-            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">No prospects yet</h3>
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">No leads yet</h3>
             <p className="text-sm text-[var(--muted)] mb-6 max-w-sm">
               Start adding potential merchants to build your sales pipeline.
             </p>
@@ -324,7 +357,12 @@ export function LeadsDesktopView() {
             <LeadKanban
               leads={leads}
               onStatusChange={(leadId, newStatus) => {
-                updateLead.mutate({ id: leadId, data: { status: newStatus } });
+                // The card moves when the save lands; a refused move says why.
+                const name = leads.find((x) => x.id === leadId)?.merchant_name ?? "the lead";
+                updateLead.mutate(
+                  { id: leadId, data: { status: newStatus } },
+                  { onError: (error) => toast.error(`Could not move "${name}": ${error.message}`) },
+                );
               }}
               onLeadClick={(leadId) => {
                 const l = leads.find((x) => x.id === leadId);
@@ -332,6 +370,12 @@ export function LeadsDesktopView() {
                 else router.push(`/leads/${leadId}`);
               }}
             />
+            {/* The board holds one page of leads; say so when there are more. */}
+            {total > leads.length && (
+              <p className="mt-3 text-xs text-foreground/70">
+                Showing {formatCount(leads.length)} of {formatCount(total)} leads. Search or filter to find the rest.
+              </p>
+            )}
           </div>
         )}
 
@@ -339,11 +383,11 @@ export function LeadsDesktopView() {
         {viewMode !== "kanban" && totalPages > 1 && !isLoading && !isError && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--card-border)]">
             <p className="text-sm text-[var(--muted)]">
-              Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total.toLocaleString()}
+              Showing {(page - 1) * LEADS_PAGE_SIZE + 1}–{Math.min(page * LEADS_PAGE_SIZE, total)} of {total.toLocaleString()}
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => setPage(page - 1)}
                 disabled={page === 1}
                 className="w-9 h-9 rounded-xl flex items-center justify-center border border-[var(--card-border)] disabled:opacity-30 hover:bg-[var(--background)] transition-colors"
               >
@@ -353,7 +397,7 @@ export function LeadsDesktopView() {
                 {page} / {totalPages}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 className="w-9 h-9 rounded-xl flex items-center justify-center border border-[var(--card-border)] disabled:opacity-30 hover:bg-[var(--background)] transition-colors"
               >
@@ -367,62 +411,7 @@ export function LeadsDesktopView() {
       {/* Bulk Action Bar */}
       <AnimatePresence>
         {selectedLeads.size > 0 && (
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 bg-[#1E1E1E] text-white rounded-2xl shadow-2xl border border-white/10"
-          >
-            <span className="text-sm font-medium">{selectedLeads.size} selected</span>
-            <div className="w-px h-5 bg-white/20" />
-            <button
-              onClick={() => {
-                bulkAction.mutate(
-                  {
-                    lead_ids: Array.from(selectedLeads),
-                    action: "change_status",
-                    payload: { status: "contacted" },
-                  },
-                  { onSuccess: () => clearSelection() },
-                );
-              }}
-              disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              Change Status
-            </button>
-            <button
-              onClick={() => {
-                bulkAction.mutate(
-                  { lead_ids: Array.from(selectedLeads), action: "assign" },
-                  { onSuccess: () => clearSelection() },
-                );
-              }}
-              disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              Assign
-            </button>
-            <button
-              onClick={() => {
-                bulkAction.mutate(
-                  { lead_ids: Array.from(selectedLeads), action: "delete" },
-                  { onSuccess: () => clearSelection() },
-                );
-              }}
-              disabled={bulkAction.isPending}
-              className="text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--ink-red)]"
-            >
-              Delete
-            </button>
-            <div className="w-px h-5 bg-white/20" />
-            <button
-              onClick={clearSelection}
-              className="text-sm text-zinc-400 hover:text-white transition-colors"
-            >
-              Clear
-            </button>
-          </motion.div>
+          <LeadBulkBar selectedIds={Array.from(selectedLeads)} role={role} onClear={clearSelection} />
         )}
       </AnimatePresence>
 
@@ -435,27 +424,7 @@ export function LeadsDesktopView() {
       />
 
       {/* Resume an in-progress draft — saving promotes it to a real lead */}
-      <LeadForm
-        key={draftLead?.id ?? "no-draft"}
-        open={!!draftLead}
-        onOpenChange={(v) => {
-          if (!v) setDraftLead(null);
-        }}
-        initialData={draftLead ? leadToFormData(draftLead) : undefined}
-        onSubmit={(data) =>
-          new Promise<boolean>((resolve) => {
-            if (!draftLead) return resolve(false);
-            updateLead.mutate(
-              { id: draftLead.id, data: { ...data, is_draft: false } },
-              { onSuccess: () => resolve(true), onError: () => resolve(false) },
-            );
-          })
-        }
-        onSaveDraft={(data) => {
-          if (!draftLead) return;
-          updateLead.mutate({ id: draftLead.id, data: { ...data, is_draft: true } });
-        }}
-      />
+      <LeadForm key={resumed.formKey} {...resumed.form} />
 
       {/* Import Dialog */}
       <LeadImportDialog isOpen={importOpen} onClose={() => setImportOpen(false)} />

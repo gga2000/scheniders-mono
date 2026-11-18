@@ -29,6 +29,8 @@ export interface TenantSummary {
     /** The demo store (Fermi B13): invented data for screen recordings. */
     is_demo: boolean;
     created_at: string;
+    /** What the store sells, ticked at signup (Fermi B10); empty for older stores. */
+    business_types: string[];
 }
 
 export function useTenant() {
@@ -43,7 +45,7 @@ export function useTenant() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("tenants")
-                .select("id, status, trial_ends_at, plan, restrictions, display_id, is_demo, created_at")
+                .select("id, status, trial_ends_at, plan, restrictions, display_id, is_demo, created_at, business_types")
                 .eq("id", tenantId!)
                 .maybeSingle();
             if (error) throw error;
@@ -51,3 +53,10 @@ export function useTenant() {
         },
     });
 }
+
+/** What the store sells (Fermi B10), in the order ticked; empty until known. */
+export function useBusinessTypes(): string[] {
+    return useTenant().data?.business_types ?? NO_TYPES;
+}
+
+const NO_TYPES: string[] = [];

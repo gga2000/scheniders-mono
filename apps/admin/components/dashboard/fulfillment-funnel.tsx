@@ -36,7 +36,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
             <Filter className="w-4 h-4 text-[var(--ink-teal)]" />
           </div>
           <h3 className="font-bold text-foreground text-sm">
-            Fulfillment Funnel
+            Fulfillment Funnel, last 90 days
           </h3>
         </div>
       </div>
@@ -57,7 +57,7 @@ export function FulfillmentFunnel({ funnel }: FulfillmentFunnelProps) {
               <div key={step.label} className="w-full flex flex-col items-center">
                 {/* Stage bar */}
                 <div
-                  className="rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-500"
+                  className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 transition-all duration-500"
                   style={{
                     width,
                     backgroundColor: bgColor,

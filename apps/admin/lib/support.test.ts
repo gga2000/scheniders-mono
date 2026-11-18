@@ -6,10 +6,13 @@ import {
   formatDue,
   callBackNumber,
   sortTasks,
+  taskLabel,
   TaskLogSchema,
   type SupportTask,
   formatDuration,
   leadProblem,
+  problemOpener,
+  SHOP_PROBLEM_OPENERS,
   problemDetail,
   formatWait,
   latestOrderNumber,
@@ -17,6 +20,9 @@ import {
   filePaths,
   sortInbox,
   supportRefusal,
+  waitingOnUsLine,
+  supportTimeline,
+  type SupportCaseNote,
   type SupportCaseRow,
   type SupportMessageRow,
 } from "./support";
@@ -34,6 +40,7 @@ function row(over: Partial<SupportCaseRow>): SupportCaseRow {
     waiting_since: "2026-11-16T10:00:00Z",
     solved_at: null,
     rating: null,
+    no_reason: null,
     reopened_count: 0,
     last_message_at: "2026-11-16T10:00:00Z",
     last_message_preview: "",
@@ -182,8 +189,33 @@ describe("leadProblem", () => {
   const p = (code: Parameters<typeof problemDetail>[0]) => ({ code, since: null, detail: null });
 
   it("opens with the store being down before anything smaller", () => {
-    expect(leadProblem([p("trial_ending"), p("wallet_empty"), p("store_paused")])).toBe("store_paused");
-    expect(leadProblem([p("trial_ending"), p("orders_stopped")])).toBe("orders_stopped");
+    expect(leadProblem([p("trial_ending"), p("wallet_empty"), p("store_paused")]).code).toBe("store_paused");
+    expect(leadProblem([p("trial_ending"), p("orders_stopped")]).code).toBe("orders_stopped");
+  });
+});
+
+// Round 14 (Data new 4): a WhatsApp pause staff made opened with "most of
+// your messages did not arrive", which never happened.
+describe("problemOpener", () => {
+  it("does not blame failed messages for a WhatsApp pause staff made", () => {
+    const staff = problemOpener({ code: "whatsapp_paused", detail: "staff" });
+    expect(staff).toBe("هلا، رسائل الواتساب لزبائنك متوقفة حالياً من طرفنا. خلّينا نحجي حتى نرجّعها.");
+    expect(staff).not.toContain("ما وصل");
+  });
+
+  // Round 15 (Data new 2): the store_paused line said "we noticed your store
+  // stopped and takes no new orders". Only staff pause a store, and a pause
+  // may leave new orders on.
+  it("says we paused the store, and nothing about orders", () => {
+    const paused = problemOpener({ code: "store_paused", detail: "catalogue check" });
+    expect(paused).toBe("هلا، متجرك موقوف مؤقتاً من طرفنا. خلّينا نحجي عنه ونشوف شنو نحتاج حتى نرفع الإيقاف.");
+    expect(paused).not.toContain("لاحظنا");
+    expect(paused).not.toContain("طلبات");
+  });
+
+  it("keeps each other opener as it was", () => {
+    expect(problemOpener({ code: "whatsapp_paused", detail: "failures" })).toBe(SHOP_PROBLEM_OPENERS.whatsapp_paused);
+    expect(problemOpener({ code: "store_paused", detail: null })).toBe(SHOP_PROBLEM_OPENERS.store_paused);
   });
 });
 
@@ -193,6 +225,11 @@ describe("problemDetail", () => {
     expect(problemDetail("orders_stopped", "262")).toBe("none in 48 h, 262 in the 2 weeks before");
     expect(problemDetail("wallet_empty", "-1500")).toBe("-1,500 IQD");
     expect(problemDetail("prime_error", "token expired")).toBe("token expired");
+    // Round 13: a locked shop read "Locked for billing · trial_ended".
+    expect(problemDetail("billing_locked", "trial_ended")).toBe("Trial ended, not paid");
+    expect(problemDetail("billing_locked", "unpaid")).toBe("Month not paid");
+    expect(problemDetail("whatsapp_paused", "staff")).toBe("by staff");
+    expect(problemDetail("billing_locked", "constructor")).toBe("constructor");
     expect(problemDetail("trial_ending", null)).toBeNull();
     expect(problemDetail("store_paused", " ")).toBeNull();
   });
@@ -211,6 +248,7 @@ describe("sortTasks", () => {
   const task = (id: string, owner: string | null, due: string, kind: SupportTask["kind"] = "welcome_call"): SupportTask => ({
     id,
     kind,
+    topic: null,
     due_at: due,
     attempts: 0,
     phone: kind === "call_back" ? "07701234567" : null,
@@ -246,6 +284,14 @@ describe("sortTasks", () => {
   });
 });
 
+describe("taskLabel", () => {
+  it("names a setup-help call as its own kind and keeps the plain call-back label", () => {
+    expect(taskLabel({ kind: "call_back", topic: "setup" }).title).toBe("Setup help");
+    expect(taskLabel({ kind: "call_back", topic: null }).title).toBe("Call back");
+    expect(taskLabel({ kind: "store_check", topic: null }).title).toBe("Store check");
+  });
+});
+
 describe("callBackNumber", () => {
   it("groups the number for reading and dials it with the country code", () => {
     expect(callBackNumber("07701234567")).toEqual({ label: "0770 123 4567", href: "tel:+9647701234567" });
@@ -268,5 +314,63 @@ describe("TaskLogSchema", () => {
     const id = "66666666-6666-4666-8666-666666666666";
     expect(TaskLogSchema.parse({ taskId: id, outcome: "done" })).toEqual({ taskId: id, outcome: "done", note: "" });
     expect(TaskLogSchema.parse({ taskId: id, outcome: "later", note: "  call at 6 " }).note).toBe("call at 6");
+  });
+});
+
+describe("supportTimeline", () => {
+  const message = (id: string, at: string): SupportMessageRow => ({
+    id,
+    case_id: "c",
+    sender_kind: "merchant",
+    sender_name: "Ali",
+    body: "hi",
+    context: {},
+    created_at: at,
+    screenshot_url: null,
+    voice_url: null,
+  });
+  const note = (id: string, at: string): SupportCaseNote => ({
+    id,
+    kind: "note",
+    admin_name: "Noor",
+    body: "asked Prime",
+    to_name: null,
+    created_at: at,
+  });
+
+  it("puts staff notes between messages by time", () => {
+    const items = supportTimeline(
+      [message("m1", "2026-11-16T19:00:00Z"), message("m2", "2026-11-16T19:10:00Z")],
+      [note("n1", "2026-11-16T19:05:00Z")],
+    );
+    expect(items.map((i) => (i.type === "message" ? i.message.id : i.note.id))).toEqual(["m1", "n1", "m2"]);
+  });
+
+  it("keeps the message first when a note has the same time", () => {
+    const at = "2026-11-16T19:00:00Z";
+    const items = supportTimeline([message("m1", at)], [note("n1", at)]);
+    expect(items.map((i) => i.type)).toEqual(["message", "note"]);
+  });
+
+  it("reads timestamps with different offsets as the same clock", () => {
+    const items = supportTimeline(
+      [message("m1", "2026-11-16T22:00:00+03:00")],
+      [note("n1", "2026-11-16T18:59:00.123456+00:00")],
+    );
+    expect(items.map((i) => i.type)).toEqual(["note", "message"]);
+  });
+});
+
+describe("waitingOnUsLine", () => {
+  it("counts the merchants waiting on us", () => {
+    expect(waitingOnUsLine({ count: 0, isError: false })).toBe("No merchant is waiting on us.");
+    expect(waitingOnUsLine({ count: 1, isError: false })).toBe("1 merchant waiting on us");
+    expect(waitingOnUsLine({ count: 3, isError: false })).toBe("3 merchants waiting on us");
+  });
+
+  it("says nobody is waiting only when the read answered", () => {
+    expect(waitingOnUsLine({ count: undefined, isError: false })).toBe("Loading...");
+    expect(waitingOnUsLine({ count: undefined, isError: true })).toBe("Could not check who is waiting on us");
+    expect(waitingOnUsLine({ count: 0, isError: true })).toBe("Could not check who is waiting on us");
   });
 });

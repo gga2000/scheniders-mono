@@ -8,6 +8,7 @@ import { useAfterSaleIntake, useReceiveAfterSaleItem, type PendingBackItem } fro
 import { toast } from "@/hooks/use-toast";
 import { daysWaiting, isOverdue } from "@/lib/after-sale/intake";
 import { cn, formatIQD } from "@/lib/utils";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 type Condition = "sealed" | "opened_usable" | "damaged" | "missing";
 
@@ -41,7 +42,7 @@ export function AfterSaleIntakePanel({ onOpenOrder }: { onOpenOrder?: (orderId: 
         receive.mutate(
             { itemId: item.id, condition },
             {
-                onSuccess: () => toast.success(t(`intake.done.${condition}`, { name: item.name })),
+                onSuccess: () => toast.success(t(`intake.done.${condition}`, { name: orderItemLabel(item) })),
                 onError: (e) => toast.error(t("intake.error"), e instanceof Error ? e.message : undefined),
                 onSettled: () => setBusyId(null),
             },
@@ -67,7 +68,7 @@ export function AfterSaleIntakePanel({ onOpenOrder }: { onOpenOrder?: (orderId: 
             <li key={item.id} className={cn("flex flex-col gap-3 p-3 md:flex-row md:items-center", late && "bg-rose-50/60 dark:bg-rose-500/5")}>
                 <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">
-                        {item.name} <span className="text-muted">× {item.qty}</span>
+                        {orderItemLabel(item)} <span className="text-muted">× {item.qty}</span>
                     </p>
                     <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
                         <button

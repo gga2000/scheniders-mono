@@ -11,6 +11,7 @@
 //   2. Pick a starter template (recommended one highlighted).
 //   3. Business basics — name, WhatsApp, brand colour.
 //   → "Create my store" seeds `store_config_v2_draft` and opens the editor.
+// Under every step: «تريد نساعدك بالإعداد؟», our team calls and sets it up.
 // =====================================================================
 
 import { useCallback, useMemo, useState } from "react";
@@ -54,12 +55,16 @@ import type { StoreTemplate } from "@/lib/store-templates";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { authedFetch } from "@/lib/authed-fetch";
+import { attributeTemplatesFor, industryIdFor, mergeAttributeSets, packIdFor } from "@/lib/business-types";
+import { SetupHelpOffer } from "./setup-help-offer";
 
 interface OnboardingWizardProps {
     tenantId: string;
     defaultBusinessName: string;
     defaultWhatsapp?: string;
     industries: WizardIndustry[];
+    /** What the store sells, ticked at signup (B10); empty for older stores. */
+    businessTypes: string[];
 }
 
 /** Curated brand-colour presets — covers the common storefront palettes. */
@@ -96,13 +101,17 @@ export function OnboardingWizard({
     defaultBusinessName,
     defaultWhatsapp,
     industries,
+    businessTypes,
 }: OnboardingWizardProps) {
     const router = useRouter();
     const { t, language } = useLanguage();
     const isAr = language === "ar";
 
     const [step, setStep] = useState<Step>(0);
-    const [vertical, setVertical] = useState<string | null>(null);
+    // The trade picked at signup is already ticked here; keeping it keeps the
+    // pack that fits it exactly (perfume, not the wider beauty row).
+    const signupIndustryId = industryIdFor(businessTypes, industries);
+    const [vertical, setVertical] = useState<string | null>(signupIndustryId);
     // Tracks the recommended template from the chosen industry (shown as badge).
     const [recommendedId, setRecommendedId] = useState<string | null>(null);
     const [templateId, setTemplateId] = useState<string>(
@@ -118,9 +127,12 @@ export function OnboardingWizard({
     // words, which is exactly what shipped before this existed.
     const [sells, setSells] = useState("");
     const [copy, setCopy] = useState<StoreCopy | null>(null);
+    // The store text is being written from the description: creating now
+    // would seed the pack's words over what the merchant just typed.
+    const [copyWriting, setCopyWriting] = useState(false);
 
     const basicsValid = businessName.trim().length > 0;
-    const canCreate = basicsValid && templateId.length > 0;
+    const canCreate = basicsValid && templateId.length > 0 && !copyWriting;
 
     const handlePickVertical = (industry: WizardIndustry) => {
         const rec =
@@ -146,8 +158,15 @@ export function OnboardingWizard({
             : undefined;
         // Niche → content pack: the words, the starter categories and the
         // attributes; the template is only the look.
-        const pack = resolveContentPack(industryName);
+        const signupPackId = vertical && vertical === signupIndustryId ? packIdFor(businessTypes) : undefined;
+        const pack = resolveContentPack(signupPackId ?? industryName);
         const taxonomy = starterTaxonomy(pack.id);
+        // The pack's attributes, then the ready sets for what the store sells
+        // (a key both name is written once).
+        const attributeDefs = mergeAttributeSets(
+            taxonomy.attribute_defs,
+            ...attributeTemplatesFor(businessTypes).map((template) => template.attributes),
+        );
         const config = buildStarterStoreConfigV2({
             templateId,
             packId: pack.id,
@@ -166,7 +185,7 @@ export function OnboardingWizard({
                     tenant_id: tenantId,
                     config,
                     categories: taxonomy.categories,
-                    attribute_defs: taxonomy.attribute_defs,
+                    attribute_defs: attributeDefs,
                 }),
             });
             if (!res.ok) {
@@ -236,6 +255,7 @@ export function OnboardingWizard({
                         }}
                         copy={copy}
                         onCopy={setCopy}
+                        onCopyWriting={setCopyWriting}
                         packId={resolveContentPack(
                             vertical ? (industries.find((i) => i.id === vertical)?.name ?? vertical) : undefined,
                         ).id}
@@ -298,6 +318,8 @@ export function OnboardingWizard({
                     </div>
                 )}
             </div>
+
+            <SetupHelpOffer defaultPhone={defaultWhatsapp ?? ""} />
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
                 {t("wizard.footer")}
@@ -440,6 +462,7 @@ function BasicsStep({
     onSells,
     copy,
     onCopy,
+    onCopyWriting,
     packId,
     t,
 }: {
@@ -454,6 +477,7 @@ function BasicsStep({
     onSells: (v: string) => void;
     copy: StoreCopy | null;
     onCopy: (c: StoreCopy | null) => void;
+    onCopyWriting: (writing: boolean) => void;
     packId: string;
     t: TFn;
 }) {
@@ -479,6 +503,7 @@ function BasicsStep({
                 onSells={onSells}
                 copy={copy}
                 onCopy={onCopy}
+                onWriting={onCopyWriting}
                 inputCls={inputCls}
                 t={t}
             />
@@ -896,7 +921,9 @@ const storeCopyResponseSchema = z.object({
  * "In a sentence, what do you sell?" — and the copy written from it.
  *
  * Optional by design: skipping it leaves the niche pack's words in place.
- * The merchant sees the headline and story before creating the store, so
+ * Typed in, it is used (Fermi B11): the store text is written from it when
+ * the merchant leaves the box, not only when they press the button. The
+ * merchant sees the headline and story before creating the store, so
  * nothing is seeded sight-unseen, and every line stays editable afterwards.
  */
 function StoreCopyField({
@@ -906,6 +933,7 @@ function StoreCopyField({
     onSells,
     copy,
     onCopy,
+    onWriting,
     inputCls,
     t,
 }: {
@@ -915,27 +943,28 @@ function StoreCopyField({
     onSells: (v: string) => void;
     copy: StoreCopy | null;
     onCopy: (c: StoreCopy | null) => void;
+    onWriting: (writing: boolean) => void;
     inputCls: string;
     t: TFn;
 }) {
     const [writing, setWriting] = useState(false);
     const [failed, setFailed] = useState(false);
+    // The description last written from (or discarded), so leaving the box
+    // again without a change does not write it a second time.
+    const [writtenFrom, setWrittenFrom] = useState<string | null>(null);
     const ready = businessName.trim().length > 0 && sells.trim().length >= 3;
 
     const write = async () => {
         if (!ready || writing) return;
         setWriting(true);
+        onWriting(true);
+        setWrittenFrom(sells.trim());
         setFailed(false);
         try {
-            const { data } = await supabase.auth.getSession();
+            // authedFetch carries the session's token.
             const res = await authedFetch("/api/ai/store-copy", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(data.session?.access_token
-                        ? { }
-                        : {}),
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     business_name: businessName.trim(),
                     sells: sells.trim(),
@@ -960,6 +989,7 @@ function StoreCopyField({
             onCopy(null);
         } finally {
             setWriting(false);
+            onWriting(false);
         }
     };
 
@@ -969,6 +999,9 @@ function StoreCopyField({
                 rows={2}
                 value={sells}
                 onChange={(e) => onSells(e.target.value)}
+                onBlur={() => {
+                    if (!copy && sells.trim() !== writtenFrom) void write();
+                }}
                 placeholder={t("wizard.basics.sellsPlaceholder")}
                 data-testid="wizard-sells"
                 className={`${inputCls} resize-y`}

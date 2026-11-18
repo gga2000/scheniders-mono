@@ -1,0 +1,43 @@
+/**
+ * Whether a request that changes something came from the console's own pages.
+ *
+ * The console's API trusts the staff sign-in cookie. Without this check, a
+ * page on another site that a signed-in staff member opens could send a
+ * write with that cookie. Browsers name the page a write came from in the
+ * Origin header (and say same-origin or cross-site in Sec-Fetch-Site), and a
+ * page cannot change either, so a write is let through only when the page
+ * was the console's own. Reads (GET, HEAD, OPTIONS) change nothing.
+ */
+const READS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+export function isOwnPageWrite(method: string, headers: Headers, host: string): boolean {
+  if (READS.has(method.toUpperCase())) return true;
+
+  const origin = headers.get("origin");
+  if (origin !== null) {
+    // "null" comes from sandboxed frames and privacy redirects: no page to trust.
+    if (!URL.canParse(origin)) return false;
+    return new URL(origin).host === host;
+  }
+  // Older browsers leave Origin off same-origin writes but say where the
+  // request came from here. A request with neither came from no browser page.
+  return headers.get("sec-fetch-site") === "same-origin";
+}
+
+export const CROSS_SITE_WRITE = "This change did not come from the staff console, so it was refused.";
+
+/**
+ * Whether a read that does something (the export starts a download and writes
+ * a staff-log row) was asked for by the console's own page. The Export button
+ * opens it from a console page, which the browser marks "same-origin".
+ * Anything else is refused: a link, image or frame on another site sends
+ * "cross-site"; a link opened from a mail or chat app, like an address typed
+ * by hand, sends "none", so it could start a download with the staff cookie
+ * from outside the console; a request with no Sec-Fetch-Site came from no
+ * browser page.
+ */
+export function isOwnPageRead(headers: Headers): boolean {
+  return headers.get("sec-fetch-site") === "same-origin";
+}
+
+export const CROSS_SITE_READ = "This download did not start from the staff console, so it was refused.";

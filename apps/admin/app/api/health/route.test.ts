@@ -20,32 +20,47 @@ const { GET } = await import("./route");
 const call = () => GET(new NextRequest("http://admin.test/api/health"));
 
 const shop = (id: string, extra: Row = {}): Row => ({
-  is_demo: false,
+  is_demo: false, is_prospect: false,
   id,
   business_name: `Shop ${id}`,
   plan: "starter",
   status: "active",
   city: "Baghdad",
   created_at: "2026-06-01T09:00:00Z",
+  // As the database works it out: 5 for a shop with real orders in 30 days, 0 for none.
+  staff_health_parts: { status: 15, wallet: 5, orders: 5 },
   ...extra,
 });
+const NO_ORDERS = { status: 15, wallet: -10, orders: 0 };
 
 beforeEach(() => {
   // Mon 16 Nov 2026, 12:00 in Baghdad.
   vi.useFakeTimers({ now: new Date("2026-11-16T09:00:00Z"), toFake: ["Date"] });
   stub = supabaseStub();
-  stub.state.tables.tenants = [shop("a"), shop("b", { status: "suspended" }), shop("c", { status: "trial" })];
+  stub.state.tables.tenants = [
+    shop("a"),
+    shop("b", { status: "suspended", staff_health_parts: NO_ORDERS }),
+    shop("c", { status: "trial", staff_health_parts: NO_ORDERS }),
+  ];
   stub.state.tables.wallet = [
     { tenant_id: "a", balance_iqd: 40_000, threshold_iqd: 5_000 },
     { tenant_id: "b", balance_iqd: 1_000, threshold_iqd: 5_000 },
     { tenant_id: "c", balance_iqd: 0, threshold_iqd: 5_000 },
   ];
-  stub.state.tables.admin_order_facts = [{ id: "o1" }, { id: "o2" }];
+  // Two orders in the last 24 hours; the one a minute before the window is not counted.
+  stub.state.tables.admin_order_facts = [
+    { id: "o1", created_at: "2026-11-16T08:00:00Z" },
+    { id: "o2", created_at: "2026-11-15T09:30:00Z" },
+    { id: "o-old", created_at: "2026-11-15T08:59:00Z" },
+  ];
   // Raw rows, the demo store's invented orders among them: never counted here.
   stub.state.tables.orders = [{ id: "o1" }, { id: "o2" }, { id: "demo-1" }, { id: "demo-2" }, { id: "demo-3" }];
+  // The plan's counter: c's 9 must not hide that c has no real order.
+  // No shop is locked unless a test says so.
+  stub.state.functions.admin_locked_shops = () => ({ data: {}, error: null });
   stub.state.tables.usage_tracking = [
     { tenant_id: "a", year: 2026, month: 11, orders_count: 12, team_members_count: 2 },
-    { tenant_id: "c", year: 2026, month: 10, orders_count: 9, team_members_count: 1 },
+    { tenant_id: "c", year: 2026, month: 11, orders_count: 9, team_members_count: 1 },
   ];
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -69,18 +84,53 @@ describe("GET /api/health", () => {
     });
     expect(stub.tablesRead()).not.toContain("orders");
     expect(stub.callsTo("admin_order_facts.gte")).toEqual([["created_at", "2026-11-15T09:00:00.000Z"]]);
-    // b: low balance 3 + no orders this month 2 + suspended 2. c: low balance 3 + no orders 2.
+    // b: low balance 3 + no orders in 30 days 2 + suspended 2. c: low balance 3 + no orders 2.
     expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score])).toEqual([
       ["b", 7],
       ["c", 5],
     ]);
+    expect(body.riskIndicators[1].reasons).toEqual(["Low balance", "No orders in 30 days"]);
+    expect(stub.tablesRead()).not.toContain("usage_tracking");
     expect(body.lowBalanceWallets).toEqual([
       { tenant_id: "c", business_name: "Shop c", balance_iqd: 0, threshold_iqd: 5_000 },
       { tenant_id: "b", business_name: "Shop b", balance_iqd: 1_000, threshold_iqd: 5_000 },
     ]);
   });
 
-  it.each(["tenants", "wallet", "admin_order_facts", "usage_tracking"])(
+  it("counts a paused trial among the trials, as Trials does", async () => {
+    stub.state.tables.tenants = [
+      shop("a"),
+      shop("p", { status: "limited", restrictions: { status_before: "trial" } }),
+      shop("q", { status: "limited", restrictions: { status_before: "active" } }),
+      shop("c", { status: "trial" }),
+    ];
+
+    const body = await (await call()).json();
+
+    expect(body.platformHealth.trialTenants).toBe(2);
+    expect(body.platformHealth.activeTenants).toBe(1);
+  });
+
+  it("names a locked shop with why, though its status still reads trial or active", async () => {
+    // a pays nothing this month; c's trial ended unpaid.
+    stub.state.functions.admin_locked_shops = () => ({ data: { a: "unpaid", c: "trial_ended" }, error: null });
+
+    const body = await (await call()).json();
+
+    // a: locked 3 (enough alone). c: low balance 3 + no orders 2 + locked 3.
+    expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score, risk.reasons])).toEqual([
+      ["c", 8, ["Low balance", "No orders in 30 days", "Locked: trial ended, not paid"]],
+      ["b", 7, ["Low balance", "No orders in 30 days", "Suspended"]],
+      ["a", 3, ["Locked: month not paid"]],
+    ]);
+  });
+
+  it("answers 500, not an empty list, when the locked shops read fails", async () => {
+    stub.state.functions.admin_locked_shops = () => ({ data: null, error: { message: "connection lost" } });
+    expect((await call()).status).toBe(500);
+  });
+
+  it.each(["tenants", "wallet", "admin_order_facts"])(
     "answers 500, not zeros, when the %s read fails",
     async (table) => {
       stub.state.failing.add(table);
@@ -103,6 +153,20 @@ describe("GET /api/health", () => {
     expect(body.platformHealth.totalTenants).toBe(many);
     // The one low wallet is row 1,500: a single capped read never saw it.
     expect(body.lowBalanceWallets.map((wallet: Row) => wallet.tenant_id)).toEqual([`s${many - 1}`]);
+  });
+
+  it("leaves cancelled shops, the demo store and prospect stores out of both lists", async () => {
+    stub.state.tables.tenants.push(
+      shop("gone", { status: "cancelled", staff_health_parts: NO_ORDERS }),
+      shop("demo", { is_demo: true, staff_health_parts: NO_ORDERS }),
+      shop("lead", { is_prospect: true, status: "trial", staff_health_parts: NO_ORDERS }),
+    );
+    for (const id of ["gone", "demo", "lead"]) stub.state.tables.wallet.push({ tenant_id: id, balance_iqd: 0, threshold_iqd: 5_000 });
+
+    const body = await (await call()).json();
+    expect(body.riskIndicators.map((risk: Row) => risk.tenant_id)).toEqual(["b", "c"]);
+    // The demo and prospect wallets showed as "Unknown" with a Top Up link.
+    expect(body.lowBalanceWallets.map((wallet: Row) => wallet.tenant_id)).toEqual(["c", "b"]);
   });
 
   it("puts a new shop in its Baghdad month", async () => {

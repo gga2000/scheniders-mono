@@ -670,7 +670,7 @@ export function HealthChecklistScreen(
             </div>
             )}
 
-            {/* Blocks publish banner */}
+            {/* Fix-first banner: these checks never stop Publish. */}
             {blocking.length > 0 ? (
                 <div
                     data-testid="health-blocks-publish"

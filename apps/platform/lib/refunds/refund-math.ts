@@ -1,4 +1,5 @@
 import type { OrderItem } from "@/types/order";
+import { orderItemLabel } from "@/lib/orders/item-label";
 
 /**
  * Refund money rules, client side. The database computes the same numbers
@@ -67,7 +68,8 @@ export function paidLines(items: OrderItem[], orderPrice: number): PaidLine[] {
         allocated += paid;
         return {
             index,
-            name: item.name,
+            // Shown on the refund and replace sheets: the size tells two lines of one product apart.
+            name: orderItemLabel(item),
             quantity: Math.max(0, Math.round(Number(item.quantity) || 0)),
             paid,
         };

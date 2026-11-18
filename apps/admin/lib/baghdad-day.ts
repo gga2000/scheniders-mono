@@ -21,6 +21,40 @@ export function dayOf(instant: string | Date | number): string {
   return baghdadDay.format(new Date(instant));
 }
 
+const WALL_TIME = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/;
+
+/**
+ * A time typed in a date-and-time box ('2026-11-18T14:30') read as Baghdad
+ * time, as the instant it names. The box itself has no zone: read with
+ * `new Date(typed)`, it took the browser's clock zone, so a follow-up set for
+ * 14:30 on a laptop in another zone fell at another hour. Null for anything
+ * that is not a real day and time.
+ */
+export function baghdadWallTime(typed: string): string | null {
+  const parts = WALL_TIME.exec(typed);
+  if (!parts || Number(parts[2]) > 23 || Number(parts[3]) > 59) return null;
+  const instant = Date.parse(`${typed}:00+03:00`);
+  // '2026-02-30' parses as 2 March: the day must read back as typed.
+  if (Number.isNaN(instant) || dayOf(instant) !== parts[1]) return null;
+  return new Date(instant).toISOString();
+}
+
+/**
+ * Where "the last `days` days" starts: midnight in Baghdad `days - 1` days
+ * before today, so today counts as one of them: the same window the
+ * Merchants list's "30 days" uses (admin_merchant_list_stats).
+ */
+export function lastDaysStart(days: number, now: Date | number = Date.now()): string {
+  return `${addDays(dayOf(now), 1 - days)}T00:00:00+03:00`;
+}
+
+/**
+ * A trial this many Baghdad days from its end or fewer is "ending": the
+ * Trials page's count and red bars, the support card, shop health and the
+ * shop list's alert flag all read this one number.
+ */
+export const TRIAL_ENDING_DAYS = 3;
+
 export interface TrialClock {
   /** The end has passed: the trial is over (and the shop is locked until it pays). */
   ended: boolean;

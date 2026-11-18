@@ -7,6 +7,7 @@ import { lastReportedEventId } from "@/lib/report-error";
 import {
     AlertTriangle,
     Camera,
+    CheckCheck,
     CheckCircle2,
     FileText,
     LifeBuoy,
@@ -34,7 +35,7 @@ import { buildSupportContext } from "@/lib/support/context";
 import { captureScreen } from "@/lib/support/screenshot";
 import { takeSupportOpenLink } from "@/lib/support/open-link";
 import { formatVoiceLength } from "@/lib/support/voice";
-import type { SupportMessage } from "@/lib/support/schema";
+import { SUPPORT_NO_REASONS, type SupportMessage, type SupportNoReason, type SupportSeen } from "@/lib/support/schema";
 import { cn } from "@/lib/utils";
 
 // dir="auto" on sentences: an Arabic sentence ends with its own full stop,
@@ -89,6 +90,21 @@ function MessageLine({ message }: { message: SupportMessage }) {
             </div>
             <span className="mt-1 text-[11px] text-muted">{time}</span>
         </div>
+    );
+}
+
+/** «شافها نور · 10:04 م» under the merchant's last message, until staff reply. */
+function SeenLine({ seen }: { seen: SupportSeen }) {
+    const { t, language } = useLanguage();
+    const time = new Date(seen.at).toLocaleTimeString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+    return (
+        <p className="-mt-2 flex items-center justify-end gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+            <CheckCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span dir="auto">{t("support.seen", { name: seen.name, time })}</span>
+        </p>
     );
 }
 
@@ -217,6 +233,11 @@ export function SupportSheet() {
         action.mutate({ action: "rate", caseId: current.id, rating }, { onError: explain });
     };
 
+    const tellWhy = (reason: SupportNoReason) => {
+        if (!current || action.isPending) return;
+        action.mutate({ action: "noReason", caseId: current.id, reason }, { onError: explain });
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -288,6 +309,28 @@ export function SupportSheet() {
                                 </div>
                             ) : (
                                 messages.map((message) => <MessageLine key={message.id} message={message} />)
+                            )}
+
+                            {thread?.seen && <SeenLine seen={thread.seen} />}
+
+                            {thread?.askWhy && (
+                                <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
+                                    <p dir="auto" className="text-sm font-bold text-foreground">{t("support.why.question")}</p>
+                                    <p dir="auto" className="mt-0.5 text-xs text-muted">{t("support.why.hint")}</p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {SUPPORT_NO_REASONS.map((reason) => (
+                                            <button
+                                                key={reason}
+                                                type="button"
+                                                onClick={() => tellWhy(reason)}
+                                                disabled={action.isPending}
+                                                className="rounded-full border border-[var(--card-border)] px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/5 disabled:opacity-50"
+                                            >
+                                                <span dir="auto">{t(`support.why.${reason}`)}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
 
                             {awaitingRating && (
