@@ -10,6 +10,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { postJson } from "@/components/merchants/detail/action-ui";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 interface QuickNotePopoverProps {
   merchantId: string;
@@ -18,6 +19,8 @@ interface QuickNotePopoverProps {
 export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   const [open, setOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
+  // A note being written survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(open && noteText.trim() !== "");
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
