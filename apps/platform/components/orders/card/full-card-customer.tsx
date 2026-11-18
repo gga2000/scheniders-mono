@@ -24,6 +24,7 @@ import { ClaudeChip } from "./claude-chip";
 import { CardStatusMenu } from "./status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "../refund-chips";
 import type { OrderCardModel } from "./use-order-card-model";
+import { CardDate } from "./card-date";
 
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
 export function FullCardCustomer({ m }: { m: OrderCardModel }) {
@@ -199,7 +200,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                 {/* Date & Time with Age Badge - visible in normal and semi-compact */}
                 {(
                     <div className="flex items-center gap-2 text-xs">
-                        <span className="font-semibold text-muted">{formatShortDate(order.created_at)}</span>
+                        <CardDate iso={order.created_at} language={language} />
                         <span className="text-[var(--card-border)]">|</span>
                         <span className="font-mono text-muted">{formatTime(order.created_at, language)}</span>
 
