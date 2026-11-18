@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, baghdadWallTime, dayOf, lastDaysStart, readDayRange, trialClock } from "./baghdad-day";
+import { addDays, baghdadWallTime, dayNumber, dayOf, lastDaysStart, readDayRange, trialClock } from "./baghdad-day";
 
 /*
  * Shop #100095's trial ended at 06:21 Baghdad on 17 Nov. On the evening of
@@ -50,6 +50,22 @@ describe("trialClock", () => {
   it("counts a week ahead as 7 days, whatever the hour", () => {
     expect(trialClock(END, at("2026-11-10T23:59:00")).days).toBe(7);
     expect(trialClock(END, at("2026-11-10T00:01:00")).days).toBe(7);
+  });
+});
+
+describe("dayNumber", () => {
+  const now = Date.parse("2026-11-18T09:00:00+03:00");
+
+  it("is day 1 on the Baghdad day of signup, whatever the hour", () => {
+    expect(dayNumber("2026-11-18T00:10:00+03:00", now)).toBe(1);
+    // 23:00 UTC on the 17th is 02:00 on the 18th in Baghdad.
+    expect(dayNumber("2026-11-17T23:00:00Z", now)).toBe(1);
+  });
+
+  it("counts on by calendar day, not by 24 hours", () => {
+    // Ten hours before now, but the day before in Baghdad.
+    expect(dayNumber("2026-11-17T23:00:00+03:00", now)).toBe(2);
+    expect(dayNumber("2026-11-11T06:21:00+03:00", now)).toBe(8);
   });
 });
 
