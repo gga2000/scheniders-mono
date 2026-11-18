@@ -10,6 +10,7 @@ import { hasPermission } from "@/lib/admin-permissions";
 import { formatCount, formatDay, formatDayKey, formatTime } from "@/lib/format";
 import { groupOrderFees, type TimelineEntry, type TimelineKind } from "@/lib/shop-timeline";
 import { Choice, ErrorLine, postJson } from "./action-ui";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface TimelinePage {
   entries: TimelineEntry[];
@@ -40,7 +41,7 @@ export function TimelineTab({ merchantId, focusNote = false }: { merchantId: str
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const query = typeof pageParam === "string" ? `?before=${encodeURIComponent(pageParam)}` : "";
-      const res = await fetch(`/api/merchants/${merchantId}/timeline${query}`);
+      const res = await adminFetch(`/api/merchants/${merchantId}/timeline${query}`);
       if (!res.ok) throw new Error("Could not load the timeline.");
       return res.json();
     },

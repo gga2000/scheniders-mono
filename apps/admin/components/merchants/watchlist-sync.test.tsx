@@ -19,6 +19,9 @@ const SERVER = { watchlist: [{ tenant_id: "kept", note: "call Friday", created_a
 const refetch = vi.fn();
 /** What the stars read gives: the server's stars, or a read that failed after its retries. */
 let read: { data?: typeof SERVER; isError: boolean } = { data: SERVER, isError: false };
+// The console's API calls go through adminFetch, which adds the session's
+// token; here it passes each call to the fetch the test answers.
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: (input: string, init?: RequestInit) => fetch(input, init) }));
 vi.mock("@/hooks/use-watchlist", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/hooks/use-watchlist")>()),
   useWatchlist: () => ({ ...read, refetch }),

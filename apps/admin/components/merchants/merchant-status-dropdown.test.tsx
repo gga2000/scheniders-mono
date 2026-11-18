@@ -11,6 +11,9 @@ import type { TenantStatus, TrialPayment } from "@/types/admin";
  * "Trial" on a paying one, each refused after a round trip.
  */
 
+// The console's API calls go through adminFetch, which adds the session's
+// token; here it passes each call to the fetch the test answers.
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: (input: string, init?: RequestInit) => fetch(input, init) }));
 vi.mock("@/hooks/use-admin-auth", () => ({ useCan: () => () => true }));
 
 const { MerchantStatusDropdown } = await import("./merchant-status-dropdown");

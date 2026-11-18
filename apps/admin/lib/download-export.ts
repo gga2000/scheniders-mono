@@ -1,3 +1,4 @@
+import { adminFetch } from "@/lib/admin-fetch";
 /**
  * The shops ticked on the Merchants page, saved as a CSV file. The ids go in
  * a POST body (thousands do not fit in an address), so the browser cannot
@@ -5,7 +6,7 @@
  * under the name the server gives it.
  */
 export async function downloadSelectedShops(ids: readonly string[]): Promise<void> {
-  const response = await fetch("/api/export", {
+  const response = await adminFetch("/api/export", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ type: "merchants", format: "csv", ids }),

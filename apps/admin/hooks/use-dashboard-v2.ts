@@ -4,9 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { DashboardV2Stats } from "@/types/dashboard";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { adminFetch } from "@/lib/admin-fetch";
 
 async function fetchDashboardV2(): Promise<DashboardV2Stats> {
-  const res = await fetch("/api/dashboard/v2");
+  const res = await adminFetch("/api/dashboard/v2");
   okOrLoadFailure(res, "dashboard V2 stats");
   return res.json();
 }

@@ -15,6 +15,7 @@ import { okOrLoadFailure } from "@/lib/load-failure";
 import { formatDayTime, formatWhen } from "@/lib/format";
 import { staffActionText, staffLogSummary } from "@/lib/staff-actions";
 import { ACTIVITY_KINDS, isActivityKind, type ActivityKind } from "@/lib/activity-kinds";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -98,7 +99,7 @@ export default function ActivityLogPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ActivityResponse>({
     queryKey: ["admin", "activity", page, kindFilter],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch(`/api/activity?${params.toString()}`), "the activity log");
+      const res = okOrLoadFailure(await adminFetch(`/api/activity?${params.toString()}`), "the activity log");
       return res.json();
     },
     staleTime: 30_000,

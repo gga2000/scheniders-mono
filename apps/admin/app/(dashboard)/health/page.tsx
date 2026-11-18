@@ -15,6 +15,7 @@ import { formatCount, formatIQD } from "@/lib/format";
 import { shopFormHref } from "@/lib/shop-actions";
 import { shopsAtRiskLine } from "@/lib/merchant-health";
 import { useCan } from "@/hooks/use-admin-auth";
+import { adminFetch } from "@/lib/admin-fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,7 +79,7 @@ function getRiskBarBg(score: number): string {
 // ---------------------------------------------------------------------------
 
 async function fetchHealth(): Promise<HealthData> {
-  const res = okOrLoadFailure(await fetch("/api/health"), "the health numbers");
+  const res = okOrLoadFailure(await adminFetch("/api/health"), "the health numbers");
   return res.json();
 }
 

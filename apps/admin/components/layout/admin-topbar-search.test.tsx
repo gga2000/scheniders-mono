@@ -9,6 +9,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
  * arrives after a newer one is dropped.
  */
 
+// The console's API calls go through adminFetch, which adds the session's
+// token; here it passes each call to the fetch the test answers.
+vi.mock("@/lib/admin-fetch", () => ({ adminFetch: (input: string, init?: RequestInit) => fetch(input, init) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/merchants", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "light", setTheme: vi.fn() }) }));
 vi.mock("@/components/shared/notification-bell", () => ({ NotificationBell: () => null }));

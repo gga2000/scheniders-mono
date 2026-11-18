@@ -18,6 +18,7 @@ import { createRequestIds } from "@/lib/request-ids";
 import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
+import { adminFetch } from "@/lib/admin-fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,7 +75,7 @@ const PRESET_AMOUNTS = [25_000, 50_000, 100_000, 250_000, 500_000];
 // ---------------------------------------------------------------------------
 
 async function fetchBilling(): Promise<BillingData> {
-  const res = okOrLoadFailure(await fetch("/api/billing"), "the wallets");
+  const res = okOrLoadFailure(await adminFetch("/api/billing"), "the wallets");
   return res.json();
 }
 
@@ -110,7 +111,7 @@ export default function BillingPage() {
       description: string;
       request_id: string;
     }) => {
-      const res = await fetch("/api/billing/topup", {
+      const res = await adminFetch("/api/billing/topup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

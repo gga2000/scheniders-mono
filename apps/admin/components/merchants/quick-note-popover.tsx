@@ -9,6 +9,7 @@ import { formatWhen } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { postJson } from "@/components/merchants/detail/action-ui";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface QuickNotePopoverProps {
   merchantId: string;
@@ -32,7 +33,7 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   >({
     queryKey: ["admin", "merchant-notes", merchantId],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch(`/api/merchants/${merchantId}/notes?limit=3`), "the notes");
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants/${merchantId}/notes?limit=3`), "the notes");
       const data = await res.json();
       return data.notes ?? [];
     },

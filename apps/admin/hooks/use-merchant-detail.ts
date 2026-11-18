@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import type { HealthParts, TenantRestrictions } from "@/types/admin";
 import type { BillingLockSnapshot } from "@/lib/billing-lock-tools";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export interface PlanLimits {
   plan: string;
@@ -116,7 +117,7 @@ export function useMerchantDetail(id: string) {
   return useQuery<MerchantDetail>({
     queryKey: ["admin", "merchant", id],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch(`/api/merchants/${id}`), "this shop");
+      const res = okOrLoadFailure(await adminFetch(`/api/merchants/${id}`), "this shop");
       return res.json();
     },
     staleTime: 30_000,
@@ -128,7 +129,7 @@ export function useMerchantRecentOrders(id: string, limit = 10) {
   return useQuery<{ orders: RecentOrder[] }>({
     queryKey: ["admin", "merchant", id, "recent-orders", limit],
     queryFn: async () => {
-      const res = await fetch(`/api/merchants/${id}/orders?limit=${limit}`);
+      const res = await adminFetch(`/api/merchants/${id}/orders?limit=${limit}`);
       okOrLoadFailure(res, "recent orders");
       return res.json();
     },

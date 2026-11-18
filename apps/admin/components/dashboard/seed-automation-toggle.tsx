@@ -5,6 +5,7 @@ import { Bot, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useCan } from "@/hooks/use-admin-auth";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const switchAnswer = z.object({ success: z.boolean().optional(), error: z.string().optional() });
 const statusAnswer = z.object({ active: z.boolean() });
@@ -21,7 +22,7 @@ export function SeedAutomationToggle() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/seed-automation");
+      const res = await adminFetch("/api/seed-automation");
       const status = statusAnswer.safeParse(res.ok ? await res.json() : null);
       setUnread(!status.success);
       if (status.success) setActive(status.data.active);
@@ -40,7 +41,7 @@ export function SeedAutomationToggle() {
   const handleToggle = async () => {
     setToggling(true);
     try {
-      const res = await fetch("/api/seed-automation", {
+      const res = await adminFetch("/api/seed-automation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !active }),

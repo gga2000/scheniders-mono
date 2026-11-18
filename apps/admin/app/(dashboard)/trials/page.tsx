@@ -19,6 +19,7 @@ import { TrialChecksPanel } from "@/components/trials/trial-checks-panel";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { formatCount, formatDayTime, formatIQD } from "@/lib/format";
 import { TRIAL_ENDING_DAYS } from "@/lib/baghdad-day";
+import { adminFetch } from "@/lib/admin-fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +109,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
   const mutation = useMutation({
     mutationFn: async (days: number) => {
       const request_id = requestIds.idFor(`${tenantId}:${days}:${reason.trim()}`);
-      const res = await fetch("/api/trials/extend", {
+      const res = await adminFetch("/api/trials/extend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenant_id: tenantId, days, reason: reason.trim(), request_id }),
@@ -190,7 +191,7 @@ export default function TrialsPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<TrialsResponse>({
     queryKey: ["admin", "trials"],
     queryFn: async () => {
-      const res = okOrLoadFailure(await fetch("/api/trials"), "the trials");
+      const res = okOrLoadFailure(await adminFetch("/api/trials"), "the trials");
       return res.json();
     },
     staleTime: 30_000,

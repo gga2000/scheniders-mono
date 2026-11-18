@@ -18,6 +18,7 @@ import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
 import { formatDay } from "@/lib/format";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface UsageData {
   heatmapData: Array<{ date: string; count: number }>;
@@ -48,7 +49,7 @@ export default function UsagePage() {
   const { data, isLoading, isError, isFetching, refetch } = useQuery<UsageData>({
     queryKey: ["admin", "usage"],
     queryFn: async () => {
-      const res = await fetch("/api/usage");
+      const res = await adminFetch("/api/usage");
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
