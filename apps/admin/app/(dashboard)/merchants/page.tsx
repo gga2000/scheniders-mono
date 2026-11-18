@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useInfiniteMerchants } from "@/hooks/use-infinite-merchants";
-import { useAdminStore } from "@/store/use-admin-store";
+import { merchantFiltersOn, useAdminStore } from "@/store/use-admin-store";
 import { useMerchantKeyboardNav } from "@/hooks/use-merchant-keyboard-nav";
 import { useLastActors } from "@/hooks/use-last-actors";
 import { MerchantCard } from "@/components/merchants/merchant-card";
@@ -105,15 +105,10 @@ export default function MerchantsPage() {
     searchQuery,
     clearFilters,
     setSearchQuery,
-    planFilter,
-    statusFilter,
-    cityFilter,
-    balanceFilter,
-    healthFilter,
   } = useAdminStore();
 
 
-  const hasActiveFilters = !!(planFilter || statusFilter || cityFilter || balanceFilter || healthFilter);
+  const hasActiveFilters = useAdminStore(merchantFiltersOn);
   const hasActiveSearch = !!searchQuery.trim();
 
   // ── Infinite scroll sentinel ─────────────────────────────────────────
