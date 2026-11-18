@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, MessageSquareText, Send, UserRoun
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLiveTick } from "@/hooks/use-live-tick";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { useSupportNeedsUs, useSupportStartConversation } from "@/hooks/use-support-cases";
 import { LoadError } from "@/components/shared/load-error";
 import {
@@ -79,6 +80,8 @@ export function SupportNeedsUs({ onOpenCase }: SupportNeedsUsProps) {
 function ShopRow({ shop, now, onOpenCase }: { shop: NeedsUsShop; now: number; onOpenCase: (caseId: string) => void }) {
   const start = useSupportStartConversation();
   const [draft, setDraft] = useState<string | null>(null);
+  // A first message not yet sent survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(draft !== null && draft.trim() !== "");
   const openCase = shop.open_case;
 
   const send = () => {

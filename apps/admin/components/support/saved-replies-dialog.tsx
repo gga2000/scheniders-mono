@@ -6,6 +6,7 @@ import { Loader2, MessageSquareText, Pencil, Plus, Trash2, X } from "lucide-reac
 import { toast } from "sonner";
 import { useAddSavedReply, useChangeSavedReply, useRemoveSavedReply, useSavedReplies } from "@/hooks/use-saved-replies";
 import type { SupportSavedReply } from "@/lib/support";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 interface Draft {
   id: string | null;
@@ -26,12 +27,25 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
   const change = useChangeSavedReply();
   const remove = useRemoveSavedReply();
   const [draft, setDraft] = useState<Draft | null>(null);
+  // The reply as the form opened with it, so only a change counts as typing.
+  const [opened, setOpened] = useState<Draft>(EMPTY);
+  const begin = (start: Draft) => {
+    setOpened(start);
+    setDraft(start);
+  };
+  // A saved reply being written or changed survives an ended sign-in's reload:
+  // leaving asks first.
+  useLeaveGuard(
+    open &&
+      draft !== null &&
+      (draft.title !== opened.title || draft.body !== opened.body || draft.position !== opened.position),
+  );
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const saving = add.isPending || change.isPending;
 
   const edit = (reply: SupportSavedReply) => {
     setConfirmDelete(null);
-    setDraft({ id: reply.id, title: reply.title, body: reply.body, position: String(reply.position) });
+    begin({ id: reply.id, title: reply.title, body: reply.body, position: String(reply.position) });
   };
 
   const save = () => {
@@ -214,7 +228,7 @@ export function SavedRepliesDialog({ open, onOpenChange }: { open: boolean; onOp
                 type="button"
                 onClick={() => {
                   setConfirmDelete(null);
-                  setDraft(EMPTY);
+                  begin(EMPTY);
                 }}
                 className="inline-flex items-center gap-1.5 rounded-full border border-[var(--card-border)] px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-foreground/5"
               >
