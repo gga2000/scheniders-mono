@@ -7,6 +7,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
 import { NO_CONSOLE_ACCESS, SIGN_IN_ENDED } from "@/lib/staff-sign-in";
 import { NEXT_PAGE, pageAfterSignIn } from "@/lib/page-after-sign-in";
+import { holdsLiveSignIn } from "@/lib/admin-fetch";
 
 // Public Cloudflare Turnstile key. Unset = no box (only while Supabase CAPTCHA is off).
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
@@ -54,11 +55,26 @@ export default function LoginPage() {
   const sentHere = SENT_HERE.get(useSyncExternalStore(unwatched, sentHereFor, () => "")) ?? null;
 
   // A sign-in the console just ended is not sent back in: if ending it failed,
-  // the console would send it here again, round and round.
+  // the console would send it here again, round and round. A sign-in made
+  // since, in this tab or another, goes on (round 16: a second tab kept saying
+  // "Your sign-in ended" after staff signed in on the first).
   useEffect(() => {
-    if (user && sentHereFor() !== "expired") {
+    if (!user) return;
+    if (sentHereFor() !== "expired") {
       router.push(pageAsked());
+      return;
     }
+    let current = true;
+    holdsLiveSignIn().then(
+      (live) => {
+        if (current && live) router.push(pageAsked());
+      },
+      // Could not check: the page stays, and its form still signs in.
+      (error: unknown) => console.error("[login] Could not check the sign-in", error),
+    );
+    return () => {
+      current = false;
+    };
   }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
