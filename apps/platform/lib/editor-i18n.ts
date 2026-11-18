@@ -1136,7 +1136,6 @@ export const STRINGS = {
         stub_title: { en: "Open on a larger screen to edit {name}", ar: "افتح على شاشة أكبر لتعديل {name}", ku: "لە شاشەیەکی گەورەتردا بیکەرەوە بۆ دەستکاری {name}" },
         stub_body: { en: "This section has lots of fine-grained controls that don't fit on a phone. Open this editor on a tablet or laptop to make changes.", ar: "يحتوي هذا القسم على الكثير من الإعدادات الدقيقة التي لا تناسب شاشة الهاتف. افتح هذا المحرر على جهاز لوحي أو حاسوب لإجراء التغييرات.", ku: "ئەم بەشە کۆنترۆڵی وردی زۆری تێدایە کە لە مۆبایلدا جێی نابێتەوە. ئەم دەستکاریکەرە لە تابلێت یان لاپتۆپدا بکەرەوە بۆ گۆڕانکاری." },
         // Stub labels whose wording differs from the page-tree entries.
-        stub_label_brand_kit: { en: "Brand Kit", ar: "هوية العلامة", ku: "کیتی برێند" },
         stub_label_versions: { en: "Version history", ar: "سجل النسخ", ku: "مێژووی وەشانەکان" },
         stub_label_i18n: { en: "Translations", ar: "الترجمات", ku: "وەرگێڕانەکان" },
     },

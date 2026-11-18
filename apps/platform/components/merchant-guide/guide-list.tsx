@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Compass, EyeOff, X } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
+import { useGuidePillBottom } from "./guide-setup-store";
 
 export interface GuideListItem {
     id: string;
@@ -32,6 +33,7 @@ export function GuideList({
     const { t } = useLanguage();
     const dir = useTextDir();
     const [open, setOpen] = useState(false);
+    const bottom = useGuidePillBottom();
     const ref = useRef<HTMLDivElement>(null);
     const done = items.filter((i) => i.done).length;
 
@@ -45,7 +47,7 @@ export function GuideList({
     }, [open]);
 
     return (
-        <div ref={ref} className="fixed bottom-6 z-[46]" style={{ left }} data-testid="merchant-guide-list">
+        <div ref={ref} className="fixed z-[46]" style={{ left, bottom }} data-testid="merchant-guide-list">
             {open && (
                 <div
                     role="dialog"

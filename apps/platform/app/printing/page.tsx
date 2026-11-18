@@ -246,7 +246,8 @@ export default function PrintingPage() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
+                    <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,1fr)_320px]">
+                        {/* Phones get one column: the queue (the label preview hides itself there). */}
                         <div className="flex min-w-0 flex-col gap-3">
                             {prime.connected && orders.length > 0 && <PrimeDeskStrip counts={primeCounts} failed={primeDesk.failed} onRetry={primeDesk.retry} />}
                             <section className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]">
