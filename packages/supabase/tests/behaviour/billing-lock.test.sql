@@ -514,7 +514,7 @@ SELECT set_config('test.admin_of', '', false);
 
 -- 18. Extending a trial, in detail (moved here from the by-hand
 --     tests/admin_extend_trial.sql when the five-argument version was dropped).
--- R: running trial, a stale cancelled row beside it.  D: bill date drifted
+-- R: running trial.  D: bill date drifted
 -- behind the trial date.  N: no end date, no subscription.  S: suspended.
 -- L: paused (limited).  K: wallet for the top-up key.
 INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
@@ -527,7 +527,6 @@ INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
 INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('20000000-0000-4000-8000-00000000001a', 0);
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
   ('20000000-0000-4000-8000-000000000015', 'starter', 'trialing', now() - interval '4 days', now() + interval '3 days', now() - interval '4 days'),
-  ('20000000-0000-4000-8000-000000000015', 'starter', 'cancelled', now() - interval '90 days', now() - interval '60 days', now() - interval '90 days'),
   ('20000000-0000-4000-8000-000000000016', 'starter', 'trialing', now() - interval '7 days', now() - interval '6 hours', now() - interval '7 days'),
   ('20000000-0000-4000-8000-000000000018', 'starter', 'past_due', now() - interval '31 days', now() - interval '1 day', now() - interval '31 days'),
   ('20000000-0000-4000-8000-000000000019', 'starter', 'trialing', now() - interval '6 days', now() + interval '1 day', now() - interval '6 days');
@@ -545,8 +544,8 @@ BEGIN
   PERFORM pg_temp.check(pg_temp.logs('20000000-0000-4000-8000-000000000015', 'extend_trial') = 0, 'a refused extension writes no log');
 END $$;
 
--- 18b. A running trial: both dates move together, from the old end; the
---      cancelled row is not touched; one log row with the actor and dates.
+-- 18b. A running trial: both dates move together, from the old end; one log
+--      row with the actor and dates.
 DO $$
 DECLARE _before timestamptz; _r jsonb; _t timestamptz;
 BEGIN
@@ -561,10 +560,6 @@ BEGIN
     (SELECT current_period_end = _t FROM public.subscriptions
       WHERE tenant_id = '20000000-0000-4000-8000-000000000015' AND status = 'trialing'),
     'running: the bill date moves with the trial date');
-  PERFORM pg_temp.check(
-    (SELECT current_period_end < now() - interval '59 days' FROM public.subscriptions
-      WHERE tenant_id = '20000000-0000-4000-8000-000000000015' AND status = 'cancelled'),
-    'running: the cancelled subscription is not touched');
   PERFORM pg_temp.check(pg_temp.shop_status('20000000-0000-4000-8000-000000000015') = 'trial', 'running: still on trial');
   PERFORM pg_temp.check(
     (SELECT count(*) = 1

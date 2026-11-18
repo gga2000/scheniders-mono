@@ -25,7 +25,9 @@
 --   commission; a prospect shop is turned into the merchant; a second
 --   convert writes nothing; only the service role may convert (round 8);
 --   a converted prospect shop starts the day it is converted, and the lead
---   keeps its build day (round 8 data finding 4).
+--   keeps its build day (round 8 data finding 4); a shop has one
+--   subscription row, and converting a prospect store the billing lock
+--   already gave a row takes that row over (Fermi).
 
 \set ON_ERROR_STOP 1
 
@@ -360,7 +362,32 @@ BEGIN
     SELECT prospect_tenant_id INTO prospect FROM public.leads WHERE id = l1;
     UPDATE public.tenants SET created_at = '2026-11-01 10:00+03' WHERE id = prospect;
     UPDATE public.leads SET store_built_at = '2026-11-01 10:00+03' WHERE id = l1;
+    -- Left past its trial, the billing lock gave this store a 'trialing' row
+    -- (settle_billing_lock). One shop has one subscription row: a second is
+    -- refused, and the conversion takes the row over.
+    INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start,
+                                      current_period_end, pending_plan, plan_change_at, auto_renew)
+    VALUES (prospect, 'starter', 'trialing', now() - interval '31 days', now() - interval '1 day',
+            'growth', now() - interval '2 days', false);
+    BEGIN
+        INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end)
+        VALUES (prospect, 'starter', 'active', now(), now() + interval '30 days');
+        RAISE EXCEPTION 'a shop got a second subscription row';
+    EXCEPTION WHEN unique_violation THEN
+        NULL;
+    END;
     answer := public.convert_lead_atomic(l1, karrar, NULL);
+    IF (SELECT count(*) FROM public.subscriptions WHERE tenant_id = prospect) <> 1 THEN
+        RAISE EXCEPTION 'converting a prospect store with a subscription row made a second one';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.subscriptions
+                    WHERE tenant_id = prospect AND plan = 'starter' AND status = 'active'
+                      AND current_period_start = now() AND current_period_end = now() + interval '30 days'
+                      AND pending_plan IS NULL AND plan_change_at IS NULL AND cancel_at IS NULL
+                      AND cancelled_at IS NULL AND auto_renew) THEN
+        RAISE EXCEPTION 'the prospect store''s row was not made a fresh 30-day subscription: %',
+            (SELECT to_jsonb(s) FROM public.subscriptions s WHERE tenant_id = prospect);
+    END IF;
     SELECT * INTO shop FROM public.tenants WHERE id = prospect;
     IF (answer->>'tenant_id')::uuid <> prospect OR shop.is_prospect OR shop.status <> 'active'
        OR shop.slug !~ '^kut-perfumes-[0-9a-f]{8}$' THEN

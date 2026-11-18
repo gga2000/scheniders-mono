@@ -27,7 +27,7 @@
 --       the row has no reason key; one under 3 characters is refused before
 --       any write. The old signature without a reason is gone.
 --   Plan:
---     * the shop and its newest subscription get the plan together, one log
+--     * the shop and its subscription get the plan together, one log
 --       row names the plan before and a change waiting for the renewal, and
 --       that waiting change is left as it is;
 --     * a shop and a subscription that disagree are brought together;
@@ -39,7 +39,8 @@
 --     * the house tier ('internal', never billed) can be set on any shop;
 --     * the plan record (subscription_plan_changes) gets one row per change.
 --   Auto-renew:
---     * written to the newest subscription, logged once, a repeat is nothing;
+--     * written to the shop's one subscription row (a second row is
+--       refused), logged once, a repeat is nothing;
 --     * refused for a shop with no subscription.
 --   All or nothing:
 --     * status and plan asked together, status refused: the plan is not
@@ -122,10 +123,17 @@ SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.trial_ends_at, 
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, pending_plan)
 SELECT s.id, s.sub_plan, s.sub, now() - interval '5 days', now() + interval '25 days', s.pending FROM tt_shops s WHERE s.sub IS NOT NULL;
 
--- An older subscription row on one shop: only the newest one is the shop's.
-INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at)
-SELECT s.id, 'starter', 'cancelled', now() - interval '90 days', now() - interval '60 days', now() - interval '90 days'
-  FROM tt_shops s WHERE s.name = 'paying';
+-- A shop has one subscription row (subscriptions_tenant_id_key): a second
+-- is refused.
+DO $$
+BEGIN
+    INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end)
+    SELECT s.id, 'starter', 'cancelled', now() - interval '90 days', now() - interval '60 days'
+      FROM tt_shops s WHERE s.name = 'paying';
+    RAISE EXCEPTION 'a shop got a second subscription row';
+EXCEPTION WHEN unique_violation THEN
+    NULL;
+END $$;
 
 DO $$
 DECLARE
@@ -334,14 +342,14 @@ BEGIN
     PERFORM pg_temp.check('behind: a plan change was refused: ' || _res::text,
         (_res ->> 'success')::boolean AND EXISTS (SELECT 1 FROM public.subscriptions s WHERE s.tenant_id = _id AND s.plan = 'growth'));
 
-    -- Only the newest subscription is written.
+    -- Plan and auto-renew together are written to the shop's one row.
     SELECT id INTO _id FROM tt_shops WHERE name = 'paying';
     _res := public.admin_update_shop(_id, NULL, 'professional', false, NULL, NULL);
-    PERFORM pg_temp.check('newest subscription: ' || _res::text,
+    PERFORM pg_temp.check('plan and auto-renew: ' || _res::text,
         _res -> 'changed' = '["plan_change", "auto_renew_toggle"]'::jsonb AND (_res ->> 'auto_renew')::boolean IS FALSE);
-    PERFORM pg_temp.check('newest subscription: the old row was written too',
-        (SELECT count(*) FROM public.subscriptions s WHERE s.tenant_id = _id AND s.plan = 'professional' AND NOT s.auto_renew) = 1
-        AND (SELECT count(*) FROM public.subscriptions s WHERE s.tenant_id = _id AND s.plan = 'starter' AND s.auto_renew) = 1);
+    PERFORM pg_temp.check('plan and auto-renew: the row was not written',
+        (SELECT count(*) FROM public.subscriptions s WHERE s.tenant_id = _id) = 1
+        AND (SELECT count(*) FROM public.subscriptions s WHERE s.tenant_id = _id AND s.plan = 'professional' AND NOT s.auto_renew) = 1);
     -- No actor: the rows read 'system'.
     SELECT count(*) INTO _n FROM public.admin_activity_logs l
      WHERE l.tenant_id = _id AND l.action IN ('plan_change', 'auto_renew_toggle')
