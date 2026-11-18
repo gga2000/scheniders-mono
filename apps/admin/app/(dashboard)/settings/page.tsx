@@ -18,6 +18,7 @@ import { DemoStoreCard } from "@/components/settings/demo-store-card";
 import { SignupWhatsAppCard, signupWhatsAppQuery } from "@/components/settings/signup-whatsapp-card";
 import { hasPermission } from "@/lib/admin-permissions";
 import { roleLabel } from "@/lib/admin-access";
+import { formatDayTime } from "@/lib/format";
 
 // The rows of `admin_settings` are storage that other code reads (the leads
 // table layout, the top-up payment details shops see): JSON objects, not text.
@@ -37,9 +38,7 @@ export default function SettingsPage() {
     void queryClient.prefetchQuery(signupWhatsAppQuery);
   }, [queryClient]);
 
-  const lastLogin = user?.last_sign_in_at
-    ? new Date(user.last_sign_in_at).toLocaleString()
-    : "Unknown";
+  const lastLogin = user?.last_sign_in_at ? formatDayTime(user.last_sign_in_at) : "Unknown";
 
   return (
     <div className="p-4 md:p-6 space-y-6">

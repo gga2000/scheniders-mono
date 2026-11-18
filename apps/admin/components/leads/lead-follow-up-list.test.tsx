@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -19,7 +19,10 @@ function leaving(): boolean {
   return event.defaultPrevented;
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  mutation.mutate.mockClear();
+});
 
 describe("LeadFollowUpList: a follow-up being written", () => {
   it("asks before the page is left, and lets it go once the form is closed", () => {
@@ -32,5 +35,32 @@ describe("LeadFollowUpList: a follow-up being written", () => {
 
     fireEvent.click(screen.getAllByRole("button").find((button) => button.getAttribute("type") === "button") as HTMLElement);
     expect(leaving()).toBe(false);
+  });
+});
+
+/*
+ * Round 16 (Data new 1): the time box has no zone, and its time was read in
+ * the browser's: a follow-up set for 14:30 on a laptop in another zone was
+ * saved for another hour. It is Baghdad's, as every time the console shows.
+ */
+describe("LeadFollowUpList: the time typed", () => {
+  const zone = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "America/New_York";
+  });
+  afterAll(() => {
+    process.env.TZ = zone;
+  });
+
+  it("is saved as Baghdad time, whatever the browser's zone", () => {
+    const view = render(createElement(LeadFollowUpList, { followUps: [], leadId: "l1" }));
+    fireEvent.click(screen.getByText("Schedule Follow-up"));
+    fireEvent.change(screen.getByPlaceholderText("Follow-up title..."), { target: { value: "Call back" } });
+    const when = view.container.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+    fireEvent.change(when, { target: { value: "2026-11-18T14:30" } });
+    fireEvent.submit(when.closest("form") as HTMLFormElement);
+
+    expect(mutation.mutate).toHaveBeenCalledTimes(1);
+    expect(mutation.mutate.mock.calls[0][0]).toMatchObject({ leadId: "l1", scheduled_at: "2026-11-18T11:30:00.000Z" });
   });
 });

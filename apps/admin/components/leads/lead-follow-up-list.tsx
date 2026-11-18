@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { formatDayKey, formatDayTime } from "@/lib/format";
+import { baghdadWallTime } from "@/lib/baghdad-day";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 // ── Date Helpers ────────────────────────────────────────────────────────
@@ -67,14 +68,16 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !scheduledAt) return;
+    // The time box has no zone: its time is Baghdad's, as every time the console shows.
+    const scheduled = baghdadWallTime(scheduledAt);
+    if (!title.trim() || scheduled === null) return;
 
     createFollowUp.mutate(
       {
         leadId,
         title: title.trim(),
         description: description.trim() || undefined,
-        scheduled_at: new Date(scheduledAt).toISOString(),
+        scheduled_at: scheduled,
       },
       {
         onSuccess: () => {
@@ -209,6 +212,7 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
               />
               <input
                 type="datetime-local"
+                aria-label="When, in Baghdad time"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
                 required
