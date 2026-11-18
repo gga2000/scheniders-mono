@@ -1,4 +1,11 @@
-import { AuthInvalidJwtError, isAuthRetryableFetchError, type AuthError, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  AuthInvalidJwtError,
+  AuthUnknownError,
+  isAuthApiError,
+  isAuthRetryableFetchError,
+  type AuthError,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 import { z } from "zod";
 import { isCredentialRejection } from "./admin-auth-error";
 
@@ -49,17 +56,23 @@ const SIGN_IN_REFUSED: ReadonlyMap<string, string> = new Map([
   ["email_not_confirmed", "This login's email is not confirmed yet. Ask a super admin."],
 ]);
 
+/** The sign-in server broke: nothing staff typed is wrong, and its own log has the cause. */
+export const SIGN_IN_SERVER_FAILED = "The sign-in server had a problem. Try again in a minute. If it keeps failing, tell a super admin.";
+
 /**
  * Why a sign-in did not go through, in words staff can act on. The auth
  * server answers in its own terms ("Invalid login credentials", "captcha
  * protection: request disallowed (timeout-or-duplicate)"). A server it could
- * not reach says so; anything else keeps the server's words, so staff can
- * pass them on.
+ * not reach says so. A server that broke (a 500, or an answer that is not the
+ * auth server's) says so too: its words, such as "please check server logs",
+ * ask staff for what only the auth server's log holds. Any other refusal keeps
+ * the server's words, so staff can pass them on.
  */
 export function signInRefusedWords(error: AuthError): string {
   const words = error.code ? SIGN_IN_REFUSED.get(error.code) : undefined;
   if (words) return words;
   if (isAuthRetryableFetchError(error)) return "Could not reach the sign-in server. Check the connection, then try again.";
+  if ((isAuthApiError(error) && error.status >= 500) || error instanceof AuthUnknownError) return SIGN_IN_SERVER_FAILED;
   return `Could not sign in: ${error.message}`;
 }
 
