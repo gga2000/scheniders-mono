@@ -13,8 +13,9 @@
  * - Active tenants (`status !== 'limited'`) are a no-op.
  * - If `paused_until` has passed, the pause is treated as expired:
  *   we return `null` and best-effort lift the pause in the background
- *   (public.lift_tenant_pause: the status it had before). The caller is
- *   not delayed by the backfill.
+ *   (public.lift_pause_and_settle: the status it had before, and a billing
+ *   lock the wallet already covers opens at once). The caller is not
+ *   delayed by the backfill.
  */
 
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -49,9 +50,13 @@ export class TenantBlockedError extends Error {
 /**
  * Best-effort: lift an expired pause. Fire-and-forget; we don't wait.
  *
- * public.lift_tenant_pause gives the shop back the status it had before the
- * pause (trial stays trial, so the trial end and unpaid months still lock it)
- * and empties restrictions. This used to write status 'active' and
+ * public.lift_pause_and_settle runs lift_tenant_pause, which gives the shop
+ * back the status it had before the pause (trial stays trial, so the trial
+ * end and unpaid months still lock it) and empties restrictions, then
+ * settle_billing_lock in the same transaction: a lock the wallet already
+ * covers opens now instead of at the next hourly settle. The hourly
+ * lift_ended_pauses job and the staff console's "Lift the pause now" call
+ * the same function. This used to write status 'active' and
  * restrictions NULL itself: the column is NOT NULL, so the write failed, and
  * a lifted trial would have come back as a paying shop.
  */
@@ -60,7 +65,7 @@ function clearExpiredRestrictions(tenantId: string): void {
         const admin = createSupabaseServiceClient();
         // Don't await — the caller has already moved on. Errors logged only.
         void admin
-            .rpc("lift_tenant_pause", { _tenant_id: tenantId })
+            .rpc("lift_pause_and_settle", { _tenant_id: tenantId })
             .then(({ error }) => {
                 if (error) {
                     console.warn(

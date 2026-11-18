@@ -2,3 +2,4 @@
 20261117054950_subscription_plan_changes.sql
 20261117071812_subscription_plan_changes_from_trial.sql
 20261117091510_plan_changes_locked_trial.sql
+20261118230357_subscriptions_one_per_shop.sql
