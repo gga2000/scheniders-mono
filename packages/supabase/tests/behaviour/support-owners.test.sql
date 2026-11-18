@@ -22,6 +22,9 @@
 --   Due list:
 --     * lists open tasks due by the end of today in Baghdad, with owner, order
 --       count and the last calls; leaves out done and later tasks.
+--   Shop call:
+--     * a call on a shop with no task is logged with task_id NULL and leaves
+--       its tasks alone; a bad outcome, empty name or unknown shop is refused.
 --   Call back:
 --     * a merchant's request is a task due now with the number, and a line
 --       in the chat; the same number again changes nothing, a new one
@@ -355,6 +358,53 @@ BEGIN
     PERFORM pg_temp.check('paused: a shop that is not paused reads as it is',
         EXISTS (SELECT 1 FROM jsonb_array_elements(due) x
                 WHERE x ->> 'business_name' = 'New shop' AND x ->> 'shop_status' = 'trial'));
+END $$;
+
+DO $$
+-- Shop call with no task: a support_calls row with task_id NULL; open tasks
+-- are left as they are; it shows in the shop's last calls; a bad outcome, an
+-- empty name or an unknown shop is refused; only the service role runs it.
+DECLARE
+    shop uuid := '30000000-0000-4000-8000-000000000003';
+    r jsonb;
+    v_msg text;
+    tasks_before text := (SELECT string_agg(id::text || coalesce(done_at::text, '') || due_at::text || attempts, ',' ORDER BY id)
+                          FROM public.support_tasks WHERE tenant_id = '30000000-0000-4000-8000-000000000003');
+BEGIN
+    PERFORM pg_temp.check('shop call: anon cannot run', NOT has_function_privilege('anon', 'public.support_log_shop_call(uuid,uuid,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: authenticated cannot run', NOT has_function_privilege('authenticated', 'public.support_log_shop_call(uuid,uuid,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: service role runs', has_function_privilege('service_role', 'public.support_log_shop_call(uuid,uuid,text,text,text)', 'EXECUTE'));
+
+    r := public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', ' Noor ', 'no_answer', '  trial ends soon ');
+    PERFORM pg_temp.check('shop call: answers the row ' || r::text,
+        r ->> 'tenant_id' = shop::text AND r ->> 'outcome' = 'no_answer' AND (r ->> 'call_id') IS NOT NULL);
+    PERFORM pg_temp.check('shop call: no task, trimmed',
+        (SELECT task_id IS NULL AND admin_name = 'Noor' AND note = 'trial ends soon' AND tenant_id = shop
+         FROM public.support_calls WHERE id = (r ->> 'call_id')::uuid));
+    PERFORM pg_temp.check('shop call: tasks untouched',
+        (SELECT string_agg(id::text || coalesce(done_at::text, '') || due_at::text || attempts, ',' ORDER BY id)
+         FROM public.support_tasks WHERE tenant_id = shop) IS NOT DISTINCT FROM tasks_before);
+    PERFORM pg_temp.check('shop call: newest call of the shop',
+        (SELECT id FROM public.support_calls WHERE tenant_id = shop ORDER BY created_at DESC LIMIT 1) = (r ->> 'call_id')::uuid);
+
+    BEGIN
+        PERFORM public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'maybe', '');
+        v_msg := 'none';
+    EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
+    END;
+    PERFORM pg_temp.check('shop call refuse: bad outcome ' || v_msg, v_msg = 'support_bad_outcome');
+    BEGIN
+        PERFORM public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', '  ', 'done', '');
+        v_msg := 'none';
+    EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
+    END;
+    PERFORM pg_temp.check('shop call refuse: empty name ' || v_msg, v_msg = 'support_empty_name');
+    BEGIN
+        PERFORM public.support_log_shop_call(gen_random_uuid(), 'a2000000-0000-4000-8000-000000000002', 'Noor', 'done', '');
+        v_msg := 'none';
+    EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
+    END;
+    PERFORM pg_temp.check('shop call refuse: unknown shop ' || v_msg, v_msg = 'support_shop_not_found');
 END $$;
 
 DO $$

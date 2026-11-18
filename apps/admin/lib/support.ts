@@ -614,6 +614,23 @@ export const TaskLogSchema = z.object({
 
 export type TaskLogInput = z.input<typeof TaskLogSchema>;
 
+/** A call on a shop with no task (e.g. a trial about to end). */
+export const ShopCallSchema = z.object({
+  tenantId: z.string().uuid(),
+  outcome: z.enum(CALL_OUTCOMES),
+  note: z.string().trim().max(500).default(""),
+});
+
+export type ShopCallInput = z.input<typeof ShopCallSchema>;
+
+/** What support_log_shop_call() answers. */
+export const ShopCallLoggedSchema = z.object({
+  call_id: z.string().uuid(),
+  tenant_id: z.string().uuid(),
+  outcome: z.enum(CALL_OUTCOMES),
+  created_at: z.string(),
+});
+
 export const TakeShopSchema = z.object({ tenantId: z.string().uuid() });
 
 /**
