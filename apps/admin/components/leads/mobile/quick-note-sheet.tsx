@@ -6,6 +6,7 @@ import { useCreateActivity } from "@/hooks/use-lead-activities";
 import { BottomSheet } from "./bottom-sheet";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import { StickyNote, Phone, MessageCircle, Calendar, Loader2 } from "lucide-react";
 
 const TYPES: { type: LeadActivityType; label: string; icon: typeof StickyNote; color: string }[] = [
@@ -25,6 +26,8 @@ export function QuickNoteSheet({ leadId, leadName, onClose }: QuickNoteSheetProp
   const [type, setType] = useState<LeadActivityType>("note");
   const [text, setText] = useState("");
   const createActivity = useCreateActivity();
+  // A note being written survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(leadId !== null && text.trim() !== "");
 
   useEffect(() => { if (leadId) { setType("note"); setText(""); } }, [leadId]);
 

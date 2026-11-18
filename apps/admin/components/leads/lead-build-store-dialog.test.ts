@@ -94,3 +94,37 @@ describe("LeadBuildStoreDialog: a refusal is seen, and a wrong image link is nev
     expect(nameBox().maxLength).toBe(200);
   });
 });
+
+/*
+ * Round 16 (R15 Workflow new 1): when a sign-in ended, the console reloaded
+ * the page and a store being set up, with up to ten products, was gone.
+ * Leaving now asks first.
+ */
+describe("LeadBuildStoreDialog: a store being set up", () => {
+  const leaving = () => {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it("lets the page go while it holds only the lead's own name", () => {
+    render(dialog(true, lead()));
+    expect(leaving()).toBe(false);
+  });
+
+  it("asks before the page is left once something is typed, and lets it go once the dialog is closed", () => {
+    const view = render(dialog(true, lead()));
+    fireEvent.change(nameBox(), { target: { value: "Kawkab Baghdad" } });
+    expect(leaving()).toBe(true);
+
+    view.rerender(dialog(false, lead()));
+    expect(leaving()).toBe(false);
+  });
+
+  it("asks for a product typed in Advanced", () => {
+    render(dialog(true, lead()));
+    fireEvent.click(screen.getByText("Advanced"));
+    fireEvent.change(screen.getByPlaceholderText("Product name"), { target: { value: "Abaya" } });
+    expect(leaving()).toBe(true);
+  });
+});

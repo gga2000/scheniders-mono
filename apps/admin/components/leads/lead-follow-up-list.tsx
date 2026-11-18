@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { formatDayKey, formatDayTime } from "@/lib/format";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 // ── Date Helpers ────────────────────────────────────────────────────────
 
@@ -46,6 +47,8 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  // A follow-up being written survives an ended sign-in's reload: leaving asks first.
+  useLeaveGuard(showForm && (title.trim() !== "" || description.trim() !== "" || scheduledAt !== ""));
 
   const createFollowUp = useCreateFollowUp();
   const completeFollowUp = useCompleteFollowUp();
