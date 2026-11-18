@@ -16,6 +16,7 @@ import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
 import { readAccessCheck, type AccessCheck } from "@/lib/admin-access";
 import { signInRefusedWords } from "@/lib/staff-sign-in";
+import { leaveWithoutAccess } from "@/lib/admin-fetch";
 import { watchAdminSession } from "@/lib/admin-session-watch";
 import { useAdminStore } from "@/store/use-admin-store";
 
@@ -153,6 +154,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
             queryClient.clear();
             useAdminStore.getState().forgetStars();
           },
+          leaveNoAccess: leaveWithoutAccess,
         },
         (view) => {
           if (view.kind === "signed_in") {

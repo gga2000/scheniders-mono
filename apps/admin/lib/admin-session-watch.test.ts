@@ -28,6 +28,8 @@ let reads: string[];
 let access: (userId: string) => Promise<AccessCheck>;
 let signOutHere: ReturnType<typeof vi.fn>;
 let forgetPerson: ReturnType<typeof vi.fn>;
+/** What the watch asked of the page, in order: "signed out here", "left". */
+let steps: string[];
 let unsubscribe: ReturnType<typeof vi.fn>;
 let stop: () => void;
 
@@ -47,6 +49,9 @@ const start = () => {
       forgetPerson: () => {
         forgetPerson(reads.length);
       },
+      leaveNoAccess: () => {
+        steps.push("left");
+      },
     },
     (view) => views.push(view),
   );
@@ -58,7 +63,10 @@ beforeEach(() => {
   views = [];
   reads = [];
   access = async () => ({ kind: "role", role: "support_staff" });
-  signOutHere = vi.fn(async () => undefined);
+  steps = [];
+  signOutHere = vi.fn(async () => {
+    steps.push("signed out here");
+  });
   forgetPerson = vi.fn();
   unsubscribe = vi.fn();
   start();
@@ -120,6 +128,42 @@ describe("the console's sign-in watch", () => {
 
     expect(last()).toEqual({ kind: "no_access" });
     expect(signOutHere).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * Round 16 (ux new 4): a role removed while the tab was away. On its return,
+   * the browser read "no row" and signed out, and a reload then reached the
+   * login page signed out, with no reason.
+   */
+  it("leaves for the login page with the reason, after the sign-out here", async () => {
+    access = async () => ({ kind: "none" });
+    listener("SIGNED_IN", session("u1"));
+    await settle();
+
+    expect(steps).toEqual(["signed out here", "left"]);
+  });
+
+  it("does not leave when the page closed the watch during the sign-out", async () => {
+    access = async () => ({ kind: "none" });
+    const signingOut = later<undefined>();
+    signOutHere = vi.fn(() => signingOut.promise);
+    stop();
+    start();
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+    stop();
+    signingOut.answer(undefined);
+    await settle();
+
+    expect(steps).toEqual([]);
+  });
+
+  it("does not leave while the staff row only could not be read", async () => {
+    access = async () => ({ kind: "failed" });
+    listener("INITIAL_SESSION", session("u1"));
+    await settle();
+
+    expect(steps).toEqual([]);
   });
 
   it("lets only the newest answer count when answers come back out of order", async () => {

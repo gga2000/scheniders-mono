@@ -1,6 +1,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { NEXT_PAGE, pageAfterSignIn } from "./page-after-sign-in";
 import { NO_CONSOLE_ACCESS, isNoConsoleAccess } from "./staff-sign-in";
 
 let _client: ReturnType<typeof createBrowserClient> | null = null;
@@ -48,11 +49,12 @@ function sayWhyStayed(reason: LeaveReason): void {
 
 /**
  * Reload once; the middleware then sends the page to the login page with the
- * reason. A page with unsaved typing asks first (useLeaveGuard), and staff may
- * stay. That page then says why it tried to leave: before, it said nothing,
- * and a save answered only "Unauthorized".
+ * reason. Or go to `to`, when the browser no longer holds what the middleware
+ * reads the reason from. A page with unsaved typing asks first
+ * (useLeaveGuard), and staff may stay. That page then says why it tried to
+ * leave: before, it said nothing, and a save answered only "Unauthorized".
  */
-function leave(reason: LeaveReason): void {
+function leave(reason: LeaveReason, to?: string): void {
   if (leaving) return;
   leaving = true;
   // Added after the guards, which were added when the typing began, so it
@@ -64,13 +66,32 @@ function leave(reason: LeaveReason): void {
     },
     { once: true },
   );
-  window.location.reload();
+  if (to) window.location.assign(to);
+  else window.location.reload();
 }
 
 /** A page that stayed has a sign-in again: it can leave again later, and the notice goes. */
 function signedInAgain(): void {
   leaving = false;
   toast.dismiss(STAYED_NOTICE);
+}
+
+/**
+ * The person's staff row answered "no" in this browser, which has just signed
+ * itself out (lib/admin-session-watch.ts): a role removed while a tab was away.
+ * On to the login page with the reason and the page they were on; a reload
+ * would reach it signed out, with no reason (round 16). A login page that
+ * already says so stays: if the sign-out failed, it would come back here.
+ */
+export function leaveWithoutAccess(): void {
+  const { pathname, search } = window.location;
+  const onLogin = pathname.startsWith("/login");
+  const params = new URLSearchParams(search);
+  if (onLogin && params.get("error") === "forbidden") return;
+  const page = pageAfterSignIn(onLogin ? params.get(NEXT_PAGE) : pathname + search);
+  const login = new URLSearchParams({ error: "forbidden" });
+  if (page !== "/") login.set(NEXT_PAGE, page);
+  leave("no-access", `/login?${login.toString()}`);
 }
 
 /**
