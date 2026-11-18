@@ -286,8 +286,11 @@ describe("the console's calls to its API", () => {
       if (statSync(full).isDirectory()) return name === "node_modules" || name.startsWith(".") ? [] : sourceFiles(full);
       return /\.tsx?$/.test(name) && !/\.test(-data)?\.tsx?$/.test(name) ? [full] : [];
     });
-  /** Any plain fetch on a page; in lib/, a plain fetch of an /api address. */
-  const PAGE_FETCH = /(?<![\w.$])fetch\(/g;
+  /**
+   * Any plain fetch on a page, called or handed on (the bell's read took it as
+   * a default, round 16); in lib/, a plain fetch of an /api address.
+   */
+  const PAGE_FETCH = /(?<![\w.$])fetch\(|[=(,?:|&]\s*fetch(?![\w$-])/g;
   const LIB_API_FETCH = /(?<![\w.$])fetch\(\s*["'`]\/api/g;
 
   it("all go through adminFetch", () => {
