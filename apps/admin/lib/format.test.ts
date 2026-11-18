@@ -115,6 +115,9 @@ describe("formatUntilDay", () => {
 const ADMIN_DIR = path.resolve(__dirname, "..");
 const BROWSER_CLOCK = [
   /\.toLocale(?:Date|Time)String\((?![^)]*timeZone)[^)]*\)/g,
+  // A number's toLocaleString is fine; a date's is the browser's clock unless it names a zone.
+  /new Date\([^)]*\)\.toLocaleString\((?![^)]*timeZone)[^)]*\)/g,
+  /\.toLocaleString\((?![^)]*timeZone)[^)]*\b(?:weekday|year|month|day|hour|minute)\b[^)]*\)/g,
   /\.(?:toDateString|getHours|setHours|getDate|setDate|getDay|getMonth|getFullYear)\(/g,
 ];
 

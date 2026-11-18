@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, dayOf, lastDaysStart, readDayRange, trialClock } from "./baghdad-day";
+import { addDays, baghdadWallTime, dayOf, lastDaysStart, readDayRange, trialClock } from "./baghdad-day";
 
 /*
  * Shop #100095's trial ended at 06:21 Baghdad on 17 Nov. On the evening of
@@ -90,5 +90,21 @@ describe("lastDaysStart", () => {
 
   it("makes 1 day mean today only", () => {
     expect(lastDaysStart(1, Date.parse("2026-11-16T09:00:00Z"))).toBe("2026-11-16T00:00:00+03:00");
+  });
+});
+
+/* Round 16 (Data new 1): a typed time was read in the browser's clock zone. */
+describe("baghdadWallTime", () => {
+  it("reads a typed day and time as Baghdad time", () => {
+    expect(baghdadWallTime("2026-11-18T14:30")).toBe("2026-11-18T11:30:00.000Z");
+    expect(baghdadWallTime("2026-11-18T00:15")).toBe("2026-11-17T21:15:00.000Z");
+  });
+
+  it("refuses what is not a real day and time", () => {
+    expect(baghdadWallTime("")).toBeNull();
+    expect(baghdadWallTime("2026-02-30T10:00")).toBeNull();
+    expect(baghdadWallTime("2026-11-18T24:00")).toBeNull();
+    expect(baghdadWallTime("2026-11-18T10:60")).toBeNull();
+    expect(baghdadWallTime("2026-11-18")).toBeNull();
   });
 });

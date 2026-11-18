@@ -512,13 +512,11 @@ function AnalyticsDashboard({
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
+const MONTH = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
+
+/** "2026-11" -> "Nov". The month is a calendar month, not an instant: read and named in UTC, it cannot shift. */
 function formatMonth(monthStr: string): string {
-  // Expects "YYYY-MM" or similar
-  try {
-    const [year, month] = monthStr.split("-");
-    const date = new Date(Number(year), Number(month) - 1);
-    return date.toLocaleString("en", { month: "short" });
-  } catch {
-    return monthStr;
-  }
+  const [year, month] = monthStr.split("-").map(Number);
+  if (!year || !month) return monthStr;
+  return MONTH.format(Date.UTC(year, month - 1, 1));
 }
