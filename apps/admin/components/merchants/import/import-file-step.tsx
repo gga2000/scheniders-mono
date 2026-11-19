@@ -3,11 +3,10 @@
 import { useRef, useState, type DragEvent } from "react";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { formatCount as count } from "@/lib/format";
 import { IMPORT_MAX_FILE_BYTES, IMPORT_MAX_ROWS } from "@/lib/product-import";
 import { readAnswerSchema, type ReadAnswer } from "@/lib/product-import-run";
 import { cn } from "@/lib/utils";
-
-const count = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 /** Step 1: the merchant's file goes to the console, which reads it and answers its rows. */
 export function ImportFileStep({

@@ -1,10 +1,10 @@
 "use client";
 
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { formatCount as count } from "@/lib/format";
 import type { CheckRow } from "@/lib/product-import-run";
 import { cn } from "@/lib/utils";
 
-const count = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 const products = (n: number) => `${count(n)} ${n === 1 ? "product" : "products"}`;
 
 /** Step 3: what the import will add and what it leaves out, row by row, and the button that adds it. */

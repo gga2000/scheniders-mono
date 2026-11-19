@@ -1,9 +1,8 @@
 "use client";
 
+import { formatCount as count } from "@/lib/format";
 import type { ImportProgress } from "@/lib/product-import-run";
 import { ImportProgressBar as Bar } from "./import-progress-bar";
-
-const count = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 
 /** How far the import is: the products, then their images, and what did not go in. */
 export function ImportRunPanel({ progress }: { progress: ImportProgress }) {
