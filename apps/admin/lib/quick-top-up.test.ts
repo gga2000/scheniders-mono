@@ -13,16 +13,24 @@ describe("Quick Top-Up says what it will do before the press", () => {
     });
   });
 
-  it("waits for a shop, a whole amount above 0 and a reason", () => {
+  it("waits quietly for a shop, an amount and a reason", () => {
     expect(quickTopUpPlan(undefined, 500_000, "Qi transfer")).toEqual({ kind: "not_ready" });
     expect(quickTopUpPlan(SHOP, "", "Qi transfer")).toEqual({ kind: "not_ready" });
-    expect(quickTopUpPlan(SHOP, 0, "Qi transfer")).toEqual({ kind: "not_ready" });
-    expect(quickTopUpPlan(SHOP, 2_500.5, "Qi transfer")).toEqual({ kind: "not_ready" });
-    expect(quickTopUpPlan(SHOP, 25_000, "ok")).toEqual({ kind: "not_ready" });
+    expect(quickTopUpPlan(SHOP, 25_000, "")).toEqual({ kind: "not_ready" });
+    expect(quickTopUpPlan(SHOP, 25_000, "   ")).toEqual({ kind: "not_ready" });
+  });
+
+  // r4-13: a fraction, a minus amount or a 2-letter reason left a grey "Top Up" with no word why.
+  it("says why when what is typed cannot go through", () => {
+    const amount = { kind: "blocked", words: "The amount is whole IQD, more than 0." };
+    expect(quickTopUpPlan(SHOP, 0, "Qi transfer")).toEqual(amount);
+    expect(quickTopUpPlan(SHOP, -5_000, "Qi transfer")).toEqual(amount);
+    expect(quickTopUpPlan(SHOP, 2_500.5, "Qi transfer")).toEqual(amount);
+    expect(quickTopUpPlan(SHOP, 25_000, "ok")).toEqual({ kind: "blocked", words: "The reason needs at least 3 letters." });
   });
 
   it("says the limit above 10,000,000 IQD instead of a refusal after the press", () => {
     expect(quickTopUpPlan(SHOP, 10_000_000, "Qi transfer").kind).toBe("ready");
-    expect(quickTopUpPlan(SHOP, 10_000_001, "Qi transfer")).toEqual({ kind: "too_much", words: "At most 10,000,000 IQD at once." });
+    expect(quickTopUpPlan(SHOP, 10_000_001, "Qi transfer")).toEqual({ kind: "blocked", words: "At most 10,000,000 IQD at once." });
   });
 });

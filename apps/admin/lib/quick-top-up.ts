@@ -1,4 +1,4 @@
-import { isStaffReason } from "./billing-lock-tools";
+import { isStaffReason, STAFF_REASON_MIN } from "./billing-lock-tools";
 import { formatIQD } from "./format";
 import { TOPUP_MAX_IQD } from "./topup-queue";
 
@@ -9,7 +9,8 @@ export interface TopUpShop {
 
 export type QuickTopUpPlan =
   | { kind: "not_ready" }
-  | { kind: "too_much"; words: string }
+  /** Something typed cannot go through: the words say what to change. */
+  | { kind: "blocked"; words: string }
   | { kind: "ready"; amount: number; sentence: string; button: string };
 
 /**
@@ -20,9 +21,13 @@ export type QuickTopUpPlan =
  * TOPUP_MAX_IQD (lib/wallet-topup.ts).
  */
 export function quickTopUpPlan(shop: TopUpShop | undefined, amount: number | "", reason: string): QuickTopUpPlan {
-  if (!shop || amount === "" || !Number.isInteger(amount) || amount <= 0) return { kind: "not_ready" };
-  if (amount > TOPUP_MAX_IQD) return { kind: "too_much", words: `At most ${formatIQD(TOPUP_MAX_IQD)} at once.` };
-  if (!isStaffReason(reason)) return { kind: "not_ready" };
+  // Nothing typed yet waits quietly; something typed that cannot go through
+  // says why, so the grey button is never left without a word (audit r4-13).
+  if (!shop || amount === "") return { kind: "not_ready" };
+  if (!Number.isInteger(amount) || amount <= 0) return { kind: "blocked", words: "The amount is whole IQD, more than 0." };
+  if (amount > TOPUP_MAX_IQD) return { kind: "blocked", words: `At most ${formatIQD(TOPUP_MAX_IQD)} at once.` };
+  if (reason.trim() === "") return { kind: "not_ready" };
+  if (!isStaffReason(reason)) return { kind: "blocked", words: `The reason needs at least ${STAFF_REASON_MIN} letters.` };
   return {
     kind: "ready",
     amount,
