@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getMerchantCode } from "@scheniders/shared";
 import { useMerchantDetail } from "@/hooks/use-merchant-detail";
-import { ArrowLeft, ExternalLink, FileSpreadsheet, UserCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, UserCircle, Loader2 } from "lucide-react";
 import { storeAddress } from "@scheniders/shared/store-address";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
@@ -63,8 +63,6 @@ export default function MerchantDetailPage() {
   // "View as merchant" opens the merchant's own app; the server only allows it with handle_support.
   const { role } = useAdminAuth();
   const canViewAsMerchant = role ? hasPermission(role, "handle_support") : false;
-  // The setup service adds a shop's products from the merchant's file (Fermi B12 item 7).
-  const canImportProducts = role ? hasPermission(role, "import_products") : false;
 
   // The browser tab names the shop, so ten open shops can be told apart.
   const setTab = usePageHeader((s) => s.setTab);
@@ -192,15 +190,6 @@ export default function MerchantDetailPage() {
               Open store
             </a>
             {canViewAsMerchant && <SupportViewButton tenantId={tenant.id} />}
-            {canImportProducts && (
-              <Link
-                href={`/merchants/${tenant.id}/import`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
-                Import products
-              </Link>
-            )}
           </div>
         </div>
         <div className="mt-4 border-t border-[var(--card-border)] pt-4">

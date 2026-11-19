@@ -140,14 +140,6 @@ describe("the shop page header (board m6)", () => {
     role = null;
     expect(render()).not.toContain("View as merchant");
   });
-
-  it("links the setup team to the shop's product import, and no one else", () => {
-    expect(render()).toContain('href="/merchants/t1/import"');
-    role = "support_staff";
-    expect(render()).toContain("Import products<");
-    role = null;
-    expect(render()).not.toContain("Import products");
-  });
 });
 
 describe("the shop page's Setting up tab", () => {
