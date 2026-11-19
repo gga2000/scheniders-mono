@@ -11,6 +11,7 @@ import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { LEAD_GONE } from "@/lib/lead-update";
 import {
   LEAD_STATUS_CONFIG,
+  LEAD_STATUS_UI,
   LEAD_PRIORITY_CONFIG,
   LEAD_TIER_CONFIG,
   LEAD_TIER_UI,
@@ -121,6 +122,7 @@ export function LeadDetailDesktop() {
 
   const { lead, activities, follow_ups, social_links, competitors } = data;
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
+  const statusUi = LEAD_STATUS_UI[lead.status];
   const priorityCfg = LEAD_PRIORITY_CONFIG[lead.priority];
   const tierCfg = LEAD_TIER_CONFIG[lead.tier];
 
@@ -202,7 +204,7 @@ export function LeadDetailDesktop() {
               {/* Status */}
               <span
                 className="px-3 py-1 rounded-full text-xs font-bold"
-                style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
+                style={{ backgroundColor: statusUi.soft, color: statusUi.solid }}
               >
                 {statusCfg.label}
               </span>
