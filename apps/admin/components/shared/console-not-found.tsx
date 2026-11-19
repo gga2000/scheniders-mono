@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, SearchX } from "lucide-react";
-import { usePageHeader } from "@/store/use-page-header";
 
 /**
  * A wrong or old link inside the console: says which address has no page and
@@ -14,13 +12,6 @@ import { usePageHeader } from "@/store/use-page-header";
  */
 export function ConsoleNotFound() {
   const pathname = usePathname();
-  const setTab = usePageHeader((s) => s.setTab);
-
-  useEffect(() => {
-    setTab("Page not found");
-    return () => setTab(null);
-  }, [setTab]);
-
   return (
     <div className="p-4 md:p-6 flex items-center justify-center min-h-[60vh]">
       <div className="text-center space-y-4 max-w-md">

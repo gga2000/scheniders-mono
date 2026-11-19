@@ -1,8 +1,8 @@
 "use client";
 
 import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
-import { useState, memo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState, memo } from "react";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { toast } from "sonner";
@@ -27,6 +27,9 @@ const planBadgeStyle = (plan: string) =>
   plan === "internal"
     ? "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20"
     : "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20";
+
+/** Every card's plan move: while one runs, no other card's chip opens. */
+const PLAN_MOVE = ["merchant-plan-move"] as const;
 
 interface MerchantPlanDropdownProps {
   merchantId: string;
@@ -54,6 +57,16 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   const [why, setWhy] = useState("");
   const queryClient = useQueryClient();
   const can = useCan();
+  // The menu says a refusal while it is drawn. Once the card is gone (staff
+  // left the page during "Moving..."), a toast says it instead: the refusal
+  // was said nowhere, while a success still showed its toast (round 18).
+  const drawn = useRef(true);
+  useEffect(() => {
+    drawn.current = true;
+    return () => {
+      drawn.current = false;
+    };
+  }, []);
 
   const close = () => {
     setOpen(false);
@@ -63,6 +76,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
 
   // The card shows the new plan only once the server took it.
   const mutation = useMutation({
+    mutationKey: PLAN_MOVE,
     mutationFn: (newPlan: PlanTier) =>
       postJson(`/api/merchants/${merchantId}`, { plan: newPlan, reason: why.trim() }, "PATCH"),
     onSuccess: (_data, newPlan) => {
@@ -72,7 +86,12 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
     },
+    onError: (error, newPlan) => {
+      if (!drawn.current) toast.error(`${shopName ?? "The shop"} was not moved to ${PLAN_LABELS[newPlan]}. ${error.message}`);
+    },
   });
+  // Another card's move is running: this chip waits, so two menus are never open at once.
+  const anotherMoveRuns = useIsMutating({ mutationKey: PLAN_MOVE }) > (mutation.isPending ? 1 : 0);
 
   const handleSelect = (newPlan: PlanTier) => {
     if (newPlan === plan) {
@@ -106,8 +125,10 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
+          disabled={anotherMoveRuns}
+          title={anotherMoveRuns ? "Another shop's plan move is running" : undefined}
           className={cn(
-            "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
+            "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-60 disabled:hover:scale-100",
             planBadgeStyle(plan)
           )}
         >

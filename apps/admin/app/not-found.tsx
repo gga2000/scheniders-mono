@@ -10,8 +10,11 @@ import { ConsoleNotFound } from "@/components/shared/console-not-found";
  * the answer before a page can say "not found", so the answer was a 200.
  */
 export default function NotFound() {
+  // Named here, so the first answer's tab already says it: set from the page
+  // once it ran, the tab first read "Admin" or the menu page of the address
+  // ("Merchants" under /merchants/<id>/extra), round 18.
   return (
-    <AdminShell>
+    <AdminShell pageName="Page not found">
       <ConsoleNotFound />
     </AdminShell>
   );

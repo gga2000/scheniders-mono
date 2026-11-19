@@ -20,8 +20,10 @@ interface QuickNotePopoverProps {
 export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
   const [open, setOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
-  // A note being written survives an ended sign-in's reload: leaving asks first.
-  useLeaveGuard(open && noteText.trim() !== "");
+  // A note being written survives an ended sign-in's reload: leaving asks
+  // first. Closing the box keeps the draft, so the guard follows the draft,
+  // not the box: closed, leaving asked nothing (round 18).
+  useLeaveGuard(noteText.trim() !== "");
   const queryClient = useQueryClient();
 
   // Fetch latest notes
@@ -111,7 +113,10 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
               autoFocus={open}
             />
             <button
+              type="button"
               onClick={handleSubmit}
+              title="Send note"
+              aria-label="Send note"
               disabled={!noteText.trim() || addNote.isPending}
               className="self-end p-2 rounded-lg bg-foreground text-background hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0"
             >
