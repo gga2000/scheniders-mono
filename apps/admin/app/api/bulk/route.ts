@@ -127,7 +127,15 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        return await changeShops(supabase, tenant_ids, { plan: plan.data }, auth.user);
+        // A plan decides what each shop pays each month: the staff log keeps why.
+        const reason = staffReasonSchema.safeParse(params?.reason);
+        if (!reason.success) {
+          return NextResponse.json(
+            { error: `params.reason: ${reason.error.issues[0]?.message ?? "A reason is required"}` },
+            { status: 400 }
+          );
+        }
+        return await changeShops(supabase, tenant_ids, { plan: plan.data, reason: reason.data }, auth.user);
       }
 
       // -----------------------------------------------------------------

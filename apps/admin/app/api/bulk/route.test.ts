@@ -328,7 +328,7 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
   it.each([
     ["suspend", undefined, { _status: "suspended", _plan: null }],
     ["reactivate", undefined, { _status: "active", _plan: null }],
-    ["change_plan", { plan: "internal" }, { _status: null, _plan: "internal" }],
+    ["change_plan", { plan: "internal", reason: " Our own test shops " }, { _status: null, _plan: "internal", _reason: "Our own test shops" }],
   ])("%s asks the database once per shop, with the acting admin, never a table write", async (action, params, asked) => {
     rpc.mockResolvedValueOnce(shop(T1)).mockResolvedValueOnce(shop(T2));
     const res = await POST(req({ action, tenant_ids: [T1, T2], params }));
@@ -389,7 +389,16 @@ describe("POST /api/bulk suspend, reactivate, change_plan", () => {
     expect(body.succeeded).toEqual([{ tenant_id: T2, status: "suspended", plan: "starter" }]);
   });
 
-  it.each([undefined, {}, { plan: "gold" }, { plan: 7 }])("change_plan refuses params %j before the database", async (params) => {
+  it.each([
+    undefined,
+    {},
+    { plan: "gold", reason: "Moving them" },
+    { plan: 7, reason: "Moving them" },
+    // Round 19: a plan decides what each shop pays, so bulk asks why, as one shop does.
+    { plan: "starter" },
+    { plan: "starter", reason: "..." },
+    { plan: "starter", reason: " ok " },
+  ])("change_plan refuses params %j before the database", async (params) => {
     const res = await POST(req({ action: "change_plan", tenant_ids: [T1], params }));
 
     expect(res.status).toBe(400);

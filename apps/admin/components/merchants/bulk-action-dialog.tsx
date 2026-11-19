@@ -9,6 +9,7 @@ import { isStaffReason, STAFF_REASON_MAX, STAFF_REASON_TOO_SHORT } from "@/lib/b
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 import { adminFetch } from "@/lib/admin-fetch";
+import { WillHappen } from "./detail/action-ui";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +66,7 @@ export function BulkActionDialog({
 
   // Local form state
   const [selectedPlan, setSelectedPlan] = useState<PlanTier>("starter");
+  const [planReason, setPlanReason] = useState("");
   const [extensionDays, setExtensionDays] = useState<number>(7);
   const [extensionReason, setExtensionReason] = useState("");
   const [topUpAmount, setTopUpAmount] = useState<number>(10_000);
@@ -78,6 +80,7 @@ export function BulkActionDialog({
   // Reset form state when switching actions
   useEffect(() => {
     setSelectedPlan("starter");
+    setPlanReason("");
     setExtensionDays(7);
     setExtensionReason("");
     setTopUpAmount(10_000);
@@ -146,7 +149,11 @@ export function BulkActionDialog({
 
     switch (action) {
       case "change-plan":
-        params = { plan: selectedPlan };
+        if (!isStaffReason(planReason)) {
+          setError(STAFF_REASON_TOO_SHORT);
+          return;
+        }
+        params = { plan: selectedPlan, reason: planReason.trim() };
         break;
       case "extend-trial":
         if (!isStaffReason(extensionReason)) {
@@ -249,6 +256,18 @@ export function BulkActionDialog({
                   </button>
                 ))}
               </div>
+              <label className="block text-sm font-semibold text-foreground/70">
+                Reason
+              </label>
+              <StaffReasonInput
+                value={planReason}
+                onChange={setPlanReason}
+                placeholder="Why? (each shop's timeline shows it)"
+              />
+              <WillHappen>
+                {selectedCount} {selectedCount === 1 ? "shop moves" : "shops move"} to {PLAN_LABELS[selectedPlan]} now.
+                Nothing is charged and nothing is refunded.
+              </WillHappen>
             </div>
           )}
 
