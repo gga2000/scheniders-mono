@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
-import { PLAN_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
+import { PLAN_LABELS, STATUS_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
 import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import {
   ArrowUp,
@@ -247,7 +247,7 @@ export function MerchantSheetView({
                       )}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
-                      {m.status}
+                      {STATUS_LABELS[m.status]}
                     </span>
                   )}
                 </div>

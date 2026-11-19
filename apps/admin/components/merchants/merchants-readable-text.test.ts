@@ -40,6 +40,15 @@ function faintText(source: string): string[] {
   });
 }
 
+/**
+ * A shop's stored status key printed as is. #1476 took the capitals away, and
+ * the Table, Sheet and Compare views then read "active" and "limited" where
+ * the card says "Active" and "Paused" (round 17).
+ */
+function rawStatus(source: string): string[] {
+  return [...source.matchAll(/(?<!=)\{\s*(?:\([^)]*\)|\w+)\.status\s*\}/g)].map((m) => m[0]);
+}
+
 /** Labels set in capitals. */
 function capsText(source: string): string[] {
   return [...source.matchAll(/(?<![\w-])uppercase(?![\w-])/g)].map((m) => m[0]);
@@ -51,11 +60,12 @@ describe("Merchants text is readable", () => {
     expect(FILES.map((f) => relative(ROOT, f))).toContain("components/merchants/merchant-card.tsx");
   });
 
-  it.each(FILES.map((f) => [relative(ROOT, f), f]))("%s has no text under 13 px, no faint ink, no capitals", (_name, file) => {
+  it.each(FILES.map((f) => [relative(ROOT, f), f]))("%s has no text under 13 px, no faint ink, no capitals, no raw status key", (_name, file) => {
     const source = readFileSync(file, "utf8");
     expect(smallText(source)).toEqual([]);
     expect(faintText(source)).toEqual([]);
     expect(capsText(source)).toEqual([]);
+    expect(rawStatus(source)).toEqual([]);
   });
 
   it("the checks find what they look for", () => {
@@ -66,5 +76,7 @@ describe("Merchants text is readable", () => {
     expect(faintText(`import { Search } from "lucide-react";\n<Search className="w-4 h-4 text-foreground/30" />`)).toEqual([]);
     expect(capsText(`<span className="text-xs uppercase tracking-wider">`)).toEqual(["uppercase"]);
     expect(capsText(`const k = s.toUpperCase();`)).toEqual([]);
+    expect(rawStatus(`<span>{m.status}</span><b>{(m as { status?: string }).status}</b>`)).toHaveLength(2);
+    expect(rawStatus(`<span>{STATUS_LABELS[m.status]}</span><Chip status={m.status} />`)).toEqual([]);
   });
 });

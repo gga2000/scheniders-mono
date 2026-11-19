@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
 import { statusLandedText, statusPickRefusal, statusPickSaves } from "@/lib/shop-status-choice";
-import type { TenantStatus, TrialPayment } from "@/types/admin";
+import { STATUS_LABELS, type TenantStatus, type TrialPayment } from "@/types/admin";
 import { adminFetch } from "@/lib/admin-fetch";
 
 const STATUS_OPTIONS: Array<{
@@ -17,11 +17,11 @@ const STATUS_OPTIONS: Array<{
   dot: string;
   destructive?: boolean;
 }> = [
-  { value: "trial", label: "Trial", dot: "bg-amber-500" },
-  { value: "active", label: "Active", dot: "bg-green-500" },
-  { value: "limited", label: "Paused", dot: "bg-yellow-500" },
-  { value: "suspended", label: "Suspended", dot: "bg-red-500", destructive: true },
-  { value: "cancelled", label: "Cancelled", dot: "bg-gray-400", destructive: true },
+  { value: "trial", label: STATUS_LABELS.trial, dot: "bg-amber-500" },
+  { value: "active", label: STATUS_LABELS.active, dot: "bg-green-500" },
+  { value: "limited", label: STATUS_LABELS.limited, dot: "bg-yellow-500" },
+  { value: "suspended", label: STATUS_LABELS.suspended, dot: "bg-red-500", destructive: true },
+  { value: "cancelled", label: STATUS_LABELS.cancelled, dot: "bg-gray-400", destructive: true },
 ];
 
 const statusBadgeStyle: Record<TenantStatus, string> = {
