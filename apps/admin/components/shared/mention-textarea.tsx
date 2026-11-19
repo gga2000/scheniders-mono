@@ -140,6 +140,8 @@ export function MentionTextarea({
         value={value}
         onChange={(e) => handleInput(e.target.value)}
         onKeyDown={handleKeyDown}
+        // Read by a pop-up around it: Escape then closes this list, not the pop-up.
+        data-mention-list={showDropdown && filteredUsers.length > 0 ? "open" : undefined}
         placeholder={placeholder}
         rows={rows}
         autoFocus={autoFocus}
