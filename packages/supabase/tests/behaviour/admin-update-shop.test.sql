@@ -426,7 +426,7 @@ BEGIN
 
     SELECT id INTO _id FROM tt_shops WHERE name = 'extend: paying';
     SELECT current_period_end INTO _end FROM public.subscriptions WHERE tenant_id = _id;
-    _res := public.admin_extend_subscription(_id, 30, _admin, 'boss@example.com');
+    _res := public.admin_extend_subscription(_id, 30, 'Slow first month', _admin, 'boss@example.com');
     PERFORM pg_temp.check('extend: an active shop was refused: ' || _res::text, (_res ->> 'success')::boolean);
     PERFORM pg_temp.check('extend: the period end did not move 30 days',
         (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = _id) = _end + interval '30 days');
@@ -434,16 +434,30 @@ BEGIN
         (SELECT t.status = 'active' AND s.status = 'active' FROM public.tenants t JOIN public.subscriptions s ON s.tenant_id = t.id WHERE t.id = _id));
     SELECT count(*) INTO _n FROM public.admin_activity_logs l
      WHERE l.tenant_id = _id AND l.action = 'extend_subscription' AND l.admin_user_id = _admin AND l.actor_email = 'boss@example.com'
-       AND (l.details ->> 'days')::int = 30 AND (l.details ->> 'previous_period_end')::timestamptz = _end;
-    PERFORM pg_temp.check('extend: wanted one log row with the days and the old end, got ' || _n, _n = 1);
+       AND (l.details ->> 'days')::int = 30 AND (l.details ->> 'previous_period_end')::timestamptz = _end
+       AND l.details ->> 'reason' = 'Slow first month';
+    PERFORM pg_temp.check('extend: wanted one log row with the days, the old end and the reason, got ' || _n, _n = 1);
+
+    -- Free days ask why, as every other free-time step does (round 20): a
+    -- reason under 3 letters is refused before any write.
+    SELECT current_period_end INTO _end FROM public.subscriptions WHERE tenant_id = _id;
+    BEGIN
+        PERFORM public.admin_extend_subscription(_id, 30, 'ok', _admin, 'boss@example.com');
+        _n := 1;
+    EXCEPTION WHEN invalid_parameter_value THEN
+        _n := 0;
+    END;
+    PERFORM pg_temp.check('extend: a 2-letter reason did not raise', _n = 0);
+    PERFORM pg_temp.check('extend: a refused reason moved the period end',
+        (SELECT current_period_end FROM public.subscriptions WHERE tenant_id = _id) = _end);
 
     SELECT id INTO _id FROM tt_shops WHERE name = 'extend: behind';
-    _res := public.admin_extend_subscription(_id, 7, _admin, 'boss@example.com');
+    _res := public.admin_extend_subscription(_id, 7, 'Slow first month', _admin, 'boss@example.com');
     PERFORM pg_temp.check('extend: a shop behind on payment is not paid through the new end',
         (_res ->> 'success')::boolean AND (SELECT status FROM public.subscriptions WHERE tenant_id = _id) = 'active');
 
     SELECT id INTO _id FROM tt_shops WHERE name = 'extend: renewal off';
-    _res := public.admin_extend_subscription(_id, 7, _admin, 'boss@example.com');
+    _res := public.admin_extend_subscription(_id, 7, 'Slow first month', _admin, 'boss@example.com');
     PERFORM pg_temp.check('extend: a cancelled renewal was switched back on',
         (_res ->> 'success')::boolean AND (SELECT status FROM public.subscriptions WHERE tenant_id = _id) = 'cancelled');
 
@@ -455,7 +469,7 @@ BEGIN
                        ('demo store', 'demo_store')) AS x(name, error) ON x.name = s.name
     LOOP
         SELECT current_period_end INTO _end FROM public.subscriptions WHERE tenant_id = _shop.id ORDER BY created_at DESC LIMIT 1;
-        _res := public.admin_extend_subscription(_shop.id, 30, _admin, 'boss@example.com');
+        _res := public.admin_extend_subscription(_shop.id, 30, 'Slow first month', _admin, 'boss@example.com');
         PERFORM pg_temp.check(_shop.name || ': wanted ' || _shop.error || ', got ' || _res::text,
             NOT (_res ->> 'success')::boolean AND _res ->> 'error' = _shop.error);
         PERFORM pg_temp.check(_shop.name || ': a refusal moved the period end',
@@ -464,11 +478,11 @@ BEGIN
             NOT EXISTS (SELECT 1 FROM public.admin_activity_logs l WHERE l.tenant_id = _shop.id AND l.action = 'extend_subscription'));
     END LOOP;
 
-    _res := public.admin_extend_subscription(gen_random_uuid(), 30, _admin, 'boss@example.com');
+    _res := public.admin_extend_subscription(gen_random_uuid(), 30, 'Slow first month', _admin, 'boss@example.com');
     PERFORM pg_temp.check('extend: an unknown shop was not refused as not found: ' || _res::text, _res ->> 'error' = 'not_found');
 
     BEGIN
-        PERFORM public.admin_extend_subscription(_id, 366, _admin, 'boss@example.com');
+        PERFORM public.admin_extend_subscription(_id, 366, 'Slow first month', _admin, 'boss@example.com');
         _n := 1;
     EXCEPTION WHEN invalid_parameter_value THEN
         _n := 0;
@@ -478,7 +492,7 @@ BEGIN
 
     PERFORM set_config('test.role', 'authenticated', true);
     BEGIN
-        PERFORM public.admin_extend_subscription(_id, 30, _admin, 'boss@example.com');
+        PERFORM public.admin_extend_subscription(_id, 30, 'Slow first month', _admin, 'boss@example.com');
         _n := 1;
     EXCEPTION WHEN insufficient_privilege THEN
         _n := 0;

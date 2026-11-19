@@ -42,7 +42,7 @@ CREATE FUNCTION public.admin_extend_trial(_tenant_id uuid, _days integer, _reaso
     _admin_user_id uuid DEFAULT NULL, _actor_email text DEFAULT NULL, _source text DEFAULT 'single')
 RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('extend_trial', _tenant_id, _days) $$;
 
-CREATE FUNCTION public.admin_extend_subscription(_tenant_id uuid, _days integer,
+CREATE FUNCTION public.admin_extend_subscription(_tenant_id uuid, _days integer, _reason text,
     _admin_user_id uuid DEFAULT NULL, _actor_email text DEFAULT NULL)
 RETURNS jsonb LANGUAGE sql AS $$ SELECT public.stub_answer('extend_subscription', _tenant_id, _days) $$;
 

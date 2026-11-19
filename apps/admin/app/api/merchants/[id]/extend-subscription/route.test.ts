@@ -16,7 +16,7 @@ const { POST } = await import("./route");
 
 function extend(body: Record<string, unknown>) {
   return POST(
-    new NextRequest(`http://localhost/api/merchants/${TENANT}/extend-subscription`, { method: "POST", body: JSON.stringify({ request_id: REQ, ...body }) }),
+    new NextRequest(`http://localhost/api/merchants/${TENANT}/extend-subscription`, { method: "POST", body: JSON.stringify({ request_id: REQ, reason: "Slow first month", ...body }) }),
     { params: Promise.resolve({ id: TENANT }) },
   );
 }
@@ -45,6 +45,7 @@ describe("POST /api/merchants/[id]/extend-subscription", () => {
       _request_id: REQ,
       _tenant_id: TENANT,
       _days: 30,
+      _reason: "Slow first month",
       _admin_user_id: ADMIN_ID,
       _actor_email: "boss@example.com",
     });
@@ -64,6 +65,15 @@ describe("POST /api/merchants/[id]/extend-subscription", () => {
     const res = await extend({ days: 30 });
     expect(res.status).toBe(status);
     expect((await res.json()).error).toMatch(message);
+  });
+
+  it("asks why, as every free-time step does, before touching the database", async () => {
+    for (const reason of [undefined, "", "Qi 12"]) {
+      const res = await extend({ days: 30, reason });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/reason/i);
+    }
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("refuses more than a year before touching the database", async () => {

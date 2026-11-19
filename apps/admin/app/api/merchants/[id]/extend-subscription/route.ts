@@ -3,11 +3,14 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
 import { notAnId } from "@/lib/route-id";
-import { staffRequestIdSchema } from "@/lib/staff-reason";
+import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { REQUEST_REUSED, SHOP_PAUSED } from "@/lib/billing-lock-tools";
 
 const bodySchema = z.object({
   days: z.number().int().positive().max(365),
+  // Why the days are free, kept on the staff log row and the shop's timeline,
+  // as every other free-time step does (round 20).
+  reason: staffReasonSchema,
   request_id: staffRequestIdSchema,
 });
 
@@ -39,8 +42,8 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
  *
  * admin_extend_subscription does it in one step: only an active shop, its
  * status kept (a paused, suspended, cancelled or trial shop, or the demo
- * store, is refused), and the staff log row written with the old and new
- * period end. It runs through admin_extend_subscription_once, so the same
+ * store, is refused), and the staff log row written with the reason and the
+ * old and new period end. It runs through admin_extend_subscription_once, so the same
  * request_id (a retry, a second tab) adds the days once and gets the first
  * answer back with `repeat`.
  */
@@ -68,6 +71,7 @@ export async function POST(
       _request_id: parsed.data.request_id,
       _tenant_id: id,
       _days: parsed.data.days,
+      _reason: parsed.data.reason,
       _admin_user_id: auth.user.id,
       _actor_email: auth.user.email ?? null,
     });
