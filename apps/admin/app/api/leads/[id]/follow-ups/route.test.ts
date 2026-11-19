@@ -21,10 +21,8 @@ const inserted: Record<string, unknown>[] = [];
 let activeStaff: string[];
 /** What the insert answers with (null: it is saved). */
 let insertError: { code: string; message: string } | null;
-/** What the lead's next follow-up update answers with. */
-let leadUpdateError: { message: string } | null;
-/** The next follow-up time written to the lead, if any. */
-let nextFollowUp: unknown;
+/** Tables written to besides the follow-up itself. */
+let otherWrites: string[];
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
@@ -52,14 +50,12 @@ vi.mock("@/lib/admin-supabase", () => ({
         eq: () => chain,
         order: () => chain,
         limit: () => chain,
-        update: (row: Record<string, unknown>) => {
-          if (table === "leads") nextFollowUp = row.next_follow_up_at;
+        update: () => {
+          otherWrites.push(table);
           return chain;
         },
         single: () =>
           Promise.resolve(insertError ? { data: null, error: insertError } : { data: { id: "f1", scheduled_at: "2026-11-05T10:00:00Z" }, error: null }),
-        maybeSingle: () => Promise.resolve({ data: { scheduled_at: "2026-11-05T10:00:00Z" }, error: null }),
-        then: (resolve: (v: unknown) => unknown) => resolve({ data: null, error: table === "leads" ? leadUpdateError : null }),
       };
       return chain;
     },
@@ -82,8 +78,7 @@ beforeEach(() => {
   inserted.length = 0;
   activeStaff = [OTHER_ID];
   insertError = null;
-  leadUpdateError = null;
-  nextFollowUp = undefined;
+  otherWrites = [];
   // Calls are counted per test: "logs nothing" means in this test.
   vi.spyOn(console, "error").mockImplementation(() => {}).mockClear();
 });
@@ -108,10 +103,16 @@ describe("POST /api/leads/[id]/follow-ups", () => {
     expect(inserted).toEqual([]);
   });
 
-  it("sets the lead's next follow-up to the earliest open one", async () => {
+  // Round 18 (structure new 6): the lead's next follow-up was set in a second
+  // request, and its failure answered "Failed to create follow-up" for a saved
+  // follow-up, so staff pressed Schedule again. The database sets it in the
+  // same write now (lead_follow_ups_set_next, behaviour suite
+  // lead-next-follow-up): the answer is the insert's alone.
+  it("answers saved once the follow-up is saved, with no second write to the lead", async () => {
     const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
     expect(res.status).toBe(201);
-    expect(nextFollowUp).toBe("2026-11-05T10:00:00Z");
+    expect(inserted).toHaveLength(1);
+    expect(otherWrites).toEqual([]);
   });
 
   // Round 16 (Data new 2): a lead a colleague deleted answered 500 "Failed to
@@ -125,16 +126,6 @@ describe("POST /api/leads/[id]/follow-ups", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "This lead was deleted. Changes here can no longer be saved." });
     expect(console.error).not.toHaveBeenCalled();
-    expect(nextFollowUp).toBeUndefined();
-  });
-
-  // Round 16 (Data new 2): a failed update of the lead's date answered 201,
-  // and the lead list kept the old time.
-  it("does not answer saved when the lead's next follow-up could not be set", async () => {
-    leadUpdateError = { message: "timeout" };
-    const res = await call({ title: "Call", scheduled_at: "2026-11-05T10:00:00Z" });
-    expect(res.status).toBe(500);
-    expect(console.error).toHaveBeenCalled();
   });
 
   it("refuses a follow-up with no title or no time", async () => {

@@ -83,7 +83,9 @@ describe("PATCH /api/leads/[id]/follow-ups/[fid]", () => {
     expect(followUpUpdate()).toMatchObject({ is_completed: true, completed_by: ADMIN_ID });
     expect(followUpUpdate()?.completed_at).toEqual(expect.any(String));
     expect(writes[0].steps).toContainEqual({ method: "eq", args: ["lead_id", LEAD] });
-    expect(writes.at(-1)?.table).toBe("leads");
+    // Round 18: the lead's next follow-up moves in the database, in the same
+    // write (lead_follow_ups_set_next), not in a second request that could fail.
+    expect(writes.map((w) => w.table)).toEqual(["lead_follow_ups"]);
   });
 
   it("clears who completed it when it is opened again", async () => {

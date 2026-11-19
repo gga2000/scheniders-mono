@@ -4,7 +4,6 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 import { LEAD_GONE } from "@/lib/lead-update";
-import { setNextFollowUp } from "@/lib/lead-next-follow-up";
 
 // What a follow-up change may carry. The console sends { is_completed: true };
 // who completed it comes from the sign-in, never from the body.
@@ -63,8 +62,8 @@ export async function PATCH(
       return NextResponse.json({ error: lead ? "This follow-up no longer exists." : LEAD_GONE }, { status: 404 });
     }
 
-    await setNextFollowUp(supabase, id);
-
+    // The database moves the lead's next follow-up in the same write
+    // (lead_follow_ups_set_next).
     return NextResponse.json({ follow_up: data });
   } catch (error) {
     console.error("Follow-up PATCH error:", error);
