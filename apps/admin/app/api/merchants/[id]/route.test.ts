@@ -349,11 +349,11 @@ describe("PATCH /api/merchants/[id]", () => {
     );
   });
 
-  it("refuses a reason too short to say anything, before the database", async () => {
-    const res = await patch({ status: "suspended", reason: "no" });
+  it.each(["no", "...", "1 2 3"])("refuses a reason too short to say anything, before the database (%s)", async (reason) => {
+    const res = await patch({ status: "suspended", reason });
 
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/at least 3 characters/);
+    expect((await res.json()).error).toBe("Write a reason with at least 3 letters.");
     expect(rpc).not.toHaveBeenCalled();
   });
 

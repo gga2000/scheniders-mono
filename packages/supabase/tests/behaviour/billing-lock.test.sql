@@ -360,6 +360,14 @@ SELECT set_config('test.role', '', false);
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_extend_trial('20000000-0000-4000-8000-000000000010', 7, '  ')$$) LIKE '%reason%', 'extend needs a reason');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 5, NULL)$$) LIKE '%reason%', 'lock orders need a reason');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, 'ok')$$) LIKE '%reason%', 'unlock needs a reason');
+-- A reason is 3 letters in any script (admin audit round 18): dots, digits
+-- and spaces are not letters; Arabic letters are; trimmed, at most 500.
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 30, '...')$$) LIKE '%at least 3 letters%', '"..." is no reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_billing_reason('a.b 1 2 3')$$) LIKE '%at least 3 letters%', 'two letters and digits are no reason');
+SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_billing_reason('١٢٣ ،؟')$$) LIKE '%at least 3 letters%', 'Arabic digits and marks are no reason');
+SELECT pg_temp.check(public.admin_billing_reason('  نقد  ') = 'نقد', 'three Arabic letters are a reason, trimmed');
+SELECT pg_temp.check(public.admin_billing_reason('Qi 12, cash') = 'Qi 12, cash', 'letters with digits and marks are kept as written');
+SELECT pg_temp.check(pg_temp.raises(format('SELECT public.admin_billing_reason(%L)', repeat('a', 501))) LIKE '%at most 500%', '501 characters are too long');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_add_lock_orders('20000000-0000-4000-8000-000000000010', 0, 'customer asked')$$) LIKE '%between 1 and 1000%', '0 lock orders refused');
 SELECT pg_temp.check(pg_temp.raises($$SELECT public.admin_force_unlock('20000000-0000-4000-8000-000000000011', 91, 'paid in cash')$$) LIKE '%between 1 and 90%', '91 free days refused');
 SELECT pg_temp.check((SELECT count(*) FROM public.admin_activity_logs) = 0, 'a refused call writes no log');

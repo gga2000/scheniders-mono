@@ -577,8 +577,8 @@ describe("trial extension goes through admin_extend_trial only", () => {
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "", "   ", "ok", "x".repeat(501)])(
-    "needs a reason of 3 to 500 characters on both routes (%s)",
+  it.each([undefined, "", "   ", "ok", "...", "x".repeat(501)])(
+    "needs a reason of 3 letters to 500 characters on both routes (%s)",
     async (reason) => {
       const { POST: perMerchant } = await import("./merchants/[id]/extend-trial/route");
       const { POST: trials } = await import("./trials/extend/route");

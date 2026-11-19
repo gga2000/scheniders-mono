@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
-import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
+import { isStaffReason, STAFF_REASON_MAX, STAFF_REASON_TOO_SHORT } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -150,7 +150,7 @@ export function BulkActionDialog({
         break;
       case "extend-trial":
         if (!isStaffReason(extensionReason)) {
-          setError("Write a reason (at least 3 characters)");
+          setError(STAFF_REASON_TOO_SHORT);
           return;
         }
         params = {
@@ -174,7 +174,7 @@ export function BulkActionDialog({
         }
         const description = topUpDescription.trim();
         if (!isStaffReason(description)) {
-          setError("Write a reason (at least 3 characters)");
+          setError(STAFF_REASON_TOO_SHORT);
           return;
         }
         params = {

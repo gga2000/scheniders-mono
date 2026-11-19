@@ -1,4 +1,4 @@
-import { isStaffReason, STAFF_REASON_MIN } from "./billing-lock-tools";
+import { isStaffReason, STAFF_REASON_TOO_SHORT } from "./billing-lock-tools";
 import { formatIQD } from "./format";
 import { TOPUP_MAX_IQD } from "./topup-queue";
 
@@ -27,7 +27,7 @@ export function quickTopUpPlan(shop: TopUpShop | undefined, amount: number | "",
   if (!Number.isInteger(amount) || amount <= 0) return { kind: "blocked", words: "The amount is whole IQD, more than 0." };
   if (amount > TOPUP_MAX_IQD) return { kind: "blocked", words: `At most ${formatIQD(TOPUP_MAX_IQD)} at once.` };
   if (reason.trim() === "") return { kind: "not_ready" };
-  if (!isStaffReason(reason)) return { kind: "blocked", words: `The reason needs at least ${STAFF_REASON_MIN} letters.` };
+  if (!isStaffReason(reason)) return { kind: "blocked", words: STAFF_REASON_TOO_SHORT };
   return {
     kind: "ready",
     amount,
