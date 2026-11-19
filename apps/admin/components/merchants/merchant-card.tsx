@@ -21,6 +21,7 @@ import { LockedChip } from "./locked-chip";
 import { MerchantPlanDropdown } from "./merchant-plan-dropdown";
 import { HealthScoreTooltip } from "./health-score-tooltip";
 import { QuickNotePopover } from "./quick-note-popover";
+import { CardMoneyFigure } from "./card-money-figure";
 import { MerchantTags } from "./merchant-tags";
 import { MerchantAlertFlag } from "./merchant-alert-flag";
 import { LastActorBadge } from "./last-actor-badge";
@@ -280,32 +281,22 @@ export function MerchantCard({
 
         {/* Hero stats: Balance + Revenue (paired big numbers) */}
         <div className="relative grid grid-cols-2 grid-rows-[auto_auto_auto] gap-x-3 mt-5 p-3.5 rounded-2xl bg-gradient-to-br from-foreground/[0.04] to-foreground/[0.015] dark:from-white/[0.04] dark:to-white/[0.01] border border-foreground/[0.05]">
-          <div className="min-w-0 row-span-3 grid grid-rows-subgrid">
+          <div className="@container min-w-0 row-span-3 grid grid-rows-subgrid">
             <p className="text-xs text-foreground/70 font-black flex items-start gap-1">
               <span className="w-1 h-1 mt-[7px] rounded-full bg-emerald-500 shrink-0" />
               Balance
             </p>
-            <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
-              {formatCount(balance)}
-              <span className="text-xs font-bold text-foreground/70 ml-1">
-                IQD
-              </span>
-            </p>
+            <CardMoneyFigure value={balance} />
             <p className="text-xs text-foreground/70 font-medium mt-1 truncate">
               {merchant.city || "—"}
             </p>
           </div>
-          <div className="min-w-0 row-span-3 grid grid-rows-subgrid border-l border-foreground/[0.08] pl-3">
+          <div className="@container min-w-0 row-span-3 grid grid-rows-subgrid border-l border-foreground/[0.08] pl-3">
             <p className="text-xs text-foreground/70 font-black flex items-start gap-1">
               <span className="w-1 h-1 mt-[7px] rounded-full bg-violet-500 shrink-0" />
               Our fees, 30 days
             </p>
-            <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
-              {formatCount(fees30d)}
-              <span className="text-xs font-bold text-foreground/70 ml-1">
-                IQD
-              </span>
-            </p>
+            <CardMoneyFigure value={fees30d} />
             <p className="text-xs text-foreground/70 font-medium mt-1 tabular-nums truncate">
               {orders} {orders === 1 ? "order" : "orders"}
               {lastActive && (
@@ -320,8 +311,8 @@ export function MerchantCard({
           </div>
         </div>
 
-        {/* Today strip: orders and our fees today */}
-        <div className="relative mt-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-cyan-50 dark:from-emerald-400/10 dark:to-cyan-400/10 border border-emerald-200/60 dark:border-emerald-400/20">
+        {/* Today strip: orders and our fees today. It wraps rather than cut a figure. */}
+        <div className="relative mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-cyan-50 dark:from-emerald-400/10 dark:to-cyan-400/10 border border-emerald-200/60 dark:border-emerald-400/20">
           <span className="text-xs font-black text-emerald-700 dark:text-emerald-300 flex items-center gap-1 shrink-0">
             <span className={cn(
               "w-1.5 h-1.5 rounded-full",
@@ -329,16 +320,18 @@ export function MerchantCard({
             )} />
             Today
           </span>
-          <span className="text-xs font-black text-foreground tabular-nums">
+          <span className="text-xs font-black text-foreground tabular-nums whitespace-nowrap">
             {dailyOrders}
             <span className="text-xs font-bold text-foreground/70 ml-0.5">
               {dailyOrders === 1 ? "order" : "orders"}
             </span>
           </span>
-          <span className="w-0.5 h-0.5 rounded-full bg-foreground/20" />
-          <span className="text-xs font-black text-foreground tabular-nums truncate">
-            {formatCount(feesToday)}
-            <span className="text-xs font-bold text-foreground/70 ml-0.5">IQD fees</span>
+          <span className="flex items-center gap-2 whitespace-nowrap" title={`${formatCount(feesToday)} IQD fees today`}>
+            <span className="w-0.5 h-0.5 rounded-full bg-foreground/20" />
+            <span className="text-xs font-black text-foreground tabular-nums">
+              {formatCount(feesToday)}
+              <span className="text-xs font-bold text-foreground/70 ml-0.5">IQD fees</span>
+            </span>
           </span>
         </div>
 
