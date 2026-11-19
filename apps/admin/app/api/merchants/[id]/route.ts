@@ -44,26 +44,28 @@ const patchSchema = z
 const TEAM_COLUMNS =
   "id, user_id, role, status, invited_at, joined_at, user_profiles!tenant_members_user_id_fkey(email, display_name, avatar_url)";
 
-const paidMonthsSchema = z.array(z.object({ paid_at: z.string(), paid_until: z.string() }));
+const paidMonthsSchema = z.array(z.object({ paid_at: z.string(), month_end: z.string() }));
 
 /**
  * The shop's charged plan months, by the Paying page's one rule
- * (paid_plan_months): when it was first charged, and until when its latest
- * charged month runs. A running subscription can be free time (a converted
- * lead, free days, a free unlock), so the page says "Paying" only while a
- * charged month covers now (round 18).
+ * (paid_plan_months): when it was first charged, and when its latest charged
+ * month ends. A running subscription can be free time (a converted lead, free
+ * days, a free unlock), so the page says "Paying" only while a charged month
+ * covers now (round 18). month_end is the month's own end, the day the Paying
+ * page shows; paid_until adds the wait day for the count, which the status
+ * line says in its own words (20261119073725_paid_month_end_and_wait_day).
  */
 async function readPaidPlan(
   supabase: ReturnType<typeof createAdminClient>,
   tenantId: string,
-): Promise<{ first_paid_at: string | null; paid_until: string | null }> {
+): Promise<{ first_paid_at: string | null; month_end: string | null }> {
   const { data, error } = await supabase.rpc("paid_plan_months").eq("tenant_id", tenantId);
   if (error) throw error;
   const months = paidMonthsSchema.parse(data);
   const at = (iso: string) => Date.parse(iso);
   return {
     first_paid_at: months.reduce<string | null>((first, m) => (first === null || at(m.paid_at) < at(first) ? m.paid_at : first), null),
-    paid_until: months.reduce<string | null>((last, m) => (last === null || at(m.paid_until) > at(last) ? m.paid_until : last), null),
+    month_end: months.reduce<string | null>((last, m) => (last === null || at(m.month_end) > at(last) ? m.month_end : last), null),
   };
 }
 

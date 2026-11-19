@@ -144,6 +144,7 @@ BEGIN
     IF (first->>'display_id')::int <> 100901 OR first->>'business_name' <> 'Locked Shop'
        OR (first->'billing'->>'locked')::boolean IS NOT TRUE
        OR (first->'billing'->>'price_iqd')::numeric <> 9000
+       OR (first->'billing'->>'renewal_off')::boolean IS NOT FALSE
        OR (first->>'balance_iqd')::numeric <> 0 THEN
         RAISE EXCEPTION 'FAIL queue row for Locked Shop: %', first;
     END IF;
