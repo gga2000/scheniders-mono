@@ -46,7 +46,9 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
   const give = useMutation({
     mutationKey: shopActionKey(shopId),
     mutationFn: (value: number) => {
-      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}:${why.trim()}`);
+      // Keyed by what is given, not the words: a reopened panel with the reason
+      // typed anew sends the same ask with the same id, so the days come once.
+      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}`);
       return kind === "trial"
         ? postJson(`/api/merchants/${shopId}/extend-trial`, { days: value, reason: why.trim(), request_id })
         : postJson(`/api/merchants/${shopId}/extend-subscription`, { days: value, request_id });

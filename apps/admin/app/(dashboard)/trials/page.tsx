@@ -108,7 +108,7 @@ function ExtendTrialButton({ tenantId }: { tenantId: string }) {
 
   const mutation = useMutation({
     mutationFn: async (days: number) => {
-      const request_id = requestIds.idFor(`${tenantId}:${days}:${reason.trim()}`);
+      const request_id = requestIds.idFor(`${tenantId}:${days}`);
       const res = await adminFetch("/api/trials/extend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -60,7 +60,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
           ? `/api/merchants/${merchantId}/lock-orders`
           : `/api/merchants/${merchantId}/force-unlock`;
       const amount = action.kind === "orders" ? action.orders : action.days;
-      const request_id = requestIds.idFor(`${merchantId}:${action.kind}:${amount}:${reason.trim()}`);
+      const request_id = requestIds.idFor(`${merchantId}:${action.kind}:${amount}`);
       const body =
         action.kind === "orders"
           ? { orders: action.orders, reason: reason.trim(), request_id }
