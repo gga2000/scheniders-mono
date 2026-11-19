@@ -128,7 +128,7 @@ describe("kinds of step on the Activity page", () => {
 
   it("reads the names written straight through logAdminActivity too", () => {
     const names = namesWrittenByTheConsole();
-    for (const name of ["top_up_wallet", "pause_tenant", "pause_whatsapp", "resume_whatsapp", "convert_trial"]) {
+    for (const name of ["top_up_wallet", "pause_tenant", "pause_whatsapp", "resume_whatsapp"]) {
       expect(names, name).toContain(name);
     }
     expect(
@@ -144,7 +144,7 @@ describe("kinds of step on the Activity page", () => {
   it("reads the names the database functions write, from the migrations", () => {
     const { names, families, unread } = namesWrittenBySql();
     expect(unread).toEqual([]);
-    for (const name of ["status_change", "plan_change", "auto_renew_toggle", "extend_trial", "force_unlock", "build_store_for_lead", "delete_lead", "bulk_leads", "reassign_lead", "update_settings", "trial_withheld", "support_view", "support_view_end"]) {
+    for (const name of ["status_change", "plan_change", "auto_renew_toggle", "extend_trial", "force_unlock", "build_store_for_lead", "delete_lead", "bulk_leads", "reassign_lead", "update_settings", "trial_withheld", "support_view", "support_view_end", "convert_trial"]) {
       expect(names, name).toContain(name);
     }
     expect(families).toContain("trial_check_");

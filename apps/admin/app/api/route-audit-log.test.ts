@@ -29,6 +29,7 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "merchants/[id]/lock-orders/route.ts POST": "admin_add_lock_orders",
   "merchants/[id]/force-unlock/route.ts POST": "admin_force_unlock",
   "merchants/[id]/extend-subscription/route.ts POST": "admin_extend_subscription",
+  "merchants/[id]/convert-trial/route.ts POST": "admin_convert_trial",
   "merchants/[id]/route.ts PATCH": "admin_update_shop",
   "leads/[id]/route.ts PATCH": "admin_save_lead",
   "leads/bulk/route.ts POST": "admin_change_leads",

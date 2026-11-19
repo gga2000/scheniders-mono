@@ -101,7 +101,10 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return n === null ? "Gave free days this month" : `Gave ${formatCount(n)} free ${n === 1 ? "day" : "days"} this month`;
     case "convert_trial": {
       const period = num(d.duration_days) ?? n;
-      return period === null ? "Started paid time, no charge" : `Started ${nDays(period)} of paid time, no charge`;
+      const started = period === null ? "Started paid time" : `Started ${nDays(period)} of paid time`;
+      const plan = text(d.plan);
+      if (!plan) return `${started}, no charge`;
+      return plan === "internal" ? `${started} on ${planLabel(plan)}, no charge` : `${started} on the ${planLabel(plan)} plan, no charge`;
     }
     case "add_lock_orders": {
       const orders = num(d.orders);

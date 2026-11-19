@@ -106,6 +106,19 @@ describe("staffLogSummary", () => {
     expect(staffLogSummary("any_step", { rows: 40, kind: "leads", format: "csv" })).toBe("rows: 40 | kind: leads");
   });
 
+  // A converted trial's words name the days and the plan, so the reason comes first, never a raw plan key.
+  it("leads a converted trial with its reason", () => {
+    expect(
+      staffLogSummary("convert_trial", {
+        days: 30,
+        plan: "growth",
+        reason: "Paid in cash",
+        current_period_end: "2026-12-19T05:00:00+00:00",
+        previous_period_end: "2026-11-22T05:00:00+00:00",
+      }),
+    ).toMatch(/^reason: Paid in cash \| current period end: \S/);
+  });
+
   it("leaves out ids, lists and empty values", () => {
     expect(staffLogSummary("any_step", { session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBeNull();
     expect(
