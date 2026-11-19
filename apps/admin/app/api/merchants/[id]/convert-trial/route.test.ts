@@ -73,6 +73,7 @@ describe("POST /api/merchants/[id]/convert-trial", () => {
 
   it.each([
     ["demo_store", 409, /demo store/],
+    ["prospect_store", 409, /built for a lead/],
     ["paused", 409, /paused/],
     ["not_trial", 409, /no longer on trial/],
     ["not_found", 404, /not found/],

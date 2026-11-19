@@ -13,8 +13,8 @@
 --     * a locked trial ('past_due') and a trial with no subscription convert
 --       the same way; the second gets one row, never two;
 --   Refusals change nothing and are not logged:
---     * the demo store, a paused trial, an active, suspended or cancelled
---       shop, and an unknown shop;
+--     * the demo store, a lead's pre-built store (round 19), a paused trial,
+--       an active, suspended or cancelled shop, and an unknown shop;
 --     * a reason with fewer than 3 letters, and 0 or 366 days, raise before
 --       any write.
 --   Once per request:
@@ -62,6 +62,7 @@ CREATE TEMP TABLE tt_shops (
     status public.tenant_status NOT NULL,
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     is_demo boolean NOT NULL DEFAULT false,
+    is_prospect boolean NOT NULL DEFAULT false,
     sub public.subscription_status,
     sub_plan public.plan_tier NOT NULL DEFAULT 'starter',
     sub_end timestamptz NOT NULL DEFAULT now() + interval '3 days'
@@ -75,13 +76,15 @@ INSERT INTO tt_shops (name, status, plan, is_demo, sub, sub_plan, sub_end) VALUE
     ('twice',              'trial',     'starter', false, 'trialing',  'starter', now() + interval '3 days'),
     ('refused, then once', 'trial',     'starter', false, 'trialing',  'starter', now() + interval '3 days'),
     ('demo store',         'trial',     'starter', true,  'trialing',  'starter', now() + interval '3 days'),
+    ('lead''s store',      'trial',     'starter', false, 'trialing',  'starter', now() + interval '25 days'),
     ('paused trial',       'limited',   'starter', false, 'trialing',  'starter', now() + interval '3 days'),
     ('paying',             'active',    'starter', false, 'active',    'starter', now() + interval '20 days'),
     ('suspended',          'suspended', 'starter', false, 'trialing',  'starter', now() - interval '9 days'),
     ('cancelled',          'cancelled', 'starter', false, 'cancelled', 'starter', now() - interval '9 days');
 
-INSERT INTO public.tenants (id, business_name, slug, plan, status, is_demo, restrictions)
-SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.is_demo,
+UPDATE tt_shops SET is_prospect = true WHERE name = 'lead''s store';
+INSERT INTO public.tenants (id, business_name, slug, plan, status, is_demo, is_prospect, restrictions)
+SELECT s.id, 'tt ' || s.name, 'tt-' || s.id, s.plan, s.status, s.is_demo, s.is_prospect,
        CASE WHEN s.status = 'limited' THEN '{"status_before": "trial"}'::jsonb ELSE '{}'::jsonb END
   FROM tt_shops s;
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, auto_renew)
@@ -151,7 +154,8 @@ BEGIN
     FOR _shop IN
         SELECT s.id, s.name, x.error
           FROM tt_shops s
-          JOIN (VALUES ('demo store', 'demo_store'), ('paused trial', 'paused'), ('paying', 'not_trial'),
+          JOIN (VALUES ('demo store', 'demo_store'), ('lead''s store', 'prospect_store'),
+                       ('paused trial', 'paused'), ('paying', 'not_trial'),
                        ('suspended', 'not_trial'), ('cancelled', 'not_trial')) AS x(name, error) ON x.name = s.name
     LOOP
         SELECT jsonb_build_object('t', to_jsonb(t), 's', to_jsonb(s)) INTO _before

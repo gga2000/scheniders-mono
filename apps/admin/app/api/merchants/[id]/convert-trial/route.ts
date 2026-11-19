@@ -27,6 +27,7 @@ const resultSchema = z.discriminatedUnion("success", [
 const REFUSALS: Record<string, { status: number; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
   demo_store: { status: 409, error: "The demo store has no paid time to start" },
+  prospect_store: { status: 409, error: "This store was built for a lead. Convert the lead instead" },
   paused: { status: 409, error: "This shop is paused. Lift the pause first" },
   not_trial: { status: 409, error: "This shop is no longer on trial. Reload the page to see it" },
   request_reused: REQUEST_REUSED,
@@ -38,7 +39,8 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
  * only (`manage_subscription`).
  *
  * admin_convert_trial does it in one step: only a shop on trial (the demo
- * store and a paused trial are refused), the shop made active, its one
+ * store, a lead's pre-built store and a paused trial are refused), the shop
+ * made active, its one
  * subscription active from now to now + days with renewal on, and the staff
  * log row with the reason, in one transaction. It runs through
  * admin_convert_trial_once, so the same request_id (a retry, a double click)

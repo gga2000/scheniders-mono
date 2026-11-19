@@ -21,6 +21,12 @@ export interface ShopFacts {
    * (admin_extend_subscription, pause_tenant, admin_update_shop).
    */
   demo: boolean;
+  /**
+   * A store built for a lead before the lead signs up (tenants.is_prospect).
+   * Its trial is no merchant's: it is converted with the lead, so the
+   * database refuses paid time on it (admin_convert_trial).
+   */
+  prospect: boolean;
 }
 
 export type Can = (action: AdminAction) => boolean;
@@ -58,7 +64,8 @@ export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
     ["pause", canStop && shop.status !== "limited"],
     ["hold", canStop && shop.status !== "limited"],
     ["reactivate", can("reactivate_tenant") && shop.status === "suspended"],
-    ["convert", can("manage_subscription") && shop.status === "trial"],
+    // The database refuses paid time on the demo store and a lead's pre-built store.
+    ["convert", can("manage_subscription") && shop.status === "trial" && !shop.demo && !shop.prospect],
     ["note", can("add_note")],
   ];
   return items.filter(([, shown]) => shown).map(([action]) => action);

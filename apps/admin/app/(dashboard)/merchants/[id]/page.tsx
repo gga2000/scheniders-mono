@@ -202,6 +202,7 @@ export default function MerchantDetailPage() {
           locked: !!data.billingLock?.locked,
           subscriptionRunning: isSubscriptionRunning(subscription?.status),
           demo: tenant.is_demo,
+          prospect: tenant.is_prospect === true,
         }}
         plan={tenant.plan}
         balance={wallet?.balance_iqd ?? 0}

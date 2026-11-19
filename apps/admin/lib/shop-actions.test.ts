@@ -21,6 +21,7 @@ const shop = (facts: Partial<ShopFacts> = {}): ShopFacts => ({
   locked: false,
   subscriptionRunning: true,
   demo: false,
+  prospect: false,
   ...facts,
 });
 
@@ -80,6 +81,20 @@ describe("the demo store", () => {
 
   it("still offers what works on it", () => {
     expect(moreActions(shop({ demo: true }), as("support_staff"))).toEqual(["note"]);
+  });
+
+  it("is never offered paid time with no charge, even on trial", () => {
+    expect(moreActions(shop({ demo: true, status: "trial" }), as("super_admin"))).not.toContain("convert");
+  });
+});
+
+// Round 19: a lead's pre-built store is on trial, and "Start paid time, no
+// charge" was offered on it. Converted that way, the lead could no longer be
+// converted into it (convert_lead_atomic answers prospect_not_open).
+describe("a store built for a lead", () => {
+  it("is not offered paid time with no charge; the lead is converted instead", () => {
+    expect(moreActions(shop({ prospect: true, status: "trial" }), as("super_admin"))).not.toContain("convert");
+    expect(moreActions(shop({ status: "trial" }), as("super_admin"))).toContain("convert");
   });
 });
 
