@@ -6,8 +6,9 @@ import { trialCostIqd } from "./whatsapp-report";
  * The weekly dashboard (Fermi B12 item 5, for Mohammed): one row per Baghdad
  * work week, Saturday to Friday, counted by admin_weekly_dashboard
  * (20261118235058_admin_weekly_dashboard.sql). Paying means what it means on
- * the Paying shops page: both read paid_plan_months. The demo store, prospect
- * stores and the internal plan are never counted.
+ * the Paying shops page: both read paid_plan_months. The demo store and
+ * prospect stores are never counted; an internal shop is no new shop or
+ * trial, but a month it paid before it moved to Internal still counts.
  */
 
 /** Weeks a page may ask for; the database takes 1 to 52. */

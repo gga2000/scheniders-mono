@@ -31,6 +31,7 @@ const staffPayResponseSchema = z.object({
       month: z.string(),
       payers: z.number().int(),
       perPersonIqd: z.number().int(),
+      people: z.number().int(),
       totalIqd: z.number().int(),
       final: z.boolean(),
     }),
@@ -132,6 +133,9 @@ function StaffPay({ read }: { read: StaffPayRead }) {
               </tbody>
             </table>
           </div>
+          <p className="text-xs text-foreground/70">
+            Whole team: each month counts the people above who had joined by its end.
+          </p>
         </>
       )}
     </section>
@@ -153,6 +157,8 @@ export default function PayingShopsPage() {
       return staffPayResponseSchema.parse(await res.json());
     },
     staleTime: 60_000,
+    // Refreshed with the shops beside it, so "so far" never disagrees with "Paying, now".
+    refetchInterval: 300_000,
     enabled: seesStaffPay,
   });
   const { data, error, isLoading, isError, isFetching, refetch } = useQuery({

@@ -27,6 +27,8 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
 
 CREATE TYPE public.plan_tier AS ENUM ('starter', 'growth', 'professional', 'enterprise', 'internal');
+CREATE TYPE public.tenant_status AS ENUM ('trial', 'active', 'suspended', 'cancelled', 'limited');
+CREATE TYPE public.subscription_status AS ENUM ('trialing', 'active', 'past_due', 'cancelled', 'incomplete');
 
 CREATE SEQUENCE public.tenant_display_id_seq START 100001;
 
@@ -36,7 +38,21 @@ CREATE TABLE public.tenants (
     business_name text NOT NULL,
     plan public.plan_tier NOT NULL DEFAULT 'starter',
     is_demo boolean NOT NULL DEFAULT false,
+    status public.tenant_status NOT NULL DEFAULT 'active',
     is_prospect boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- As live: one subscription per shop. paid_plan_months reads it for a month
+-- that waits for its renewal run.
+CREATE TABLE public.subscriptions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL UNIQUE REFERENCES public.tenants (id),
+    plan public.plan_tier NOT NULL,
+    status public.subscription_status NOT NULL,
+    current_period_start timestamptz NOT NULL,
+    current_period_end timestamptz NOT NULL,
+    pending_plan public.plan_tier,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 

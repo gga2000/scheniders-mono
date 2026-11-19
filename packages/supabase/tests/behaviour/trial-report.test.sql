@@ -6,6 +6,9 @@
 -- Rules under test:
 --   the report covers the Baghdad days from signup to today, or to the day
 --   the trial ended, and asks the Finances numbers for exactly those days;
+--   its days are the trial's real days, from signup to now or to its end,
+--   at least one: a 7-day trial reads 7, and elapsed_days carries them to
+--   the hundredth for the pace (round 18, data new 4);
 --   orders are real orders made in those days (no test, practice, deleted,
 --   abandoned-cart or till order, none after the trial ended), the demo
 --   store's too: the report is the shop's own, not a staff count;
@@ -16,7 +19,9 @@
 --   Shield counts the shop's real orders it warned about in those days;
 --   messages are counted by category, the shop's own only;
 --   prices are the plan's month with its add-ons, the fee per delivered order
---   and the message prices;
+--   and the message prices, for the plan the first charge takes: the one
+--   picked for after the trial, else the subscription's, else the shop's
+--   (round 18, data new 3);
 --   a shop with nothing gets zeros, not a missing report; an unknown shop is
 --   refused;
 --   the shop's own report needs its admin or the financials permission; the
@@ -34,13 +39,19 @@ INSERT INTO public.plan_limits (plan, base_price_iqd, order_price_iqd, whatsapp_
 INSERT INTO public.tenants (id, business_name, plan, trial_ends_at, created_at) VALUES
     -- On trial, day 4: signed up three days ago, ends in four.
     ('40000000-0000-4000-8000-000000000001', 'on trial',     'starter', now() + interval '4 days', now() - interval '3 days'),
-    -- Trial ended two days ago, after nine days.
+    -- Trial ended two days ago, after seven days.
     ('40000000-0000-4000-8000-000000000002', 'trial ended',  'starter', now() - interval '2 days', now() - interval '9 days'),
     -- Signed up today, nothing yet.
     ('40000000-0000-4000-8000-000000000003', 'nothing yet',  'growth',  now() + interval '7 days', now());
 INSERT INTO public.tenants (id, business_name, plan, trial_ends_at, created_at, is_demo) VALUES
     -- The demo store: staff counts skip it, its own report does not.
     ('40000000-0000-4000-8000-000000000004', 'demo store',   'growth',  NULL, now(), true);
+
+-- On trial: no pick yet. Trial ended: Team picked during the trial, charged
+-- from its first month. Nothing yet: no subscription row, the shop's plan.
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, pending_plan) VALUES
+    ('40000000-0000-4000-8000-000000000001', 'starter', 'trialing', now() - interval '3 days', now() + interval '4 days', NULL),
+    ('40000000-0000-4000-8000-000000000002', 'starter', 'trialing', now() - interval '9 days', now() - interval '2 days', 'growth');
 
 INSERT INTO public.tenant_addons (tenant_id, kind, quantity) VALUES ('40000000-0000-4000-8000-000000000001', 'extra_member', 1);
 
@@ -113,8 +124,9 @@ DECLARE
     d jsonb := public.trial_report_core('40000000-0000-4000-8000-000000000004');
     today date := (now() AT TIME ZONE 'Asia/Baghdad')::date;
 BEGIN
-    -- On trial: days 1 to 4, the Finances numbers for exactly those days.
-    IF NOT a @> jsonb_build_object('from_day', today - 3, 'to_day', today, 'days', 4, 'ended', false, 'plan', 'starter') THEN
+    -- On trial: calendar days 1 to 4, the Finances numbers for exactly those
+    -- days; three days since signup.
+    IF NOT a @> jsonb_build_object('from_day', today - 3, 'to_day', today, 'days', 3, 'elapsed_days', 3, 'ended', false, 'plan', 'starter') THEN
         RAISE EXCEPTION 'on trial, days: %', a;
     END IF;
     IF NOT a @> '{"orders": 6, "delivered": 2, "sales_iqd": 100000, "missing_cost_units": 1,
@@ -132,9 +144,15 @@ BEGIN
         RAISE EXCEPTION 'on trial, prices: %', a->'prices';
     END IF;
 
-    -- Trial ended: its days stop at the end; a loss is a loss.
-    IF NOT b @> jsonb_build_object('from_day', today - 9, 'to_day', today - 2, 'days', 8, 'ended', true) THEN
+    -- Trial ended: its days stop at the end, and its seven days read 7 (not
+    -- the 8 calendar days they touch); a loss is a loss.
+    IF NOT b @> jsonb_build_object('from_day', today - 9, 'to_day', today - 2, 'days', 7, 'elapsed_days', 7, 'ended', true) THEN
         RAISE EXCEPTION 'trial ended, days: %', b;
+    END IF;
+    -- It picked Team during the trial: the report prices Team, as its first charge will.
+    IF b->>'plan' <> 'growth'
+       OR b->'prices' <> '{"plan_month_iqd": 25000, "per_delivered_iqd": 55, "whatsapp_utility_iqd": 30, "whatsapp_marketing_iqd": 80}' THEN
+        RAISE EXCEPTION 'trial ended, the picked plan: %', b;
     END IF;
     IF NOT b @> '{"orders": 1, "delivered": 1, "shield_flagged": 0, "whatsapp_utility": 1, "whatsapp_marketing": 0}'
        OR (b->>'profit_iqd')::numeric <> -5000 THEN
@@ -142,7 +160,7 @@ BEGIN
     END IF;
 
     -- Nothing yet: zeros, not a missing report, and its own plan's prices.
-    IF NOT c @> jsonb_build_object('from_day', today, 'to_day', today, 'days', 1) THEN
+    IF NOT c @> jsonb_build_object('from_day', today, 'to_day', today, 'days', 1, 'elapsed_days', 1, 'plan', 'growth') THEN
         RAISE EXCEPTION 'nothing yet, days: %', c;
     END IF;
     IF NOT c @> '{"orders": 0, "delivered": 0, "sales_iqd": 0, "profit_iqd": 0, "with_courier_iqd": 0,

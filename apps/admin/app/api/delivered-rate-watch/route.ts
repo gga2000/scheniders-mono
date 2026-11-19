@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/delivered-rate-watch?days=60: each shop's delivered rate against
- * the platform median and its parcels in transit for more than 14 days, with
+ * the platform median and its parcels in transit too long, with
  * the reasons a shop is worth a look (lib/delivered-rate-watch). Read-only,
  * and for the owners only: it is about the fees we are owed, so it needs the
  * same permission as managing a shop's subscription.
@@ -30,7 +30,12 @@ export async function GET(request: NextRequest) {
       ...watch,
       shops,
       flagged: shops.filter((s) => s.flags.length > 0).length,
-      rules: { farBelowMedianShare: FAR_BELOW_MEDIAN_SHARE, stuckFlagMin: STUCK_FLAG_MIN, stuckAfterDays: 14, minShippedForRate: 20 },
+      rules: {
+        farBelowMedianShare: FAR_BELOW_MEDIAN_SHARE,
+        stuckFlagMin: STUCK_FLAG_MIN,
+        stuckAfterDays: watch.stuck_after_days,
+        minShippedForRate: watch.min_shipped_for_rate,
+      },
     });
   } catch (error) {
     console.error("Delivered-rate watch API error:", error);

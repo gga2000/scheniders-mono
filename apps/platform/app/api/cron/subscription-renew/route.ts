@@ -44,7 +44,9 @@ const renewResultSchema = z.object({
  * saw is still the current, due period (compare-and-set on
  * current_period_end), applies a pending plan change, charges base_price_iqd
  * from money in the wallet (no overdraft) with a per-period reference, then
- * advances the period +30 days and resets usage — or, when the wallet cannot
+ * opens the next 30 days and resets usage. A month renewed less than a day
+ * after it ended carries on from that end, so the once-a-day run never adds a
+ * free day; a later one starts when it is paid. Or, when the wallet cannot
  * cover the month, marks it past_due, which LOCKS the shop (handoff A1: never
  * suspended; the hourly billing-lock job and any wallet credit pay it later).
  * A billing-exempt (`internal`) tenant is skipped here (lib/billing-exempt.ts)
