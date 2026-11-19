@@ -470,6 +470,7 @@ export default function MerchantsPage() {
         action={bulkAction}
         selectedCount={selectedMerchants.size}
         selectedIds={[...selectedMerchants]}
+        planOf={bulkAction === "change-plan" ? new Map(merchants.map((m) => [m.id, m.plan])) : undefined}
         onClose={() => setBulkAction(null)}
         onSuccess={() => clearSelection()}
       />

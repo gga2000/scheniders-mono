@@ -7,6 +7,7 @@ import { FreeDaysForm } from "./free-days-form";
 import { HoldForm } from "./hold-form";
 import { PlanForm } from "./plan-form";
 import { ConvertTrialForm } from "./convert-trial-form";
+import { PauseForm } from "./pause-form";
 import { createRequestIds } from "@/lib/request-ids";
 
 /*
@@ -131,5 +132,13 @@ describe("Start free time, no charge", () => {
 
   it("tells a locked trial that its store opens again now", () => {
     expect(draw(true)).toContain("The store opens again now.");
+  });
+});
+
+describe("Pause", () => {
+  it("says what stops and until when before a reason, and only the button waits for it", () => {
+    const html = render(createElement(PauseForm, { shopId: "t1", shopName: "Shop", onDone: () => {} }));
+    expect(html).toContain("New orders stop until Mon 23 Nov, 12:00, then the pause lifts on its own.");
+    expect(confirmButton(html)).toMatch(DISABLED);
   });
 });

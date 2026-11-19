@@ -96,7 +96,8 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
       {amount !== null && !amountOk && (
         <p className="mb-2 text-[13px] text-[var(--ink-red)]">At most {formatIQD(TOPUP_MAX_IQD)} at once.</p>
       )}
-      {ready && <WillHappen>Wallet after: {formatIQD(balance + amount)}.</WillHappen>}
+      {/* Said once the amount is chosen; only the button waits for how it came (round 20). */}
+      {amountOk && <WillHappen>Wallet after: {formatIQD(balance + amount)}.</WillHappen>}
       <ErrorLine error={add.error} />
       <ConfirmButton disabled={!ready || add.isPending} onClick={() => amount !== null && add.mutate(amount)}>
         {add.isPending ? "Adding..." : amountOk ? `Add ${formatIQD(amount)}` : "Add money"}

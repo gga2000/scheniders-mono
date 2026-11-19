@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
  * the drawing (admin audit concepts/r3-q2.png): same page, same places, same
  * colours; the labels are 13 px in plain case, and grey text is no fainter
  * than the console's muted ink. In this app text-xs is 13 px (app/globals.css).
+ * The 13 px floor itself is checked for the whole console (components/readable-text.test.ts).
  * Icons keep their own tint, and placeholder, hover and focus tints stay.
  */
 
@@ -18,11 +19,6 @@ const FILES = [
     .filter((name) => name.endsWith(".tsx") && !name.includes(".test."))
     .map((name) => join(__dirname, name)),
 ];
-
-/** Class names with text under 13 px. */
-function smallText(source: string): string[] {
-  return [...source.matchAll(/\btext-\[(\d+(?:\.\d+)?)px\]/g)].filter((m) => Number(m[1]) < 13).map((m) => m[0]);
-}
 
 /** Text ink fainter than text-foreground/70, outside icons and state variants. */
 function faintText(source: string): string[] {
@@ -60,16 +56,14 @@ describe("Merchants text is readable", () => {
     expect(FILES.map((f) => relative(ROOT, f))).toContain("components/merchants/merchant-card.tsx");
   });
 
-  it.each(FILES.map((f) => [relative(ROOT, f), f]))("%s has no text under 13 px, no faint ink, no capitals, no raw status key", (_name, file) => {
+  it.each(FILES.map((f) => [relative(ROOT, f), f]))("%s has no faint ink, no capitals, no raw status key", (_name, file) => {
     const source = readFileSync(file, "utf8");
-    expect(smallText(source)).toEqual([]);
     expect(faintText(source)).toEqual([]);
     expect(capsText(source)).toEqual([]);
     expect(rawStatus(source)).toEqual([]);
   });
 
   it("the checks find what they look for", () => {
-    expect(smallText(`<p className="text-[9px] text-[13px] text-[11px]">`)).toEqual(["text-[9px]", "text-[11px]"]);
     expect(faintText(`<p className="text-foreground/45 text-foreground/70 placeholder:text-foreground/40 hover:text-foreground/50">`)).toEqual([
       "text-foreground/45",
     ]);
