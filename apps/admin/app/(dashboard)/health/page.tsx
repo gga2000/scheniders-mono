@@ -121,8 +121,18 @@ export default function HealthPage() {
         <h1 className="text-[22px] font-semibold text-foreground">Shops at risk</h1>
       </div>
 
-      {/* Platform Status Bar */}
-      {!isLoading && (
+      {/* Platform Status Bar. While the read runs, a neutral bar of the same
+          height holds its place, so the numbers under it do not drop 70 px when
+          it lands (round 19). */}
+      {isLoading ? (
+        <div
+          role="status"
+          className="rounded-2xl px-4 py-3 flex items-center gap-3 text-sm font-semibold border border-[var(--card-border)] text-foreground/70"
+        >
+          <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+          Checking shops...
+        </div>
+      ) : (
         <div
           className={`rounded-2xl px-4 py-3 flex items-center gap-3 text-sm font-semibold ${
             hasIssues
@@ -149,7 +159,7 @@ export default function HealthPage() {
         <NumberCell
           label="Active shops, now"
           value={health ? formatCount(health.activeTenants) : "..."}
-          note={health ? `${activePercent}% of ${formatCount(health.totalTenants)} shops` : undefined}
+          note={health ? `${activePercent}% of ${formatCount(health.totalTenants)} shops` : "..."}
         />
         <NumberCell label="Orders, last 24 hours" value={health ? formatCount(health.ordersLast24h) : "..."} />
         <NumberCell
@@ -160,7 +170,7 @@ export default function HealthPage() {
         <NumberCell
           label="New shops, this month"
           value={growth ? formatCount(growth.thisMonth) : "..."}
-          note={growth ? `${formatCount(growth.lastMonth)} last month` : undefined}
+          note={growth ? `${formatCount(growth.lastMonth)} last month` : "..."}
         />
       </NumberStrip>
 

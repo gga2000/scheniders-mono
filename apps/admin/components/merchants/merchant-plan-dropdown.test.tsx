@@ -152,6 +152,34 @@ describe("the Merchants plan chip", () => {
     await waitFor(() => expect((screen.getAllByRole("button", { name: /^Start/ })[1] as HTMLButtonElement).disabled).toBe(false));
   });
 
+  it("knows its own move when the card is drawn again while the move runs", async () => {
+    // Round 19 (UX new 7): staff left Merchants during "Moving..." and came
+    // back. The card was drawn anew, and its own chip said "Another shop's
+    // plan move is running".
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    const client = new QueryClient();
+    const card = (merchantId: string, shopName: string) =>
+      createElement(MerchantPlanDropdown, { key: merchantId, merchantId, plan: "starter", shopName });
+    const { unmount } = render(createElement(QueryClientProvider, { client }, card(SHOP, "Kut Perfumes")));
+    fireEvent.click(screen.getByRole("button", { name: /^Start/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Internal \(no billing\)/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), { target: { value: "Our own test shop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
+    await screen.findByRole("button", { name: "Moving..." });
+    unmount();
+
+    render(createElement(QueryClientProvider, { client }, card(SHOP, "Kut Perfumes"), card(OTHER, "Basra Shoes")));
+    const [own, other] = screen.getAllByRole("button", { name: /^Start/ }) as HTMLButtonElement[];
+    expect(own.disabled).toBe(true);
+    expect(own.title).toBe("This shop's plan move is running");
+    expect(other.disabled).toBe(true);
+    expect(other.title).toBe("Another shop's plan move is running");
+
+    answer(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    await waitFor(() => expect((screen.getAllByRole("button", { name: /^Start|^Internal/ })[0] as HTMLButtonElement).disabled).toBe(false));
+  });
+
   it("draws the confirm over the page, so the card cannot cut it off", () => {
     // Seen live after #1482: the card clips what sticks out of it, and the
     // confirm is wider than the card, so its left side was cut away.

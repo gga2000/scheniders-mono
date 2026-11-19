@@ -2,7 +2,7 @@
 
 import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
 import { useEffect, useRef, useState, memo } from "react";
-import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useMutationState, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { toast } from "sonner";
@@ -30,6 +30,15 @@ const planBadgeStyle = (plan: string) =>
 
 /** Every card's plan move: while one runs, no other card's chip opens. */
 const PLAN_MOVE = ["merchant-plan-move"] as const;
+
+/** What a move sends: the shop rides along, so a card can tell its own move from another's. */
+interface PlanMove {
+  shopId: string;
+  plan: PlanTier;
+}
+
+const isPlanMove = (v: unknown): v is PlanMove =>
+  typeof v === "object" && v !== null && "shopId" in v && typeof v.shopId === "string";
 
 interface MerchantPlanDropdownProps {
   merchantId: string;
@@ -77,21 +86,35 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   // The card shows the new plan only once the server took it.
   const mutation = useMutation({
     mutationKey: PLAN_MOVE,
-    mutationFn: (newPlan: PlanTier) =>
-      postJson(`/api/merchants/${merchantId}`, { plan: newPlan, reason: why.trim() }, "PATCH"),
-    onSuccess: (_data, newPlan) => {
+    mutationFn: ({ shopId, plan: newPlan }: PlanMove) =>
+      postJson(`/api/merchants/${shopId}`, { plan: newPlan, reason: why.trim() }, "PATCH"),
+    onSuccess: (_data, { plan: newPlan }) => {
       patchMerchantInCache(queryClient, merchantId, { plan: newPlan });
       toast.success(`${shopName ?? "The shop"} moved to ${PLAN_LABELS[newPlan]}.`);
       close();
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
     },
-    onError: (error, newPlan) => {
+    onError: (error, { plan: newPlan }) => {
       if (!drawn.current) toast.error(`${shopName ?? "The shop"} was not moved to ${PLAN_LABELS[newPlan]}. ${error.message}`);
     },
   });
+  // The shops whose move runs now. A card drawn again while its own move runs
+  // (staff left Merchants and came back) has a new mutation, so the move is
+  // known by its shop, not by this card's mutation (round 19: the chip called
+  // its own move "another shop's").
+  const moving = useMutationState({
+    filters: { mutationKey: PLAN_MOVE, status: "pending" },
+    select: (m) => (isPlanMove(m.state.variables) ? m.state.variables.shopId : null),
+  });
+  const ownMoveRuns = !mutation.isPending && moving.includes(merchantId);
   // Another card's move is running: this chip waits, so two menus are never open at once.
-  const anotherMoveRuns = useIsMutating({ mutationKey: PLAN_MOVE }) > (mutation.isPending ? 1 : 0);
+  const anotherMoveRuns = moving.some((shopId) => shopId !== merchantId);
+  const waitTitle = ownMoveRuns
+    ? "This shop's plan move is running"
+    : anotherMoveRuns
+      ? "Another shop's plan move is running"
+      : undefined;
 
   const handleSelect = (newPlan: PlanTier) => {
     if (newPlan === plan) {
@@ -125,8 +148,8 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          disabled={anotherMoveRuns}
-          title={anotherMoveRuns ? "Another shop's plan move is running" : undefined}
+          disabled={waitTitle !== undefined}
+          title={waitTitle}
           className={cn(
             "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-60 disabled:hover:scale-100",
             planBadgeStyle(plan)
@@ -171,7 +194,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
               <ConfirmButton
                 className="flex-1"
                 disabled={!isStaffReason(why) || mutation.isPending}
-                onClick={() => mutation.mutate(next)}
+                onClick={() => mutation.mutate({ shopId: merchantId, plan: next })}
               >
                 {mutation.isPending ? "Moving..." : `Move to ${PLAN_LABELS[next]}`}
               </ConfirmButton>
