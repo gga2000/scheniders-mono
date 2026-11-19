@@ -228,7 +228,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
                   </button>
                 </div>
                 <p className="mt-1.5 text-[13px] text-foreground/70">
-                  Opens a paid period with no wallet charge. When it ends, renewal charges the wallet as usual.
+                  Opens free time with no wallet charge. When it ends, renewal charges the wallet as usual.
                 </p>
               </div>
             )}

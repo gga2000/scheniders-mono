@@ -116,13 +116,13 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
 
   // A running month with no charge behind it is free time: a converted lead,
   // free days, a free unlock. The Paying page leaves such a shop out, and the
-  // page said "Paying" for a shop never charged (round 18). Once the month has
-  // ended and waits for the renewal run, the words below stay as they were.
+  // page said "Paying" for a shop never charged (round 18). "No plan charge":
+  // the wallet may have paid order fees, never a plan month.
   const charged = paidPlan.paid_until !== null && Date.parse(paidPlan.paid_until) > now.getTime();
   if (!charged && subscription.status !== "past_due" && Date.parse(end) > now.getTime()) {
     const sentence =
       paidPlan.paid_until === null
-        ? `Not charged yet. Free time from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`
+        ? `No plan charge yet. Free time from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`
         : `Not charged for this time: its last paid month ended on ${formatDay(paidPlan.paid_until, now)}. Free until ${formatDay(end, now)}.`;
     if (subscription.auto_renew === false) {
       return { tone: "paying", label: "Free time", sentence, next: `The free time ends on ${formatDay(end, now)} and is not renewed.` };
@@ -133,6 +133,30 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       label: "Free time",
       sentence,
       next: price > 0 ? `${first} charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
+    };
+  }
+
+  // Free time that has ended and waits for the renewal run: no charged month
+  // covers this period, so it is not "Paying" (round 19: a shop never charged
+  // read "Paying" from the end of its free year until the run charged it).
+  const periodCharged =
+    paidPlan.paid_until !== null && Date.parse(paidPlan.paid_until) > Date.parse(subscription.current_period_start);
+  if (!periodCharged && subscription.status !== "past_due") {
+    const ended = `Free time ended on ${formatDay(end, now)}.`;
+    if (subscription.auto_renew === false) {
+      return { tone: "ended", label: "Free time ended", sentence: `${ended} Renewal is off, so it is not charged.`, next: null };
+    }
+    const first = paidPlan.first_paid_at === null ? "first" : "next";
+    return {
+      tone: "trial",
+      label: "Due",
+      sentence: `${ended} The ${first} charge runs with the next renewal.`,
+      next:
+        price > 0
+          ? `${first === "first" ? "First" : "Next"} charge ${formatIQD(price)} with the next renewal.${
+              shortBy(balance, price) && `${shortBy(balance, price)} It locks then unless money is added.`
+            }`
+          : null,
     };
   }
 

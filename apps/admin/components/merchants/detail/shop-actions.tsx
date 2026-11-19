@@ -30,7 +30,7 @@ const MORE_LABEL: Record<MoreAction, string> = {
   pause: "Pause for some days",
   hold: "Put on hold",
   reactivate: "Reactivate",
-  convert: "Start paid time, no charge",
+  convert: "Start free time, no charge",
   note: "Add a note",
 };
 
@@ -204,7 +204,13 @@ export function ShopActions({
                   />
                 )}
                 {view === "convert" && (
-                  <ConvertTrialForm shopId={shopId} shopName={shopName} requestIds={requestIds.convert} onDone={done} />
+                  <ConvertTrialForm
+                    shopId={shopId}
+                    shopName={shopName}
+                    requestIds={requestIds.convert}
+                    locked={facts.locked}
+                    onDone={done}
+                  />
                 )}
               </>
             ) : (

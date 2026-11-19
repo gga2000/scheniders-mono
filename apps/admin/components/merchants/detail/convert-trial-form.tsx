@@ -18,22 +18,25 @@ const PERIODS = [
 interface ConvertTrialFormProps {
   shopId: string;
   shopName: string;
-  /** Held by the page: one id per ask, so a retry, even from a reopened form, starts the paid time once. */
+  /** Held by the page: one id per ask, so a retry, even from a reopened form, starts the free time once. */
   requestIds: RequestIds;
+  /** A locked trial opens again with the free time: the sentence says so. */
+  locked: boolean;
   onDone: () => void;
 }
 
 /**
- * End a trial and start paid time with no charge, for a shop that paid us
+ * End a trial and start free time with no charge, for a shop that paid us
  * some other way (a sales call, cash for a year). The first charge falls on
- * the day the paid time ends.
+ * the day the free time ends. One name, "free time", from this form to the
+ * status line and the timeline (round 19: it had four).
  */
-export function ConvertTrialForm({ shopId, shopName, requestIds, onDone }: ConvertTrialFormProps) {
+export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone }: ConvertTrialFormProps) {
   const [days, setDays] = useState(30);
   const [why, setWhy] = useState("");
   const ready = isStaffReason(why);
 
-  const sayLate = useLateRefusal(`Paid time was not started for ${shopName}.`);
+  const sayLate = useLateRefusal(`Free time was not started for ${shopName}.`);
 
   const convert = useMutation({
     mutationKey: shopActionKey(shopId),
@@ -51,7 +54,7 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, onDone }: Conve
 
   return (
     <div>
-      <PanelTitle>Start paid time, no charge</PanelTitle>
+      <PanelTitle>Start free time, no charge</PanelTitle>
       <div className="mb-3 grid grid-cols-3 gap-1.5">
         {PERIODS.map((p) => (
           <Choice key={p.days} selected={days === p.days} onClick={() => setDays(p.days)}>
@@ -59,13 +62,11 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, onDone }: Conve
           </Choice>
         ))}
       </div>
+      <WillHappen>
+        The trial ends now and free time runs to {formatDay(endAfterDays(null, days))}.
+        {locked && " The store opens again now."} Nothing is charged today; the first charge is on that day.
+      </WillHappen>
       <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? Paid in cash for a year..." className="mb-3" />
-      {ready && (
-        <WillHappen>
-          The trial ends now and paid time runs to {formatDay(endAfterDays(null, days))}. Nothing is charged
-          today; the first charge is on that day.
-        </WillHappen>
-      )}
       <ErrorLine error={convert.error} />
       <ConfirmButton disabled={!ready || convert.isPending} onClick={() => convert.mutate()}>
         {convert.isPending ? "Starting..." : `Start ${PERIODS.find((p) => p.days === days)?.label ?? `${days} days`} free`}
