@@ -31,6 +31,12 @@ const nextConfig: NextConfig = {
         source: "/landing/v4/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      // The features page's images and link preview, versioned the same way
+      // (public/features/v1).
+      {
+        source: "/features/v1/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
   transpilePackages: ["@scheniders/sections", "@scheniders/shared", "@scheniders/supabase"],
