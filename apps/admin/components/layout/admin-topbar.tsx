@@ -9,6 +9,7 @@ import { usePageHeader } from "@/store/use-page-header";
 import { pageTitle as menuPageTitle } from "@/lib/admin-menu";
 import { roleLabel } from "@/lib/admin-access";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 
 interface MerchantResult {
@@ -225,7 +226,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                     <span
                       className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${PLAN_COLORS[merchant.plan] ?? "bg-gray-500/15 text-[var(--muted)] dark:bg-gray-700 dark:text-gray-300"}`}
                     >
-                      {merchant.plan}
+                      {planLabel(merchant.plan)}
                     </span>
 
                     {/* City */}

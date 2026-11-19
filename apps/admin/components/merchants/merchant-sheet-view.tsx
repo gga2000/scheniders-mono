@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
-import { PLAN_LABELS, STATUS_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
+import { planLabel, STATUS_LABELS, type AdminTenant, type SortConfig } from "@/types/admin";
 import { isSortableMerchantColumn } from "@/lib/merchant-sort";
 import {
   ArrowUp,
@@ -37,7 +37,6 @@ const PLAN_PILL: Record<string, string> = {
     "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20",
 };
 
-const PLAN_LABEL: Readonly<Record<string, string>> = PLAN_LABELS;
 
 interface SheetColumn {
   id: string;
@@ -232,7 +231,7 @@ export function MerchantSheetView({
                       PLAN_PILL[m.plan],
                     )}
                   >
-                    {PLAN_LABEL[m.plan] ?? m.plan}
+                    {planLabel(m.plan)}
                   </span>
                 </div>
 

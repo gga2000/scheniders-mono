@@ -20,6 +20,7 @@ import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -371,8 +372,8 @@ export default function BillingPage() {
                           </Link>
                         </td>
                         <td className="p-3">
-                          <span className="text-xs font-semibold capitalize">
-                            {w.plan}
+                          <span className="text-xs font-semibold">
+                            {planLabel(w.plan)}
                           </span>
                         </td>
                         <td className="p-3 text-right font-medium tabular-nums">

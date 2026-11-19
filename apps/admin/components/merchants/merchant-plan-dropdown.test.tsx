@@ -28,7 +28,7 @@ function open() {
       createElement(MerchantPlanDropdown, { merchantId: SHOP, plan: "starter", shopName: "Kut Perfumes" }),
     ),
   );
-  fireEvent.click(screen.getByRole("button", { name: /Starter/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Start/ }));
   fireEvent.click(screen.getByRole("button", { name: /Internal \(no billing\)/ }));
   return view;
 }
@@ -42,7 +42,7 @@ describe("the Merchants plan chip", () => {
   it("names the shop and the move, and sends nothing on the pick", () => {
     open();
     expect(screen.getByRole("dialog").textContent).toContain(
-      "Kut Perfumes moves from Starter to Internal (no billing) now. Nothing is charged and nothing is refunded.",
+      "Kut Perfumes moves from Start to Internal (no billing) now. Nothing is charged and nothing is refunded.",
     );
     const move = screen.getByRole("button", { name: "Move to Internal (no billing)" }) as HTMLButtonElement;
     expect(move.disabled).toBe(true);
@@ -67,7 +67,7 @@ describe("the Merchants plan chip", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), { target: { value: "Our own test shop" } });
     fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
     expect((await screen.findByRole("alert")).textContent).toBe("Only a super admin can change the plan.");
-    expect(screen.getByRole("button", { name: /Starter/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Start/ })).toBeTruthy();
   });
 
   it("stays open while the move runs, so a slow refusal is still said", async () => {

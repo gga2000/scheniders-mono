@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
-import { PLAN_LABELS, type PlanTier } from "@/types/admin";
+import { PLAN_LABELS, planLabel, type PlanTier } from "@/types/admin";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { ConfirmButton, ErrorLine, postJson, WillHappen } from "./detail/action-ui";
@@ -22,16 +22,16 @@ const PLAN_OPTIONS: Array<{
   { value: "internal", label: PLAN_LABELS.internal, color: "bg-gradient-to-r from-slate-400 to-slate-500 text-white" },
 ];
 
-const planBadgeStyle: Record<PlanTier, string> = {
-  starter:
-    "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20",
-  internal:
-    "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20",
-};
+/** Our own shops in slate; every plan a shop pays for (Start, Team, Business, Custom) in sky. */
+const planBadgeStyle = (plan: string) =>
+  plan === "internal"
+    ? "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20"
+    : "bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-sm shadow-sky-500/30 ring-1 ring-white/20";
 
 interface MerchantPlanDropdownProps {
   merchantId: string;
-  plan: PlanTier;
+  /** The stored plan key: any plan the product sells, not only the two staff move shops to. */
+  plan: string;
   /** Named in the confirm, so a slip on the wrong card is seen before the press. */
   shopName?: string;
 }
@@ -83,13 +83,11 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
     setNext(newPlan);
   };
 
-  const current = PLAN_OPTIONS.find((o) => o.value === plan);
-
   // Without change_plan the server refuses every choice, so the plan is shown, not offered.
   if (!can("change_plan")) {
     return (
-      <span className={cn("px-3 py-1 rounded-full text-xs font-black", planBadgeStyle[plan])}>
-        {current?.label ?? plan}
+      <span className={cn("px-3 py-1 rounded-full text-xs font-black", planBadgeStyle(plan))}>
+        {planLabel(plan)}
       </span>
     );
   }
@@ -110,10 +108,10 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
           onClick={(e) => e.stopPropagation()}
           className={cn(
             "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
-            planBadgeStyle[plan]
+            planBadgeStyle(plan)
           )}
         >
-          {current?.label ?? plan}
+          {planLabel(plan)}
           <ChevronDown
             className={cn(
               "w-3 h-3 transition-transform opacity-80",
@@ -135,7 +133,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
         {next ? (
           <>
             <WillHappen>
-              {shopName ?? "This shop"} moves from {current?.label ?? plan} to {PLAN_LABELS[next]} now. Nothing is
+              {shopName ?? "This shop"} moves from {planLabel(plan)} to {PLAN_LABELS[next]} now. Nothing is
               charged and nothing is refunded.
             </WillHappen>
             <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop's timeline shows it)" className="mb-3" />

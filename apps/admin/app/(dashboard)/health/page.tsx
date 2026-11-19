@@ -16,6 +16,7 @@ import { shopFormHref } from "@/lib/shop-actions";
 import { shopsAtRiskLine } from "@/lib/merchant-health";
 import { useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -202,8 +203,8 @@ export default function HealthPage() {
                    title={ri.business_name}>
                     {ri.business_name}
                   </Link>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/70 mt-1 inline-block">
-                    {ri.plan}
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-foreground/5 text-foreground/70 mt-1 inline-block">
+                    {planLabel(ri.plan)}
                   </span>
                 </div>
 

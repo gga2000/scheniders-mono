@@ -45,7 +45,7 @@ describe("merchant controls follow the role", () => {
     const status = render(createElement(MerchantStatusDropdown, { merchantId: SHOP, status: "active", trialPayment: "paid" }));
 
     expect(plan).not.toContain("<button");
-    expect(plan).toContain("Starter");
+    expect(plan).toContain(">Start<");
     expect(status).not.toContain("<button");
     expect(status).toContain("Active");
   });

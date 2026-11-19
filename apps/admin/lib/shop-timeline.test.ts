@@ -108,7 +108,9 @@ describe("changeTitle", () => {
     expect(changeTitle("unpause_tenant", { status: "active" })).toBe("Pause lifted");
     expect(changeTitle("unpause_tenant", { status: "active", ended: true })).toBe("Pause ended on its end date");
     expect(changeTitle("status_change", { status: "active", previous_status: "suspended" })).toBe("Reactivated");
-    expect(changeTitle("plan_change", { plan: "starter" })).toBe("Moved to the Starter plan");
+    expect(changeTitle("plan_change", { plan: "starter" })).toBe("Moved to the Start plan");
+    expect(changeTitle("plan_change", { plan: "growth" })).toBe("Moved to the Team plan");
+    expect(changeTitle("plan_change", { plan: "internal" })).toBe("Moved to Internal (no billing)");
     expect(changeTitle("support_view", {})).toBe("Looked at the shop as the merchant");
     expect(changeTitle("support_view_end", {})).toBeNull();
     expect(changeTitle("something_new", null)).toBe("Something new");

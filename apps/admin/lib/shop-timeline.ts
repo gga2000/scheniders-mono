@@ -7,6 +7,7 @@
  */
 
 import { formatCount, formatDayKey } from "@/lib/format";
+import { planLabel } from "@/types/admin";
 
 export interface WalletRow {
   id: string;
@@ -115,7 +116,8 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
     case "plan_change":
     case "change_plan": {
       const plan = text(d.plan);
-      return plan ? `Moved to the ${capitalise(plan)} plan` : "Plan changed";
+      if (!plan) return "Plan changed";
+      return plan === "internal" ? `Moved to ${planLabel(plan)}` : `Moved to the ${planLabel(plan)} plan`;
     }
     case "auto_renew_toggle":
       return d.auto_renew === false ? "Monthly renewal turned off" : "Monthly renewal turned on";
