@@ -208,7 +208,12 @@ export default function MerchantDetailPage() {
         plan={tenant.plan}
         balance={wallet?.balance_iqd ?? 0}
         freeDaysFrom={tenant.status === "trial" ? tenant.trial_ends_at : (subscription?.current_period_end ?? null)}
-        comeback={reactivateComeback(trialPayment(subscription, tenant.trial_ends_at) === "never_paid", subscription?.status, tenant.plan)}
+        comeback={reactivateComeback(
+          trialPayment(subscription, tenant.trial_ends_at) === "never_paid",
+          subscription?.status,
+          tenant.plan,
+          subscription?.auto_renew === false && !tenant.is_demo,
+        )}
         trialEndsAt={tenant.trial_ends_at}
         onGiveOrders={() => {
           setActiveTab("Overview");

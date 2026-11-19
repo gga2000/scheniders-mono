@@ -191,7 +191,7 @@ describe("GET /api/wallet-topup-requests", () => {
     receipt_path: `${TENANT}/r.PDF`,
     created_at: "2026-11-10T00:00:00Z",
     balance_iqd: "1200",
-    billing: { locked: true, reason: "unpaid", plan: "basic", price_iqd: "9000" },
+    billing: { locked: true, reason: "unpaid", plan: "basic", price_iqd: "9000", renewal_off: false },
     same_file: [],
     same_amount_recent: 0,
   };

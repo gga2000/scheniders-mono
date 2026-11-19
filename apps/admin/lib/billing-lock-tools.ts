@@ -60,6 +60,11 @@ export type BillingLockSnapshot = {
   allowance: number;
   plan: string | null;
   price_iqd: number;
+  /**
+   * The shop's renewal is off (never the demo store's): no job charges the
+   * month, so money alone does not open the lock (20261119074502).
+   */
+  renewal_off: boolean;
 };
 
 type Refusal = { ok: false; status: 403 | 404 | 409; error: string };
@@ -97,7 +102,8 @@ export async function readBillingLock(
     (data.since !== null && typeof data.since !== "string") ||
     (data.orders_left !== null && typeof data.orders_left !== "number") ||
     typeof data.allowance !== "number" ||
-    (data.plan !== null && typeof data.plan !== "string")
+    (data.plan !== null && typeof data.plan !== "string") ||
+    typeof data.renewal_off !== "boolean"
   ) {
     throw new Error("Unexpected billing_lock_snapshot response");
   }
@@ -109,6 +115,7 @@ export async function readBillingLock(
     allowance: data.allowance,
     plan: data.plan,
     price_iqd: Number(data.price_iqd ?? 0),
+    renewal_off: data.renewal_off,
   };
 }
 

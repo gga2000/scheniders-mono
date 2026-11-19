@@ -31,6 +31,8 @@ const billingSchema = z.object({
   reason: z.enum(["trial_ended", "unpaid"]).nullable(),
   plan: z.string().nullable(),
   price_iqd: z.coerce.number(),
+  /** Renewal off: no job charges the month, so this payment alone does not open the lock (billing_lock_snapshot). */
+  renewal_off: z.boolean(),
 });
 
 export const topupQueueRowSchema = z.object({
@@ -91,11 +93,14 @@ export function amountStillOwed(row: Pick<TopupQueueRow, "billing" | "balance_iq
  * The locked chip on a payment: why it is locked and what opens it. A paused
  * shop's lock does not open with money until the pause lifts
  * (settle_billing_lock answers on_hold), and a short wallet still has to be
- * paid first, so a paused shop says both; null when the shop is not locked.
+ * paid first, so a paused shop says both. With renewal off no money opens it:
+ * the shop pays on its lock screen, or staff turn renewal on (round 20). Null
+ * when the shop is not locked.
  */
 export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | "tenant_status">): string | null {
   if (!row.billing?.locked) return null;
   const why = lockedBecause(row.billing.reason);
+  if (row.billing.renewal_off) return `${why} · renewal off, so this payment alone does not open it`;
   const owed = amountStillOwed(row);
   if (row.tenant_status === "limited") {
     return owed > 0

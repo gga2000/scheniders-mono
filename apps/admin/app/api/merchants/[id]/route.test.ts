@@ -104,6 +104,7 @@ const LOCKED = {
   allowance: 50,
   plan: "starter",
   price_iqd: 9000,
+  renewal_off: false,
 };
 
 beforeEach(() => {
@@ -138,6 +139,18 @@ describe("GET /api/merchants/[id] billing lock", () => {
     rpc.mockResolvedValue({ data: LOCKED, error: null });
     const body = await (await call()).json();
     expect(body.canForceUnlock).toBe(can);
+  });
+
+  it("carries whether renewal is off, and fails the record on a snapshot that does not say", async () => {
+    // Round 20: with renewal off, money alone does not open the lock, so the
+    // page must know; an old snapshot without the key is not guessed at.
+    rpc.mockResolvedValue({ data: { ...LOCKED, renewal_off: true }, error: null });
+    expect((await (await call()).json()).billingLock).toMatchObject({ locked: true, renewal_off: true });
+
+    const old: Record<string, unknown> = { ...LOCKED };
+    delete old.renewal_off;
+    rpc.mockResolvedValue({ data: old, error: null });
+    expect((await call()).status).toBe(500);
   });
 
   it("an unlocked store comes back unlocked", async () => {
@@ -205,27 +218,39 @@ describe("GET /api/merchants/[id] parts of the record", () => {
 
   it("reads the shop's charged plan months by the Paying page's rule, for this shop only", async () => {
     // Round 18: the page said "Paying" for a shop never charged; it now knows
-    // whether a charged month covers now (lib/shop-status.ts).
+    // whether a charged month covers now (lib/shop-status.ts). Round 20: the
+    // latest month's own end, the day the Paying page shows, not paid_until,
+    // which runs a day past it while the renewal run is still to come.
     paid.answer = {
       data: [
-        { tenant_id: TENANT, paid_at: "2026-10-19T09:00:00+00:00", paid_until: "2026-11-18T09:00:00+00:00" },
-        { tenant_id: TENANT, paid_at: "2026-09-19T09:00:00+00:00", paid_until: "2026-10-19T09:00:00+00:00" },
+        {
+          tenant_id: TENANT,
+          paid_at: "2026-10-19T09:00:00+00:00",
+          paid_until: "2026-11-19T09:00:00+00:00",
+          month_end: "2026-11-18T09:00:00+00:00",
+        },
+        {
+          tenant_id: TENANT,
+          paid_at: "2026-09-19T09:00:00+00:00",
+          paid_until: "2026-10-19T09:00:00+00:00",
+          month_end: "2026-10-19T09:00:00+00:00",
+        },
       ],
       error: null,
     };
     const body = await (await call()).json();
 
     expect(paid.filters).toEqual([["eq", "tenant_id", TENANT]]);
-    expect(body.paidPlan).toEqual({ first_paid_at: "2026-09-19T09:00:00+00:00", paid_until: "2026-11-18T09:00:00+00:00" });
+    expect(body.paidPlan).toEqual({ first_paid_at: "2026-09-19T09:00:00+00:00", month_end: "2026-11-18T09:00:00+00:00" });
   });
 
   it("says never charged with no months, and fails the record when the months cannot be read", async () => {
-    expect((await (await call()).json()).paidPlan).toEqual({ first_paid_at: null, paid_until: null });
+    expect((await (await call()).json()).paidPlan).toEqual({ first_paid_at: null, month_end: null });
 
     paid.answer = { data: null, error: { code: "42501", message: "permission denied" } };
     expect((await call()).status).toBe(500);
 
-    paid.answer = { data: [{ tenant_id: TENANT, paid_at: null, paid_until: null }], error: null };
+    paid.answer = { data: [{ tenant_id: TENANT, paid_at: null, paid_until: null, month_end: null }], error: null };
     expect((await call()).status).toBe(500);
   });
 

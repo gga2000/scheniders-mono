@@ -485,7 +485,7 @@ SELECT pg_temp.shop_order('20000000-0000-4000-8000-000000000014', 'V1');
 SELECT pg_temp.check(
   (SELECT s->>'locked' = 'true' AND s->>'reason' = 'trial_ended' AND (s->>'orders_left')::int = 2
           AND (s->>'allowance')::int = 3 AND (s->>'price_iqd')::numeric = 9000 AND s->>'since' IS NOT NULL
-          AND NOT s ? 'balance_iqd'
+          AND NOT s ? 'balance_iqd' AND s->>'renewal_off' = 'false'
      FROM public.billing_lock_snapshot('20000000-0000-4000-8000-000000000014') s),
   'the snapshot shows a locked shop, its orders left and its price, never the balance');
 SELECT pg_temp.check(
@@ -1027,6 +1027,10 @@ SELECT pg_temp.check(
   AND pg_temp.debits('20000000-0000-4000-8000-0000000000d1') = 0
   AND pg_temp.lock('20000000-0000-4000-8000-0000000000d1') = 'unpaid',
   'money in does not buy a month staff stopped');
+SELECT pg_temp.check(
+  (SELECT (s->>'locked')::boolean AND s->>'reason' = 'unpaid' AND (s->>'renewal_off')::boolean
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d1') s),
+  'the snapshot says renewal is off, so money does not open the lock');
 
 -- The shop pays from its lock screen: renewal back on, the month paid.
 SELECT set_config('test.uid', '30000000-0000-4000-8000-0000000000d1', false);
@@ -1049,6 +1053,9 @@ SELECT pg_temp.check(
   AND pg_temp.debits('20000000-0000-4000-8000-0000000000d1') = 1,
   'paying turns renewal back on, charges the month once and opens the shop');
 SELECT pg_temp.check(
+  (public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d1'))->>'renewal_off' = 'false',
+  'after paying, the snapshot says renewal is on');
+SELECT pg_temp.check(
   (SELECT count(*) = 1
           AND bool_and(admin_user_id IS NULL AND actor_email IS NULL AND admin_label = 'The shop'
                        AND details->>'auto_renew' = 'true' AND details->>'source' = 'shop_paid'
@@ -1061,6 +1068,10 @@ SELECT set_config('test.admin_of', '', false);
 
 -- Staff turn renewal back on: money in pays the month again.
 UPDATE public.subscriptions SET auto_renew = true WHERE tenant_id = '20000000-0000-4000-8000-0000000000d2';
+SELECT pg_temp.check(
+  (SELECT (s->>'locked')::boolean AND s->>'renewal_off' = 'false'
+     FROM public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d2') s),
+  'staff turned renewal on: the snapshot says money opens the lock again');
 SELECT public.admin_topup_wallet('20000000-0000-4000-8000-0000000000d2', 9000, 'receipt', NULL, 'manual', 'off-2');
 SELECT pg_temp.check(
   pg_temp.lock('20000000-0000-4000-8000-0000000000d2') IS NULL
@@ -1074,3 +1085,6 @@ SELECT pg_temp.check(
      FROM pg_temp.renew_off('20000000-0000-4000-8000-0000000000d3') r)
   AND pg_temp.lock('20000000-0000-4000-8000-0000000000d3') IS NULL,
   'the demo store renews at no charge even with renewal off');
+SELECT pg_temp.check(
+  (public.billing_lock_snapshot('20000000-0000-4000-8000-0000000000d3'))->>'renewal_off' = 'false',
+  'the demo store''s snapshot never says renewal is off');

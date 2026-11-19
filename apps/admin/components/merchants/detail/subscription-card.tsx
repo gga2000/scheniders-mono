@@ -127,7 +127,8 @@ export function SubscriptionCard({ merchantId, tenant, subscription }: Subscript
                   className="mb-2"
                 />
                 <span className="mb-2 block text-[13px] leading-snug text-foreground/75">
-                  This month runs to its end, then the shop is not charged again and its paid time ends.
+                  This month runs to its end. Then it is not charged, and the shop locks until it pays on its lock screen or
+                  staff turn renewal back on.
                 </span>
                 <span className="flex gap-2">
                   <ConfirmButton

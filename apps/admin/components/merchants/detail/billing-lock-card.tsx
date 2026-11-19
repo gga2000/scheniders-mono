@@ -12,8 +12,8 @@ import {
 } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { createRequestIds } from "@/lib/request-ids";
-import { formatDay, formatIQD } from "@/lib/format";
-import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
+import { formatDay } from "@/lib/format";
+import { LOCK_REASON_WORDS, lockOpensWords } from "@/lib/billing-lock-label";
 import { shopActionKey } from "@/lib/shop-actions";
 import { postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
@@ -112,9 +112,7 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
           </p>
           <p className="mt-1 text-[13px] text-foreground/70">
             {lock.since && <>Since {formatDay(lock.since)} · </>}
-            {shopPaused
-              ? `Paused: once the pause lifts, paying ${formatIQD(lock.price_iqd)} from the wallet unlocks it`
-              : `Paying ${formatIQD(lock.price_iqd)} from the wallet unlocks it`}
+            {lockOpensWords(lock.price_iqd, shopPaused, lock.renewal_off)}
           </p>
         </div>
         <div className="shrink-0 text-right">

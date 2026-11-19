@@ -232,12 +232,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 /**
- * How a trial gift or a status change was made (`source`): one shop at a time
+ * How a trial gift, a status change or a renewal was made (`source`): one shop at a time
  * is the usual way and says nothing; the Trials bulk bar does several.
  */
 const SOURCE_WORDS: ReadonlyMap<string, string | null> = new Map([
   ["single", null],
   ["bulk", "several shops at once"],
+  // The shop paid its locked month on its lock screen, which turned renewal
+  // back on (pay_billing_lock); the row's reason already says so.
+  ["shop_paid", null],
 ]);
 
 /** A plain value in words: a time on the console's clock, not the database's. */

@@ -76,25 +76,43 @@ export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
  * paid comes back as a trial (admin_update_shop). Any other shop comes back
  * active; one whose last month is unpaid (its subscription past_due) is locked
  * again at once by tenant_billing_lock, until its wallet covers the month.
- * The internal plan never locks.
+ * With renewal off no money covers it: the month is not charged until the
+ * shop pays on its lock screen or staff turn renewal on (round 20). The
+ * internal plan never locks.
  */
-export type Comeback = "trial" | "active" | "active_unpaid";
+export type Comeback = "trial" | "active" | "active_unpaid" | "active_renewal_off" | "active_unpaid_renewal_off";
 
-export function reactivateComeback(neverPaid: boolean, subscriptionStatus: string | null | undefined, plan: string | null): Comeback {
+export function reactivateComeback(
+  neverPaid: boolean,
+  subscriptionStatus: string | null | undefined,
+  plan: string | null,
+  renewalOff: boolean,
+): Comeback {
   if (neverPaid) return "trial";
-  return subscriptionStatus === "past_due" && plan !== "internal" ? "active_unpaid" : "active";
+  if (plan === "internal") return "active";
+  const unpaid = subscriptionStatus === "past_due";
+  if (renewalOff) return unpaid ? "active_unpaid_renewal_off" : "active_renewal_off";
+  return unpaid ? "active_unpaid" : "active";
 }
 
 /** What Reactivate does to a shop on hold, said before it is pressed. */
 export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, now: Date): string {
-  if (comeback === "active") return "The shop is active again now, and its monthly fee is charged as usual.";
-  if (comeback === "active_unpaid") {
-    return "The shop is active again now, but its last month is not paid, so it stays locked until its wallet covers the month.";
+  switch (comeback) {
+    case "active":
+      return "The shop is active again now, and its monthly fee is charged as usual.";
+    case "active_unpaid":
+      return "The shop is active again now, but its last month is not paid, so it stays locked until its wallet covers the month.";
+    case "active_renewal_off":
+      return "The shop is active again now. Renewal is off, so when its month ends it is not charged and the shop locks.";
+    case "active_unpaid_renewal_off":
+      return "The shop is active again now, but its last month is not paid and renewal is off, so it stays locked until it pays on its lock screen or staff turn renewal on.";
+    case "trial": {
+      const ended = trialEndsAt !== null && Date.parse(trialEndsAt) <= now.getTime();
+      return ended
+        ? "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays."
+        : "The shop goes back to its trial now: its trial was never paid.";
+    }
   }
-  const ended = trialEndsAt !== null && Date.parse(trialEndsAt) <= now.getTime();
-  return ended
-    ? "The shop goes back to its trial now. Its trial ended unpaid, so it stays locked until it pays."
-    : "The shop goes back to its trial now: its trial was never paid.";
 }
 
 /**
@@ -104,8 +122,10 @@ export function reactivateWords(comeback: Comeback, trialEndsAt: string | null, 
  * The demo store renews each month at no charge.
  */
 export function renewalWords(autoRenew: boolean, demo: boolean, status: string): string {
-  if (!autoRenew) return "Off: the month ends and is not renewed";
-  if (demo) return "On: renews each month, never charged (demo store)";
+  // The demo store renews at no charge whatever the switch says (B13).
+  if (demo) return autoRenew ? "On: renews each month, never charged (demo store)" : "Off, but the demo store renews each month at no charge";
+  // Renewal off: the month's end is not charged, and the shop locks like an unpaid month (20261119073654).
+  if (!autoRenew) return "Off: when the month ends it is not charged, and the shop locks";
   switch (status) {
     case "limited":
       return "On: not charged while paused, then charges the wallet each month";

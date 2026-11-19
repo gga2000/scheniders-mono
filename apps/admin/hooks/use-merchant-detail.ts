@@ -98,9 +98,10 @@ export interface MerchantDetail {
   billingLock: BillingLockSnapshot | null;
   /**
    * The shop's charged plan months, as the Paying page counts them: its first
-   * charge and the end of its latest charged month; both null when never charged.
+   * charge and the end of its latest charged month (paid_plan_months'
+   * month_end, the day the Paying page shows); both null when never charged.
    */
-  paidPlan: { first_paid_at: string | null; paid_until: string | null };
+  paidPlan: { first_paid_at: string | null; month_end: string | null };
   /** Whether the viewing staff member may unlock a store for free. */
   canForceUnlock: boolean;
   /** For a shop on hold or paused: who did it and when, from the staff log; null when the log has no such step. */
