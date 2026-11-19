@@ -66,6 +66,8 @@ CREATE TABLE public.subscriptions (
     current_period_end timestamptz NOT NULL,
     pending_plan public.plan_tier,
     plan_change_at timestamptz,
+    -- Staff's Renewal switch (live: NOT NULL DEFAULT true).
+    auto_renew boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );

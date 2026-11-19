@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/paying-merchants?months=6: the shops paying now (plan, paid until,
- * first paid, source), the count at the end of each of the last `months`
- * Baghdad months, and the stop-rule goals. Counted in the database, one answer.
+ * the month's own end, first paid, source), the count at the end of each of
+ * the last `months` Baghdad months, and the stop-rule goals. Counted in the
+ * database, one answer.
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);

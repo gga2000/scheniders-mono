@@ -12,7 +12,8 @@
 --   a trial shop, a locked shop and a shop with no daily spend are never warned;
 --   3 days before a paid month ends the shop is told once the date, the price
 --   (of the plan it moves to, if any) and what the wallet still needs; never a
---   trial, locked, house, on-hold or not-yet-due shop; only the service role sends.
+--   trial, locked, house, on-hold, not-yet-due or renewal-off shop; only the
+--   service role sends.
 
 \set ON_ERROR_STOP 1
 
@@ -243,3 +244,19 @@ INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('40000000-0000-4000-8
 SELECT pg_temp.check(public.send_renewal_reminders() = 0
                      AND pg_temp.notes('40000000-0000-4000-8000-0000000000ad', 'billing.renewal_soon') = 0,
   'the demo store is never reminded, even with an empty wallet');
+
+-- 6. Never a month with renewal off (round 20, data new 1): it ends and is
+--    not charged, so there is nothing to top up for.
+INSERT INTO public.tenants (id, plan, status, trial_ends_at) VALUES
+  ('40000000-0000-4000-8000-0000000000ae', 'starter', 'active', now() - interval '60 days');
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, auto_renew, created_at) VALUES
+  ('40000000-0000-4000-8000-0000000000ae', 'starter', 'active', now() - interval '28 days', now() + interval '2 days', false, now() - interval '60 days');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('40000000-0000-4000-8000-0000000000ae', 0);
+SELECT pg_temp.check(public.send_renewal_reminders() = 0
+                     AND pg_temp.notes('40000000-0000-4000-8000-0000000000ae', 'billing.renewal_soon') = 0,
+  'a month with renewal off is never reminded');
+-- Turned back on: the month is reminded.
+UPDATE public.subscriptions SET auto_renew = true WHERE tenant_id = '40000000-0000-4000-8000-0000000000ae';
+SELECT pg_temp.check(public.send_renewal_reminders() = 1
+                     AND pg_temp.notes('40000000-0000-4000-8000-0000000000ae', 'billing.renewal_soon') = 1,
+  'renewal back on: the month is reminded');

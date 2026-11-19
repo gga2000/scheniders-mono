@@ -14,7 +14,12 @@
 --   a renewal that carried on from the month before leaves no gap until its
 --   charge, a month paid after a lock does; the latest month that ended is
 --   paid one more day while its renewal waits, unless the renewal was
---   refused, free days followed or the shop is paused (round 18, data new 2);
+--   refused, free days followed or the shop is paused (round 18, data new 2),
+--   and only for the month it extends and where a renewal will charge: not
+--   after free days that already ended, not with renewal off, not for a shop
+--   or subscription on Internal (round 20, data new 4);
+--   each month and each paying shop carry the month's own end, without the
+--   wait day (round 20, data new 3);
 --   only the service role may read it, and the browser roles have no EXECUTE.
 --
 -- One transaction, so now() is the same moment in the seed and the checks.
@@ -171,7 +176,11 @@ INSERT INTO public.tenants (id, business_name, plan, status) VALUES
     ('20000000-0000-4000-8000-000000000024', 'renewal refused',           'starter', 'active'),
     ('20000000-0000-4000-8000-000000000025', 'free days after its month', 'starter', 'active'),
     ('20000000-0000-4000-8000-000000000026', 'paused while waiting',      'starter', 'limited'),
-    ('20000000-0000-4000-8000-000000000027', 'renewal 2 days late',       'starter', 'active');
+    ('20000000-0000-4000-8000-000000000027', 'renewal 2 days late',       'starter', 'active'),
+    ('20000000-0000-4000-8000-000000000028', 'free days ended, waiting',  'starter', 'active'),
+    ('20000000-0000-4000-8000-000000000029', 'moved to Internal, waiting', 'internal', 'active'),
+    ('20000000-0000-4000-8000-000000000030', 'renewal off, waiting',      'starter', 'active'),
+    ('20000000-0000-4000-8000-000000000031', 'Internal subscription',     'starter', 'active');
 
 CREATE TEMP TABLE r AS SELECT date_trunc('second', now()) AS t;
 
@@ -194,7 +203,13 @@ SELECT x.id::uuid, 'charge', -9000, x.ref, x.at
     ('20000000-0000-4000-8000-000000000024', 'subscription:k4:1', r.t - interval '30 days 5 hours'),
     ('20000000-0000-4000-8000-000000000025', 'subscription:k5:1', r.t - interval '30 days 5 hours'),
     ('20000000-0000-4000-8000-000000000026', 'subscription:k6:1', r.t - interval '30 days 5 hours'),
-    ('20000000-0000-4000-8000-000000000027', 'subscription:k7:1', r.t - interval '32 days')
+    ('20000000-0000-4000-8000-000000000027', 'subscription:k7:1', r.t - interval '32 days'),
+    -- Its month ended 10 days ago; free days followed and ended 5 hours ago.
+    ('20000000-0000-4000-8000-000000000028', 'subscription:k8:1', r.t - interval '40 days'),
+    -- Each month ended 5 hours ago, and no renewal will charge it.
+    ('20000000-0000-4000-8000-000000000029', 'subscription:k9:1', r.t - interval '30 days 5 hours'),
+    ('20000000-0000-4000-8000-000000000030', 'subscription:k10:1', r.t - interval '30 days 5 hours'),
+    ('20000000-0000-4000-8000-000000000031', 'subscription:k11:1', r.t - interval '30 days 5 hours')
  ) AS x(id, ref, at);
 
 INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end)
@@ -206,8 +221,17 @@ SELECT x.id::uuid, 'starter', x.status::public.subscription_status, x.ends - int
     ('20000000-0000-4000-8000-000000000024', 'past_due', r.t - interval '5 hours'),
     ('20000000-0000-4000-8000-000000000025', 'active',   r.t + interval '10 days'),
     ('20000000-0000-4000-8000-000000000026', 'active',   r.t - interval '5 hours'),
-    ('20000000-0000-4000-8000-000000000027', 'active',   r.t - interval '2 days')
+    ('20000000-0000-4000-8000-000000000027', 'active',   r.t - interval '2 days'),
+    ('20000000-0000-4000-8000-000000000028', 'active',   r.t - interval '5 hours'),
+    ('20000000-0000-4000-8000-000000000029', 'active',   r.t - interval '5 hours'),
+    ('20000000-0000-4000-8000-000000000030', 'active',   r.t - interval '5 hours'),
+    ('20000000-0000-4000-8000-000000000031', 'active',   r.t - interval '5 hours')
  ) AS x(id, status, ends);
+-- Free days keep the paid month's start, as admin_extend_subscription does.
+UPDATE public.subscriptions s SET current_period_start = r.t - interval '40 days'
+  FROM r WHERE s.tenant_id = '20000000-0000-4000-8000-000000000028';
+UPDATE public.subscriptions SET auto_renew = false WHERE tenant_id = '20000000-0000-4000-8000-000000000030';
+UPDATE public.subscriptions SET plan = 'internal' WHERE tenant_id = '20000000-0000-4000-8000-000000000031';
 
 DO $r$
 DECLARE
@@ -216,23 +240,32 @@ DECLARE
     want text;
     shops jsonb := public.admin_paying_merchants(1)->'shops';
 BEGIN
-    SELECT string_agg(p.tenant_id::text || ' ' || (p.paid_at - t)::text || ' ' || (p.paid_until - t)::text, E'\n' ORDER BY p.tenant_id, p.paid_at)
+    -- Each row: shop, paid at, paid until, the month's own end (from now).
+    SELECT string_agg(p.tenant_id::text || ' ' || (p.paid_at - t)::text || ' ' || (p.paid_until - t)::text
+                      || ' | ' || (p.month_end - t)::text, E'\n' ORDER BY p.tenant_id, p.paid_at)
       INTO got FROM public.paid_plan_months() p;
     want := concat_ws(E'\n',
         -- No gap: the first month is paid until the renewal's charge.
-        '20000000-0000-4000-8000-000000000021 -40 days -9 days -06:00:00',
-        '20000000-0000-4000-8000-000000000021 -9 days -06:00:00 20 days',
+        '20000000-0000-4000-8000-000000000021 -40 days -9 days -06:00:00 | -10 days',
+        '20000000-0000-4000-8000-000000000021 -9 days -06:00:00 20 days | 20 days',
         -- A gap: the first month ends on its day, the second starts when paid.
-        '20000000-0000-4000-8000-000000000022 -40 days -10 days',
-        '20000000-0000-4000-8000-000000000022 -7 days 23 days',
-        -- Waiting for its renewal: one more day.
-        '20000000-0000-4000-8000-000000000023 -30 days -05:00:00 19:00:00',
+        '20000000-0000-4000-8000-000000000022 -40 days -10 days | -10 days',
+        '20000000-0000-4000-8000-000000000022 -7 days 23 days | 23 days',
+        -- Waiting for its renewal: one more day; the month itself ended.
+        '20000000-0000-4000-8000-000000000023 -30 days -05:00:00 19:00:00 | -05:00:00',
         -- Refused, free days, paused: the month ends on its day.
-        '20000000-0000-4000-8000-000000000024 -30 days -05:00:00 -05:00:00',
-        '20000000-0000-4000-8000-000000000025 -30 days -05:00:00 -05:00:00',
-        '20000000-0000-4000-8000-000000000026 -30 days -05:00:00 -05:00:00',
+        '20000000-0000-4000-8000-000000000024 -30 days -05:00:00 -05:00:00 | -05:00:00',
+        '20000000-0000-4000-8000-000000000025 -30 days -05:00:00 -05:00:00 | -05:00:00',
+        '20000000-0000-4000-8000-000000000026 -30 days -05:00:00 -05:00:00 | -05:00:00',
         -- The extra day is over: the shop is no longer paying.
-        '20000000-0000-4000-8000-000000000027 -32 days -1 days');
+        '20000000-0000-4000-8000-000000000027 -32 days -1 days | -2 days',
+        -- Free days followed and ended: no wait day for the paid month.
+        '20000000-0000-4000-8000-000000000028 -40 days -10 days | -10 days',
+        -- No renewal will charge it (Internal shop, renewal off, Internal
+        -- subscription): the month ends on its day.
+        '20000000-0000-4000-8000-000000000029 -30 days -05:00:00 -05:00:00 | -05:00:00',
+        '20000000-0000-4000-8000-000000000030 -30 days -05:00:00 -05:00:00 | -05:00:00',
+        '20000000-0000-4000-8000-000000000031 -30 days -05:00:00 -05:00:00 | -05:00:00');
     IF got IS DISTINCT FROM want THEN
         RAISE EXCEPTION E'paid months:\n%\nexpected:\n%', got, want;
     END IF;
@@ -243,6 +276,14 @@ BEGIN
        IS DISTINCT FROM ARRAY['20000000-0000-4000-8000-000000000023', '20000000-0000-4000-8000-000000000021',
                 '20000000-0000-4000-8000-000000000022'] THEN
         RAISE EXCEPTION 'paying now with renewals: %', shops;
+    END IF;
+    -- The list carries the month's own end beside paid_until: the shop
+    -- waiting for its renewal is paid until tomorrow, its month ended today.
+    IF (shops->0->>'paid_until')::timestamptz <> t + interval '19 hours'
+       OR (shops->0->>'month_end')::timestamptz <> t - interval '5 hours'
+       OR (shops->1->>'month_end')::timestamptz <> t + interval '20 days'
+       OR (shops->1->>'paid_until')::timestamptz <> t + interval '20 days' THEN
+        RAISE EXCEPTION 'month ends in the list: %', shops;
     END IF;
 END;
 $r$;

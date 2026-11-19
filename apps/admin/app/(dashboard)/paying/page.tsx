@@ -180,8 +180,9 @@ export default function PayingShopsPage() {
       <div>
         <h1 className="text-[22px] font-semibold text-foreground">Paying shops</h1>
         <p className="text-[13px] text-foreground/70 max-w-2xl">
-          A shop is paying when a paid plan month, not the free trial, covers today. The demo store, shops we built for a
-          lead and our own store never count. Months end at midnight, Baghdad time.
+          A shop is paying when a paid plan month, not the free trial, covers today. A month that has ended still counts for
+          one more day while its renewal runs. The demo store, shops we built for a lead and our own store never count; a
+          shop moved to Internal keeps the months it paid. Months end at midnight, Baghdad time.
         </p>
       </div>
 
@@ -240,7 +241,14 @@ export default function PayingShopsPage() {
                           <ShopNameLink id={s.tenant_id} name={s.name} displayId={s.display_id} />
                         </td>
                         <td className="p-3 font-semibold">{planLabel(s.plan)}</td>
-                        <td className="p-3 tabular-nums">{formatDateKey(dayOf(s.paid_until))}</td>
+                        <td className="p-3 tabular-nums">
+                          {/* The month's own end. paid_until can be a day later while
+                              the month waits for its renewal run (round 20). */}
+                          {formatDateKey(dayOf(s.month_end))}
+                          {Date.parse(s.month_end) <= Date.parse(data.at) && (
+                            <span className="text-foreground/70">, renewal due</span>
+                          )}
+                        </td>
                         <td className="p-3 tabular-nums">{formatDateKey(dayOf(s.first_paid_at))}</td>
                         <td className="p-3">{s.source === "outreach" ? "Our outreach" : "Signed up itself"}</td>
                       </tr>

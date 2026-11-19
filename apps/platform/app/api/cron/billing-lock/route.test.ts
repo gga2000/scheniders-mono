@@ -64,6 +64,16 @@ describe("billing-lock cron", () => {
         expect(queriesOn("settle_billing_lock")).toHaveLength(2);
     });
 
+    it("takes a shop whose renewal is off as a normal answer: nothing paid, not an error", async () => {
+        settle = (tenant) =>
+            tenant === PAYS
+                ? { data: { success: true, outcome: "not_renewed", plan: "starter", error: "Renewal is off: not charged" }, error: null }
+                : { data: { success: true, outcome: "locked" }, error: null };
+        const res = await GET(cronRequest());
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ success: true, due: 2, paid: 0, locked: 1 });
+    });
+
     it("treats an unknown settle answer as an error, not a success", async () => {
         settle = () => ({ data: { success: true, outcome: "suspended" }, error: null });
         const res = await GET(cronRequest());
