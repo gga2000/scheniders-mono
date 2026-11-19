@@ -14,7 +14,7 @@ import { AddedByAvatar } from "@/components/leads/added-by-avatar";
 import type { LeadColumnId } from "@/lib/leads-table-columns";
 import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
-import { formatDay, formatWhen } from "@/lib/format";
+import { formatCount, formatDay, formatWhen } from "@/lib/format";
 
 /** Extra inputs a cell may need beyond the Lead. Built once per render by <LeadsTable>. */
 export interface LeadCellContext {
@@ -124,7 +124,7 @@ export const LEAD_CELL_RENDERERS: Record<LeadColumnId, (lead: Lead, ctx: LeadCel
   followers: (lead) => (
     // Subtle tint by tier/rank — diamonds/legendaries read hotter at a glance.
     <span className="font-semibold tabular-nums" style={{ color: LEAD_TIER_UI[lead.tier].solid }}>
-      {lead.follower_count.toLocaleString()}
+      {formatCount(lead.follower_count)}
     </span>
   ),
   ranking: (lead) => <TierChip tier={lead.tier} />,

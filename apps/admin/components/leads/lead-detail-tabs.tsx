@@ -19,7 +19,7 @@ import {
   Building2,
   Mail,
 } from "lucide-react";
-import { formatDay, formatWhen } from "@/lib/format";
+import { formatCount, formatDay, formatWhen } from "@/lib/format";
 import { storeAddress } from "@scheniders/shared/store-address";
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -35,8 +35,6 @@ export function stalenessColor(dateStr: string | null | undefined): string {
   if (days <= 7) return "#F59E0B"; // amber
   return "#EF4444"; // red
 }
-
-export const fmt = (n: number) => n.toLocaleString();
 
 // ── Score Breakdown Keys ───────────────────────────────────────────────
 
@@ -230,19 +228,19 @@ export function OverviewContent({ lead }: { lead: Lead }) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Views</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_view_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_view_count)}</span>
           </div>
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Likes</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_like_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_like_count)}</span>
           </div>
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Comments</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_comments_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_comments_count)}</span>
           </div>
           <div>
             <span className="text-xs text-[var(--muted)] block">Avg Orders / Day</span>
-            <span className="text-lg font-bold text-[var(--foreground)]">{fmt(lead.avg_order_count)}</span>
+            <span className="text-lg font-bold text-[var(--foreground)]">{formatCount(lead.avg_order_count)}</span>
           </div>
         </div>
       </div>
@@ -393,7 +391,7 @@ export function SocialContent({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--muted)]">
-                {fmt(link.follower_count)} followers
+                {formatCount(link.follower_count)} followers
               </span>
               <a
                 href={link.url}

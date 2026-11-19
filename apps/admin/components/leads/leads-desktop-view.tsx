@@ -383,7 +383,7 @@ export function LeadsDesktopView() {
         {viewMode !== "kanban" && totalPages > 1 && !isLoading && !isError && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--card-border)]">
             <p className="text-sm text-[var(--muted)]">
-              Showing {(page - 1) * LEADS_PAGE_SIZE + 1}–{Math.min(page * LEADS_PAGE_SIZE, total)} of {total.toLocaleString()}
+              Showing {formatCount((page - 1) * LEADS_PAGE_SIZE + 1)}–{formatCount(Math.min(page * LEADS_PAGE_SIZE, total))} of {formatCount(total)}
             </p>
             <div className="flex items-center gap-2">
               <button

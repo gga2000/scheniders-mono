@@ -153,7 +153,7 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
             ruleId: rule.id,
             merchantId: m.id,
             merchantName: m.business_name,
-            message: `${fieldInfo.label} is ${val.toLocaleString()} ${fieldInfo.unit} (${opInfo.symbol} ${rule.value.toLocaleString()})`,
+            message: `${fieldInfo.label} is ${formatCount(val)} ${fieldInfo.unit} (${opInfo.symbol} ${formatCount(rule.value)})`,
           });
         }
       }

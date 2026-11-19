@@ -39,6 +39,18 @@ describe("formatDay", () => {
     expect(formatDay("2025-04-09T09:00:00Z", now)).toBe("Wed 9 Apr 2025");
   });
 
+  it("writes every month in three letters, September too", () => {
+    // en-GB wrote "Tue 1 Sept" (round 17, C-04).
+    expect(formatDay("2026-09-01T09:00:00Z", now)).toBe("Tue 1 Sep");
+    expect(formatDay("2025-09-30T09:00:00Z", now)).toBe("Tue 30 Sep 2025");
+    expect(formatDayTime("2026-09-01T09:00:00Z", now)).toBe("Tue 1 Sep, 12:00");
+  });
+
+  it("takes the year in Baghdad, not in UTC", () => {
+    // 21:30 UTC on 31 Dec is 00:30 on 1 Jan in Baghdad: this year, no year written.
+    expect(formatDay("2025-12-31T21:30:00Z", now)).toBe("Thu 1 Jan");
+  });
+
   it("adds the Baghdad time when asked", () => {
     expect(formatDayTime("2026-11-15T11:05:00Z", now)).toBe("Sun 15 Nov, 14:05");
   });
@@ -136,6 +148,32 @@ describe("the console's days and times", () => {
       for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
         const text = readFileSync(file, "utf8");
         for (const pattern of BROWSER_CLOCK) {
+          for (const match of text.match(pattern) ?? []) {
+            found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${match}`);
+          }
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+});
+
+/*
+ * Round 17 (C-04): a bare toLocaleString() writes a number in the browser's
+ * language, so a staff member whose browser runs Arabic read "١٬٢٥٠" for
+ * followers on Leads, and German "1.250", where every other screen says
+ * "1,250". Every number goes through formatCount or formatIQD, or names its
+ * locale.
+ */
+const BROWSER_LANGUAGE = [/\.toLocaleString\(\s*(?:undefined\s*)?[,)]/g, /Intl\.NumberFormat\(\s*(?:undefined\s*)?[,)]/g];
+
+describe("the console's numbers", () => {
+  it("never take the browser's language", () => {
+    const found: string[] = [];
+    for (const dir of ["app", "components", "hooks", "lib"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const text = readFileSync(file, "utf8");
+        for (const pattern of BROWSER_LANGUAGE) {
           for (const match of text.match(pattern) ?? []) {
             found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${match}`);
           }

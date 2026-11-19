@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/format";
+import { formatCount, formatIQD } from "@/lib/format";
 import type { LeadFormData, LeadSourcePlatform } from "@/types/leads";
 import { PLATFORM_CONFIG } from "@/types/leads";
 import { IRAQ_GOVERNORATES } from "@scheniders/shared";
@@ -581,8 +581,8 @@ export function LeadRegisterSheet({
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      [estimatedDailyOrders.toLocaleString(), "orders/day"],
-                      [(estimatedDailyOrders * 30).toLocaleString(), "orders/month"],
+                      [formatCount(estimatedDailyOrders), "orders/day"],
+                      [formatCount(estimatedDailyOrders * 30), "orders/month"],
                       [formatIQD(estimatedMonthlyRevenue), "per month"],
                     ].map(([value, label]) => (
                       <div key={label}>

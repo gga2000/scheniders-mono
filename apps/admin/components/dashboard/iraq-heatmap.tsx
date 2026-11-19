@@ -190,7 +190,7 @@ export function IraqHeatmap({ geoStats: geo }: IraqHeatmapProps) {
                 <p className="text-foreground/70">
                   Orders:{" "}
                   <span className="font-semibold text-foreground">
-                    {tooltip.orders.toLocaleString()}
+                    {formatCount(tooltip.orders)}
                   </span>
                 </p>
                 <p className="text-foreground/70">
