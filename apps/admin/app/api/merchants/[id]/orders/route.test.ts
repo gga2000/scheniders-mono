@@ -13,8 +13,9 @@ vi.mock("@/lib/api-auth", () => ({
 
 const selectSpy = vi.fn();
 const rows = [
-  { id: "o1", customer_name: "A", customer_phone: "0770", total_iqd: 34750, status: "new", created_at: "", updated_at: "", items: [{ n: 1 }, { n: 2 }] },
-  { id: "o2", customer_name: "B", customer_phone: null, total_iqd: 1000, status: "new", created_at: "", updated_at: "", items: null },
+  { id: "o1", customer_name: "A", customer_phone: "0770", total_iqd: 34750, status: "new", is_return: false, created_at: "", updated_at: "", items: [{ n: 1 }, { n: 2 }] },
+  { id: "o2", customer_name: "B", customer_phone: null, total_iqd: 1000, status: "new", is_return: null, created_at: "", updated_at: "", items: null },
+  { id: "o3", customer_name: "C", customer_phone: null, total_iqd: -44750, status: "in_transit", is_return: true, created_at: "", updated_at: "", items: [] },
 ];
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
@@ -59,5 +60,13 @@ describe("GET /api/merchants/[id]/orders", () => {
     expect(body.orders[1].items_count).toBe(0);
     expect(body.orders[0]).not.toHaveProperty("items");
     expect(body.orders[0].total_iqd).toBe(34750);
+  });
+
+  // Round 19: a refund order read as a sale. The route says which orders are refunds.
+  it("says which orders are refunds, an unmarked old row being a sale", async () => {
+    const res = await call();
+    const body = (await res.json()) as { orders: Record<string, unknown>[] };
+    expect((selectSpy.mock.calls[0][0] as string).split(",").map((c) => c.trim())).toContain("is_return");
+    expect(body.orders.map((o) => o.is_return)).toEqual([false, false, true]);
   });
 });

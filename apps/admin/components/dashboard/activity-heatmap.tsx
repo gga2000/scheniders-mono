@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import type { ActivityDay } from "@/types/dashboard";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatDateKey, formatMonth } from "@/lib/format";
 
 interface ActivityHeatmapProps {
   days: ActivityDay[] | undefined;
@@ -20,10 +20,6 @@ const CELL_SIZE = 12;
 const MIN_WIDTH = 640;
 const GAP = 2;
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
-const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 /** Tokens in app/globals.css: the busier the day, the stronger the green, in both themes. */
 function getColorLevel(count: number, max: number): string {
@@ -96,7 +92,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
       // Track month boundaries
       const month = current.getUTCMonth();
       if (month !== lastMonth) {
-        mLabels.push({ label: MONTH_NAMES[month], col });
+        mLabels.push({ label: formatMonth(dateStr.slice(0, 7), false), col });
         lastMonth = month;
       }
 
@@ -238,7 +234,7 @@ export function ActivityHeatmap({ days }: ActivityHeatmapProps) {
               <span className="font-semibold text-foreground">
                 {formatCount(tooltip.count)} {tooltip.count === 1 ? "order" : "orders"}
               </span>
-              <span className="text-foreground/70 ml-1.5">{tooltip.date}</span>
+              <span className="text-foreground/70 ml-1.5">{formatDateKey(tooltip.date)}</span>
             </div>
           )}
         </div>
