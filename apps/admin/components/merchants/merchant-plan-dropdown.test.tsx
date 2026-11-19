@@ -70,6 +70,25 @@ describe("the Merchants plan chip", () => {
     expect(screen.getByRole("button", { name: /Starter/ })).toBeTruthy();
   });
 
+  it("stays open while the move runs, so a slow refusal is still said", async () => {
+    // Round 17 (Workflow new 3): Escape, a click outside or Cancel closed the
+    // menu during "Moving...", and a refusal that came back then was never shown.
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    open();
+    fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), { target: { value: "Our own test shop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
+    await screen.findByRole("button", { name: "Moving..." });
+    const cancel = screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement;
+    expect(cancel.disabled).toBe(true);
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.pointerDown(document.body);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    answer(new Response(JSON.stringify({ error: "Only a super admin can change the plan." }), { status: 403 }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Only a super admin can change the plan.");
+    expect((screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("draws the confirm over the page, so the card cannot cut it off", () => {
     // Seen live after #1482: the card clips what sticks out of it, and the
     // confirm is wider than the card, so its left side was cut away.
