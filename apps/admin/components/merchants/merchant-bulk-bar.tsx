@@ -44,7 +44,7 @@ export function MerchantBulkBar({
           <div className="bg-[#1E1E1E]/95 dark:bg-[#1E1E1E]/95 backdrop-blur-xl text-white rounded-full ring-1 ring-white/10 shadow-2xl shadow-black/40 pl-2 pr-2 py-1.5 flex items-center gap-1.5">
             {/* Selection count chip */}
             <div className="flex items-center gap-2 pl-2 pr-1 py-1">
-              <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-[11px] font-black flex items-center justify-center shadow-sm shadow-violet-500/40">
+              <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs font-black flex items-center justify-center shadow-sm shadow-violet-500/40">
                 {selectedCount}
               </span>
               <span className="text-xs font-semibold whitespace-nowrap text-white/90">

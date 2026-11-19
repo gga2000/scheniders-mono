@@ -214,13 +214,13 @@ export function BulkActionDialog({
             <h2 className="text-lg font-bold text-foreground">
               {ACTION_TITLES[action] ?? action}
             </h2>
-            <p className="text-sm text-foreground/50 mt-0.5">
+            <p className="text-sm text-foreground/70 mt-0.5">
               {selectedCount} selected merchant{selectedCount !== 1 ? "s" : ""}
             </p>
           </div>
           <button
             onClick={close}
-            className="p-1.5 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -242,7 +242,7 @@ export function BulkActionDialog({
                     className={`px-4 py-3 rounded-xl border cursor-pointer transition-all text-sm font-semibold text-left ${
                       selectedPlan === opt.value
                         ? "border-[#1E1E1E] bg-[#1E1E1E]/5 text-foreground"
-                        : "border-[var(--card-border)] text-foreground/60 hover:border-foreground/30"
+                        : "border-[var(--card-border)] text-foreground/70 hover:border-foreground/30"
                     }`}
                   >
                     {opt.label}
@@ -275,7 +275,7 @@ export function BulkActionDialog({
                   ))}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-foreground/50">Custom:</span>
+                  <span className="text-xs text-foreground/70">Custom:</span>
                   <input
                     type="number"
                     value={topUpCustom}
@@ -285,12 +285,12 @@ export function BulkActionDialog({
                     max={10_000_000}
                     className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
                   />
-                  <span className="text-xs text-foreground/40">IQD</span>
+                  <span className="text-xs text-foreground/70">IQD</span>
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground/70">
-                  Reason <span className="font-normal text-foreground/40">(saved in the log)</span>
+                  Reason <span className="font-normal text-foreground/70">(saved in the log)</span>
                 </label>
                 <input
                   type="text"
@@ -401,7 +401,7 @@ export function BulkActionDialog({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={close}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/60 hover:text-foreground border border-[var(--card-border)] transition-all"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-all"
           >
             {partial ? "Close" : "Cancel"}
           </button>

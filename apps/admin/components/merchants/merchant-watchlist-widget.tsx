@@ -64,17 +64,17 @@ export function MerchantWatchlistWidget() {
       {starsUnread && stars.isError ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
-          <p className="text-xs text-foreground/40">Your stars could not be loaded</p>
+          <p className="text-xs text-foreground/70">Your stars could not be loaded</p>
         </div>
       ) : starredMerchants.length === 0 && !starsUnread ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <Star className="w-8 h-8 text-foreground/15 mb-2" />
-          <p className="text-xs text-foreground/40">No starred merchants</p>
+          <p className="text-xs text-foreground/70">No starred merchants</p>
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <AlertTriangle className="w-6 h-6 text-red-400/60 mb-2" />
-          <p className="text-xs text-foreground/40">Failed to load watchlist</p>
+          <p className="text-xs text-foreground/70">Failed to load watchlist</p>
         </div>
       ) : isLoading || starsUnread ? (
         <div className="space-y-3">
@@ -108,9 +108,9 @@ export function MerchantWatchlistWidget() {
               </span>
 
               {/* Wallet balance */}
-              <div className="flex items-center gap-1 text-foreground/50 shrink-0">
+              <div className="flex items-center gap-1 text-foreground/70 shrink-0">
                 <Wallet className="w-3 h-3" />
-                <span className="text-[11px] font-medium">
+                <span className="text-xs font-medium">
                   {new Intl.NumberFormat("en-IQ").format(
                     merchant.wallet?.balance_iqd ?? 0
                   )}
@@ -119,9 +119,9 @@ export function MerchantWatchlistWidget() {
 
               {/* Last active */}
               {merchant.last_active_at && (
-                <div className="flex items-center gap-1 text-foreground/40 shrink-0">
+                <div className="flex items-center gap-1 text-foreground/70 shrink-0">
                   <Clock className="w-3 h-3" />
-                  <span className="text-[10px]">
+                  <span className="text-xs">
                     {formatWhen(merchant.last_active_at)}
                   </span>
                 </div>
@@ -136,7 +136,7 @@ export function MerchantWatchlistWidget() {
         <div className="mt-4 pt-3 border-t border-[var(--card-border)]">
           <Link
             href="/merchants"
-            className="text-xs font-semibold text-foreground/50 hover:text-foreground transition-colors"
+            className="text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors"
           >
             View all
           </Link>

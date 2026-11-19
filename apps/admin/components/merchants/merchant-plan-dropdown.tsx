@@ -91,7 +91,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   // Without change_plan the server refuses every choice, so the plan is shown, not offered.
   if (!can("change_plan")) {
     return (
-      <span className={cn("px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider", planBadgeStyle[plan])}>
+      <span className={cn("px-3 py-1 rounded-full text-xs font-black", planBadgeStyle[plan])}>
         {current?.label ?? plan}
       </span>
     );
@@ -105,7 +105,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
           setOpen(!open);
         }}
         className={cn(
-          "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
+          "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
           planBadgeStyle[plan]
         )}
       >
@@ -134,7 +134,7 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
                   : "hover:bg-foreground/[0.04]"
               )}
             >
-              <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold", opt.color)}>
+              <span className={cn("px-1.5 py-0.5 rounded text-xs font-bold", opt.color)}>
                 {opt.label}
               </span>
               <span className="flex-1" />

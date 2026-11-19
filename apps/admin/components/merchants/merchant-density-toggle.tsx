@@ -32,7 +32,7 @@ export const MerchantDensityToggle = memo(function MerchantDensityToggle({
               "p-1.5 rounded-lg transition-all text-xs",
               density === opt.value
                 ? "bg-[var(--background)] text-foreground shadow-sm"
-                : "text-foreground/40 hover:text-foreground/70"
+                : "text-foreground/70 hover:text-foreground/70"
             )}
             title={opt.label}
             aria-label={`${opt.label} density`}

@@ -41,8 +41,8 @@ export function MerchantTags({ tags, onAddTag, onRemoveTag, compact }: MerchantT
           <span
             key={tag}
             className={cn(
-              "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold border",
-              TAG_COLORS[tag] || "bg-foreground/5 text-foreground/60 border-foreground/10",
+              "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-semibold border",
+              TAG_COLORS[tag] || "bg-foreground/5 text-foreground/70 border-foreground/10",
             )}
           >
             {tag}
@@ -58,8 +58,8 @@ export function MerchantTags({ tags, onAddTag, onRemoveTag, compact }: MerchantT
         <span
           key={tag}
           className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border group",
-            TAG_COLORS[tag] || "bg-foreground/5 text-foreground/60 border-foreground/10",
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border group",
+            TAG_COLORS[tag] || "bg-foreground/5 text-foreground/70 border-foreground/10",
           )}
         >
           <Tag className="w-2.5 h-2.5" />
@@ -76,7 +76,7 @@ export function MerchantTags({ tags, onAddTag, onRemoveTag, compact }: MerchantT
       {!showAdd ? (
         <button
           onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-foreground/30 border border-dashed border-foreground/15 hover:text-foreground/60 hover:border-foreground/30 transition-colors"
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium text-foreground/70 border border-dashed border-foreground/15 hover:text-foreground/60 hover:border-foreground/30 transition-colors"
         >
           <Plus className="w-2.5 h-2.5" />
           Tag
@@ -88,8 +88,8 @@ export function MerchantTags({ tags, onAddTag, onRemoveTag, compact }: MerchantT
               key={tag}
               onClick={() => handleAdd(tag)}
               className={cn(
-                "px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer transition-all hover:scale-105",
-                TAG_COLORS[tag] || "bg-foreground/5 text-foreground/60 border-foreground/10",
+                "px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer transition-all hover:scale-105",
+                TAG_COLORS[tag] || "bg-foreground/5 text-foreground/70 border-foreground/10",
               )}
             >
               + {tag}
@@ -104,10 +104,10 @@ export function MerchantTags({ tags, onAddTag, onRemoveTag, compact }: MerchantT
               if (e.key === "Escape") setShowAdd(false);
             }}
             placeholder="Custom..."
-            className="h-5 w-20 px-1.5 text-[10px] rounded border border-[var(--card-border)] bg-transparent text-foreground placeholder:text-foreground/30 focus:outline-none"
+            className="h-5 w-20 px-1.5 text-xs rounded border border-[var(--card-border)] bg-transparent text-foreground placeholder:text-foreground/30 focus:outline-none"
             autoFocus
           />
-          <button onClick={() => setShowAdd(false)} className="text-[10px] text-foreground/40 hover:text-foreground">
+          <button onClick={() => setShowAdd(false)} className="text-xs text-foreground/70 hover:text-foreground">
             <X className="w-3 h-3" />
           </button>
         </div>
