@@ -10,6 +10,7 @@ import {
   type NoteRow,
   type WalletRow,
 } from "./shop-timeline";
+import { newestDefinition } from "./sql-migrations.test-data";
 
 const ALI = "aaaaaaaa-0000-4000-8000-000000000001";
 const NOOR = "aaaaaaaa-0000-4000-8000-000000000002";
@@ -99,6 +100,25 @@ describe("toTimelineEntries", () => {
       ["Charge", "Upgrade to Team, rest of this month"],
       ["Charge", "Fixed by hand"],
     ]);
+  });
+
+  // The timeline reads those words back, so they must be the ones the database
+  // writes today. Built from the newest SQL for the starter plan: if a migration
+  // rewords a charge, this fails instead of the timeline showing the raw text.
+  it.each([
+    ["renew_subscription_core", "Monthly plan: Start"],
+    ["change_plan", "Upgrade to Start, rest of this month"],
+  ])("reads the charge %s writes", (fn, said) => {
+    const charge = /charge_wallet_core\(\s*[^,]+,\s*[^,]+,\s*'([^']*)'\s*\|\|\s*\w+::text\s*\|\|\s*'([^']*)'/.exec(newestDefinition(fn));
+    expect(charge, `${fn} no longer writes its charge as 'words' || plan || 'words'`).not.toBeNull();
+    const description = `${charge?.[1]}starter${charge?.[2]}`;
+    const entries = toTimelineEntries({
+      wallet: [wallet({ id: "w1", amount_iqd: 9000, description, created_at: "2026-11-16T10:00:00Z" })],
+      logs: [],
+      notes: [],
+      names,
+    });
+    expect(entries.map((e) => e.detail)).toEqual([said]);
   });
 
   it("names the system's own steps Automatic and falls back to the email the database kept", () => {

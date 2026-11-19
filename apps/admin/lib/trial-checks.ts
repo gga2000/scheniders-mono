@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { createAdminClient } from "./admin-supabase";
 import { everyRow } from "./every-row";
-import { REQUEST_REUSED } from "./billing-lock-tools";
+import { NOT_TRIAL, REQUEST_REUSED } from "./billing-lock-tools";
 import { staffReasonSchema, staffRequestIdSchema } from "./staff-reason";
 import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
 
@@ -228,7 +228,7 @@ export type TrialCheckDecideResult =
 
 const REFUSALS: Record<string, { status: 400 | 404 | 409; error: string }> = {
   not_found: { status: 404, error: "This store has no trial check" },
-  not_trial: { status: 400, error: "This store is not on a trial any more" },
+  not_trial: NOT_TRIAL,
   decided_meanwhile: {
     status: 409,
     error: "Someone decided this store while you were looking. The list now shows that decision: check it before you decide.",

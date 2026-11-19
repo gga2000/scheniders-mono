@@ -262,7 +262,7 @@ describe("POST /api/bulk extend_trial", () => {
     expect(res.status).toBe(409);
     expect(body.success).toBe(false);
     expect(body.succeeded).toEqual([{ tenant_id: T1, trial_ends_at: "2026-12-01T00:00:00+00:00" }]);
-    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "Tenant is not on a trial plan" }]);
+    expect(body.failed).toEqual([{ tenant_id: T2, name: "Najaf Gifts", error: "This shop is no longer on trial. Reload the page to see it" }]);
   });
 
   it("reports a database error for one shop as a failure and still tries the rest", async () => {

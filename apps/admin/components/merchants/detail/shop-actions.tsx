@@ -8,6 +8,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
 import { createRequestIds } from "@/lib/request-ids";
 import {
+  CONVERT_ACTION,
   freeDaysKind,
   moreActions,
   shopActionKey,
@@ -31,7 +32,7 @@ const MORE_LABEL: Record<MoreAction, string> = {
   pause: "Pause for some days",
   hold: "Put on hold",
   reactivate: "Reactivate",
-  convert: "Start free time, no charge",
+  convert: CONVERT_ACTION,
   note: "Add a note",
 };
 
