@@ -44,4 +44,15 @@ describe("the Health page's words", () => {
     expect(main).not.toContain("-5,000");
     expect(screen.getAllByText("5,000 IQD").length).toBe(2);
   });
+
+  // r3-9: a shop listed at the lowest score, 3, had a green bar, as if safe.
+  it("paints no listed shop green", async () => {
+    const lowest = { ...HEALTH.riskIndicators[0], risk_score: 3, reasons: ["Wallet under 5,000 IQD"] };
+    send.mockResolvedValue(new Response(JSON.stringify({ ...HEALTH, riskIndicators: [lowest] }), { status: 200 }));
+    render(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(HealthPage)));
+    expect(await screen.findByText("Risk 3 of 10")).toBeTruthy();
+    const bar = document.querySelector<HTMLElement>('[style*="width: 30%"]');
+    expect(bar?.className).toContain("bg-amber-500");
+    expect(document.querySelector('[class*="bg-green-500"]')).toBeNull();
+  });
 });
