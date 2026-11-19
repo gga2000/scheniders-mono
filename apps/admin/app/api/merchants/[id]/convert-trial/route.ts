@@ -26,7 +26,7 @@ const resultSchema = z.discriminatedUnion("success", [
 /** The database's refusals, as HTTP answers staff can act on. */
 const REFUSALS: Record<string, { status: number; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
-  demo_store: { status: 409, error: "The demo store has no paid time to start" },
+  demo_store: { status: 409, error: "The demo store has no free time to start" },
   prospect_store: { status: 409, error: "This store was built for a lead. Convert the lead instead" },
   paused: { status: 409, error: "This shop is paused. Lift the pause first" },
   not_trial: { status: 409, error: "This shop is no longer on trial. Reload the page to see it" },

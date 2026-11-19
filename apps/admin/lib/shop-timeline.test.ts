@@ -124,9 +124,9 @@ describe("changeTitle", () => {
     expect(changeTitle("extend_subscription", { days: 30 })).toBe("Gave 30 free days this month");
     expect(changeTitle("add_lock_orders", { orders: 25 })).toBe("Gave 25 more store orders");
     expect(changeTitle("force_unlock", { days: 7 })).toBe("Unlocked for 7 days, no charge");
-    expect(changeTitle("convert_trial", { days: 30, plan: "growth" })).toBe("Started 30 days of paid time on the Team plan, no charge");
-    expect(changeTitle("convert_trial", { days: 365, plan: "internal" })).toBe("Started 365 days of paid time on Internal (no billing), no charge");
-    expect(changeTitle("convert_trial", {})).toBe("Started paid time, no charge");
+    expect(changeTitle("convert_trial", { days: 30, plan: "growth" })).toBe("Started 30 days of free time on the Team plan, no charge");
+    expect(changeTitle("convert_trial", { days: 365, plan: "internal" })).toBe("Started 365 days of free time on Internal (no billing), no charge");
+    expect(changeTitle("convert_trial", {})).toBe("Started free time, no charge");
     expect(changeTitle("pause_tenant", { duration_days: null })).toBe("Paused, no end date");
     expect(changeTitle("unpause_tenant", { status: "active" })).toBe("Pause lifted");
     expect(changeTitle("unpause_tenant", { status: "active", ended: true })).toBe("Pause ended on its end date");
