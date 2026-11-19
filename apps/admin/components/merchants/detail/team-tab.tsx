@@ -77,7 +77,10 @@ export function TeamTab({ team }: TeamTabProps) {
                 </span>
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-semibold text-foreground">
+                <p
+                  className="truncate text-[15px] font-semibold text-foreground"
+                  title={inactive ? `${name} · ${STATUS_WORD[member.status] ?? member.status}` : name}
+                >
                   {name}
                   {inactive && (
                     <span className="text-[13px] font-normal text-foreground/70"> · {STATUS_WORD[member.status] ?? member.status}</span>

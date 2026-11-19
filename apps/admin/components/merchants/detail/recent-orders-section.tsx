@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useMerchantRecentOrders } from "@/hooks/use-merchant-detail";
+import { useMerchantRecentOrders, type RecentOrder } from "@/hooks/use-merchant-detail";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatWhen } from "@/lib/format";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
@@ -12,6 +12,12 @@ interface RecentOrdersSectionProps {
 }
 
 type Tone = "neutral" | "moving" | "done" | "lost";
+
+/** When the order came in, how many items, and the customer's phone, on one line. */
+function orderLine(o: RecentOrder): string {
+  const items = o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : "";
+  return `${formatWhen(o.created_at)}${items}${o.customer_phone ? ` · ${o.customer_phone}` : ""}`;
+}
 
 /** Each order status in words, with one of four tones. */
 const STATUS: Record<string, { word: string; tone: Tone }> = {
@@ -60,10 +66,8 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
                   <p className="truncate text-[15px] font-medium text-foreground" title={o.customer_name ?? "No name"}>
                     {o.customer_name ?? "No name"}
                   </p>
-                  <p className="truncate text-[13px] text-foreground/70">
-                    {formatWhen(o.created_at)}
-                    {o.items_count ? ` · ${o.items_count} ${o.items_count === 1 ? "item" : "items"}` : ""}
-                    {o.customer_phone ? ` · ${o.customer_phone}` : ""}
+                  <p className="truncate text-[13px] text-foreground/70" title={orderLine(o)}>
+                    {orderLine(o)}
                   </p>
                 </div>
                 <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-[13px] font-medium", TONE[status.tone])}>

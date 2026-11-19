@@ -269,7 +269,7 @@ export default function TrialsPage() {
                     <p className="font-semibold text-foreground truncate name-dir" title={trial.business_name}>
                       {trial.business_name}
                     </p>
-                    <p className="text-xs text-foreground/70 truncate">
+                    <p className="text-xs text-foreground/70 truncate" title={`${trial.slug}${trial.city ? ` \u00b7 ${trial.city}` : ""}`}>
                       {trial.slug}
                       {trial.city ? ` \u00b7 ${trial.city}` : ""}
                     </p>

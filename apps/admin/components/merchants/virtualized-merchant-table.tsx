@@ -321,7 +321,7 @@ function renderCell(
 
     case "city":
       return (
-        <span className="text-foreground/70 flex items-center gap-1 truncate font-medium">
+        <span className="text-foreground/70 flex items-center gap-1 truncate font-medium" title={m.city ?? undefined}>
           {m.city ? (
             <>
               <MapPin className="w-3 h-3 shrink-0 text-foreground/30" />

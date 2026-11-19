@@ -53,6 +53,7 @@ export function MerchantsDigestBanner() {
   }
 
   if (!digest || digest.shops === 0 || dismissed) return null;
+  const headline = digest.shops === 1 ? "1 merchant needs" : `${digest.shops} merchants need`;
 
   return (
     <AnimatePresence>
@@ -78,8 +79,8 @@ export function MerchantsDigestBanner() {
               <p className="text-xs font-black text-foreground/70">
                 Daily Digest
               </p>
-              <p className="text-sm font-black text-foreground truncate">
-                {digest.shops === 1 ? "1 merchant needs" : `${digest.shops} merchants need`} your attention
+              <p className="text-sm font-black text-foreground truncate" title={`${headline} your attention`}>
+                {headline} your attention
               </p>
             </div>
           </div>
