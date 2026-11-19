@@ -21,7 +21,7 @@ const { MerchantPlanDropdown } = await import("./merchant-plan-dropdown");
 const SHOP = "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f";
 
 function open() {
-  render(
+  const view = render(
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
@@ -30,6 +30,7 @@ function open() {
   );
   fireEvent.click(screen.getByRole("button", { name: /Starter/ }));
   fireEvent.click(screen.getByRole("button", { name: /Internal \(no billing\)/ }));
+  return view;
 }
 
 afterEach(() => {
@@ -67,6 +68,15 @@ describe("the Merchants plan chip", () => {
     fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
     expect((await screen.findByRole("alert")).textContent).toBe("Only a super admin can change the plan.");
     expect(screen.getByRole("button", { name: /Starter/ })).toBeTruthy();
+  });
+
+  it("draws the confirm over the page, so the card cannot cut it off", () => {
+    // Seen live after #1482: the card clips what sticks out of it, and the
+    // confirm is wider than the card, so its left side was cut away.
+    const { container } = open();
+    const dialog = screen.getByRole("dialog");
+    expect(container.contains(dialog)).toBe(false);
+    expect(document.body.contains(dialog)).toBe(true);
   });
 
   it("Cancel closes the confirm without sending", () => {
