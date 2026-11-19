@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * POST /api/merchants/[id]/product-import/read: reads the Excel or CSV file
  * a merchant sent (Fermi B12 item 7) and answers its header and rows, a first
  * guess at which column is which product field, and what the shop already
- * has (product names, SKUs, barcodes), so the screen can plan and preview
+ * has (product names, and the SKUs and barcodes of its products and choices), so the screen can plan and preview
  * the import (lib/product-import.ts planImport) as the team matches columns.
  * It saves nothing. Body: multipart, the file in "file".
  */
@@ -54,17 +54,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           .order("id")
           .range(from, to),
       ),
-      everyRow<{ sku: string | null }>((from, to) =>
-        supabase.from("product_variants").select("sku").eq("tenant_id", id).order("id").range(from, to),
+      everyRow<{ sku: string | null; barcode: string | null }>((from, to) =>
+        supabase.from("product_variants").select("sku, barcode").eq("tenant_id", id).order("id").range(from, to),
       ),
     ]);
 
     const has: ShopProducts = {
       // Archived products do not block a name, as in admin_import_products.
       names: products.filter((p) => !p.is_archived && p.name).map((p) => p.name ?? ""),
-      // A SKU or barcode stays taken while its product is archived: the unique indexes cover every row.
+      // A SKU or barcode stays taken while its product is archived, and a code
+      // on a choice counts as on a product: the till finds a scanned code on
+      // either, and admin_import_products refuses both.
       skus: [...products, ...variants].map((p) => p.sku?.trim() ?? "").filter(Boolean),
-      barcodes: products.map((p) => p.barcode?.trim() ?? "").filter(Boolean),
+      barcodes: [...products, ...variants].map((p) => p.barcode?.trim() ?? "").filter(Boolean),
     };
 
     return NextResponse.json({ file: read.file, mapping: guessMapping(read.file.headers), shop: has });

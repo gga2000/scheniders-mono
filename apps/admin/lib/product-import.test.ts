@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  foldText,
   guessMapping,
   importProductSchema,
   planImport,
@@ -167,6 +168,38 @@ describe("planImport", () => {
     expect(importProductSchema.safeParse(shirt).success).toBe(true);
   });
 
+  it("leaves out a 51st size, so no choice names a value its product does not list", () => {
+    const sizeHeaders = ["الاسم", "السعر", "المقاس"];
+    const plan = planImport({
+      headers: sizeHeaders,
+      firstRow: 2,
+      mapping: guessMapping(sizeHeaders),
+      shop: noShop,
+      rows: Array.from({ length: 60 }, (_, n) => ["خاتم", "5000", String(n + 1)]),
+    });
+    const [ring] = plan.products;
+    expect(ring.options[0]?.values).toHaveLength(50);
+    expect(ring.variants).toHaveLength(50);
+    expect(ring.variants.every((v) => ring.options[0]?.values.includes(v.option_values["المقاس"] ?? ""))).toBe(true);
+    expect(plan.problems).toHaveLength(10);
+    expect(plan.problems[0]).toEqual({ row: 52, text: "A product may have 50 sizes at most" });
+    expect(importProductSchema.safeParse(ring).success).toBe(true);
+  });
+
+  it("refuses a barcode the shop already uses, on a product or a choice", () => {
+    const codeHeaders = ["الاسم", "السعر", "باركود"];
+    const plan = planImport({
+      headers: codeHeaders,
+      firstRow: 2,
+      mapping: guessMapping(codeHeaders),
+      // The read answers the barcodes of products and of their choices together.
+      shop: { names: [], skus: [], barcodes: ["6251000000890"] },
+      rows: [["حزام", "9000", "6251000000890"]],
+    });
+    expect(plan.products).toEqual([]);
+    expect(plan.problems).toEqual([{ row: 2, text: 'Barcode "6251000000890" is already used in the shop' }]);
+  });
+
   it("warns about what it drops and keeps the row", () => {
     const m: ColumnMapping = ["name", "price", "compare_at_price", "images"];
     const plan = planImport({
@@ -202,6 +235,22 @@ describe("planImport", () => {
       "The price is 0",
       'Cost "x" is not a number',
       'Stock "2.5" is not a whole number',
+    ]);
+  });
+});
+
+describe("foldText", () => {
+  // The same cases are in the database's own test (admin-import-products): the
+  // database skips a name the shop has by the same rule the check uses.
+  it("makes the spellings of one name one", () => {
+    expect(["عباية", "عبايه", "أحمـــد", "إِبْرَاهِيم", "مستشفى", "ＡＢＣ  Shirt ", "Tab\there"].map(foldText)).toEqual([
+      "عبايه",
+      "عبايه",
+      "احمد",
+      "ابراهيم",
+      "مستشفي",
+      "abc shirt",
+      "tab here",
     ]);
   });
 });

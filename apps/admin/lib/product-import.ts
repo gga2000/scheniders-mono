@@ -491,11 +491,27 @@ export function planImport(input: {
       for (const r of kept.slice(100)) problems.push({ row: r.row, text: "A product may have 100 choices at most" });
       kept.length = 100;
     }
+    // A choice lists 50 values at most, as the product editor keeps it: a
+    // row with a 51st size or colour is left out, not added with a value
+    // its product does not list.
+    for (const field of used) {
+      const values = new Set<string>();
+      for (let i = 0; i < kept.length; i++) {
+        const value = kept[i][field] ?? "";
+        if (values.has(value) || values.size < 50) {
+          values.add(value);
+          continue;
+        }
+        problems.push({ row: kept[i].row, text: `A product may have 50 ${field === "size" ? "sizes" : "colours"} at most` });
+        kept.splice(i, 1);
+        i--;
+      }
+    }
 
     const options = used.map((field) => ({
       name: choiceName(headers, mapping, field),
       type: field === "size" ? ("size" as const) : ("color" as const),
-      values: [...new Set(kept.map((r) => r[field] ?? ""))].slice(0, 50),
+      values: [...new Set(kept.map((r) => r[field] ?? ""))],
     }));
     const head = kept[0];
     const category = kept.find((r) => r.category !== null)?.category ?? null;
