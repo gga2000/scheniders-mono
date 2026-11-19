@@ -39,9 +39,9 @@ beforeEach(() => {
     { id: "p3", tenant_id: OTHER, name: "مسك", sku: "MSK", barcode: "999", is_archived: false },
   ];
   stub.state.tables.product_variants = [
-    { id: "v1", tenant_id: SHOP, sku: "OUD-1-S" },
-    { id: "v2", tenant_id: SHOP, sku: null },
-    { id: "v3", tenant_id: OTHER, sku: "MSK-S" },
+    { id: "v1", tenant_id: SHOP, sku: "OUD-1-S", barcode: null },
+    { id: "v2", tenant_id: SHOP, sku: null, barcode: " 6251000000890 " },
+    { id: "v3", tenant_id: OTHER, sku: "MSK-S", barcode: "888" },
   ];
 });
 
@@ -55,7 +55,7 @@ describe("POST /api/merchants/[id]/product-import/read", () => {
     expect(body.file).toEqual({ sheet: null, headers: ["الاسم", "السعر", "الكمية"], rows: [["عطر", "35000", "4"]], firstRow: 2 });
     expect(body.mapping).toEqual(["name", "price", "stock"]);
     // An archived product frees its name but keeps its SKU; another shop's products are not this shop's.
-    expect(body.shop).toEqual({ names: ["عطر عود"], skus: ["OUD-1", "OLD-1", "OUD-1-S"], barcodes: ["111"] });
+    expect(body.shop).toEqual({ names: ["عطر عود"], skus: ["OUD-1", "OLD-1", "OUD-1-S"], barcodes: ["111", "6251000000890"] });
   });
 
   it("reads every product of a shop past the 1,000 rows one answer holds", async () => {

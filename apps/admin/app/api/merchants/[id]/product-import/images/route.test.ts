@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseStub } from "@/lib/supabase-stub.test-data";
@@ -23,7 +24,13 @@ vi.mock("@/lib/product-import-images", () => ({
 }));
 
 const STORAGE = "https://sduvpgqwhxragxtxztur.supabase.co/storage/v1/object/public";
-const store = { uploads: [] as Array<{ bucket: string; path: string; type: string; upsert: boolean }>, removed: [] as string[][], refuse: new Set<string>() };
+const store = {
+  uploads: [] as Array<{ bucket: string; path: string; type: string; upsert: boolean }>,
+  removed: [] as string[][],
+  refuse: new Set<string>(),
+  /** Every file in the bucket, by path. */
+  files: new Set<string>(),
+};
 let stub: ReturnType<typeof supabaseStub>;
 vi.mock("@/lib/admin-supabase", () => ({
   createAdminClient: () => ({
@@ -31,13 +38,23 @@ vi.mock("@/lib/admin-supabase", () => ({
     storage: {
       from: (bucket: string) => ({
         upload: async (path: string, _bytes: Uint8Array, options: { contentType: string; upsert: boolean }) => {
-          if (store.refuse.has(path.split("-").pop() ?? "")) return { data: null, error: { message: "storage down" } };
+          if (store.refuse.has(path)) return { data: null, error: { message: "storage down" } };
+          if (store.files.has(path) && !options.upsert) return { data: null, error: { message: "The resource already exists", statusCode: "409" } };
           store.uploads.push({ bucket, path, type: options.contentType, upsert: options.upsert });
+          store.files.add(path);
           return { data: { path }, error: null };
         },
+        list: async (folder: string, options: { search: string }) => ({
+          data: [...store.files]
+            .filter((path) => path.startsWith(`${folder}/`) && !path.slice(folder.length + 1).includes("/"))
+            .map((path) => ({ name: path.slice(folder.length + 1) }))
+            .filter((file) => file.name.startsWith(options.search)),
+          error: null,
+        }),
         getPublicUrl: (path: string) => ({ data: { publicUrl: `${STORAGE}/${bucket}/${path}` } }),
         remove: async (paths: string[]) => {
           store.removed.push(paths);
+          for (const path of paths) store.files.delete(path);
           return { data: [], error: null };
         },
       }),
@@ -55,6 +72,8 @@ const call = (body: unknown, id = SHOP) =>
   );
 
 const jpeg: FetchedImage = { ok: true, bytes: new Uint8Array([0xff, 0xd8, 0xff, 1]), kind: { type: "image/jpeg", ext: "jpg" } };
+/** Where a link's image is saved: one file per link and product. */
+const fileOf = (link: string, ext: string) => `gallery/${PRODUCT}/import-${createHash("sha256").update(link).digest("hex").slice(0, 20)}.${ext}`;
 const png: FetchedImage = { ok: true, bytes: new Uint8Array([0x89, 0x50]), kind: { type: "image/png", ext: "png" } };
 
 beforeEach(() => {
@@ -70,6 +89,7 @@ beforeEach(() => {
   store.uploads = [];
   store.removed = [];
   store.refuse = new Set();
+  store.files = new Set([`gallery/${PRODUCT}/editor-upload.jpg`]);
   vi.spyOn(console, "error").mockImplementation(() => {});
   stub.state.tables.products = [
     { id: PRODUCT, tenant_id: SHOP },
@@ -90,8 +110,7 @@ describe("POST /api/merchants/[id]/product-import/images", () => {
     expect(guard.actions).toEqual(["import_products"]);
     expect(store.uploads).toHaveLength(2);
     expect(store.uploads[0]).toMatchObject({ bucket: "product-images", type: "image/jpeg", upsert: false });
-    expect(store.uploads[0]?.path).toMatch(new RegExp(`^gallery/${PRODUCT}/import-\\d+-1\\.jpg$`));
-    expect(store.uploads[1]?.path).toMatch(new RegExp(`^gallery/${PRODUCT}/import-\\d+-3\\.png$`));
+    expect(store.uploads.map((u) => u.path)).toEqual([fileOf("https://a.example/1.jpg", "jpg"), fileOf("https://a.example/2.png", "png")]);
     const urls = store.uploads.map((u) => `${STORAGE}/product-images/${u.path}`);
     expect(stub.state.rpcCalls).toEqual([
       {
@@ -117,7 +136,7 @@ describe("POST /api/merchants/[id]/product-import/images", () => {
   });
 
   it("names an image storage would not take, and saves the others", async () => {
-    store.refuse.add("1.jpg");
+    store.refuse.add(fileOf("https://a.example/1.jpg", "jpg"));
     const body = await (await call({ productId: PRODUCT, links: ["https://a.example/1.jpg", "https://a.example/2.png"] })).json();
     expect(body.saved).toBe(1);
     expect(body.failed).toEqual([{ link: "https://a.example/1.jpg", reason: "The image could not be saved" }]);
@@ -142,9 +161,39 @@ describe("POST /api/merchants/[id]/product-import/images", () => {
     expect((await call({ productId: PRODUCT, links: ["https://a.example/1.jpg"] })).status).toBe(404);
     expect(store.removed).toEqual([[store.uploads[0]?.path]]);
 
-    stub.state.functions.admin_attach_product_images = () => ({ data: null, error: { message: "connection lost" } });
+    stub.state.functions.admin_attach_product_images = () => ({ data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } });
     expect((await call({ productId: PRODUCT, links: ["https://a.example/2.png"] })).status).toBe(500);
-    expect(store.removed).toHaveLength(2);
+    expect(store.removed).toEqual([[fileOf("https://a.example/1.jpg", "jpg")], [fileOf("https://a.example/2.png", "png")]]);
+  });
+
+  it("adds nothing twice when the same links are sent again: what was saved is reused, not fetched", async () => {
+    const links = ["https://a.example/1.jpg", "https://a.example/2.png", "https://a.example/1.jpg"];
+    await call({ productId: PRODUCT, links });
+    web.asked = [];
+    const again = await (await call({ productId: PRODUCT, links })).json();
+
+    expect(web.asked).toEqual([]);
+    expect(store.uploads).toHaveLength(2);
+    // The same storage links go to the database both times; it skips an image the product already has.
+    const [first, second] = stub.state.rpcCalls;
+    expect(first?.args.p_urls).toHaveLength(2);
+    expect(second?.args.p_urls).toEqual(first?.args.p_urls);
+    expect(again).toMatchObject({ saved: 2, failed: [] });
+  });
+
+  it("after a call that broke off, keeps the files the product shows and removes the others", async () => {
+    stub.state.tables.product_images = [
+      { product_id: PRODUCT, image_url: `${STORAGE}/product-images/${fileOf("https://a.example/1.jpg", "jpg")}` },
+    ];
+    stub.state.functions.admin_attach_product_images = () => ({ data: null, error: { code: "", message: "TypeError: fetch failed" } });
+    expect((await call({ productId: PRODUCT, links: ["https://a.example/1.jpg", "https://a.example/2.png"] })).status).toBe(500);
+    expect(store.removed).toEqual([[fileOf("https://a.example/2.png", "png")]]);
+
+    // Sent again, the kept file is not fetched again and the other is fetched anew.
+    stub.state.functions.admin_attach_product_images = (args) => ({ data: { image_url: (args.p_urls as string[])[0], added: 1 }, error: null });
+    web.asked = [];
+    expect(await (await call({ productId: PRODUCT, links: ["https://a.example/1.jpg", "https://a.example/2.png"] })).json()).toMatchObject({ saved: 2 });
+    expect(web.asked).toEqual(["https://a.example/2.png"]);
   });
 
   it("fetches nothing for another shop's product, a bad body or a login without the right", async () => {

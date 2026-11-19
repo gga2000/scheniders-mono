@@ -10,9 +10,15 @@
 --   slugs are made unique in the shop; new products go after the last one;
 --   choices and variants are written; stock sits on the variants;
 --   a SKU the shop uses stops the whole batch, nothing half written;
+--   names are compared by the console's rule (product_name_key = foldText),
+--   so another spelling of a name the shop has is skipped;
+--   a SKU or barcode the shop uses on a product or a choice, or one a
+--   product names twice, stops the batch too;
 --   bad input, an unknown shop and a browser caller are refused;
 --   images go on a product of that shop only, storage links only: the first
 --   is the main image when there is none, the gallery grows after its last;
+--   an image the product already has is skipped, so a second call adds
+--   nothing twice and writes no log line;
 --   grants match.
 
 BEGIN;
@@ -174,6 +180,88 @@ BEGIN
 END;
 $t$;
 
+DO $codes$
+DECLARE
+    a constant uuid := '60000000-0000-4000-8000-000000000001';
+    answer jsonb;
+    before bigint := (SELECT count(*) FROM public.products WHERE tenant_id = '60000000-0000-4000-8000-000000000001');
+BEGIN
+    -- The console's own cases (apps/admin/lib/product-import.test.ts, foldText).
+    IF (SELECT jsonb_agg(public.product_name_key(t.s) ORDER BY t.n)
+          FROM unnest(ARRAY['عباية', 'عبايه', 'أحمـــد', 'إِبْرَاهِيم', 'مستشفى', 'ＡＢＣ  Shirt ', E'Tab\there']) WITH ORDINALITY AS t(s, n))
+       <> '["عبايه", "عبايه", "احمد", "ابراهيم", "مستشفي", "abc shirt", "tab here"]' THEN
+        RAISE EXCEPTION 'name rule';
+    END IF;
+
+    -- The merchant added "عبايه" in the app after the file was read: the file's "عباية" is skipped.
+    INSERT INTO public.products (tenant_id, name, price, display_order) VALUES (a, 'عبايه', 1000, 20);
+    answer := public.admin_import_products(a, $j$[
+      {"key": "2", "name": "عباية", "slug": "عباية", "price": 30000, "stock": 1, "options": [], "variants": []},
+      {"key": "3", "name": "إبريق", "slug": "ابريق", "price": 7000, "stock": 1, "options": [], "variants": []},
+      {"key": "4", "name": "ابريق", "slug": "ابريق", "price": 7000, "stock": 1, "options": [], "variants": []}]$j$);
+    IF answer->'skipped' <> '[{"key": "2", "reason": "in_shop"}, {"key": "4", "reason": "in_shop"}]'
+       OR jsonb_array_length(answer->'created') <> 1 THEN
+        RAISE EXCEPTION 'spellings: %', answer;
+    END IF;
+    before := before + 2;
+
+    -- The shirt's size M carries a barcode; the incense has 629001 and BK-1; the shirt's choices TS-M and TS-L.
+    UPDATE public.product_variants SET barcode = '6251000000890' WHERE tenant_id = a AND sku = 'TS-M';
+
+    -- A new product under a choice's barcode: the till would sell it as the shirt. The clean product before it goes too.
+    BEGIN
+        PERFORM public.admin_import_products(a, $j$[
+          {"key": "2", "name": "نظيف", "slug": "نظيف", "price": 1000, "stock": 0, "options": [], "variants": []},
+          {"key": "3", "name": "حزام جلد", "slug": "حزام-جلد", "price": 9000, "stock": 1, "barcode": "6251000000890", "options": [], "variants": []}]$j$);
+        RAISE EXCEPTION 'a choice''s barcode went in on a product';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+    -- A new choice under a product's barcode, or a product's SKU, or a choice's SKU on a product.
+    BEGIN
+        PERFORM public.admin_import_products(a, $j$[
+          {"key": "2", "name": "قبعة", "slug": "قبعة", "price": 5000, "stock": 0,
+           "options": [{"name": "المقاس", "type": "size", "values": ["S"]}],
+           "variants": [{"name": "S", "option_values": {"المقاس": "S"}, "price": 5000, "stock": 1, "sku": null, "barcode": "629001"}]}]$j$);
+        RAISE EXCEPTION 'a product''s barcode went in on a choice';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+    BEGIN
+        PERFORM public.admin_import_products(a, $j$[
+          {"key": "2", "name": "قبعة", "slug": "قبعة", "price": 5000, "stock": 0,
+           "options": [{"name": "المقاس", "type": "size", "values": ["S"]}],
+           "variants": [{"name": "S", "option_values": {"المقاس": "S"}, "price": 5000, "stock": 1, "sku": "BK-1", "barcode": null}]}]$j$);
+        RAISE EXCEPTION 'a product''s SKU went in on a choice';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+    BEGIN
+        PERFORM public.admin_import_products(a, $j$[
+          {"key": "2", "name": "قبعة", "slug": "قبعة", "price": 5000, "stock": 0, "sku": "TS-L", "options": [], "variants": []}]$j$);
+        RAISE EXCEPTION 'a choice''s SKU went in on a product';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+    -- One product naming a barcode on two of its choices.
+    BEGIN
+        PERFORM public.admin_import_products(a, $j$[
+          {"key": "2", "name": "قبعة", "slug": "قبعة", "price": 5000, "stock": 0,
+           "options": [{"name": "المقاس", "type": "size", "values": ["S", "L"]}],
+           "variants": [{"name": "S", "option_values": {"المقاس": "S"}, "price": 5000, "stock": 1, "barcode": "777"},
+                        {"name": "L", "option_values": {"المقاس": "L"}, "price": 5000, "stock": 1, "barcode": "777"}]}]$j$);
+        RAISE EXCEPTION 'one barcode went in on two choices';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+    IF (SELECT count(*) FROM public.products WHERE tenant_id = a) <> before THEN
+        RAISE EXCEPTION 'a refused batch left products: % of %', (SELECT count(*) FROM public.products WHERE tenant_id = a), before;
+    END IF;
+
+    -- Shop B may use shop A's codes.
+    answer := public.admin_import_products('60000000-0000-4000-8000-000000000002', $j$[
+      {"key": "2", "name": "حزام جلد", "slug": "حزام-جلد", "price": 9000, "stock": 1, "sku": "TS-M", "barcode": "6251000000890", "options": [], "variants": []}]$j$);
+    IF jsonb_array_length(answer->'created') <> 1 THEN
+        RAISE EXCEPTION 'another shop''s codes: %', answer;
+    END IF;
+END;
+$codes$;
+
 DO $img$
 DECLARE
     a constant uuid := '60000000-0000-4000-8000-000000000001';
@@ -181,6 +269,7 @@ DECLARE
     one constant text := 'https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/public/product-images/products/x-0-1.jpg';
     two constant text := 'https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/public/product-images/products/x-1-1.png';
     three constant text := 'https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/public/product-images/products/x-2-1.webp';
+    four constant text := 'https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/public/product-images/gallery/x/import-0a1b.jpg';
     answer jsonb;
 BEGIN
     answer := public.admin_attach_product_images(a, product, ARRAY[one, two], '6f000000-0000-4000-8000-0000000000aa', 'sara@fermi.test');
@@ -203,6 +292,21 @@ BEGIN
     IF (SELECT image_url FROM public.products WHERE id = product) <> one
        OR (SELECT display_order FROM public.product_images WHERE product_id = product AND image_url = three) <> 2 THEN
         RAISE EXCEPTION 'second images: %', answer;
+    END IF;
+
+    -- The same links again, as a second call sends them, add nothing and write no log line;
+    -- a new one among them goes after the gallery's last.
+    answer := public.admin_attach_product_images(a, product, ARRAY[one, two, two]);
+    IF answer <> jsonb_build_object('image_url', one, 'added', 0)
+       OR (SELECT count(*) FROM public.product_images WHERE product_id = product) <> 3
+       OR (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'import_product_images' AND tenant_id = a) <> 2 THEN
+        RAISE EXCEPTION 'repeat images: %', answer;
+    END IF;
+    answer := public.admin_attach_product_images(a, product, ARRAY[four, one]);
+    IF answer->>'added' <> '1'
+       OR (SELECT jsonb_agg(jsonb_build_array(image_url, display_order) ORDER BY display_order) FROM public.product_images WHERE product_id = product)
+          <> jsonb_build_array(jsonb_build_array(one, 0), jsonb_build_array(two, 1), jsonb_build_array(three, 2), jsonb_build_array(four, 3)) THEN
+        RAISE EXCEPTION 'one new among old: %', answer;
     END IF;
 
     -- Shop B's product is not shop A's.
@@ -244,6 +348,11 @@ $img$;
 
 DO $g$
 BEGIN
+    IF has_function_privilege('authenticated', 'public.product_name_key(text)', 'EXECUTE')
+       OR has_function_privilege('anon', 'public.product_name_key(text)', 'EXECUTE')
+       OR NOT has_function_privilege('service_role', 'public.product_name_key(text)', 'EXECUTE') THEN
+        RAISE EXCEPTION 'product_name_key grants';
+    END IF;
     IF has_function_privilege('authenticated', 'public.admin_import_products(uuid, jsonb, uuid, text, text)', 'EXECUTE')
        OR has_function_privilege('anon', 'public.admin_import_products(uuid, jsonb, uuid, text, text)', 'EXECUTE')
        OR NOT has_function_privilege('service_role', 'public.admin_import_products(uuid, jsonb, uuid, text, text)', 'EXECUTE') THEN

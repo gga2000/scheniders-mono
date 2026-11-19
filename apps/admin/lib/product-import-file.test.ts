@@ -1,6 +1,15 @@
+import { deflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
-import { cellText, decodeText, parseCsv, readImportFile, zipUnpackedBytes } from "./product-import-file";
+import {
+  IMPORT_MAX_CELL_CHARS,
+  MAX_UNPACKED_BYTES,
+  cellText,
+  decodeText,
+  parseCsv,
+  readImportFile,
+  zipUnpacked,
+} from "./product-import-file";
 
 const utf8 = (text: string) => new TextEncoder().encode(text);
 
@@ -94,13 +103,88 @@ describe("readImportFile", () => {
   });
 });
 
-describe("zipUnpackedBytes", () => {
-  it("adds up what a workbook unpacks to, and refuses what is not a zip", async () => {
+/** A zip of deflated entries, each stating the unpacked size given (or its true one). */
+function zip(entries: Array<{ name: string; data: Uint8Array; stated?: number }>): Uint8Array {
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name);
+    const packed = deflateRawSync(entry.data);
+    const stated = entry.stated ?? entry.data.length;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(packed.length, 18);
+    local.writeUInt32LE(stated, 22);
+    local.writeUInt16LE(name.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(packed.length, 20);
+    central.writeUInt32LE(stated, 24);
+    central.writeUInt16LE(name.length, 28);
+    central.writeUInt32LE(offset, 42);
+    locals.push(local, name, packed);
+    centrals.push(central, name);
+    offset += local.length + name.length + packed.length;
+  }
+  const directory = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return new Uint8Array(Buffer.concat([...locals, directory, end]));
+}
+
+describe("zipUnpacked", () => {
+  it("adds up what a workbook really unpacks to, and refuses what is not a zip", async () => {
     const bytes = await xlsx((sheet) => sheet.addRow(["name"]));
-    const unpacked = zipUnpackedBytes(bytes);
-    expect(unpacked).not.toBeNull();
-    expect(unpacked ?? 0).toBeGreaterThan(bytes.length);
-    expect(zipUnpackedBytes(utf8("no zip here at all, just text"))).toBeNull();
+    const unpacked = zipUnpacked(bytes);
+    expect(unpacked.ok && unpacked.bytes).toBeGreaterThan(bytes.length);
+    expect(zipUnpacked(utf8("no zip here at all, just text"))).toEqual({ ok: false, reason: "unreadable" });
+  });
+
+  it("counts the bytes that really come out, not the sizes the zip states", () => {
+    const zeros = new Uint8Array(2 * 1024 * 1024);
+    // States 1,000 bytes, unpacks to 2 MB: past a 1 MB limit, found while inflating.
+    expect(zipUnpacked(zip([{ name: "xl/a.xml", data: zeros, stated: 1000 }]), 1024 * 1024)).toEqual({ ok: false, reason: "too_big" });
+    // Under the limit but not the size it states: not a file Excel saved.
+    expect(zipUnpacked(zip([{ name: "xl/a.xml", data: zeros, stated: 1000 }]), 4 * 1024 * 1024)).toEqual({ ok: false, reason: "unreadable" });
+    // Many honest entries add up past the limit together.
+    const parts = Array.from({ length: 3 }, (_, n) => ({ name: `xl/${n}.xml`, data: new Uint8Array(400 * 1024) }));
+    expect(zipUnpacked(zip(parts), 1024 * 1024)).toEqual({ ok: false, reason: "too_big" });
+    expect(zipUnpacked(zip(parts), 2 * 1024 * 1024)).toEqual({ ok: true, bytes: 3 * 400 * 1024 });
+  });
+
+  it("refuses a small .xlsx that lies about unpacking past the limit, before the workbook reader opens it", async () => {
+    const bomb = zip([{ name: "xl/sharedStrings.xml", data: new Uint8Array(MAX_UNPACKED_BYTES + 1024), stated: 1000 }]);
+    expect(bomb.length).toBeLessThan(200 * 1024);
+    expect(await readImportFile(bomb, "bomb.xlsx")).toEqual({ ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." });
+  });
+});
+
+describe("the text a file may hold", () => {
+  it("cuts a cell past the longest field, so the check still calls it too long", async () => {
+    const read = await readImportFile(utf8(`name,description\nعطر,${"و".repeat(IMPORT_MAX_CELL_CHARS + 2000)}\n`), "long.csv");
+    expect(read.ok && read.file.rows[0]?.[1]?.length).toBe(IMPORT_MAX_CELL_CHARS);
+  });
+
+  it("refuses a small file whose cells share one long text, without building it up", async () => {
+    const long = "ن".repeat(50_000);
+    const bytes = await xlsx((sheet) => {
+      sheet.addRow(["name", "description"]);
+      for (let n = 0; n < 2000; n++) sheet.addRow([long, long]);
+    });
+    expect(bytes.length).toBeLessThan(1024 * 1024);
+    const started = Date.now();
+    expect(await readImportFile(bytes, "shared.xlsx")).toMatchObject({ ok: false, error: expect.stringContaining("more text than one import reads (1,500,000 letters)") });
+    expect(Date.now() - started).toBeLessThan(10_000);
   });
 });
 

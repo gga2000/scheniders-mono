@@ -1,4 +1,6 @@
+import { inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
+import { formatCount } from "./format";
 import { IMPORT_MAX_ROWS } from "./product-import";
 
 /**
@@ -12,8 +14,20 @@ import { IMPORT_MAX_ROWS } from "./product-import";
 
 /** Columns read from a file; more is not a product list. */
 export const IMPORT_MAX_COLUMNS = 50;
-/** What an .xlsx may unpack to: a 5 MB file that unpacks past this is not a product list. */
-const MAX_UNPACKED_BYTES = 60 * 1024 * 1024;
+/** What an .xlsx may really unpack to: a 4 MB file that unpacks past this is not a product list. */
+export const MAX_UNPACKED_BYTES = 60 * 1024 * 1024;
+/**
+ * One cell's text at most. The longest field the import takes is the
+ * description (5,000 letters); a longer cell is cut here, a little past
+ * that, so the check still names it as too long.
+ */
+export const IMPORT_MAX_CELL_CHARS = 10_000;
+/**
+ * All the text one file may hold, header and cells together. It bounds the
+ * answer the console sends back, which must stay well under the 4.5 MB a
+ * server answer may be: 1.5 million Arabic letters are about 3 MB.
+ */
+export const IMPORT_MAX_TEXT_CHARS = 1_500_000;
 /** The last sheet row read: the rows a file may have, under a header a little way down. */
 const MAX_ROW_NUMBER = IMPORT_MAX_ROWS + 100;
 
@@ -28,6 +42,9 @@ export interface ImportSheet {
 }
 
 export type ReadImportFile = { ok: true; file: ImportSheet } | { ok: false; error: string };
+
+const CANNOT_OPEN = "This .xlsx file could not be opened. Save it again from Excel, or send a CSV.";
+const TOO_MUCH_TEXT = `The file holds more text than one import reads (${formatCount(IMPORT_MAX_TEXT_CHARS)} letters). Split it into smaller files.`;
 
 export async function readImportFile(bytes: Uint8Array, fileName: string): Promise<ReadImportFile> {
   const lower = fileName.toLowerCase();
@@ -110,7 +127,7 @@ function fromGrid(grid: string[][], sheet: string | null): ReadImportFile {
   while (body.length > 0 && isEmptyRow(body[body.length - 1])) body.pop();
   if (body.length === 0) return { ok: false, error: "The file has a header row and no products under it." };
   if (body.length > IMPORT_MAX_ROWS) {
-    return { ok: false, error: `The file has ${body.length.toLocaleString("en-US")} rows. Split it into files of ${IMPORT_MAX_ROWS.toLocaleString("en-US")} rows at most.` };
+    return { ok: false, error: `The file has ${formatCount(body.length)} rows. Split it into files of ${formatCount(IMPORT_MAX_ROWS)} rows at most.` };
   }
   const width = Math.max(...[grid[headerIndex], ...body].map((row) => {
     let last = row.length;
@@ -118,7 +135,14 @@ function fromGrid(grid: string[][], sheet: string | null): ReadImportFile {
     return last;
   }));
   if (width > IMPORT_MAX_COLUMNS) return { ok: false, error: `The file has ${width} columns; a product list has ${IMPORT_MAX_COLUMNS} at most.` };
-  const fit = (row: readonly string[]) => Array.from({ length: width }, (_, i) => (row[i] ?? "").trim());
+  // Counted before any cell is copied: a file of one long text repeated in
+  // every cell must not be built up to find out it is too much.
+  let text = 0;
+  for (const row of [grid[headerIndex], ...body]) {
+    for (let i = 0; i < Math.min(row.length, width); i++) text += Math.min(row[i].length, IMPORT_MAX_CELL_CHARS);
+    if (text > IMPORT_MAX_TEXT_CHARS) return { ok: false, error: TOO_MUCH_TEXT };
+  }
+  const fit = (row: readonly string[]) => Array.from({ length: width }, (_, i) => (row[i] ?? "").slice(0, IMPORT_MAX_CELL_CHARS).trim());
   return {
     ok: true,
     file: {
@@ -130,11 +154,19 @@ function fromGrid(grid: string[][], sheet: string | null): ReadImportFile {
   };
 }
 
+export type ZipUnpacked = { ok: true; bytes: number } | { ok: false; reason: "unreadable" | "too_big" };
+
 /**
- * What an .xlsx (a zip) says it unpacks to, from its central directory; null
- * when it cannot be read or is a zip64, which no product list needs.
+ * What an .xlsx (a zip) really unpacks to: every entry is inflated and its
+ * bytes counted, stopping as soon as the count passes `limit`. The sizes a
+ * zip states about itself are not trusted: the workbook reader inflates
+ * every entry before it compares them. An entry whose real size differs from
+ * the stated one, a zip64, or a packing other than stored or deflate is
+ * unreadable; no file Excel saves is any of those.
  */
-export function zipUnpackedBytes(bytes: Uint8Array): number | null {
+export function zipUnpacked(bytes: Uint8Array, limit: number = MAX_UNPACKED_BYTES): ZipUnpacked {
+  const unreadable: ZipUnpacked = { ok: false, reason: "unreadable" };
+  if (bytes.length < 22) return unreadable;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const lowest = Math.max(0, bytes.length - 22 - 0xffff);
   let end = -1;
@@ -144,19 +176,43 @@ export function zipUnpackedBytes(bytes: Uint8Array): number | null {
       break;
     }
   }
-  if (end === -1) return null;
+  if (end === -1) return unreadable;
   const entries = view.getUint16(end + 10, true);
   let at = view.getUint32(end + 16, true);
-  if (entries === 0xffff || at === 0xffffffff) return null;
+  if (entries === 0xffff || at === 0xffffffff) return unreadable;
   let total = 0;
   for (let n = 0; n < entries; n++) {
-    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) return null;
-    const unpacked = view.getUint32(at + 24, true);
-    if (unpacked === 0xffffffff) return null;
-    total += unpacked;
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) return unreadable;
+    const method = view.getUint16(at + 10, true);
+    const packed = view.getUint32(at + 20, true);
+    const stated = view.getUint32(at + 24, true);
+    const local = view.getUint32(at + 42, true);
+    if (packed === 0xffffffff || stated === 0xffffffff || local === 0xffffffff) return unreadable;
+    if (local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50) return unreadable;
+    const dataAt = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    if (dataAt + packed > bytes.length) return unreadable;
+    const data = bytes.subarray(dataAt, dataAt + packed);
+
+    let size: number;
+    if (method === 0) {
+      size = packed;
+    } else if (method === 8) {
+      try {
+        // Never more than what is left under the limit, plus one byte to know it was passed.
+        size = inflateRawSync(data, { maxOutputLength: limit - total + 1 }).length;
+      } catch (error) {
+        if (error instanceof RangeError && "code" in error && error.code === "ERR_BUFFER_TOO_LARGE") return { ok: false, reason: "too_big" };
+        return unreadable;
+      }
+    } else {
+      return unreadable;
+    }
+    total += size;
+    if (total > limit) return { ok: false, reason: "too_big" };
+    if (size !== stated) return unreadable;
     at += 46 + view.getUint16(at + 28, true) + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
   }
-  return total;
+  return { ok: true, bytes: total };
 }
 
 /** One Excel cell as text: a link cell gives its link when its text is the link or empty. */
@@ -180,40 +236,47 @@ export function cellText(value: ExcelJS.CellValue): string {
 }
 
 async function readWorkbook(bytes: Uint8Array): Promise<ReadImportFile> {
-  const unpacked = zipUnpackedBytes(bytes);
-  if (unpacked === null) return { ok: false, error: "This .xlsx file could not be opened. Save it again from Excel, or send a CSV." };
-  if (unpacked > MAX_UNPACKED_BYTES) return { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
+  const unpacked = zipUnpacked(bytes);
+  if (!unpacked.ok && unpacked.reason === "unreadable") return { ok: false, error: CANNOT_OPEN };
+  if (!unpacked.ok) return { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
 
   const workbook = new ExcelJS.Workbook();
   try {
     // A copy, so the workbook reader gets a plain ArrayBuffer of exactly the file.
     await workbook.xlsx.load(bytes.slice().buffer);
   } catch {
-    return { ok: false, error: "This .xlsx file could not be opened. Save it again from Excel, or send a CSV." };
+    return { ok: false, error: CANNOT_OPEN };
   }
   const sheet = workbook.worksheets.find((ws) => ws.actualRowCount > 0);
   if (!sheet) return { ok: false, error: "The file is empty." };
   // Only rows with something in them are visited; a sheet formatted down to
   // its last row is not read a million times.
   if (sheet.actualRowCount > IMPORT_MAX_ROWS + 1) {
-    return { ok: false, error: `The sheet has ${sheet.actualRowCount.toLocaleString("en-US")} rows. Split it into files of ${IMPORT_MAX_ROWS.toLocaleString("en-US")} rows at most.` };
+    return { ok: false, error: `The sheet has ${formatCount(sheet.actualRowCount)} rows. Split it into files of ${formatCount(IMPORT_MAX_ROWS)} rows at most.` };
   }
   const grid: string[][] = [];
-  // The first row past the limit with something in it (0: none).
-  const far = { row: 0 };
+  // The first row past the limit with something in it (0: none), and the
+  // text read so far: past the limit, no more cells are turned into text.
+  const far = { row: 0, text: 0 };
   sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     if (rowNumber > MAX_ROW_NUMBER) {
       if (far.row === 0) far.row = rowNumber;
       return;
     }
+    if (far.text > IMPORT_MAX_TEXT_CHARS) return;
     const cells: string[] = [];
     const width = Math.min(row.cellCount, IMPORT_MAX_COLUMNS + 1);
-    for (let c = 1; c <= width; c++) cells.push(cellText(row.getCell(c).value));
+    for (let c = 1; c <= width; c++) {
+      const text = cellText(row.getCell(c).value).slice(0, IMPORT_MAX_CELL_CHARS);
+      far.text += text.length;
+      cells.push(text);
+    }
     while (grid.length < rowNumber - 1) grid.push([]);
     grid.push(cells);
   });
+  if (far.text > IMPORT_MAX_TEXT_CHARS) return { ok: false, error: TOO_MUCH_TEXT };
   if (far.row > 0) {
-    return { ok: false, error: `The sheet has something in row ${far.row.toLocaleString("en-US")}, past the ${IMPORT_MAX_ROWS.toLocaleString("en-US")} rows a file may have. Delete what is down there, or split the file.` };
+    return { ok: false, error: `The sheet has something in row ${formatCount(far.row)}, past the ${formatCount(IMPORT_MAX_ROWS)} rows a file may have. Delete what is down there, or split the file.` };
   }
   return fromGrid(grid, sheet.name);
 }
