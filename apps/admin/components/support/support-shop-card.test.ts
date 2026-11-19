@@ -16,12 +16,12 @@ vi.mock("@/hooks/use-support-cases", () => ({ useSupportTakeShop: () => ({ mutat
 
 const { SupportShopCard } = await import("./support-shop-card");
 
-const card = (status: string, restrictions: unknown): ShopCard => ({
+const card = (status: string, restrictions: unknown, plan = "starter"): ShopCard => ({
   tenant: {
     id: "2b0f8f8e-6a43-4a34-9a5e-4d8a3c1f0a11",
     business_name: "Noor",
     display_id: 100123,
-    plan: "starter",
+    plan,
     status,
     restrictions,
     city: null,
@@ -60,5 +60,16 @@ describe("SupportShopCard", () => {
     const html = render(card("trial", {}));
     expect(html).toContain(">trial<");
     expect(html).toContain("Trial ends");
+  });
+
+  it.each([
+    ["starter", "Start"],
+    ["growth", "Team"],
+    ["professional", "Business"],
+    ["enterprise", "Custom"],
+    ["internal", "Internal (no billing)"],
+  ])("names the %s plan %s, never the stored key", (plan, name) => {
+    const html = render(card("active", {}, plan));
+    expect(html).toContain(`>${name}<`);
   });
 });
