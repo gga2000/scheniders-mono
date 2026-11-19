@@ -82,14 +82,14 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
           "p-1 rounded-md transition-colors relative",
           open
             ? "text-foreground/70 bg-foreground/5"
-            : "text-foreground/40 hover:text-foreground/70 hover:bg-foreground/5"
+            : "text-foreground/70 hover:text-foreground/70 hover:bg-foreground/5"
         )}
         title="Quick note"
         aria-label="Quick note"
       >
         <StickyNote className="w-4 h-4" />
         {noteCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-foreground text-background text-[8px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 leading-none rounded-full bg-foreground text-background text-xs font-bold flex items-center justify-center">
             {noteCount}
           </span>
         )}
@@ -121,7 +121,7 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
               </button>
             </div>
             {addNote.isError && (
-              <p role="alert" className="mt-1.5 text-[11px] text-[var(--ink-red)]">
+              <p role="alert" className="mt-1.5 text-xs text-[var(--ink-red)]">
                 Not saved. {addNote.error.message}
               </p>
             )}
@@ -130,7 +130,7 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
           {/* Recent notes */}
           {notesFailed ? (
             <LoadFailedLine
-              className="justify-center px-3 py-4 text-[11px]"
+              className="justify-center px-3 py-4 text-xs"
               what="the notes"
               error={notesError}
               onRetry={() => void refetchNotes()}
@@ -143,15 +143,15 @@ export function QuickNotePopover({ merchantId }: QuickNotePopoverProps) {
                   key={note.id}
                   className="px-3 py-2 border-b border-[var(--card-border)] last:border-0"
                 >
-                  <p className="text-[11px] text-foreground line-clamp-2">{note.content}</p>
-                  <span className="text-[9px] text-foreground/30 mt-0.5 block">
+                  <p className="text-xs text-foreground line-clamp-2">{note.content}</p>
+                  <span className="text-xs text-foreground/70 mt-0.5 block">
                     {formatWhen(note.created_at)}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="py-4 text-center text-[11px] text-foreground/30">
+            <div className="py-4 text-center text-xs text-foreground/70">
               No notes yet
             </div>
           )}

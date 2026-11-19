@@ -1,7 +1,8 @@
 /**
  * The root domain's home is Fermi's landing page (a static document in
- * public/landing), its www address moves to the bare root, and /pricing
- * opens the page's pricing section. Store hosts are untouched.
+ * public/landing), its www address moves to the bare root, /features serves
+ * the full features page (public/features), and /pricing opens the landing
+ * page's pricing section. Store hosts are untouched.
  */
 
 import { afterEach, describe, it, expect, vi } from "vitest";
@@ -34,6 +35,20 @@ describe("Fermi landing page on the root domain", () => {
     const proxy = await proxyFor("localhost:3001");
     const res = proxy(req("localhost:3001", "/"));
     expect(res.headers.get("x-middleware-rewrite")).toBe("https://localhost:3001/landing/index.html");
+  });
+
+  it("serves the full features page at /features, keeping the query", async () => {
+    const proxy = await proxyFor("usefermi.com");
+    const res = proxy(req("usefermi.com", "/features?utm_source=ig&ref=abc"));
+    expect(res.headers.get("x-middleware-rewrite")).toBe(
+      "https://usefermi.com/features/index.html?utm_source=ig&ref=abc",
+    );
+  });
+
+  it("leaves a store's own /features page on its subdomain alone", async () => {
+    const proxy = await proxyFor("usefermi.com");
+    const res = proxy(req("mithal.usefermi.com", "/features"));
+    expect(res.headers.get("x-middleware-rewrite")).toBe("https://mithal.usefermi.com/s/mithal/features");
   });
 
   it("sends /pricing to the page's pricing section", async () => {

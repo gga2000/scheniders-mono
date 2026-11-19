@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,12 +8,11 @@ import { describe, expect, it, vi } from "vitest";
  * shift 0.17 to 0.33 on every page). The server's page must already have it.
  */
 
-const { Passthrough, Nothing } = vi.hoisted(() => ({
-  Passthrough: ({ children }: { children?: ReactNode }) => children,
+const { Nothing } = vi.hoisted(() => ({
   Nothing: () => null,
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/merchants" }));
 vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ user: null, profile: null, role: null, signOut: vi.fn() }),
 }));
@@ -23,7 +22,6 @@ vi.mock("@/components/shared/command-palette", () => ({
   CommandPalette: Nothing,
   useCommandPalette: () => ({ isOpen: false, open: vi.fn(), close: vi.fn() }),
 }));
-vi.mock("@/components/shared/page-transition", () => ({ PageTransition: Passthrough }));
 vi.mock("@/components/merchants/watchlist-sync", () => ({ WatchlistSync: Nothing }));
 
 const { AdminShell } = await import("./admin-shell");
@@ -39,5 +37,12 @@ describe("AdminShell first paint", () => {
 
   it("does not slide on the first paint", () => {
     expect(main).not.toContain("transition");
+  });
+
+  // Every page change used to fade out for 200 ms and in for 350 ms, one after
+  // the other, before staff saw the page (Ali, 19 Nov: drop the fade).
+  it("shows the page at once, with no fade", () => {
+    expect(html).toContain("page");
+    expect(html).not.toMatch(/opacity:\s*0/);
   });
 });

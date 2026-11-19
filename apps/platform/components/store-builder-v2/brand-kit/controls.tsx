@@ -575,7 +575,7 @@ export function ColorField({ label, keyName, value, onChange }: ColorFieldProps)
                     spellCheck={false}
                     data-testid={`color-hex-${keyName}`}
                     className={cn(
-                        "flex-1 rounded-lg border border-(--card-border) bg-background px-3 py-1.5 font-mono text-xs uppercase",
+                        "min-w-0 flex-1 rounded-lg border border-(--card-border) bg-background px-3 py-1.5 font-mono text-xs uppercase",
                         "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
                         !isValidHex(draft) && "border-red-500/60 text-red-600",
                     )}

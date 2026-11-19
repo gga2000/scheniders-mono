@@ -5,6 +5,7 @@ import { useTextDir } from "@/hooks/use-language";
 import { lineText, type GuideLineId, type GuideLocale } from "@/lib/merchant-guide/script";
 import { GuideCaption } from "./guide-caption";
 import { GuideSoundButton } from "./guide-sound-button";
+import { useGuidePillBottom } from "./guide-setup-store";
 import { useGuideVoice } from "./use-guide-voice";
 
 /** A small card docked beside the pill: an offer, a finish or an end note, with one or two buttons. */
@@ -32,14 +33,15 @@ export function GuideNote({
     testId?: string;
 }) {
     const dir = useTextDir();
+    const bottom = useGuidePillBottom();
     const voice = useGuideVoice(line, lineText(line, locale), locale, soundOn);
     return (
         <div
             role="dialog"
             aria-label={title}
             data-testid={testId}
-            style={{ left: pillLeft }}
-            className="merchant-guide-card fixed bottom-6 z-[46] grid w-[min(380px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]"
+            style={{ left: pillLeft, bottom }}
+            className="merchant-guide-card fixed z-[46] grid w-[min(380px,calc(100vw-32px))] gap-3 rounded-2xl bg-neutral-900 p-4 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.6)]"
         >
             <div className="flex items-center justify-between gap-2">
                 <span dir={dir} className="inline-flex items-center gap-2 text-sm font-bold">

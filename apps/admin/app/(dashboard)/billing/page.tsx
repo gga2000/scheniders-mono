@@ -15,7 +15,8 @@ import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { createRequestIds } from "@/lib/request-ids";
-import { isStaffReason, STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
+import { STAFF_REASON_MAX } from "@/lib/billing-lock-tools";
+import { quickTopUpPlan } from "@/lib/quick-top-up";
 import { formatCount, formatIQD, formatWhen } from "@/lib/format";
 import { useAdminAuth, useCan } from "@/hooks/use-admin-auth";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -134,13 +135,13 @@ export default function BillingPage() {
   function handleTopup(e: React.FormEvent) {
     e.preventDefault();
     const description = topupDescription.trim();
-    if (!topupTenantId || !topupAmount || topupAmount <= 0 || !isStaffReason(description)) return;
+    if (topupPlan.kind !== "ready") return;
     topupMutation.mutate({
       tenant_id: topupTenantId,
-      amount: topupAmount,
+      amount: topupPlan.amount,
       description,
       // Same shop, amount and reason asked again (a retry) reuses the id.
-      request_id: requestIds.idFor(`${topupTenantId}:${topupAmount}:${description}`),
+      request_id: requestIds.idFor(`${topupTenantId}:${topupPlan.amount}:${description}`),
     });
   }
 
@@ -156,6 +157,10 @@ export default function BillingPage() {
   const sortedWallets = [...wallets].sort(
     (a, b) => b.balance_iqd - a.balance_iqd
   );
+  // Named before the press: which shop, how much, its wallet now (audit W-03).
+  const topupShop = wallets.find((w) => w.tenant_id === topupTenantId);
+  const topupPlan = quickTopUpPlan(topupShop, topupAmount, topupDescription);
+  const toppedUpShop = wallets.find((w) => w.tenant_id === topupMutation.variables?.tenant_id);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -263,13 +268,7 @@ export default function BillingPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={
-                !topupTenantId ||
-                !topupAmount ||
-                topupAmount <= 0 ||
-                !isStaffReason(topupDescription) ||
-                topupMutation.isPending
-              }
+              disabled={topupPlan.kind !== "ready" || topupMutation.isPending}
               className="px-5 py-2 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap flex items-center gap-2"
             >
               {topupMutation.isPending ? (
@@ -277,9 +276,16 @@ export default function BillingPage() {
               ) : (
                 <ArrowUpRight className="w-4 h-4" />
               )}
-              Top Up
+              {topupPlan.kind === "ready" ? topupPlan.button : "Top Up"}
             </button>
           </form>
+
+          {topupPlan.kind === "ready" && (
+            <p className="text-xs text-foreground/75 mt-3">{topupPlan.sentence}</p>
+          )}
+          {topupPlan.kind === "too_much" && (
+            <p className="text-xs text-[var(--ink-red)] mt-3">{topupPlan.words}</p>
+          )}
 
           {topupMutation.isError && (
             <p className="text-xs text-[var(--ink-red)] mt-2">
@@ -288,8 +294,9 @@ export default function BillingPage() {
           )}
           {topupMutation.isSuccess && (
             <p className="text-xs text-[var(--ink-green)] mt-2">
-              Top-up successful! New balance:{" "}
-              {formatIQD(topupMutation.data?.newBalance ?? 0)}
+              Added {formatIQD(topupMutation.variables?.amount ?? 0)}
+              {toppedUpShop ? ` to ${toppedUpShop.business_name}` : ""}. Wallet now{" "}
+              {formatIQD(topupMutation.data?.newBalance ?? 0)}.
             </p>
           )}
         </div>

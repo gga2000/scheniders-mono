@@ -822,6 +822,73 @@ describe("support first-week calls", () => {
   });
 });
 
+describe("support shop call with no task", () => {
+  const CALL_ID = "77777777-7777-4777-8777-777777777777";
+
+  async function call(token: string | null, body: unknown): Promise<Response> {
+    const { POST } = await import("../calls/route");
+    return POST(req("/api/support/calls", "POST", token, body));
+  }
+
+  it("turns away a caller with no session", async () => {
+    expect((await call(null, { tenantId: TENANT, outcome: "done" })).status).toBe(401);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it.each([
+    ["no shop", { outcome: "done" }],
+    ["a shop id that is not an id", { tenantId: "1", outcome: "done" }],
+    ["a made-up outcome", { tenantId: TENANT, outcome: "maybe" }],
+    ["a note over 500 characters", { tenantId: TENANT, outcome: "later", note: "x".repeat(501) }],
+  ])("refuses %s", async (_label, body) => {
+    expect((await call("support", body)).status).toBe(400);
+    expect(dbCalls).toHaveLength(0);
+  });
+
+  it("records the call as the signed-in admin, whatever the body claims, and logs it like a task call", async () => {
+    const logged = { call_id: CALL_ID, tenant_id: TENANT, outcome: "no_answer", created_at: "2026-11-19T10:00:00+00:00" };
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: logged, error: null },
+    );
+    const res = await call("support", { tenantId: TENANT, outcome: "no_answer", note: "  التجربة تخلص باچر ", p_admin_id: "x" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, call: logged });
+    expect(rpcCall()?.args).toEqual([
+      "support_log_shop_call",
+      { p_tenant_id: TENANT, p_admin_id: SUPPORT_ID, p_admin_name: "Noor", p_outcome: "no_answer", p_note: "التجربة تخلص باچر" },
+    ]);
+    expect(dbCalls.find((c) => c.method === "insert")?.args[0]).toMatchObject({
+      admin_user_id: SUPPORT_ID,
+      tenant_id: TENANT,
+      action: "support_task_logged",
+      details: { task_id: null, call_id: CALL_ID, outcome: "no_answer" },
+    });
+  });
+
+  it.each([
+    ["support_shop_not_found", 404],
+    ["support_bad_outcome", 400],
+    ["support_empty_name", 400],
+  ])("maps the database refusal %s to %i and logs nothing", async (message, status) => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: null, error: { code: "P0001", message } },
+    );
+    expect((await call("support", { tenantId: TENANT, outcome: "done" })).status).toBe(status);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("says it failed when the database answers something unexpected", async () => {
+    dbQueue.push(
+      { data: { display_name: "Noor", email: null }, error: null },
+      { data: { tenant_id: TENANT }, error: null },
+    );
+    expect((await call("support", { tenantId: TENANT, outcome: "done" })).status).toBe(500);
+    expect(dbCalls.some((c) => c.method === "insert")).toBe(false);
+  });
+});
+
 describe("support take a shop", () => {
   async function take(token: string | null, body: unknown): Promise<Response> {
     const { POST } = await import("../owner/route");

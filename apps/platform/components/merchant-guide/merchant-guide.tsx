@@ -10,8 +10,9 @@
 // (lib/merchant-guide/foundation.ts). The basics can't be skipped, but the
 // card can be tucked away into the corner pill while the merchant works.
 //
-// Who sees it: the store's admins, on desktop, on a shop whose basics are
-// not finished. A shop that is already complete never sees it, unless
+// Who sees it: the store's admins, on a computer or a phone, on a shop whose
+// basics are not finished. On a phone the card rests at the bottom of the
+// screen and the light shows the field. A shop that is already complete never sees it, unless
 // someone opens any page with ?guide=start to replay it.
 //
 // Phase 2 ("First order", guide-first-order.tsx) follows once the basics'
@@ -25,6 +26,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useSideReadsHeld } from "@/lib/first-load-hold";
 import { useLanguage } from "@/hooks/use-language";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobileEditor } from "@/hooks/use-is-mobile-editor";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { toast } from "@/hooks/use-toast";
 import { nextFoundationStep } from "@/lib/merchant-guide/foundation";
@@ -46,9 +48,13 @@ import {
 const STAFF_TOUR_SINCE = "2026-11-09T00:00:00Z";
 
 /** Sidebar widths from components/layout/sidebar.tsx, plus its 16px inset and a gap. */
-function pillLeftFor(pathname: string, collapsed: boolean): number {
-    // The editor has no app sidebar; its own page list is 264px wide.
-    if (pathname.startsWith(STORE_EDITOR_PATH)) return 264 + 24;
+function pillLeftFor(pathname: string, collapsed: boolean, isMobile: boolean, isMobileEditor: boolean): number {
+    // Phones hide the sidebar behind the menu button.
+    if (isMobile) return 16;
+    if (pathname.startsWith(STORE_EDITOR_PATH)) {
+        // Below 1024px the editor keeps its page list in a sheet; above, the list is 264px wide.
+        return isMobileEditor ? 16 : 264 + 24;
+    }
     return (collapsed ? 72 : 256) + 16 + 24;
 }
 
@@ -59,6 +65,7 @@ export function MerchantGuide() {
     const { user, tenantId, role } = useAuth();
     const { language, t } = useLanguage();
     const isMobile = useIsMobile();
+    const isMobileEditor = useIsMobileEditor();
     const collapsed = useSidebarCollapsed();
     const locale = language === "ar" ? "ar" : "en";
     const userId = user?.id ?? null;
@@ -69,7 +76,8 @@ export function MerchantGuide() {
     // The till console hides the guide, except for its own phase after the basics (see GuideAfterBasics).
     const onTill = pathname === "/till";
     const held = useSideReadsHeld();
-    const enabled = (isAdmin || staffTour) && !!tenantId && !!userId && !isMobile && (onTill || !guideHiddenOn(pathname)) && !held;
+    const enabled = (isAdmin || staffTour) && !!tenantId && !!userId && (onTill || !guideHiddenOn(pathname)) && !held;
+    const pillLeft = pillLeftFor(pathname, collapsed, isMobile, isMobileEditor);
     const progressQ = useGuideProgress(tenantId, userId, enabled);
     const progress = progressQ.data ?? null;
     const finished = !!progress?.foundation_done_at;
@@ -149,7 +157,7 @@ export function MerchantGuide() {
                 locale={locale}
                 soundOn={soundOn}
                 onToggleSound={toggleSound}
-                pillLeft={pillLeftFor(pathname, collapsed)}
+                pillLeft={pillLeft}
                 saving={saving}
                 onRecord={(staff) => persist({ phases: { ...phases, staff } })}
             />
@@ -166,7 +174,7 @@ export function MerchantGuide() {
                 locale={locale}
                 soundOn={soundOn}
                 onToggleSound={toggleSound}
-                pillLeft={pillLeftFor(pathname, collapsed)}
+                pillLeft={pillLeft}
                 saving={saving}
                 onPhases={(next) => persist({ phases: next })}
             />
@@ -216,7 +224,7 @@ export function MerchantGuide() {
             locale={locale}
             soundOn={soundOn}
             onToggleSound={toggleSound}
-            pillLeft={pillLeftFor(pathname, collapsed)}
+            pillLeft={pillLeft}
         />
     );
 }

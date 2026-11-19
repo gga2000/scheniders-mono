@@ -21,6 +21,16 @@ export interface FilterOrdersOptions {
     inTransit?: "any" | "today";
 }
 
+/**
+ * Whether the merchant has narrowed the list beyond its period and status tab:
+ * a city, product or payment pick in the «فلتر» panel, a priority, or an ad
+ * channel or campaign. Lights the «فلتر» button. The period is left out on
+ * purpose: it has its own button, so on the default «اليوم» the button is plain.
+ */
+export function hasNarrowingFilters(f: Pick<OrderFilters, "city" | "product" | "paymentStatus" | "priority" | "adChannel" | "adCampaign">): boolean {
+    return !!(f.city || f.product || f.paymentStatus || f.priority || f.adChannel || f.adCampaign);
+}
+
 function needsReview(order: Order): boolean {
     if (order.notes && order.notes.includes("⚠️")) return true;
     // Empty items and not a manual order

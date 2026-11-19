@@ -15,7 +15,6 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 import { readMenuCollapsed, writeMenuCollapsed } from "@/lib/menu-choice";
 import { CommandPalette, useCommandPalette } from "@/components/shared/command-palette";
-import { PageTransition } from "@/components/shared/page-transition";
 import { WatchlistSync } from "@/components/merchants/watchlist-sync";
 
 // ---------------------------------------------------------------------------
@@ -136,7 +135,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         <div className="max-w-[1800px] mx-auto">
           <AccessCheckNotice />
-          <PageTransition>{children}</PageTransition>
+          {children}
         </div>
       </main>
 

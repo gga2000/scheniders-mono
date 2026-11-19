@@ -98,7 +98,7 @@ export function MerchantsRollupStrip() {
               <div className="min-w-0 flex-1">
                 <p
                   className={cn(
-                    "text-[9px] uppercase tracking-[0.1em] font-black",
+                    "text-xs font-black",
                     tile.accent
                   )}
                 >
@@ -107,13 +107,13 @@ export function MerchantsRollupStrip() {
                 <p className="text-lg font-black text-foreground tabular-nums leading-none mt-1 truncate">
                   {tile.value}
                   {tile.suffix && (
-                    <span className="text-[10px] font-bold text-foreground/40 ml-1">
+                    <span className="text-xs font-bold text-foreground/70 ml-1">
                       {tile.suffix}
                     </span>
                   )}
                 </p>
                 {tile.sublabel && (
-                  <p className="text-[9px] text-foreground/35 mt-0.5 truncate">
+                  <p className="text-xs text-foreground/70 mt-0.5 truncate">
                     {tile.sublabel}
                   </p>
                 )}

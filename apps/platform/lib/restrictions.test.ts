@@ -22,10 +22,10 @@ describe("an expired staff pause", () => {
         update.mockClear();
     });
 
-    it("is lifted by lift_tenant_pause, which gives back the status from before the pause", async () => {
+    it("is lifted by lift_pause_and_settle, which gives back the status from before the pause and settles the lock", async () => {
         row = { status: "limited", restrictions: { paused_until: "2026-11-01T00:00:00Z", status_before: "trial", blocks: { new_orders: true } } };
         expect(await getActiveRestrictions("t1")).toBeNull();
-        expect(rpc).toHaveBeenCalledWith("lift_tenant_pause", { _tenant_id: "t1" });
+        expect(rpc).toHaveBeenCalledWith("lift_pause_and_settle", { _tenant_id: "t1" });
         // Never the old direct write: restrictions is NOT NULL and a trial must not come back 'active'.
         expect(update).not.toHaveBeenCalled();
     });

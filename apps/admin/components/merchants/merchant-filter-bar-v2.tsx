@@ -110,7 +110,7 @@ function FilterDropdown({
           )}
         >
           {Icon && <Icon className="w-3 h-3" />}
-          <span className="text-foreground/40 font-normal">{label}:</span>
+          <span className="text-foreground/70 font-normal">{label}:</span>
           <span>{selected?.label ?? options[0]?.label}</span>
           <ChevronDown className="w-3 h-3 opacity-60" />
         </button>
@@ -177,7 +177,7 @@ function CityPicker({
           )}
         >
           <MapPin className="w-3 h-3" />
-          <span className={cn(isActive ? "" : "text-foreground/40 font-normal")}>
+          <span className={cn(isActive ? "" : "text-foreground/70 font-normal")}>
             {isActive ? "" : "City:"}
           </span>
           <span className="capitalize">{value ?? "Any"}</span>
@@ -211,7 +211,7 @@ function CityPicker({
         </div>
         <div className="max-h-64 overflow-y-auto grid grid-cols-2 gap-1">
           {filtered.length === 0 ? (
-            <div className="col-span-2 text-center py-4 text-xs text-foreground/40">
+            <div className="col-span-2 text-center py-4 text-xs text-foreground/70">
               No cities found
             </div>
           ) : (
@@ -308,7 +308,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-foreground/[0.05] text-foreground/50 hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-foreground/[0.05] text-foreground/70 hover:text-foreground transition-colors"
               aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5" />
@@ -342,7 +342,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
                 <span>{pill.label}</span>
                 <span
                   className={cn(
-                    "px-1.5 py-0.5 rounded-full text-[11px] font-black min-w-[22px] text-center",
+                    "px-1.5 py-0.5 rounded-full text-xs font-black min-w-[22px] text-center",
                     active ? "bg-black/10 dark:bg-white/15" : "bg-current/15"
                   )}
                 >
@@ -389,7 +389,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
               <span>Needs Attention</span>
               <span
                 className={cn(
-                  "px-1.5 py-0.5 rounded-full text-[11px] font-black min-w-[22px] text-center",
+                  "px-1.5 py-0.5 rounded-full text-xs font-black min-w-[22px] text-center",
                   attentionActive
                     ? "bg-white/20 text-white"
                     : "bg-rose-500 text-white"
@@ -409,7 +409,7 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
 
       {/* Secondary filters — compact dropdowns */}
       <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-foreground/5">
-        <span className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold mr-1">
+        <span className="text-xs text-foreground/70 font-bold mr-1">
           Refine
         </span>
         <FilterDropdown
@@ -443,9 +443,9 @@ export const MerchantFilterBarV2 = memo(function MerchantFilterBarV2({
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
-            className="ml-auto text-xs text-foreground/60 hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1.5"
+            className="ml-auto text-xs text-foreground/70 hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1.5"
           >
-            <span className="w-4 h-4 rounded-full bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] text-[10px] flex items-center justify-center font-bold">
+            <span className="min-w-[18px] h-[18px] px-1 leading-none rounded-full bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] text-xs flex items-center justify-center font-bold">
               {activeFilterCount}
             </span>
             Clear all

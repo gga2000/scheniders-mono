@@ -2,6 +2,7 @@
 
 import { Compass } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { useGuidePillBottom } from "./guide-setup-store";
 
 const R = 9;
 const C = 2 * Math.PI * R;
@@ -24,6 +25,7 @@ export function GuidePill({
 }) {
     const { t } = useLanguage();
     const dir = useTextDir();
+    const bottom = useGuidePillBottom();
     const ring = (
         <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 -rotate-90" aria-hidden="true">
             <circle cx="12" cy="12" r={R} fill="none" stroke="rgb(255 255 255 / 0.25)" strokeWidth="3" />
@@ -55,19 +57,19 @@ export function GuidePill({
         </>
     );
     const cls =
-        "fixed bottom-6 z-[46] inline-flex h-11 items-center gap-2.5 rounded-full bg-neutral-900 px-4 text-sm text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]";
+        "fixed z-[46] inline-flex h-11 items-center gap-2.5 rounded-full bg-neutral-900 px-4 text-sm text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]";
     const pill = onOpen ? (
         <button
             type="button"
             onClick={onOpen}
             data-testid="merchant-guide-pill"
-            style={{ left }}
+            style={{ left, bottom }}
             className={`${cls} hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EFFF00]`}
         >
             {body}
         </button>
     ) : (
-        <div data-testid="merchant-guide-pill" style={{ left }} className={cls} role="status">
+        <div data-testid="merchant-guide-pill" style={{ left, bottom }} className={cls} role="status">
             {body}
         </div>
     );

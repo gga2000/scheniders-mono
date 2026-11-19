@@ -57,7 +57,7 @@ export function GuideDone({
     };
 
     return (
-        <div className="fixed inset-0 z-[47] grid place-items-center bg-black/55 p-4" data-testid="merchant-guide-done">
+        <div className="fixed inset-0 z-[47] grid place-items-center-safe overflow-y-auto bg-black/55 p-4" data-testid="merchant-guide-done">
             <div
                 role="dialog"
                 aria-modal="true"

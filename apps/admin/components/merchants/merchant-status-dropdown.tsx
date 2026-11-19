@@ -139,7 +139,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
   // change_plan; without it, or with no move to offer, the status is shown, not offered.
   if (!can("change_plan") || menu.length < 2) {
     return (
-      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1", statusBadgeStyle[status])}>
+      <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1", statusBadgeStyle[status])}>
         <span className={cn("w-1.5 h-1.5 rounded-full", current?.dot)} />
         {current?.label ?? status}
       </span>
@@ -155,7 +155,7 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
           setConfirmAction(null);
         }}
         className={cn(
-          "px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer",
+          "px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer",
           statusBadgeStyle[status]
         )}
       >
@@ -174,13 +174,13 @@ export const MerchantStatusDropdown = memo(function MerchantStatusDropdown({
               <div className="flex gap-1.5">
                 <button
                   onClick={(e) => { e.stopPropagation(); handleConfirm(); }}
-                  className="flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors"
                 >
                   Confirm
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirmAction(null); }}
-                  className="flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--card-border)] text-foreground/60 hover:text-foreground transition-colors"
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs font-semibold border border-[var(--card-border)] text-foreground/70 hover:text-foreground transition-colors"
                 >
                   Cancel
                 </button>
