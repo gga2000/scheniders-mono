@@ -74,12 +74,8 @@ export function ConfirmButton({
   );
 }
 
-/**
- * For a panel's write: while the form is drawn its ErrorLine says a refusal.
- * Once it is gone (staff left the page during the write), a toast says it,
- * starting with what did not happen, so the refusal is never said nowhere.
- */
-export function useLateRefusal(notDone: string): (error: Error) => void {
+/** Whether the component is still on screen, read when a write's answer lands. */
+export function useStillDrawn(): () => boolean {
   const drawn = useRef(true);
   useEffect(() => {
     drawn.current = true;
@@ -87,8 +83,18 @@ export function useLateRefusal(notDone: string): (error: Error) => void {
       drawn.current = false;
     };
   }, []);
+  return () => drawn.current;
+}
+
+/**
+ * For a panel's write: while the form is drawn its ErrorLine says a refusal.
+ * Once it is gone (staff left the page during the write), a toast says it,
+ * starting with what did not happen, so the refusal is never said nowhere.
+ */
+export function useLateRefusal(notDone: string): (error: Error) => void {
+  const stillDrawn = useStillDrawn();
   return (error) => {
-    if (!drawn.current) toast.error(`${notDone} ${error.message}`);
+    if (!stillDrawn()) toast.error(`${notDone} ${error.message}`);
   };
 }
 
@@ -99,6 +105,11 @@ export function ErrorLine({ error }: { error: Error | null }) {
       {error.message}
     </p>
   );
+}
+
+/** The server's answer to a request id it had already done: it did nothing again. */
+export function wasAlreadyDone(answer: unknown): boolean {
+  return typeof answer === "object" && answer !== null && "duplicate" in answer && answer.duplicate === true;
 }
 
 /** Posts JSON and throws the API's own error message when it refuses. */

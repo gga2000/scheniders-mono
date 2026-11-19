@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { createRequestIds } from "./request-ids";
 
@@ -32,5 +34,45 @@ describe("createRequestIds", () => {
     const a = createRequestIds();
     const b = createRequestIds();
     expect(a.idFor("shop-a:5000:")).not.toBe(b.idFor("shop-a:5000:"));
+  });
+});
+
+/*
+ * Round 20: the ids were keyed by the reason's words. A form opened again
+ * starts empty, so a retry typed in other words got a new id and a wallet
+ * could be credited twice. Every key is what moves (shop, amount, days), never
+ * the free text staff type.
+ */
+const ADMIN_DIR = path.resolve(__dirname, "..");
+// "extensionReason" and "topUpDescription" count too.
+const FREE_TEXT = /reason|description|\bwhy\b|\bhow\b|\bnote\b/i;
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) return name === "node_modules" || name.startsWith(".") ? [] : sourceFiles(full);
+    return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [full] : [];
+  });
+}
+
+describe("every request id key", () => {
+  it("is what moves, never the words staff type", () => {
+    const keys: string[] = [];
+    const found: string[] = [];
+    for (const dir of ["app", "components", "hooks", "lib"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const text = readFileSync(file, "utf8");
+        for (let at = text.indexOf(".idFor("); at >= 0; at = text.indexOf(".idFor(", at + 1)) {
+          // A key is a template literal, on one line or several: read to its closing backtick.
+          const rest = text.slice(at, at + 400);
+          const end = rest.search(/`\s*,?\s*\)/);
+          const key = (end > 0 ? rest.slice(0, end + 1) : rest.split("\n")[0]).replace(/\s+/g, " ");
+          keys.push(key);
+          if (FREE_TEXT.test(key)) found.push(`${path.relative(ADMIN_DIR, file).split(path.sep).join("/")}: ${key}`);
+        }
+      }
+    }
+    expect(keys.length).toBeGreaterThanOrEqual(9);
+    expect(found).toEqual([]);
   });
 });

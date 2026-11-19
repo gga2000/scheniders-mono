@@ -149,8 +149,8 @@ export default function BillingPage() {
       tenant_id: topupTenantId,
       amount: topupPlan.amount,
       description,
-      // Same shop, amount and reason asked again (a retry) reuses the id.
-      request_id: requestIds.idFor(`${topupTenantId}:${topupPlan.amount}:${description}`),
+      // Same shop and amount asked again (a retry, the reason reworded) reuses the id.
+      request_id: requestIds.idFor(`${topupTenantId}:${topupPlan.amount}`),
     });
   }
 

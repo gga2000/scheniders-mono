@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { formatCount, formatIQD } from "@/lib/format";
 import type { RequestIds } from "@/lib/request-ids";
 import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { TOPUP_MAX_IQD } from "@/lib/topup-queue";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, wasAlreadyDone, WillHappen } from "./action-ui";
 
 const PRESETS = [5_000, 10_000, 50_000, 100_000];
 
@@ -44,11 +45,15 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
         tenant_id: shopId,
         amount: value,
         description: how.trim(),
-        // The same amount and words sent again (a double press, a retry) credit once.
-        request_id: requestIds.idFor(`${shopId}:${value}:${how.trim()}`),
+        // The same amount sent again before a success (a double press, a retry,
+        // a reopened panel with the words typed anew) credits once.
+        request_id: requestIds.idFor(`${shopId}:${value}`),
       }),
-    onSuccess: () => {
+    onSuccess: (answer, value) => {
       requestIds.done();
+      if (wasAlreadyDone(answer)) {
+        toast.success(`${formatIQD(value)} was already added to ${shopName}, so it was not added again.`);
+      }
       onDone();
     },
     onError: sayLate,

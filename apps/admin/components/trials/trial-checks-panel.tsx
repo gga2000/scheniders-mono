@@ -58,7 +58,7 @@ function DecideActions({ check }: { check: TrialCheck }) {
       const input: TrialCheckDecisionInput = {
         ...ask,
         reason: reason.trim(),
-        request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}:${reason.trim()}`),
+        request_id: requestIds.idFor(`${check.tenant_id}:${ask.decision}:${days}`),
         seen_decided_at: check.decided_at,
       };
       const res = await adminFetch(`/api/trial-checks/${check.tenant_id}`, {

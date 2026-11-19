@@ -9,7 +9,8 @@ import { isStaffReason, STAFF_REASON_MAX, STAFF_REASON_TOO_SHORT } from "@/lib/b
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 import { adminFetch } from "@/lib/admin-fetch";
-import { WillHappen } from "./detail/action-ui";
+import { toast } from "sonner";
+import { useStillDrawn, WillHappen } from "./detail/action-ui";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,6 +77,8 @@ export function BulkActionDialog({
   // Set when the server did the action for some shops and not for others.
   const [partial, setPartial] = useState<BulkOutcome | null>(null);
   const [requestIds] = useState(createRequestIds);
+  const stillDrawn = useStillDrawn();
+  const title = action ? (ACTION_TITLES[action] ?? action) : "";
 
   // Reset form state when switching actions
   useEffect(() => {
@@ -115,6 +118,13 @@ export function BulkActionDialog({
     onSuccess: (outcome) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       if (outcome.failed.length > 0) {
+        // Staff left Merchants during the write: say it where they are now.
+        if (!stillDrawn()) {
+          const total = outcome.done + outcome.failed.length;
+          toast.error(`${title}: done for ${outcome.done} of ${total} ${total === 1 ? "merchant" : "merchants"}.`, {
+            description: notDoneLines(outcome.failed).join(" "),
+          });
+        }
         setPartial(outcome);
         return;
       }
@@ -123,6 +133,7 @@ export function BulkActionDialog({
       onClose();
     },
     onError: (err: Error) => {
+      if (!stillDrawn()) toast.error(`${title} was not done. ${err.message}`);
       setError(err.message);
     },
   });
@@ -168,10 +179,9 @@ export function BulkActionDialog({
         params = {
           days: extensionDays,
           reason: extensionReason.trim(),
-          // The same ask again (a retry) reuses the id, so no shop is extended twice.
-          request_id: requestIds.idFor(
-            `extend:${extensionDays}:${extensionReason.trim()}:${[...selectedIds].sort().join(",")}`,
-          ),
+          // The same days for the same shops again (a retry, the reason typed
+          // anew) reuse the id, so no shop is extended twice.
+          request_id: requestIds.idFor(`extend:${extensionDays}:${[...selectedIds].sort().join(",")}`),
         };
         break;
       case "top-up": {
@@ -192,11 +202,9 @@ export function BulkActionDialog({
         params = {
           amount_iqd: amount,
           description,
-          // Same amount, note and shops asked again (a retry) reuses the id,
-          // so a wallet this request already credited is not credited twice.
-          request_id: requestIds.idFor(
-            `${amount}:${description}:${[...selectedIds].sort().join(",")}`,
-          ),
+          // The same amount for the same shops again (a retry, the note typed
+          // anew) reuses the id, so a wallet already credited is not credited twice.
+          request_id: requestIds.idFor(`top-up:${amount}:${[...selectedIds].sort().join(",")}`),
         };
         break;
       }
@@ -224,15 +232,18 @@ export function BulkActionDialog({
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-foreground">
-              {ACTION_TITLES[action] ?? action}
+              {title}
             </h2>
             <p className="text-sm text-foreground/70 mt-0.5">
               {selectedCount} selected merchant{selectedCount !== 1 ? "s" : ""}
             </p>
           </div>
+          {/* While the write runs, every way out waits, so its answer is seen. */}
           <button
             onClick={close}
-            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            disabled={mutation.isPending}
+            aria-label="Close"
+            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" />
           </button>
@@ -425,7 +436,8 @@ export function BulkActionDialog({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={close}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-all"
+            disabled={mutation.isPending}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {partial ? "Close" : "Cancel"}
           </button>

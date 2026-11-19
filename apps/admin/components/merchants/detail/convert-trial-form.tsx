@@ -42,7 +42,8 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone 
     mutationKey: shopActionKey(shopId),
     mutationFn: () => {
       const reason = why.trim();
-      const request_id = requestIds.idFor(`${shopId}:${days}:${reason}`);
+      // Keyed by what is given, not the words, as the other panels are.
+      const request_id = requestIds.idFor(`${shopId}:${days}`);
       return postJson(`/api/merchants/${shopId}/convert-trial`, { period_days: days, reason, request_id });
     },
     onSuccess: () => {
