@@ -8,11 +8,11 @@ import { usePageHeader } from "@/store/use-page-header";
 
 /**
  * A wrong or old link inside the console: says which address has no page and
- * leads back to the Dashboard, with the menu still there. Drawn like
- * LoadError's "Could not find" state, so a missing page and a missing shop
- * look alike.
+ * leads back to the Dashboard. Drawn like LoadError's "Could not find" state,
+ * so a missing page and a missing shop look alike. app/not-found.tsx puts it
+ * inside the console's menu.
  */
-export default function ConsoleNotFound() {
+export function ConsoleNotFound() {
   const pathname = usePathname();
   const setTab = usePageHeader((s) => s.setTab);
 
