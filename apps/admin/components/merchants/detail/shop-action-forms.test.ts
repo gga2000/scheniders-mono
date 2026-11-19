@@ -105,7 +105,7 @@ describe("Change plan", () => {
   it("asks why the plan changes, and waits for a choice and a reason", () => {
     const html = render(createElement(PlanForm, { shopId: "t1", plan: "starter", onDone: () => {} }));
     expect(html).toContain('aria-label="Reason"');
-    expect(html).not.toContain(">Starter<");
+    expect(html).not.toContain(">Start<");
     expect(confirmButton(html)).toMatch(DISABLED);
   });
 });

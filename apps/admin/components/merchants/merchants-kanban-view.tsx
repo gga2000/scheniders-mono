@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { PLAN_LABELS, type AdminTenant, type PlanTier, type TenantStatus } from "@/types/admin";
+import { planLabel, type AdminTenant, type TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
@@ -104,10 +104,8 @@ const STAGES = Object.values(STAGE_BY_STATUS);
  */
 const isPaused = (status: StageKey) => status === "limited";
 
-const PLAN_GRADIENTS: Record<PlanTier, string> = {
-  starter: "from-sky-400 to-cyan-500",
-  internal: "from-slate-400 to-slate-500",
-};
+/** Our own shops in slate; every plan a shop pays for (Start, Team, Business, Custom) in sky, its letter telling which. */
+const planGradient = (plan: string) => (plan === "internal" ? "from-slate-400 to-slate-500" : "from-sky-400 to-cyan-500");
 
 interface MerchantsKanbanViewProps {
   merchants: AdminTenant[];
@@ -442,7 +440,7 @@ function KanbanCard({
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const balance = merchant.wallet?.balance_iqd ?? 0;
 
-  const planLabel = PLAN_LABELS[merchant.plan];
+  const plan = planLabel(merchant.plan);
 
   return (
     <div
@@ -474,11 +472,11 @@ function KanbanCard({
         <span
           className={cn(
             "px-1.5 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br shrink-0",
-            PLAN_GRADIENTS[merchant.plan]
+            planGradient(merchant.plan)
           )}
-          title={planLabel}
+          title={plan}
         >
-          {planLabel.charAt(0)}
+          {plan.charAt(0).toUpperCase()}
         </span>
       </div>
       <div className="flex items-center gap-2 text-xs text-foreground/70 font-medium tabular-nums">

@@ -5,12 +5,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Filter, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import { PLAN_TIERS, type FilterCondition, type FilterGroup, type AdvancedFilters } from "@/types/admin";
+import {
+  PLAN_FILTER_OPTIONS,
+  STATUS_LABELS,
+  type FilterCondition,
+  type FilterGroup,
+  type AdvancedFilters,
+} from "@/types/admin";
+
+/** Every status, in the card's words ("Paused" was missing and the keys were shown raw). */
+const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
 // ── Field definitions ──────────────────────────────────────────────────
 const FIELDS = [
-  { id: "status", label: "Status", type: "enum", options: ["trial", "active", "suspended", "cancelled"] },
-  { id: "plan", label: "Plan", type: "enum", options: [...PLAN_TIERS] },
+  { id: "status", label: "Status", type: "enum", options: STATUS_OPTIONS },
+  { id: "plan", label: "Plan", type: "enum", options: PLAN_FILTER_OPTIONS },
   { id: "city", label: "City", type: "string" },
   { id: "balance", label: "Balance (IQD)", type: "number" },
   { id: "orders", label: "Orders", type: "number" },
@@ -346,7 +355,7 @@ function ConditionRow({
         >
           <option value="">Select...</option>
           {field.options.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
       ) : condition.operator === "between" ? (

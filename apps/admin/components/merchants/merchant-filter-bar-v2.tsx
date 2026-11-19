@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { SHOP_GOVERNORATES } from "@/lib/shop-city";
 import type { HealthBand } from "@/lib/merchant-health";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
-import { PLAN_LABELS, PLAN_TIERS, type AdminTenant } from "@/types/admin";
+import { PLAN_FILTER_OPTIONS, type AdminTenant } from "@/types/admin";
 
 const DateRangePicker = dynamic(
   () => import("@scheniders/ui/date-range-picker").then((m) => m.DateRangePicker),
@@ -59,7 +59,7 @@ const STATUS_PILLS: Array<{
 
 const PLAN_OPTIONS = [
   { value: "", label: "All Plans" },
-  ...PLAN_TIERS.map((value) => ({ value, label: PLAN_LABELS[value] })),
+  ...PLAN_FILTER_OPTIONS,
 ];
 
 const BALANCE_OPTIONS = [

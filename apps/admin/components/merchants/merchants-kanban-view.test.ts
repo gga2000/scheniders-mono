@@ -28,7 +28,9 @@ const html = renderToStaticMarkup(
   createElement(
     QueryClientProvider,
     { client: new QueryClient() },
-    createElement(MerchantsKanbanView, { merchants: [shop("ours", "internal"), shop("theirs", "starter")] }),
+    createElement(MerchantsKanbanView, {
+      merchants: [shop("ours", "internal"), shop("theirs", "starter"), shop("team", "growth"), shop("business", "professional")],
+    }),
   ),
 );
 
@@ -40,6 +42,13 @@ describe("MerchantsKanbanView words", () => {
 
   it("marks our own shop as never billed on its card", () => {
     expect(html).toContain('title="Internal (no billing)">I<');
-    expect(html).toContain('title="Starter">S<');
+    expect(html).toContain('title="Start">S<');
+  });
+
+  // A Team shop broke the whole Pipeline view for every staff member: the
+  // console's labels knew only Start and Internal (round 18, data new 1).
+  it("names every plan the product sells, in the merchant's words", () => {
+    expect(html).toContain('title="Team">T<');
+    expect(html).toContain('title="Business">B<');
   });
 });

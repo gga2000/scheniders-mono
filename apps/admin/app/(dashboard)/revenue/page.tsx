@@ -19,6 +19,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { formatCount, formatIQD } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
+import { planLabel } from "@/types/admin";
 
 interface RevenueData {
   mrrWaterfall: Array<{ month: string; revenue: number }>;
@@ -240,6 +241,7 @@ export default function RevenuePage() {
                     key={p.plan}
                     type="monotone"
                     dataKey={p.plan}
+                    name={planLabel(p.plan)}
                     stackId="1"
                     fill={PLAN_COLORS[p.plan] || "#d1d5db"}
                     stroke={PLAN_COLORS[p.plan] || "#d1d5db"}
@@ -254,7 +256,7 @@ export default function RevenuePage() {
           {data.revenueByPlan.map((p) => (
             <div key={p.plan} className="flex items-center gap-1.5 text-xs text-foreground/70">
               <span className="w-3 h-3 rounded" style={{ backgroundColor: PLAN_COLORS[p.plan] || "#d1d5db" }} />
-              <span className="capitalize">{p.plan}</span>
+              <span>{planLabel(p.plan)}</span>
             </div>
           ))}
         </div>

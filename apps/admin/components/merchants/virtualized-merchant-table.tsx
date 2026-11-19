@@ -5,7 +5,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TableDensity, MerchantColumnId, SortConfig } from "@/types/admin";
 import { isSortableMerchantColumn } from "@/lib/merchant-sort";
-import { MERCHANT_COLUMNS, PLAN_LABELS, STATUS_LABELS } from "@/types/admin";
+import { MERCHANT_COLUMNS, planLabel, STATUS_LABELS } from "@/types/admin";
 import {
   ArrowUp,
   ArrowDown,
@@ -55,7 +55,6 @@ const PLAN_PILL: Record<string, string> = {
     "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-sm shadow-slate-500/30 ring-1 ring-white/20",
 };
 
-const PLAN_LABEL: Readonly<Record<string, string>> = PLAN_LABELS;
 
 interface VirtualizedMerchantTableProps {
   merchants: AdminTenant[];
@@ -301,7 +300,7 @@ function renderCell(
             PLAN_PILL[m.plan],
           )}
         >
-          {PLAN_LABEL[m.plan] ?? m.plan}
+          {planLabel(m.plan)}
         </span>
       );
 

@@ -19,7 +19,7 @@ import {
   Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STATUS_LABELS, type AdminTenant } from "@/types/admin";
+import { planLabel, STATUS_LABELS, type AdminTenant } from "@/types/admin";
 import { formatCount } from "@/lib/format";
 
 interface MerchantsCompareDialogProps {
@@ -190,7 +190,7 @@ export function MerchantsCompareDialog({
                       planGrad
                     )}
                   >
-                    {m.plan}
+                    {planLabel(m.plan)}
                   </span>
                 </div>
                 {onOpenDetail && (

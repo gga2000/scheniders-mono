@@ -1,13 +1,31 @@
+import { PLAN_KEYS, planName } from "@scheniders/shared/plans";
 import type { ListBillingLock } from "@/lib/billing-lock-label";
 
 export type AdminRole = "super_admin" | "support_staff";
 
-/** The one paid plan, plus "internal" for our own shops (never billed). */
+/**
+ * A plan's name in the console, from the product's own plan names
+ * (packages/shared/src/plans.ts: Start, Team, Business, Custom), so staff and
+ * the merchant name a plan alike. "internal" keeps the console's longer word.
+ * A shop can be on any plan the product sells, not only the two staff move
+ * shops to: a bare PLAN_LABELS[plan] broke Pipeline for a Team shop (round 18).
+ */
+export function planLabel(plan: string): string {
+  return plan === "internal" ? "Internal (no billing)" : planName(plan, "en");
+}
+
+/** Every plan a shop can be on, for the plan filters. */
+export const PLAN_FILTER_OPTIONS: ReadonlyArray<{ value: string; label: string }> = PLAN_KEYS.map((value) => ({
+  value,
+  label: planLabel(value),
+}));
+
+/** The plans staff move a shop to: the one paid plan, plus "internal" for our own shops (never billed). */
 export const PLAN_TIERS = ["starter", "internal"] as const;
 export type PlanTier = (typeof PLAN_TIERS)[number];
 export const PLAN_LABELS: Readonly<Record<PlanTier, string>> = {
-  starter: "Starter",
-  internal: "Internal (no billing)",
+  starter: planLabel("starter"),
+  internal: planLabel("internal"),
 };
 export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
 /**
@@ -108,7 +126,8 @@ export interface AdminTenant {
   display_id?: number | null;
   business_name: string;
   slug: string;
-  plan: PlanTier;
+  /** The stored plan key: any plan the product sells, not only PLAN_TIERS. Name it with planLabel. */
+  plan: string;
   status: TenantStatus;
   trial_ends_at: string | null;
   branding: {

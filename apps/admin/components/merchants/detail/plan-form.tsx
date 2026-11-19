@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
+import { PLAN_LABELS, PLAN_TIERS, planLabel, type PlanTier } from "@/types/admin";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, WillHappen } from "./action-ui";
@@ -21,11 +21,9 @@ export function PlanForm({ shopId, plan, onDone }: { shopId: string; plan: strin
     onSuccess: onDone,
   });
 
-  const current = PLAN_TIERS.find((tier) => tier === plan);
-
   return (
     <div>
-      <PanelTitle aside={`Now ${current ? PLAN_LABELS[current] : plan}`}>Change plan</PanelTitle>
+      <PanelTitle aside={`Now ${planLabel(plan)}`}>Change plan</PanelTitle>
       <div className="mb-3 flex flex-col gap-1.5">
         {PLAN_TIERS.filter((tier) => tier !== plan).map((tier) => (
           <Choice key={tier} selected={next === tier} onClick={() => setNext(tier)} className="text-left">
