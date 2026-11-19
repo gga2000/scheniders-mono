@@ -32,7 +32,7 @@ export function pageAfterSignIn(next: string | null | undefined): string {
   // as "//x": another site.
   if (new URL(page, CONSOLE).href !== url.href) return "/";
   if (plainPath(url.pathname) !== url.pathname) return "/";
-  // The middleware treats every address under "/login" as the login page.
+  // Not the login page, nor an address named like it (none of those is a page).
   if (url.pathname.startsWith("/login") || url.pathname === "/api" || url.pathname.startsWith("/api/")) return "/";
   return page;
 }
