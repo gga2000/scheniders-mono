@@ -62,16 +62,16 @@ interface HealthData {
 // ---------------------------------------------------------------------------
 
 
+/*
+ * Every shop on this list scored 3 or more (app/api/health/route.ts), so none
+ * is painted green as if it were safe: up to 6 amber, 7 and up red.
+ */
 function getRiskBarColor(score: number): string {
-  if (score <= 3) return "bg-green-500";
-  if (score <= 6) return "bg-amber-500";
-  return "bg-red-500";
+  return score <= 6 ? "bg-amber-500" : "bg-red-500";
 }
 
 function getRiskBarBg(score: number): string {
-  if (score <= 3) return "bg-green-500/15";
-  if (score <= 6) return "bg-amber-500/15";
-  return "bg-red-500/15";
+  return score <= 6 ? "bg-amber-500/15" : "bg-red-500/15";
 }
 
 // ---------------------------------------------------------------------------
