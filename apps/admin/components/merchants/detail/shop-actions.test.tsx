@@ -18,16 +18,17 @@ vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const { ShopActions } = await import("./shop-actions");
+const { ANSWER_LOST } = await import("./action-ui");
 const { toast } = await import("sonner");
 
 const SHOP = "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f";
 const refused = () => new Response(JSON.stringify({ error: "Made-up refusal." }), { status: 409 });
 
-function page() {
+function page(client = new QueryClient()) {
   return render(
     createElement(
       QueryClientProvider,
-      { client: new QueryClient() },
+      { client },
       createElement(ShopActions, {
         shopId: SHOP,
         shopName: "Kut Perfumes",
@@ -90,6 +91,16 @@ function tryToClose() {
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   fireEvent.pointerDown(document.body);
 }
+
+/** Presses an amount in the open Add money panel, then its Add button, and waits for the send. */
+async function pressAmount(label: string, sends: number) {
+  fireEvent.click(screen.getByRole("button", { name: label }));
+  fireEvent.click(screen.getByRole("button", { name: `Add ${label} IQD` }));
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(sends));
+  await screen.findByRole("alert");
+}
+
+const waits = (name: string) => screen.getByRole("button", { name }).matches(":disabled");
 
 const sentIds = () => send.mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)).request_id);
 
@@ -169,6 +180,70 @@ describe("the shop page's panels", () => {
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("5,000 IQD was already added to Kut Perfumes, so it was not added again."),
     );
+  });
+
+  it("keep a top-up's request id after another amount was tried", async () => {
+    // Round 20: only the last ask kept its id, so 5,000 lost, then 10,000,
+    // then 5,000 again went out as a new top-up.
+    send.mockImplementation(async () => new Response("Bad Gateway", { status: 502 }));
+    page();
+    fireEvent.click(screen.getByRole("button", { name: "Add money" }));
+    fireEvent.change(screen.getByPlaceholderText("How did it come? Cash at the office, transfer..."), {
+      target: { value: "Cash at the office" },
+    });
+    await pressAmount("5,000", 1);
+    await pressAmount("10,000", 2);
+    await pressAmount("5,000", 3);
+
+    const [five, ten, fiveAgain] = sentIds();
+    expect(ten).not.toBe(five);
+    expect(fiveAgain).toBe(five);
+  });
+
+  it("say a lost answer plainly: a gateway answer with no words, or no answer at all", async () => {
+    send.mockResolvedValueOnce(new Response("<html>Bad Gateway</html>", { status: 502 }));
+    send.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    page();
+    fireEvent.click(screen.getByRole("button", { name: "Add money" }));
+    fireEvent.change(screen.getByPlaceholderText("How did it come? Cash at the office, transfer..."), {
+      target: { value: "Cash at the office" },
+    });
+    await pressAmount("5,000", 1);
+    expect(screen.getByRole("alert").textContent).toBe(ANSWER_LOST);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add 5,000 IQD" }));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe(ANSWER_LOST));
+    expect(ANSWER_LOST).toContain("may have been done");
+  });
+
+  it("read the shop again after a failed write, so the wallet shows whether the money came", async () => {
+    send.mockImplementation(async () => new Response("Gateway Timeout", { status: 504 }));
+    const client = new QueryClient();
+    const reread = vi.spyOn(client, "invalidateQueries");
+    page(client);
+    addFiveThousand();
+    await screen.findByRole("alert");
+
+    expect(reread).toHaveBeenCalledWith({ queryKey: ["admin", "merchant", SHOP] });
+  });
+
+  it("let the other panels' buttons and the running form's choices wait while a write runs", async () => {
+    // Round 20: Give free days opened over a running Add money, closing it,
+    // and the amount could be changed while the first one ran.
+    send.mockReturnValue(new Promise<Response>(() => {}));
+    page();
+    addFiveThousand();
+    await screen.findByRole("button", { name: "Adding..." });
+
+    expect(waits("Give free days")).toBe(true);
+    expect(waits("More")).toBe(true);
+    expect(waits("10,000")).toBe(true);
+    expect(screen.getByLabelText("Other amount in IQD").matches(":disabled")).toBe(true);
+    expect(screen.getByLabelText("Reason").matches(":disabled")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Give free days" }));
+    expect(screen.getByRole("dialog").textContent).toContain("Add money");
   });
 
   it("let Back wait in More while a step runs", async () => {

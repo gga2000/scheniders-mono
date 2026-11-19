@@ -39,7 +39,7 @@ export function StaffReasonInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-1.5 rounded-xl bg-white/80 dark:bg-white/10 ring-1 ring-foreground/10 focus:ring-foreground/30 outline-none text-xs font-medium text-foreground placeholder:text-foreground/40"
+        className="w-full px-3 py-1.5 rounded-xl bg-white/80 dark:bg-white/10 ring-1 ring-foreground/10 focus:ring-foreground/30 outline-none text-xs font-medium text-foreground placeholder:text-foreground/40 disabled:cursor-wait disabled:opacity-60"
       />
       {short && (
         <span id={ruleId} className="mt-1 block text-[12px] leading-snug text-foreground/70">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Lock, ShoppingBag, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -14,7 +14,8 @@ import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { createRequestIds } from "@/lib/request-ids";
 import { formatDay, formatIQD } from "@/lib/format";
 import { LOCK_REASON_WORDS } from "@/lib/billing-lock-label";
-import { adminFetch } from "@/lib/admin-fetch";
+import { shopActionKey } from "@/lib/shop-actions";
+import { postJson, useRereadShop, useWriteFailed } from "./action-ui";
 
 interface BillingLockCardProps {
   merchantId: string;
@@ -45,7 +46,8 @@ type Action = { kind: "orders"; orders: number } | { kind: "unlock"; days: numbe
  * are under Give free days at the top of the page.
  */
 export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }: BillingLockCardProps) {
-  const queryClient = useQueryClient();
+  const rereadShop = useRereadShop(merchantId);
+  const failed = useWriteFailed(merchantId, "The store lock was not changed.");
   const [reason, setReason] = useState("");
   const [customOrders, setCustomOrders] = useState("");
   const [unlockDays, setUnlockDays] = useState(30);
@@ -54,7 +56,9 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
   const reasonOk = isStaffReason(reason);
 
   const mutation = useMutation({
-    mutationFn: async (action: Action) => {
+    // A shop write: the page's other action buttons wait while it runs.
+    mutationKey: shopActionKey(merchantId),
+    mutationFn: (action: Action) => {
       const url =
         action.kind === "orders"
           ? `/api/merchants/${merchantId}/lock-orders`
@@ -65,28 +69,15 @@ export function BillingLockCard({ merchantId, lock, canForceUnlock, shopPaused }
         action.kind === "orders"
           ? { orders: action.orders, reason: reason.trim(), request_id }
           : { days: action.days, reason: reason.trim(), request_id };
-      const res = await adminFetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err: unknown = await res.json().catch(() => null);
-        const message =
-          typeof err === "object" && err !== null && "error" in err && typeof err.error === "string"
-            ? err.error
-            : "Something went wrong";
-        throw new Error(message);
-      }
-      return res.json();
+      return postJson(url, body);
     },
     onSuccess: () => {
       requestIds.done();
-      queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+      rereadShop();
       setReason("");
       setCustomOrders("");
     },
+    onError: failed,
   });
 
   const run = (action: Action) => {
