@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 function refusal(error: { code?: string; hint?: string; message?: string }): NextResponse | null {
   if (error.code === "23505") {
     return NextResponse.json(
-      { error: "A SKU or barcode in this batch is already used in the shop. Nothing in this batch was added: read the file again." },
+      { error: "A SKU or barcode in this batch is already used in the shop." },
       { status: 409 },
     );
   }
