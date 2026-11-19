@@ -138,6 +138,16 @@ describe("changeTitle", () => {
     expect(changeTitle("support_view_end", {})).toBeNull();
     expect(changeTitle("something_new", null)).toBe("Something new");
   });
+
+  // Round 19 (data new 5): every logged call read "Support task noted", with
+  // "outcome: no_answer" beside it, and a call with no task was a "task".
+  it("names a logged call by its outcome, in the Support page's words", () => {
+    const task = "7a1d0b63-8f4f-4d2b-8e3f-2b3c4d5e6f70";
+    expect(changeTitle("support_task_logged", { task_id: null, call_id: "c1", outcome: "no_answer" })).toBe("Called the shop: No answer");
+    expect(changeTitle("support_task_logged", { task_id: task, outcome: "done" })).toBe("Called the shop for a support task: Done");
+    expect(changeTitle("support_task_logged", { task_id: task, outcome: "later" })).toBe("Called the shop for a support task: Later");
+    expect(changeTitle("support_task_logged", { task_id: task })).toBe("Support task noted");
+  });
 });
 
 describe("paging", () => {

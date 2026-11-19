@@ -119,6 +119,10 @@ describe("staffLogSummary", () => {
     ).toMatch(/^reason: Paid in cash \| current period end: \S/);
   });
 
+  it("does not repeat a logged call's outcome its words already say", () => {
+    expect(staffLogSummary("support_task_logged", { task_id: null, call_id: "c1", outcome: "no_answer" })).toBeNull();
+  });
+
   it("leaves out ids, lists and empty values", () => {
     expect(staffLogSummary("any_step", { session_id: "5f0c2c1e-0000-4000-8000-000000000001" })).toBeNull();
     expect(
