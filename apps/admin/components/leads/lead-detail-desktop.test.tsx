@@ -92,3 +92,16 @@ describe("the lead page after a failed read again", () => {
     expect(screen.queryByText(/Could not load this lead again/)).toBeNull();
   });
 });
+
+// Round 3 (r3-17): the lead page called the shop's estimated sales "Revenue
+// Prediction ... potential revenue", which reads as money we would earn. Lead
+// numbers calls the same figure "Est. monthly sales".
+describe("the lead page's sales estimate", () => {
+  it("says it is their sales, estimated, not our revenue", () => {
+    show({ data: { lead: { ...lead, estimated_monthly_revenue: 1_200_000 }, activities: [], follow_ups: [], social_links: [], competitors: [] } });
+
+    expect(screen.getByText("Their sales, estimated")).toBeTruthy();
+    expect(screen.getByText("~1,200,000 IQD in sales a month")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/revenue/i);
+  });
+});
