@@ -539,6 +539,15 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .sbar .rb{flex:1;padding:13px 16px}
 .sbar .wab2{width:52px;flex:none;border-radius:15px;border:0;background:#25D366;display:grid;place-items:center;cursor:pointer}
 .sbar .wab2 svg{width:26px;height:26px}
+.sbar .fts2{width:60px;flex:none;border-radius:15px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 10.5px var(--ar)}
+.sbar .fts2 svg{width:19px;height:19px}
+.sbar .fts2:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pc .fall.sm{align-self:center;border:0;background:none;padding:6px 10px;font-size:14px;color:rgba(255,255,255,.75)}
+.pc .fall.sm:hover{color:#fff;background:rgba(255,255,255,.06)}
+.acts3{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.fin2 .fall{margin:14px 0 8px}
+.pc.star .fall.sm{color:var(--cink)}
+.pc.star .fall.sm:hover{color:var(--cink);background:rgba(0,0,0,.05)}
 
 /* sign-up sheet */
 .shbg{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
@@ -915,11 +924,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 @keyframes fxmq{to{transform:translateX(50%)}}
 .more2 .mqw{margin-top:22px;-webkit-mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
 .more2 .end{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;text-align:center}
-.more2 .fall{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font:700 15px var(--ar);padding:11px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.04);transition:background .25s,border-color .25s}
-.more2 .fall svg{width:17px;height:17px;transition:transform .25s}
-.more2 .fall:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
-.more2 .fall:hover svg{transform:translateX(-3px)}
-.more2 .fall:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.fall{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font:700 15px var(--ar);padding:11px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.04);transition:background .25s,border-color .25s}
+.fall svg{width:17px;height:17px;transition:transform .25s}
+.fall:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
+.fall:hover svg{transform:translateX(-3px)}
+.fall:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .more2 .end small{font:500 12px var(--ar);color:rgba(255,255,255,.5)}
 @media (prefers-reduced-motion:reduce){.mq{animation:none;flex-wrap:wrap;width:auto}.mq .d{display:none}.mq.rev{display:none}.s3 .xscan::after,.s6 .xscanbox::after,.xroad div::after,.s5 .xros b.on::before{animation:none}}
 /* the film chrome (clock + logo) sits above the FX layer; it holds nothing clickable, so let taps reach the rail */
@@ -2171,6 +2180,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
             <li>صوّر المحادثة، والطلب يتعبّى</li><li>الدرع ينبّهك على الطلب الخطر</li><li>ربط برايم وملصقات وتصدير للشحن</li><li>تصدير Excel بأي وقت</li>
           </ul></details>
           <button class="rb lt" data-signup>جرّب 7 أيام مجاناً</button>
+          <a class="fall sm" href="/features">شوف كل الميزات<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a>
         </article>
         <article class="pc star" data-rv>
           <span class="rec">ننصح بيها</span>
@@ -2185,6 +2195,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
             <li>كلفة الطلب الواصل من إعلاناتك</li><li>نسخة احتياطية كل ليلة</li>
           </ul></details>
           <button class="rb" data-signup>جرّب 7 أيام مجاناً</button>
+          <a class="fall sm" href="/features">شوف كل الميزات<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a>
         </article>
         <article class="pc" data-rv>
           <h3>أعمال <small>Business</small></h3>
@@ -2197,6 +2208,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
             <li>رواتب وأهداف وتوقعات الشهر</li><li>مدير حساب، وننقل بياناتك عنك</li>
           </ul></details>
           <button class="rb lt" data-signup>جرّب 7 أيام مجاناً</button>
+          <a class="fall sm" href="/features">شوف كل الميزات<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a>
         </article>
       </div>
       <div class="fine2">
@@ -2221,7 +2233,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
         <li data-rv><span class="d">5</span><div class="c"><small>اليوم 7 · القرار إلك</small><h3>تختار باقة، أو توگف</h3><p>ما اشتركت؟ طلباتك كلها محفوظة، وتگدر تشوفها وتشحنها وتصدّرها. ومتجرك يبقى يستقبل <span class="n">50</span> طلب بعد.</p></div></li>
       </ol>
       <div style="margin-top:26px">
-        <button class="rb" data-signup>ابدي تجربتك المجانية</button>
+        <div class="acts3"><button class="rb" data-signup>ابدي تجربتك المجانية</button><a class="fall" href="/features">شوف كل الميزات<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a></div>
         <p class="notes"><span>7 أيام كاملة</span><span>بدون دفع مقدم</span></p>
       </div>
     </div>
@@ -2259,6 +2271,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
         <button class="rb" data-signup>ابدي تجربتك المجانية</button>
         <button class="rb gh" data-wa><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#iWA"/></svg>احچي ويانا واتساب</button>
       </div>
+      <a class="fall" href="/features">شوف كل الميزات<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a>
       <p class="notes"><span>7 أيام كاملة</span><span>بدون دفع مقدم</span><span>طلباتك ما تنمسح</span></p>
     </div>
   </section>
@@ -2274,6 +2287,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 
 <div class="sbar" id="sbar">
   <button class="rb" data-signup>جرّب 7 أيام مجاناً</button>
+  <a class="fts2" href="/features"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>الميزات</span></a>
   <button class="wab2" data-wa aria-label="واتساب"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#iWA"/></svg></button>
 </div>
 
