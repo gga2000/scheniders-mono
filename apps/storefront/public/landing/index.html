@@ -527,6 +527,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .foot2 .lg{display:flex;align-items:center;gap:9px;font:800 22px var(--ar);color:#fff;margin-bottom:2px}
 .foot2 .lg svg{width:26px}
 .foot2 span{display:block}
+.foot2 span span{display:inline}
+.foot2 a{display:block;color:#fff;text-decoration:none;width:fit-content}
+.foot2 a:hover{text-decoration:underline;text-underline-offset:4px}
+.foot2 a:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:4px}
 
 /* sticky bar after the film */
 .sbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;gap:8px;padding:10px max(14px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px));
@@ -911,6 +915,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 @keyframes fxmq{to{transform:translateX(50%)}}
 .more2 .mqw{margin-top:22px;-webkit-mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
 .more2 .end{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;text-align:center}
+.more2 .fall{display:inline-flex;align-items:center;gap:8px;color:#fff;text-decoration:none;font:700 15px var(--ar);padding:11px 20px;border-radius:99px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.04);transition:background .25s,border-color .25s}
+.more2 .fall svg{width:17px;height:17px;transition:transform .25s}
+.more2 .fall:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
+.more2 .fall:hover svg{transform:translateX(-3px)}
+.more2 .fall:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .more2 .end small{font:500 12px var(--ar);color:rgba(255,255,255,.5)}
 @media (prefers-reduced-motion:reduce){.mq{animation:none;flex-wrap:wrap;width:auto}.mq .d{display:none}.mq.rev{display:none}.s3 .xscan::after,.s6 .xscanbox::after,.xroad div::after,.s5 .xros b.on::before{animation:none}}
 /* the film chrome (clock + logo) sits above the FX layer; it holds nothing clickable, so let taps reach the rail */
@@ -2082,6 +2091,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
     </div>
     <div class="rw end">
       <a class="rb" href="#pricing" data-signup>جرّب كلشي 7 أيام ببلاش</a>
+      <a class="fall" href="/features">شوف كل الميزات<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a>
       <small>الشاشات فوق بأسماء وأرقام تجريبية.</small>
     </div>
   </section>
@@ -2255,7 +2265,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 
   <footer class="foot2">
     <div class="rw">
-      <div><span class="lg"><svg viewBox="0 0 114.02 100" aria-hidden="true"><use href="#fsym"/></svg>فيرمي</span><span>أقوى نظام طلبات بالعراق</span><span>بغداد، زيونة</span></div>
+      <div><span class="lg"><svg viewBox="0 0 114.02 100" aria-hidden="true"><use href="#fsym"/></svg>فيرمي</span><span>أقوى نظام طلبات بالعراق</span><a href="/features">كل ميزات فيرمي</a><span>بغداد، زيونة</span></div>
       <div><b>تواصل ويانا</b><span>واتساب الشركة</span><span>إنستغرام <span class="n">@fermi.iq</span></span><span>فيسبوك Fermi - فيرمي</span></div>
       <div><b>للاطمئنان</b><span>شروط الاستخدام</span><span>سياسة الخصوصية</span><span>سياسة الاسترجاع</span></div>
     </div>
