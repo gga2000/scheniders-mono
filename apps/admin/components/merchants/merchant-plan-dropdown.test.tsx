@@ -17,8 +17,10 @@ vi.mock("@/lib/admin-fetch", () => ({ adminFetch: send }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const { MerchantPlanDropdown } = await import("./merchant-plan-dropdown");
+const { toast } = await import("sonner");
 
 const SHOP = "5b0c9a52-7f3e-4c1a-9d2e-1a2b3c4d5e6f";
+const OTHER = "6c1d0b63-8a4f-4d2b-8e3f-2b3c4d5e6f70";
 
 function open() {
   const view = render(
@@ -33,9 +35,30 @@ function open() {
   return view;
 }
 
+/** Two cards on one page; the first card's move is pressed and left running. */
+async function twoCardsOneMoving() {
+  let answer: (res: Response) => void = () => {};
+  send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+  render(
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(MerchantPlanDropdown, { merchantId: SHOP, plan: "starter", shopName: "Kut Perfumes" }),
+      createElement(MerchantPlanDropdown, { merchantId: OTHER, plan: "starter", shopName: "Basra Shoes" }),
+    ),
+  );
+  fireEvent.click(screen.getAllByRole("button", { name: /^Start/ })[0]);
+  fireEvent.click(screen.getByRole("button", { name: /Internal \(no billing\)/ }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), { target: { value: "Our own test shop" } });
+  fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
+  await screen.findByRole("button", { name: "Moving..." });
+  return (res: Response) => answer(res);
+}
+
 afterEach(() => {
   cleanup();
   send.mockReset();
+  vi.mocked(toast.error).mockReset();
 });
 
 describe("the Merchants plan chip", () => {
@@ -87,6 +110,46 @@ describe("the Merchants plan chip", () => {
     answer(new Response(JSON.stringify({ error: "Only a super admin can change the plan." }), { status: 403 }));
     expect((await screen.findByRole("alert")).textContent).toBe("Only a super admin can change the plan.");
     expect((screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("says a refusal that comes back after the card is gone, naming the shop", async () => {
+    // Round 18: staff left the page during "Moving...", and a refusal was
+    // said nowhere, while a success still showed its toast.
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    const { unmount } = open();
+    fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), { target: { value: "Our own test shop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
+    await screen.findByRole("button", { name: "Moving..." });
+    unmount();
+    answer(new Response(JSON.stringify({ error: "Only a super admin can change the plan." }), { status: 403 }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Kut Perfumes was not moved to Internal (no billing). Only a super admin can change the plan.",
+      ),
+    );
+  });
+
+  it("does not toast a refusal the open menu already says", async () => {
+    send.mockResolvedValue(new Response(JSON.stringify({ error: "Only a super admin can change the plan." }), { status: 403 }));
+    open();
+    fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), { target: { value: "Our own test shop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Move to Internal (no billing)" }));
+    await screen.findByRole("alert");
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("keeps another card's chip shut while a move runs, so two menus are never open at once", async () => {
+    // Round 18: the running menu stays open, so a second card's chip opened a
+    // second menu beside it.
+    const answer = await twoCardsOneMoving();
+    const other = screen.getAllByRole("button", { name: /^Start/ })[1] as HTMLButtonElement;
+    expect(other.disabled).toBe(true);
+    expect(other.title).toBe("Another shop's plan move is running");
+
+    answer(new Response(JSON.stringify({ error: "Only a super admin can change the plan." }), { status: 403 }));
+    await screen.findByRole("alert");
+    await waitFor(() => expect((screen.getAllByRole("button", { name: /^Start/ })[1] as HTMLButtonElement).disabled).toBe(false));
   });
 
   it("draws the confirm over the page, so the card cannot cut it off", () => {

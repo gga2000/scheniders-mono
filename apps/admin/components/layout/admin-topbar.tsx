@@ -37,9 +37,11 @@ interface AdminTopbarProps {
   onMenuClick?: () => void;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
+  /** The tab's name when the address names no page (not-found), drawn in the first answer. */
+  pageName?: string;
 }
 
-export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette }: AdminTopbarProps) {
+export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette, pageName }: AdminTopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -63,7 +65,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
   // The browser tab says where you are, in the menu's words or the shop's name.
   // React puts this <title> in the document head, on the server and after every
   // change; the root layout sets none, so nothing writes over it.
-  const tabTitle = `${tab ?? pageTitle} · Scheniders Admin`;
+  const tabTitle = `${tab ?? pageName ?? pageTitle} · Scheniders Admin`;
 
   // The global merchant search queries /api/merchants and jumps to a merchant
   // profile — it only belongs on the Merchants directory, not every page.

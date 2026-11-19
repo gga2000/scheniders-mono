@@ -40,7 +40,8 @@ const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 afterEach(cleanup);
 
 describe("QuickNotePopover: a quick note being written", () => {
-  it("asks before the page is left, and lets it go once the note is closed", async () => {
+  it("asks before the page is left while a draft is kept, the box open or closed", async () => {
+    // Round 18: closing the box keeps the draft, but leaving then asked nothing.
     open();
     expect(leaving()).toBe(false);
 
@@ -50,7 +51,17 @@ describe("QuickNotePopover: a quick note being written", () => {
     await settle();
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(leaving()).toBe(true);
+
+    fireEvent.click(screen.getByLabelText("Quick note"));
+    fireEvent.change(box(), { target: { value: "  " } });
     expect(leaving()).toBe(false);
+  });
+
+  it("names its Send button, and the button sends no form", () => {
+    open();
+    const send = screen.getByRole("button", { name: "Send note" });
+    expect(send.getAttribute("type")).toBe("button");
   });
 
   it("is drawn over the page, so the card and the menu cannot cut it", () => {
