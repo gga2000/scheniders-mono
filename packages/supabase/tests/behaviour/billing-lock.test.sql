@@ -955,6 +955,32 @@ SELECT pg_temp.check(
     WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c2'),
   'renewed 2 days late: the month starts when it is paid');
 
+-- 12b. The paying count reads the same month as the renewal (staff console
+--      audit round 20, tests new 5). paid_plan_months rebuilds each month
+--      from the ledger with renew_subscription_core's "less than a day"
+--      rule; if one of the two windows changes alone, a month renewed late
+--      is drawn with a gap and the Paying page drops the shop. c4 ended 25
+--      hours ago: past the day, so its month starts when it is paid.
+INSERT INTO public.tenants (id, plan, status) VALUES ('20000000-0000-4000-8000-0000000000c4', 'starter', 'active');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES ('20000000-0000-4000-8000-0000000000c4', 9000);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000c4', 'starter', 'active', now() - interval '31 days 1 hour', now() - interval '25 hours', now() - interval '60 days');
+SELECT pg_temp.check(
+  (SELECT (public.renew_subscription_core(s.id, s.current_period_end))->>'outcome' FROM public.subscriptions s
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c4') = 'renewed',
+  'the month 25 hours late is paid');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start > now() - interval '1 minute' FROM public.subscriptions s
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c4'),
+  'renewed 25 hours late: the month starts when it is paid');
+SELECT pg_temp.check(
+  (SELECT count(*) = 4 AND bool_and(p.month_end = s.current_period_end AND p.paid_until = s.current_period_end)
+     FROM public.paid_plan_months() p
+     JOIN public.subscriptions s ON s.tenant_id = p.tenant_id
+    WHERE p.tenant_id IN ('20000000-0000-4000-8000-0000000000c1', '20000000-0000-4000-8000-0000000000c2',
+                          '20000000-0000-4000-8000-0000000000c3', '20000000-0000-4000-8000-0000000000c4')),
+  'the paying count draws each renewed month where the renewal put it: 18 hours, 10 hours locked, 2 days and 25 hours late');
+
 -- 22. Renewal off (staff console audit round 20, data new 1). A month that
 --     ends with renewal off is not charged: past_due locks the shop like an
 --     unpaid month. No job charges it: not a wallet credit, not the hourly
