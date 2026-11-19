@@ -36,6 +36,7 @@ beforeEach(() => {
   sentry.flush.mockClear();
   stub = supabaseStub();
   stub.state.tables.tenants = [];
+  stub.state.tables.subscriptions = [];
   stub.state.functions.staff_job_runs = () => ({ data: [ran("lift-ended-pauses", 19), ran("refresh-lead-scores", 13)], error: null });
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
@@ -45,7 +46,7 @@ beforeEach(() => {
 describe("GET /api/cron/hourly-jobs", () => {
   it("sends nothing while the jobs run", async () => {
     const res = await run();
-    expect(await res.json()).toEqual({ jobs: 0, pausesNotLifted: 0 });
+    expect(await res.json()).toEqual({ jobs: 0, pausesNotLifted: 0, trialsNotBilled: 0, renewalsMissed: 0 });
     expect(sentry.captureException).not.toHaveBeenCalled();
   });
 
@@ -54,7 +55,7 @@ describe("GET /api/cron/hourly-jobs", () => {
     await run();
     stub.state.functions.staff_job_runs = () => ({ data: [ran("lift-ended-pauses", 19), ran("refresh-lead-scores", 13, "failed")], error: null });
     const res = await run();
-    expect(await res.json()).toEqual({ jobs: 1, pausesNotLifted: 0 });
+    expect(await res.json()).toEqual({ jobs: 1, pausesNotLifted: 0, trialsNotBilled: 0, renewalsMissed: 0 });
 
     expect(sentry.captureException.mock.calls.map(([error, context]) => [String(error), context])).toEqual([
       [
@@ -80,11 +81,37 @@ describe("GET /api/cron/hourly-jobs", () => {
       { id: "b", business_name: "Shop b", status: "limited", is_demo: false, is_prospect: false, restrictions: { paused_until: minutesAgo(20) } },
       { id: "demo", business_name: "Demo", status: "limited", is_demo: true, is_prospect: false, restrictions: { paused_until: minutesAgo(90) } },
     ];
-    expect(await (await run()).json()).toEqual({ jobs: 0, pausesNotLifted: 1 });
+    expect(await (await run()).json()).toEqual({ jobs: 0, pausesNotLifted: 1, trialsNotBilled: 0, renewalsMissed: 0 });
     expect(sentry.captureException).toHaveBeenCalledWith(new Error("Paused shops past their end were not lifted"), {
       fingerprint: ["hourly-pause-not-lifted"],
       extra: { shops: 1, tenant_ids: ["a"] },
     });
+  });
+
+  // Round 20: the renewal runs on the platform, its own Sentry monitor has
+  // never checked in, and the bell shows a missed shop only to a console that
+  // is open. A missed run now reaches Sentry from here.
+  it("sends the trials and months the daily renewal job missed, by id only", async () => {
+    const shop = (status: string) => ({ business_name: "Shop", status, plan: "starter", is_demo: false, is_prospect: false });
+    stub.state.tables.subscriptions = [
+      { id: "s1", tenant_id: "t1", status: "active", plan: "starter", current_period_end: minutesAgo(26 * 60), tenants: shop("active") },
+      { id: "s2", tenant_id: "t2", status: "active", plan: "starter", current_period_end: minutesAgo(30 * 60), tenants: shop("active") },
+      { id: "s3", tenant_id: "t3", status: "trialing", plan: "starter", current_period_end: minutesAgo(40 * 60), tenants: shop("trial") },
+      // Due at 03:00 and not yet a day late: the next run takes it.
+      { id: "s4", tenant_id: "t4", status: "active", plan: "starter", current_period_end: minutesAgo(20 * 60), tenants: shop("active") },
+    ];
+    expect(await (await run()).json()).toEqual({ jobs: 0, pausesNotLifted: 0, trialsNotBilled: 1, renewalsMissed: 2 });
+    expect(sentry.captureException.mock.calls.map(([error, context]) => [String(error), context])).toEqual([
+      [
+        "Error: Trials past their end were never billed",
+        { fingerprint: ["daily-renewal-missed", "trial"], extra: { shops: 1, tenant_ids: ["t3"], oldest_end: minutesAgo(40 * 60) } },
+      ],
+      [
+        "Error: Months past their end were not renewed",
+        { fingerprint: ["daily-renewal-missed", "month"], extra: { shops: 2, tenant_ids: ["t1", "t2"], oldest_end: minutesAgo(30 * 60) } },
+      ],
+    ]);
+    expect(sentry.flush.mock.invocationCallOrder[0]).toBeGreaterThan(sentry.captureException.mock.invocationCallOrder[1]);
   });
 
   it("fails out loud when the check cannot read, so Sentry hears of that too", async () => {
