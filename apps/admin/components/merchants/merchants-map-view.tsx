@@ -325,7 +325,7 @@ export function MerchantsMapView() {
               </div>
 
               <p className="text-xs text-foreground/70 font-medium mt-3 pt-3 border-t border-foreground/10">
-                List below filtered to {selectedGovernorate.name}
+                Cards, Table, Sheet and Pipeline now show only shops in {selectedGovernorate.name}.
               </p>
             </motion.div>
           ) : (
