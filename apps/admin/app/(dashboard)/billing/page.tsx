@@ -132,6 +132,14 @@ export default function BillingPage() {
     },
   });
 
+  // The lines under the form answer the last press. A change to the form
+  // clears them, so a refusal or a success is never read as being about the
+  // next shop; the form is held while a top-up runs (round 17).
+  function changeTopup(apply: () => void) {
+    topupMutation.reset();
+    apply();
+  }
+
   function handleTopup(e: React.FormEvent) {
     e.preventDefault();
     const description = topupDescription.trim();
@@ -205,8 +213,9 @@ export default function BillingPage() {
               </label>
               <select
                 value={topupTenantId}
-                onChange={(e) => setTopupTenantId(e.target.value)}
-                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                onChange={(e) => changeTopup(() => setTopupTenantId(e.target.value))}
+                disabled={topupMutation.isPending}
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
               >
                 <option value="">Select merchant...</option>
                 {sortedWallets.map((w) => (
@@ -227,8 +236,9 @@ export default function BillingPage() {
                   <button
                     key={preset}
                     type="button"
-                    onClick={() => setTopupAmount(preset)}
-                    className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all ${
+                    onClick={() => changeTopup(() => setTopupAmount(preset))}
+                    disabled={topupMutation.isPending}
+                    className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all disabled:opacity-60 ${
                       topupAmount === preset
                         ? "bg-foreground text-background border-foreground"
                         : "bg-[var(--card-bg)] text-foreground/70 border-[var(--card-border)] hover:border-foreground/30"
@@ -242,11 +252,12 @@ export default function BillingPage() {
                 type="number"
                 value={topupAmount}
                 onChange={(e) =>
-                  setTopupAmount(e.target.value ? Number(e.target.value) : "")
+                  changeTopup(() => setTopupAmount(e.target.value ? Number(e.target.value) : ""))
                 }
+                disabled={topupMutation.isPending}
                 placeholder="Custom amount"
                 min={1}
-                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
               />
             </div>
 
@@ -258,10 +269,11 @@ export default function BillingPage() {
               <input
                 type="text"
                 value={topupDescription}
-                onChange={(e) => setTopupDescription(e.target.value)}
+                onChange={(e) => changeTopup(() => setTopupDescription(e.target.value))}
+                disabled={topupMutation.isPending}
                 placeholder="e.g. Qi transfer, receipt 12"
                 maxLength={STAFF_REASON_MAX}
-                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                className="w-full rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60"
               />
             </div>
 

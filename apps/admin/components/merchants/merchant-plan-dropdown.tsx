@@ -94,8 +94,16 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
     );
   }
 
+  // While a move runs the menu stays open, so its answer is always seen: a
+  // refusal that came back to a closed menu was never said (round 17).
   return (
-    <Popover open={open} onOpenChange={(isOpen) => (isOpen ? setOpen(true) : close())}>
+    <Popover
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (isOpen) setOpen(true);
+        else if (!mutation.isPending) close();
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -136,7 +144,8 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
               <button
                 type="button"
                 onClick={close}
-                className="rounded-lg px-3 py-2.5 text-[13px] font-semibold text-foreground/70 hover:bg-foreground/5"
+                disabled={mutation.isPending}
+                className="rounded-lg px-3 py-2.5 text-[13px] font-semibold text-foreground/70 hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
