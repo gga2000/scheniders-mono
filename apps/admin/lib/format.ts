@@ -62,6 +62,16 @@ export function formatMonth(month: string, withYear = true): string {
   return withYear ? `${name} ${year}` : name;
 }
 
+/**
+ * A Baghdad day key, "2025-11-23", as "23 Nov 2025", or "23 Nov" without the
+ * year. The key is already a day, so it is read as written, not as an instant.
+ */
+export function formatDateKey(key: string, withYear = true): string {
+  const [year, month, day] = key.split("-");
+  const text = `${Number(day)} ${formatMonth(`${year}-${month}`, false)}`;
+  return withYear ? `${text} ${year}` : text;
+}
+
 /** "Sun 15 Nov" in Baghdad time; "Wed 9 Apr 2025" when it is not this year. */
 export function formatDay(value: string | number | Date, now: Date = new Date()): string {
   const { weekday, day, month, year } = dayParts(asDate(value));

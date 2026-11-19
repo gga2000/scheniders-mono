@@ -184,8 +184,9 @@ export default function RevenuePage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.ltvDistribution} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis type="number" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={70} />
+                {/* Shops are whole, and "200K-500K" was cut at 70 px (r4-8). */}
+                <XAxis type="number" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="label" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} width={90} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#c4b5fd" radius={[0, 6, 6, 0]} />
               </BarChart>
