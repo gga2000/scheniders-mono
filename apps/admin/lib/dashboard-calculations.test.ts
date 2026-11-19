@@ -256,7 +256,8 @@ describe("smaller widgets", () => {
     const stats = dashboardStats();
     const geo = calculateGeoStats(stats.governorates90, stats.uncodedPlaces90);
     const breakdown = calculateRevenueBreakdown(incomeStats().byPlan90, geo, stats.sources90);
-    expect(breakdown.byPlan[0]).toMatchObject({ label: "Growth", value: 31_960 });
+    // The plan in the merchant's words, as on every other screen (round 19).
+    expect(breakdown.byPlan[0]).toMatchObject({ label: "Team", value: 31_960 });
     expect(breakdown.bySource[0].label).toBe("Whatsapp");
   });
 

@@ -81,6 +81,26 @@ describe("toTimelineEntries", () => {
     expect(entries.map((e) => [e.title, e.who, e.detail])).toEqual([["Support question solved", "Noor", null]]);
   });
 
+  // The database writes a plan charge with the plan's key: "Monthly subscription -
+  // starter plan" (round 19).
+  it("names the plan of a monthly charge and an upgrade as the merchant does", () => {
+    const entries = toTimelineEntries({
+      wallet: [
+        wallet({ id: "w1", amount_iqd: 9000, description: "Monthly subscription - starter plan", created_at: "2026-11-16T10:00:00Z" }),
+        wallet({ id: "w2", amount_iqd: 8000, description: "Plan upgrade to growth plan (rest of this month)", created_at: "2026-11-15T10:00:00Z" }),
+        wallet({ id: "w3", amount_iqd: 500, description: "Fixed by hand", created_at: "2026-11-14T10:00:00Z" }),
+      ],
+      logs: [],
+      notes: [],
+      names,
+    });
+    expect(entries.map((e) => [e.title, e.detail])).toEqual([
+      ["Charge", "Monthly plan: Start"],
+      ["Charge", "Upgrade to Team, rest of this month"],
+      ["Charge", "Fixed by hand"],
+    ]);
+  });
+
   it("names the system's own steps Automatic and falls back to the email the database kept", () => {
     const entries = toTimelineEntries({
       wallet: [],

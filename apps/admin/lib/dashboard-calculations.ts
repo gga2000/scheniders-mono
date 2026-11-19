@@ -28,6 +28,7 @@ import { addDays, dayOf } from "./baghdad-day";
 import { formatMonth } from "./format";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
 import { effectiveStatus } from "./effective-status";
+import { planLabel } from "@/types/admin";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
 import { SHOP_GOVERNORATES, shopGovernorate } from "./shop-city";
 
@@ -371,7 +372,7 @@ export function calculateRevenueBreakdown(
 
   return {
     byPlan: byPlan90.map((p) => ({
-      label: titleCase(p.plan),
+      label: planLabel(p.plan),
       value: p.amount,
       color: PLAN_COLORS[p.plan] || "var(--pastel-mint)",
     })),
