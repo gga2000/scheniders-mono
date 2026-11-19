@@ -55,6 +55,13 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         purpose: the handoff gives the triage to Mohammed,
  *                         and every step can be undone (giving a trial back
  *                         is the same move as extend_trial).
+ *   import_products     — add a shop's products from the Excel or CSV file
+ *                         it sent (Fermi B12 item 7, the setup service). Open
+ *                         to support_staff on purpose: setting shops up is
+ *                         the team's onboarding work. It only adds products
+ *                         (never changes or removes one), each import is in
+ *                         the staff log, and the shop can delete what it does
+ *                         not want.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -80,6 +87,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "manage_demo_store",
     "manage_admins",
     "review_trials",
+    "import_products",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -91,6 +99,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "handle_support",
     "check_payments",
     "review_trials",
+    "import_products",
   ]),
 };
 

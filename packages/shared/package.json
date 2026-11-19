@@ -25,7 +25,9 @@
     "./plans": "./src/plans.ts",
     "./support-hours": "./src/support-hours.ts",
     "./signup-whatsapp": "./src/signup-whatsapp.ts",
-    "./trial-report": "./src/trial-report.ts"
+    "./trial-report": "./src/trial-report.ts",
+    "./ssrf": "./src/ssrf.ts",
+    "./public-fetch": "./src/public-fetch.ts"
   },
   "scripts": {
     "test": "vitest run"

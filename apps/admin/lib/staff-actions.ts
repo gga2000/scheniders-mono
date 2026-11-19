@@ -38,6 +38,8 @@ const TEAM_WORDS: Record<string, string> = {
   delete_lead: "Deleted a lead",
   reassign_lead: "Moved a lead to another owner",
   import_leads: "Imported leads",
+  import_products: "Imported products",
+  import_product_images: "Added imported product images",
   bulk_leads: "Changed several leads at once",
   export_data: "Downloaded a list",
   approve_topup_request: "Approved a payment",
