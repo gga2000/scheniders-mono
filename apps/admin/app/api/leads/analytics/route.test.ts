@@ -69,6 +69,21 @@ describe("GET /api/leads/analytics", () => {
     ]);
   });
 
+  it("ranks people by leads made shops, then by leads added, never by the order rows came in", async () => {
+    // Round 10 (r8-5): with no conversions yet, the medals went to the fewest leads (3, 4, 6 before 15).
+    const added = { a: 3, b: 4, c: 6, d: 15 };
+    stub.state.tables.leads = Object.entries(added).flatMap(([who, count]) =>
+      Array.from({ length: count }, (_, n) => lead(n, { id: `${who}-${n}`, created_by: who })),
+    );
+    stub.state.tables.user_profiles = Object.keys(added).map((id) => ({ id, display_name: id.toUpperCase() }));
+
+    const order = async () => ((await (await call()).json()).top_employees as { user_id: string }[]).map((e) => e.user_id);
+    expect(await order()).toEqual(["d", "c", "b", "a"]);
+
+    stub.state.tables.leads.push(lead(99, { id: "a-99", created_by: "a", status: "converted", converted_at: "2026-11-12T09:00:00Z" }));
+    expect(await order()).toEqual(["a", "d", "c", "b"]);
+  });
+
   it("gives no average time to become a shop while no lead has, instead of 0 days", async () => {
     expect((await (await call()).json()).avg_time_to_convert_days).toBeNull();
 
