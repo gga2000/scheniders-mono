@@ -89,7 +89,7 @@ describe("GET /api/health", () => {
       ["b", 7],
       ["c", 5],
     ]);
-    expect(body.riskIndicators[1].reasons).toEqual(["Low balance", "No orders in 30 days"]);
+    expect(body.riskIndicators[1].reasons).toEqual(["Wallet under 5,000 IQD", "No orders in 30 days"]);
     expect(stub.tablesRead()).not.toContain("usage_tracking");
     expect(body.lowBalanceWallets).toEqual([
       { tenant_id: "c", business_name: "Shop c", balance_iqd: 0, threshold_iqd: 5_000 },
@@ -119,8 +119,8 @@ describe("GET /api/health", () => {
 
     // a: locked 3 (enough alone). c: low balance 3 + no orders 2 + locked 3.
     expect(body.riskIndicators.map((risk: Row) => [risk.tenant_id, risk.risk_score, risk.reasons])).toEqual([
-      ["c", 8, ["Low balance", "No orders in 30 days", "Locked: trial ended, not paid"]],
-      ["b", 7, ["Low balance", "No orders in 30 days", "Suspended"]],
+      ["c", 8, ["Wallet under 5,000 IQD", "No orders in 30 days", "Locked: trial ended, not paid"]],
+      ["b", 7, ["Wallet under 5,000 IQD", "No orders in 30 days", "Suspended"]],
       ["a", 3, ["Locked: month not paid"]],
     ]);
   });

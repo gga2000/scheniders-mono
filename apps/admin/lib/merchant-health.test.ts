@@ -109,12 +109,12 @@ describe("the list's flame", () => {
 describe("shopsAtRiskLine", () => {
   it("counts one shop once when it is at risk and low on money", () => {
     // Live on 17 Nov: "2 issues detected" for one shop.
-    expect(shopsAtRiskLine([{ tenant_id: "a" }], [{ tenant_id: "a" }])).toBe("1 shop needs a look: 1 at risk, 1 low wallet");
+    expect(shopsAtRiskLine([{ tenant_id: "a" }], [{ tenant_id: "a" }])).toBe("1 shop needs a look: 1 at risk, 1 wallet under its alert amount");
   });
 
   it("counts every shop across both lists", () => {
     expect(shopsAtRiskLine([{ tenant_id: "a" }, { tenant_id: "b" }], [{ tenant_id: "b" }, { tenant_id: "c" }])).toBe(
-      "3 shops need a look: 2 at risk, 2 low wallets",
+      "3 shops need a look: 2 at risk, 2 wallets under their alert amount",
     );
   });
 });

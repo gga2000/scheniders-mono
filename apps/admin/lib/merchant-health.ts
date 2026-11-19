@@ -100,5 +100,5 @@ export function listChurnRisk(shop: AdminTenant, now?: number): boolean {
 export function shopsAtRiskLine(atRisk: { tenant_id: string }[], lowWallets: { tenant_id: string }[]): string {
   const shops = new Set([...atRisk, ...lowWallets].map((row) => row.tenant_id)).size;
   const plural = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
-  return `${plural(shops, "shop needs", "shops need")} a look: ${formatCount(atRisk.length)} at risk, ${plural(lowWallets.length, "low wallet", "low wallets")}`;
+  return `${plural(shops, "shop needs", "shops need")} a look: ${formatCount(atRisk.length)} at risk, ${plural(lowWallets.length, "wallet under its alert amount", "wallets under their alert amount")}`;
 }

@@ -225,7 +225,7 @@ export default function HealthPage() {
                       />
                     </div>
                     <span className="text-xs font-bold text-foreground/70 tabular-nums shrink-0">
-                      {ri.risk_score}/10
+                      Risk {ri.risk_score} of 10
                     </span>
                   </div>
                 </div>
@@ -259,7 +259,7 @@ export default function HealthPage() {
         <div className="px-4 py-3 border-b border-[var(--card-border)] flex items-center gap-2">
           <Wallet className="w-4 h-4 text-foreground/70" />
           <h2 className="text-sm font-semibold text-foreground">
-            Low Balance Alerts
+            Wallets under their alert amount
           </h2>
           {!isLoading && (
             <span className="ml-auto text-xs text-foreground/70">
@@ -278,7 +278,7 @@ export default function HealthPage() {
             <CheckCircle2 className="w-10 h-10 mb-2" />
             <p className="text-sm font-medium">All wallets healthy</p>
             <p className="text-xs mt-1">
-              No wallets below their threshold
+              No wallet is under its alert amount
             </p>
           </div>
         ) : (
@@ -293,10 +293,10 @@ export default function HealthPage() {
                     Balance
                   </th>
                   <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-                    Threshold
+                    Alert amount
                   </th>
                   <th className="p-3 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">
-                    Deficit
+                    Short by
                   </th>
                   <th className="p-3 text-center text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                     Action
