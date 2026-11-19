@@ -246,6 +246,16 @@ describe("the shop page's panels", () => {
     expect(screen.getByRole("dialog").textContent).toContain("Add money");
   });
 
+  it("say the wallet after as soon as an amount is chosen, before how it came", () => {
+    // Round 20: Add money and Pause said what would happen only after a reason.
+    page();
+    fireEvent.click(screen.getByRole("button", { name: "Add money" }));
+    fireEvent.click(screen.getByRole("button", { name: "5,000" }));
+
+    expect(screen.getByText("Wallet after: 5,000 IQD.")).toBeTruthy();
+    expect(waits("Add 5,000 IQD")).toBe(true);
+  });
+
   it("let Back wait in More while a step runs", async () => {
     send.mockReturnValue(new Promise<Response>(() => {}));
     page();

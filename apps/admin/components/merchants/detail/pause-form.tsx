@@ -71,7 +71,8 @@ export function PauseForm({ shopId, shopName, onDone }: { shopId: string; shopNa
         ))}
       </div>
       <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop page shows it)" className="mb-3" />
-      {ready && (
+      {/* Said once the days and parts are chosen; only the button waits for the reason (round 20). */}
+      {stopped.length > 0 && (
         <WillHappen>
           {stopped.join(", ").replace(/^./, (c) => c.toUpperCase())} stop until{" "}
           {formatDayTime(endAfterDays(null, days))}, then the pause lifts on its own.
