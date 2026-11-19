@@ -688,7 +688,7 @@ describe("billing lock staff tools", () => {
     dbResult = { data: { success: false, error: "paused" }, error: null };
     const res = await forceUnlock("super", { days: 30, reason: "paid in cash", request_id: REQ });
     expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe("This store is paused. Lift the pause first, then unlock it");
+    expect((await res.json()).error).toBe("This shop is paused. Lift the pause first");
   });
 
   it("a database error or an unreadable answer is a 500, not a success", async () => {

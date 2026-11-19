@@ -13,7 +13,11 @@ import { NO_CONSOLE_ACCESS, SIGNED_OUT, SIGN_IN_ENDED, isNoConsoleAccess } from 
 type GetUser = { data: { user: { id: string } | null }; error: unknown };
 type Claims = Record<string, unknown>;
 type GetClaims = { data: { claims: Claims } | null; error: unknown };
-type AdminRead = { data: { admin_role: string; is_active: boolean } | null; error: { message: string } | null };
+type AdminRead = {
+  data: { admin_role: string; is_active: boolean } | null;
+  error: { message: string; code?: string } | null;
+  status?: number;
+};
 
 let getUser: GetUser;
 /** What the local check of the session's own token answers. */
@@ -167,7 +171,24 @@ describe("middleware access check", () => {
 
     expect(errors.mock.calls).toEqual([
       ["[middleware] Access check failed", { stage: "staff row", path: "/api/leads", message: "connection lost" }],
-      ["[middleware] Access check failed", { stage: "sign-in", path: "/merchants", message: "fetch failed" }],
+      ["[middleware] Access check failed", { stage: "sign-in", path: "/merchants", status: 0, message: "fetch failed" }],
+    ]);
+  });
+
+  // Round 19 (SCHENIDERS-1N): the database answered 500 with an empty body,
+  // and the event said only `"message": ""`.
+  it("reports the answer's status and the error's code, even with an empty message", async () => {
+    adminRead = { data: null, error: { message: "", code: "PGRST002" }, status: 503 };
+    await call("/merchants");
+    getUser = { data: { user: null }, error: new AuthApiError("server error", 500, "unexpected_failure") };
+    await call("/api/leads");
+
+    expect(errors.mock.calls).toEqual([
+      ["[middleware] Access check failed", { stage: "staff row", path: "/merchants", status: 503, code: "PGRST002", message: "" }],
+      [
+        "[middleware] Access check failed",
+        { stage: "sign-in", path: "/api/leads", status: 500, code: "unexpected_failure", message: "server error" },
+      ],
     ]);
   });
 

@@ -4,13 +4,6 @@ import { TOPUP_MAX_IQD } from "./topup-queue";
 
 export const topupAmountSchema = z.number().int().positive().max(TOPUP_MAX_IQD);
 
-/**
- * Made once by the browser for one top-up intent and sent again on a retry, so
- * a repeated request (double click, lost response, retry after a partial bulk
- * failure) credits the wallet once.
- */
-export const topupRequestIdSchema = z.string().uuid();
-
 const rpcResultSchema = z.discriminatedUnion("success", [
   z.object({
     success: z.literal(true),
