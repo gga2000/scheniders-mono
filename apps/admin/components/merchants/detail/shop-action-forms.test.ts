@@ -6,6 +6,8 @@ import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
 import { HoldForm } from "./hold-form";
 import { PlanForm } from "./plan-form";
+import { ConvertTrialForm } from "./convert-trial-form";
+import { PauseForm } from "./pause-form";
 import { createRequestIds } from "@/lib/request-ids";
 
 /*
@@ -108,6 +110,35 @@ describe("Change plan", () => {
     const html = render(createElement(PlanForm, { shopId: "t1", shopName: "Shop", plan: "starter", onDone: () => {} }));
     expect(html).toContain('aria-label="Reason"');
     expect(html).not.toContain(">Start<");
+    expect(confirmButton(html)).toMatch(DISABLED);
+  });
+});
+
+// Round 19 (UX new 4): the free period had four names, its sentence showed
+// only after a reason, and a locked trial was not told its store opens.
+describe("Start free time, no charge", () => {
+  const draw = (locked: boolean) =>
+    render(createElement(ConvertTrialForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), locked, onDone: () => {} }));
+
+  it("says what happens before a reason is typed, in one name: free time", () => {
+    const html = draw(false);
+    expect(html).toContain("Start free time, no charge");
+    expect(html).toContain("The trial ends now and free time runs to Wed 16 Dec.");
+    expect(html).toContain("Nothing is charged today; the first charge is on that day.");
+    expect(html).not.toMatch(/paid time|paid period/i);
+    expect(html).not.toContain("opens again");
+    expect(confirmButton(html)).toMatch(DISABLED);
+  });
+
+  it("tells a locked trial that its store opens again now", () => {
+    expect(draw(true)).toContain("The store opens again now.");
+  });
+});
+
+describe("Pause", () => {
+  it("says what stops and until when before a reason, and only the button waits for it", () => {
+    const html = render(createElement(PauseForm, { shopId: "t1", shopName: "Shop", onDone: () => {} }));
+    expect(html).toContain("New orders stop until Mon 23 Nov, 12:00, then the pause lifts on its own.");
     expect(confirmButton(html)).toMatch(DISABLED);
   });
 });

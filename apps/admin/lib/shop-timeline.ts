@@ -9,6 +9,9 @@
 import { formatCount } from "@/lib/format";
 import { dayOf } from "@/lib/baghdad-day";
 import { planLabel } from "@/types/admin";
+import { CALL_OUTCOMES, CALL_OUTCOME_LABELS, type CallOutcome } from "@/lib/support";
+
+const callOutcomeOf = (value: unknown): CallOutcome | null => CALL_OUTCOMES.find((o) => o === value) ?? null;
 
 export interface WalletRow {
   id: string;
@@ -101,7 +104,7 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return n === null ? "Gave free days this month" : `Gave ${formatCount(n)} free ${n === 1 ? "day" : "days"} this month`;
     case "convert_trial": {
       const period = num(d.duration_days) ?? n;
-      const started = period === null ? "Started paid time" : `Started ${nDays(period)} of paid time`;
+      const started = period === null ? "Started free time" : `Started ${nDays(period)} of free time`;
       const plan = text(d.plan);
       if (!plan) return `${started}, no charge`;
       return plan === "internal" ? `${started} on ${planLabel(plan)}, no charge` : `${started} on the ${planLabel(plan)} plan, no charge`;
@@ -162,8 +165,14 @@ export function changeTitle(action: string, details: Record<string, unknown> | n
       return "Reached out to the shop";
     case "support_shop_taken":
       return "Took the shop for support";
-    case "support_task_logged":
-      return "Support task noted";
+    case "support_task_logged": {
+      // A call staff logged, with or without a task (support_log_shop_call
+      // writes task_id null), in the Support page's outcome words (round 19:
+      // "Support task noted | outcome: no_answer").
+      const outcome = callOutcomeOf(d.outcome);
+      if (!outcome) return "Support task noted";
+      return `${d.task_id ? "Called the shop for a support task" : "Called the shop"}: ${CALL_OUTCOME_LABELS[outcome]}`;
+    }
     case "trial_withheld":
       return "Free trial not given";
     case "create_demo_store":

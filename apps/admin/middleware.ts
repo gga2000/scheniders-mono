@@ -133,8 +133,17 @@ async function checkAccess(request: NextRequest) {
   // instead of reading an outage as "signed out" or "forbidden". The edge
   // Sentry turns console.error into an event, so an outage of the console's
   // front door reaches the alerts, not only the staff who meet it.
-  const checkFailed = (stage: "sign-in" | "staff row", error: unknown) => {
-    console.error("[middleware] Access check failed", { stage, path, message: errorMessage(error) });
+  // The event keeps the answer's status and the error's code: an answer with
+  // an empty body has no message, and a timeout, a lost grant and a bad key
+  // read the same without them (round 19, SCHENIDERS-1N).
+  const checkFailed = (stage: "sign-in" | "staff row", error: unknown, status?: number) => {
+    console.error("[middleware] Access check failed", {
+      stage,
+      path,
+      status: status ?? errorField(error, "status"),
+      code: errorField(error, "code"),
+      message: errorMessage(error),
+    });
     if (isLoginPage) return supabaseResponse;
     const headers = { "retry-after": "5", "cache-control": "no-store" };
     if (isApi) return withSession(NextResponse.json({ error: CHECK_FAILED }, { status: 503, headers }));
@@ -210,13 +219,13 @@ async function checkAccess(request: NextRequest) {
   // table (decoupled from the main app's user_profiles.role). The
   // `admin_users_read_own` RLS policy lets the user read their own row via the
   // anon-authed client. No row is "no access"; a failed read is not.
-  const { data: adminRow, error: adminError } = await supabase
+  const { data: adminRow, error: adminError, status: adminStatus } = await supabase
     .from("admin_users")
     .select("admin_role, is_active")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (adminError) return checkFailed("staff row", adminError);
+  if (adminError) return checkFailed("staff row", adminError, adminStatus);
 
   const isAdmin =
     !!adminRow?.admin_role && adminRow.is_active === true && ALLOWED_ROLES.has(adminRow.admin_role);
@@ -239,6 +248,13 @@ async function checkAccess(request: NextRequest) {
   }
 
   return supabaseResponse;
+}
+
+/** A status or code the error carries (an auth error has both, a database error a code). */
+function errorField(error: unknown, field: "status" | "code"): string | number | undefined {
+  if (typeof error !== "object" || error === null || !(field in error)) return undefined;
+  const value: unknown = Reflect.get(error, field);
+  return typeof value === "string" || typeof value === "number" ? value : undefined;
 }
 
 /** What went wrong, without the request or the session in it. */

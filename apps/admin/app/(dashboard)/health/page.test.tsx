@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 /*
@@ -54,5 +54,26 @@ describe("the Health page's words", () => {
     const bar = document.querySelector<HTMLElement>('[style*="width: 30%"]');
     expect(bar?.className).toContain("bg-amber-500");
     expect(document.querySelector('[class*="bg-green-500"]')).toBeNull();
+  });
+
+  // Round 19 (UX new 8): the status bar was drawn only once the read landed,
+  // and pushed every number under it down 70 to 90 px.
+  it("holds the status bar's place, and each note's line, while the read runs", async () => {
+    let answer: (res: Response) => void = () => {};
+    send.mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    render(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(HealthPage)));
+
+    const waiting = screen.getByRole("status");
+    expect(waiting.textContent).toBe("Checking shops...");
+    const numbers = screen.getByRole("region", { name: "Shop health numbers" });
+    expect(waiting.compareDocumentPosition(numbers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Four numbers and the two notes under them, each "..." while it loads.
+    expect(within(numbers).getAllByText("...").length).toBe(6);
+
+    answer(new Response(JSON.stringify(HEALTH), { status: 200 }));
+    expect(await screen.findByText("1 shop needs a look: 1 at risk, 1 wallet under its alert amount")).toBeTruthy();
+    expect(screen.queryByText("Checking shops...")).toBeNull();
+    expect(within(numbers).getByText("50% of 2 shops")).toBeTruthy();
+    expect(within(numbers).getByText("0 last month")).toBeTruthy();
   });
 });

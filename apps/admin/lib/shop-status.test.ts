@@ -168,7 +168,7 @@ describe("shopStatusLine", () => {
     expect(shopStatusLine(lead, now)).toEqual({
       tone: "paying",
       label: "Free time",
-      sentence: "Not charged yet. Free time from Mon 16 Nov to Wed 16 Dec.",
+      sentence: "No plan charge yet. Free time from Mon 16 Nov to Wed 16 Dec.",
       next: "First charge 9,000 IQD on Wed 16 Dec.",
     });
   });
@@ -200,10 +200,63 @@ describe("shopStatusLine", () => {
     expect(line.label).toBe("Paying");
   });
 
-  it("keeps its words for a month that has ended and waits for the renewal run, and for a month behind", () => {
-    const ended = shop({ paidPlan: NEVER_CHARGED, subscription: { current_period_end: "2026-11-16T09:00:00Z" } });
-    expect(shopStatusLine(ended, now).label).toBe("Paying");
+  it("keeps Paying for a charged month that has ended and waits for the renewal run, and Behind for a month behind", () => {
+    // Paid through its month (17 Oct to 16 Nov 09:00); the run has not charged
+    // the next yet, and paid_plan_months gives it the wait day.
+    const waiting = shop({
+      paidPlan: { first_paid_at: "2026-09-17T09:00:00Z", paid_until: "2026-11-17T09:00:00Z" },
+      subscription: { current_period_start: "2026-10-17T09:00:00Z", current_period_end: "2026-11-16T09:00:00Z" },
+      wallet: 4_000,
+    });
+    // Round 20: it named the month's last day, already past, as the charge day.
+    expect(shopStatusLine(waiting, now)).toEqual({
+      tone: "paying",
+      label: "Paying",
+      sentence: "Paying. This month ended on Mon 16 Nov.",
+      next: "Next charge 9,000 IQD with the next daily renewal. Wallet 4,000 IQD, short by 5,000 IQD. It locks then unless money is added.",
+    });
     expect(shopStatusLine(shop({ paidPlan: NEVER_CHARGED, subscription: { status: "past_due" } }), now).label).toBe("Behind");
+  });
+
+  // Round 19: a converted shop's free year ended at 09:00; until the renewal run
+  // charged it, the page said "Paying" for a shop that had never paid.
+  it("says free time ended, not Paying, while the renewal run has yet to charge it", () => {
+    const ended = shop({
+      paidPlan: NEVER_CHARGED,
+      subscription: { current_period_start: "2025-11-16T09:00:00Z", current_period_end: "2026-11-16T09:00:00Z" },
+      wallet: 4_000,
+    });
+    // Round 20: "with the next renewal" was said twice, in the sentence and the next line.
+    expect(shopStatusLine(ended, now)).toEqual({
+      tone: "trial",
+      label: "Due",
+      sentence: "Free time ended on Mon 16 Nov.",
+      next: "First charge 9,000 IQD with the next daily renewal. Wallet 4,000 IQD, short by 5,000 IQD. It locks then unless money is added.",
+    });
+
+    // Charged before, then free days that have ended: the next charge, not the
+    // first. Free days move the period's end and keep its start, as
+    // admin_extend_subscription writes them (round 20: this read "Paying").
+    const freeDaysEnded = shop({
+      paidPlan: { first_paid_at: "2026-09-11T09:00:00Z", paid_until: "2026-11-10T09:00:00Z" },
+      subscription: { current_period_start: "2026-10-11T09:00:00Z", current_period_end: "2026-11-16T09:00:00Z" },
+    });
+    expect(shopStatusLine(freeDaysEnded, now)).toMatchObject({
+      label: "Due",
+      sentence: "Free time ended on Mon 16 Nov.",
+      next: "Next charge 9,000 IQD with the next daily renewal.",
+    });
+
+    const notRenewed = shop({
+      paidPlan: NEVER_CHARGED,
+      subscription: { current_period_end: "2026-11-16T09:00:00Z", auto_renew: false },
+    });
+    expect(shopStatusLine(notRenewed, now)).toEqual({
+      tone: "ended",
+      label: "Free time ended",
+      sentence: "Free time ended on Mon 16 Nov. Renewal is off, so it is not charged.",
+      next: null,
+    });
   });
 
   it("never bills our own shops", () => {

@@ -6,7 +6,7 @@ import { useLiveTick } from "@/hooks/use-live-tick";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { reactivateWords, shopActionKey, type Comeback } from "@/lib/shop-actions";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { ConfirmButton, ErrorLine, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
+import { ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 interface HoldFormProps {
   shopId: string;
@@ -28,7 +28,7 @@ export function HoldForm({ shopId, shopName, mode, comeback, trialEndsAt, onDone
   const [why, setWhy] = useState("");
   const now = new Date(useLiveTick(60_000));
   const ready = mode === "reactivate" || isStaffReason(why);
-  const sayLate = useLateRefusal(mode === "hold" ? `${shopName} was not put on hold.` : `${shopName} was not reactivated.`);
+  const failed = useWriteFailed(shopId, mode === "hold" ? `${shopName} was not put on hold.` : `${shopName} was not reactivated.`);
   const change = useMutation({
     mutationKey: shopActionKey(shopId),
     mutationFn: () =>
@@ -38,11 +38,11 @@ export function HoldForm({ shopId, shopName, mode, comeback, trialEndsAt, onDone
         "PATCH",
       ),
     onSuccess: onDone,
-    onError: sayLate,
+    onError: failed,
   });
 
   return (
-    <div>
+    <PanelFields busy={change.isPending}>
       <PanelTitle>{mode === "hold" ? "Put on hold" : "Reactivate"}</PanelTitle>
       {mode === "hold" && (
         <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop's timeline shows it)" className="mb-3" />
@@ -60,6 +60,6 @@ export function HoldForm({ shopId, shopName, mode, comeback, trialEndsAt, onDone
       >
         {change.isPending ? "Saving..." : mode === "hold" ? "Put on hold" : "Reactivate"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

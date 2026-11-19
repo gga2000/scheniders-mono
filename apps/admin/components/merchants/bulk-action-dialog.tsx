@@ -5,11 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, type PlanTier } from "@/types/admin";
 import { X, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { createRequestIds } from "@/lib/request-ids";
-import { isStaffReason, STAFF_REASON_MAX, STAFF_REASON_TOO_SHORT } from "@/lib/billing-lock-tools";
+import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { isBulkFailureList, notDoneLines, tooManyShops, type BulkFailure } from "@/lib/bulk-not-done";
 import { adminFetch } from "@/lib/admin-fetch";
-import { WillHappen } from "./detail/action-ui";
+import { toast } from "sonner";
+import { formatIQD } from "@/lib/format";
+import { useStillDrawn, WillHappen } from "./detail/action-ui";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,12 +21,78 @@ interface BulkActionDialogProps {
   action: string | null; // null = closed
   selectedCount: number;
   selectedIds: string[];
+  /** The plan of each picked shop the page has loaded, so Change Plan can say which already have it. */
+  planOf?: ReadonlyMap<string, string>;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-/** What the server did, per shop. `failed` is empty when everything went through. */
-type BulkOutcome = { done: number; failed: BulkFailure[] };
+/**
+ * What the server did, per shop. `failed` is empty when everything went
+ * through; `repeats` counts wallets that already had this top-up (its request
+ * id was seen), so they were not credited again.
+ */
+type BulkOutcome = { done: number; failed: BulkFailure[]; repeats: number };
+
+const shops = (n: number) => (n === 1 ? "1 shop" : `${n} shops`);
+
+/** Before the press: how many picked shops move, and that the ones already on the plan stay as they are. */
+export function planMoveWords(count: number, alreadyOn: number, label: string): string {
+  const unchanged = " Nothing is charged and nothing is refunded.";
+  if (alreadyOn >= count) return `Every picked shop is on ${label} already, so nothing changes.`;
+  const moving = count - alreadyOn;
+  const stay =
+    alreadyOn === 0
+      ? ""
+      : ` ${alreadyOn === 1 ? "1 is" : `${alreadyOn} are`} on ${label} already and ${alreadyOn === 1 ? "stays as it is" : "stay as they are"}.`;
+  return `${moving === 1 ? "1 shop moves" : `${moving} shops move`} to ${label} now.${stay}${unchanged}`;
+}
+
+/**
+ * After a bulk step that went through for every shop: what it did, said in a
+ * toast, as the leads bulk bar does (round 20: a success closed in silence).
+ */
+export function bulkDoneWords(
+  action: string,
+  outcome: BulkOutcome,
+  params: Record<string, unknown> | undefined,
+): string {
+  const n = outcome.done;
+  switch (action) {
+    case "change-plan": {
+      const tier = PLAN_TIERS.find((t) => t === params?.plan);
+      const label = tier ? PLAN_LABELS[tier] : "the new plan";
+      return `${shops(n)} ${n === 1 ? "is" : "are"} on ${label} now.`;
+    }
+    case "extend-trial":
+      return `${n === 1 ? "1 trial" : `${n} trials`} got ${Number(params?.days)} more days.`;
+    case "top-up": {
+      const amount = formatIQD(Number(params?.amount_iqd));
+      const credited = n - outcome.repeats;
+      if (credited === 0) return `Every wallet had ${amount} already, so nothing was added again.`;
+      const again =
+        outcome.repeats === 0
+          ? ""
+          : ` ${outcome.repeats === 1 ? "1 had it already and was" : `${outcome.repeats} had it already and were`} not credited again.`;
+      return `${amount} added to ${credited === 1 ? "1 wallet" : `${credited} wallets`}.${again}`;
+    }
+    case "suspend":
+      return `${shops(n)} suspended.`;
+    case "reactivate":
+      return `${shops(n)} reactivated.`;
+    default:
+      return `Done for ${shops(n)}.`;
+  }
+}
+
+/** How many shops the server says it did, and how many top-ups it had seen before. */
+function doneFrom(body: Record<string, unknown>, sent: number): Pick<BulkOutcome, "done" | "repeats"> {
+  const succeeded = Array.isArray(body.succeeded) ? body.succeeded : null;
+  const repeats = (succeeded ?? []).filter(
+    (s: unknown) => typeof s === "object" && s !== null && "duplicate" in s && s.duplicate === true,
+  ).length;
+  return { done: succeeded ? succeeded.length : sent, repeats };
+}
 
 const PLAN_OPTIONS = PLAN_TIERS.map((value) => ({ value, label: PLAN_LABELS[value] }));
 
@@ -59,6 +127,7 @@ export function BulkActionDialog({
   action,
   selectedCount,
   selectedIds,
+  planOf,
   onClose,
   onSuccess,
 }: BulkActionDialogProps) {
@@ -76,6 +145,8 @@ export function BulkActionDialog({
   // Set when the server did the action for some shops and not for others.
   const [partial, setPartial] = useState<BulkOutcome | null>(null);
   const [requestIds] = useState(createRequestIds);
+  const stillDrawn = useStillDrawn();
+  const title = action ? (ACTION_TITLES[action] ?? action) : "";
 
   // Reset form state when switching actions
   useEffect(() => {
@@ -106,28 +177,50 @@ export function BulkActionDialog({
       if (!res.ok) {
         // Done for some shops, not for others: report it, do not offer a blind retry.
         if (Array.isArray(body.succeeded) && isBulkFailureList(body.failed)) {
-          return { done: body.succeeded.length, failed: body.failed } satisfies BulkOutcome;
+          return { ...doneFrom(body, payload.tenant_ids.length), failed: body.failed } satisfies BulkOutcome;
         }
         throw new Error(typeof body.error === "string" ? body.error : "Failed to execute bulk action");
       }
-      return { done: payload.tenant_ids.length, failed: [] } satisfies BulkOutcome;
+      return { ...doneFrom(body, payload.tenant_ids.length), failed: [] } satisfies BulkOutcome;
     },
-    onSuccess: (outcome) => {
+    onSuccess: (outcome, payload) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       if (outcome.failed.length > 0) {
+        // Staff left Merchants during the write: say it where they are now.
+        if (!stillDrawn()) {
+          const total = outcome.done + outcome.failed.length;
+          toast.error(`${title}: done for ${outcome.done} of ${total} ${total === 1 ? "merchant" : "merchants"}.`, {
+            description: notDoneLines(outcome.failed).join(" "),
+          });
+        }
         setPartial(outcome);
         return;
       }
       requestIds.done();
+      toast.success(bulkDoneWords(action ?? "", outcome, payload.params));
       onSuccess();
       onClose();
     },
     onError: (err: Error) => {
+      if (!stillDrawn()) toast.error(`${title} was not done. ${err.message}`);
       setError(err.message);
     },
   });
 
   if (!action) return null;
+
+  // Steps that change what shops pay or get wait for a reason; Confirm stays
+  // grey until it has one, as every shop page form's button does (round 20).
+  const reason =
+    action === "change-plan"
+      ? planReason
+      : action === "extend-trial"
+        ? extensionReason
+        : action === "top-up"
+          ? topUpDescription
+          : null;
+  const waitsForReason = reason !== null && !isStaffReason(reason);
+  const alreadyOn = selectedIds.filter((id) => planOf?.get(id) === selectedPlan).length;
 
   function close() {
     // The action already ran for some shops: drop the selection so the same
@@ -149,24 +242,15 @@ export function BulkActionDialog({
 
     switch (action) {
       case "change-plan":
-        if (!isStaffReason(planReason)) {
-          setError(STAFF_REASON_TOO_SHORT);
-          return;
-        }
         params = { plan: selectedPlan, reason: planReason.trim() };
         break;
       case "extend-trial":
-        if (!isStaffReason(extensionReason)) {
-          setError(STAFF_REASON_TOO_SHORT);
-          return;
-        }
         params = {
           days: extensionDays,
           reason: extensionReason.trim(),
-          // The same ask again (a retry) reuses the id, so no shop is extended twice.
-          request_id: requestIds.idFor(
-            `extend:${extensionDays}:${extensionReason.trim()}:${[...selectedIds].sort().join(",")}`,
-          ),
+          // The same days for the same shops again (a retry, the reason typed
+          // anew) reuse the id, so no shop is extended twice.
+          request_id: requestIds.idFor(`extend:${extensionDays}:${[...selectedIds].sort().join(",")}`),
         };
         break;
       case "top-up": {
@@ -180,18 +264,12 @@ export function BulkActionDialog({
           return;
         }
         const description = topUpDescription.trim();
-        if (!isStaffReason(description)) {
-          setError(STAFF_REASON_TOO_SHORT);
-          return;
-        }
         params = {
           amount_iqd: amount,
           description,
-          // Same amount, note and shops asked again (a retry) reuses the id,
-          // so a wallet this request already credited is not credited twice.
-          request_id: requestIds.idFor(
-            `${amount}:${description}:${[...selectedIds].sort().join(",")}`,
-          ),
+          // The same amount for the same shops again (a retry, the note typed
+          // anew) reuses the id, so a wallet already credited is not credited twice.
+          request_id: requestIds.idFor(`top-up:${amount}:${[...selectedIds].sort().join(",")}`),
         };
         break;
       }
@@ -219,15 +297,18 @@ export function BulkActionDialog({
         <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-foreground">
-              {ACTION_TITLES[action] ?? action}
+              {title}
             </h2>
             <p className="text-sm text-foreground/70 mt-0.5">
               {selectedCount} selected merchant{selectedCount !== 1 ? "s" : ""}
             </p>
           </div>
+          {/* While the write runs, every way out waits, so its answer is seen. */}
           <button
             onClick={close}
-            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            disabled={mutation.isPending}
+            aria-label="Close"
+            className="p-1.5 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" />
           </button>
@@ -264,10 +345,7 @@ export function BulkActionDialog({
                 onChange={setPlanReason}
                 placeholder="Why? (each shop's timeline shows it)"
               />
-              <WillHappen>
-                {selectedCount} {selectedCount === 1 ? "shop moves" : "shops move"} to {PLAN_LABELS[selectedPlan]} now.
-                Nothing is charged and nothing is refunded.
-              </WillHappen>
+              <WillHappen>{planMoveWords(selectedCount, alreadyOn, PLAN_LABELS[selectedPlan])}</WillHappen>
             </div>
           )}
 
@@ -311,13 +389,10 @@ export function BulkActionDialog({
                 <label className="text-sm font-semibold text-foreground/70">
                   Reason <span className="font-normal text-foreground/70">(saved in the log)</span>
                 </label>
-                <input
-                  type="text"
+                <StaffReasonInput
                   value={topUpDescription}
-                  onChange={(e) => setTopUpDescription(e.target.value)}
+                  onChange={setTopUpDescription}
                   placeholder="e.g. Monthly credit bonus"
-                  maxLength={STAFF_REASON_MAX}
-                  className="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#1E1E1E]/20 transition-all"
                 />
               </div>
               <div className="px-3 py-2 rounded-xl bg-green-50 dark:bg-green-400/10 border border-green-200 dark:border-green-400/20 text-xs text-green-700 dark:text-green-400">
@@ -420,7 +495,8 @@ export function BulkActionDialog({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={close}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-all"
+            disabled={mutation.isPending}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground/70 hover:text-foreground border border-[var(--card-border)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {partial ? "Close" : "Cancel"}
           </button>
@@ -429,7 +505,7 @@ export function BulkActionDialog({
           {!partial && (
             <button
               onClick={handleConfirm}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || waitsForReason}
               className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#1E1E1E] text-white hover:bg-[#2D2D2D] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {mutation.isPending && (

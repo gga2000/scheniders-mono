@@ -124,9 +124,9 @@ describe("changeTitle", () => {
     expect(changeTitle("extend_subscription", { days: 30 })).toBe("Gave 30 free days this month");
     expect(changeTitle("add_lock_orders", { orders: 25 })).toBe("Gave 25 more store orders");
     expect(changeTitle("force_unlock", { days: 7 })).toBe("Unlocked for 7 days, no charge");
-    expect(changeTitle("convert_trial", { days: 30, plan: "growth" })).toBe("Started 30 days of paid time on the Team plan, no charge");
-    expect(changeTitle("convert_trial", { days: 365, plan: "internal" })).toBe("Started 365 days of paid time on Internal (no billing), no charge");
-    expect(changeTitle("convert_trial", {})).toBe("Started paid time, no charge");
+    expect(changeTitle("convert_trial", { days: 30, plan: "growth" })).toBe("Started 30 days of free time on the Team plan, no charge");
+    expect(changeTitle("convert_trial", { days: 365, plan: "internal" })).toBe("Started 365 days of free time on Internal (no billing), no charge");
+    expect(changeTitle("convert_trial", {})).toBe("Started free time, no charge");
     expect(changeTitle("pause_tenant", { duration_days: null })).toBe("Paused, no end date");
     expect(changeTitle("unpause_tenant", { status: "active" })).toBe("Pause lifted");
     expect(changeTitle("unpause_tenant", { status: "active", ended: true })).toBe("Pause ended on its end date");
@@ -137,6 +137,16 @@ describe("changeTitle", () => {
     expect(changeTitle("support_view", {})).toBe("Looked at the shop as the merchant");
     expect(changeTitle("support_view_end", {})).toBeNull();
     expect(changeTitle("something_new", null)).toBe("Something new");
+  });
+
+  // Round 19 (data new 5): every logged call read "Support task noted", with
+  // "outcome: no_answer" beside it, and a call with no task was a "task".
+  it("names a logged call by its outcome, in the Support page's words", () => {
+    const task = "7a1d0b63-8f4f-4d2b-8e3f-2b3c4d5e6f70";
+    expect(changeTitle("support_task_logged", { task_id: null, call_id: "c1", outcome: "no_answer" })).toBe("Called the shop: No answer");
+    expect(changeTitle("support_task_logged", { task_id: task, outcome: "done" })).toBe("Called the shop for a support task: Done");
+    expect(changeTitle("support_task_logged", { task_id: task, outcome: "later" })).toBe("Called the shop for a support task: Later");
+    expect(changeTitle("support_task_logged", { task_id: task })).toBe("Support task noted");
   });
 });
 

@@ -24,6 +24,13 @@ export const REQUEST_REUSED = {
   error: "This request was already used for another change. Reload the page and try again",
 } as const;
 
+/**
+ * The shop is paused, so the database refuses the change until the pause is
+ * lifted. One sentence for every route that meets it (round 19: it was
+ * written five ways, with "store" and "shop" for the same thing).
+ */
+export const SHOP_PAUSED = { status: 409, error: "This shop is paused. Lift the pause first" } as const;
+
 /** What a staff member is told when a reason is too short: one sentence, said only from here. */
 export const STAFF_REASON_TOO_SHORT = `Write a reason with at least ${STAFF_REASON_MIN} letters.`;
 
@@ -61,7 +68,7 @@ const REFUSALS: Record<string, Omit<Refusal, "ok">> = {
   not_found: { status: 404, error: "Merchant not found" },
   request_reused: REQUEST_REUSED,
   not_locked: { status: 409, error: "This store is not locked" },
-  paused: { status: 409, error: "This store is paused. Lift the pause first, then unlock it" },
+  paused: SHOP_PAUSED,
   unpaid_lock: { status: 403, error: "A store locked for an unpaid month gets more orders from a super admin" },
 };
 

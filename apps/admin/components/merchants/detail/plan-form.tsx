@@ -6,7 +6,7 @@ import { PLAN_LABELS, PLAN_TIERS, planLabel, type PlanTier } from "@/types/admin
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
 import { shopActionKey } from "@/lib/shop-actions";
-import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 /**
  * Move a shop to another plan. The button names the move; nothing is charged
@@ -27,16 +27,16 @@ export function PlanForm({
   const [next, setNext] = useState<PlanTier | null>(null);
   const [why, setWhy] = useState("");
 
-  const sayLate = useLateRefusal(`${shopName}'s plan was not changed.`);
+  const failed = useWriteFailed(shopId, `${shopName}'s plan was not changed.`);
   const change = useMutation({
     mutationKey: shopActionKey(shopId),
     mutationFn: (to: PlanTier) => postJson(`/api/merchants/${shopId}`, { plan: to, reason: why.trim() }, "PATCH"),
     onSuccess: onDone,
-    onError: sayLate,
+    onError: failed,
   });
 
   return (
-    <div>
+    <PanelFields busy={change.isPending}>
       <PanelTitle aside={`Now ${planLabel(plan)}`}>Change plan</PanelTitle>
       <div className="mb-3 flex flex-col gap-1.5">
         {PLAN_TIERS.filter((tier) => tier !== plan).map((tier) => (
@@ -55,6 +55,6 @@ export function PlanForm({
       <ConfirmButton disabled={!next || !isStaffReason(why) || change.isPending} onClick={() => next && change.mutate(next)}>
         {change.isPending ? "Changing..." : next ? `Move to ${PLAN_LABELS[next]}` : "Change plan"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

@@ -8,7 +8,7 @@ import { isStaffReason } from "@/lib/billing-lock-tools";
 import type { RequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 const PRESETS: Record<FreeDaysKind, number[]> = { trial: [3, 7, 14], month: [7, 30] };
 const MAX_DAYS: Record<FreeDaysKind, number> = { trial: MAX_TRIAL_EXTENSION_DAYS, month: 365 };
@@ -41,12 +41,14 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
   // A trial's free days are logged with the reason; the month's log keeps the old and new end.
   const ready = daysOk && (kind === "month" || isStaffReason(why));
 
-  const sayLate = useLateRefusal(`${shopName} was not given free days.`);
+  const failed = useWriteFailed(shopId, `${shopName} was not given free days.`);
 
   const give = useMutation({
     mutationKey: shopActionKey(shopId),
     mutationFn: (value: number) => {
-      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}:${why.trim()}`);
+      // Keyed by what is given, not the words: a reopened panel with the reason
+      // typed anew sends the same ask with the same id, so the days come once.
+      const request_id = requestIds.idFor(`${shopId}:${kind}:${value}`);
       return kind === "trial"
         ? postJson(`/api/merchants/${shopId}/extend-trial`, { days: value, reason: why.trim(), request_id })
         : postJson(`/api/merchants/${shopId}/extend-subscription`, { days: value, request_id });
@@ -55,13 +57,13 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
       requestIds.done();
       onDone();
     },
-    onError: sayLate,
+    onError: failed,
   });
 
   const what = kind === "trial" ? "The trial" : "This month";
 
   return (
-    <div>
+    <PanelFields busy={give.isPending}>
       <PanelTitle aside={endsAt ? `ends ${formatDayTime(endsAt)}` : undefined}>
         {kind === "trial" ? "Give free trial days" : "Give free days this month"}
       </PanelTitle>
@@ -110,6 +112,6 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
       <ConfirmButton disabled={!ready || give.isPending} onClick={() => daysOk && give.mutate(days)}>
         {give.isPending ? "Giving..." : daysOk ? `Give ${days} free days` : "Give free days"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

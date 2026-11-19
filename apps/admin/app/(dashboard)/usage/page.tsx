@@ -17,7 +17,7 @@ import {
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
-import { formatDateKey, formatDay } from "@/lib/format";
+import { formatDateKey, formatDay, formatMonth } from "@/lib/format";
 import { adminFetch } from "@/lib/admin-fetch";
 
 interface UsageData {
@@ -30,7 +30,6 @@ interface UsageData {
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const orderCount = (n: number) => `${n} ${n === 1 ? "order" : "orders"}`;
 
@@ -126,13 +125,12 @@ export default function UsagePage() {
           <div className="relative h-3 mb-1">
             {(() => {
               const labels: Array<{ label: string; offset: number }> = [];
-              let lastMonth = -1;
+              let lastMonth = "";
               heatmapGrid.forEach((week, i) => {
-                const d = new Date(week[0].date);
-                const m = d.getUTCMonth();
-                if (m !== lastMonth) {
-                  labels.push({ label: MONTH_LABELS[m], offset: i });
-                  lastMonth = m;
+                const month = week[0].date.slice(0, 7);
+                if (month !== lastMonth) {
+                  labels.push({ label: formatMonth(month, false), offset: i });
+                  lastMonth = month;
                 }
               });
               return labels.map((l) => (
@@ -173,7 +171,7 @@ export default function UsagePage() {
                         "w-[12px] h-[12px] rounded-[2px] transition-colors",
                         getHeatmapColor(cell.count, maxCount),
                       )}
-                      title={`${cell.date}: ${orderCount(cell.count)}`}
+                      title={`${formatDateKey(cell.date)}: ${orderCount(cell.count)}`}
                     />
                   );
                 })}

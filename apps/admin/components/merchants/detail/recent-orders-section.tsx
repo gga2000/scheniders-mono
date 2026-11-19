@@ -42,6 +42,29 @@ export const ORDER_STATUS: Readonly<Record<string, { word: string; tone: Tone }>
   refund_delivered: { word: "Refund delivered", tone: "lost" },
 };
 
+/**
+ * A refund order (is_return) in the merchant's own refund words, so staff on
+ * the phone never read a refund on its way to the customer as a sale on its
+ * way out (round 19): "In transit" at -44,750 IQD was a courier collecting.
+ * Same words as the merchant's list (REFUND_ORDER_STATUS_LABELS in the
+ * merchant app); any other status reads as above.
+ */
+export const REFUND_ORDER_STATUS: Readonly<Record<string, { word: string; tone: Tone }>> = {
+  return_pending: { word: "Pickup pending", tone: "moving" },
+  in_transit: { word: "Courier collecting", tone: "moving" },
+  refund_delivered: { word: "Refunded to customer", tone: "lost" },
+  refund_failed: { word: "Refund failed", tone: "lost" },
+  rejected: { word: "Refund failed", tone: "lost" },
+};
+
+/** An order's status in words: a refund order's own words first. */
+export function orderStatus(order: Pick<RecentOrder, "status" | "is_return">): { word: string; tone: Tone } {
+  return (
+    (order.is_return ? REFUND_ORDER_STATUS[order.status] : undefined) ??
+    ORDER_STATUS[order.status] ?? { word: order.status.replace(/_/g, " "), tone: "neutral" }
+  );
+}
+
 const TONE: Record<Tone, string> = {
   neutral: "bg-foreground/[0.06] text-foreground/70",
   moving: "bg-amber-500/15 text-[var(--ink-amber)] dark:bg-amber-400/15",
@@ -67,7 +90,7 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
       ) : (
         <ul className="divide-y divide-[var(--card-border)]">
           {orders.map((o) => {
-            const status = ORDER_STATUS[o.status] ?? { word: o.status.replace(/_/g, " "), tone: "neutral" as const };
+            const status = orderStatus(o);
             return (
               <li key={o.id} className="flex items-center gap-4 py-2.5">
                 <div className="min-w-0 flex-1">

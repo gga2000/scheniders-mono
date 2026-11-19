@@ -122,6 +122,8 @@ describe("POST /api/billing/topup", () => {
     async (request_id) => {
       const res = await POST(req({ tenant_id: TENANT, amount: 5000, request_id }));
       expect(res.status).toBe(400);
+      // A tab from before request ids is told to reload, as on every other money form.
+      expect((await res.json()).error).toBe("This page is out of date. Reload it and try again");
       expect(rpc).not.toHaveBeenCalled();
     },
   );

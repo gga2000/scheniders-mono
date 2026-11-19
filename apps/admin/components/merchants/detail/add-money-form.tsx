@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { formatCount, formatIQD } from "@/lib/format";
 import type { RequestIds } from "@/lib/request-ids";
 import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { TOPUP_MAX_IQD } from "@/lib/topup-queue";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, wasAlreadyDone, WillHappen } from "./action-ui";
 
 const PRESETS = [5_000, 10_000, 50_000, 100_000];
 
@@ -35,7 +36,7 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
   const amountOk = amount !== null && amount <= TOPUP_MAX_IQD;
   const ready = amountOk && isStaffReason(how);
 
-  const sayLate = useLateRefusal(`No money was added to ${shopName}.`);
+  const failed = useWriteFailed(shopId, `No money was added to ${shopName}.`);
 
   const add = useMutation({
     mutationKey: shopActionKey(shopId),
@@ -44,18 +45,22 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
         tenant_id: shopId,
         amount: value,
         description: how.trim(),
-        // The same amount and words sent again (a double press, a retry) credit once.
-        request_id: requestIds.idFor(`${shopId}:${value}:${how.trim()}`),
+        // The same amount sent again before a success (a double press, a retry,
+        // a reopened panel with the words typed anew) credits once.
+        request_id: requestIds.idFor(`${shopId}:${value}`),
       }),
-    onSuccess: () => {
+    onSuccess: (answer, value) => {
       requestIds.done();
+      if (wasAlreadyDone(answer)) {
+        toast.success(`${formatIQD(value)} was already added to ${shopName}, so it was not added again.`);
+      }
       onDone();
     },
-    onError: sayLate,
+    onError: failed,
   });
 
   return (
-    <div>
+    <PanelFields busy={add.isPending}>
       <PanelTitle aside={`Wallet now ${formatIQD(balance)}`}>Add money</PanelTitle>
       <div className="mb-2 grid grid-cols-4 gap-1.5">
         {PRESETS.map((value) => (
@@ -91,11 +96,12 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
       {amount !== null && !amountOk && (
         <p className="mb-2 text-[13px] text-[var(--ink-red)]">At most {formatIQD(TOPUP_MAX_IQD)} at once.</p>
       )}
-      {ready && <WillHappen>Wallet after: {formatIQD(balance + amount)}.</WillHappen>}
+      {/* Said once the amount is chosen; only the button waits for how it came (round 20). */}
+      {amountOk && <WillHappen>Wallet after: {formatIQD(balance + amount)}.</WillHappen>}
       <ErrorLine error={add.error} />
       <ConfirmButton disabled={!ready || add.isPending} onClick={() => amount !== null && add.mutate(amount)}>
         {add.isPending ? "Adding..." : amountOk ? `Add ${formatIQD(amount)}` : "Add money"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

@@ -181,9 +181,12 @@ describe("POST /api/bulk top_up", () => {
     },
   );
 
-  it.each([null, "", "not-a-uuid"])("refuses a top-up without a valid request id (%s)", async (requestId) => {
+  it.each([null, "", "not-a-uuid"])("refuses a top-up without a valid request id (%s), asking the page to reload", async (requestId) => {
     const res = await POST(topUp(10_000, [T1, T2], requestId));
     expect(res.status).toBe(400);
+    // Round 19 (structure new 5): the top-up said "params.request_id is
+    // required and must be a UUID" where every other money form says reload.
+    expect((await res.json()).error).toBe("This page is out of date. Reload it and try again");
     expect(rpc).not.toHaveBeenCalled();
   });
 
