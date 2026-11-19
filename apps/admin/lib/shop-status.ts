@@ -37,6 +37,12 @@ function shortByThen(balance: number, price: number): string {
   return short && `${short} It locks that day unless money is added.`;
 }
 
+/** A charge the next renewal run takes, for a period that has already ended. */
+function chargeWithRenewal(which: "First" | "Next", balance: number, price: number): string {
+  const short = shortBy(balance, price);
+  return `${which} charge ${formatIQD(price)} with the next daily renewal.${short && `${short} It locks then unless money is added.`}`;
+}
+
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
   const { tenant, wallet, subscription, billingLock, stoppedBy, paidPlan } = detail;
   const balance = wallet?.balance_iqd ?? 0;
@@ -136,27 +142,23 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
     };
   }
 
-  // Free time that has ended and waits for the renewal run: no charged month
-  // covers this period, so it is not "Paying" (round 19: a shop never charged
-  // read "Paying" from the end of its free year until the run charged it).
-  const periodCharged =
-    paidPlan.paid_until !== null && Date.parse(paidPlan.paid_until) > Date.parse(subscription.current_period_start);
-  if (!periodCharged && subscription.status !== "past_due") {
-    const ended = `Free time ended on ${formatDay(end, now)}.`;
+  // A period that has ended and waits for the renewal run. It was paid only
+  // when its charged month reaches the period's end: free days move the end
+  // past the paid month and keep its start (round 20), and a converted shop's
+  // free year was never charged (round 19). Either way it is not "Paying".
+  const ended = Date.parse(end) <= now.getTime();
+  const periodCharged = paidPlan.paid_until !== null && Date.parse(paidPlan.paid_until) >= Date.parse(end);
+  if (ended && !periodCharged && subscription.status !== "past_due") {
+    const endedOn = `Free time ended on ${formatDay(end, now)}.`;
     if (subscription.auto_renew === false) {
-      return { tone: "ended", label: "Free time ended", sentence: `${ended} Renewal is off, so it is not charged.`, next: null };
+      return { tone: "ended", label: "Free time ended", sentence: `${endedOn} Renewal is off, so it is not charged.`, next: null };
     }
-    const first = paidPlan.first_paid_at === null ? "first" : "next";
+    const which = paidPlan.first_paid_at === null ? "First" : "Next";
     return {
       tone: "trial",
       label: "Due",
-      sentence: `${ended} The ${first} charge runs with the next renewal.`,
-      next:
-        price > 0
-          ? `${first === "first" ? "First" : "Next"} charge ${formatIQD(price)} with the next renewal.${
-              shortBy(balance, price) && `${shortBy(balance, price)} It locks then unless money is added.`
-            }`
-          : null,
+      sentence: endedOn,
+      next: price > 0 ? chargeWithRenewal(which, balance, price) : null,
     };
   }
 
@@ -168,13 +170,28 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
       next: `The month ends on ${formatDay(end, now)} and is not renewed.`,
     };
   }
+  if (subscription.status === "past_due") {
+    return {
+      tone: "paying",
+      label: "Behind",
+      sentence: "The last month is not paid yet.",
+      next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
+    };
+  }
+  // A paid month that has ended and waits for the renewal run: the charge
+  // comes with the run, not on the month's last day, which has passed (round 20).
+  if (ended) {
+    return {
+      tone: "paying",
+      label: "Paying",
+      sentence: `Paying. This month ended on ${formatDay(end, now)}.`,
+      next: price > 0 ? chargeWithRenewal("Next", balance, price) : null,
+    };
+  }
   return {
     tone: "paying",
-    label: subscription.status === "past_due" ? "Behind" : "Paying",
-    sentence:
-      subscription.status === "past_due"
-        ? "The last month is not paid yet."
-        : `Paying. This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`,
+    label: "Paying",
+    sentence: `Paying. This month runs from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`,
     next: price > 0 ? `Next charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
   };
 }
