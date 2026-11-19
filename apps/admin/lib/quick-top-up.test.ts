@@ -26,7 +26,18 @@ describe("Quick Top-Up says what it will do before the press", () => {
     expect(quickTopUpPlan(SHOP, 0, "Qi transfer")).toEqual(amount);
     expect(quickTopUpPlan(SHOP, -5_000, "Qi transfer")).toEqual(amount);
     expect(quickTopUpPlan(SHOP, 2_500.5, "Qi transfer")).toEqual(amount);
-    expect(quickTopUpPlan(SHOP, 25_000, "ok")).toEqual({ kind: "blocked", words: "The reason needs at least 3 letters." });
+    expect(quickTopUpPlan(SHOP, 25_000, "ok")).toEqual({ kind: "blocked", words: "Write a reason with at least 3 letters." });
+  });
+
+  // Round 18 (UX new 5): the rule counted any character, so "..." went through as a reason.
+  it("counts letters, in any script, not dots or digits", () => {
+    const short = { kind: "blocked", words: "Write a reason with at least 3 letters." };
+    expect(quickTopUpPlan(SHOP, 25_000, "...")).toEqual(short);
+    expect(quickTopUpPlan(SHOP, 25_000, "a.b")).toEqual(short);
+    expect(quickTopUpPlan(SHOP, 25_000, "123")).toEqual(short);
+    expect(quickTopUpPlan(SHOP, 25_000, "نقد").kind).toBe("ready");
+    expect(quickTopUpPlan(SHOP, 25_000, "Qi 12")).toEqual(short);
+    expect(quickTopUpPlan(SHOP, 25_000, "Zain 12").kind).toBe("ready");
   });
 
   it("says the limit above 10,000,000 IQD instead of a refusal after the press", () => {

@@ -14,7 +14,7 @@ interface StaffReasonInputProps {
 /**
  * The reason a staff member gives for a billing tool (extend a trial, more
  * store orders, free unlock). It is saved in the activity log with the action;
- * the action stays disabled until it is at least 3 characters (isStaffReason).
+ * the action stays disabled until it has at least 3 letters (isStaffReason).
  */
 export function StaffReasonInput({
   value,

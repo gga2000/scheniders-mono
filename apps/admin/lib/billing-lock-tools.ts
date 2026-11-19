@@ -24,10 +24,22 @@ export const REQUEST_REUSED = {
   error: "This request was already used for another change. Reload the page and try again",
 } as const;
 
-/** A reason the database accepts: trimmed, 3 to 500 characters. */
+/** What a staff member is told when a reason is too short: one sentence, said only from here. */
+export const STAFF_REASON_TOO_SHORT = `Write a reason with at least ${STAFF_REASON_MIN} letters.`;
+
+/**
+ * The letters in a reason, in any script. "..." has none, so it is no
+ * reason; "متجر" has four. The database counts the same letters
+ * (admin_billing_reason). Round 18: any character counted, so "..." passed.
+ */
+export function staffReasonLetters(reason: string): number {
+  return reason.match(/\p{L}/gu)?.length ?? 0;
+}
+
+/** A reason the database accepts: at least 3 letters, at most 500 characters once trimmed. */
 export function isStaffReason(reason: string): boolean {
-  const length = reason.trim().length;
-  return length >= STAFF_REASON_MIN && length <= STAFF_REASON_MAX;
+  const trimmed = reason.trim();
+  return staffReasonLetters(trimmed) >= STAFF_REASON_MIN && trimmed.length <= STAFF_REASON_MAX;
 }
 
 export type StaffActor = { id: string; email?: string | null };
