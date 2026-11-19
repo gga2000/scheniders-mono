@@ -2,6 +2,7 @@
 
 import { ArrowUpDown, ArrowRight } from "lucide-react";
 import type { PlanMovement } from "@/types/dashboard";
+import { planLabel } from "@/types/admin";
 
 interface PlanMovementProps {
   movements: PlanMovement[] | undefined;
@@ -41,10 +42,11 @@ function Skeleton() {
   );
 }
 
+/** Each end of a move: "New" and "Cancelled", or the plan in the merchant's words. */
 function formatPlan(plan: string): string {
   if (plan === "new") return "New";
   if (plan === "cancelled") return "Cancelled";
-  return plan.charAt(0).toUpperCase() + plan.slice(1);
+  return planLabel(plan);
 }
 
 export function PlanMovementWidget({ movements }: PlanMovementProps) {

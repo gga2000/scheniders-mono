@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   alreadyDecidedText,
   amountStillOwed,
+  billingLine,
   EMPTY_PAYMENT_DETAILS,
   lockedChip,
   paymentDetailsSchema,
@@ -62,6 +63,22 @@ describe("lockedChip", () => {
   it("is nothing for a shop that is not locked", () => {
     expect(lockedChip({ billing: { ...billing, locked: false, reason: null }, balance_iqd: 0, tenant_status: "limited" })).toBeNull();
     expect(lockedChip({ billing: null, balance_iqd: 0, tenant_status: "active" })).toBeNull();
+  });
+});
+
+// Payments kept its own plan map with no "internal", and a shop with no
+// billing row read "No plan plan" (round 19).
+describe("billingLine", () => {
+  const billing = { locked: false, reason: null, plan: "starter", price_iqd: 9000 };
+
+  it("names the plan as the merchant does, then the next payment and the wallet", () => {
+    expect(billingLine({ billing: { ...billing, plan: "growth", price_iqd: 25000 }, balance_iqd: 4000 })).toBe(
+      "Team plan · next payment 25,000 IQD · wallet 4,000 IQD",
+    );
+    expect(billingLine({ billing: { ...billing, plan: "internal", price_iqd: 0 }, balance_iqd: 0 })).toBe(
+      "Internal (no billing) · next payment 0 IQD · wallet 0 IQD",
+    );
+    expect(billingLine({ billing: null, balance_iqd: 1500 })).toBe("No plan · wallet 1,500 IQD");
   });
 });
 

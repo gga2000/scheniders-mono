@@ -32,4 +32,10 @@ describe("PlanMovementWidget", () => {
     expect(html).toMatch(/>2<\/p><p[^>]*>New</);
     expect(html).toContain(">upgrade</span>");
   });
+
+  // Home read "Starter → Growth", words the merchant never sees (round 19).
+  it("names each plan as the merchant does", () => {
+    expect(html).toMatch(/>Start<\/span>[\s\S]*>Team<\/span>/);
+    expect(html).not.toMatch(/Starter|Growth/);
+  });
 });

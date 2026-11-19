@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { lockedBecause } from "@/lib/billing-lock-label";
 import { formatIQD } from "@/lib/format";
+import { planLabel } from "@/types/admin";
 
 /**
  * Shops that paid us by transfer and uploaded the receipt (Fermi B3). Read
@@ -102,6 +103,18 @@ export function lockedChip(row: Pick<TopupQueueRow, "billing" | "balance_iqd" | 
       : `${why} · paused, opens once the pause lifts`;
   }
   return owed > 0 ? `${why} · needs ${formatIQD(owed)} to open` : `${why} · this payment opens it`;
+}
+
+/**
+ * The shop's plan, next payment and wallet on a request's card, the plan in
+ * the merchant's words ("Start plan", "Internal (no billing)").
+ */
+export function billingLine(row: Pick<TopupQueueRow, "billing" | "balance_iqd">): string {
+  const plan = row.billing?.plan;
+  const parts = [!plan ? "No plan" : plan === "internal" ? planLabel(plan) : `${planLabel(plan)} plan`];
+  if (row.billing) parts.push(`next payment ${formatIQD(row.billing.price_iqd)}`);
+  parts.push(`wallet ${formatIQD(row.balance_iqd)}`);
+  return parts.join(" · ");
 }
 
 /** Why staff should look twice before approving, in plain words; empty when nothing stands out. */

@@ -187,6 +187,21 @@ function changeDetail(action: string, details: Record<string, unknown> | null): 
   return text(d.reason) ?? text(d.description);
 }
 
+// The database writes a plan charge's line with the plan's key
+// (renew_subscription_core, change_plan): name the plan as the merchant does.
+const MONTHLY_CHARGE = /^Monthly subscription - (\w+) plan$/;
+const PLAN_UPGRADE = /^Plan upgrade to (\w+) plan \(rest of this month\)$/;
+
+function walletDetail(description: string | null): string | null {
+  const said = text(description);
+  if (said === null || said === "Order charge") return null;
+  const monthly = MONTHLY_CHARGE.exec(said);
+  if (monthly) return `Monthly plan: ${planLabel(monthly[1])}`;
+  const upgrade = PLAN_UPGRADE.exec(said);
+  if (upgrade) return `Upgrade to ${planLabel(upgrade[1])}, rest of this month`;
+  return said;
+}
+
 function moneyTitle(row: WalletRow): string {
   const type = row.type.toLowerCase();
   if (CREDIT.has(type)) return type === "refund" ? "Refund" : "Money added";
@@ -226,7 +241,7 @@ export function toTimelineEntries(input: {
     kind: "money",
     at: row.created_at,
     title: moneyTitle(row),
-    detail: row.description === "Order charge" ? null : text(row.description),
+    detail: walletDetail(row.description),
     who: (row.created_by && names.get(row.created_by)) || AUTOMATIC,
     amount: signed(row),
     walletAfter: row.balance_after_iqd,
