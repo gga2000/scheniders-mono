@@ -17,7 +17,7 @@ import {
 import { AnimatedCounter } from "@/components/shared/animated-counter";
 import { cn } from "@/lib/utils";
 import { LoadError } from "@/components/shared/load-error";
-import { formatDay } from "@/lib/format";
+import { formatDateKey, formatDay } from "@/lib/format";
 import { adminFetch } from "@/lib/admin-fetch";
 
 interface UsageData {
@@ -57,14 +57,16 @@ export default function UsagePage() {
     refetchInterval: 120_000,
   });
 
+  const heatmapData = data?.heatmapData;
+
   // Build week grid for heatmap
   const heatmapGrid = useMemo(() => {
-    if (!data?.heatmapData) return [];
+    if (!heatmapData) return [];
 
     const weeks: Array<Array<{ date: string; count: number; dayOfWeek: number }>> = [];
     let currentWeek: Array<{ date: string; count: number; dayOfWeek: number }> = [];
 
-    data.heatmapData.forEach((day) => {
+    heatmapData.forEach((day) => {
       // A day key is a Baghdad calendar day: read it as a plain date, not in the browser's zone.
       const d = new Date(day.date);
       const dow = d.getUTCDay();
@@ -79,12 +81,9 @@ export default function UsagePage() {
 
     if (currentWeek.length > 0) weeks.push(currentWeek);
     return weeks;
-  }, [data?.heatmapData]);
+  }, [heatmapData]);
 
-  const maxCount = useMemo(
-    () => Math.max(1, ...(data?.heatmapData?.map((d) => d.count) || [1])),
-    [data?.heatmapData],
-  );
+  const maxCount = useMemo(() => Math.max(1, ...(heatmapData?.map((d) => d.count) || [1])), [heatmapData]);
 
   if (isError && !data) {
     return <LoadError what="the usage numbers" onRetry={() => refetch()} retrying={isFetching} />;
@@ -97,6 +96,9 @@ export default function UsagePage() {
       </div>
     );
   }
+
+  // The year of the week in progress: a week tick names its year only when it is another one.
+  const thisYear = data.weeklyTrend.at(-1)?.week.slice(0, 4);
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -226,9 +228,17 @@ export default function UsagePage() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.weeklyTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="week" tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} interval={7} />
-                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} />
-                <Tooltip />
+                {/* Week keys ("2025-11-23") printed raw ran into each other and off the edge (r4-8). */}
+                <XAxis
+                  dataKey="week"
+                  tick={{ fontSize: 13, fill: "var(--foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={7}
+                  tickFormatter={(week: string) => formatDateKey(week, week.slice(0, 4) !== thisYear)}
+                />
+                <YAxis tick={{ fontSize: 13, fill: "var(--foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip labelFormatter={(week) => `Week of ${formatDateKey(String(week))}`} />
                 <Line type="monotone" dataKey="count" stroke="#86efac" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>

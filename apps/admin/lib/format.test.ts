@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDay, formatDayTime, formatIQD, formatMonth, formatUntil, formatUntilDay, formatWhen } from "./format";
+import { formatCount, formatDateKey, formatDay, formatDayTime, formatIQD, formatMonth, formatUntil, formatUntilDay, formatWhen } from "./format";
 
 describe("formatIQD", () => {
   it("writes whole dinars with commas and IQD after", () => {
@@ -53,6 +53,13 @@ describe("formatDay", () => {
 
   it("adds the Baghdad time when asked", () => {
     expect(formatDayTime("2026-11-15T11:05:00Z", now)).toBe("Sun 15 Nov, 14:05");
+  });
+});
+
+describe("formatDateKey", () => {
+  it("writes a day key as a short date, with or without its year", () => {
+    expect(formatDateKey("2025-11-23")).toBe("23 Nov 2025");
+    expect(formatDateKey("2026-09-06", false)).toBe("6 Sep");
   });
 });
 
