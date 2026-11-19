@@ -24,7 +24,7 @@ export interface ShopStatusLine {
   next: string | null;
 }
 
-type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy">;
+type Detail = Pick<MerchantDetail, "tenant" | "wallet" | "subscription" | "billingLock" | "stoppedBy" | "paidPlan">;
 
 /** "Wallet 4,000 IQD, short by 5,000 IQD." when the wallet cannot pay `price`. */
 function shortBy(balance: number, price: number): string {
@@ -38,7 +38,7 @@ function shortByThen(balance: number, price: number): string {
 }
 
 export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStatusLine {
-  const { tenant, wallet, subscription, billingLock, stoppedBy } = detail;
+  const { tenant, wallet, subscription, billingLock, stoppedBy, paidPlan } = detail;
   const balance = wallet?.balance_iqd ?? 0;
   // What the trial's end or the next renewal takes: the plan the shop moves to,
   // with its add-ons. billing_lock_snapshot adds it up as renew_subscription_core
@@ -113,6 +113,29 @@ export function shopStatusLine(detail: Detail, now: Date = new Date()): ShopStat
     };
   }
   const end = subscription.current_period_end;
+
+  // A running month with no charge behind it is free time: a converted lead,
+  // free days, a free unlock. The Paying page leaves such a shop out, and the
+  // page said "Paying" for a shop never charged (round 18). Once the month has
+  // ended and waits for the renewal run, the words below stay as they were.
+  const charged = paidPlan.paid_until !== null && Date.parse(paidPlan.paid_until) > now.getTime();
+  if (!charged && subscription.status !== "past_due" && Date.parse(end) > now.getTime()) {
+    const sentence =
+      paidPlan.paid_until === null
+        ? `Not charged yet. Free time from ${formatDay(subscription.current_period_start, now)} to ${formatDay(end, now)}.`
+        : `Not charged for this time: its last paid month ended on ${formatDay(paidPlan.paid_until, now)}. Free until ${formatDay(end, now)}.`;
+    if (subscription.auto_renew === false) {
+      return { tone: "paying", label: "Free time", sentence, next: `The free time ends on ${formatDay(end, now)} and is not renewed.` };
+    }
+    const first = paidPlan.first_paid_at === null ? "First" : "Next";
+    return {
+      tone: "paying",
+      label: "Free time",
+      sentence,
+      next: price > 0 ? `${first} charge ${formatIQD(price)} on ${formatDay(end, now)}.${shortByThen(balance, price)}` : null,
+    };
+  }
+
   if (subscription.auto_renew === false) {
     return {
       tone: "paying",

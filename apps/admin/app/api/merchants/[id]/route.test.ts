@@ -70,8 +70,25 @@ function table(name: string): unknown {
 }
 
 const rpc = vi.fn();
+/** What paid_plan_months answers, and the filters it was read with. */
+const paid: { answer: Answer; filters: unknown[][] } = { answer: { data: [], error: null }, filters: [] };
+function paidPlanMonths(): unknown {
+  const chain: unknown = new Proxy(() => undefined, {
+    get(_target, prop) {
+      if (prop === "then") return (resolve: (value: Answer) => void) => resolve(paid.answer);
+      return (...args: unknown[]) => {
+        paid.filters.push([prop, ...args]);
+        return chain;
+      };
+    },
+  });
+  return chain;
+}
 vi.mock("@/lib/admin-supabase", () => ({
-  createAdminClient: () => ({ from: (name: string) => table(name), rpc }),
+  createAdminClient: () => ({
+    from: (name: string) => table(name),
+    rpc: (fn: string, args?: unknown) => (fn === "paid_plan_months" ? paidPlanMonths() : rpc(fn, args)),
+  }),
 }));
 
 const { GET, PATCH } = await import("./route");
@@ -94,6 +111,8 @@ beforeEach(() => {
   selects.length = 0;
   writes.length = 0;
   rpc.mockReset();
+  paid.answer = { data: [], error: null };
+  paid.filters.length = 0;
   for (const name of Object.keys(TABLES)) delete TABLES[name];
   Object.assign(TABLES, ORIGINAL);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -182,6 +201,32 @@ describe("GET /api/merchants/[id] parts of the record", () => {
     expect(selects.map(([name]) => name)).toContain("admin_order_facts");
     expect(selects.map(([name]) => name)).not.toContain("orders");
     expect(body.orderCount).toBe(4);
+  });
+
+  it("reads the shop's charged plan months by the Paying page's rule, for this shop only", async () => {
+    // Round 18: the page said "Paying" for a shop never charged; it now knows
+    // whether a charged month covers now (lib/shop-status.ts).
+    paid.answer = {
+      data: [
+        { tenant_id: TENANT, paid_at: "2026-10-19T09:00:00+00:00", paid_until: "2026-11-18T09:00:00+00:00" },
+        { tenant_id: TENANT, paid_at: "2026-09-19T09:00:00+00:00", paid_until: "2026-10-19T09:00:00+00:00" },
+      ],
+      error: null,
+    };
+    const body = await (await call()).json();
+
+    expect(paid.filters).toEqual([["eq", "tenant_id", TENANT]]);
+    expect(body.paidPlan).toEqual({ first_paid_at: "2026-09-19T09:00:00+00:00", paid_until: "2026-11-18T09:00:00+00:00" });
+  });
+
+  it("says never charged with no months, and fails the record when the months cannot be read", async () => {
+    expect((await (await call()).json()).paidPlan).toEqual({ first_paid_at: null, paid_until: null });
+
+    paid.answer = { data: null, error: { code: "42501", message: "permission denied" } };
+    expect((await call()).status).toBe(500);
+
+    paid.answer = { data: [{ tenant_id: TENANT, paid_at: null, paid_until: null }], error: null };
+    expect((await call()).status).toBe(500);
   });
 
   it("a shop with no wallet and no subscription yet is still a record", async () => {

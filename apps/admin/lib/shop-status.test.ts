@@ -12,6 +12,7 @@ function shop(over: {
   subscription?: Partial<NonNullable<MerchantDetail["subscription"]>> | null;
   lock?: Detail["billingLock"];
   stoppedBy?: Detail["stoppedBy"];
+  paidPlan?: Detail["paidPlan"];
 }): Detail {
   return {
     tenant: {
@@ -33,8 +34,13 @@ function shop(over: {
     // What billing_lock_snapshot reads for an unlocked starter shop with no add-on.
     billingLock: over.lock ?? { locked: false, reason: null, since: null, orders_left: null, allowance: 50, plan: "starter", price_iqd: 9_000 },
     stoppedBy: over.stoppedBy ?? null,
+    // Charged on 19 Sep and 19 Oct: the month that runs now was paid for.
+    paidPlan: over.paidPlan ?? { first_paid_at: "2026-09-19T09:00:00Z", paid_until: "2026-11-18T09:00:00Z" },
   };
 }
+
+/** A converted lead: its first month starts today and was never charged. */
+const NEVER_CHARGED = { first_paid_at: null, paid_until: null };
 
 describe("shopStatusLine", () => {
   it("gives a paying shop its next charge with day and amount", () => {
@@ -150,6 +156,54 @@ describe("shopStatusLine", () => {
     expect(shopStatusLine(shop({ subscription: { auto_renew: false } }), now).next).toBe(
       "The month ends on Thu 19 Nov and is not renewed.",
     );
+  });
+
+  it("says Free time, not Paying, for a running month that no charge pays for", () => {
+    // Round 18: a converted lead read "Paying" though it was never charged,
+    // and the Paying page rightly left it out.
+    const lead = shop({
+      paidPlan: NEVER_CHARGED,
+      subscription: { current_period_start: "2026-11-16T09:00:00Z", current_period_end: "2026-12-16T09:00:00Z" },
+    });
+    expect(shopStatusLine(lead, now)).toEqual({
+      tone: "paying",
+      label: "Free time",
+      sentence: "Not charged yet. Free time from Mon 16 Nov to Wed 16 Dec.",
+      next: "First charge 9,000 IQD on Wed 16 Dec.",
+    });
+  });
+
+  it("says when a charged shop's free days began, and charges next at their end", () => {
+    // Its last charged month ended on 10 Nov; free days run its month to 25 Nov.
+    const line = shopStatusLine(
+      shop({
+        paidPlan: { first_paid_at: "2026-09-11T09:00:00Z", paid_until: "2026-11-10T09:00:00Z" },
+        subscription: { current_period_end: "2026-11-25T09:00:00Z" },
+        wallet: 4_000,
+      }),
+      now,
+    );
+    expect(line.label).toBe("Free time");
+    expect(line.sentence).toBe("Not charged for this time: its last paid month ended on Tue 10 Nov. Free until Wed 25 Nov.");
+    expect(line.next).toBe(
+      "Next charge 9,000 IQD on Wed 25 Nov. Wallet 4,000 IQD, short by 5,000 IQD. It locks that day unless money is added.",
+    );
+  });
+
+  it("says a free month with renewal off ends unrenewed", () => {
+    const line = shopStatusLine(shop({ paidPlan: NEVER_CHARGED, subscription: { auto_renew: false } }), now);
+    expect(line).toMatchObject({ label: "Free time", next: "The free time ends on Thu 19 Nov and is not renewed." });
+  });
+
+  it("keeps Paying while a charged month covers now, even when free days run past it", () => {
+    const line = shopStatusLine(shop({ subscription: { current_period_end: "2026-11-28T09:00:00Z" } }), now);
+    expect(line.label).toBe("Paying");
+  });
+
+  it("keeps its words for a month that has ended and waits for the renewal run, and for a month behind", () => {
+    const ended = shop({ paidPlan: NEVER_CHARGED, subscription: { current_period_end: "2026-11-16T09:00:00Z" } });
+    expect(shopStatusLine(ended, now).label).toBe("Paying");
+    expect(shopStatusLine(shop({ paidPlan: NEVER_CHARGED, subscription: { status: "past_due" } }), now).label).toBe("Behind");
   });
 
   it("never bills our own shops", () => {

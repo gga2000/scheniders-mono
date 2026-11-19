@@ -96,6 +96,11 @@ export interface MerchantDetail {
   planLimits: PlanLimits | null;
   /** The billing lock (Fermi A1); null for an unknown store. */
   billingLock: BillingLockSnapshot | null;
+  /**
+   * The shop's charged plan months, as the Paying page counts them: its first
+   * charge and the end of its latest charged month; both null when never charged.
+   */
+  paidPlan: { first_paid_at: string | null; paid_until: string | null };
   /** Whether the viewing staff member may unlock a store for free. */
   canForceUnlock: boolean;
   /** For a shop on hold or paused: who did it and when, from the staff log; null when the log has no such step. */
