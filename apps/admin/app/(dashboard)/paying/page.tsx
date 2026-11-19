@@ -1,17 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { z } from "zod";
 import { Loader2, Lock, Store } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { LoadError } from "@/components/shared/load-error";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
 import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
+import { planLabel } from "@/types/admin";
 import {
   BONUS_BASE_IQD,
   BONUS_PER_PAYER_IQD,
@@ -73,21 +74,18 @@ function MonthBars({ bars }: { bars: MonthBar[] }) {
   );
 }
 
+type StaffPayRead = UseQueryResult<z.infer<typeof staffPayResponseSchema>>;
+
 /**
  * What the team is paid this month and the months before (handoff B12 item
  * 4): each person 250,000 IQD plus 1,000 IQD for every shop paying at the
  * month's end. Only a login that manages staff pay is shown it; Ali pays it
- * by hand, so it has no buttons.
+ * by hand, so it has no buttons. The page reads it beside the shops and draws
+ * it under them only once they have landed: drawn first, it jumped 263 px
+ * down when the shops arrived (round 18).
  */
-function StaffPay() {
-  const { data, error, isError, isFetching, refetch } = useQuery({
-    queryKey: ["admin", "staff-bonus"],
-    queryFn: async () => {
-      const res = okOrLoadFailure(await adminFetch("/api/staff-bonus"), "the staff pay");
-      return staffPayResponseSchema.parse(await res.json());
-    },
-    staleTime: 60_000,
-  });
+function StaffPay({ read }: { read: StaffPayRead }) {
+  const { data, error, isError, isFetching, refetch } = read;
 
   return (
     <section aria-label="Staff pay" className="pastel-card p-5 space-y-3" data-testid="staff-pay">
@@ -153,6 +151,16 @@ function StaffPay() {
  */
 export default function PayingShopsPage() {
   const can = useCan();
+  const seesStaffPay = can("manage_commissions");
+  const staffPay = useQuery({
+    queryKey: ["admin", "staff-bonus"],
+    queryFn: async () => {
+      const res = okOrLoadFailure(await adminFetch("/api/staff-bonus"), "the staff pay");
+      return staffPayResponseSchema.parse(await res.json());
+    },
+    staleTime: 60_000,
+    enabled: seesStaffPay,
+  });
   const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["admin", "paying-merchants"],
     queryFn: async () => {
@@ -229,12 +237,9 @@ export default function PayingShopsPage() {
                     {data.shops.map((s) => (
                       <tr key={s.tenant_id} className="border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.02]">
                         <td className="p-3">
-                          <Link href={`/merchants/${s.tenant_id}`} className="font-medium text-foreground hover:underline">
-                            {s.name ?? "Shop"}
-                          </Link>
-                          <span className="ml-2 text-xs text-foreground/70 tabular-nums">#{s.display_id}</span>
+                          <ShopNameLink id={s.tenant_id} name={s.name} displayId={s.display_id} />
                         </td>
-                        <td className="p-3 font-semibold capitalize">{s.plan}</td>
+                        <td className="p-3 font-semibold">{planLabel(s.plan)}</td>
                         <td className="p-3 tabular-nums">{dayLabel(s.paid_until)}</td>
                         <td className="p-3 tabular-nums">{dayLabel(s.first_paid_at)}</td>
                         <td className="p-3">{s.source === "outreach" ? "Our outreach" : "Signed up itself"}</td>
@@ -245,10 +250,10 @@ export default function PayingShopsPage() {
               </div>
             )}
           </div>
+
+          {seesStaffPay && <StaffPay read={staffPay} />}
         </>
       )}
-
-      {can("manage_commissions") && <StaffPay />}
     </div>
   );
 }

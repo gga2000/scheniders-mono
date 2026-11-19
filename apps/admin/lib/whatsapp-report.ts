@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TENANT_STATUSES } from "@/types/admin";
 
 /**
  * The staff console's WhatsApp page (Fermi B2): what each shop's messages cost
@@ -19,7 +20,7 @@ export const whatsappReportShopSchema = z.object({
   display_id: z.number().int().nullable(),
   name: z.string().nullable(),
   plan: z.string(),
-  status: z.string(),
+  status: z.enum(TENANT_STATUSES),
   messages: z.number().int(),
   utility: z.number().int(),
   marketing: z.number().int(),
