@@ -178,7 +178,7 @@ const STORE_PATH_HEADER = "x-store-path";
 /**
  * Fermi's own landing page (C2), a static document in public/landing. The
  * root domain's home serves it; its images, fonts and icons live under a
- * versioned folder (/landing/v4/) so they can be cached for good.
+ * versioned folders (/landing/v4/, /landing/v5/) so they can be cached for good.
  */
 const LANDING_PAGE = "/landing/index.html";
 
