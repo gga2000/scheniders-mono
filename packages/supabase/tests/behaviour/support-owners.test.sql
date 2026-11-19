@@ -25,6 +25,9 @@
 --   Shop call:
 --     * a call on a shop with no task is logged with task_id NULL and leaves
 --       its tasks alone; a bad outcome, empty name or unknown shop is refused.
+--   Activity row:
+--     * every logged call (task or not) writes its support_task_logged row
+--       in the same transaction; a refused call writes none.
 --   Call back:
 --     * a merchant's request is a task due now with the number, and a line
 --       in the chat; the same number again changes nothing, a new one
@@ -58,7 +61,7 @@ BEGIN
         PERFORM pg_temp.check('authenticated reads ' || t, NOT has_table_privilege('authenticated', 'public.' || t, 'SELECT'));
     END LOOP;
     PERFORM pg_temp.check('access: anon onboard', NOT has_function_privilege('anon', 'public.support_onboard_shops(timestamptz)', 'EXECUTE'));
-    PERFORM pg_temp.check('access: authenticated log', NOT has_function_privilege('authenticated', 'public.support_task_log(uuid,uuid,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('access: authenticated log', NOT has_function_privilege('authenticated', 'public.support_task_log(uuid,uuid,text,text,text,text)', 'EXECUTE'));
     PERFORM pg_temp.check('access: anon due', NOT has_function_privilege('anon', 'public.support_tasks_due(timestamptz)', 'EXECUTE'));
     PERFORM pg_temp.check('access: service due', has_function_privilege('service_role', 'public.support_tasks_due(timestamptz)', 'EXECUTE'));
     PERFORM pg_temp.check('cron: every 5 minutes',
@@ -145,7 +148,12 @@ DECLARE
     due jsonb;
     row_ jsonb;
 BEGIN
-    PERFORM public.support_task_log(welcome, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'no_answer', ' rang twice ');
+    PERFORM public.support_task_log(welcome, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'no_answer', ' rang twice ', 'noor@example.com');
+    PERFORM pg_temp.check('task log: activity row in the same write',
+        (SELECT count(*) FROM public.admin_activity_logs
+         WHERE action = 'support_task_logged' AND admin_user_id = 'a2000000-0000-4000-8000-000000000002'
+           AND actor_email = 'noor@example.com' AND tenant_id = (SELECT tenant_id FROM public.support_tasks WHERE id = welcome)
+           AND details = jsonb_build_object('task_id', welcome, 'outcome', 'no_answer')) = 1);
     PERFORM pg_temp.check('no answer: open, back later, counted',
         (SELECT done_at IS NULL AND attempts = 1 AND due_at > now() + interval '2 hours 59 minutes' FROM public.support_tasks WHERE id = welcome));
     PERFORM public.support_task_log(welcome, 'a2000000-0000-4000-8000-000000000002', 'Noor', 'done', 'all good');
@@ -176,6 +184,8 @@ BEGIN
     EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
     END;
     PERFORM pg_temp.check('refuse: unknown task ' || v_msg, v_msg = 'support_task_not_found');
+    PERFORM pg_temp.check('refuse: a refused task call writes no activity row',
+        (SELECT count(*) FROM public.admin_activity_logs WHERE action = 'support_task_logged') = 3);
 
     -- Due by the end of 16 Nov in Baghdad: the new shop's store check only
     -- (its welcome call is done; the other shop's is put off to tomorrow).
@@ -371,11 +381,16 @@ DECLARE
     tasks_before text := (SELECT string_agg(id::text || coalesce(done_at::text, '') || due_at::text || attempts, ',' ORDER BY id)
                           FROM public.support_tasks WHERE tenant_id = '30000000-0000-4000-8000-000000000003');
 BEGIN
-    PERFORM pg_temp.check('shop call: anon cannot run', NOT has_function_privilege('anon', 'public.support_log_shop_call(uuid,uuid,text,text,text)', 'EXECUTE'));
-    PERFORM pg_temp.check('shop call: authenticated cannot run', NOT has_function_privilege('authenticated', 'public.support_log_shop_call(uuid,uuid,text,text,text)', 'EXECUTE'));
-    PERFORM pg_temp.check('shop call: service role runs', has_function_privilege('service_role', 'public.support_log_shop_call(uuid,uuid,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: anon cannot run', NOT has_function_privilege('anon', 'public.support_log_shop_call(uuid,uuid,text,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: authenticated cannot run', NOT has_function_privilege('authenticated', 'public.support_log_shop_call(uuid,uuid,text,text,text,text)', 'EXECUTE'));
+    PERFORM pg_temp.check('shop call: service role runs', has_function_privilege('service_role', 'public.support_log_shop_call(uuid,uuid,text,text,text,text)', 'EXECUTE'));
 
-    r := public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', ' Noor ', 'no_answer', '  trial ends soon ');
+    r := public.support_log_shop_call(shop, 'a2000000-0000-4000-8000-000000000002', ' Noor ', 'no_answer', '  trial ends soon ', 'noor@example.com');
+    PERFORM pg_temp.check('shop call: activity row in the same write',
+        (SELECT count(*) FROM public.admin_activity_logs
+         WHERE action = 'support_task_logged' AND admin_user_id = 'a2000000-0000-4000-8000-000000000002'
+           AND actor_email = 'noor@example.com' AND tenant_id = shop
+           AND details = jsonb_build_object('task_id', NULL, 'call_id', (r ->> 'call_id')::uuid, 'outcome', 'no_answer')) = 1);
     PERFORM pg_temp.check('shop call: answers the row ' || r::text,
         r ->> 'tenant_id' = shop::text AND r ->> 'outcome' = 'no_answer' AND (r ->> 'call_id') IS NOT NULL);
     PERFORM pg_temp.check('shop call: no task, trimmed',
@@ -405,6 +420,8 @@ BEGIN
     EXCEPTION WHEN SQLSTATE 'P0001' THEN v_msg := SQLERRM;
     END;
     PERFORM pg_temp.check('shop call refuse: unknown shop ' || v_msg, v_msg = 'support_shop_not_found');
+    PERFORM pg_temp.check('shop call refuse: refusals write no activity row',
+        (SELECT count(*) FROM public.admin_activity_logs WHERE details ? 'call_id') = 1);
 END $$;
 
 DO $$

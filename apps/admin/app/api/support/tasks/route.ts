@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
-import { logAdminActivity } from "@/lib/activity-logger";
 import { adminDisplayName } from "@/lib/support-admin-name";
 import { SupportTasksSchema, TaskLogSchema, supportRefusal } from "@/lib/support";
 
@@ -29,6 +28,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/support/tasks {taskId, outcome, note} — record a call. Done
  * closes the task; no answer brings it back in 3 hours; later, tomorrow.
+ * The call and its activity row are written together by support_task_log().
  */
 export async function POST(request: NextRequest) {
   const admin = await requireAdminPermission(request, "handle_support");
@@ -41,26 +41,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc("support_task_log", {
+    const { error } = await supabase.rpc("support_task_log", {
       p_task_id: parsed.data.taskId,
       p_admin_id: admin.user.id,
       p_admin_name: await adminDisplayName(supabase, admin),
       p_outcome: parsed.data.outcome,
       p_note: parsed.data.note,
+      p_actor_email: admin.user.email ?? null,
     });
 
     const refusal = supportRefusal(error);
     if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
     if (error) throw error;
 
-    const result = data as { task_id: string; tenant_id: string };
-    await logAdminActivity({
-      adminUserId: admin.user.id,
-      actorEmail: admin.user.email,
-      tenantId: result.tenant_id,
-      action: "support_task_logged",
-      details: { task_id: result.task_id, outcome: parsed.data.outcome },
-    });
+    // The database wrote the call and its support_task_logged activity row
+    // in one transaction.
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Support task log error:", error);
