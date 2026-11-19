@@ -147,7 +147,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     name: "POST /api/merchants/[id]/pause (suspend_tenant)",
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/pause/route");
-      return POST(req(`/api/merchants/${TENANT}/pause`, "POST", t, { duration_days: 7 }), idParams);
+      return POST(req(`/api/merchants/${TENANT}/pause`, "POST", t, { duration_days: 7, reason: "late payments" }), idParams);
     },
   },
   {
@@ -826,7 +826,7 @@ describe("pause attribution", () => {
     dbResult = { data: [{ id: TENANT, status: "limited", restrictions: {} }], error: null };
     const { POST } = await import("./merchants/[id]/pause/route");
     const res = await POST(
-      req(`/api/merchants/${TENANT}/pause`, "POST", "super", { duration_days: 7 }),
+      req(`/api/merchants/${TENANT}/pause`, "POST", "super", { duration_days: 7, reason: "late payments" }),
       idParams,
     );
 

@@ -131,8 +131,26 @@ describe("POST /api/merchants/[id]/pause", () => {
   });
 
   it("refuses a body it cannot read as a pause, before the database is asked", async () => {
-    expect((await call({ duration_days: 0 })).status).toBe(400);
+    expect((await call({ duration_days: 0, reason: "late payments" })).status).toBe(400);
     expect(stub.state.rpcCalls).toEqual([]);
+  });
+
+  // The form asked for 3 letters, but the route took any reason or none, and
+  // the shop page then read "Reason: ..." (round 19).
+  it.each([
+    ["no reason", {}],
+    ["a reason with no letters", { reason: "..." }],
+    ["a reason of two letters", { reason: " ok " }],
+  ])("refuses %s before the database is asked", async (_name, body) => {
+    const res = await call({ duration_days: 3, ...body });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/reason/i);
+    expect(stub.state.rpcCalls).toEqual([]);
+  });
+
+  it("keeps the reason without the spaces around it", async () => {
+    await call({ duration_days: 3, reason: "  late payments  " });
+    expect(stub.state.rpcCalls[0].args._restrictions).toMatchObject({ reason: "late payments" });
   });
 
   it("is for super admins only", async () => {

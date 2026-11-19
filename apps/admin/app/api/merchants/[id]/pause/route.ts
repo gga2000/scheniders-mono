@@ -6,11 +6,14 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { pausedShop } from "@/lib/tenant-pause";
 import { DEMO_STORE_REFUSAL } from "@/lib/shop-update";
 import { notAnId } from "@/lib/route-id";
+import { staffReasonSchema } from "@/lib/staff-reason";
 
 const PauseSchema = z.object({
   duration_days: z.number().int().positive().max(365).optional(),
   paused_until: z.string().datetime().optional(),
-  reason: z.string().max(500).optional(),
+  // The shop page shows it ("Reason: ..."), so it holds to the rule every
+  // staff reason does: 3 letters in any script (round 19).
+  reason: staffReasonSchema,
   blocks: z
     .object({
       new_orders: z.boolean().optional(),
@@ -61,7 +64,7 @@ export async function POST(
       // already in admin_activity_logs.actor_email (admin-only).
       paused_by: auth.user.id,
       paused_until: pausedUntil,
-      reason: parsed.data.reason ?? null,
+      reason: parsed.data.reason,
       blocks: {
         new_orders: parsed.data.blocks?.new_orders ?? true,
         new_products: parsed.data.blocks?.new_products ?? false,
