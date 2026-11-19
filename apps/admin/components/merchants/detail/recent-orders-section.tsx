@@ -19,19 +19,27 @@ function orderLine(o: RecentOrder): string {
   return `${formatWhen(o.created_at)}${items}${o.customer_phone ? ` · ${o.customer_phone}` : ""}`;
 }
 
-/** Each order status in words, with one of four tones. */
-const STATUS: Record<string, { word: string; tone: Tone }> = {
+/**
+ * Each order status in words, with one of four tones. Every status a shop's
+ * orders can hold has a word (a test checks it against the shared list,
+ * STATUS_TO_STAGE): "suspended" and "refund_delivered" were printed raw
+ * (round 18). The words are the merchant's own order list's, so staff and the
+ * merchant name an order alike; "In transit" as on Home.
+ */
+export const ORDER_STATUS: Readonly<Record<string, { word: string; tone: Tone }>> = {
   new: { word: "New", tone: "neutral" },
   contacted: { word: "Contacted", tone: "neutral" },
   no_response: { word: "No answer", tone: "neutral" },
   pending_checkout: { word: "Checkout not finished", tone: "neutral" },
+  suspended: { word: "Suspended", tone: "neutral" },
   confirmed: { word: "Confirmed", tone: "moving" },
-  in_transit: { word: "On the way", tone: "moving" },
+  in_transit: { word: "In transit", tone: "moving" },
   return_pending: { word: "Coming back", tone: "moving" },
   delivered: { word: "Delivered", tone: "done" },
   completed: { word: "Completed", tone: "done" },
   cancelled: { word: "Cancelled", tone: "lost" },
   rejected: { word: "Rejected", tone: "lost" },
+  refund_delivered: { word: "Refund delivered", tone: "lost" },
 };
 
 const TONE: Record<Tone, string> = {
@@ -59,7 +67,7 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
       ) : (
         <ul className="divide-y divide-[var(--card-border)]">
           {orders.map((o) => {
-            const status = STATUS[o.status] ?? { word: o.status.replace(/_/g, " "), tone: "neutral" as const };
+            const status = ORDER_STATUS[o.status] ?? { word: o.status.replace(/_/g, " "), tone: "neutral" as const };
             return (
               <li key={o.id} className="flex items-center gap-4 py-2.5">
                 <div className="min-w-0 flex-1">
