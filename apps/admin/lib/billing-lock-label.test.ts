@@ -2,23 +2,30 @@ import { describe, expect, it } from "vitest";
 import { lockedBecause, lockReasonWords, lockSentence } from "./billing-lock-label";
 
 describe("lockSentence", () => {
+  const now = new Date("2026-11-19T10:00:00Z");
+
   it("says why and since which Baghdad day", () => {
-    expect(lockSentence({ reason: "trial_ended", since: "2026-11-15T18:36:00Z" })).toBe(
+    expect(lockSentence({ reason: "trial_ended", since: "2026-11-15T18:36:00Z" }, now)).toBe(
       "Trial ended, not paid. Locked since Sun 15 Nov.",
     );
-    expect(lockSentence({ reason: "unpaid", since: "2026-11-10T03:00:00Z" })).toBe(
+    expect(lockSentence({ reason: "unpaid", since: "2026-11-10T03:00:00Z" }, now)).toBe(
       "Month not paid. Locked since Tue 10 Nov.",
     );
   });
 
   it("dates a lock at 00:30 Baghdad by the new day, not the UTC day before", () => {
-    expect(lockSentence({ reason: "unpaid", since: "2026-11-15T21:30:00Z" })).toBe(
+    expect(lockSentence({ reason: "unpaid", since: "2026-11-15T21:30:00Z" }, now)).toBe(
       "Month not paid. Locked since Mon 16 Nov.",
     );
   });
 
+  it("writes September in three letters, and the year of a lock from another year", () => {
+    expect(lockSentence({ reason: "unpaid", since: "2026-09-01T09:00:00Z" }, now)).toBe("Month not paid. Locked since Tue 1 Sep.");
+    expect(lockSentence({ reason: "unpaid", since: "2025-11-15T09:00:00Z" }, now)).toBe("Month not paid. Locked since Sat 15 Nov 2025.");
+  });
+
   it("leaves the date out when there is none", () => {
-    expect(lockSentence({ reason: "unpaid", since: null })).toBe("Month not paid.");
+    expect(lockSentence({ reason: "unpaid", since: null }, now)).toBe("Month not paid.");
   });
 });
 
