@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatCount } from "./format";
 import {
   IMPORT_BATCH,
   IMPORT_FIELDS,
@@ -207,8 +208,6 @@ export interface CheckRow {
   note: string;
 }
 
-const amount = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-
 /**
  * The plan as one list in file order, for the check step: each product on
  * its first row (price as a range when its choices differ), each row left
@@ -235,8 +234,8 @@ export function checkRows(
       row: product.rows[0] ?? Number(product.key),
       name: product.name,
       choices: product.variants.length,
-      price: low === high ? amount(low) : `${amount(low)} to ${amount(high)}`,
-      stock: amount(stock),
+      price: low === high ? formatCount(low) : `${formatCount(low)} to ${formatCount(high)}`,
+      stock: formatCount(stock),
       status: "add",
       note: product.rows.flatMap((row) => warningsByRow.get(row) ?? []).join(" "),
     };
