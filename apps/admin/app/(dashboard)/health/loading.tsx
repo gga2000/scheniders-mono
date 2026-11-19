@@ -9,8 +9,14 @@ export default function HealthLoading() {
       </div>
       <div className="h-12 rounded-xl bg-foreground/5 animate-pulse" />
       <NumberStrip columns={4} label="Shop health numbers">
-        {["Active shops, now", "Orders, last 24 hours", "Shops at risk, now", "New shops, this month"].map((label) => (
-          <NumberCell key={label} label={label} value="..." />
+        {/* The two cells with a note keep its line, as the page draws them while it reads. */}
+        {[
+          { label: "Active shops, now", note: "..." },
+          { label: "Orders, last 24 hours" },
+          { label: "Shops at risk, now" },
+          { label: "New shops, this month", note: "..." },
+        ].map(({ label, note }) => (
+          <NumberCell key={label} label={label} value="..." note={note} />
         ))}
       </NumberStrip>
       <div className="pastel-card p-6 h-64 flex items-center justify-center">
