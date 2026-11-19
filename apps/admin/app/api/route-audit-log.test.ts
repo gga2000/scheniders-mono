@@ -40,6 +40,8 @@ const LOGGED_IN_SQL: Record<string, string> = {
   "industries/route.ts POST": "admin_add_industry",
   "support/view/route.ts POST": "support_view_start",
   "support/view/route.ts DELETE": "support_view_end",
+  "support/tasks/route.ts POST": "support_task_log",
+  "support/calls/route.ts POST": "support_log_shop_call",
   "merchants/[id]/product-import/route.ts POST": "admin_import_products",
   "merchants/[id]/product-import/images/route.ts POST": "admin_attach_product_images",
 };
