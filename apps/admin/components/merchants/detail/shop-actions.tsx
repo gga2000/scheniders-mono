@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useIsMutating, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating } from "@tanstack/react-query";
 import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -23,6 +23,7 @@ import { PlanForm } from "./plan-form";
 import { PauseForm } from "./pause-form";
 import { HoldForm } from "./hold-form";
 import { ConvertTrialForm } from "./convert-trial-form";
+import { useRereadShop } from "./action-ui";
 
 const MORE_LABEL: Record<MoreAction, string> = {
   orders: "Give more store orders",
@@ -35,8 +36,9 @@ const MORE_LABEL: Record<MoreAction, string> = {
 };
 
 const PANEL = "w-80 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl";
-const SECONDARY =
-  "inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3.5 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]";
+/** A button waits (grey, wait cursor) while a write on this shop runs. */
+const WAITS = "disabled:cursor-wait disabled:opacity-60";
+const SECONDARY = `inline-flex items-center gap-1.5 rounded-lg border border-[var(--card-border)] px-3.5 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05] ${WAITS}`;
 
 interface ShopActionsProps {
   shopId: string;
@@ -63,8 +65,10 @@ interface ShopActionsProps {
  * will happen, so the press is the confirm. A staff member sees only what
  * their login may do.
  *
- * While a panel's write runs, the panel stays open and Back waits, so its
- * answer is always seen. The request ids live here, above the panels, so a
+ * While a panel's write runs, the panel stays open, and Back and the other
+ * panels' buttons wait, so its answer is always seen in the panel that asked
+ * (round 20: a sibling button closed a running panel, and its answer then
+ * closed the panel staff were typing in). The request ids live here, above the panels, so a
  * form closed after its answer was lost and opened again sends the same ask
  * with the same id, and the money or days are given once (round 19).
  */
@@ -82,7 +86,7 @@ export function ShopActions({
   startOpen = null,
 }: ShopActionsProps) {
   const { role } = useAdminAuth();
-  const queryClient = useQueryClient();
+  const rereadShop = useRereadShop(shopId);
   const [open, setOpen] = useState<ShopForm | "more" | null>(startOpen);
   const [view, setView] = useState<MoreAction | null>(null);
   const [requestIds] = useState(() => ({
@@ -100,13 +104,12 @@ export function ShopActions({
   if (!canAddMoney && !daysKind && more.length === 0) return null;
 
   const toggle = (which: "money" | "days" | "more") => (next: boolean) => {
-    if (!next && writing) return;
+    if (writing) return;
     setOpen(next ? which : null);
     if (!next) setView(null);
   };
   const done = () => {
-    queryClient.invalidateQueries({ queryKey: ["admin", "merchant", shopId] });
-    queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
+    rereadShop();
     setOpen(null);
     setView(null);
   };
@@ -127,7 +130,8 @@ export function ShopActions({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-800"
+              disabled={writing}
+              className={`inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-800 ${WAITS}`}
             >
               <Wallet className="h-4 w-4" aria-hidden />
               Add money
@@ -142,7 +146,7 @@ export function ShopActions({
       {daysKind && (
         <Popover open={open === "days"} onOpenChange={toggle("days")}>
           <PopoverTrigger asChild>
-            <button type="button" className={SECONDARY}>
+            <button type="button" disabled={writing} className={SECONDARY}>
               <CalendarPlus className="h-4 w-4" aria-hidden />
               Give free days
             </button>
@@ -164,7 +168,7 @@ export function ShopActions({
       {more.length > 0 && (
         <Popover open={open === "more"} onOpenChange={toggle("more")}>
           <PopoverTrigger asChild>
-            <button type="button" className={SECONDARY}>
+            <button type="button" disabled={writing} className={SECONDARY}>
               More
               <ChevronDown className="h-4 w-4" aria-hidden />
             </button>

@@ -7,7 +7,7 @@ import { endAfterDays, shopActionKey } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import type { RequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelFields, PanelTitle, postJson, useWriteFailed, WillHappen } from "./action-ui";
 
 const PERIODS = [
   { label: "30 days", days: 30 },
@@ -36,7 +36,7 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone 
   const [why, setWhy] = useState("");
   const ready = isStaffReason(why);
 
-  const sayLate = useLateRefusal(`Free time was not started for ${shopName}.`);
+  const failed = useWriteFailed(shopId, `Free time was not started for ${shopName}.`);
 
   const convert = useMutation({
     mutationKey: shopActionKey(shopId),
@@ -50,11 +50,11 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone 
       requestIds.done();
       onDone();
     },
-    onError: sayLate,
+    onError: failed,
   });
 
   return (
-    <div>
+    <PanelFields busy={convert.isPending}>
       <PanelTitle>Start free time, no charge</PanelTitle>
       <div className="mb-3 grid grid-cols-3 gap-1.5">
         {PERIODS.map((p) => (
@@ -72,6 +72,6 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone 
       <ConfirmButton disabled={!ready || convert.isPending} onClick={() => convert.mutate()}>
         {convert.isPending ? "Starting..." : `Start ${PERIODS.find((p) => p.days === days)?.label ?? `${days} days`} free`}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }

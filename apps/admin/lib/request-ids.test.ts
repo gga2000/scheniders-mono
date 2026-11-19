@@ -30,6 +30,19 @@ describe("createRequestIds", () => {
     expect(ids.idFor("shop-a:5000:")).not.toBe(first);
   });
 
+  it("keeps each ask's id until a success, so a retry after another ask keeps its own", () => {
+    // Round 20: only the last ask was kept. 50,000 lost, then 10,000, then
+    // 50,000 again went out with a new id and could be credited twice.
+    const ids = createRequestIds();
+    const fifty = ids.idFor("shop-a:50000");
+    const ten = ids.idFor("shop-a:10000");
+    expect(ten).not.toBe(fifty);
+    expect(ids.idFor("shop-a:50000")).toBe(fifty);
+    ids.done();
+    expect(ids.idFor("shop-a:50000")).not.toBe(fifty);
+    expect(ids.idFor("shop-a:10000")).not.toBe(ten);
+  });
+
   it("keeps two forms apart", () => {
     const a = createRequestIds();
     const b = createRequestIds();

@@ -9,7 +9,7 @@ import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { TOPUP_MAX_IQD } from "@/lib/topup-queue";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, wasAlreadyDone, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelFields, PanelTitle, postJson, useWriteFailed, wasAlreadyDone, WillHappen } from "./action-ui";
 
 const PRESETS = [5_000, 10_000, 50_000, 100_000];
 
@@ -36,7 +36,7 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
   const amountOk = amount !== null && amount <= TOPUP_MAX_IQD;
   const ready = amountOk && isStaffReason(how);
 
-  const sayLate = useLateRefusal(`No money was added to ${shopName}.`);
+  const failed = useWriteFailed(shopId, `No money was added to ${shopName}.`);
 
   const add = useMutation({
     mutationKey: shopActionKey(shopId),
@@ -56,11 +56,11 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
       }
       onDone();
     },
-    onError: sayLate,
+    onError: failed,
   });
 
   return (
-    <div>
+    <PanelFields busy={add.isPending}>
       <PanelTitle aside={`Wallet now ${formatIQD(balance)}`}>Add money</PanelTitle>
       <div className="mb-2 grid grid-cols-4 gap-1.5">
         {PRESETS.map((value) => (
@@ -101,6 +101,6 @@ export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: 
       <ConfirmButton disabled={!ready || add.isPending} onClick={() => amount !== null && add.mutate(amount)}>
         {add.isPending ? "Adding..." : amountOk ? `Add ${formatIQD(amount)}` : "Add money"}
       </ConfirmButton>
-    </div>
+    </PanelFields>
   );
 }
