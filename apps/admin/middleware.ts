@@ -99,7 +99,10 @@ async function checkAccess(request: NextRequest) {
   );
 
   const path = request.nextUrl.pathname;
-  const isLoginPage = path.startsWith("/login");
+  // Only the login page itself. A typo of it (/loginx, /login/help) has no
+  // page: passed through signed out, it drew the console's not-found page,
+  // whose shell read got a 401 and reloaded the page, over and over.
+  const isLoginPage = path === "/login";
   const isApi = path.startsWith("/api/");
 
   // A refreshed session arrives as cookies on supabaseResponse; every other

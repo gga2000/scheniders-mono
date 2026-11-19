@@ -297,6 +297,23 @@ describe("the page staff asked for", () => {
     expect(await location("/login?next=%2F%2Fexample.com")).toBe("https://console.test/");
   });
 
+  it("treats only the login page itself as the login page, not an address named like it", async () => {
+    // Round 17 (Workflow new 1): signed out, /login/help was let through as
+    // the login page. It drew the not-found page, whose shell read got a 401
+    // and reloaded it, about 1.4 times a second for as long as it was open.
+    signedOut();
+    expect(await location("/loginx")).toBe("https://console.test/login");
+    expect(await location("/login/help")).toBe("https://console.test/login");
+    expect(await location("/login-help?x=1")).toBe("https://console.test/login");
+    expect((await call("/login")).status).toBe(200);
+    expect(await location("/login")).toBeNull();
+  });
+
+  it("lets a signed-in admin reach the not-found page of an address named like the login page", async () => {
+    expect((await call("/login/help")).status).toBe(200);
+    expect(await location("/login/help")).toBeNull();
+  });
+
   it("never sends a signed-in admin to another site through a dot segment", async () => {
     // Round 16 (Security new 1): this went to https://example.com/.
     expect(await location("/login?next=%2F..%2F%2Fexample.com")).toBe("https://console.test/");
