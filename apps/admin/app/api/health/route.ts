@@ -5,6 +5,7 @@ import { requireAdminFromRequest } from "@/lib/api-auth";
 import { lockedBecause } from "@/lib/billing-lock-label";
 import { monthOf, monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
+import { formatIQD } from "@/lib/format";
 import { CUSTOMER_SHOP } from "@/lib/customer-shops";
 import { effectiveStatus } from "@/lib/effective-status";
 
@@ -113,10 +114,11 @@ export async function GET(request: NextRequest) {
 
       const wallet = walletMap.get(tenant.id);
 
-      // +3 if balance < threshold (low balance)
+      // +3 if the wallet is under its alert amount. Said in the Merchants
+      // page's words ("Wallet under 5,000 IQD"), with this wallet's amount.
       if (wallet && wallet.balance_iqd < wallet.threshold_iqd) {
         riskScore += 3;
-        reasons.push("Low balance");
+        reasons.push(`Wallet under ${formatIQD(wallet.threshold_iqd)}`);
       }
 
       // +2 if no real order in the 30 Baghdad days that end today: the orders
