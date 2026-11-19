@@ -1,9 +1,10 @@
 "use client";
 
 import { patchMerchantInCache } from "@/hooks/use-infinite-merchants";
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
@@ -40,7 +41,8 @@ interface MerchantPlanDropdownProps {
  * with the card changed before the server answered (staff console audit
  * W-04). A pick now opens a confirm in the menu, worded as the shop page's
  * plan form: the move named, a reason for the staff log, and the server's
- * refusal said in the menu.
+ * refusal said in the menu. The menu is a popover drawn over the page: the
+ * card clips what sticks out of it, and the confirm is wider than the card.
  */
 export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   merchantId,
@@ -50,7 +52,6 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   const [open, setOpen] = useState(false);
   const [next, setNext] = useState<PlanTier | null>(null);
   const [why, setWhy] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const can = useCan();
 
@@ -59,19 +60,6 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
     setNext(null);
     setWhy("");
   };
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setNext(null);
-        setWhy("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
 
   // The card shows the new plan only once the server took it.
   const mutation = useMutation({
@@ -107,68 +95,66 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   }
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (open) close();
-          else setOpen(true);
-        }}
+    <Popover open={open} onOpenChange={(isOpen) => (isOpen ? setOpen(true) : close())}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
+            planBadgeStyle[plan]
+          )}
+        >
+          {current?.label ?? plan}
+          <ChevronDown
+            className={cn(
+              "w-3 h-3 transition-transform opacity-80",
+              open && "rotate-180"
+            )}
+          />
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="end"
+        aria-label={next ? `Move to ${PLAN_LABELS[next]}` : "Plan"}
+        onClick={(e) => e.stopPropagation()}
         className={cn(
-          "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
-          planBadgeStyle[plan]
+          "rounded-xl border-[var(--card-border)] bg-[var(--card-bg)] shadow-xl",
+          next ? "w-72 p-3" : "w-36 py-1"
         )}
       >
-        {current?.label ?? plan}
-        <ChevronDown
-          className={cn(
-            "w-3 h-3 transition-transform opacity-80",
-            open && "rotate-180"
-          )}
-        />
-      </button>
-
-      {open && next && (
-        <div
-          role="dialog"
-          aria-label={`Move to ${PLAN_LABELS[next]}`}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute top-full right-0 mt-1 w-72 p-3 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] z-50"
-        >
-          <WillHappen>
-            {shopName ?? "This shop"} moves from {current?.label ?? plan} to {PLAN_LABELS[next]} now. Nothing is
-            charged and nothing is refunded.
-          </WillHappen>
-          <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop's timeline shows it)" className="mb-3" />
-          <ErrorLine error={mutation.error} />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={close}
-              className="rounded-lg px-3 py-2.5 text-[13px] font-semibold text-foreground/70 hover:bg-foreground/5"
-            >
-              Cancel
-            </button>
-            <ConfirmButton
-              className="flex-1"
-              disabled={!isStaffReason(why) || mutation.isPending}
-              onClick={() => mutation.mutate(next)}
-            >
-              {mutation.isPending ? "Moving..." : `Move to ${PLAN_LABELS[next]}`}
-            </ConfirmButton>
-          </div>
-        </div>
-      )}
-
-      {open && !next && (
-        <div className="absolute top-full right-0 mt-1 w-36 py-1 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          {PLAN_OPTIONS.map((opt) => (
+        {next ? (
+          <>
+            <WillHappen>
+              {shopName ?? "This shop"} moves from {current?.label ?? plan} to {PLAN_LABELS[next]} now. Nothing is
+              charged and nothing is refunded.
+            </WillHappen>
+            <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop's timeline shows it)" className="mb-3" />
+            <ErrorLine error={mutation.error} />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={close}
+                className="rounded-lg px-3 py-2.5 text-[13px] font-semibold text-foreground/70 hover:bg-foreground/5"
+              >
+                Cancel
+              </button>
+              <ConfirmButton
+                className="flex-1"
+                disabled={!isStaffReason(why) || mutation.isPending}
+                onClick={() => mutation.mutate(next)}
+              >
+                {mutation.isPending ? "Moving..." : `Move to ${PLAN_LABELS[next]}`}
+              </ConfirmButton>
+            </div>
+          </>
+        ) : (
+          PLAN_OPTIONS.map((opt) => (
             <button
               key={opt.value}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSelect(opt.value);
-              }}
+              type="button"
+              onClick={() => handleSelect(opt.value)}
               className={cn(
                 "w-full px-3 py-1.5 text-xs font-medium flex items-center gap-2 transition-colors",
                 opt.value === plan
@@ -182,9 +168,9 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
               <span className="flex-1" />
               {opt.value === plan && <Check className="w-3 h-3 text-foreground/50" />}
             </button>
-          ))}
-        </div>
-      )}
-    </div>
+          ))
+        )}
+      </PopoverContent>
+    </Popover>
   );
 });

@@ -130,18 +130,21 @@ export function MerchantCard({
     <MerchantContextMenu merchantId={merchant.id} merchantSlug={merchant.slug} freeDays={freeDays !== null}>
       <div
         className={cn(
-          "pastel-card group relative overflow-hidden p-5 transition-all duration-200",
+          // The card clips nothing, so its menus (status, alert, health) are
+          // not cut off at its edge; the card being used sits above the next.
+          "pastel-card group relative hover:z-10 focus-within:z-10 p-5 transition-all duration-200",
           "hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5",
           isSelected &&
             "ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--background)]"
         )}
       >
-        {/* Decorative ambient gradient — emanates from logo color */}
-        <div
-          aria-hidden
-          className="absolute -top-16 -right-16 w-44 h-44 rounded-full opacity-[0.08] blur-3xl pointer-events-none transition-opacity duration-300 group-hover:opacity-[0.16]"
-          style={{ backgroundColor: logoBg }}
-        />
+        {/* Decorative ambient gradient from the logo colour, clipped to the card in its own layer */}
+        <div aria-hidden className="absolute inset-0 overflow-hidden rounded-[inherit] pointer-events-none">
+          <div
+            className="absolute -top-16 -right-16 w-44 h-44 rounded-full opacity-[0.08] blur-3xl transition-opacity duration-300 group-hover:opacity-[0.16]"
+            style={{ backgroundColor: logoBg }}
+          />
+        </div>
 
         {/* Top utility row */}
         <div className="relative flex items-center justify-between">
