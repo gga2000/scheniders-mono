@@ -5,6 +5,7 @@ import { useMerchantRecentOrders, type RecentOrder } from "@/hooks/use-merchant-
 import { cn } from "@/lib/utils";
 import { formatIQD, formatWhen } from "@/lib/format";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
+import { REFUND_ORDER_WORDS, type RefundOrderStatus } from "@scheniders/shared/refund-words";
 
 interface RecentOrdersSectionProps {
   merchantId: string;
@@ -46,23 +47,24 @@ export const ORDER_STATUS: Readonly<Record<string, { word: string; tone: Tone }>
  * A refund order (is_return) in the merchant's own refund words, so staff on
  * the phone never read a refund on its way to the customer as a sale on its
  * way out (round 19): "In transit" at -44,750 IQD was a courier collecting.
- * Same words as the merchant's list (REFUND_ORDER_STATUS_LABELS in the
- * merchant app); any other status reads as above.
+ * The words are the merchant's own (@scheniders/shared/refund-words, which
+ * the merchant app's list reads); any other status reads as above.
  */
-export const REFUND_ORDER_STATUS: Readonly<Record<string, { word: string; tone: Tone }>> = {
-  return_pending: { word: "Pickup pending", tone: "moving" },
-  in_transit: { word: "Courier collecting", tone: "moving" },
-  refund_delivered: { word: "Refunded to customer", tone: "lost" },
-  refund_failed: { word: "Refund failed", tone: "lost" },
-  rejected: { word: "Refund failed", tone: "lost" },
+const REFUND_TONE: Readonly<Record<RefundOrderStatus, Tone>> = {
+  return_pending: "moving",
+  in_transit: "moving",
+  refund_delivered: "lost",
+  refund_failed: "lost",
+  rejected: "lost",
 };
+const isRefundStatus = (status: string): status is RefundOrderStatus => Object.hasOwn(REFUND_TONE, status);
 
 /** An order's status in words: a refund order's own words first. */
 export function orderStatus(order: Pick<RecentOrder, "status" | "is_return">): { word: string; tone: Tone } {
-  return (
-    (order.is_return ? REFUND_ORDER_STATUS[order.status] : undefined) ??
-    ORDER_STATUS[order.status] ?? { word: order.status.replace(/_/g, " "), tone: "neutral" }
-  );
+  if (order.is_return && isRefundStatus(order.status)) {
+    return { word: REFUND_ORDER_WORDS.en[order.status], tone: REFUND_TONE[order.status] };
+  }
+  return ORDER_STATUS[order.status] ?? { word: order.status.replace(/_/g, " "), tone: "neutral" };
 }
 
 const TONE: Record<Tone, string> = {
