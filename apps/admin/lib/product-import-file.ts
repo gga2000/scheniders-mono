@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { inflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
 import { formatCount } from "./format";
@@ -46,9 +47,26 @@ export type ReadImportFile = { ok: true; file: ImportSheet } | { ok: false; erro
 const CANNOT_OPEN = "This .xlsx file could not be opened. Save it again from Excel, or send a CSV.";
 const TOO_MUCH_TEXT = `The file holds more text than one import reads (${formatCount(IMPORT_MAX_TEXT_CHARS)} letters). Split it into smaller files.`;
 
+/** Something below the rows a file may have: refused rather than read on. */
+/**
+ * The sheet's name as the workbook gives it. ExcelJS's stream reader sets
+ * `name` on each sheet (its own default is "Sheet<n>"), though its types
+ * leave the field out.
+ */
+const sheetNameOf = (worksheet: object): string =>
+  "name" in worksheet && typeof worksheet.name === "string" && worksheet.name !== "" ? worksheet.name : "Sheet 1";
+
+const pastTheRows = (rowNumber: number): ReadImportFile => ({
+  ok: false,
+  error: `The sheet has something in row ${formatCount(rowNumber)}, past the ${formatCount(IMPORT_MAX_ROWS)} rows a file may have. Delete what is down there, or split the file.`,
+});
+
 export async function readImportFile(bytes: Uint8Array, fileName: string): Promise<ReadImportFile> {
   const lower = fileName.toLowerCase();
-  if (lower.endsWith(".csv") || lower.endsWith(".txt")) return fromGrid(parseCsv(decodeText(bytes)), null);
+  if (lower.endsWith(".csv") || lower.endsWith(".txt")) {
+    const csv = parseCsv(decodeText(bytes), MAX_ROW_NUMBER);
+    return csv.farRow > 0 ? pastTheRows(csv.farRow) : fromGrid(csv.rows, null);
+  }
   if (lower.endsWith(".xlsx")) return readWorkbook(bytes);
   if (lower.endsWith(".xls")) return { ok: false, error: "This is an old Excel file (.xls). Open it in Excel and save it as .xlsx or .csv first." };
   return { ok: false, error: "Send an Excel file (.xlsx) or a CSV file." };
@@ -77,44 +95,75 @@ function csvDelimiter(text: string): string {
   return best;
 }
 
-/** A CSV as rows of cells (RFC 4180: quoted cells may hold the delimiter, quotes and line breaks). */
-export function parseCsv(text: string): string[][] {
+export interface CsvRows {
+  /** The first `maxRows` rows, as cells. */
+  rows: string[][];
+  /** The first row past `maxRows` with something in it (0: none). */
+  farRow: number;
+}
+
+/**
+ * A CSV as rows of cells (RFC 4180: quoted cells may hold the delimiter,
+ * quotes and line breaks). Only the first `maxRows` rows are kept; past them
+ * the text is only looked through for the first row with something in it, so
+ * 4 MB of line breaks is not built into 4 million rows (audit round 20).
+ */
+export function parseCsv(text: string, maxRows: number = Number.POSITIVE_INFINITY): CsvRows {
   const delimiter = csvDelimiter(text);
   const rows: string[][] = [];
+  let rowCount = 0;
+  let farRow = 0;
   let row: string[] = [];
   let cell = "";
+  // The cell's length so far, counted whether or not it is kept.
+  let cellLength = 0;
   let quoted = false;
-  for (let i = 0; i < text.length; i++) {
+  // Past maxRows no cell is built: only whether the row has anything in it.
+  let keeping = maxRows > 0;
+  let filled = false;
+  const add = (ch: string) => {
+    if (keeping) cell += ch;
+    cellLength++;
+    if (ch.trim() !== "") filled = true;
+  };
+  const endCell = () => {
+    if (keeping) row.push(cell);
+    cell = "";
+    cellLength = 0;
+  };
+  const endRow = () => {
+    endCell();
+    rowCount++;
+    if (keeping) rows.push(row);
+    else if (filled && farRow === 0) farRow = rowCount;
+    row = [];
+    filled = false;
+    keeping = rowCount < maxRows;
+  };
+  for (let i = 0; i < text.length && farRow === 0; i++) {
     const ch = text[i];
     if (quoted) {
       if (ch === '"' && text[i + 1] === '"') {
-        cell += '"';
+        add('"');
         i++;
       } else if (ch === '"') {
         quoted = false;
       } else {
-        cell += ch;
+        add(ch);
       }
-    } else if (ch === '"' && cell === "") {
+    } else if (ch === '"' && cellLength === 0) {
       quoted = true;
     } else if (ch === delimiter) {
-      row.push(cell);
-      cell = "";
+      endCell();
     } else if (ch === "\n" || ch === "\r") {
       if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = "";
+      endRow();
     } else {
-      cell += ch;
+      add(ch);
     }
   }
-  if (cell !== "" || row.length > 0) {
-    row.push(cell);
-    rows.push(row);
-  }
-  return rows;
+  if (farRow === 0 && (cellLength > 0 || row.length > 0 || filled)) endRow();
+  return { rows, farRow };
 }
 
 const isEmptyRow = (row: readonly string[]) => row.every((cell) => cell.trim() === "");
@@ -235,48 +284,72 @@ export function cellText(value: ExcelJS.CellValue): string {
   return "";
 }
 
+/** The stream a workbook is read from: the file's bytes, in one piece. */
+const bytesStream = (bytes: Uint8Array) => Readable.from([Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)]);
+
+/**
+ * The first sheet with anything in it, read row by row with ExcelJS's
+ * streaming reader. It holds only the row it is on and never applies merge
+ * ranges, so the work follows the rows the sheet really has. Loading the whole
+ * workbook made a cell object for every cell a merge range names: a 1.5 KB
+ * file with one merge over the whole sheet ran the server out of memory, and
+ * 30,000 rows of 50 cells took 750 MB before the row limit was checked (audit
+ * round 20). Every sheet is read to its end, past the limits too: leaving the
+ * reader early leaves its temporary files and open files behind. Past the
+ * limits rows are only counted, never turned into text.
+ *
+ * A link cell gives the text it shows (the streaming reader reads a sheet's
+ * links only after its rows); a product list's image links show as the links.
+ */
 async function readWorkbook(bytes: Uint8Array): Promise<ReadImportFile> {
   const unpacked = zipUnpacked(bytes);
   if (!unpacked.ok && unpacked.reason === "unreadable") return { ok: false, error: CANNOT_OPEN };
   if (!unpacked.ok) return { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
 
-  const workbook = new ExcelJS.Workbook();
+  let chosen: { name: string; grid: string[][]; rowsWithValues: number; farRow: number; text: number } | null = null;
   try {
-    // A copy, so the workbook reader gets a plain ArrayBuffer of exactly the file.
-    await workbook.xlsx.load(bytes.slice().buffer);
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(bytesStream(bytes), {
+      worksheets: "emit",
+      sharedStrings: "cache",
+      hyperlinks: "ignore",
+      // Read for the date formats: a date cell is a number until its format says so.
+      styles: "cache",
+      entries: "ignore",
+    });
+    for await (const worksheet of reader) {
+      // Once the sheet is chosen, the sheets after it are only read through.
+      const reading = chosen === null;
+      const sheet = { name: sheetNameOf(worksheet), grid: [] as string[][], rowsWithValues: 0, farRow: 0, text: 0 };
+      for await (const row of worksheet) {
+        if (!reading || !row.hasValues) continue;
+        const rowNumber = row.number;
+        if (!Number.isInteger(rowNumber) || rowNumber < 1) throw new Error("A row without its number");
+        sheet.rowsWithValues++;
+        if (rowNumber > MAX_ROW_NUMBER) {
+          if (sheet.farRow === 0) sheet.farRow = rowNumber;
+          continue;
+        }
+        if (sheet.text > IMPORT_MAX_TEXT_CHARS) continue;
+        const cells: string[] = [];
+        const width = Math.min(row.cellCount, IMPORT_MAX_COLUMNS + 1);
+        for (let c = 1; c <= width; c++) {
+          const text = cellText(row.getCell(c).value).slice(0, IMPORT_MAX_CELL_CHARS);
+          sheet.text += text.length;
+          cells.push(text);
+        }
+        while (sheet.grid.length < rowNumber) sheet.grid.push([]);
+        sheet.grid[rowNumber - 1] = cells;
+      }
+      if (reading && sheet.rowsWithValues > 0) chosen = sheet;
+    }
   } catch {
     return { ok: false, error: CANNOT_OPEN };
   }
-  const sheet = workbook.worksheets.find((ws) => ws.actualRowCount > 0);
-  if (!sheet) return { ok: false, error: "The file is empty." };
-  // Only rows with something in them are visited; a sheet formatted down to
-  // its last row is not read a million times.
-  if (sheet.actualRowCount > IMPORT_MAX_ROWS + 1) {
-    return { ok: false, error: `The sheet has ${formatCount(sheet.actualRowCount)} rows. Split it into files of ${formatCount(IMPORT_MAX_ROWS)} rows at most.` };
+  if (!chosen) return { ok: false, error: "The file is empty." };
+  if (chosen.rowsWithValues > IMPORT_MAX_ROWS + 1) {
+    return { ok: false, error: `The sheet has ${formatCount(chosen.rowsWithValues)} rows. Split it into files of ${formatCount(IMPORT_MAX_ROWS)} rows at most.` };
   }
-  const grid: string[][] = [];
-  // The first row past the limit with something in it (0: none), and the
-  // text read so far: past the limit, no more cells are turned into text.
-  const far = { row: 0, text: 0 };
-  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rowNumber > MAX_ROW_NUMBER) {
-      if (far.row === 0) far.row = rowNumber;
-      return;
-    }
-    if (far.text > IMPORT_MAX_TEXT_CHARS) return;
-    const cells: string[] = [];
-    const width = Math.min(row.cellCount, IMPORT_MAX_COLUMNS + 1);
-    for (let c = 1; c <= width; c++) {
-      const text = cellText(row.getCell(c).value).slice(0, IMPORT_MAX_CELL_CHARS);
-      far.text += text.length;
-      cells.push(text);
-    }
-    while (grid.length < rowNumber - 1) grid.push([]);
-    grid.push(cells);
-  });
-  if (far.text > IMPORT_MAX_TEXT_CHARS) return { ok: false, error: TOO_MUCH_TEXT };
-  if (far.row > 0) {
-    return { ok: false, error: `The sheet has something in row ${formatCount(far.row)}, past the ${formatCount(IMPORT_MAX_ROWS)} rows a file may have. Delete what is down there, or split the file.` };
-  }
-  return fromGrid(grid, sheet.name);
+  if (chosen.text > IMPORT_MAX_TEXT_CHARS) return { ok: false, error: TOO_MUCH_TEXT };
+  if (chosen.farRow > 0) return pastTheRows(chosen.farRow);
+  return fromGrid(chosen.grid, chosen.name);
 }
