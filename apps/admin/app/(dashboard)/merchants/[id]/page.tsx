@@ -197,6 +197,7 @@ export default function MerchantDetailPage() {
 
       <ShopActions
         shopId={tenant.id}
+        shopName={tenant.business_name}
         facts={{
           status: tenant.status,
           locked: !!data.billingLock?.locked,

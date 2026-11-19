@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -71,6 +72,24 @@ export function ConfirmButton({
       {...props}
     />
   );
+}
+
+/**
+ * For a panel's write: while the form is drawn its ErrorLine says a refusal.
+ * Once it is gone (staff left the page during the write), a toast says it,
+ * starting with what did not happen, so the refusal is never said nowhere.
+ */
+export function useLateRefusal(notDone: string): (error: Error) => void {
+  const drawn = useRef(true);
+  useEffect(() => {
+    drawn.current = true;
+    return () => {
+      drawn.current = false;
+    };
+  }, []);
+  return (error) => {
+    if (!drawn.current) toast.error(`${notDone} ${error.message}`);
+  };
 }
 
 export function ErrorLine({ error }: { error: Error | null }) {

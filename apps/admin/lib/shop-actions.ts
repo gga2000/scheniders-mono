@@ -160,3 +160,12 @@ export function shopFormFrom(value: string | null): ShopForm | null {
   if (value === FORM_PARAM.days || value === "extend-trial") return "days";
   return null;
 }
+
+/**
+ * The key every write from the shop page's panels runs under. While one runs,
+ * its panel stays open, so its answer (a refusal above all) is always seen;
+ * a panel that closed mid-write threw its answer away (round 19).
+ */
+export function shopActionKey(shopId: string) {
+  return ["admin", "shop-action", shopId] as const;
+}

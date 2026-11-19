@@ -3,18 +3,21 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatCount, formatIQD } from "@/lib/format";
-import { createRequestIds } from "@/lib/request-ids";
-import { typedAmount } from "@/lib/shop-actions";
+import type { RequestIds } from "@/lib/request-ids";
+import { shopActionKey, typedAmount } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { TOPUP_MAX_IQD } from "@/lib/topup-queue";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
 
 const PRESETS = [5_000, 10_000, 50_000, 100_000];
 
 interface AddMoneyFormProps {
   shopId: string;
+  shopName: string;
   balance: number;
+  /** Held by the page, so a reopened form sends the same top-up with the same id. */
+  requestIds: RequestIds;
   onDone: () => void;
 }
 
@@ -23,17 +26,19 @@ interface AddMoneyFormProps {
  * with no receipt. How it came is required, so the timeline can say it. The
  * button names the amount, and the line above it the wallet after.
  */
-export function AddMoneyForm({ shopId, balance, onDone }: AddMoneyFormProps) {
+export function AddMoneyForm({ shopId, shopName, balance, requestIds, onDone }: AddMoneyFormProps) {
   const [preset, setPreset] = useState<number | null>(null);
   const [typed, setTyped] = useState("");
   const [how, setHow] = useState("");
-  const [requestIds] = useState(createRequestIds);
 
   const amount = preset ?? typedAmount(typed);
   const amountOk = amount !== null && amount <= TOPUP_MAX_IQD;
   const ready = amountOk && isStaffReason(how);
 
+  const sayLate = useLateRefusal(`No money was added to ${shopName}.`);
+
   const add = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: (value: number) =>
       postJson("/api/billing/topup", {
         tenant_id: shopId,
@@ -46,6 +51,7 @@ export function AddMoneyForm({ shopId, balance, onDone }: AddMoneyFormProps) {
       requestIds.done();
       onDone();
     },
+    onError: sayLate,
   });
 
   return (

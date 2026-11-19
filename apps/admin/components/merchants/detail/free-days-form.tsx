@@ -3,22 +3,25 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatDayTime } from "@/lib/format";
-import { endAfterDays, type FreeDaysKind } from "@/lib/shop-actions";
+import { endAfterDays, shopActionKey, type FreeDaysKind } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
-import { createRequestIds } from "@/lib/request-ids";
+import type { RequestIds } from "@/lib/request-ids";
 import { MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, FieldInput, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
 
 const PRESETS: Record<FreeDaysKind, number[]> = { trial: [3, 7, 14], month: [7, 30] };
 const MAX_DAYS: Record<FreeDaysKind, number> = { trial: MAX_TRIAL_EXTENSION_DAYS, month: 365 };
 
 interface FreeDaysFormProps {
   shopId: string;
+  shopName: string;
   kind: FreeDaysKind;
   /** When the trial or the month ends today. */
   endsAt: string | null;
   locked: boolean;
+  /** Held by the page: one id per ask, so a retry after a lost answer, even from a reopened form, gives the days once. */
+  requestIds: RequestIds;
   onDone: () => void;
 }
 
@@ -27,12 +30,10 @@ interface FreeDaysFormProps {
  * a paying shop. The line above the button gives the new end, counted the way
  * the database counts it (from the end, or from now when the end has passed).
  */
-export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysFormProps) {
+export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestIds, onDone }: FreeDaysFormProps) {
   const [preset, setPreset] = useState<number | null>(PRESETS[kind][1] ?? null);
   const [typed, setTyped] = useState("");
   const [why, setWhy] = useState("");
-  // One id per ask: a retry after a lost answer gives the days once.
-  const [requestIds] = useState(createRequestIds);
 
   const typedDays = /^\d+$/.test(typed.trim()) ? Number(typed.trim()) : null;
   const days = preset ?? typedDays;
@@ -40,7 +41,10 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
   // A trial's free days are logged with the reason; the month's log keeps the old and new end.
   const ready = daysOk && (kind === "month" || isStaffReason(why));
 
+  const sayLate = useLateRefusal(`${shopName} was not given free days.`);
+
   const give = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: (value: number) => {
       const request_id = requestIds.idFor(`${shopId}:${kind}:${value}:${why.trim()}`);
       return kind === "trial"
@@ -51,6 +55,7 @@ export function FreeDaysForm({ shopId, kind, endsAt, locked, onDone }: FreeDaysF
       requestIds.done();
       onDone();
     },
+    onError: sayLate,
   });
 
   const what = kind === "trial" ? "The trial" : "This month";

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatDayTime } from "@/lib/format";
-import { endAfterDays } from "@/lib/shop-actions";
+import { endAfterDays, shopActionKey } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
 
 const DAYS = [1, 3, 7, 30];
 
@@ -31,16 +31,19 @@ const FIRST_BLOCKS: Record<BlockKey, boolean> = {
  * Pause a shop for some days: the chosen parts stop, the rest keep working,
  * and the pause lifts on its own on the day the line above the button gives.
  */
-export function PauseForm({ shopId, onDone }: { shopId: string; onDone: () => void }) {
+export function PauseForm({ shopId, shopName, onDone }: { shopId: string; shopName: string; onDone: () => void }) {
   const [days, setDays] = useState(7);
   const [why, setWhy] = useState("");
   const [blocks, setBlocks] = useState(FIRST_BLOCKS);
   const stopped = BLOCKS.filter((b) => blocks[b.key]).map((b) => b.label.toLowerCase());
   const ready = isStaffReason(why) && stopped.length > 0;
 
+  const sayLate = useLateRefusal(`${shopName} was not paused.`);
   const pause = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: () => postJson(`/api/merchants/${shopId}/pause`, { duration_days: days, reason: why.trim(), blocks }),
     onSuccess: onDone,
+    onError: sayLate,
   });
 
   return (
