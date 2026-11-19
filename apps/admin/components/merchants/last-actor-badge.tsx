@@ -68,7 +68,7 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
         </div>
       )}
       {showLabel && (
-        <span className="text-xs font-semibold text-foreground/70 truncate max-w-[80px]">
+        <span className="text-xs font-semibold text-foreground/70 truncate max-w-[80px]" title={actor.display_name}>
           {actor.display_name}
         </span>
       )}
@@ -88,11 +88,11 @@ export function LastActorBadge({ actor, size = "xs", showLabel = false }: LastAc
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate leading-tight">
+              <p className="text-xs font-bold text-foreground truncate leading-tight" title={actor.display_name}>
                 {actor.display_name}
               </p>
               {actor.email && (
-                <p className="text-xs text-foreground/70 truncate leading-tight">
+                <p className="text-xs text-foreground/70 truncate leading-tight" title={actor.email}>
                   {actor.email}
                 </p>
               )}

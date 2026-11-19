@@ -443,11 +443,11 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                               {/* Name */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-[var(--foreground)] truncate">
+                                  <span className="text-sm font-semibold text-[var(--foreground)] truncate" title={industry.name}>
                                     {industry.name}
                                   </span>
                                   {industry.name_ar && (
-                                    <span className="text-xs text-[var(--muted)] truncate" dir="rtl">
+                                    <span className="text-xs text-[var(--muted)] truncate" dir="rtl" title={industry.name_ar}>
                                       {industry.name_ar}
                                     </span>
                                   )}

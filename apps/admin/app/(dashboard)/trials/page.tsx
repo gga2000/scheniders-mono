@@ -266,7 +266,7 @@ export default function TrialsPage() {
                     {trial.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate name-dir">
+                    <p className="font-semibold text-foreground truncate name-dir" title={trial.business_name}>
                       {trial.business_name}
                     </p>
                     <p className="text-xs text-foreground/70 truncate">

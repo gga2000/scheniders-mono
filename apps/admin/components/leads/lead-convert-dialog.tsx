@@ -211,7 +211,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                       <div className="rounded-xl border border-[var(--card-border)] bg-[var(--foreground)]/[0.02] p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <h3 className="font-bold text-[var(--foreground)] text-base truncate name-dir">
+                            <h3 className="font-bold text-[var(--foreground)] text-base truncate name-dir" title={lead.merchant_name}>
                               {lead.merchant_name}
                             </h3>
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">

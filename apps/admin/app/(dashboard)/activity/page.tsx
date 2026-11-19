@@ -233,7 +233,7 @@ export default function ActivityLogPage() {
                           {badge.text}
                         </span>
                       </td>
-                      <td className="p-3 text-foreground/70 max-w-xs truncate">
+                      <td className="p-3 text-foreground/70 max-w-xs truncate" title={staffLogSummary(log.action, log.details) ?? "\u2014"}>
                         {staffLogSummary(log.action, log.details) ?? "\u2014"}
                       </td>
                       <td className="p-3 text-foreground/70">

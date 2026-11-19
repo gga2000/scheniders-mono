@@ -85,7 +85,7 @@ export function AddedByAvatar({
       )}
 
       {showName && (
-        <span className="text-xs font-medium text-[var(--foreground)] truncate max-w-[120px]">
+        <span className="text-xs font-medium text-[var(--foreground)] truncate max-w-[120px]" title={name}>
           {name}
         </span>
       )}
@@ -106,11 +106,11 @@ export function AddedByAvatar({
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-xs font-bold text-[var(--foreground)] truncate leading-tight">
+              <p className="text-xs font-bold text-[var(--foreground)] truncate leading-tight" title={name}>
                 {name}
               </p>
               {user.display_name && (
-                <p className="text-xs text-[var(--muted)] truncate leading-tight">
+                <p className="text-xs text-[var(--muted)] truncate leading-tight" title={user.email}>
                   {user.email}
                 </p>
               )}

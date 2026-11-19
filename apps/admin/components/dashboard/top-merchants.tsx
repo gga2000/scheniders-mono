@@ -72,7 +72,7 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
 
                 {/* Name + orders */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">
+                  <p className="text-sm font-semibold text-foreground truncate" title={merchant.businessName}>
                     {merchant.businessName}
                   </p>
                   <p className="text-xs text-foreground/70">

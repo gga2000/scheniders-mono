@@ -442,7 +442,7 @@ export default function BillingPage() {
                   </div>
 
                   {/* Business name */}
-                  <span className="text-xs text-foreground/70 truncate name-dir flex-1 min-w-0">
+                  <span className="text-xs text-foreground/70 truncate name-dir flex-1 min-w-0" title={tx.tenants?.business_name ?? "Unknown"}>
                     {tx.tenants?.business_name ?? "Unknown"}
                   </span>
 

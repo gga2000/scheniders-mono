@@ -57,7 +57,7 @@ export function RecentOrdersSection({ merchantId, limit = 5 }: RecentOrdersSecti
             return (
               <li key={o.id} className="flex items-center gap-4 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium text-foreground">
+                  <p className="truncate text-[15px] font-medium text-foreground" title={o.customer_name ?? "No name"}>
                     {o.customer_name ?? "No name"}
                   </p>
                   <p className="truncate text-[13px] text-foreground/70">

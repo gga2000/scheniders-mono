@@ -336,7 +336,7 @@ export function MerchantSheetView({
                         <span
                           key={t}
                           className="px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-xs font-bold text-foreground/70 truncate max-w-[70px]"
-                        >
+                         title={t}>
                           {t}
                         </span>
                       ))}

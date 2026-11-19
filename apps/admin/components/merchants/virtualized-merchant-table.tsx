@@ -410,7 +410,7 @@ function renderCell(
             <span
               key={tag}
               className="px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-xs font-bold text-foreground/70 truncate max-w-[80px]"
-            >
+             title={tag}>
               {tag}
             </span>
           ))}

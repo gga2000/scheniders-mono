@@ -345,10 +345,10 @@ export function SmartAlertRules({ merchants, total }: SmartAlertRulesProps) {
                         >
                           <AlertTriangle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-foreground truncate">
+                            <p className="text-xs font-medium text-foreground truncate" title={alert.merchantName}>
                               {alert.merchantName}
                             </p>
-                            <p className="text-xs text-foreground/70 truncate">
+                            <p className="text-xs text-foreground/70 truncate" title={alert.message}>
                               {alert.message}
                             </p>
                           </div>

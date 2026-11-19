@@ -614,7 +614,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                                     <td
                                       key={ci}
                                       className="px-3 py-2 text-[var(--muted)] whitespace-nowrap max-w-[200px] truncate"
-                                    >
+                                     title={row[ci] || "-"}>
                                       {row[ci] || "-"}
                                     </td>
                                   ))}
@@ -636,7 +636,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                               key={index}
                               className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--foreground)]/[0.02] border border-[var(--card-border)]"
                             >
-                              <span className="text-sm font-medium text-[var(--foreground)] min-w-[140px] truncate">
+                              <span className="text-sm font-medium text-[var(--foreground)] min-w-[140px] truncate" title={header}>
                                 {header}
                               </span>
                               <ChevronRight className="w-4 h-4 text-[var(--muted)] shrink-0" />

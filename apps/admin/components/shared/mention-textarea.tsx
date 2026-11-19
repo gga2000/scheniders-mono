@@ -171,10 +171,10 @@ export function MentionTextarea({
                 {user.display_name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-foreground truncate">
+                <p className="text-xs font-medium text-foreground truncate" title={user.display_name}>
                   {user.display_name}
                 </p>
-                <p className="text-xs text-foreground/70 truncate">
+                <p className="text-xs text-foreground/70 truncate" title={user.role === "super_admin" ? "Admin" : "Support"}>
                   {user.role === "super_admin" ? "Admin" : "Support"}
                 </p>
               </div>

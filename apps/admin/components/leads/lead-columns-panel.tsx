@@ -60,7 +60,7 @@ export function LeadColumnsPanel({
                       "flex-1 truncate text-sm",
                       col.hidden ? "text-[var(--muted)]" : "text-[var(--foreground)]",
                     )}
-                  >
+                   title={def.label}>
                     {def.label}
                   </span>
 

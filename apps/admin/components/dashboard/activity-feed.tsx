@@ -115,7 +115,7 @@ export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
                   <span className="font-semibold">{item.text}</span>
                 </p>
                 {item.summary && (
-                  <p className="text-xs text-foreground/70 mt-0.5 truncate">
+                  <p className="text-xs text-foreground/70 mt-0.5 truncate" title={item.summary}>
                     {item.summary}
                   </p>
                 )}

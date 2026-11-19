@@ -230,7 +230,7 @@ export function TeamCommissionDashboard({
                               {initial}
                             </div>
                           )}
-                          <span className="text-sm font-semibold text-foreground truncate">
+                          <span className="text-sm font-semibold text-foreground truncate" title={emp.display_name ?? emp.email.split("@")[0]}>
                             {emp.display_name ?? emp.email.split("@")[0]}
                           </span>
                         </Link>
