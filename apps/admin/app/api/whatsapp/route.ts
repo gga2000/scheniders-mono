@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminFromRequest } from "@/lib/api-auth";
-import { baghdadMonth, monthParamSchema, whatsappReportSchema, whatsappReportTotals } from "@/lib/whatsapp-report";
+import { monthOf } from "@/lib/baghdad-day";
+import { monthParamSchema, whatsappReportSchema, whatsappReportTotals } from "@/lib/whatsapp-report";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAdminFromRequest(request);
   if (auth instanceof NextResponse) return auth;
 
-  const param = new URL(request.url).searchParams.get("month") ?? baghdadMonth(new Date());
+  const param = new URL(request.url).searchParams.get("month") ?? monthOf(new Date());
   const month = monthParamSchema.safeParse(param);
   if (!month.success) {
     return NextResponse.json({ error: month.error.issues[0]?.message ?? "Invalid month" }, { status: 400 });

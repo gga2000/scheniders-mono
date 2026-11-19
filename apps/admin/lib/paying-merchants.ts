@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dayOf } from "./baghdad-day";
+import { monthOf } from "./baghdad-day";
 
 /**
  * Paying merchants and the staff bonus (Fermi B12 items 3 and 4). A paying
@@ -58,11 +58,6 @@ export type MonthEnd = z.infer<typeof monthEndSchema>;
 
 export function bonusPerPersonIqd(payers: number): number {
   return BONUS_BASE_IQD + BONUS_PER_PAYER_IQD * payers;
-}
-
-/** The Baghdad month a moment falls in, as "2026-11". */
-export function monthOf(instant: string | Date | number): string {
-  return dayOf(instant).slice(0, 7);
 }
 
 export interface BonusMonth {

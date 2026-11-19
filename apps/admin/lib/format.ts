@@ -79,13 +79,6 @@ export function formatDay(value: string | number | Date, now: Date = new Date())
   return year === dayParts(now).year ? text : `${text} ${year}`;
 }
 
-const DAY_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: BAGHDAD, year: "numeric", month: "2-digit", day: "2-digit" });
-
-/** "2026-11-15": the Baghdad calendar day, for grouping by day. */
-export function formatDayKey(value: string | number | Date): string {
-  return DAY_KEY.format(asDate(value));
-}
-
 /** "14:05" in Baghdad time. */
 export function formatTime(value: string | number | Date): string {
   return TIME.format(asDate(value));

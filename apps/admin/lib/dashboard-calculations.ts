@@ -25,6 +25,7 @@ import type {
   PlatformOrderStat,
 } from "@/types/dashboard";
 import { addDays, dayOf } from "./baghdad-day";
+import { formatMonth } from "./format";
 import { daysEnding, feesOf, type DashboardStats, type IncomeStats, type UsageStats } from "./console-stats";
 import { effectiveStatus } from "./effective-status";
 import { ONBOARDING_STEPS, onboardingDone, type OnboardingFacts } from "./onboarding-steps";
@@ -641,7 +642,7 @@ export function calculateKpis(
   const avgOrderValue = sales.count90 > 0 ? Math.round(sales.sum90 / sales.count90) : 0;
 
   // Cards name the month: "Orders, Nov" says which month and fits on one line.
-  const month = new Date(`${today}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  const month = formatMonth(today.slice(0, 7), false);
 
   const feesThisMonth = feesOf(income.monthly[11]);
   const feesLastMonth = feesOf(income.monthly[10]);

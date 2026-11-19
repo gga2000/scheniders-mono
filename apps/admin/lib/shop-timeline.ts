@@ -6,7 +6,8 @@
  * table is still complete; the page groups order fees into one line per day.
  */
 
-import { formatCount, formatDayKey } from "@/lib/format";
+import { formatCount } from "@/lib/format";
+import { dayOf } from "@/lib/baghdad-day";
 import { planLabel } from "@/types/admin";
 
 export interface WalletRow {
@@ -305,7 +306,7 @@ export function groupOrderFees(entries: readonly TimelineEntry[]): TimelineEntry
   const byDay = new Map<string, TimelineEntry[]>();
   for (const entry of entries) {
     if (!entry.orderFee) continue;
-    const day = formatDayKey(entry.at);
+    const day = dayOf(entry.at);
     const list = byDay.get(day);
     if (list) list.push(entry);
     else byDay.set(day, [entry]);
@@ -317,7 +318,7 @@ export function groupOrderFees(entries: readonly TimelineEntry[]): TimelineEntry
       out.push(entry);
       continue;
     }
-    const day = formatDayKey(entry.at);
+    const day = dayOf(entry.at);
     const fees = byDay.get(day);
     if (!fees || fees[0] !== entry) continue;
     const newest = fees[0];

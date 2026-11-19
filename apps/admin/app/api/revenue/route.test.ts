@@ -47,9 +47,10 @@ describe("GET /api/revenue", () => {
   it("counts our fees as income and reports other charges apart", async () => {
     const body = await (await call()).json();
 
-    expect(body.monthLabels).toEqual(["Jun 26", "Jul 26", "Aug 26", "Sep 26", "Oct 26", "Nov 26"]);
-    expect(body.mrrWaterfall.at(-1)).toEqual({ month: "Nov 26", revenue: 10_160 });
-    expect(body.mrrWaterfall.at(-2)).toEqual({ month: "Oct 26", revenue: 30_800 });
+    // Round 18: "Nov 26" read as 26 November. A month is "Nov 2026" on every screen.
+    expect(body.monthLabels).toEqual(["Jun 2026", "Jul 2026", "Aug 2026", "Sep 2026", "Oct 2026", "Nov 2026"]);
+    expect(body.mrrWaterfall.at(-1)).toEqual({ month: "Nov 2026", revenue: 10_160 });
+    expect(body.mrrWaterfall.at(-2)).toEqual({ month: "Oct 2026", revenue: 30_800 });
     // 79,000 of test reversals in November: a wallet charge, not income.
     expect(body.otherCharges).toBe(79_000);
   });

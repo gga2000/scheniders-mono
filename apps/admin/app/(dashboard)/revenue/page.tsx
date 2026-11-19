@@ -16,7 +16,7 @@ import {
   Area,
 } from "recharts";
 import { LoadError } from "@/components/shared/load-error";
-import { formatCount, formatIQD } from "@/lib/format";
+import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
 import { adminFetch } from "@/lib/admin-fetch";
 import { planLabel } from "@/types/admin";
@@ -149,7 +149,7 @@ export default function RevenuePage() {
                   const maxVal = Math.max(...cohort.months.map((rev) => rev ?? 0), 1);
                   return (
                     <tr key={cohort.cohort} className="border-t border-[var(--card-border)]">
-                      <td className="p-2 font-medium text-foreground">{cohort.cohort}</td>
+                      <td className="p-2 font-medium text-foreground">{formatMonth(cohort.cohort)}</td>
                       <td className="p-2 text-center text-foreground/70">{cohort.tenantCount}</td>
                       {cohort.months.map((rev, i) => {
                         const intensity = (rev ?? 0) / maxVal;

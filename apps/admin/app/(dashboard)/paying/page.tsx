@@ -9,7 +9,7 @@ import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
-import { formatCount, formatIQD, formatMonth } from "@/lib/format";
+import { formatCount, formatDateKey, formatIQD, formatMonth } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import { planLabel } from "@/types/admin";
@@ -36,12 +36,6 @@ const staffPayResponseSchema = z.object({
     }),
   ),
 });
-
-/** The Baghdad day of an instant, as "10 Dec 2026". */
-function dayLabel(instant: string): string {
-  const [year, month, day] = dayOf(instant).split("-");
-  return `${Number(day)} ${formatMonth(`${year}-${month}`, false)} ${year}`;
-}
 
 /** Shops paying at each month's end: one bar a month, the running month last and marked. */
 function MonthBars({ bars }: { bars: MonthBar[] }) {
@@ -240,8 +234,8 @@ export default function PayingShopsPage() {
                           <ShopNameLink id={s.tenant_id} name={s.name} displayId={s.display_id} />
                         </td>
                         <td className="p-3 font-semibold">{planLabel(s.plan)}</td>
-                        <td className="p-3 tabular-nums">{dayLabel(s.paid_until)}</td>
-                        <td className="p-3 tabular-nums">{dayLabel(s.first_paid_at)}</td>
+                        <td className="p-3 tabular-nums">{formatDateKey(dayOf(s.paid_until))}</td>
+                        <td className="p-3 tabular-nums">{formatDateKey(dayOf(s.first_paid_at))}</td>
                         <td className="p-3">{s.source === "outreach" ? "Our outreach" : "Signed up itself"}</td>
                       </tr>
                     ))}
