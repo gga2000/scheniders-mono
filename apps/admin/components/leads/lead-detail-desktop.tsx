@@ -330,7 +330,7 @@ export function LeadDetailDesktop() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] mb-2">
-              Revenue Prediction
+              Their sales, estimated
             </p>
             <p className="text-3xl font-black text-[var(--foreground)]">
               ~{lead.estimated_daily_orders} orders/day
@@ -339,7 +339,7 @@ export function LeadDetailDesktop() {
               ~{formatCount(estMonthlyOrders)} orders/month
             </p>
             <p className="text-lg font-bold text-[var(--ink-green)] mt-1">
-              ~{formatIQD(lead.estimated_monthly_revenue)}/month potential revenue
+              ~{formatIQD(lead.estimated_monthly_revenue)} in sales a month
             </p>
           </div>
           <div className="bg-black/10 dark:bg-white/5 rounded-xl px-4 py-3 text-sm text-[var(--muted)]">
