@@ -236,6 +236,11 @@ export function stockPurchases(summary: FinanceSummary): number {
     return expenseTotal(summary, STOCK_PURCHASE_CATEGORY);
 }
 
+/**
+ * The profit statement of a period. The trial report (trial_report_core,
+ * 20261119001240_trial_report.sql) adds up the same net profit in the
+ * database: a change to what counts as a cost here belongs there too.
+ */
 export function buildStatement(summary: FinanceSummary): ProfitStatement {
     const sales = summary.sales.revenue;
     const ads = expenseTotal(summary, ADS_CATEGORY);
