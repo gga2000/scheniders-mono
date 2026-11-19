@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { LeadActivity, LeadActivityType } from "@/types/leads";
 import { toast } from "sonner";
 import { useCreateActivity } from "@/hooks/use-lead-activities";
+import { useLeaveGuard } from "@/hooks/use-leave-guard";
 import {
   StickyNote,
   Phone,
@@ -68,6 +69,8 @@ export function LeadActivityTimeline({ activities, leadId, noteRequest = 0 }: Le
   const [description, setDescription] = useState("");
   const createActivity = useCreateActivity();
   const inputRef = useRef<HTMLInputElement>(null);
+  // A note being typed is not lost to a reload when the sign-in ends (round 15).
+  useLeaveGuard(description.trim() !== "");
   // A new ask picks a note again, whatever kind was picked before.
   const [seenRequest, setSeenRequest] = useState(noteRequest);
   if (noteRequest !== seenRequest) {
