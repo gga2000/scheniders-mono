@@ -16,6 +16,13 @@ export const BONUS_BASE_IQD = 250_000;
 export const BONUS_PER_PAYER_IQD = 1_000;
 
 /**
+ * The first month the bonus is paid for: the Fermi plan that set it came on
+ * 16 Nov 2026. Earlier months had no bonus, so they are not listed: a row
+ * of 250,000 for May read as pay owed.
+ */
+export const BONUS_FROM_MONTH = "2026-11";
+
+/**
  * The stop rules the paying count feeds (handoff B12 item 3): fewer payers
  * than this at the end of the month is the signal to stop and rethink.
  */
@@ -69,8 +76,8 @@ export interface BonusMonth {
 }
 
 /**
- * The bonus for every past month, newest first, then the month still running
- * as it stands now. Read-only: Ali pays it by hand.
+ * The bonus for the month still running as it stands now, then every past
+ * month from BONUS_FROM_MONTH, newest first. Read-only: Ali pays it by hand.
  */
 export function bonusMonths(report: PayingMerchants, people: number): BonusMonth[] {
   const month = (m: string, payers: number, final: boolean): BonusMonth => {
@@ -80,5 +87,39 @@ export function bonusMonths(report: PayingMerchants, people: number): BonusMonth
   return [
     month(monthOf(report.at), report.shops.length, false),
     ...[...report.month_ends].reverse().map((m) => month(m.month, m.payers, true)),
+  ].filter((m) => m.month >= BONUS_FROM_MONTH);
+}
+
+export interface GoalStanding {
+  month: string;
+  goal: number;
+  /** Payers at that month's end; now, while the month has not ended; null for a past month the report does not reach. */
+  payers: number | null;
+  /** False until the month has ended: the count can still change. */
+  final: boolean;
+}
+
+/** Where the paying count stands against each stop-rule goal. */
+export function goalStandings(report: PayingMerchants): GoalStanding[] {
+  const now = monthOf(report.at);
+  return PAYER_GOALS.map(({ month, payers: goal }) => {
+    const ended = report.month_ends.find((m) => m.month === month);
+    if (ended) return { month, goal, payers: ended.payers, final: true };
+    return { month, goal, payers: month >= now ? report.shops.length : null, final: false };
+  });
+}
+
+export interface MonthBar {
+  month: string;
+  payers: number;
+  /** The month still running: its count is the shops paying now. */
+  running: boolean;
+}
+
+/** Payers at each past month's end, oldest first, then the month still running as it stands now. */
+export function monthBars(report: PayingMerchants): MonthBar[] {
+  return [
+    ...report.month_ends.map((m) => ({ month: m.month, payers: m.payers, running: false })),
+    { month: monthOf(report.at), payers: report.shops.length, running: true },
   ];
 }

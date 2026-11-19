@@ -59,7 +59,7 @@ describe("GET /api/staff-bonus", () => {
     expect(body.months).toEqual([
       { month: "2026-12", payers: 2, perPersonIqd: 252_000, totalIqd: 756_000, final: false },
       { month: "2026-11", payers: 14, perPersonIqd: 264_000, totalIqd: 792_000, final: true },
-      { month: "2026-10", payers: 0, perPersonIqd: 250_000, totalIqd: 750_000, final: true },
+      // October is before the bonus began (BONUS_FROM_MONTH): not listed as pay owed.
     ]);
     expect(body.basePerPersonIqd).toBe(250_000);
     expect(body.perPayerIqd).toBe(1_000);
