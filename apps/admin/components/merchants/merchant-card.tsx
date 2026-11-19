@@ -259,7 +259,7 @@ export function MerchantCard({
                 <Phone className="w-2.5 h-2.5 text-foreground/35 shrink-0" />
                 <CopyableText
                   value={merchant.contact_phone}
-                  className="text-xs font-bold tabular-nums text-foreground/70"
+                  className="min-w-0 max-w-full text-xs font-bold tabular-nums text-foreground/70"
                 />
               </div>
             )}
@@ -275,10 +275,10 @@ export function MerchantCard({
         </div>
 
         {/* Hero stats: Balance + Revenue (paired big numbers) */}
-        <div className="relative grid grid-cols-2 gap-3 mt-5 p-3.5 rounded-2xl bg-gradient-to-br from-foreground/[0.04] to-foreground/[0.015] dark:from-white/[0.04] dark:to-white/[0.01] border border-foreground/[0.05]">
-          <div className="min-w-0">
-            <p className="text-xs text-foreground/70 font-black flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0" />
+        <div className="relative grid grid-cols-2 grid-rows-[auto_auto_auto] gap-x-3 mt-5 p-3.5 rounded-2xl bg-gradient-to-br from-foreground/[0.04] to-foreground/[0.015] dark:from-white/[0.04] dark:to-white/[0.01] border border-foreground/[0.05]">
+          <div className="min-w-0 row-span-3 grid grid-rows-subgrid">
+            <p className="text-xs text-foreground/70 font-black flex items-start gap-1">
+              <span className="w-1 h-1 mt-[7px] rounded-full bg-emerald-500 shrink-0" />
               Balance
             </p>
             <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
@@ -291,9 +291,9 @@ export function MerchantCard({
               {merchant.city || "—"}
             </p>
           </div>
-          <div className="min-w-0 border-l border-foreground/[0.08] pl-3">
-            <p className="text-xs text-foreground/70 font-black flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-violet-500 shrink-0" />
+          <div className="min-w-0 row-span-3 grid grid-rows-subgrid border-l border-foreground/[0.08] pl-3">
+            <p className="text-xs text-foreground/70 font-black flex items-start gap-1">
+              <span className="w-1 h-1 mt-[7px] rounded-full bg-violet-500 shrink-0" />
               Our fees, 30 days
             </p>
             <p className="text-lg font-black text-foreground tabular-nums truncate mt-1 leading-none">
