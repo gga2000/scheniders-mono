@@ -156,6 +156,15 @@ describe("subscription-renew cron", () => {
         expect(body.results[0]).toMatchObject({ outcome: "on_hold", details: "Shop is limited: not charged" });
     });
 
+    it("reports a month with renewal off as not_renewed: not charged, not a renewal, not an error", async () => {
+        renewResult = { success: true, outcome: "not_renewed", plan: "starter", error: "Renewal is off: not charged" };
+        const res = await GET(cronRequest());
+        const body = await res.json();
+        expect(res.status).toBe(200);
+        expect(body).toMatchObject({ success: true, renewed: 0, locked: 0, notRenewed: 1, errors: 0 });
+        expect(body.results[0]).toMatchObject({ outcome: "not_renewed", details: "Renewal is off: not charged" });
+    });
+
     it("reports the demo store's free month as renewed and not charged, never locked (B13)", async () => {
         renewResult = { success: true, outcome: "renewed", plan: "growth", charged: 0, demo: true };
         const res = await GET(cronRequest());

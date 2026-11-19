@@ -22,7 +22,7 @@ async function xlsx(build: (sheet: ExcelJS.Worksheet, book: ExcelJS.Workbook) =>
 
 describe("parseCsv", () => {
   it("reads quoted cells with the delimiter, quotes and line breaks in them", () => {
-    expect(parseCsv('name,price\r\n"عطر, عود",35000\n"قميص ""قطن""","1,000"\n"سطر\nثاني",5')).toEqual([
+    expect(parseCsv('name,price\r\n"عطر, عود",35000\n"قميص ""قطن""","1,000"\n"سطر\nثاني",5').rows).toEqual([
       ["name", "price"],
       ["عطر, عود", "35000"],
       ['قميص "قطن"', "1,000"],
@@ -31,8 +31,18 @@ describe("parseCsv", () => {
   });
 
   it("finds a semicolon or tab delimiter from the first line", () => {
-    expect(parseCsv("name;price\nعطر;35,000")).toEqual([["name", "price"], ["عطر", "35,000"]]);
-    expect(parseCsv("name\tprice\nعطر\t35000\n")).toEqual([["name", "price"], ["عطر", "35000"]]);
+    expect(parseCsv("name;price\nعطر;35,000").rows).toEqual([["name", "price"], ["عطر", "35,000"]]);
+    expect(parseCsv("name\tprice\nعطر\t35000\n").rows).toEqual([["name", "price"], ["عطر", "35000"]]);
+  });
+
+  // Audit round 20: 4 MB of line breaks was built into 4,194,304 rows (about 900 MB).
+  it("keeps only the rows asked for, and names the first row past them with something in it", () => {
+    const breaks = "\n".repeat(4 * 1024 * 1024);
+    const started = Date.now();
+    expect(parseCsv(breaks, 2100)).toEqual({ rows: Array.from({ length: 2100 }, () => [""]), farRow: 0 });
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(parseCsv(`a,b\n1,2\n\n  ,\n"x\ny"\nlast`, 2)).toEqual({ rows: [["a", "b"], ["1", "2"]], farRow: 5 });
+    expect(parseCsv("a\nb", 5)).toEqual({ rows: [["a"], ["b"]], farRow: 0 });
   });
 });
 
@@ -101,6 +111,37 @@ describe("readImportFile", () => {
     });
     expect(await readImportFile(bytes, "far.xlsx")).toMatchObject({ ok: false, error: expect.stringContaining("row 5,000") });
   });
+
+  it("counts every row of a sheet that has too many, and reads the sheets after the first one through", async () => {
+    const bytes = await xlsx((sheet, book) => {
+      sheet.addRow(["name", "price"]);
+      for (let n = 0; n < 2500; n++) sheet.addRow([`p${n}`, n]);
+      book.addWorksheet("later").addRow(["other"]);
+    });
+    expect(await readImportFile(bytes, "many.xlsx")).toMatchObject({ ok: false, error: expect.stringContaining("The sheet has 2,501 rows") });
+  });
+
+  // Audit round 20: the whole workbook was loaded, merge ranges applied, before
+  // any row was counted; this 1.5 KB file ran the server out of memory.
+  it("reads a tiny workbook whose one merge covers the whole sheet, without building the merge", async () => {
+    const bytes = workbookWithMerge("A1:XFD1048576");
+    expect(bytes.length).toBeLessThan(2_000);
+    const started = Date.now();
+    expect(await readImportFile(bytes, "merged.xlsx")).toEqual({
+      ok: true,
+      file: { sheet: "Sheet1", headers: ["name", "price"], rows: [["عطر", "35000"]], firstRow: 2 },
+    });
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it("refuses a CSV with something far below the rows a file may have, without reading the rest", async () => {
+    const lines = ["name,price", ...Array.from({ length: 2000 }, (_, i) => `p${i},1`), ...Array.from({ length: 200 }, () => ""), "stray"];
+    expect(await readImportFile(utf8(lines.join("\n")), "far.csv")).toMatchObject({ ok: false, error: expect.stringContaining("row 2,202") });
+    expect(await readImportFile(utf8("\n".repeat(4 * 1024 * 1024)), "breaks.csv")).toEqual({ ok: false, error: "The file is empty." });
+    // Blank lines after the products are not something below them.
+    const trailing = ["name,price", "عطر,1", ...Array.from({ length: 3000 }, () => "")].join("\n");
+    expect(await readImportFile(utf8(trailing), "trailing.csv")).toMatchObject({ ok: true, file: { rows: [["عطر", "1"]] } });
+  });
 });
 
 /** A zip of deflated entries, each stating the unpacked size given (or its true one). */
@@ -140,6 +181,51 @@ function zip(entries: Array<{ name: string; data: Uint8Array; stated?: number }>
   end.writeUInt32LE(directory.length, 12);
   end.writeUInt32LE(offset, 16);
   return new Uint8Array(Buffer.concat([...locals, directory, end]));
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = (data: Uint8Array) => {
+  let c = 0xffffffff;
+  for (const byte of data) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+};
+
+/** The smallest .xlsx with two rows of inline text and one merge range: built by hand, as no writer builds such a merge. */
+function workbookWithMerge(range: string): Uint8Array {
+  const files: Record<string, string> = {
+    "[Content_Types].xml":
+      '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+    "_rels/.rels":
+      '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    "xl/workbook.xml":
+      '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    "xl/_rels/workbook.xml.rels":
+      '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+    "xl/worksheets/sheet1.xml":
+      '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+      '<row r="1"><c r="A1" t="inlineStr"><is><t>name</t></is></c><c r="B1" t="inlineStr"><is><t>price</t></is></c></row>' +
+      '<row r="2"><c r="A2" t="inlineStr"><is><t>عطر</t></is></c><c r="B2"><v>35000</v></c></row>' +
+      `</sheetData><mergeCells count="1"><mergeCell ref="${range}"/></mergeCells></worksheet>`,
+  };
+  const entries = Object.entries(files).map(([name, text]) => ({ name, data: utf8(text) }));
+  const bytes = zip(entries);
+  // The local and central headers carry each entry's CRC, as Excel writes them.
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let at = 0;
+  const crcs = entries.map((entry) => crc32(entry.data));
+  for (const crc of crcs) {
+    view.setUint32(at + 14, crc, true);
+    at += 30 + view.getUint16(at + 26, true) + view.getUint32(at + 18, true);
+  }
+  for (const crc of crcs) {
+    view.setUint32(at + 16, crc, true);
+    at += 46 + view.getUint16(at + 28, true);
+  }
+  return bytes;
 }
 
 describe("zipUnpacked", () => {

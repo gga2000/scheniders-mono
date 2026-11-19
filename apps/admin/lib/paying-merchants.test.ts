@@ -7,6 +7,7 @@ const shop = (n: number) => ({
   name: `Shop ${n}`,
   plan: "starter",
   paid_until: "2026-12-10T09:00:00+00:00",
+  month_end: "2026-12-10T09:00:00+00:00",
   first_paid_at: "2026-11-10T09:00:00+00:00",
   source: "signup" as const,
 });

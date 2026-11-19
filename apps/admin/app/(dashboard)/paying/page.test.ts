@@ -29,6 +29,7 @@ const PAYING = {
       plan: "growth",
       // 10 Dec 23:30 in Baghdad.
       paid_until: "2026-12-10T20:30:00+00:00",
+      month_end: "2026-12-10T20:30:00+00:00",
       first_paid_at: "2026-11-10T20:30:00+00:00",
       source: "signup",
     },
@@ -38,6 +39,7 @@ const PAYING = {
       name: "Baghdad Shoes",
       plan: "starter",
       paid_until: "2026-12-15T09:00:00+00:00",
+      month_end: "2026-12-15T09:00:00+00:00",
       first_paid_at: "2026-11-15T09:00:00+00:00",
       source: "outreach",
     },
@@ -121,6 +123,30 @@ describe("Paying shops", () => {
     expect(html).toContain(">Start<");
     expect(html).not.toMatch(/>(growth|starter)</);
     expect(html).not.toContain("capitalize");
+  });
+
+  // Round 20: "Paid until" printed paid_until, which carries the renewal wait
+  // day: a day no charge paid for. The page names the month's own end.
+  it("names a month waiting for its renewal by its own end, not the wait day", () => {
+    const waiting = {
+      ...PAYING.shops[1],
+      // The month ended 18 Nov 23:00 in Baghdad; counted until 19 Nov 23:00.
+      month_end: "2026-11-18T20:00:00+00:00",
+      paid_until: "2026-11-19T20:00:00+00:00",
+    };
+    const html = render("support_staff", { ...PAYING, shops: [waiting, PAYING.shops[0]] });
+    expect(html).toContain("18 Nov 2026<span class=\"text-foreground/70\">, renewal due</span>");
+    expect(html).not.toContain("19 Nov 2026");
+    // A month still running carries no note.
+    expect(html).toMatch(/10 Dec 2026<\/td>/);
+  });
+
+  // Round 20: the rule sentence said our own store never counts, while a
+  // shop moved to Internal keeps the months it paid.
+  it("says how Internal and the renewal wait count", () => {
+    const html = render("support_staff");
+    expect(html).toContain("a shop moved to Internal keeps the months it paid");
+    expect(html).toContain("A month that has ended still counts for one more day while its renewal runs");
   });
 
   it("says so when no shop pays yet, rather than an empty table", () => {

@@ -39,7 +39,10 @@ export const payingShopSchema = z.object({
   display_id: z.number().int(),
   name: z.string().nullable(),
   plan: z.string(),
+  /** Until when the shop counts as paying: the month's end, or a day later while the month waits for its renewal run. */
   paid_until: z.string(),
+  /** The paid month's own end (paid_plan_months, 20261119073725): what the page shows. */
+  month_end: z.string(),
   first_paid_at: z.string(),
   /** outreach: a lead staff converted; signup: the shop signed up itself. Ads, agency and referral come with signup attribution (C2, C6). */
   source: z.enum(["outreach", "signup"]),
