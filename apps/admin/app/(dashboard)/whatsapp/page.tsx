@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, Loader2, MessageCircleOff } from "lucide-react";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
+import { ShopNameLink } from "@/components/shared/shop-name-link";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { STATUS_LABELS, planLabel } from "@/types/admin";
 import {
   INTERAKT_COST_IQD,
   baghdadMonth,
@@ -238,14 +239,11 @@ export default function WhatsAppPage() {
                       return (
                         <tr key={s.tenant_id} className="border-b border-[var(--card-border)] last:border-0 hover:bg-foreground/[0.02]">
                           <td className="p-3">
-                            <Link href={`/merchants/${s.tenant_id}`} className="font-medium text-foreground hover:underline">
-                              {s.name ?? "Shop"}
-                            </Link>
-                            {s.display_id !== null && <span className="ml-2 text-xs text-foreground/70 tabular-nums">#{s.display_id}</span>}
+                            <ShopNameLink id={s.tenant_id} name={s.name} displayId={s.display_id} />
                           </td>
                           <td className="p-3 text-xs">
-                            <span className="font-semibold capitalize">{s.plan}</span>
-                            <span className="text-foreground/70"> · {s.status}</span>
+                            <span className="font-semibold">{planLabel(s.plan)}</span>
+                            <span className="text-foreground/70"> · {STATUS_LABELS[s.status]}</span>
                           </td>
                           <td className="p-3 text-right tabular-nums">
                             <span className="font-medium">{number(s.messages)}</span>

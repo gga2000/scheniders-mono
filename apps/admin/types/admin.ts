@@ -27,7 +27,9 @@ export const PLAN_LABELS: Readonly<Record<PlanTier, string>> = {
   starter: planLabel("starter"),
   internal: planLabel("internal"),
 };
-export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
+/** The database's tenant_status enum, every value a shop's status can hold. */
+export const TENANT_STATUSES = ["trial", "active", "limited", "suspended", "cancelled"] as const;
+export type TenantStatus = (typeof TENANT_STATUSES)[number];
 /**
  * A shop's status in the Merchants page's words, as its card chip says it.
  * The Table, Sheet and Compare views printed the stored key ("limited")

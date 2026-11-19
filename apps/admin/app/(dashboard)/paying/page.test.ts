@@ -59,10 +59,11 @@ const STAFF_PAY = {
   ],
 };
 
+/** `paying` null: the shops' read has not landed yet. */
 function render(as: AdminRole, paying: unknown = PAYING): string {
   role = as;
   const client = new QueryClient();
-  client.setQueryData(["admin", "paying-merchants"], paying);
+  if (paying !== null) client.setQueryData(["admin", "paying-merchants"], paying);
   client.setQueryData(["admin", "staff-bonus"], STAFF_PAY);
   return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(PayingShopsPage)));
 }
@@ -98,6 +99,26 @@ describe("Paying shops", () => {
     expect(html).toContain("252,000 IQD");
     expect(html).toContain("504,000 IQD");
     expect(html).toMatch(/Nov 2026<span[^>]*>, so far/);
+  });
+
+  // Round 18: the box was drawn on its own read, first, then jumped 263 px down
+  // when the shops landed above it (layout shift 0.053, the console's worst).
+  it("draws the staff pay box only once the shops above it have landed", () => {
+    const html = render("super_admin", null);
+    expect(html).not.toContain("Staff pay");
+    expect(html).toContain("animate-spin");
+  });
+
+  // Round 18: "100231#متجر الأناقة", the number glued to the wrong side of an
+  // Arabic name, and "growth" printed for the Team plan.
+  it("keeps an Arabic shop name apart from its number and names the plan", () => {
+    const arabic = { ...PAYING.shops[0], display_id: 100_095, name: "متجر تجريبي Claude للأزياء" };
+    const html = render("support_staff", { ...PAYING, shops: [arabic, PAYING.shops[1]] });
+    expect(html).toContain(`dir="auto" class="font-medium text-foreground hover:underline" href="/merchants/${arabic.tenant_id}">متجر تجريبي Claude للأزياء</a><span class="text-xs text-foreground/70 tabular-nums">#100095</span>`);
+    expect(html).toContain(">Team<");
+    expect(html).toContain(">Start<");
+    expect(html).not.toMatch(/>(growth|starter)</);
+    expect(html).not.toContain("capitalize");
   });
 
   it("says so when no shop pays yet, rather than an empty table", () => {

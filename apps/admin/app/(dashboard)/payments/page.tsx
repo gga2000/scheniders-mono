@@ -229,7 +229,7 @@ function PaymentRow({ row, canDecide, canAddMore }: { row: TopupQueueItem; canDe
       <Receipt row={row} />
       <div className="min-w-[16rem] flex-1 space-y-1.5">
         <div className="flex flex-wrap items-baseline gap-2">
-          <Link href={`/merchants/${row.tenant_id}`} className="text-sm font-semibold text-foreground hover:underline">
+          <Link href={`/merchants/${row.tenant_id}`} dir="auto" className="text-sm font-semibold text-foreground hover:underline">
             {row.business_name ?? "Shop"}
           </Link>
           {row.display_id && <span className="text-xs text-foreground/70 tabular-nums">#{row.display_id}</span>}
