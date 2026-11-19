@@ -12,7 +12,11 @@
 --   the month is paid only from money in the wallet (no overdraft), and a
 --   credit that covers it unlocks the shop at once;
 --   an order's billing phase is set at insert and never changes;
---   the house tier is never locked.
+--   the house tier is never locked;
+--   a month renewed less than a day after it ended carries on from that end
+--   (in whole seconds, as the charge's reference writes it), whether the
+--   daily renewal run or a payment after a short lock renews it; a month
+--   paid later than that starts when it is paid (round 18 billing rule).
 
 \set ON_ERROR_STOP 1
 
@@ -898,3 +902,51 @@ SELECT pg_temp.check(
   (SELECT count(*) FROM public.lift_pause_and_settle('20000000-0000-4000-8000-0000000000b3')) = 0
   AND pg_temp.debits('20000000-0000-4000-8000-0000000000b3') = 1,
   'a second press answers no row and charges nothing');
+
+-- 12. The renewal date. The renewal job runs once a day (03:00 UTC), so a
+--     month is renewed up to a day after it ends. c1 ended 18 hours ago and
+--     c3 failed its renewal 10 hours ago (a short lock); c2 ended 2 days ago.
+INSERT INTO public.tenants (id, plan, status) VALUES
+  ('20000000-0000-4000-8000-0000000000c1', 'starter', 'active'),
+  ('20000000-0000-4000-8000-0000000000c2', 'starter', 'active'),
+  ('20000000-0000-4000-8000-0000000000c3', 'starter', 'active');
+INSERT INTO public.wallet (tenant_id, balance_iqd) VALUES
+  ('20000000-0000-4000-8000-0000000000c1', 9000),
+  ('20000000-0000-4000-8000-0000000000c2', 9000),
+  ('20000000-0000-4000-8000-0000000000c3', 9000);
+INSERT INTO public.subscriptions (tenant_id, plan, status, current_period_start, current_period_end, created_at) VALUES
+  ('20000000-0000-4000-8000-0000000000c1', 'starter', 'active',   now() - interval '30 days 18 hours', now() - interval '18 hours', now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000c2', 'starter', 'active',   now() - interval '32 days',          now() - interval '2 days',   now() - interval '60 days'),
+  ('20000000-0000-4000-8000-0000000000c3', 'starter', 'past_due', now() - interval '30 days 10 hours', now() - interval '10 hours', now() - interval '60 days');
+CREATE TEMP TABLE ended AS
+  SELECT tenant_id, id, current_period_end AS ended FROM public.subscriptions
+   WHERE tenant_id IN ('20000000-0000-4000-8000-0000000000c1', '20000000-0000-4000-8000-0000000000c2', '20000000-0000-4000-8000-0000000000c3');
+
+SELECT pg_temp.check(
+  (SELECT (public.renew_subscription_core(id, ended))->>'outcome' FROM ended WHERE tenant_id = '20000000-0000-4000-8000-0000000000c1') = 'renewed'
+  AND (SELECT (public.renew_subscription_core(id, ended))->>'outcome' FROM ended WHERE tenant_id = '20000000-0000-4000-8000-0000000000c2') = 'renewed'
+  AND (public.settle_billing_lock('20000000-0000-4000-8000-0000000000c3', true))->>'outcome' = 'renewed',
+  'the three months are paid');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start = date_trunc('second', e.ended)
+          AND s.current_period_end = date_trunc('second', e.ended) + interval '30 days'
+     FROM public.subscriptions s JOIN ended e ON e.id = s.id
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c1'),
+  'renewed 18 hours late: the month carries on from where the last ended, 30 days, not 31');
+SELECT pg_temp.check(
+  (SELECT w.reference_id = 'subscription:' || e.id || ':' || to_char(s.current_period_start AT TIME ZONE 'UTC', 'YYYYMMDD"T"HH24MISS')
+     FROM public.subscriptions s JOIN ended e ON e.id = s.id
+     JOIN public.wallet_transactions w ON w.tenant_id = s.tenant_id AND w.type = 'charge'
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c1'),
+  'the charge''s reference names the end the month carries on from');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start = date_trunc('second', e.ended)
+     FROM public.subscriptions s JOIN ended e ON e.id = s.id
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c3'),
+  'paid 10 hours into a lock: the month keeps its date');
+SELECT pg_temp.check(
+  (SELECT s.current_period_start > now() - interval '1 minute'
+          AND s.current_period_end = s.current_period_start + interval '30 days'
+     FROM public.subscriptions s
+    WHERE s.tenant_id = '20000000-0000-4000-8000-0000000000c2'),
+  'renewed 2 days late: the month starts when it is paid');

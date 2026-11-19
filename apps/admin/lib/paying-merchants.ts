@@ -65,19 +65,30 @@ export interface BonusMonth {
   /** Shops paying at the month's last moment, or now for the month still running. */
   payers: number;
   perPersonIqd: number;
+  /** Team members paid for the month: today's team who had joined by its end. */
+  people: number;
   totalIqd: number;
   /** False for the month still running: its count can still change. */
   final: boolean;
 }
 
+/** A team member, by the moment their staff login was made. */
+export interface TeamMember {
+  joinedAt: string;
+}
+
 /**
  * The bonus for the month still running as it stands now, then every past
  * month from BONUS_FROM_MONTH, newest first. Read-only: Ali pays it by hand.
+ * A month pays the people on today's team who had joined by its end, so a
+ * month that ended does not grow when someone joins later. The console keeps
+ * no record of who left, so someone who has left is in no month.
  */
-export function bonusMonths(report: PayingMerchants, people: number): BonusMonth[] {
+export function bonusMonths(report: PayingMerchants, team: readonly TeamMember[]): BonusMonth[] {
   const month = (m: string, payers: number, final: boolean): BonusMonth => {
     const perPersonIqd = bonusPerPersonIqd(payers);
-    return { month: m, payers, perPersonIqd, totalIqd: perPersonIqd * people, final };
+    const people = team.filter((p) => monthOf(p.joinedAt) <= m).length;
+    return { month: m, payers, perPersonIqd, people, totalIqd: perPersonIqd * people, final };
   };
   return [
     month(monthOf(report.at), report.shops.length, false),

@@ -23,6 +23,7 @@ const facts: Row = {
   from_day: "2026-11-12",
   to_day: "2026-11-16",
   days: 5,
+  elapsed_days: 5,
   trial_ends_at: "2026-11-19T09:00:00+00:00",
   ended: false,
   plan: "starter",

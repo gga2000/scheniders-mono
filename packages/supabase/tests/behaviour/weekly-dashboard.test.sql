@@ -15,10 +15,13 @@
 --   not a start); it is assisted when it came from a lead or a support call
 --   was logged before that payment, self-serve otherwise;
 --   paying at the week's end, and churn: paying at the start, not at the end
---   (a month renewed in time is not churn);
+--   (a month renewed in time is not churn, nor one renewed the morning after
+--   it ended, which carries on from its end: round 18, data new 2);
 --   trial WhatsApp counts only messages Fermi paid for, by category;
---   the demo store, prospect stores and the internal plan are never counted,
---   and money that is not a monthly charge never makes a shop paying;
+--   the demo store and prospect stores are never counted; an internal shop
+--   is no new shop or trial, but a month it paid before it was moved to
+--   Internal counts (round 18, data new 7); money that is not a monthly
+--   charge never makes a shop paying;
 --   limits, the service role only, and no EXECUTE for the browser roles.
 --
 -- One transaction, so now() is the same moment in the seed and the checks.
@@ -45,7 +48,8 @@ SELECT x.id::uuid, x.name, x.plan::public.plan_tier, x.demo, x.prospect, x.at
     ('30000000-0000-4000-8000-000000000008', 'G a minute old',                   'starter',  false, false, greatest(now() - interval '1 minute', w.w0)),
     ('30000000-0000-4000-8000-000000000009', 'demo store',                       'growth',   true,  false, w.w1 + interval '1 hour'),
     ('30000000-0000-4000-8000-000000000010', 'prospect store',                   'starter',  false, true,  w.w1 + interval '1 hour'),
-    ('30000000-0000-4000-8000-000000000011', 'internal',                         'internal', false, false, w.w1 + interval '1 hour')
+    ('30000000-0000-4000-8000-000000000011', 'moved to Internal after paying',   'internal', false, false, w.w1 + interval '1 hour'),
+    ('30000000-0000-4000-8000-000000000012', 'I renewed the next morning',       'starter',  false, false, w.w3 - interval '60 days')
   ) AS x(id, name, plan, demo, prospect, at);
 
 INSERT INTO public.leads (converted_tenant_id) VALUES ('30000000-0000-4000-8000-000000000002');
@@ -78,6 +82,12 @@ SELECT x.id::uuid, x.type, x.amount, x.ref, x.at
     -- Never paying, however paid.
     ('30000000-0000-4000-8000-000000000009', 'charge', -25000, 'subscription:g:1', w.w1 + interval '1 day'),
     ('30000000-0000-4000-8000-000000000010', 'charge', -9000,  'subscription:h:1', w.w1 + interval '1 day'),
+    -- I: its month ends 6 hours before w1; the renewal runs 12 hours later
+    -- and carries on from that end, which its reference names.
+    ('30000000-0000-4000-8000-000000000012', 'charge', -9000,  'subscription:j:1', w.w1 - interval '30 days 6 hours'),
+    ('30000000-0000-4000-8000-000000000012', 'charge', -9000,
+        'subscription:j:' || to_char((w.w1 - interval '6 hours') AT TIME ZONE 'UTC', 'YYYYMMDD"T"HH24MISS'), w.w1 + interval '6 hours'),
+    -- Paid, then moved to Internal (which is never charged).
     ('30000000-0000-4000-8000-000000000011', 'charge', -9000,  'subscription:i:1', w.w1 + interval '1 day'),
     -- Money that is not a paid month.
     ('30000000-0000-4000-8000-000000000005', 'topup',   50000, 'qi_payment:1',     w.w1 + interval '1 day'),
@@ -111,21 +121,23 @@ DECLARE
     weeks jsonb[];
     starts date[];
     expected jsonb[] := ARRAY[
-        -- w3: E lapses; F renewed in time.
+        -- w3: E lapses; F renewed in time; I pays.
         '{"running": false, "new_shops": 0, "trials_started": 0, "first_order_due": 0, "first_order_72h": 0,
-          "became_paying": 0, "became_paying_assisted": 0, "paying_at_end": 1, "churned": 1,
+          "became_paying": 0, "became_paying_assisted": 0, "paying_at_end": 2, "churned": 1,
           "trial_whatsapp_utility": 0, "trial_whatsapp_marketing": 0}',
-        -- w2: C, D and H (a moment before w1); only D ordered inside 72 hours; D starts paying, self-serve.
+        -- w2: C, D and H (a moment before w1); only D ordered inside 72 hours; D starts paying, self-serve;
+        -- I's month ended 6 hours before the week did, and it is still paying: its renewal came after.
         '{"running": false, "new_shops": 3, "trials_started": 3, "first_order_due": 3, "first_order_72h": 1,
-          "became_paying": 1, "became_paying_assisted": 0, "paying_at_end": 2, "churned": 0,
+          "became_paying": 1, "became_paying_assisted": 0, "paying_at_end": 3, "churned": 0,
           "trial_whatsapp_utility": 1, "trial_whatsapp_marketing": 0}',
-        -- w1: A and B (B from a lead); A ordered in time; C, A, B start paying, C and B assisted.
+        -- w1: A and B (B from a lead); A ordered in time; C, A, B and the shop since moved to Internal
+        -- start paying, C and B assisted.
         '{"running": false, "new_shops": 2, "trials_started": 1, "first_order_due": 2, "first_order_72h": 1,
-          "became_paying": 3, "became_paying_assisted": 2, "paying_at_end": 5, "churned": 0,
+          "became_paying": 4, "became_paying_assisted": 2, "paying_at_end": 7, "churned": 0,
           "trial_whatsapp_utility": 2, "trial_whatsapp_marketing": 1}',
         -- w0, running: G, a minute old, is not due yet.
         '{"running": true, "new_shops": 1, "trials_started": 1, "first_order_due": 0, "first_order_72h": 0,
-          "became_paying": 0, "became_paying_assisted": 0, "paying_at_end": 5, "churned": 0,
+          "became_paying": 0, "became_paying_assisted": 0, "paying_at_end": 7, "churned": 0,
           "trial_whatsapp_utility": 0, "trial_whatsapp_marketing": 0}'
     ]::jsonb[];
     w0 date;
@@ -164,11 +176,22 @@ BEGIN
        <> ARRAY['30000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002',
                 '30000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000004',
                 '30000000-0000-4000-8000-000000000006', '30000000-0000-4000-8000-000000000007',
-                '30000000-0000-4000-8000-000000000007'] THEN
+                '30000000-0000-4000-8000-000000000007', '30000000-0000-4000-8000-000000000011',
+                '30000000-0000-4000-8000-000000000012', '30000000-0000-4000-8000-000000000012'] THEN
         RAISE EXCEPTION 'paid months: %', (SELECT array_agg(p) FROM public.paid_plan_months() p);
     END IF;
-    IF EXISTS (SELECT 1 FROM public.paid_plan_months() p WHERE p.paid_until <> p.paid_at + interval '30 days') THEN
-        RAISE EXCEPTION 'a paid month is not 30 days';
+    -- Every month is 30 days from its charge, except I's two: the renewal
+    -- carried on from the first month's end, so the first is paid until the
+    -- renewal's charge and the second runs 30 days from that end.
+    IF EXISTS (SELECT 1 FROM public.paid_plan_months() p
+                WHERE p.tenant_id <> '30000000-0000-4000-8000-000000000012'
+                  AND p.paid_until <> p.paid_at + interval '30 days')
+       OR (SELECT array_agg(ARRAY[p.paid_at, p.paid_until] ORDER BY p.paid_at)
+             FROM public.paid_plan_months() p
+            WHERE p.tenant_id = '30000000-0000-4000-8000-000000000012')
+          IS DISTINCT FROM (SELECT ARRAY[ARRAY[w.w1 - interval '30 days 6 hours', w.w1 + interval '6 hours'],
+                           ARRAY[w.w1 + interval '6 hours', w.w1 - interval '6 hours' + interval '30 days']] FROM w) THEN
+        RAISE EXCEPTION 'paid month lengths: %', (SELECT array_agg(p) FROM public.paid_plan_months() p);
     END IF;
 END;
 $t$;

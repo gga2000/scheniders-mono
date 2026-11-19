@@ -29,6 +29,8 @@ const watch = (shops: Row[], median: number | null = 80): Row => ({
   window_from: "2026-09-05T23:40:00+00:00",
   window_to: "2026-11-04T23:40:00+00:00",
   median_rate: median,
+  stuck_after_days: 14,
+  min_shipped_for_rate: 20,
   shops,
 });
 
@@ -69,6 +71,15 @@ describe("GET /api/delivered-rate-watch", () => {
     expect(body.flagged).toBe(2);
     expect(body.median_rate).toBe(80);
     expect(body.rules).toEqual({ farBelowMedianShare: 0.7, stuckFlagMin: 5, stuckAfterDays: 14, minShippedForRate: 20 });
+  });
+
+  it("states the database's own rules, so a change there reaches the page", async () => {
+    stub.state.functions.admin_delivered_rate_watch = () => ({
+      data: { ...watch([]), stuck_after_days: 10, min_shipped_for_rate: 25 },
+      error: null,
+    });
+    const body = await (await call()).json();
+    expect(body.rules).toMatchObject({ stuckAfterDays: 10, minShippedForRate: 25 });
     expect(stub.state.rpcCalls).toEqual([{ fn: "admin_delivered_rate_watch", args: { p_days: 60 } }]);
   });
 
@@ -108,6 +119,12 @@ describe("GET /api/delivered-rate-watch", () => {
     expect((await call()).status).toBe(500);
 
     stub.state.functions.admin_delivered_rate_watch = () => ({ data: { ...watch([]), shops: [{ name: "x" }] }, error: null });
+    expect((await call()).status).toBe(500);
+
+    // A database that does not state its rules.
+    const noRules = watch([]);
+    delete noRules.stuck_after_days;
+    stub.state.functions.admin_delivered_rate_watch = () => ({ data: noRules, error: null });
     expect((await call()).status).toBe(500);
   });
 });

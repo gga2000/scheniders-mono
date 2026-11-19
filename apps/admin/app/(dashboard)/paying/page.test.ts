@@ -54,8 +54,8 @@ const STAFF_PAY = {
     { id: "u2", name: "Noor" },
   ],
   months: [
-    { month: "2026-11", payers: 2, perPersonIqd: 252_000, totalIqd: 504_000, final: false },
-    { month: "2026-10", payers: 1, perPersonIqd: 251_000, totalIqd: 502_000, final: true },
+    { month: "2026-11", payers: 2, perPersonIqd: 252_000, people: 2, totalIqd: 504_000, final: false },
+    { month: "2026-10", payers: 1, perPersonIqd: 251_000, people: 2, totalIqd: 502_000, final: true },
   ],
 };
 
@@ -99,6 +99,8 @@ describe("Paying shops", () => {
     expect(html).toContain("252,000 IQD");
     expect(html).toContain("504,000 IQD");
     expect(html).toMatch(/Nov 2026<span[^>]*>, so far/);
+    // Round 18: a month that ended counts who had joined by then, and says so.
+    expect(html).toContain("each month counts the people above who had joined by its end");
   });
 
   // Round 18: the box was drawn on its own read, first, then jumped 263 px down

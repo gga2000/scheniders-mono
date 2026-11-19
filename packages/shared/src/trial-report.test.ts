@@ -15,6 +15,7 @@ const facts = (extra: Partial<TrialReportFacts> = {}): TrialReportFacts => ({
     from_day: "2026-11-12",
     to_day: "2026-11-16",
     days: 5,
+    elapsed_days: 5,
     trial_ends_at: "2026-11-19T09:00:00+00:00",
     ended: false,
     plan: "starter",
@@ -68,7 +69,10 @@ describe("the trial report's lines", () => {
 describe("the report's days", () => {
     it("names the Baghdad days in Iraqi months, to today while the trial runs", () => {
         expect(trialReportPeriod(facts())).toBe("من 12 تشرين الثاني لليوم (5 أيام)");
-        expect(trialReportPeriod(facts({ ended: true, to_day: "2026-11-19", days: 8 }))).toBe("من 12 تشرين الثاني إلى 19 تشرين الثاني (8 أيام)");
+        // A 7-day trial from 12 to 19 Nov touches 8 calendar days and reads 7.
+        expect(trialReportPeriod(facts({ ended: true, to_day: "2026-11-19", days: 7, elapsed_days: 7 }))).toBe(
+            "من 12 تشرين الثاني إلى 19 تشرين الثاني (7 أيام)",
+        );
         expect(arabicDay("2027-01-03")).toBe("3 كانون الثاني");
     });
 
@@ -88,6 +92,12 @@ describe("the expected monthly cost", () => {
             messagesIqd: 240 * 30 + 30 * 80,
             totalIqd: 9_000 + 84 * 55 + 240 * 30 + 30 * 80,
         });
+    });
+
+    it("keeps the pace of the trial's real days, not the calendar days it touches", () => {
+        // Signed up at 21:00, read on the fifth calendar day at 09:00: 3.5 days.
+        // 14 delivered is 120 a month at that pace; over 5 days it read 84.
+        expect(expectedMonthlyCost(facts({ days: 4, elapsed_days: 3.5 }))?.deliveredPerMonth).toBe(120);
     });
 
     it("leaves out the parts that are 0, and is unknown without prices", () => {
@@ -110,12 +120,18 @@ describe("the WhatsApp copy", () => {
     });
 
     it("says there are no orders yet rather than an empty line, and covers a longer trial as the trial", () => {
-        const text = trialReportText(facts({ orders: 0, delivered: 0, shield_flagged: 0, with_courier_iqd: 0, profit_iqd: 0, days: 9, ended: true, to_day: "2026-11-20" }));
+        const text = trialReportText(
+            facts({ orders: 0, delivered: 0, shield_flagged: 0, with_courier_iqd: 0, profit_iqd: 0, days: 9, elapsed_days: 9, ended: true, to_day: "2026-11-20" }),
+        );
         expect(text.split("\n")[1]).toBe("بفترة التجربة: ما صار عندك طلبات لهسه.");
     });
 
     it("reads the database's answer", () => {
         expect(trialReportFactsSchema.parse(facts())).toEqual(facts());
         expect(trialReportFactsSchema.safeParse({ ...facts(), days: 0 }).success).toBe(false);
+        expect(trialReportFactsSchema.safeParse({ ...facts(), elapsed_days: 0.5 }).success).toBe(false);
+        const withoutElapsed: Record<string, unknown> = { ...facts() };
+        delete withoutElapsed.elapsed_days;
+        expect(trialReportFactsSchema.safeParse(withoutElapsed).success).toBe(false);
     });
 });

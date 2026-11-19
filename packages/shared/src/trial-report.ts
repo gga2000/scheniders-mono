@@ -6,7 +6,9 @@ import { monthlyTotal } from "./plans";
  * merchant reads in the app and the team sends on WhatsApp, so both say the
  * same thing. The facts come from trial_report_core
  * (20261119001240_trial_report.sql): the shop's own numbers for the Baghdad
- * days from signup to today, or to the day the trial ended.
+ * days from signup to today, or to the day the trial ended. The days the
+ * report names and its pace are the trial's real days: a 7-day trial is 7,
+ * not the 8 calendar days it touches (round 18).
  *
  * Rules (handoff research/00 §4): every number is the shop's own, with its
  * days; a line that is 0 is not shown; goods Shield stopped are never called
@@ -18,7 +20,10 @@ import { monthlyTotal } from "./plans";
 export const trialReportFactsSchema = z.object({
     from_day: z.string(),
     to_day: z.string(),
+    /** The trial's real days so far, rounded up: a 7-day trial reads 7. */
     days: z.number().int().min(1),
+    /** The same days to the hundredth, at least one: the pace divides by them. */
+    elapsed_days: z.number().min(1),
     trial_ends_at: z.string().nullable(),
     ended: z.boolean(),
     plan: z.string(),
@@ -121,10 +126,10 @@ const perMonth = (count: number, days: number) => Math.round((count / days) * MO
 export function expectedMonthlyCost(facts: TrialReportFacts): ExpectedMonthlyCost | null {
     const prices = facts.prices;
     if (!prices) return null;
-    const deliveredPerMonth = perMonth(facts.delivered, facts.days);
+    const deliveredPerMonth = perMonth(facts.delivered, facts.elapsed_days);
     const messagesIqd =
-        perMonth(facts.whatsapp_utility, facts.days) * prices.whatsapp_utility_iqd +
-        perMonth(facts.whatsapp_marketing, facts.days) * prices.whatsapp_marketing_iqd;
+        perMonth(facts.whatsapp_utility, facts.elapsed_days) * prices.whatsapp_utility_iqd +
+        perMonth(facts.whatsapp_marketing, facts.elapsed_days) * prices.whatsapp_marketing_iqd;
     const planAndOrders = monthlyTotal({ base_price_iqd: prices.plan_month_iqd, order_price_iqd: prices.per_delivered_iqd }, deliveredPerMonth);
     return {
         planIqd: prices.plan_month_iqd,

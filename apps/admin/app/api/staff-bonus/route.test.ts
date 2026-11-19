@@ -19,7 +19,8 @@ const { GET } = await import("./route");
 const call = (query = "") => GET(new NextRequest(`http://admin.test/api/staff-bonus${query}`));
 
 const staff = (name: string, extra: Row = {}): Row => ({
-  user_id: `u-${name}`, display_name: name, admin_role: "support_staff", is_active: true, ...extra,
+  user_id: `u-${name}`, display_name: name, admin_role: "support_staff", is_active: true,
+  created_at: "2026-10-01T09:00:00+00:00", ...extra,
 });
 
 const payingShop = (n: number): Row => ({
@@ -57,12 +58,27 @@ describe("GET /api/staff-bonus", () => {
     expect(body.people.map((p: Row) => p.name).sort()).toEqual(["Mohammed", "karrar", "noor"]);
     expect(stub.callsTo("admin_users.order")).toEqual([["display_name", { ascending: true }]]);
     expect(body.months).toEqual([
-      { month: "2026-12", payers: 2, perPersonIqd: 252_000, totalIqd: 756_000, final: false },
-      { month: "2026-11", payers: 14, perPersonIqd: 264_000, totalIqd: 792_000, final: true },
+      { month: "2026-12", payers: 2, perPersonIqd: 252_000, people: 3, totalIqd: 756_000, final: false },
+      { month: "2026-11", payers: 14, perPersonIqd: 264_000, people: 3, totalIqd: 792_000, final: true },
       // October is before the bonus began (BONUS_FROM_MONTH): not listed as pay owed.
     ]);
     expect(body.basePerPersonIqd).toBe(250_000);
     expect(body.perPayerIqd).toBe(1_000);
+  });
+
+  it("pays a month that ended for the people who had joined by its end, so it does not grow later", async () => {
+    stub.state.tables.admin_users = [
+      staff("Mohammed"), staff("noor"), staff("karrar"),
+      // Joined at 00:30 on 1 December in Baghdad: December's, not November's.
+      staff("zainab", { created_at: "2026-11-30T21:30:00+00:00" }),
+    ];
+    const body = await (await call()).json();
+
+    expect(body.people).toHaveLength(4);
+    expect(body.months.map((m: Row) => [m.month, m.people, m.totalIqd])).toEqual([
+      ["2026-12", 4, 4 * 252_000],
+      ["2026-11", 3, 3 * 264_000],
+    ]);
   });
 
   it("is for a login that manages staff pay only", async () => {

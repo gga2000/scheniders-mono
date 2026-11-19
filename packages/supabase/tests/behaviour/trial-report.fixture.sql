@@ -51,6 +51,20 @@ CREATE TABLE public.tenants (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TYPE public.subscription_status AS ENUM ('trialing', 'active', 'past_due', 'cancelled', 'incomplete');
+
+-- As live: one subscription per shop; a pick during the trial waits in
+-- pending_plan until the first charge.
+CREATE TABLE public.subscriptions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL UNIQUE REFERENCES public.tenants (id),
+    plan public.plan_tier NOT NULL,
+    status public.subscription_status NOT NULL,
+    current_period_start timestamptz NOT NULL,
+    current_period_end timestamptz NOT NULL,
+    pending_plan public.plan_tier
+);
+
 CREATE TABLE public.tenant_addons (
     tenant_id uuid NOT NULL REFERENCES public.tenants (id),
     kind text NOT NULL,
