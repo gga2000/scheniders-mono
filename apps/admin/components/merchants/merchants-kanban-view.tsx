@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { AdminTenant, TenantStatus } from "@/types/admin";
+import { PLAN_LABELS, type AdminTenant, type PlanTier, type TenantStatus } from "@/types/admin";
 import { formatCount, formatIQD } from "@/lib/format";
 import { useMerchantsStats } from "@/hooks/use-merchants-stats";
 import { useCan } from "@/hooks/use-admin-auth";
@@ -53,7 +53,9 @@ const STAGE_BY_STATUS: Record<TenantStatus, Stage> = {
   active: {
     key: "active",
     label: "Active",
-    description: "Paying",
+    // Not "Paying": our own never-billed shop, the demo store and a shop whose
+    // month is unpaid are all active too. Each card's plan pill says which.
+    description: "Store open",
     icon: CheckCircle2,
     gradient: "from-emerald-400 to-teal-500",
     bg: "bg-gradient-to-br from-emerald-50/60 to-teal-50/60 dark:from-emerald-400/5 dark:to-teal-400/5",
@@ -102,7 +104,7 @@ const STAGES = Object.values(STAGE_BY_STATUS);
  */
 const isPaused = (status: StageKey) => status === "limited";
 
-const PLAN_GRADIENTS: Record<string, string> = {
+const PLAN_GRADIENTS: Record<PlanTier, string> = {
   starter: "from-sky-400 to-cyan-500",
   internal: "from-slate-400 to-slate-500",
 };
@@ -440,7 +442,7 @@ function KanbanCard({
   const logoBg = merchant.branding?.primary_color || "#1E1E1E";
   const balance = merchant.wallet?.balance_iqd ?? 0;
 
-  const planGrad = PLAN_GRADIENTS[merchant.plan] ?? "from-slate-400 to-slate-500";
+  const planLabel = PLAN_LABELS[merchant.plan];
 
   return (
     <div
@@ -472,10 +474,11 @@ function KanbanCard({
         <span
           className={cn(
             "px-1.5 py-0.5 rounded-full text-xs font-black text-white ring-1 ring-white/20 shadow-sm bg-gradient-to-br shrink-0",
-            planGrad
+            PLAN_GRADIENTS[merchant.plan]
           )}
+          title={planLabel}
         >
-          {merchant.plan.charAt(0)}
+          {planLabel.charAt(0)}
         </span>
       </div>
       <div className="flex items-center gap-2 text-xs text-foreground/70 font-medium tabular-nums">
