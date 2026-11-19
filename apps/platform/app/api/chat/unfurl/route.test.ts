@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 
 // The guard decides per address; tests drive it to model a rebinding resolver.
 const guard = vi.hoisted(() => ({ privateAfter: Infinity, calls: 0 }));
-vi.mock("@/lib/chat/ssrf", () => ({
+vi.mock("@scheniders/shared/ssrf", () => ({
     isPrivateAddress: () => {
         guard.calls += 1;
         return guard.calls > guard.privateAfter;

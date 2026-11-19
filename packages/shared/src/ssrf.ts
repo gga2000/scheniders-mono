@@ -1,8 +1,8 @@
-// apps/platform/lib/chat/ssrf.ts
+// packages/shared/src/ssrf.ts
 //
-// Pure SSRF-guard helpers for the link-unfurl route. Kept dependency-free
-// (only node:net) so they are independently unit-testable without dragging in
-// the Next/Supabase route-handler import chain.
+// Pure SSRF-guard helpers for every server fetch of an outside link (chat
+// link previews, the console's product image import). Kept dependency-free
+// (only node:net) so they are unit-testable on their own.
 
 import net from "node:net";
 

@@ -180,7 +180,8 @@ export type AdminAction =
   | "check_payments"
   | "manage_demo_store"
   | "manage_admins"
-  | "review_trials";
+  | "review_trials"
+  | "import_products";
 
 // Merchant table column definitions
 export type MerchantColumnId =
