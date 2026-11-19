@@ -44,6 +44,7 @@ describe("the console menu", () => {
     expect(activeSection("/")?.label).toBe("Dashboard");
     expect(activeSection("/merchants/0b6f")?.label).toBe("Merchants");
     expect(activeSection("/trials")?.label).toBe("Merchants");
+    expect(activeSection("/paying")?.label).toBe("Merchants");
     expect(activeLink("/leads/analytics")).toBe("/leads/analytics");
     expect(activeLink("/leads/0b6f")).toBe("/leads");
     expect(activeSection("/whatsapp")?.label).toBe("Money");
@@ -59,6 +60,7 @@ describe("the console menu", () => {
     expect(pageTitle("/leads")).toBe("Leads");
     expect(pageTitle("/leads/analytics")).toBe("Lead numbers");
     expect(pageTitle("/activity")).toBe("Activity log");
+    expect(pageTitle("/paying")).toBe("Paying shops");
     expect(pageTitle("/login")).toBeNull();
   });
 });

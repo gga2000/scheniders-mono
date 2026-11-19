@@ -64,6 +64,7 @@ export const MENU: readonly MenuSection[] = [
     links: [
       { label: "All merchants", href: "/merchants" },
       { label: "Trials", href: "/trials" },
+      { label: "Paying shops", href: "/paying" },
       { label: "Shops at risk", href: "/health" },
     ],
   },
