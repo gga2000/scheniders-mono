@@ -297,7 +297,10 @@ export function MerchantCard({
               Our fees, 30 days
             </p>
             <CardMoneyFigure value={fees30d} />
-            <p className="text-xs text-foreground/70 font-medium mt-1 tabular-nums truncate">
+            <p
+              className="text-xs text-foreground/70 font-medium mt-1 tabular-nums truncate"
+              title={`${orders} ${orders === 1 ? "order" : "orders"}${lastActive ? ` · ${lastActive.text}` : ""}`}
+            >
               {orders} {orders === 1 ? "order" : "orders"}
               {lastActive && (
                 <>

@@ -254,7 +254,7 @@ export function MerchantSheetView({
 
                 <div className="min-w-[110px] shrink-0 px-2 flex items-center gap-1 border-r border-[var(--card-border)]/30">
                   {m.city ? (
-                    <span className="text-foreground/70 flex items-center gap-1 truncate font-medium">
+                    <span className="text-foreground/70 flex items-center gap-1 truncate font-medium" title={m.city}>
                       <MapPin className="w-2.5 h-2.5 shrink-0 text-foreground/30" />
                       {m.city}
                     </span>

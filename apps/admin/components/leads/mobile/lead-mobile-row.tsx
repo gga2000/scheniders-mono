@@ -54,7 +54,10 @@ export function LeadMobileRow({ lead, onStatusTap, onResumeDraft }: LeadMobileRo
             </span>
           )}
         </div>
-        <div className="mt-0.5 truncate text-xs text-[var(--muted)]">
+        <div
+          className="mt-0.5 truncate text-xs text-[var(--muted)]"
+          title={`${platform.label} · ${compactFollowers(lead.follower_count)} · ${tier.label}`}
+        >
           <span style={{ color: platform.color }}>{platform.label}</span>
           {" · "}{compactFollowers(lead.follower_count)}
           {" · "}<span style={{ color: LEAD_TIER_UI[lead.tier].solid }}>{tier.label}</span>

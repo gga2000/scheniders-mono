@@ -104,7 +104,10 @@ export function MerchantsRollupStrip() {
                 >
                   {tile.label}
                 </p>
-                <p className="text-lg font-black text-foreground tabular-nums leading-none mt-1 truncate">
+                <p
+                  className="text-lg font-black text-foreground tabular-nums leading-none mt-1 truncate"
+                  title={tile.suffix ? `${tile.value} ${tile.suffix}` : String(tile.value)}
+                >
                   {tile.value}
                   {tile.suffix && (
                     <span className="text-xs font-bold text-foreground/70 ml-1">

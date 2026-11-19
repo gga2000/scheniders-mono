@@ -740,7 +740,10 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
                             ) : (
                               <AlertTriangle className="w-4 h-4 text-[var(--ink-amber)] shrink-0" />
                             )}
-                            <span className="text-sm text-[var(--foreground)] font-medium truncate name-dir min-w-0">
+                            <span
+                              className="text-sm text-[var(--foreground)] font-medium truncate name-dir min-w-0"
+                              title={result.row.merchant_name || `Row ${result.index + 1}`}
+                            >
                               {result.row.merchant_name || `Row ${result.index + 1}`}
                             </span>
                             {result.row.platform && (
