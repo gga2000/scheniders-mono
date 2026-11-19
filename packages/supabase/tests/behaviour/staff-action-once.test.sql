@@ -48,9 +48,9 @@ BEGIN
     IF calls <> 2 THEN RAISE EXCEPTION 'new request did not extend: % calls', calls; END IF;
 
     -- One id may cover two shops, once each.
-    PERFORM public.admin_extend_subscription_once(r3, a, 30);
-    PERFORM public.admin_extend_subscription_once(r3, b, 30);
-    PERFORM public.admin_extend_subscription_once(r3, b, 30);
+    PERFORM public.admin_extend_subscription_once(r3, a, 30, 'one month free'::text);
+    PERFORM public.admin_extend_subscription_once(r3, b, 30, 'one month free'::text);
+    PERFORM public.admin_extend_subscription_once(r3, b, 30, 'one month free'::text);
     SELECT count(*) INTO calls FROM public.stub_calls WHERE fn = 'extend_subscription';
     IF calls <> 2 THEN RAISE EXCEPTION 'one id over two shops gave % extensions, want 2', calls; END IF;
 
@@ -63,7 +63,7 @@ BEGIN
     IF calls <> 2 THEN RAISE EXCEPTION 'lock orders / unlock repeated: % calls, want 2', calls; END IF;
 
     -- The same id for another action on the same shop is refused, nothing runs.
-    again := public.admin_extend_subscription_once(r1, a, 30);
+    again := public.admin_extend_subscription_once(r1, a, 30, 'one month free'::text);
     IF again <> '{"success": false, "error": "request_reused"}' THEN
         RAISE EXCEPTION 'reused id for another action answered %', again;
     END IF;

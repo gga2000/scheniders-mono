@@ -40,13 +40,15 @@ describe("Add money", () => {
 });
 
 describe("Give free days", () => {
-  it("gives a paying shop 30 days by default and says the new end and that nothing is charged", () => {
+  it("gives a paying shop 30 days by default, says the new end and that nothing is charged, and asks why", () => {
     const html = render(
       createElement(FreeDaysForm, { shopId: "t1", shopName: "Shop", requestIds: createRequestIds(), kind: "month", endsAt: "2026-11-19T09:00:00Z", locked: false, onDone: () => {} }),
     );
     expect(html).toContain("This month then ends Sat 19 Dec, 12:00.");
     expect(html).toContain("Nothing is charged; the next charge moves to that day.");
-    expect(confirmButton(html)).not.toMatch(DISABLED);
+    // Round 20: the month's free days took no reason, so a year given free could not say why.
+    expect(html).toContain("Why? (saved in the log)");
+    expect(confirmButton(html)).toMatch(DISABLED);
     expect(confirmButton(html)).toContain(">Give 30 free days<");
   });
 

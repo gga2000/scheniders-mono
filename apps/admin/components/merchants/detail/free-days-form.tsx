@@ -38,8 +38,8 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
   const typedDays = /^\d+$/.test(typed.trim()) ? Number(typed.trim()) : null;
   const days = preset ?? typedDays;
   const daysOk = days !== null && days >= 1 && days <= MAX_DAYS[kind];
-  // A trial's free days are logged with the reason; the month's log keeps the old and new end.
-  const ready = daysOk && (kind === "month" || isStaffReason(why));
+  // Both kinds ask why: it goes on the staff log row and the timeline (round 20).
+  const ready = daysOk && isStaffReason(why);
 
   const failed = useWriteFailed(shopId, `${shopName} was not given free days.`);
 
@@ -49,9 +49,8 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
       // Keyed by what is given, not the words: a reopened panel with the reason
       // typed anew sends the same ask with the same id, so the days come once.
       const request_id = requestIds.idFor(`${shopId}:${kind}:${value}`);
-      return kind === "trial"
-        ? postJson(`/api/merchants/${shopId}/extend-trial`, { days: value, reason: why.trim(), request_id })
-        : postJson(`/api/merchants/${shopId}/extend-subscription`, { days: value, request_id });
+      const url = kind === "trial" ? "extend-trial" : "extend-subscription";
+      return postJson(`/api/merchants/${shopId}/${url}`, { days: value, reason: why.trim(), request_id });
     },
     onSuccess: () => {
       requestIds.done();
@@ -92,9 +91,7 @@ export function FreeDaysForm({ shopId, shopName, kind, endsAt, locked, requestId
           className="w-24 tabular-nums"
         />
       </div>
-      {kind === "trial" && (
-        <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (saved in the log)" className="mb-3" />
-      )}
+      <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (saved in the log)" className="mb-3" />
       {days !== null && !daysOk && (
         <p className="mb-2 text-[13px] text-[var(--ink-red)]">From 1 to {MAX_DAYS[kind]} days.</p>
       )}

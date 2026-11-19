@@ -183,7 +183,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/extend-subscription/route");
       return POST(
-        req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, { days: 30, request_id: REQ }),
+        req(`/api/merchants/${TENANT}/extend-subscription`, "POST", t, { days: 30, reason: "Slow first month", request_id: REQ }),
         idParams,
       );
     },
@@ -756,7 +756,7 @@ describe("one change per staff request", () => {
     {
       name: "extend-subscription",
       role: "super",
-      body: { days: 30 },
+      body: { days: 30, reason: "Slow first month" },
       ok: { success: true, tenant_id: TENANT, current_period_end: "2099-01-31T00:00:00+00:00", status: "active" },
       call: async (t: string, body: unknown) => {
         const { POST } = await import("./merchants/[id]/extend-subscription/route");
