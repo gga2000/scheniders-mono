@@ -399,7 +399,7 @@ function FollowUpCard({
         <p
           className={cn("text-sm font-semibold truncate", done && "line-through")}
           style={{ color: "var(--foreground)" }}
-        >
+         title={followUp.title}>
           {followUp.title}
         </p>
         {followUp.description && (

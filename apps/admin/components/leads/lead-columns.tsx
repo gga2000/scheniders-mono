@@ -38,7 +38,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-[var(--foreground)] truncate name-dir max-w-[180px]">
+          <span className="font-semibold text-[var(--foreground)] truncate name-dir max-w-[180px]" title={lead.merchant_name}>
             {lead.merchant_name}
           </span>
           {lead.is_draft && (
@@ -48,7 +48,7 @@ function MerchantCell({ lead }: { lead: Lead }) {
           )}
         </div>
         {lead.management_name && (
-          <div className="text-xs text-[var(--muted)] truncate max-w-[220px]">{lead.management_name}</div>
+          <div className="text-xs text-[var(--muted)] truncate max-w-[220px]" title={lead.management_name}>{lead.management_name}</div>
         )}
       </div>
     </div>

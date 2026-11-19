@@ -124,7 +124,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground truncate">
+                      <p className="text-sm font-semibold text-foreground truncate" title={user.email}>
                         {user.email}
                       </p>
                       {role && (

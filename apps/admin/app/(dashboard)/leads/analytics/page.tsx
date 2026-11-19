@@ -223,7 +223,7 @@ function AnalyticsDashboard({
 
               return (
                 <div key={platform} className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-[var(--muted)] w-20 truncate text-right">
+                  <span className="text-xs font-medium text-[var(--muted)] w-20 truncate text-right" title={label}>
                     {label}
                   </span>
                   <div className="flex-1 h-6 rounded-md bg-[var(--card-border)] overflow-hidden relative">
@@ -337,7 +337,7 @@ function AnalyticsDashboard({
 
               return (
                 <div key={entry.industry_name} className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-[var(--muted)] w-32 truncate text-right">
+                  <span className="text-xs font-medium text-[var(--muted)] w-32 truncate text-right" title={entry.industry_name}>
                     {entry.industry_name}
                   </span>
                   <div className="flex-1 h-6 rounded-md bg-[var(--card-border)] overflow-hidden relative">
@@ -409,7 +409,7 @@ function AnalyticsDashboard({
                     title={`Converted: ${month.converted}`}
                   />
                 </div>
-                <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center">
+                <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center" title={formatMonth(month.month)}>
                   {formatMonth(month.month)}
                 </span>
               </div>

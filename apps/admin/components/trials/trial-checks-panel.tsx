@@ -150,7 +150,7 @@ function CheckRow({ check }: { check: TrialCheck }) {
             </span>
           )}
         </div>
-        <p dir="auto" className="font-semibold text-foreground truncate">
+        <p dir="auto" className="font-semibold text-foreground truncate" title={storeName(check.store)}>
           {storeName(check.store)}
         </p>
         <p className="text-xs text-foreground/70">{trialState(check)}</p>

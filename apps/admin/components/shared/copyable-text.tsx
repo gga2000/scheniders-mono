@@ -42,7 +42,7 @@ export function CopyableText({
         className
       )}
     >
-      <span className="truncate">{display ?? value}</span>
+      <span className="truncate" title={display ?? value}>{display ?? value}</span>
       <span
         className={cn(
           "shrink-0 transition-all opacity-0 group-hover/copy:opacity-100",

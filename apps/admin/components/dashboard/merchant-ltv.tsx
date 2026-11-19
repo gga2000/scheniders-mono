@@ -134,7 +134,7 @@ export function MerchantLTV({ data }: MerchantLTVProps) {
                     <span className="text-xs font-bold text-foreground/70 w-5 text-center">
                       #{idx + 1}
                     </span>
-                    <span className="text-sm font-medium text-foreground flex-1 truncate">
+                    <span className="text-sm font-medium text-foreground flex-1 truncate" title={m.businessName}>
                       {m.businessName}
                     </span>
                     <span className="text-sm font-semibold text-foreground">

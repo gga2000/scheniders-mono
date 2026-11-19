@@ -249,7 +249,7 @@ export function MerchantCard({
               {merchant.business_name}
             </button>
             <div className="flex items-center gap-2 mt-0.5 min-w-0">
-              <span className="text-xs text-foreground/70 truncate font-medium">
+              <span className="text-xs text-foreground/70 truncate font-medium" title={merchant.slug}>
                 {merchant.slug}
               </span>
               <span className="w-0.5 h-0.5 rounded-full bg-foreground/20 shrink-0" />
@@ -287,7 +287,7 @@ export function MerchantCard({
               Balance
             </p>
             <CardMoneyFigure value={balance} />
-            <p className="text-xs text-foreground/70 font-medium mt-1 truncate">
+            <p className="text-xs text-foreground/70 font-medium mt-1 truncate" title={merchant.city || "—"}>
               {merchant.city || "—"}
             </p>
           </div>

@@ -103,7 +103,7 @@ export function MerchantWatchlistWidget() {
               />
 
               {/* Name */}
-              <span className="text-xs font-semibold text-foreground truncate name-dir flex-1 min-w-0">
+              <span className="text-xs font-semibold text-foreground truncate name-dir flex-1 min-w-0" title={merchant.business_name}>
                 {merchant.business_name}
               </span>
 

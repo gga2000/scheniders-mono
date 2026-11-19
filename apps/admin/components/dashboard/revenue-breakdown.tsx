@@ -96,7 +96,7 @@ function PieView({ slices }: { slices: RevenueSlice[] }) {
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: slice.color }}
             />
-            <span className="flex-1 text-foreground/70 truncate">{slice.label}</span>
+            <span className="flex-1 text-foreground/70 truncate" title={slice.label}>{slice.label}</span>
             <span className="font-semibold text-foreground">{formatIQD(slice.value)}</span>
           </div>
         ))}
@@ -115,7 +115,7 @@ function BarView({ slices }: { slices: RevenueSlice[] }) {
         return (
           <div key={slice.label}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-foreground/70 truncate">
+              <span className="text-xs font-medium text-foreground/70 truncate" title={slice.label}>
                 {slice.label}
               </span>
               <span className="text-xs font-bold text-foreground ml-2 whitespace-nowrap">

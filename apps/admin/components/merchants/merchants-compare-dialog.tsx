@@ -167,10 +167,10 @@ export function MerchantsCompareDialog({
                     {m.business_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-foreground truncate name-dir leading-tight">
+                    <p className="text-sm font-black text-foreground truncate name-dir leading-tight" title={m.business_name}>
                       {m.business_name}
                     </p>
-                    <p className="text-xs text-foreground/70 truncate font-medium">
+                    <p className="text-xs text-foreground/70 truncate font-medium" title={m.slug}>
                       {m.slug}
                     </p>
                   </div>
@@ -329,7 +329,7 @@ function CompareInfoRow({
         <div
           key={m.id}
           className="rounded-xl px-3 py-2 bg-foreground/[0.02] text-sm font-bold text-foreground truncate"
-        >
+         title={getter(m)}>
           {getter(m)}
         </div>
       ))}

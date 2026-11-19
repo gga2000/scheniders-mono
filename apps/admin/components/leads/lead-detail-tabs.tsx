@@ -82,7 +82,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
                 className="flex items-center gap-1 text-sm font-medium text-[var(--primary)] hover:underline truncate max-w-[200px]"
               >
                 <Globe className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{lead.website_url.replace(/^https?:\/\//, "")}</span>
+                <span className="truncate" title={lead.website_url.replace(/^https?:\/\//, "")}>{lead.website_url.replace(/^https?:\/\//, "")}</span>
               </a>
             </div>
           )}
@@ -94,7 +94,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
                 className="flex items-center gap-1 text-sm font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors truncate max-w-[200px]"
               >
                 <Mail className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{lead.email}</span>
+                <span className="truncate" title={lead.email}>{lead.email}</span>
               </a>
             </div>
           )}
@@ -291,7 +291,7 @@ export function OverviewContent({ lead }: { lead: Lead }) {
           {lead.source_referrer && (
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--muted)]">Referrer</span>
-              <span className="text-sm font-medium text-[var(--foreground)] truncate max-w-[200px]">{lead.source_referrer}</span>
+              <span className="text-sm font-medium text-[var(--foreground)] truncate max-w-[200px]" title={lead.source_referrer}>{lead.source_referrer}</span>
             </div>
           )}
           {!lead.source_campaign && !lead.source_medium && !lead.source_referrer && (

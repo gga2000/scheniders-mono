@@ -217,7 +217,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
                     />
 
                     {/* Business name */}
-                    <span className="text-sm font-bold text-foreground truncate name-dir flex-1 min-w-0">
+                    <span className="text-sm font-bold text-foreground truncate name-dir flex-1 min-w-0" title={merchant.business_name}>
                       {merchant.business_name}
                     </span>
 
@@ -263,7 +263,7 @@ export function AdminTopbar({ user, onMenuClick, isMobile, onOpenCommandPalette 
             <div className="w-px h-6 bg-[var(--card-border)] mx-1.5" />
             <div className="flex items-center gap-2.5">
               <div className="hidden sm:flex flex-col items-end leading-tight">
-                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]">
+                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]" title={user.full_name || user.email?.split("@")[0]}>
                   {user.full_name || user.email?.split("@")[0]}
                 </span>
                 {user.role && (

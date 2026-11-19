@@ -234,7 +234,7 @@ export function NotificationBell() {
                         </p>
                         {/* The shop by name: the raw detail values read as ids and "[object Object]". */}
                         {notif.business_name && (
-                          <p className="text-xs text-foreground/70 truncate name-dir mt-0.5">{notif.business_name}</p>
+                          <p className="text-xs text-foreground/70 truncate name-dir mt-0.5" title={notif.business_name}>{notif.business_name}</p>
                         )}
                         <p className="text-xs text-foreground/70 mt-1">
                           {formatWhen(notif.created_at)}

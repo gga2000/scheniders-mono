@@ -103,10 +103,10 @@ export default function TeamMemberDetailPage() {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-foreground truncate">
+            <h1 className="text-xl font-bold text-foreground truncate" title={employee.display_name ?? "Unnamed"}>
               {employee.display_name ?? "Unnamed"}
             </h1>
-            <p className="text-sm text-foreground/70 truncate">{employee.email}</p>
+            <p className="text-sm text-foreground/70 truncate" title={employee.email}>{employee.email}</p>
           </div>
           <span className="px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-gray-500/15 text-[var(--muted)]">
             {roleLabel(employee.role)}

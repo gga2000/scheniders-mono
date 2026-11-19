@@ -51,7 +51,7 @@ export function TopupRequestsSection({ requests }: { requests: TopupQueueItem[] 
           <Link key={req.id} href="/payments" className="flex items-start gap-3 px-4 py-3 hover:bg-foreground/[0.03]">
             <span className="mt-0.5 text-[var(--ink-green)]"><Wallet className="w-3.5 h-3.5" /></span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate name-dir">{req.business_name ?? req.tenant_id}</p>
+              <p className="text-xs font-medium text-foreground truncate name-dir" title={req.business_name ?? req.tenant_id}>{req.business_name ?? req.tenant_id}</p>
               <p className="text-xs text-foreground/70 tabular-nums mt-0.5">
                 {formatIQD(req.amount_iqd)} by {METHOD_LABEL[req.method]}
               </p>

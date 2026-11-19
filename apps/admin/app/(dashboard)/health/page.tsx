@@ -199,7 +199,7 @@ export default function HealthPage() {
                   <Link
                     href={`/merchants/${ri.tenant_id}`}
                     className="font-semibold text-foreground hover:underline truncate name-dir block"
-                  >
+                   title={ri.business_name}>
                     {ri.business_name}
                   </Link>
                   <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize bg-foreground/5 text-foreground/70 mt-1 inline-block">

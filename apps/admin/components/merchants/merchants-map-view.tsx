@@ -373,7 +373,7 @@ export function MerchantsMapView() {
                       className="w-2 h-8 rounded-full shrink-0"
                       style={{ backgroundColor: heatColor(s.count, maxCount) }}
                     />
-                    <span className="flex-1 text-xs font-bold text-foreground truncate">
+                    <span className="flex-1 text-xs font-bold text-foreground truncate" title={s.name}>
                       {s.name}
                     </span>
                     <span className="text-xs font-black text-foreground tabular-nums">

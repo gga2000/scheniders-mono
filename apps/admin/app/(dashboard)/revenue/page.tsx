@@ -199,7 +199,7 @@ export default function RevenuePage() {
               {data.topLTV.slice(0, 5).map((m, i) => (
                 <div key={m.id} className="flex items-center gap-2 text-xs">
                   <span className="w-4 text-foreground/70 font-bold">{i + 1}</span>
-                  <span className="flex-1 text-foreground font-medium truncate">{m.name}</span>
+                  <span className="flex-1 text-foreground font-medium truncate" title={m.name}>{m.name}</span>
                   <span className="text-foreground/70 font-mono">{new Intl.NumberFormat("en-IQ").format(m.revenue)} IQD</span>
                 </div>
               ))}

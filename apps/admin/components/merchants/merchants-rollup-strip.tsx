@@ -113,7 +113,7 @@ export function MerchantsRollupStrip() {
                   )}
                 </p>
                 {tile.sublabel && (
-                  <p className="text-xs text-foreground/70 mt-0.5 truncate">
+                  <p className="text-xs text-foreground/70 mt-0.5 truncate" title={tile.sublabel}>
                     {tile.sublabel}
                   </p>
                 )}

@@ -246,8 +246,8 @@ export function AdminSidebar({
               <Avatar user={user} size="sm" />
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">{user.full_name || user.email?.split("@")[0]}</p>
-                  <p className="truncate text-[13px] text-zinc-400">{user.email}</p>
+                  <p className="truncate text-sm font-medium text-white" title={user.full_name || user.email?.split("@")[0]}>{user.full_name || user.email?.split("@")[0]}</p>
+                  <p className="truncate text-[13px] text-zinc-400" title={user.email}>{user.email}</p>
                 </div>
               )}
             </div>
@@ -304,8 +304,8 @@ export function AdminSidebar({
                 <div className="mb-4 flex items-center gap-3 px-1">
                   <Avatar user={user} size="md" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-medium text-white">{user.full_name || user.email?.split("@")[0]}</p>
-                    <p className="truncate text-sm text-zinc-400">{user.email}</p>
+                    <p className="truncate text-base font-medium text-white" title={user.full_name || user.email?.split("@")[0]}>{user.full_name || user.email?.split("@")[0]}</p>
+                    <p className="truncate text-sm text-zinc-400" title={user.email}>{user.email}</p>
                   </div>
                 </div>
                 <button
