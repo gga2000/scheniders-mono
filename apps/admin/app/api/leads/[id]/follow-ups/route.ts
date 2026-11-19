@@ -4,7 +4,6 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
 import { notAnId } from "@/lib/route-id";
 import { LEAD_GONE, leadGoneOn } from "@/lib/lead-update";
-import { setNextFollowUp } from "@/lib/lead-next-follow-up";
 
 // The follow-up form sends assigned_to "" or leaves it out: the follow-up is then
 // its creator's. Any other owner must be active staff, the same rule as a lead's owner.
@@ -64,8 +63,9 @@ export async function POST(
     if (leadGoneOn(error, "lead_follow_ups_lead_id_fkey")) return NextResponse.json({ error: LEAD_GONE }, { status: 404 });
     if (error) throw error;
 
-    await setNextFollowUp(supabase, id);
-
+    // The lead's next follow-up is set by the database in the same write
+    // (lead_follow_ups_set_next): a second request here could fail after the
+    // follow-up was saved and answer "Failed to create follow-up" (round 18).
     return NextResponse.json({ follow_up: data }, { status: 201 });
   } catch (error) {
     console.error("Follow-ups POST error:", error);
