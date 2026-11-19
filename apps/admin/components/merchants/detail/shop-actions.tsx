@@ -1,12 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, ChevronDown, ChevronLeft, Wallet } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { hasPermission } from "@/lib/admin-permissions";
-import { freeDaysKind, moreActions, type Comeback, type MoreAction, type ShopFacts, type ShopForm } from "@/lib/shop-actions";
+import { createRequestIds } from "@/lib/request-ids";
+import {
+  freeDaysKind,
+  moreActions,
+  shopActionKey,
+  type Comeback,
+  type MoreAction,
+  type ShopFacts,
+  type ShopForm,
+} from "@/lib/shop-actions";
 import type { AdminAction } from "@/types/admin";
 import { AddMoneyForm } from "./add-money-form";
 import { FreeDaysForm } from "./free-days-form";
@@ -31,6 +40,8 @@ const SECONDARY =
 
 interface ShopActionsProps {
   shopId: string;
+  /** Names the shop in a refusal said after its panel is gone. */
+  shopName: string;
   facts: ShopFacts;
   plan: string;
   balance: number;
@@ -51,9 +62,15 @@ interface ShopActionsProps {
  * it, the rest under More. Each opens a short form whose button says what
  * will happen, so the press is the confirm. A staff member sees only what
  * their login may do.
+ *
+ * While a panel's write runs, the panel stays open and Back waits, so its
+ * answer is always seen. The request ids live here, above the panels, so a
+ * form closed after its answer was lost and opened again sends the same ask
+ * with the same id, and the money or days are given once (round 19).
  */
 export function ShopActions({
   shopId,
+  shopName,
   facts,
   plan,
   balance,
@@ -68,6 +85,12 @@ export function ShopActions({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState<ShopForm | "more" | null>(startOpen);
   const [view, setView] = useState<MoreAction | null>(null);
+  const [requestIds] = useState(() => ({
+    money: createRequestIds(),
+    days: createRequestIds(),
+    convert: createRequestIds(),
+  }));
+  const writing = useIsMutating({ mutationKey: shopActionKey(shopId) }) > 0;
 
   if (!role) return null;
   const can = (action: AdminAction) => hasPermission(role, action);
@@ -77,6 +100,7 @@ export function ShopActions({
   if (!canAddMoney && !daysKind && more.length === 0) return null;
 
   const toggle = (which: "money" | "days" | "more") => (next: boolean) => {
+    if (!next && writing) return;
     setOpen(next ? which : null);
     if (!next) setView(null);
   };
@@ -110,7 +134,7 @@ export function ShopActions({
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className={PANEL}>
-            <AddMoneyForm shopId={shopId} balance={balance} onDone={done} />
+            <AddMoneyForm shopId={shopId} shopName={shopName} balance={balance} requestIds={requestIds.money} onDone={done} />
           </PopoverContent>
         </Popover>
       )}
@@ -124,7 +148,15 @@ export function ShopActions({
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className={PANEL}>
-            <FreeDaysForm shopId={shopId} kind={daysKind} endsAt={freeDaysFrom} locked={facts.locked} onDone={done} />
+            <FreeDaysForm
+              shopId={shopId}
+              shopName={shopName}
+              kind={daysKind}
+              endsAt={freeDaysFrom}
+              locked={facts.locked}
+              requestIds={requestIds.days}
+              onDone={done}
+            />
           </PopoverContent>
         </Popover>
       )}
@@ -143,26 +175,37 @@ export function ShopActions({
                 <button
                   type="button"
                   onClick={() => setView(null)}
-                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground/70 hover:text-foreground"
+                  disabled={writing}
+                  className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground/70 hover:text-foreground disabled:cursor-wait disabled:opacity-60"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                   Back
                 </button>
-                {view === "plan" && <PlanForm shopId={shopId} plan={plan} onDone={done} />}
-                {view === "pause" && <PauseForm shopId={shopId} onDone={done} />}
+                {view === "plan" && <PlanForm shopId={shopId} shopName={shopName} plan={plan} onDone={done} />}
+                {view === "pause" && <PauseForm shopId={shopId} shopName={shopName} onDone={done} />}
                 {view === "hold" && (
-                  <HoldForm shopId={shopId} mode="hold" comeback={comeback} trialEndsAt={trialEndsAt} onDone={done} />
+                  <HoldForm
+                    shopId={shopId}
+                    shopName={shopName}
+                    mode="hold"
+                    comeback={comeback}
+                    trialEndsAt={trialEndsAt}
+                    onDone={done}
+                  />
                 )}
                 {view === "reactivate" && (
                   <HoldForm
                     shopId={shopId}
+                    shopName={shopName}
                     mode="reactivate"
                     comeback={comeback}
                     trialEndsAt={trialEndsAt}
                     onDone={done}
                   />
                 )}
-                {view === "convert" && <ConvertTrialForm shopId={shopId} onDone={done} />}
+                {view === "convert" && (
+                  <ConvertTrialForm shopId={shopId} shopName={shopName} requestIds={requestIds.convert} onDone={done} />
+                )}
               </>
             ) : (
               <ul className="-m-1.5">

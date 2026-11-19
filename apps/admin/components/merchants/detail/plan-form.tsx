@@ -5,20 +5,34 @@ import { useMutation } from "@tanstack/react-query";
 import { PLAN_LABELS, PLAN_TIERS, planLabel, type PlanTier } from "@/types/admin";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
-import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, WillHappen } from "./action-ui";
+import { shopActionKey } from "@/lib/shop-actions";
+import { Choice, ConfirmButton, ErrorLine, PanelTitle, postJson, useLateRefusal, WillHappen } from "./action-ui";
 
 /**
  * Move a shop to another plan. The button names the move; nothing is charged
  * or refunded. It waits for a reason, as a hold does: a plan decides what the
  * shop pays each month, so the staff log keeps why it moved.
  */
-export function PlanForm({ shopId, plan, onDone }: { shopId: string; plan: string; onDone: () => void }) {
+export function PlanForm({
+  shopId,
+  shopName,
+  plan,
+  onDone,
+}: {
+  shopId: string;
+  shopName: string;
+  plan: string;
+  onDone: () => void;
+}) {
   const [next, setNext] = useState<PlanTier | null>(null);
   const [why, setWhy] = useState("");
 
+  const sayLate = useLateRefusal(`${shopName}'s plan was not changed.`);
   const change = useMutation({
+    mutationKey: shopActionKey(shopId),
     mutationFn: (to: PlanTier) => postJson(`/api/merchants/${shopId}`, { plan: to, reason: why.trim() }, "PATCH"),
     onSuccess: onDone,
+    onError: sayLate,
   });
 
   return (

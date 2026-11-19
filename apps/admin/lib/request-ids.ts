@@ -5,7 +5,10 @@
  * response) reuses the id, so the server makes the change once. A different
  * payload, or the same one after `done()`, gets a new id.
  *
- * Hold one per form: `const [requestIds] = useState(createRequestIds)`.
+ * Hold one per form where the form stays drawn: `const [requestIds] =
+ * useState(createRequestIds)`. Where a form can be closed and opened again (the
+ * shop page's panels), its page holds them, so the reopened form sends the same
+ * ask with the same id (round 19).
  */
 export function createRequestIds() {
   let last: { key: string; id: string } | null = null;
@@ -19,3 +22,5 @@ export function createRequestIds() {
     },
   };
 }
+
+export type RequestIds = ReturnType<typeof createRequestIds>;
