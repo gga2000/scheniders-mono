@@ -1,7 +1,8 @@
 -- =============================================================================
 -- Fixture for convert-trial.test.sql: the admin-update-shop fixture (shops,
 -- subscriptions with renewal and updated_at, restrictions, the demo store
--- flag, the staff log, an auth.role() stand-in) plus the shop's updated_at.
+-- flag, the flag for a store built for a lead, the staff log, an auth.role()
+-- stand-in) plus the shop's updated_at.
 -- staff_action_requests and its two helpers come from the migrations in
 -- convert-trial.migrations.
 -- =============================================================================
