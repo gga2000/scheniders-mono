@@ -136,6 +136,11 @@ export function BulkActionDialog({
     onClose();
   }
 
+  /** A reason box says the rule itself once something is typed; an empty one is said here. */
+  function sayReasonMissing(reason: string) {
+    if (reason.trim() === "") setError(STAFF_REASON_TOO_SHORT);
+  }
+
   function handleConfirm() {
     setError(null);
     const tooMany = tooManyShops(selectedIds.length);
@@ -150,14 +155,14 @@ export function BulkActionDialog({
     switch (action) {
       case "change-plan":
         if (!isStaffReason(planReason)) {
-          setError(STAFF_REASON_TOO_SHORT);
+          sayReasonMissing(planReason);
           return;
         }
         params = { plan: selectedPlan, reason: planReason.trim() };
         break;
       case "extend-trial":
         if (!isStaffReason(extensionReason)) {
-          setError(STAFF_REASON_TOO_SHORT);
+          sayReasonMissing(extensionReason);
           return;
         }
         params = {
