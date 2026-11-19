@@ -50,6 +50,18 @@ function dayParts(date: Date): { weekday: string; day: string; month: string; ye
   return parts;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * A calendar month, "2026-11", as "Nov 2026", or "Nov" without the year.
+ * Three letters for every month, September too, as formatDay writes them.
+ */
+export function formatMonth(month: string, withYear = true): string {
+  const [year, number] = month.split("-");
+  const name = MONTHS[Number(number) - 1] ?? month;
+  return withYear ? `${name} ${year}` : name;
+}
+
 /** "Sun 15 Nov" in Baghdad time; "Wed 9 Apr 2025" when it is not this year. */
 export function formatDay(value: string | number | Date, now: Date = new Date()): string {
   const { weekday, day, month, year } = dayParts(asDate(value));

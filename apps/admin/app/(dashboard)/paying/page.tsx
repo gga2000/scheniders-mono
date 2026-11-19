@@ -9,6 +9,7 @@ import { LoadError } from "@/components/shared/load-error";
 import { LoadFailedLine } from "@/components/shared/load-failed-line";
 import { adminFetch } from "@/lib/admin-fetch";
 import { dayOf } from "@/lib/baghdad-day";
+import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { okOrLoadFailure } from "@/lib/load-failure";
 import { useCan } from "@/hooks/use-admin-auth";
 import {
@@ -35,22 +36,10 @@ const staffPayResponseSchema = z.object({
   ),
 });
 
-const number = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
-const iqd = (n: number) => `${number(n)} IQD`;
-
-/** "2026-11" as "Nov 2026", or "Nov" when `short`. */
-function monthLabel(month: string, short = false): string {
-  const [y, m] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-GB", short ? { month: "short", timeZone: "UTC" } : { month: "short", year: "numeric", timeZone: "UTC" }).format(
-    new Date(Date.UTC(y, m - 1, 1)),
-  );
-}
-
 /** The Baghdad day of an instant, as "10 Dec 2026". */
 function dayLabel(instant: string): string {
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
-    new Date(`${dayOf(instant)}T00:00:00Z`),
-  );
+  const [year, month, day] = dayOf(instant).split("-");
+  return `${Number(day)} ${formatMonth(`${year}-${month}`, false)} ${year}`;
 }
 
 /** Shops paying at each month's end: one bar a month, the running month last and marked. */
@@ -60,11 +49,11 @@ function MonthBars({ bars }: { bars: MonthBar[] }) {
     <div role="list" aria-label="Shops paying at each month's end" className="flex items-end gap-3 pt-2">
       {bars.map((b) => {
         const label = b.running
-          ? `${monthLabel(b.month)}, so far: ${number(b.payers)} paying now`
-          : `${monthLabel(b.month)}: ${number(b.payers)} paying at the month's end`;
+          ? `${formatMonth(b.month)}, so far: ${formatCount(b.payers)} paying now`
+          : `${formatMonth(b.month)}: ${formatCount(b.payers)} paying at the month's end`;
         return (
           <div key={b.month} role="listitem" aria-label={label} title={label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-            <span className="text-xs font-semibold tabular-nums text-foreground">{number(b.payers)}</span>
+            <span className="text-xs font-semibold tabular-nums text-foreground">{formatCount(b.payers)}</span>
             <div className="flex h-28 w-full items-end justify-center border-b border-[var(--card-border)]">
               {b.payers > 0 && (
                 <div
@@ -74,7 +63,7 @@ function MonthBars({ bars }: { bars: MonthBar[] }) {
               )}
             </div>
             <span className="text-xs text-foreground/70">
-              {monthLabel(b.month, true)}
+              {formatMonth(b.month, false)}
               {b.running ? ", so far" : ""}
             </span>
           </div>
@@ -110,7 +99,7 @@ function StaffPay() {
         <span className="text-xs text-foreground/70">Only super admins see this box</span>
       </div>
       <p className="text-[13px] text-foreground/70">
-        Each person: {iqd(BONUS_BASE_IQD)} plus {iqd(BONUS_PER_PAYER_IQD)} for every shop paying at the month&apos;s end.
+        Each person: {formatIQD(BONUS_BASE_IQD)} plus {formatIQD(BONUS_PER_PAYER_IQD)} for every shop paying at the month&apos;s end.
         Read only: you pay it by hand.
       </p>
       {isError && !data ? (
@@ -120,7 +109,7 @@ function StaffPay() {
       ) : (
         <>
           <p className="text-[13px] text-foreground">
-            {data.people.length === 1 ? "1 person" : `${number(data.people.length)} people`}
+            {data.people.length === 1 ? "1 person" : `${formatCount(data.people.length)} people`}
             {data.people.length > 0 && (
               <span className="text-foreground/70">: {data.people.map((p) => p.name ?? "Unnamed").join(", ")}</span>
             )}
@@ -140,12 +129,12 @@ function StaffPay() {
                 {data.months.map((m) => (
                   <tr key={m.month} className="border-b border-[var(--card-border)] last:border-0">
                     <td className="py-2 pr-3">
-                      {monthLabel(m.month)}
+                      {formatMonth(m.month)}
                       {!m.final && <span className="text-foreground/70">, so far</span>}
                     </td>
-                    <td className="py-2 pr-3 text-right tabular-nums">{number(m.payers)}</td>
-                    <td className="py-2 pr-3 text-right font-medium tabular-nums">{iqd(m.perPersonIqd)}</td>
-                    <td className="py-2 pr-3 text-right font-semibold tabular-nums">{iqd(m.totalIqd)}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{formatCount(m.payers)}</td>
+                    <td className="py-2 pr-3 text-right font-medium tabular-nums">{formatIQD(m.perPersonIqd)}</td>
+                    <td className="py-2 pr-3 text-right font-semibold tabular-nums">{formatIQD(m.totalIqd)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -195,12 +184,12 @@ export default function PayingShopsPage() {
       ) : (
         <>
           <NumberStrip columns={3} label="Paying numbers">
-            <NumberCell label="Paying, now" value={number(data.count)} />
+            <NumberCell label="Paying, now" value={formatCount(data.count)} />
             {goalStandings(data).map((g) => (
               <NumberCell
                 key={g.month}
-                label={`Goal for the end of ${monthLabel(g.month)}`}
-                value={g.payers === null ? `? of ${number(g.goal)}` : `${number(g.payers)} of ${number(g.goal)}`}
+                label={`Goal for the end of ${formatMonth(g.month)}`}
+                value={g.payers === null ? `? of ${formatCount(g.goal)}` : `${formatCount(g.payers)} of ${formatCount(g.goal)}`}
                 note={g.final ? (g.payers !== null && g.payers >= g.goal ? "Reached" : "Missed") : "So far"}
               >
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-foreground/10" aria-hidden>

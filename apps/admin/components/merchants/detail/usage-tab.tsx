@@ -3,14 +3,12 @@
 import { cn } from "@/lib/utils";
 import type { MerchantDetail } from "@/hooks/use-merchant-detail";
 import { usageMonthNow } from "@/lib/usage-month";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatMonth } from "@/lib/format";
 
 interface UsageTabProps {
   usage: MerchantDetail["usage"];
   planLimits: MerchantDetail["planLimits"];
 }
-
-const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
 
 /**
  * The plan's own order counter (`usage_tracking.orders_count`), this month
@@ -73,7 +71,7 @@ export function UsageTab({ usage, planLimits }: UsageTabProps) {
               {sorted.map((row) => (
                 <tr key={`${row.year}-${row.month}`} className="text-[15px] tabular-nums text-foreground">
                   <td className="py-2.5">
-                    {MONTH.format(Date.UTC(row.year, row.month - 1, 1))}
+                    {formatMonth(`${row.year}-${row.month}`)}
                     {row === current && <span className="text-[13px] text-foreground/70"> · now</span>}
                   </td>
                   <td className="py-2.5 text-right">{formatCount(row.orders_count ?? 0)}</td>
