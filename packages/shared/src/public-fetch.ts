@@ -24,7 +24,7 @@ import dns from "node:dns";
 import http, { type IncomingMessage } from "node:http";
 import https from "node:https";
 import net from "node:net";
-import { Readable } from "node:stream";
+import { pipeline, Readable } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { isPrivateAddress } from "./ssrf";
 
@@ -75,7 +75,12 @@ const pinnedLookup: net.LookupFunction = (hostname, options, callback) => {
     });
 };
 
-/** node:http does not decompress; undo the common encodings. */
+/**
+ * node:http does not decompress; undo the common encodings. pipeline, not
+ * pipe: when the caller's signal ends the request, the decoder is destroyed
+ * with it and the body read fails at once. With pipe() a compressed answer
+ * that stalled kept the read waiting long past the signal (round 18).
+ */
 function decoded(res: IncomingMessage, headers: Headers): Readable {
     const encoding = (headers.get("content-encoding") ?? "").trim().toLowerCase();
     const decoder =
@@ -86,7 +91,9 @@ function decoded(res: IncomingMessage, headers: Headers): Readable {
     if (!decoder) return res;
     headers.delete("content-encoding");
     headers.delete("content-length");
-    return res.pipe(decoder);
+    // The error, if any, reaches the reader through the destroyed decoder.
+    pipeline(res, decoder, () => {});
+    return decoder;
 }
 
 /** One GET with no redirect following, connecting only to public addresses. */

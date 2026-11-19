@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import http from "node:http";
+import { gzipSync } from "node:zlib";
 import type { AddressInfo } from "node:net";
 
 // The test server is on 127.0.0.1; the guard treats only 10.x as private, so
@@ -32,6 +33,11 @@ beforeAll(async () => {
         } else if (req.url === "/inside") {
             res.writeHead(302, { location: `http://inside.test:${port}/img` });
             res.end();
+        } else if (req.url === "/stall" || req.url === "/stall-gzip") {
+            // Headers and the first bytes of the body, then nothing more.
+            const gzip = req.url === "/stall-gzip";
+            res.writeHead(200, { "content-type": "image/png", ...(gzip ? { "content-encoding": "gzip" } : {}) });
+            res.write(gzip ? gzipSync(Buffer.alloc(100_000, 7)).subarray(0, 40) : Buffer.alloc(40, 7));
         } else if (req.url === "/loop") {
             res.writeHead(302, { location: "/loop" });
             res.end();
@@ -43,7 +49,13 @@ beforeAll(async () => {
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     port = (server.address() as AddressInfo).port;
 });
-afterAll(() => new Promise<void>((r) => server.close(() => r())));
+afterAll(
+    () =>
+        new Promise<void>((r) => {
+            server.closeAllConnections();
+            server.close(() => r());
+        }),
+);
 beforeEach(() => {
     hits = [];
 });
@@ -99,5 +111,18 @@ describe("readCapped", () => {
         expect(cut instanceof Uint8Array ? cut.length : cut).toBe(10);
         const whole = await read("refuse", 1000);
         expect(whole instanceof Uint8Array ? whole.length : whole).toBe(1000);
+    });
+});
+
+// Round 18: the signal stopped a plain answer that stalled, but a gzip one
+// kept the read waiting 28 s past it (the decoder was piped, not pipelined).
+describe("a body that stalls", () => {
+    it.each(["/stall", "/stall-gzip"])("%s stops when the signal ends", async (path) => {
+        const signal = AbortSignal.timeout(200);
+        const got = await fetchPublic(new URL(`http://public.test:${port}${path}`), { ...opts(), signal });
+        if (!got) throw new Error("no answer");
+        const started = Date.now();
+        expect(await readCapped(got.res, 1_000_000, "refuse")).toBeNull();
+        expect(Date.now() - started).toBeLessThan(1500);
     });
 });
