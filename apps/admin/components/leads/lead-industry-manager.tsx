@@ -44,6 +44,7 @@ import {
   Coffee,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { formatIQD } from "@/lib/format";
 
 // ── Icon Selector Config ───────────────────────────────────────────────
 
@@ -453,7 +454,7 @@ export function LeadIndustryManager({ isOpen, onClose }: LeadIndustryManagerProp
                                   )}
                                 </div>
                                 <div className="text-xs text-[var(--muted)]">
-                                  Avg. {industry.avg_order_value_iqd.toLocaleString()} IQD
+                                  Avg. {formatIQD(industry.avg_order_value_iqd)}
                                 </div>
                               </div>
 

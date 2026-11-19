@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { EASE_CHROME, STAGGER_CHILDREN } from "@/lib/animation-constants";
+import { formatCount } from "@/lib/format";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -239,7 +240,7 @@ export function LeadConvertDialog({ isOpen, onClose, lead }: LeadConvertDialogPr
                               ~<strong className="text-[var(--foreground)]">{lead.estimated_daily_orders}</strong> orders/day
                             </span>
                             <span>
-                              ~<strong className="text-[var(--foreground)]">{lead.follower_count.toLocaleString()}</strong> followers
+                              ~<strong className="text-[var(--foreground)]">{formatCount(lead.follower_count)}</strong> followers
                             </span>
                           </div>
                         )}

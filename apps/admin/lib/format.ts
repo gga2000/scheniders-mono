@@ -24,8 +24,12 @@ export function formatCount(n: number): string {
 }
 
 const BAGHDAD = "Asia/Baghdad";
-const DAY = new Intl.DateTimeFormat("en-GB", { timeZone: BAGHDAD, weekday: "short", day: "numeric", month: "short" });
-const DAY_YEAR = new Intl.DateTimeFormat("en-GB", {
+/*
+ * The day's parts, put in our own order below. Not en-GB: it writes September
+ * "Sept" and every other month in three letters, so a day in September read
+ * "Tue 1 Sept" beside "Sun 15 Nov" and the charts' "Sep".
+ */
+const DAY_PARTS = new Intl.DateTimeFormat("en-US", {
   timeZone: BAGHDAD,
   weekday: "short",
   day: "numeric",
@@ -33,18 +37,24 @@ const DAY_YEAR = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 const TIME = new Intl.DateTimeFormat("en-GB", { timeZone: BAGHDAD, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const YEAR = new Intl.DateTimeFormat("en-GB", { timeZone: BAGHDAD, year: "numeric" });
 
 function asDate(value: string | number | Date): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
+function dayParts(date: Date): { weekday: string; day: string; month: string; year: string } {
+  const parts = { weekday: "", day: "", month: "", year: "" };
+  for (const { type, value } of DAY_PARTS.formatToParts(date)) {
+    if (type === "weekday" || type === "day" || type === "month" || type === "year") parts[type] = value;
+  }
+  return parts;
+}
+
 /** "Sun 15 Nov" in Baghdad time; "Wed 9 Apr 2025" when it is not this year. */
 export function formatDay(value: string | number | Date, now: Date = new Date()): string {
-  const date = asDate(value);
-  const sameYear = YEAR.format(date) === YEAR.format(now);
-  // en-GB writes "Sun, 15 Nov"; the comma is dropped so every screen reads the same.
-  return (sameYear ? DAY : DAY_YEAR).format(date).replace(",", "");
+  const { weekday, day, month, year } = dayParts(asDate(value));
+  const text = `${weekday} ${day} ${month}`;
+  return year === dayParts(now).year ? text : `${text} ${year}`;
 }
 
 const DAY_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: BAGHDAD, year: "numeric", month: "2-digit", day: "2-digit" });

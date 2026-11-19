@@ -17,6 +17,7 @@ import {
   type LeadSourcePlatform,
 } from "@/types/leads";
 import { Search, X, Filter, ChevronDown, ArrowUpDown } from "lucide-react";
+import { formatCount } from "@/lib/format";
 
 const SELECT =
   "appearance-none pl-3 pr-8 py-1.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-xs text-[var(--foreground)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 transition-shadow";
@@ -140,7 +141,7 @@ export function LeadFilterBar({ actions }: { actions?: ReactNode }) {
               {(Object.entries(LEAD_TIER_CONFIG) as [LeadTier, (typeof LEAD_TIER_CONFIG)["bronze"]][]).map(
                 ([key, config]) => (
                   <option key={key} value={key}>
-                    {config.label} ({config.minFollowers.toLocaleString()}+)
+                    {config.label} ({formatCount(config.minFollowers)}+)
                   </option>
                 ),
               )}
