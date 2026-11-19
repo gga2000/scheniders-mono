@@ -209,6 +209,10 @@ describe("the console's numbers and months", () => {
  * lib/format and counted by lib/baghdad-day, and nowhere else.
  */
 const OWN_DATE_FORMAT = /(?:Intl\.DateTimeFormat|\.toLocaleDateString)\(/g;
+// Round 19 (data 3): the guard above let two heatmaps through. Each kept its
+// own month list and printed its day key, "2026-11-18", as the day.
+const OWN_MONTH_LIST = /["']Jan["'],\s*["']Feb["']/g;
+const PRINTED_DAY_KEY = /\$\{[\w.]+\.date\}|>\s*\{[\w.]+\.date\}\s*</g;
 
 describe("the console's months and days", () => {
   it("are written only by lib/format and lib/baghdad-day", () => {
@@ -217,7 +221,10 @@ describe("the console's months and days", () => {
       for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
         const name = path.relative(ADMIN_DIR, file).split(path.sep).join("/");
         if (name === "lib/format.ts" || name === "lib/baghdad-day.ts") continue;
-        for (const match of readFileSync(file, "utf8").match(OWN_DATE_FORMAT) ?? []) found.push(`${name}: ${match}`);
+        const text = readFileSync(file, "utf8");
+        for (const pattern of [OWN_DATE_FORMAT, OWN_MONTH_LIST, PRINTED_DAY_KEY]) {
+          for (const match of text.match(pattern) ?? []) found.push(`${name}: ${match}`);
+        }
       }
     }
     expect(found).toEqual([]);

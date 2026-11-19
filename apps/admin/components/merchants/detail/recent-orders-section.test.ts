@@ -12,7 +12,7 @@ import { LoadFailure } from "@/lib/load-failure";
 let read: Record<string, unknown>;
 vi.mock("@/hooks/use-merchant-detail", () => ({ useMerchantRecentOrders: () => read }));
 
-const { ORDER_STATUS, RecentOrdersSection } = await import("./recent-orders-section");
+const { ORDER_STATUS, orderStatus, RecentOrdersSection } = await import("./recent-orders-section");
 const render = () => renderToStaticMarkup(createElement(RecentOrdersSection, { merchantId: "m1" }));
 
 beforeEach(() => {
@@ -48,6 +48,7 @@ describe("a shop's latest orders", () => {
         orders: ["suspended", "refund_delivered", "in_transit"].map((status, i) => ({
           id: `o${i}`,
           status,
+          is_return: false,
           customer_name: "Zain",
           customer_phone: null,
           items_count: 1,
@@ -61,5 +62,28 @@ describe("a shop's latest orders", () => {
     expect(html).toContain(">Refund delivered<");
     expect(html).toContain(">In transit<");
     expect(html).not.toMatch(/>(suspended|refund delivered)</);
+  });
+
+  // Round 19: #100012's refund at -44,750 IQD read "In transit", like a sale going out.
+  it("names a refund order in the merchant's refund words", () => {
+    const refund = (status: string) => orderStatus({ status, is_return: true }).word;
+    expect(refund("in_transit")).toBe("Courier collecting");
+    expect(refund("return_pending")).toBe("Pickup pending");
+    expect(refund("refund_delivered")).toBe("Refunded to customer");
+    expect(refund("rejected")).toBe("Refund failed");
+    expect(refund("refund_failed")).toBe("Refund failed");
+    // Any other status reads as a sale's does, and a sale keeps its words.
+    expect(refund("new")).toBe("New");
+    expect(orderStatus({ status: "in_transit", is_return: false }).word).toBe("In transit");
+
+    read = {
+      ...read,
+      data: {
+        orders: [{ id: "r1", status: "in_transit", is_return: true, customer_name: "Zain", customer_phone: null, items_count: 1, total_iqd: -44_750, created_at: "2026-11-12T09:00:00Z" }],
+      },
+    };
+    const html = render();
+    expect(html).toContain(">Courier collecting<");
+    expect(html).not.toContain(">In transit<");
   });
 });
