@@ -5,7 +5,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import type { AdminTenant, TableDensity, MerchantColumnId, SortConfig } from "@/types/admin";
 import { isSortableMerchantColumn } from "@/lib/merchant-sort";
-import { MERCHANT_COLUMNS, PLAN_LABELS } from "@/types/admin";
+import { MERCHANT_COLUMNS, PLAN_LABELS, STATUS_LABELS } from "@/types/admin";
 import {
   ArrowUp,
   ArrowDown,
@@ -315,7 +315,7 @@ function renderCell(
           )}
         >
           <span className={cn("w-1.5 h-1.5 rounded-full", STATUS_DOT[m.status])} />
-          {m.status}
+          {STATUS_LABELS[m.status]}
         </span>
       );
 

@@ -10,6 +10,18 @@ export const PLAN_LABELS: Readonly<Record<PlanTier, string>> = {
   internal: "Internal (no billing)",
 };
 export type TenantStatus = "trial" | "active" | "limited" | "suspended" | "cancelled";
+/**
+ * A shop's status in the Merchants page's words, as its card chip says it.
+ * The Table, Sheet and Compare views printed the stored key ("limited")
+ * once #1476 took away the capitals that had hidden it (round 17).
+ */
+export const STATUS_LABELS: Readonly<Record<TenantStatus, string>> = {
+  trial: "Trial",
+  active: "Active",
+  limited: "Paused",
+  suspended: "Suspended",
+  cancelled: "Cancelled",
+};
 
 /**
  * Whether a shop's trial was paid, read from its newest subscription

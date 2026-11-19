@@ -19,7 +19,7 @@ import {
   Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AdminTenant } from "@/types/admin";
+import { STATUS_LABELS, type AdminTenant } from "@/types/admin";
 import { formatCount } from "@/lib/format";
 
 interface MerchantsCompareDialogProps {
@@ -153,10 +153,7 @@ export function MerchantsCompareDialog({
           {merchants.map((m) => {
             const logoBg = m.branding?.primary_color || "#1E1E1E";
             const planGrad = PLAN_GRADIENTS[m.plan] ?? "from-slate-400 to-slate-500";
-            const statusGrad =
-              STATUS_GRADIENTS[
-                (m as { status?: string }).status ?? ""
-              ] ?? "from-slate-400 to-slate-500";
+            const statusGrad = STATUS_GRADIENTS[m.status] ?? "from-slate-400 to-slate-500";
             return (
               <div
                 key={m.id}
@@ -185,7 +182,7 @@ export function MerchantsCompareDialog({
                       statusGrad
                     )}
                   >
-                    {(m as { status?: string }).status}
+                    {STATUS_LABELS[m.status]}
                   </span>
                   <span
                     className={cn(
