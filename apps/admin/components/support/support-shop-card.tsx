@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ExternalLink, Loader2, Phone, Pin, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { planLabel } from "@/types/admin";
+import { planLabel, statusLabel } from "@/types/admin";
 import { SupportShopCheck } from "@/components/support/support-shop-check";
 import { SupportCallList } from "@/components/support/support-call-list";
 import { SupportViewButton } from "@/components/support/support-view-button";
@@ -57,8 +57,8 @@ export function SupportShopCard({ shop, caseId }: { shop: ShopCard; caseId: stri
 
       <dl className="divide-y divide-[var(--card-border)] px-4">
         <Row label="Plan" value={planLabel(tenant.plan)} />
-        {/* "Paused", the word the shop page and the check above use for a pause. */}
-        <Row label="Status" value={<span className="capitalize">{tenant.status === "limited" ? "paused" : tenant.status}</span>} />
+        {/* The Merchants page's word for each status: "Paused" for a pause. */}
+        <Row label="Status" value={statusLabel(tenant.status)} />
         {/* A paused trial still ends, and "Needs us" lists it as "Trial ends soon". */}
         {effectiveStatus(tenant.status, tenant.restrictions) === "trial" && tenant.trial_ends_at && (
           <Row label="Trial ends" value={formatDay(tenant.trial_ends_at)} />

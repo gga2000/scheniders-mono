@@ -45,21 +45,32 @@ const render = (shop: ShopCard) => renderToStaticMarkup(createElement(SupportSho
 describe("SupportShopCard", () => {
   it("shows a paused trial as paused, with its trial end", () => {
     const html = render(card("limited", { status_before: "trial" }));
-    expect(html).toContain(">paused<");
+    expect(html).toContain(">Paused<");
     expect(html).not.toContain(">limited<");
     expect(html).toContain("Trial ends");
   });
 
   it("shows no trial end for a paused paying shop", () => {
     const html = render(card("limited", { status_before: "active" }));
-    expect(html).toContain(">paused<");
+    expect(html).toContain(">Paused<");
     expect(html).not.toContain("Trial ends");
   });
 
   it("shows a trial that is not paused as before", () => {
     const html = render(card("trial", {}));
-    expect(html).toContain(">trial<");
+    expect(html).toContain(">Trial<");
     expect(html).toContain("Trial ends");
+  });
+
+  // Round 19: the card wrote its own status words beside the one status map.
+  it.each([
+    ["active", "Active"],
+    ["suspended", "Suspended"],
+    ["cancelled", "Cancelled"],
+  ])("names the %s status %s, as the Merchants page does", (status, word) => {
+    const html = render(card(status, {}));
+    expect(html).toContain(`>${word}<`);
+    expect(html).not.toContain("capitalize");
   });
 
   it.each([

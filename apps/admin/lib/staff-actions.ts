@@ -209,6 +209,7 @@ const SAID_BY_CHANGE_TITLE: Record<string, readonly string[]> = {
   auto_renew_toggle: ["auto_renew"],
   pause_tenant: ["duration_days"],
   unpause_tenant: ["ended"],
+  support_task_logged: ["outcome"],
 };
 
 /** What staffActionText already says about the row, by the keys it read. */

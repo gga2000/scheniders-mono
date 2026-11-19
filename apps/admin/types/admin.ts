@@ -43,6 +43,12 @@ export const STATUS_LABELS: Readonly<Record<TenantStatus, string>> = {
   cancelled: "Cancelled",
 };
 
+/** The same words for a status read as a plain string (the support card's shop row). */
+export function statusLabel(status: string): string {
+  const known = TENANT_STATUSES.find((s) => s === status);
+  return known ? STATUS_LABELS[known] : status;
+}
+
 /**
  * Whether a shop's trial was paid, read from its newest subscription
  * (lib/shop-status-choice `trialPayment`): no subscription, a trial never
