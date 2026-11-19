@@ -326,7 +326,7 @@ export default function HealthPage() {
                         {formatIQD(w.threshold_iqd)}
                       </td>
                       <td className="p-3 text-right font-semibold text-[var(--ink-red)] tabular-nums">
-                        -{formatIQD(deficit)}
+                        {formatIQD(deficit)}
                       </td>
                       <td className="p-3 text-center">
                         {/* The shop page's Add money form exists only for a login that may top up. */}
