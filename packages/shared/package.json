@@ -27,7 +27,8 @@
     "./signup-whatsapp": "./src/signup-whatsapp.ts",
     "./trial-report": "./src/trial-report.ts",
     "./ssrf": "./src/ssrf.ts",
-    "./public-fetch": "./src/public-fetch.ts"
+    "./public-fetch": "./src/public-fetch.ts",
+    "./refund-words": "./src/refund-words.ts"
   },
   "scripts": {
     "test": "vitest run"

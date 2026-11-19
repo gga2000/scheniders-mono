@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STATUS_TO_STAGE } from "@scheniders/shared/order-status";
+import { REFUND_ORDER_WORDS } from "@scheniders/shared/refund-words";
 import { LoadFailure } from "@/lib/load-failure";
 
 /*
@@ -85,5 +86,12 @@ describe("a shop's latest orders", () => {
     const html = render();
     expect(html).toContain(">Courier collecting<");
     expect(html).not.toContain(">In transit<");
+  });
+
+  // Round 20: the words were a copy of the merchant app's. Both now read one list.
+  it("says every refund word the merchant app says, from the one shared list", () => {
+    for (const [status, word] of Object.entries(REFUND_ORDER_WORDS.en)) {
+      expect(orderStatus({ status, is_return: true }).word).toBe(word);
+    }
   });
 });
