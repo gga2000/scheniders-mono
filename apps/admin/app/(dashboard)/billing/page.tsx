@@ -295,7 +295,7 @@ export default function BillingPage() {
           {topupPlan.kind === "ready" && (
             <p className="text-xs text-foreground/75 mt-3">{topupPlan.sentence}</p>
           )}
-          {topupPlan.kind === "too_much" && (
+          {topupPlan.kind === "blocked" && (
             <p className="text-xs text-[var(--ink-red)] mt-3">{topupPlan.words}</p>
           )}
 
