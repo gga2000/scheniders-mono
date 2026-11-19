@@ -23,7 +23,7 @@ function sources(dir: string): string[] {
 
 /** Tags that cut their text ("truncate") around one value, with no title. */
 function cutWithoutTitle(source: string): string[] {
-  const tag = /<(\w+)((?:\s[^<>]*?)?className=(?:"[^"]*\btruncate\b[^"]*"|\{[^{}]*\btruncate\b[^{}]*\}|\{cn\([^<>]*?\btruncate\b[^<>]*?\)\})[^<>]*?)>\s*\{([^{}<>]+)\}\s*<\/\1>/gs;
+  const tag = /<(\w+)((?:\s[^<>]*?)?className=(?:"[^"]*\btruncate\b[^"]*"|\{[^{}]*\btruncate\b[^{}]*\}|\{cn\([^<>]*?\btruncate\b[^<>]*?\)\})[^<>]*?)>\s*\{([^{}<>]+)\}\s*<\/\1>/g;
   return [...source.matchAll(tag)].filter((m) => !m[2].includes("title=")).map((m) => `<${m[1]}> {${m[3].trim()}}`);
 }
 
