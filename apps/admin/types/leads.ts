@@ -364,11 +364,26 @@ export interface EmployeeCommission {
   tenant?: { business_name: string; slug: string } | null;
 }
 
+/** The Lucide icon an achievement shows; components/team/team-achievement-wall.tsx draws it. */
+export type AchievementIcon =
+  | "Target"
+  | "Crosshair"
+  | "Zap"
+  | "Trophy"
+  | "Award"
+  | "Store"
+  | "Building2"
+  | "Flame"
+  | "Rocket"
+  | "Bell"
+  | "Crown"
+  | "Users";
+
 export interface AchievementDefinition {
   key: string;
   name: string;
   description: string;
-  icon: string;
+  icon: AchievementIcon;
   color: string;
 }
 
