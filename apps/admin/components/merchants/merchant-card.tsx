@@ -281,7 +281,7 @@ export function MerchantCard({
 
         {/* Hero stats: Balance + Revenue (paired big numbers) */}
         <div className="relative grid grid-cols-2 grid-rows-[auto_auto_auto] gap-x-3 mt-5 p-3.5 rounded-2xl bg-gradient-to-br from-foreground/[0.04] to-foreground/[0.015] dark:from-white/[0.04] dark:to-white/[0.01] border border-foreground/[0.05]">
-          <div className="@container min-w-0 row-span-3 grid grid-rows-subgrid">
+          <div className="min-w-0 row-span-3 grid grid-rows-subgrid">
             <p className="text-xs text-foreground/70 font-black flex items-start gap-1">
               <span className="w-1 h-1 mt-[7px] rounded-full bg-emerald-500 shrink-0" />
               Balance
@@ -291,7 +291,7 @@ export function MerchantCard({
               {merchant.city || "—"}
             </p>
           </div>
-          <div className="@container min-w-0 row-span-3 grid grid-rows-subgrid border-l border-foreground/[0.08] pl-3">
+          <div className="min-w-0 row-span-3 grid grid-rows-subgrid border-l border-foreground/[0.08] pl-3">
             <p className="text-xs text-foreground/70 font-black flex items-start gap-1">
               <span className="w-1 h-1 mt-[7px] rounded-full bg-violet-500 shrink-0" />
               Our fees, 30 days
