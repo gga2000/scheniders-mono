@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/hooks/use-admin-auth";
 import { PLAN_LABELS, type PlanTier } from "@/types/admin";
-import { adminFetch } from "@/lib/admin-fetch";
+import { isStaffReason } from "@/lib/billing-lock-tools";
+import { StaffReasonInput } from "@/components/shared/staff-reason-input";
+import { ConfirmButton, ErrorLine, postJson, WillHappen } from "./detail/action-ui";
 
 const PLAN_OPTIONS: Array<{
   value: PlanTier;
@@ -29,49 +31,56 @@ const planBadgeStyle: Record<PlanTier, string> = {
 interface MerchantPlanDropdownProps {
   merchantId: string;
   plan: PlanTier;
+  /** Named in the confirm, so a slip on the wrong card is seen before the press. */
+  shopName?: string;
 }
 
+/**
+ * The plan chip on a Merchants card. A pick used to move the shop at once,
+ * with the card changed before the server answered (staff console audit
+ * W-04). A pick now opens a confirm in the menu, worded as the shop page's
+ * plan form: the move named, a reason for the staff log, and the server's
+ * refusal said in the menu.
+ */
 export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
   merchantId,
   plan,
+  shopName,
 }: MerchantPlanDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [next, setNext] = useState<PlanTier | null>(null);
+  const [why, setWhy] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const can = useCan();
 
+  const close = () => {
+    setOpen(false);
+    setNext(null);
+    setWhy("");
+  };
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setNext(null);
+        setWhy("");
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  // The card shows the new plan only once the server took it.
   const mutation = useMutation({
-    mutationFn: async (newPlan: PlanTier) => {
-      const res = await adminFetch(`/api/merchants/${merchantId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: newPlan }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to update plan");
-      }
-      return res.json();
-    },
-    onMutate: async (newPlan) => {
-      await queryClient.cancelQueries({ queryKey: ["admin", "merchants"] });
-      return { restore: patchMerchantInCache(queryClient, merchantId, { plan: newPlan }) };
-    },
-    // The card goes back to the real plan at once, before the list is read again.
-    onError: (error: Error, _newPlan, context) => {
-      context?.restore();
-      toast.error(error.message);
-    },
-    onSettled: () => {
+    mutationFn: (newPlan: PlanTier) =>
+      postJson(`/api/merchants/${merchantId}`, { plan: newPlan, reason: why.trim() }, "PATCH"),
+    onSuccess: (_data, newPlan) => {
+      patchMerchantInCache(queryClient, merchantId, { plan: newPlan });
+      toast.success(`${shopName ?? "The shop"} moved to ${PLAN_LABELS[newPlan]}.`);
+      close();
       queryClient.invalidateQueries({ queryKey: ["admin", "merchants"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "merchant", merchantId] });
     },
@@ -79,11 +88,11 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
 
   const handleSelect = (newPlan: PlanTier) => {
     if (newPlan === plan) {
-      setOpen(false);
+      close();
       return;
     }
-    mutation.mutate(newPlan);
-    setOpen(false);
+    mutation.reset();
+    setNext(newPlan);
   };
 
   const current = PLAN_OPTIONS.find((o) => o.value === plan);
@@ -102,7 +111,8 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          setOpen(!open);
+          if (open) close();
+          else setOpen(true);
         }}
         className={cn(
           "px-3 py-1 rounded-full text-xs font-black flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95",
@@ -118,7 +128,39 @@ export const MerchantPlanDropdown = memo(function MerchantPlanDropdown({
         />
       </button>
 
-      {open && (
+      {open && next && (
+        <div
+          role="dialog"
+          aria-label={`Move to ${PLAN_LABELS[next]}`}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-full right-0 mt-1 w-72 p-3 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] z-50"
+        >
+          <WillHappen>
+            {shopName ?? "This shop"} moves from {current?.label ?? plan} to {PLAN_LABELS[next]} now. Nothing is
+            charged and nothing is refunded.
+          </WillHappen>
+          <StaffReasonInput value={why} onChange={setWhy} placeholder="Why? (the shop's timeline shows it)" className="mb-3" />
+          <ErrorLine error={mutation.error} />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={close}
+              className="rounded-lg px-3 py-2.5 text-[13px] font-semibold text-foreground/70 hover:bg-foreground/5"
+            >
+              Cancel
+            </button>
+            <ConfirmButton
+              className="flex-1"
+              disabled={!isStaffReason(why) || mutation.isPending}
+              onClick={() => mutation.mutate(next)}
+            >
+              {mutation.isPending ? "Moving..." : `Move to ${PLAN_LABELS[next]}`}
+            </ConfirmButton>
+          </div>
+        </div>
+      )}
+
+      {open && !next && (
         <div className="absolute top-full right-0 mt-1 w-36 py-1 bg-[var(--card-bg)] rounded-xl shadow-xl border border-[var(--card-border)] z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           {PLAN_OPTIONS.map((opt) => (
             <button

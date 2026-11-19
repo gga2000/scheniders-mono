@@ -17,9 +17,9 @@ const patchSchema = z
     status: z.enum(["active", "trial", "limited", "suspended", "cancelled"]).optional(),
     plan: z.enum(PLAN_TIERS).optional(),
     auto_renew: z.boolean().optional(),
-    // Staff's words, kept on the staff log rows. The shop page asks for them
-    // on a hold and a plan change; the Merchants card menus (the owner's page)
-    // do not yet, so they stay optional there.
+    // Staff's words, kept on the staff log rows. The shop page and the
+    // Merchants card plan chip ask for them; the card's status menu (the
+    // owner's page) does not yet, so they stay optional here.
     reason: staffReasonSchema.optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {
