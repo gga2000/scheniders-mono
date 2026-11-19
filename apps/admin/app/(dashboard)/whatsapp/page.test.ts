@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
-import { baghdadMonth } from "@/lib/whatsapp-report";
+import { monthOf } from "@/lib/baghdad-day";
 
 /*
  * Round 18: an Arabic shop name and its "#id" were drawn as one right-to-left
@@ -37,7 +37,7 @@ const SHOP = {
 };
 
 function render(): string {
-  const month = baghdadMonth(new Date());
+  const month = monthOf(new Date());
   const client = new QueryClient();
   client.setQueryData(["admin", "whatsapp", month], {
     month,

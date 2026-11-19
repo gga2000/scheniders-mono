@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireBearerAdmin } from "@/lib/api-auth";
-import { monthOf, monthsEnding } from "@/lib/console-stats";
+import { monthOf } from "@/lib/baghdad-day";
+import { monthsEnding } from "@/lib/console-stats";
 import { everyRow } from "@/lib/every-row";
 
 export async function GET(request: NextRequest) {

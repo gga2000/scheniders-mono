@@ -9,8 +9,6 @@ import {
   fetchMerchantListStats,
   fetchTeamCounts,
   fetchUsageStats,
-  monthLabel,
-  monthOf,
   monthsEnding,
 } from "./console-stats";
 import { dashboardStats, incomeStats, SHOP_A, usageStats } from "./console-stats.test-data";
@@ -36,17 +34,6 @@ describe("calendar helpers", () => {
   it("knows the weekday of a day key without reading a time zone", () => {
     expect(dayOfWeek("2026-11-16")).toBe(1); // Monday
     expect(dayOfWeek("2026-11-15")).toBe(0); // Sunday
-  });
-
-  it("labels a month", () => {
-    expect(monthLabel("2026-11")).toBe("Nov 26");
-    expect(monthLabel("2026-01")).toBe("Jan 26");
-  });
-
-  it("files an instant under its Baghdad month", () => {
-    expect(monthOf("2026-10-31T20:59:59Z")).toBe("2026-10"); // 23:59 in Baghdad
-    expect(monthOf("2026-10-31T21:00:00Z")).toBe("2026-11"); // 00:00 on the 1st in Baghdad
-    expect(monthOf(new Date("2026-12-31T21:30:00Z"))).toBe("2027-01");
   });
 
   it("lists the months ending this month, oldest first, across a year", () => {

@@ -5,25 +5,13 @@ import { cn } from "@/lib/utils";
 import { BarChart3 } from "lucide-react";
 import type { StaffAction } from "@/types/leads";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
-import { formatDayKey } from "@/lib/format";
+import { formatDateKey } from "@/lib/format";
+import { addDays, dayOf } from "@/lib/baghdad-day";
 import { useLiveTick } from "@/hooks/use-live-tick";
 
 interface TeamPerformanceChartProps {
   employeeId?: string;
   actions?: StaffAction[];
-}
-
-// Days on the Baghdad calendar, as every day in the console is counted, so a
-// staff member whose browser runs another clock sees the same buckets.
-const BAGHDAD = "Asia/Baghdad";
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function formatShortDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: BAGHDAD });
-}
-
-function formatDayLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", timeZone: BAGHDAD });
 }
 
 export function TeamPerformanceChart({
@@ -34,22 +22,18 @@ export function TeamPerformanceChart({
   const now = useLiveTick();
 
   const chartData = useMemo(() => {
-    const days: { key: string; label: string; shortLabel: string; count: number }[] = [];
-
-    // 14 Baghdad days, today last (Iraq keeps one offset all year).
-    for (let i = 13; i >= 0; i--) {
-      const date = new Date(now - i * DAY_MS);
-      days.push({
-        key: formatDayKey(date),
-        label: formatDayLabel(date),
-        shortLabel: formatShortDate(date),
-        count: 0,
-      });
-    }
+    // 14 days on the Baghdad calendar, today last, as every day in the
+    // console is counted, so a browser on another clock sees the same buckets.
+    // Named "18 Nov" as on every other screen (it read "Nov 18", round 18).
+    const today = dayOf(now);
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const key = addDays(today, i - 13);
+      return { key, label: formatDateKey(key, false), count: 0 };
+    });
 
     // Count actions per day
     for (const action of actions) {
-      const day = days.find((d) => d.key === formatDayKey(action.created_at));
+      const day = days.find((d) => d.key === dayOf(action.created_at));
       if (day) day.count++;
     }
 
@@ -94,7 +78,7 @@ export function TeamPerformanceChart({
         <NumberCell label="Actions, last 14 days" value={stats.total} />
         <NumberCell label="Actions a day, last 14 days" value={stats.avg} />
         <NumberCell label="Busiest day, last 14 days" value={stats.mostActiveDay
-              ? `${stats.mostActiveDay.shortLabel} (${stats.mostActiveDay.count})`
+              ? `${stats.mostActiveDay.label} (${stats.mostActiveDay.count})`
               : "---"} />
       </NumberStrip>
 
@@ -178,7 +162,7 @@ export function TeamPerformanceChart({
                         : "text-foreground/70"
                     )}
                   >
-                    {day.label.split(" ")[1]}
+                    {Number(day.key.slice(8))}
                   </span>
                 </div>
               ))}

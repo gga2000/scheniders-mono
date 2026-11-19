@@ -16,8 +16,8 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { formatDayKey, formatDayTime } from "@/lib/format";
-import { baghdadWallTime } from "@/lib/baghdad-day";
+import { formatDayTime } from "@/lib/format";
+import { baghdadWallTime, dayOf } from "@/lib/baghdad-day";
 import { useLeaveGuard } from "@/hooks/use-leave-guard";
 
 // ── Date Helpers ────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ function isOverdue(date: string): boolean {
 
 /** Today on the Baghdad calendar, as every day in the console is counted. */
 function isToday(date: string): boolean {
-  return formatDayKey(date) === formatDayKey(new Date());
+  return dayOf(date) === dayOf(new Date());
 }
 
 // ── Props ───────────────────────────────────────────────────────────────

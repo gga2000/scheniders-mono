@@ -10,7 +10,7 @@ vi.mock("@/lib/api-auth", () => ({
 }));
 
 const { GET } = await import("./route");
-const { baghdadMonth } = await import("@/lib/whatsapp-report");
+const { monthOf } = await import("@/lib/baghdad-day");
 
 const SHOP = {
   tenant_id: "11111111-1111-4111-8111-111111111111",
@@ -58,7 +58,7 @@ describe("GET /api/whatsapp", () => {
 
   it("defaults to this Baghdad month", async () => {
     await get();
-    expect(rpc).toHaveBeenCalledWith("admin_whatsapp_report", { p_month: `${baghdadMonth(new Date())}-01` });
+    expect(rpc).toHaveBeenCalledWith("admin_whatsapp_report", { p_month: `${monthOf(new Date())}-01` });
   });
 
   it("refuses a bad month without asking the database", async () => {

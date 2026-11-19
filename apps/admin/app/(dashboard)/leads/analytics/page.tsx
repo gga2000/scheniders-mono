@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { NumberCell, NumberStrip } from "@/components/shared/number-strip";
-import { formatCount, formatIQD } from "@/lib/format";
+import { formatCount, formatIQD, formatMonth } from "@/lib/format";
 import { useLeadAnalytics } from "@/hooks/use-lead-analytics";
 import { LoadError } from "@/components/shared/load-error";
 import {
@@ -410,7 +410,7 @@ function AnalyticsDashboard({
                   />
                 </div>
                 <span className="text-xs text-[var(--muted)] font-medium mt-1 truncate w-full text-center" title={formatMonth(month.month)}>
-                  {formatMonth(month.month)}
+                  {formatMonth(month.month, false)}
                 </span>
               </div>
             ))}
@@ -511,11 +511,3 @@ function AnalyticsDashboard({
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-const MONTH = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
-
-/** "2026-11" -> "Nov". The month is a calendar month, not an instant: read and named in UTC, it cannot shift. */
-function formatMonth(monthStr: string): string {
-  const [year, month] = monthStr.split("-").map(Number);
-  if (!year || !month) return monthStr;
-  return MONTH.format(Date.UTC(year, month - 1, 1));
-}

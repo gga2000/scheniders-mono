@@ -10,10 +10,11 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoadError } from "@/components/shared/load-error";
 import { okOrLoadFailure } from "@/lib/load-failure";
+import { monthOf } from "@/lib/baghdad-day";
+import { formatMonth } from "@/lib/format";
 import { STATUS_LABELS, planLabel } from "@/types/admin";
 import {
   INTERAKT_COST_IQD,
-  baghdadMonth,
   shiftMonth,
   trialCostIqd,
   whatsappReportSchema,
@@ -34,11 +35,6 @@ const responseSchema = whatsappReportSchema.extend({
 
 const number = (n: number) => new Intl.NumberFormat("en-IQ").format(n);
 const iqd = (n: number) => `${number(n)} IQD`;
-
-function monthLabel(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
-}
 
 /** Half or more of 20+ messages failing on the shop's numbers pauses it (whatsapp_watch). */
 function failureTone(shop: WhatsAppReportShop): "red" | "amber" | null {
@@ -121,7 +117,7 @@ const COUNTED_FROM_MONTH = "2026-11";
  */
 export default function WhatsAppPage() {
   const { role } = useAdminAuth();
-  const current = baghdadMonth(new Date());
+  const current = monthOf(new Date());
   const [month, setMonth] = useState(current);
   const { data, error, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["admin", "whatsapp", month],
@@ -163,7 +159,7 @@ export default function WhatsAppPage() {
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="min-w-[8.5rem] text-center text-sm font-semibold text-foreground">{monthLabel(month)}</span>
+          <span className="min-w-[8.5rem] text-center text-sm font-semibold text-foreground">{formatMonth(month)}</span>
           <button
             type="button"
             aria-label="Next month"
@@ -184,13 +180,13 @@ export default function WhatsAppPage() {
         <>
           <NumberStrip columns={4} label="WhatsApp numbers">
             <NumberCell
-              label={`Messages delivered, ${monthLabel(month)}`}
+              label={`Messages delivered, ${formatMonth(month)}`}
               value={number(data.totals.messages)}
               note={countedFrom}
             />
-            <NumberCell label={`Shops paid, ${monthLabel(month)}`} value={iqd(data.totals.shopPaidIqd)} />
+            <NumberCell label={`Shops paid, ${formatMonth(month)}`} value={iqd(data.totals.shopPaidIqd)} />
             <NumberCell
-              label={`Trial messages on us, ${monthLabel(month)}`}
+              label={`Trial messages on us, ${formatMonth(month)}`}
               value={number(data.totals.trialMessages)}
               note={`about ${iqd(data.totals.trialCostIqd)}`}
             />
@@ -213,7 +209,7 @@ export default function WhatsAppPage() {
               <div className="flex flex-col items-center justify-center py-12 text-foreground/70">
                 <MessageCircleOff className="w-10 h-10 mb-2" />
                 <p className="text-sm">
-                  No messages delivered in {monthLabel(month)}
+                  No messages delivered in {formatMonth(month)}
                   {countedFrom ? `, ${countedFrom}` : ""}.
                 </p>
               </div>

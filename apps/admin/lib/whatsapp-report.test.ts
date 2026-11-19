@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   INTERAKT_COST_IQD,
-  baghdadMonth,
   monthParamSchema,
   shiftMonth,
   trialCostIqd,
@@ -58,11 +57,6 @@ describe("WhatsApp report totals", () => {
 });
 
 describe("months on Baghdad time", () => {
-  it("21:30 UTC on 31 October is already November in Baghdad", () => {
-    expect(baghdadMonth(new Date("2026-10-31T21:30:00Z"))).toBe("2026-11");
-    expect(baghdadMonth(new Date("2026-10-31T20:59:00Z"))).toBe("2026-10");
-  });
-
   it("steps across a year", () => {
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");

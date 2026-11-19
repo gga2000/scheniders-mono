@@ -200,3 +200,26 @@ describe("the console's numbers and months", () => {
     expect(found).toEqual([]);
   });
 });
+
+/*
+ * Round 18 (structure 4, data 9): a month was written "Nov 26" on Revenue
+ * (read as 26 November), "Nov 2026" on Paying and "November 2026" on
+ * WhatsApp, and the Team chart named a day "Nov 18" beside Home's "18 Nov".
+ * Each screen had built its own formatter. Months and days are written by
+ * lib/format and counted by lib/baghdad-day, and nowhere else.
+ */
+const OWN_DATE_FORMAT = /(?:Intl\.DateTimeFormat|\.toLocaleDateString)\(/g;
+
+describe("the console's months and days", () => {
+  it("are written only by lib/format and lib/baghdad-day", () => {
+    const found: string[] = [];
+    for (const dir of ["app", "components", "hooks", "lib"]) {
+      for (const file of sourceFiles(path.join(ADMIN_DIR, dir))) {
+        const name = path.relative(ADMIN_DIR, file).split(path.sep).join("/");
+        if (name === "lib/format.ts" || name === "lib/baghdad-day.ts") continue;
+        for (const match of readFileSync(file, "utf8").match(OWN_DATE_FORMAT) ?? []) found.push(`${name}: ${match}`);
+      }
+    }
+    expect(found).toEqual([]);
+  });
+});

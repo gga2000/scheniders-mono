@@ -73,11 +73,6 @@ export function whatsappReportTotals(shops: readonly WhatsAppReportShop[]): What
   );
 }
 
-/** "2026-11" for the month a Baghdad date falls in. */
-export function baghdadMonth(now: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit" }).format(now);
-}
-
 /** The month before or after a "YYYY-MM". */
 export function shiftMonth(month: string, by: number): string {
   const [y, m] = month.split("-").map(Number);

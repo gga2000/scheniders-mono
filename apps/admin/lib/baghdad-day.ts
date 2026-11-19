@@ -21,6 +21,11 @@ export function dayOf(instant: string | Date | number): string {
   return baghdadDay.format(new Date(instant));
 }
 
+/** The Baghdad month an instant falls in, as '2026-11'. 00:30 on the 1st in Baghdad is still the month before in UTC. */
+export function monthOf(instant: string | Date | number): string {
+  return dayOf(instant).slice(0, 7);
+}
+
 const WALL_TIME = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/;
 
 /**
