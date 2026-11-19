@@ -88,8 +88,8 @@ describe("the demo store", () => {
   });
 });
 
-// Round 19: a lead's pre-built store is on trial, and "Start paid time, no
-// charge" was offered on it. Converted that way, the lead could no longer be
+// Round 19: a lead's pre-built store is on trial, and the convert step ("Start
+// paid time, no charge" then) was offered on it. Converted that way, the lead could no longer be
 // converted into it (convert_lead_atomic answers prospect_not_open).
 describe("a store built for a lead", () => {
   it("is not offered paid time with no charge; the lead is converted instead", () => {

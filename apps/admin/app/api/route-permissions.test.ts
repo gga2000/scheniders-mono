@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { AdminAction, AdminRole } from "@/types/admin";
 import { hasPermission } from "@/lib/admin-permissions";
+import { NOT_TRIAL } from "@/lib/billing-lock-tools";
 import { AdminAuthError } from "@/lib/admin-auth-error";
 
 /**
@@ -509,11 +510,13 @@ describe("trial extension goes through admin_extend_trial only", () => {
     dbCalls.filter((c) => ["from", "update", "insert", "upsert", "delete"].includes(c.method));
 
   it.each(ROUTES)(
-    "$name: support_staff gets 400 when the database refuses a shop that is not on trial",
+    "$name: support_staff gets 409 with the shared words when the shop left its trial",
     async ({ call }) => {
       dbResult = { data: { success: false, error: "not_trial" }, error: null };
       const res = await call("support");
-      expect(res.status).toBe(400);
+      // The page is out of date, not the request: the same answer as Start free time.
+      expect(res.status).toBe(409);
+      expect((await res.json()).error).toBe(NOT_TRIAL.error);
       expect(directTableCalls()).toEqual([]);
     },
   );

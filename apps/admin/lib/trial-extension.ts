@@ -1,5 +1,5 @@
 import type { createAdminClient } from "./admin-supabase";
-import { REQUEST_REUSED } from "./billing-lock-tools";
+import { NOT_TRIAL, REQUEST_REUSED } from "./billing-lock-tools";
 
 /**
  * Longest single trial extension. Enforced again inside `admin_extend_trial`.
@@ -18,7 +18,7 @@ export type TrialExtensionActor = { id: string; email?: string | null };
 
 const REFUSALS: Record<string, { status: 400 | 404 | 409; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
-  not_trial: { status: 400, error: "Tenant is not on a trial plan" },
+  not_trial: NOT_TRIAL,
   request_reused: REQUEST_REUSED,
 };
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatDay } from "@/lib/format";
-import { endAfterDays, shopActionKey } from "@/lib/shop-actions";
+import { CONVERT_ACTION, endAfterDays, shopActionKey } from "@/lib/shop-actions";
 import { isStaffReason } from "@/lib/billing-lock-tools";
 import type { RequestIds } from "@/lib/request-ids";
 import { StaffReasonInput } from "@/components/shared/staff-reason-input";
@@ -55,7 +55,7 @@ export function ConvertTrialForm({ shopId, shopName, requestIds, locked, onDone 
 
   return (
     <PanelFields busy={convert.isPending}>
-      <PanelTitle>Start free time, no charge</PanelTitle>
+      <PanelTitle>{CONVERT_ACTION}</PanelTitle>
       <div className="mb-3 grid grid-cols-3 gap-1.5">
         {PERIODS.map((p) => (
           <Choice key={p.days} selected={days === p.days} onClick={() => setDays(p.days)}>

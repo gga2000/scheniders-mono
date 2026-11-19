@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/admin-supabase";
 import { requireAdminPermission } from "@/lib/api-auth";
-import { REQUEST_REUSED, SHOP_PAUSED } from "@/lib/billing-lock-tools";
+import { NOT_TRIAL, REQUEST_REUSED, SHOP_PAUSED } from "@/lib/billing-lock-tools";
 import { notAnId } from "@/lib/route-id";
 import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 
@@ -29,7 +29,7 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   demo_store: { status: 409, error: "The demo store has no free time to start" },
   prospect_store: { status: 409, error: "This store was built for a lead. Convert the lead instead" },
   paused: SHOP_PAUSED,
-  not_trial: { status: 409, error: "This shop is no longer on trial. Reload the page to see it" },
+  not_trial: NOT_TRIAL,
   request_reused: REQUEST_REUSED,
 };
 

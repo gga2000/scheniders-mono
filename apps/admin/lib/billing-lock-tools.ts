@@ -31,6 +31,14 @@ export const REQUEST_REUSED = {
  */
 export const SHOP_PAUSED = { status: 409, error: "This shop is paused. Lift the pause first" } as const;
 
+/**
+ * The shop left its trial after the page was loaded, so the database refuses
+ * a trial step. One answer for extending a trial (shop page, Trials, bulk),
+ * a trial check and Start free time; round 20 found it said three ways, two
+ * of them as a 400 for a page that was only out of date.
+ */
+export const NOT_TRIAL = { status: 409, error: "This shop is no longer on trial. Reload the page to see it" } as const;
+
 /** What a staff member is told when a reason is too short: one sentence, said only from here. */
 export const STAFF_REASON_TOO_SHORT = `Write a reason with at least ${STAFF_REASON_MIN} letters.`;
 

@@ -234,7 +234,7 @@ describe("decisions", () => {
     stub.state.functions.admin_trial_check_decide_once = () => ({ data: { success: false, error: "not_trial" }, error: null });
     await expect(
       decideTrialCheck(client(), NEW, { decision: "end_trial", reason: "same owner", request_id: REQ, seen_decided_at: null }, ADMIN),
-    ).resolves.toEqual({ ok: false, status: 400, error: "This store is not on a trial any more" });
+    ).resolves.toEqual({ ok: false, status: 409, error: "This shop is no longer on trial. Reload the page to see it" });
 
     stub.state.functions.admin_trial_check_decide_once = () => ({ data: { success: false, error: "not_found" }, error: null });
     await expect(decideTrialCheck(client(), NEW, checked, ADMIN)).resolves.toEqual({

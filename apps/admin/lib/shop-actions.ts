@@ -50,6 +50,13 @@ export function freeDaysKind(shop: ShopFacts, can: Can): FreeDaysKind | null {
 
 export type MoreAction = "orders" | "plan" | "pause" | "hold" | "reactivate" | "convert" | "note";
 
+/**
+ * The name of the step that ends a trial with free time (convert-trial). The
+ * More menu, the panel title and the refusal that points staff to it say it
+ * from here, so the pointer cannot name a button that is no longer there.
+ */
+export const CONVERT_ACTION = "Start free time, no charge";
+
 /** The More menu, in the order staff reach for them. */
 export function moreActions(shop: ShopFacts, can: Can): MoreAction[] {
   const stopped = shop.status === "suspended" || shop.status === "cancelled";

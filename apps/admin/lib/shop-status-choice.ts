@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { TenantStatus, TrialPayment } from "@/types/admin";
-import { reactivateWords } from "./shop-actions";
+import { CONVERT_ACTION, reactivateWords } from "./shop-actions";
 import { SHOP_PAUSED } from "./billing-lock-tools";
 
 /**
@@ -14,11 +14,8 @@ export const STATUS_REFUSALS = {
   use_pause: "Use Pause to limit a shop: it sets what is blocked and for how long.",
   /** A paused shop keeps its status until the pause is lifted. */
   paused: `${SHOP_PAUSED.error} (on its page).`,
-  /**
-   * A trial shop becomes a paying shop on its own page, through "Start paid
-   * time, no charge" (convert-trial), never by picking Active.
-   */
-  still_trial: 'This shop is on trial. Open its page and use "Start free time, no charge" to end its trial.',
+  /** A trial shop leaves its trial on its own page, through convert-trial, never by picking Active. */
+  still_trial: `This shop is on trial. Open its page and use "${CONVERT_ACTION}" to end its trial.`,
   /** Only a shop whose trial was never paid (or that has no subscription) can go back to Trial. */
   not_trialing: "This shop's subscription is no longer an unpaid trial, so it cannot go back to Trial.",
 } as const;
