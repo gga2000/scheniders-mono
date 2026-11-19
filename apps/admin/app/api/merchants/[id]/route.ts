@@ -19,7 +19,7 @@ const patchSchema = z
     auto_renew: z.boolean().optional(),
     // Staff's words, kept on the staff log rows. The shop page and the
     // Merchants card plan chip ask for them; the card's status menu (the
-    // owner's page) does not yet, so they stay optional here.
+    // owner's page) does not yet, so a status change may come without one.
     reason: staffReasonSchema.optional(),
   })
   .refine((d) => d.status || d.plan || typeof d.auto_renew === "boolean", {
@@ -28,6 +28,12 @@ const patchSchema = z
   // Stopping renewal ends the shop's paid months; only the shop page sends it.
   .refine((d) => d.auto_renew !== false || d.reason, {
     message: "Say why renewal stops.",
+    path: ["reason"],
+  })
+  // A plan decides what the shop pays each month. Every form that moves one
+  // asks why (the shop page, the card's plan chip, bulk Change Plan).
+  .refine((d) => !d.plan || d.reason, {
+    message: "Say why the plan changes.",
     path: ["reason"],
   });
 

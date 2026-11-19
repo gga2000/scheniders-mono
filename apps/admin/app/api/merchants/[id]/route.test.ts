@@ -357,6 +357,16 @@ describe("PATCH /api/merchants/[id]", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  // Round 19: every form that moves a plan asks why; the route now holds
+  // that rule too, so a plan change never reaches the log without a reason.
+  it("refuses a plan change without a reason, before the database", async () => {
+    const res = await patch({ plan: "starter" });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Say why the plan changes.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("answers with the status the shop really has: a suspended trial comes back on trial", async () => {
     rpc.mockResolvedValue(changed({ status: "trial", changed: ["status_change"] }));
     const res = await patch({ status: "active" });
@@ -382,7 +392,7 @@ describe("PATCH /api/merchants/[id]", () => {
   it("a database error answers 500", async () => {
     rpc.mockResolvedValue({ data: null, error: { message: "deadlock detected" } });
 
-    expect((await patch({ plan: "starter" })).status).toBe(500);
+    expect((await patch({ plan: "starter", reason: "Owner asked for it" })).status).toBe(500);
   });
 
   it.each([{}, { status: "frozen" }, { plan: "gold" }, { auto_renew: "yes" }])("refuses the body %j before the database", async (body) => {
