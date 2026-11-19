@@ -200,7 +200,7 @@ export function staffActionText(action: string, details: Record<string, unknown>
 const SAID_BY_CHANGE_TITLE: Record<string, readonly string[]> = {
   extend_trial: ["days"],
   extend_subscription: ["days"],
-  convert_trial: ["days", "duration_days"],
+  convert_trial: ["days", "duration_days", "plan"],
   add_lock_orders: ["orders"],
   force_unlock: ["days"],
   status_change: ["status", "previous_status"],

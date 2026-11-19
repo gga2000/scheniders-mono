@@ -203,7 +203,7 @@ const SUPER_ADMIN_ONLY: Case[] = [
     call: async (t) => {
       const { POST } = await import("./merchants/[id]/convert-trial/route");
       return POST(
-        req(`/api/merchants/${TENANT}/convert-trial`, "POST", t, { period_days: 30 }),
+        req(`/api/merchants/${TENANT}/convert-trial`, "POST", t, { period_days: 30, reason: "paid in cash", request_id: REQ }),
         idParams,
       );
     },
