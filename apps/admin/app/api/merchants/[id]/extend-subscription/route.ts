@@ -4,7 +4,7 @@ import { requireAdminPermission } from "@/lib/api-auth";
 import { z } from "zod";
 import { notAnId } from "@/lib/route-id";
 import { staffRequestIdSchema } from "@/lib/staff-reason";
-import { REQUEST_REUSED } from "@/lib/billing-lock-tools";
+import { REQUEST_REUSED, SHOP_PAUSED } from "@/lib/billing-lock-tools";
 
 const bodySchema = z.object({
   days: z.number().int().positive().max(365),
@@ -27,7 +27,7 @@ const REFUSALS: Record<string, { status: number; error: string }> = {
   not_found: { status: 404, error: "Merchant not found" },
   no_subscription: { status: 404, error: "No subscription found for this merchant" },
   demo_store: { status: 409, error: "The demo store has no paid time to extend" },
-  paused: { status: 409, error: "This shop is paused. Lift the pause first" },
+  paused: SHOP_PAUSED,
   still_trial: { status: 409, error: "This shop is on trial. Extend the trial or convert it instead" },
   not_active: { status: 409, error: "This shop is not active. Reactivate it first" },
   request_reused: REQUEST_REUSED,

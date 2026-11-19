@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { TenantStatus, TrialPayment } from "@/types/admin";
 import { reactivateWords } from "./shop-actions";
+import { SHOP_PAUSED } from "./billing-lock-tools";
 
 /**
  * The status moves `admin_update_shop` refuses, in words staff can act on. The
@@ -12,7 +13,7 @@ export const STATUS_REFUSALS = {
   /** "Limited" is a pause: the Pause button sets what is blocked and for how long. */
   use_pause: "Use Pause to limit a shop: it sets what is blocked and for how long.",
   /** A paused shop keeps its status until the pause is lifted. */
-  paused: "This shop is paused. Lift the pause first (on its page).",
+  paused: `${SHOP_PAUSED.error} (on its page).`,
   /**
    * A trial shop becomes a paying shop on its own page, through "Start paid
    * time, no charge" (convert-trial), never by picking Active.

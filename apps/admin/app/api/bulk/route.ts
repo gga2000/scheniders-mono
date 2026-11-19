@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/admin-supabase";
 import { forbidden, requireAdminPermission } from "@/lib/api-auth";
 import { logAdminActivityBatch } from "@/lib/activity-logger";
 import { hasPermission } from "@/lib/admin-permissions";
-import { topUpWallet, topupAmountSchema, topupRequestIdSchema } from "@/lib/wallet-topup";
+import { topUpWallet, topupAmountSchema } from "@/lib/wallet-topup";
 import { extendTrial, MAX_TRIAL_EXTENSION_DAYS } from "@/lib/trial-extension";
 import { staffReasonSchema, staffRequestIdSchema } from "@/lib/staff-reason";
 import { updateShop, type ShopChange, type ShopUpdateActor } from "@/lib/shop-update";
@@ -239,10 +239,10 @@ export async function POST(request: NextRequest) {
         }
         const amount = amountParsed.data;
 
-        const requestIdParsed = topupRequestIdSchema.safeParse(params?.request_id);
+        const requestIdParsed = staffRequestIdSchema.safeParse(params?.request_id);
         if (!requestIdParsed.success) {
           return NextResponse.json(
-            { error: "params.request_id is required and must be a UUID" },
+            { error: requestIdParsed.error.issues[0]?.message ?? "params.request_id is required" },
             { status: 400 }
           );
         }
