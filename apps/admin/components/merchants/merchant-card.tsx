@@ -224,15 +224,16 @@ export function MerchantCard({
           </div>
         )}
 
-        {/* Brand identity */}
-        <div className="relative flex items-center gap-3.5 mt-4">
+        {/* Brand identity. A grid, so the phone line runs under the status
+            chips: beside them it had room for "+9…" only. */}
+        <div className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 mt-4">
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shrink-0 ring-1 ring-black/5 shadow-sm"
+            className="row-span-2 w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg ring-1 ring-black/5 shadow-sm"
             style={{ backgroundColor: logoBg }}
           >
             {logoChar}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             {/* max-w-full: a block button is as wide as its text, so without it a
                 long name ran under the status chips and never got its "…".
                 The title shows the whole name when it is cut. */}
@@ -254,17 +255,8 @@ export function MerchantCard({
                 className="text-xs font-black tabular-nums text-violet-600 dark:text-violet-400 shrink-0 tracking-wide"
               />
             </div>
-            {merchant.contact_phone && (
-              <div className="flex items-center gap-1 mt-1 min-w-0">
-                <Phone className="w-2.5 h-2.5 text-foreground/35 shrink-0" />
-                <CopyableText
-                  value={merchant.contact_phone}
-                  className="min-w-0 max-w-full text-xs font-bold tabular-nums text-foreground/70"
-                />
-              </div>
-            )}
           </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex flex-col items-end gap-1">
             <MerchantStatusDropdown
               merchantId={merchant.id}
               status={merchant.status}
@@ -272,6 +264,15 @@ export function MerchantCard({
             />
             {merchant.billing_lock && <LockedChip lock={merchant.billing_lock} />}
           </div>
+          {merchant.contact_phone && (
+            <div className="col-start-2 col-span-2 flex items-center gap-1 mt-1 min-w-0">
+              <Phone className="w-2.5 h-2.5 text-foreground/35 shrink-0" />
+              <CopyableText
+                value={merchant.contact_phone}
+                className="min-w-0 max-w-full text-xs font-bold tabular-nums text-foreground/70"
+              />
+            </div>
+          )}
         </div>
 
         {/* Hero stats: Balance + Revenue (paired big numbers) */}
