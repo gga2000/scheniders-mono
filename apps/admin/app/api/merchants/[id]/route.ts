@@ -38,6 +38,29 @@ const patchSchema = z
 const TEAM_COLUMNS =
   "id, user_id, role, status, invited_at, joined_at, user_profiles!tenant_members_user_id_fkey(email, display_name, avatar_url)";
 
+const paidMonthsSchema = z.array(z.object({ paid_at: z.string(), paid_until: z.string() }));
+
+/**
+ * The shop's charged plan months, by the Paying page's one rule
+ * (paid_plan_months): when it was first charged, and until when its latest
+ * charged month runs. A running subscription can be free time (a converted
+ * lead, free days, a free unlock), so the page says "Paying" only while a
+ * charged month covers now (round 18).
+ */
+async function readPaidPlan(
+  supabase: ReturnType<typeof createAdminClient>,
+  tenantId: string,
+): Promise<{ first_paid_at: string | null; paid_until: string | null }> {
+  const { data, error } = await supabase.rpc("paid_plan_months").eq("tenant_id", tenantId);
+  if (error) throw error;
+  const months = paidMonthsSchema.parse(data);
+  const at = (iso: string) => Date.parse(iso);
+  return {
+    first_paid_at: months.reduce<string | null>((first, m) => (first === null || at(m.paid_at) < at(first) ? m.paid_at : first), null),
+    paid_until: months.reduce<string | null>((last, m) => (last === null || at(m.paid_until) > at(last) ? m.paid_until : last), null),
+  };
+}
+
 /** The staff steps that put a shop on hold, or pause it. */
 const STOP_ACTIONS: Record<string, readonly string[]> = {
   suspended: ["suspend", "bulk_suspend", "status_change"],
@@ -106,6 +129,7 @@ export async function GET(
       orderCountResult,
       planLimitsResult,
       billingLock,
+      paidPlan,
     ] = await Promise.all([
       // The health parts, as the list reads them; the score is their sum (lib/shop-health-score).
       supabase
@@ -142,6 +166,7 @@ export async function GET(
       supabase.from("plan_limits").select("*"),
       // The lock the shop sees (Fermi A1), for the staff tools card.
       readBillingLock(supabase, id),
+      readPaidPlan(supabase, id),
     ]);
 
     if (tenantResult.error) {
@@ -182,6 +207,7 @@ export async function GET(
       orderCount: orderCountResult.count ?? 0,
       planLimits,
       billingLock,
+      paidPlan,
       // A free unlock grants paid time without a payment: super admins only.
       canForceUnlock: hasPermission(auth.role, "manage_subscription"),
       stoppedBy,
