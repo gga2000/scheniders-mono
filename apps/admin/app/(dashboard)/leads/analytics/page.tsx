@@ -452,9 +452,8 @@ function AnalyticsDashboard({
               </tr>
             </thead>
             <tbody>
-              {data.top_employees
-                .sort((a, b) => b.leads_converted - a.leads_converted)
-                .map((emp, idx) => (
+              {/* In the server's order: most made shops, then most leads added. */}
+              {data.top_employees.map((emp, idx) => (
                   <tr
                     key={emp.user_id}
                     className="border-b border-[var(--card-border)] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
