@@ -187,7 +187,7 @@ export function MerchantCard({
             <MerchantAlertFlag merchant={merchant} />
             {lastActor && <LastActorBadge actor={lastActor} size="xs" />}
           </div>
-          <MerchantPlanDropdown merchantId={merchant.id} plan={merchant.plan} />
+          <MerchantPlanDropdown merchantId={merchant.id} plan={merchant.plan} shopName={merchant.business_name} />
         </div>
 
         {/* Pinned note preview */}
