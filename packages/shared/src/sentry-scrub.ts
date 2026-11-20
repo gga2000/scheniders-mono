@@ -223,6 +223,10 @@ export const SENTRY_IGNORE_ERRORS: Array<string | RegExp> = [
     "ResizeObserver loop completed with undelivered notifications",
     // Node prints this to stderr when a library uses an experimental API.
     /ExperimentalWarning:/,
+    // supabase-js auth hands its session lock to a newer request (two tabs, or a
+    // token refresh racing a query); the older call is aborted and the next one
+    // runs normally. Contention inside the library, not a failure of ours.
+    "Lock broken by another request with the 'steal' option.",
 ];
 
 export const SENTRY_DENY_URLS: RegExp[] = [
