@@ -2,6 +2,13 @@
 <html lang="ar">
 <head>
 <meta charset="utf-8">
+<!-- Meta Pixel: dataset "Fermi - usefermi.com" -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','3224251964631306');fbq('track','PageView');
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>فيرمي | أقوى نظام طلبات بالعراق</title>
 <meta name="description" content="ما ينسى. ما يغلط. ما يكرر. فيرمي يجمع طلبات الانستا والواتساب والموقع بمكان واحد، يفحص الطلب قبل ما يطلع، ويحسبلك صافي ربحك. جرّبه 7 أيام ببلاش.">
@@ -1305,6 +1312,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 </style>
 </head>
 <body>
+<noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=3224251964631306&amp;ev=PageView&amp;noscript=1"></noscript>
 
 <section class="film" id="film" aria-label="Fermi film: a merchant's day">
   <div class="stage">
@@ -2642,6 +2650,10 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
     io2.observe(c2);
   }
 
+  /* Meta: ViewContent once the pricing is actually on screen */
+  var pio=new IntersectionObserver(function(es){if(es[0].isIntersecting){pio.disconnect();fbq('track','ViewContent',{content_name:'pricing'})}},{rootMargin:'0px 0px -40% 0px'});
+  pio.observe($('#pricing'));
+
   /* sticky bar once the film has scrolled away */
   var film=$('#film'),sbar=$('#sbar'),fin=$('.fin2');
   function bar(){var past=film.getBoundingClientRect().bottom<window.innerHeight*.6;var r=fin.getBoundingClientRect();var atFin=r.top<window.innerHeight&&r.bottom>0;
@@ -2652,14 +2664,14 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
   var tt;function toast(m){var t=$('#toast2');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2600)}
   /* WhatsApp: Fermi's company line (0774 612 8551), opened with a short greeting */
   var WA_URL='https://wa.me/9647746128551?text='+encodeURIComponent('هلو فيرمي، أريد أعرف أكثر عن النظام');
-  $$('[data-wa]').forEach(function(b){b.addEventListener('click',function(){window.open(WA_URL,'_blank','noopener')})});
+  $$('[data-wa]').forEach(function(b){b.addEventListener('click',function(){fbq('track','Contact');window.open(WA_URL,'_blank','noopener')})});
 
   /* sign-up sheet */
   var bg=$('#shbg'),steps=$$('.sh section'),dots=$$('#shp i'),cur=0,last=null;
   function show(i){cur=i;steps.forEach(function(s,k){s.hidden=k!==i});dots.forEach(function(d,k){d.classList.toggle('on',k<=Math.min(i,2))})}
   function open(e){if(e)e.preventDefault();last=document.activeElement;show(0);bg.classList.add('on');bg.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';setTimeout(function(){$('#types button').focus()},50)}
   function close(){bg.classList.remove('on');bg.setAttribute('aria-hidden','true');document.body.style.overflow='';if(last)last.focus()}
-  $$('[data-signup]').forEach(function(b){b.addEventListener('click',open)});
+  $$('[data-signup]').forEach(function(b){b.addEventListener('click',function(e){fbq('trackCustom','OpenSignup');open(e)})});
   $('#shx').addEventListener('click',close); bg.addEventListener('click',function(e){if(e.target===bg)close()});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&bg.classList.contains('on'))close()});
   $$('#types button').forEach(function(b){b.addEventListener('click',function(){b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');
@@ -2672,11 +2684,14 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
   $('#go2').addEventListener('click',function(){var p=$('#sPhone').value.replace(/\D/g,'');
     if(!/^07\d{9}$/.test(p)){$('#sErr').textContent='اكتب الرقم مثل 07XX XXX XXXX';return}
     $('#sErr').textContent='';
+    /* The Meta Lead for this hand-over is sent by the sign-up page on arrival (with the number
+       for matching): a request fired here as the page navigates away can be cancelled. */
+    var types=$$('#types button[aria-pressed=true]').map(function(x){return x.textContent}).join('،');
     /* Hand over to the real sign-up page with what was typed here, plus the ad and referral
        parameters this page was opened with (utm_*, pain, ref, fbclid), so attribution survives. */
     var q=new URLSearchParams(),here=new URLSearchParams(location.search);
     here.forEach(function(v,k){if(/^(utm_[a-z]+|pain|ref|fbclid)$/.test(k))q.set(k,v)});
-    q.set('type',$$('#types button[aria-pressed=true]').map(function(x){return x.textContent}).join('،'));
+    q.set('type',types);
     q.set('name',$('#sName').value.trim());q.set('slug',slug($('#sName').value));q.set('phone',p);
     location.href=SIGNUP_URL+'?'+q.toString()});
 })();
