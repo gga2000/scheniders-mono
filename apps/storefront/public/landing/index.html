@@ -22,7 +22,7 @@
 <link rel="canonical" href="https://usefermi.com/">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"Organization","@id":"https://usefermi.com/#org","name":"Fermi","alternateName":"فيرمي","url":"https://usefermi.com/","logo":"https://usefermi.com/landing/v4/icons/apple-touch-icon.png","sameAs":["https://www.instagram.com/fermi.iq/","https://www.facebook.com/1478561182007897"],"address":{"@type":"PostalAddress","addressLocality":"Baghdad","addressCountry":"IQ"}},
+{"@type":"Organization","@id":"https://usefermi.com/#org","name":"Fermi","alternateName":"فيرمي","url":"https://usefermi.com/","logo":"https://usefermi.com/landing/v4/icons/apple-touch-icon.png","sameAs":["https://www.instagram.com/fermi.iq/","https://www.facebook.com/1478561182007897"],"address":{"@type":"PostalAddress","addressLocality":"Baghdad","addressCountry":"IQ"},"contactPoint":{"@type":"ContactPoint","telephone":"+964-774-612-8551","contactType":"customer support","availableLanguage":["ar","ku","en"]}},
 {"@type":"SoftwareApplication","name":"Fermi","alternateName":"فيرمي","url":"https://usefermi.com/","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"ar","description":"أقوى نظام طلبات بالعراق: طلبات الانستا والواتساب والموقع بمكان واحد، يفحص الطلب قبل ما يطلع، ويحسبلك صافي ربحك.","publisher":{"@id":"https://usefermi.com/#org"},
 "offers":[{"@type":"Offer","name":"Start","price":"9000","priceCurrency":"IQD"},{"@type":"Offer","name":"Team","price":"25000","priceCurrency":"IQD"},{"@type":"Offer","name":"Business","price":"89000","priceCurrency":"IQD"}]}
 ]}
@@ -1849,7 +1849,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   <footer class="foot2">
     <div class="rw">
       <div><span class="lg"><svg viewBox="0 0 114.02 100" aria-hidden="true"><use href="#fsym"/></svg>فيرمي</span><span>أقوى نظام طلبات بالعراق</span><a href="/features">كل ميزات فيرمي</a><span>بغداد، زيونة</span></div>
-      <div><b>تواصل ويانا</b><span>واتساب الشركة</span><a href="https://www.instagram.com/fermi.iq/" target="_blank" rel="noopener">إنستغرام <span class="n">@fermi.iq</span></a><a href="https://www.facebook.com/1478561182007897" target="_blank" rel="noopener">فيسبوك Fermi - فيرمي</a></div>
+      <div><b>تواصل ويانا</b><a href="https://wa.me/9647746128551" target="_blank" rel="noopener">واتساب <span class="n">0774 612 8551</span></a><a href="https://www.instagram.com/fermi.iq/" target="_blank" rel="noopener">إنستغرام <span class="n">@fermi.iq</span></a><a href="https://www.facebook.com/1478561182007897" target="_blank" rel="noopener">فيسبوك Fermi - فيرمي</a></div>
       <div><b>للاطمئنان</b><span>شروط الاستخدام</span><span>سياسة الخصوصية</span><span>سياسة الاسترجاع</span></div>
     </div>
   </footer>
@@ -2650,7 +2650,9 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
 
   /* toast */
   var tt;function toast(m){var t=$('#toast2');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2600)}
-  $$('[data-wa]').forEach(function(b){b.addEventListener('click',function(){toast('رقم واتساب فيرمي ينضاف قبل الإطلاق')})});
+  /* WhatsApp: Fermi's company line (0774 612 8551), opened with a short greeting */
+  var WA_URL='https://wa.me/9647746128551?text='+encodeURIComponent('هلو فيرمي، أريد أعرف أكثر عن النظام');
+  $$('[data-wa]').forEach(function(b){b.addEventListener('click',function(){window.open(WA_URL,'_blank','noopener')})});
 
   /* sign-up sheet */
   var bg=$('#shbg'),steps=$$('.sh section'),dots=$$('#shp i'),cur=0,last=null;
