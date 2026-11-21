@@ -2650,6 +2650,10 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
     io2.observe(c2);
   }
 
+  /* Meta: ViewContent once the pricing is actually on screen */
+  var pio=new IntersectionObserver(function(es){if(es[0].isIntersecting){pio.disconnect();fbq('track','ViewContent',{content_name:'pricing'})}},{rootMargin:'0px 0px -40% 0px'});
+  pio.observe($('#pricing'));
+
   /* sticky bar once the film has scrolled away */
   var film=$('#film'),sbar=$('#sbar'),fin=$('.fin2');
   function bar(){var past=film.getBoundingClientRect().bottom<window.innerHeight*.6;var r=fin.getBoundingClientRect();var atFin=r.top<window.innerHeight&&r.bottom>0;
@@ -2680,12 +2684,14 @@ if (typeof module !== 'undefined') module.exports = FermiMotion;
   $('#go2').addEventListener('click',function(){var p=$('#sPhone').value.replace(/\D/g,'');
     if(!/^07\d{9}$/.test(p)){$('#sErr').textContent='اكتب الرقم مثل 07XX XXX XXXX';return}
     $('#sErr').textContent='';
-    fbq('track','Lead');
+    /* The Meta Lead for this hand-over is sent by the sign-up page on arrival (with the number
+       for matching): a request fired here as the page navigates away can be cancelled. */
+    var types=$$('#types button[aria-pressed=true]').map(function(x){return x.textContent}).join('،');
     /* Hand over to the real sign-up page with what was typed here, plus the ad and referral
        parameters this page was opened with (utm_*, pain, ref, fbclid), so attribution survives. */
     var q=new URLSearchParams(),here=new URLSearchParams(location.search);
     here.forEach(function(v,k){if(/^(utm_[a-z]+|pain|ref|fbclid)$/.test(k))q.set(k,v)});
-    q.set('type',$$('#types button[aria-pressed=true]').map(function(x){return x.textContent}).join('،'));
+    q.set('type',types);
     q.set('name',$('#sName').value.trim());q.set('slug',slug($('#sName').value));q.set('phone',p);
     location.href=SIGNUP_URL+'?'+q.toString()});
 })();

@@ -37,6 +37,8 @@ import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 import { SignupPhoneCheck, useSignupPhoneCodeSwitch } from "@/components/auth/signup-phone-check";
 import { StoreAddressField, storeAddressSendable, useStoreAddress } from "@/components/auth/store-address-field";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
+import { FermiSignupPixel } from "@/components/auth/fermi-signup-pixel";
+import { trackSignupComplete } from "@/lib/fermi-pixel";
 
 const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
     Shirt,
@@ -173,6 +175,8 @@ function SignupForm() {
                 setIsLoading(false);
                 return;
             }
+
+            trackSignupComplete({ email: email.trim(), phone: contactPhone, sells });
 
             // UX2-18: if this browser still holds a session for a DIFFERENT
             // account, it must be cleared before signing in as the new one.
@@ -455,6 +459,7 @@ function SignupForm() {
 export default function SignupPage() {
     return (
         <AuthCardShell showBack={false}>
+            <FermiSignupPixel />
             <Suspense
                 fallback={
                     <div className="px-6 sm:px-8 py-16 flex items-center justify-center">
