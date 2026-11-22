@@ -201,9 +201,12 @@ export interface SupportShopCard {
     contact_phone: string | null;
     trial_ends_at: string | null;
     created_at: string;
+    /** The demo store renews at no charge whatever its switch says (B13). */
+    is_demo: boolean;
   };
   walletBalanceIqd: number | null;
-  subscriptionEndsAt: string | null;
+  /** The shop's one subscription, to say whether its month renews (round 21, data new 2). */
+  subscription: { status: string; plan: string; auto_renew: boolean; current_period_end: string | null } | null;
   ordersLast7Days: number;
   ordersTotal: number;
   teamSize: number;
