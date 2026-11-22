@@ -5,6 +5,7 @@ import {
   checkRows,
   firstValue,
   imageJobs,
+  importOutcome,
   missingFields,
   runProductImport,
   setColumn,
@@ -33,7 +34,7 @@ const product = (key: number, images: string[] = []): PlannedProduct => ({
 const id = (key: string) => `00000000-0000-4000-8000-${key.padStart(12, "0")}`;
 
 /** A console that adds every product it is sent, skipping the keys in `inShop`. */
-function console_(opts: { inShop?: string[]; refuseBatch?: number; images?: (links: string[]) => Answer } = {}) {
+function console_(opts: { inShop?: string[]; refuseBatch?: number; loseBatch?: number; images?: (links: string[]) => Answer } = {}) {
   const sent: string[][] = [];
   const imageCalls: Array<{ productId: string; links: string[] }> = [];
   return {
@@ -42,7 +43,8 @@ function console_(opts: { inShop?: string[]; refuseBatch?: number; images?: (lin
     calls: {
       importBatch: async ({ products }: { fileName: string; products: PlannedProduct[] }): Promise<Answer> => {
         sent.push(products.map((p) => p.key));
-        if (opts.refuseBatch === sent.length) return { ok: false, error: "A SKU or barcode in this batch is already used in the shop." };
+        if (opts.refuseBatch === sent.length) return { ok: false, error: "A SKU or barcode in this batch is already used in the shop.", lost: false };
+        if (opts.loseBatch === sent.length) return { ok: false, error: "No answer came back, so this may have been done. Check the shop before trying again.", lost: true };
         const skip = new Set(opts.inShop ?? []);
         return {
           ok: true,
@@ -91,7 +93,7 @@ describe("runProductImport", () => {
     const fake = console_({
       images: (links) =>
         links[0] === "https://a.example/gone.jpg"
-          ? { ok: false, error: "Failed to save the images" }
+          ? { ok: false, error: "Failed to save the images", lost: false }
           : { ok: true, body: { saved: 1, imageUrl: "x", failed: [{ link: "https://a.example/page", reason: "The link is not a JPEG, PNG, WebP or GIF image" }] } },
     });
     const done = await runProductImport({ fileName: "p.xlsx", products, calls: fake.calls, onProgress: () => {} });
@@ -102,6 +104,77 @@ describe("runProductImport", () => {
       { row: 2, link: "https://a.example/page", reason: "The link is not a JPEG, PNG, WebP or GIF image" },
       { row: 7, link: "https://a.example/gone.jpg", reason: "Failed to save the images" },
     ]);
+  });
+});
+
+describe("lost answers and a second read", () => {
+  it("never calls a batch with no answer not added, and counts at least what came back", async () => {
+    const products = Array.from({ length: 250 }, (_, i) => product(i + 2, i === 0 || i === 150 ? ["https://a.example/1.jpg"] : []));
+    const fake = console_({ loseBatch: 2 });
+    const done = await runProductImport({ fileName: "p.xlsx", products, calls: fake.calls, onProgress: () => {} });
+
+    expect(fake.sent.map((b) => b.length)).toEqual([100, 100]);
+    expect(done).toMatchObject({ added: 100, stoppedLost: true });
+    expect(done.stopped).toBe(
+      "Batch 2 of 3: no answer came back, so it may have been added. The 100 added before it stay. Check the shop's products, then read the file again: products already in the shop are left out, and the ones still without a photo get the file's photos.",
+    );
+    expect(done.stopped).not.toMatch(/was not added/);
+    // Batch 1's images are saved; batch 2's products have no id here.
+    expect(fake.imageCalls).toEqual([{ productId: id("2"), links: ["https://a.example/1.jpg"] }]);
+    expect(importOutcome("Kawkab", done)).toMatchObject({ ok: false, title: "Kawkab: import stopped. Added at least 100 of 250 products. Images: 1 of 1 saved." });
+  });
+
+  it("a second read gives the file's photos to the products the shop has with none, beside the new ones", async () => {
+    const fake = console_();
+    const done = await runProductImport({
+      fileName: "p.xlsx",
+      products: [product(5, ["https://a.example/new.jpg"])],
+      photosOnly: [{ productId: id("77"), row: 3, links: ["https://a.example/lost.jpg", "https://a.example/lost2.jpg"] }],
+      calls: fake.calls,
+      onProgress: () => {},
+    });
+    expect(fake.imageCalls).toEqual([
+      { productId: id("77"), links: ["https://a.example/lost.jpg", "https://a.example/lost2.jpg"] },
+      { productId: id("5"), links: ["https://a.example/new.jpg"] },
+    ]);
+    expect(done).toMatchObject({ added: 1, imagesTotal: 3, imagesSaved: 3 });
+
+    const photosOnly = await runProductImport({
+      fileName: "p.xlsx",
+      products: [],
+      photosOnly: [{ productId: id("77"), row: 3, links: ["https://a.example/lost.jpg"] }],
+      calls: fake.calls,
+      onProgress: () => {},
+    });
+    expect(fake.sent).toEqual([["5"]]);
+    expect(photosOnly).toMatchObject({ phase: "done", added: 0, imagesSaved: 1 });
+  });
+
+  it("says an images answer that never came is not known, not failed", async () => {
+    const fake = console_({
+      images: (links) =>
+        links[0] === "https://a.example/lost.jpg"
+          ? { ok: false, error: "No answer came back, so this may have been done. Check the shop before trying again.", lost: true }
+          : { ok: true, body: "not json" },
+    });
+    const done = await runProductImport({
+      fileName: "p.xlsx",
+      products: [product(2, ["https://a.example/lost.jpg"]), product(9, ["https://a.example/odd.jpg"])],
+      calls: fake.calls,
+      onProgress: () => {},
+    });
+    expect(done).toMatchObject({ imageFailures: [], imagesNotKnown: [2, 9], imagesSaved: 0, imagesTried: 2 });
+    expect(importOutcome("Kawkab", done)).toEqual({
+      ok: false,
+      title: "Kawkab: import done. Added 2 of 2 products. Images: 0 of 2 saved, 2 products not known.",
+      description:
+        "Open the shop's import and read the file again: products already in the shop are left out, and the ones still without a photo get the file's photos.",
+    });
+  });
+
+  it("says a clean run as done", async () => {
+    const done = await runProductImport({ fileName: "p.xlsx", products: [product(2)], calls: console_().calls, onProgress: () => {} });
+    expect(importOutcome("Kawkab", done)).toEqual({ ok: true, title: "Kawkab: import done. Added 1 of 1 product.", description: undefined });
   });
 });
 
@@ -122,9 +195,13 @@ describe("the column list", () => {
     expect(firstValue([["", "a"]], 0)).toBe("");
   });
 
-  it("cuts a list into batches and finds the image jobs of added products only", () => {
+  it("cuts a list into batches and finds the image jobs of added products and in-shop ones with no photo, by row", () => {
     expect(batches([1, 2, 3], 2)).toEqual([[1, 2], [3]]);
     expect(imageJobs([product(2, ["l"]), product(3, ["m"]), product(4)], new Map([["2", "a"], ["4", "c"]]))).toEqual([{ productId: "a", row: 2, links: ["l"] }]);
+    expect(imageJobs([product(5, ["l"])], new Map([["5", "a"]]), [{ productId: "z", row: 3, links: ["k"] }])).toEqual([
+      { productId: "z", row: 3, links: ["k"] },
+      { productId: "a", row: 5, links: ["l"] },
+    ]);
   });
 });
 

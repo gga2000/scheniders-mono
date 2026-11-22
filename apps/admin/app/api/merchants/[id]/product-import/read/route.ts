@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
  * POST /api/merchants/[id]/product-import/read: reads the Excel or CSV file
  * a merchant sent (Fermi B12 item 7) and answers its header and rows, a first
  * guess at which column is which product field, and what the shop already
- * has (product names, and the SKUs and barcodes of its products and choices), so the screen can plan and preview
- * the import (lib/product-import.ts planImport) as the team matches columns.
+ * has (product names, the SKUs and barcodes of its products and choices, and
+ * its products with no image yet), so the screen can plan and preview the
+ * import (lib/product-import.ts planImport) as the team matches columns.
  * It saves nothing. Body: multipart, the file in "file".
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,10 +47,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!shop) return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
 
     const [products, variants] = await Promise.all([
-      everyRow<{ name: string | null; sku: string | null; barcode: string | null; is_archived: boolean | null }>((from, to) =>
+      everyRow<{ id: string; name: string | null; sku: string | null; barcode: string | null; is_archived: boolean | null; image_url: string | null }>((from, to) =>
         supabase
           .from("products")
-          .select("name, sku, barcode, is_archived")
+          .select("id, name, sku, barcode, is_archived, image_url")
           .eq("tenant_id", id)
           .order("id")
           .range(from, to),
@@ -67,6 +68,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       // either, and admin_import_products refuses both.
       skus: [...products, ...variants].map((p) => p.sku?.trim() ?? "").filter(Boolean),
       barcodes: [...products, ...variants].map((p) => p.barcode?.trim() ?? "").filter(Boolean),
+      // A product gets its main image with its first one (the editor and
+      // admin_attach_product_images both set it), so none means no photo:
+      // a second read of the file finishes a run whose images were cut short.
+      noImages: products.filter((p) => !p.is_archived && p.name && !p.image_url).map((p) => ({ id: p.id, name: p.name ?? "" })),
     };
 
     return NextResponse.json({ file: read.file, mapping: guessMapping(read.file.headers), shop: has });

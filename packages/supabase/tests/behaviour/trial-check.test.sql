@@ -14,15 +14,17 @@
 --   end a flagged store's trial, or mark it checked; a later signal shows as
 --   news after a decision; only the service role decides;
 --   no raw identifier is stored, and the API roles cannot read the tables.
---   Customer overlap: once a trial store has 30 real orders, 30% (and at
---   least 5) of their customers having ordered from one earlier unpaid store
---   ends the trial and lists the store for staff with the counts; test,
---   practice, return and replacement orders and unconfirmed carts do not count,
---   a deleted order does; paying, house and later stores are not earlier
---   stores; a trial that already ended is listed with nothing to withhold;
---   customer digests are keyed hashes that never match an owner phone; the
---   hourly sweep reads late orders, never ends a trial staff gave back, and
---   makes no news when nothing changed.
+--   Customer overlap: once a trial store has 30 delivered orders, 30% (and
+--   at least 5) of their customers having had a delivered order from one
+--   earlier unpaid store ends the trial and lists the store for staff with the
+--   counts; an order never delivered (cancelled, rejected, unanswered, an
+--   unconfirmed cart) and test, practice, return and replacement orders do not
+--   count, a deleted delivered order does, so 30 fake orders typed with an
+--   earlier store's customer phones never end a trial; paying, house and later
+--   stores are not earlier stores; a trial that already ended is listed with
+--   nothing to withhold; customer digests are keyed hashes that never match an
+--   owner phone; the hourly sweep reads late changes and later deliveries,
+--   never ends a trial staff gave back, and makes no news when nothing changed.
 
 \set ON_ERROR_STOP 1
 
@@ -230,9 +232,9 @@ UPDATE public.tenants SET status = 'active' WHERE id = 'b0000000-0000-4000-8000-
 UPDATE public.tenants SET contact_phone = '07701112233' WHERE id = 'b0000000-0000-4000-8000-000000000303';
 SELECT pg_temp.check(pg_temp.verdict('b0000000-0000-4000-8000-000000000303') IS NULL, 'a paying store is never flagged');
 
--- 13. Customer overlap (20261122163224). Customer i has phone 0780 000 000i.
--- Orders are dated within the last hour, as live orders are when the hourly
--- sweep reads them; a store's orders are a second apart, in the order given.
+-- 13. Customer overlap (20261122163224, delivered orders only since round 22).
+-- Customer i has phone 0780 000 000i. Orders are delivered (completed) unless
+-- said otherwise; a store's orders are a second apart, in the order given.
 CREATE FUNCTION pg_temp.orders(p_tenant text, p_customers integer[], p_start timestamptz) RETURNS void LANGUAGE sql AS $$
   INSERT INTO public.orders (tenant_id, phone, status, created_at)
   SELECT p_tenant::uuid, '0780' || lpad(c::text, 7, '0'), 'completed', p_start + (n - 1) * interval '1 second'
@@ -259,7 +261,8 @@ SELECT pg_temp.check(
   'merchants cannot read customer digests or run the sweep, and RLS is on');
 
 -- F: trial ended unpaid 13 days ago, customers 1-40 (customer 5's order was
--- deleted), plus a test order, a practice order and an unconfirmed cart.
+-- deleted), plus orders never delivered (cancelled, rejected, unanswered, an
+-- unconfirmed cart), a test order and a practice order.
 SELECT pg_temp.shop('c0000000-0000-4000-8000-00000000000f', 'trial', interval '20 days', '07910000001', 'f@example.com');
 SELECT pg_temp.orders('c0000000-0000-4000-8000-00000000000f', array(SELECT generate_series(1, 40)), now() - interval '57 minutes');
 UPDATE public.orders SET deleted_at = now()
@@ -267,7 +270,10 @@ UPDATE public.orders SET deleted_at = now()
 INSERT INTO public.orders (tenant_id, phone, status, created_at, is_test, guide_practice) VALUES
   ('c0000000-0000-4000-8000-00000000000f', '07800000099', 'completed', now() - interval '57 minutes', true, false),
   ('c0000000-0000-4000-8000-00000000000f', '07800000098', 'completed', now() - interval '57 minutes', false, true),
-  ('c0000000-0000-4000-8000-00000000000f', '07800000097', 'pending_checkout', now() - interval '57 minutes', false, false);
+  ('c0000000-0000-4000-8000-00000000000f', '07800000097', 'pending_checkout', now() - interval '57 minutes', false, false),
+  ('c0000000-0000-4000-8000-00000000000f', '07800000096', 'cancelled', now() - interval '57 minutes', false, false),
+  ('c0000000-0000-4000-8000-00000000000f', '07800000095', 'rejected', now() - interval '57 minutes', false, false),
+  ('c0000000-0000-4000-8000-00000000000f', '07800000094', 'no_response', now() - interval '57 minutes', false, false);
 -- J pays and shares all of F's customers; the house store shares them too.
 SELECT pg_temp.shop('c0000000-0000-4000-8000-00000000000a', 'active', interval '60 days', '07910000002', 'j@example.com');
 SELECT pg_temp.orders('c0000000-0000-4000-8000-00000000000a', array(SELECT generate_series(1, 40)), now() - interval '58 minutes');
@@ -288,17 +294,18 @@ SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000001',
 
 SELECT pg_temp.check(
   (public.trial_customer_sweep()) = jsonb_build_object('recorded', 40 + 40 + 29, 'checked', 1),
-  'the first sweep records F''s, J''s and G''s real customers, and checks only F (G has 29 orders)');
+  'the first sweep records F''s, J''s and G''s delivered customers, and checks only F (G has 29 delivered orders)');
 SELECT pg_temp.check(
   (SELECT count(*) = 40 AND bool_and(digest ~ '^[0-9a-f]{64}$') FROM public.trial_customer_digests
     WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f')
   AND EXISTS (SELECT 1 FROM public.trial_customer_digests
                WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f' AND digest = pg_temp.customer(5)),
-  'only keyed hashes are kept, a deleted order still counts');
+  'only keyed hashes are kept, a deleted delivered order still counts');
 SELECT pg_temp.check(
   NOT EXISTS (SELECT 1 FROM public.trial_customer_digests
-               WHERE digest IN (pg_temp.customer(99), pg_temp.customer(98), pg_temp.customer(97))),
-  'a test order, a practice order and an unconfirmed cart are no customers');
+               WHERE digest IN (pg_temp.customer(99), pg_temp.customer(98), pg_temp.customer(97),
+                                pg_temp.customer(96), pg_temp.customer(95), pg_temp.customer(94))),
+  'an order never delivered, a test order and a practice order are no customers');
 SELECT pg_temp.check(
   NOT EXISTS (SELECT 1 FROM public.trial_customer_digests WHERE tenant_id = 'b0000000-0000-4000-8000-000000000101'),
   'nothing of the house store''s customers is kept');
@@ -375,12 +382,52 @@ SELECT pg_temp.check(
   (SELECT updated_at <= decided_at FROM public.trial_checks WHERE tenant_id = 'c0000000-0000-4000-8000-000000000001'),
   'an hourly re-check with nothing new is no news');
 
--- An order committed late, dated just before the last sweep, is still read.
-INSERT INTO public.orders (tenant_id, phone, status, created_at)
-SELECT 'c0000000-0000-4000-8000-00000000000f', '07800000077', 'completed', swept_through - interval '30 minutes'
+-- A change committed late, stamped just before the last sweep, is still read.
+INSERT INTO public.orders (tenant_id, phone, status, created_at, updated_at)
+SELECT 'c0000000-0000-4000-8000-00000000000f', '07800000077', 'completed',
+       swept_through - interval '30 minutes', swept_through - interval '30 minutes'
   FROM public.trial_customer_sweep_state;
 SELECT public.trial_customer_sweep();
 SELECT pg_temp.check(
   EXISTS (SELECT 1 FROM public.trial_customer_digests
            WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f' AND digest = pg_temp.customer(77)),
-  'a late order is recorded by the next sweep');
+  'a late change is recorded by the next sweep');
+
+-- An order placed days ago counts from the sweep after it is delivered.
+INSERT INTO public.orders (tenant_id, phone, status, created_at)
+VALUES ('c0000000-0000-4000-8000-00000000000f', '07800000076', 'in_transit', now() - interval '3 days');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  NOT EXISTS (SELECT 1 FROM public.trial_customer_digests WHERE digest = pg_temp.customer(76)),
+  'an order on its way is no customer yet');
+UPDATE public.orders SET status = 'completed' WHERE phone = '07800000076';
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  (SELECT first_order_at < now() - interval '2 days' FROM public.trial_customer_digests
+    WHERE tenant_id = 'c0000000-0000-4000-8000-00000000000f' AND digest = pg_temp.customer(76)),
+  'the sweep after the delivery records it, dated when it was placed');
+
+-- Round 22: K once opened a store and put 30 made-up customers on it by hand,
+-- marked delivered. P signs up later, and someone places 30 cash-on-delivery
+-- orders on P's storefront with the same 30 phones; P cancels them. P's own
+-- first 30 delivered orders are its real customers: no signal, trial runs on.
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000007', 'trial', interval '30 days', '07910000008', 'k@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000007', array(SELECT generate_series(5001, 5030)), now() - interval '29 days');
+SELECT pg_temp.shop('c0000000-0000-4000-8000-000000000008', 'trial', interval '1 hour', '07910000009', 'p@example.com');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000008', array(SELECT generate_series(5001, 5030)), now() - interval '50 minutes');
+UPDATE public.orders SET status = 'cancelled'
+ WHERE tenant_id = 'c0000000-0000-4000-8000-000000000008' AND phone LIKE '078000050%';
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  pg_temp.verdict('c0000000-0000-4000-8000-000000000008') IS NULL AND pg_temp.running('c0000000-0000-4000-8000-000000000008'),
+  '30 cancelled orders with an earlier store''s customer phones do not count');
+SELECT pg_temp.orders('c0000000-0000-4000-8000-000000000008', array(SELECT generate_series(6001, 6030)), now() - interval '20 minutes');
+SELECT pg_temp.check(
+  (SELECT count(*) = 30 FROM public.trial_customer_digests WHERE tenant_id = 'c0000000-0000-4000-8000-000000000007'),
+  'K''s hand-entered delivered customers are kept');
+SELECT public.trial_customer_sweep();
+SELECT pg_temp.check(
+  pg_temp.verdict('c0000000-0000-4000-8000-000000000008') IS NULL AND pg_temp.running('c0000000-0000-4000-8000-000000000008')
+  AND NOT EXISTS (SELECT 1 FROM public.trial_customer_digests
+                   WHERE tenant_id = 'c0000000-0000-4000-8000-000000000008' AND digest = pg_temp.customer(5001)),
+  'once P has 30 delivered orders it is checked, and the fake orders never end its trial');

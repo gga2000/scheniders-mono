@@ -6,7 +6,8 @@ import { ImportProgressBar as Bar } from "./import-progress-bar";
 
 /** How far the import is: the products, then their images, and what did not go in. */
 export function ImportRunPanel({ progress }: { progress: ImportProgress }) {
-  const { phase, productsTotal, productsSent, added, skippedInShop, stopped, imagesTotal, imagesTried, imagesSaved, imageFailures } = progress;
+  const { phase, productsTotal, productsSent, added, skippedInShop, stopped, stoppedLost, imagesTotal, imagesTried, imagesSaved, imageFailures, imagesNotKnown } =
+    progress;
   const productsDone = phase !== "products";
 
   return (
@@ -14,7 +15,7 @@ export function ImportRunPanel({ progress }: { progress: ImportProgress }) {
       <div className="space-y-1.5">
         <p className="text-[13px] font-semibold text-foreground">
           {productsDone
-            ? `Added ${count(added)} of ${count(productsTotal)} ${productsTotal === 1 ? "product" : "products"}.`
+            ? `Added ${stoppedLost ? "at least " : ""}${count(added)} of ${count(productsTotal)} ${productsTotal === 1 ? "product" : "products"}.`
             : `Adding products: ${count(productsSent)} of ${count(productsTotal)}...`}
           {skippedInShop > 0 && (
             <span className="font-normal text-foreground/75">
@@ -54,6 +55,14 @@ export function ImportRunPanel({ progress }: { progress: ImportProgress }) {
                 ))}
               </ul>
             </div>
+          )}
+          {imagesNotKnown.length > 0 && (
+            <p className="pt-1 text-[13px] text-foreground/75">
+              No answer came back for the images of {imagesNotKnown.length === 1 ? "row" : "rows"}{" "}
+              <span className="tabular-nums text-foreground">{imagesNotKnown.join(", ")}</span>, so they may have been saved. Check{" "}
+              {imagesNotKnown.length === 1 ? "that product" : "those products"} in the shop; reading the file again adds the photos of a product
+              still without one.
+            </p>
           )}
         </div>
       )}

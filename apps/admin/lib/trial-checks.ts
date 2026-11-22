@@ -10,8 +10,9 @@ import { MAX_TRIAL_EXTENSION_DAYS } from "./trial-extension";
  * (20261116103536_trial_one_per_merchant.sql) keeps one trial_checks row per
  * store that matched an earlier store that is not paying: "review" for one
  * phone or email match, "no_trial" for a Prime match, for customers shared
- * with an earlier store (20261122163224: 30% of the first 30 orders'
- * customers, at least 5) or for two medium matches (that one has already ended
+ * with an earlier store (20261122163224, delivered orders only since
+ * 20261122190918: 30% of the customers of the first 30 delivered orders, at
+ * least 5, also had a delivered order there) or for two medium matches (that one has already ended
  * the trial, unless it had ended before). Staff read the rows here and decide
  * them through admin_trial_check_decide_once, which writes the staff log and
  * makes each request's change once.
@@ -34,7 +35,7 @@ const identifierSignalSchema = z.object({
   source: identifierSourceSchema,
   tenant_id: z.string().uuid(),
 });
-/** Customers shared with an earlier store: how many of the customers of the first 30 orders also ordered there. */
+/** Customers shared with an earlier store: how many of the customers of the first 30 delivered orders also had a delivered order there. */
 const customerSignalSchema = z.object({
   family: z.literal("customers"),
   source: z.literal("customer_overlap"),
@@ -97,7 +98,7 @@ export type TrialCheckMatch =
   | (MatchedStore & {
       family: "customers";
       source: "customer_overlap";
-      /** How many of the customers of the first 30 orders, of how many, also ordered there. */
+      /** How many of the customers of the first 30 delivered orders, of how many, also had a delivered order there. */
       shared: { matched: number; customers: number };
     });
 
@@ -332,13 +333,13 @@ export function storeName(store: Pick<TrialCheckStore, "business_name" | "displa
 
 /**
  * "Team member email matches #100123 Al Noor (cancelled)", or for shared
- * customers "9 of the first 30 customers also ordered from #100123 Al Noor (trial)".
+ * customers "9 of the first 30 delivered customers also got deliveries from #100123 Al Noor (trial)".
  */
 export function matchLine(match: TrialCheckMatch): string {
   const status = match.store ? ` (${match.store.status === "limited" ? "paused" : match.store.status})` : "";
   if (match.source === "customer_overlap") {
     const { matched, customers } = match.shared;
-    return `${matched} of the first ${customers} customers also ordered from ${storeName(match.store)}${status}`;
+    return `${matched} of the first ${customers} delivered customers also got deliveries from ${storeName(match.store)}${status}`;
   }
   return `${MATCH_WHAT[match.source]} matches ${storeName(match.store)}${status}`;
 }

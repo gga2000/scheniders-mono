@@ -107,7 +107,8 @@ CREATE TABLE public.admin_activity_logs (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Only what the customer-overlap signal reads (20261122163224).
+-- Only what the customer-overlap signal reads (20261122163224, and updated_at
+-- since only delivered orders count).
 CREATE TABLE public.orders (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
@@ -118,8 +119,18 @@ CREATE TABLE public.orders (
     guide_practice boolean NOT NULL DEFAULT false,
     is_return boolean DEFAULT false,
     is_replacement boolean DEFAULT false,
-    deleted_at timestamptz
+    deleted_at timestamptz,
+    updated_at timestamptz DEFAULT now()
 );
+-- As live (trg_orders_updated_at): every change sets updated_at.
+CREATE FUNCTION public.set_orders_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON public.orders
+    FOR EACH ROW EXECUTE FUNCTION public.set_orders_updated_at();
 
 -- pg_cron, as far as the migration's schedule call needs it.
 CREATE SCHEMA cron;
