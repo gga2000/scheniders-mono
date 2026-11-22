@@ -438,6 +438,10 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 {/* Left: merchant code badge */}
                 <div className="flex items-center w-auto md:flex-1 md:min-w-[200px]">
                     <MerchantCodeBadge />
+                    {/* Desktop only, right of the store number (Ali, 22 Nov). */}
+                    <div className="ml-2 hidden md:block">
+                        <ChangeRequestButton />
+                    </div>
                     <TrialChip />
                     <DemoStoreChip />
                 </div>
@@ -463,7 +467,6 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                         <LivePresenceStack />
                         <ChatTrigger />
                         <NotificationsDropdown onOpenChange={setNotifOpen} ownsTitleBadge />
-                        <ChangeRequestButton />
                         <SupportTrigger />
 
                         {/* Overflow: Theme + Language */}

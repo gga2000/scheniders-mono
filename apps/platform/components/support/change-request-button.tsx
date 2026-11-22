@@ -70,7 +70,7 @@ export function ChangeRequestButton() {
                 </button>
             </PopoverTrigger>
             <PopoverContent
-                align="end"
+                align="start"
                 sideOffset={8}
                 style={{ zIndex: "var(--z-header-overlay)" }}
                 className="w-[360px] rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4"
