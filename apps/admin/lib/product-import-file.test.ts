@@ -1,9 +1,13 @@
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { deflateRawSync } from "node:zlib";
 import ExcelJS from "exceljs";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   IMPORT_MAX_CELL_CHARS,
   MAX_UNPACKED_BYTES,
+  PART_LIMITS,
   cellText,
   decodeText,
   parseCsv,
@@ -144,40 +148,68 @@ describe("readImportFile", () => {
   });
 });
 
-/** A zip of deflated entries, each stating the unpacked size given (or its true one). */
-function zip(entries: Array<{ name: string; data: Uint8Array; stated?: number }>): Uint8Array {
+interface ZipEntry {
+  name: string;
+  data: Uint8Array;
+  /** The unpacked size the headers state, when not the true one. */
+  stated?: number;
+  /** Stored as it is, not deflated. */
+  stored?: boolean;
+  /** In the file, but left out of the directory. */
+  unlisted?: boolean;
+  /** Sizes left out of the header and given in a data descriptor after the data (bit 3). */
+  descriptor?: boolean;
+}
+
+/** A zip of the entries in the order given; `listTwice` names an entry the directory lists a second time. */
+function zip(entries: ZipEntry[], { listTwice }: { listTwice?: string } = {}): Uint8Array {
   const locals: Buffer[] = [];
   const centrals: Buffer[] = [];
   let offset = 0;
+  let listed = 0;
   for (const entry of entries) {
     const name = Buffer.from(entry.name);
-    const packed = deflateRawSync(entry.data);
+    const method = entry.stored ? 0 : 8;
+    const packed = entry.stored ? Buffer.from(entry.data) : deflateRawSync(entry.data);
     const stated = entry.stated ?? entry.data.length;
+    const flags = entry.descriptor ? 0x08 : 0;
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4);
-    local.writeUInt16LE(8, 8);
-    local.writeUInt32LE(packed.length, 18);
-    local.writeUInt32LE(stated, 22);
+    local.writeUInt16LE(flags, 6);
+    local.writeUInt16LE(method, 8);
+    local.writeUInt32LE(entry.descriptor ? 0 : packed.length, 18);
+    local.writeUInt32LE(entry.descriptor ? 0 : stated, 22);
     local.writeUInt16LE(name.length, 26);
+    const descriptor = Buffer.alloc(entry.descriptor ? 16 : 0);
+    if (entry.descriptor) {
+      descriptor.writeUInt32LE(0x08074b50, 0);
+      descriptor.writeUInt32LE(packed.length, 8);
+      descriptor.writeUInt32LE(stated, 12);
+    }
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
     central.writeUInt16LE(20, 4);
     central.writeUInt16LE(20, 6);
-    central.writeUInt16LE(8, 10);
+    central.writeUInt16LE(flags, 8);
+    central.writeUInt16LE(method, 10);
     central.writeUInt32LE(packed.length, 20);
     central.writeUInt32LE(stated, 24);
     central.writeUInt16LE(name.length, 28);
     central.writeUInt32LE(offset, 42);
-    locals.push(local, name, packed);
-    centrals.push(central, name);
-    offset += local.length + name.length + packed.length;
+    locals.push(local, name, packed, descriptor);
+    if (!entry.unlisted) {
+      const copies = entry.name === listTwice ? 2 : 1;
+      for (let n = 0; n < copies; n++) centrals.push(central, name);
+      listed += copies;
+    }
+    offset += local.length + name.length + packed.length + descriptor.length;
   }
   const directory = Buffer.concat(centrals);
   const end = Buffer.alloc(22);
   end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(entries.length, 8);
-  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt16LE(listed, 8);
+  end.writeUInt16LE(listed, 10);
   end.writeUInt32LE(directory.length, 12);
   end.writeUInt32LE(offset, 16);
   return new Uint8Array(Buffer.concat([...locals, directory, end]));
@@ -194,24 +226,53 @@ const crc32 = (data: Uint8Array) => {
   return (c ^ 0xffffffff) >>> 0;
 };
 
+const XML = '<?xml version="1.0" encoding="UTF-8"?>';
+const MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+const RELS = "http://schemas.openxmlformats.org/package/2006/relationships";
+const OFFICE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+/** A sheet's XML around the rows given. */
+const sheetXml = (rows: string, after = "") => `${XML}<worksheet xmlns="${MAIN}"><sheetData>${rows}</sheetData>${after}</worksheet>`;
+
+/** The two rows of inline text the hand-built workbooks hold. */
+const TWO_ROWS =
+  '<row r="1"><c r="A1" t="inlineStr"><is><t>name</t></is></c><c r="B1" t="inlineStr"><is><t>price</t></is></c></row>' +
+  '<row r="2"><c r="A2" t="inlineStr"><is><t>عطر</t></is></c><c r="B2"><v>35000</v></c></row>';
+
+/**
+ * The parts of an .xlsx, built by hand: one sheet per XML given, in the
+ * order Excel saves them. With no shared strings, the reader keeps every
+ * sheet waiting in a temporary file until the file's end.
+ */
+function bookEntries(sheets: string[]): ZipEntry[] {
+  const files: Array<[string, string]> = [
+    [
+      "[Content_Types].xml",
+      `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+        sheets.map((_, n) => `<Override PartName="/xl/worksheets/sheet${n + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("") +
+        "</Types>",
+    ],
+    ["_rels/.rels", `${XML}<Relationships xmlns="${RELS}"><Relationship Id="rId1" Type="${OFFICE}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    [
+      "xl/workbook.xml",
+      `${XML}<workbook xmlns="${MAIN}" xmlns:r="${OFFICE}"><sheets>` +
+        sheets.map((_, n) => `<sheet name="Sheet${n + 1}" sheetId="${n + 1}" r:id="rId${n + 1}"/>`).join("") +
+        "</sheets></workbook>",
+    ],
+    [
+      "xl/_rels/workbook.xml.rels",
+      `${XML}<Relationships xmlns="${RELS}">` +
+        sheets.map((_, n) => `<Relationship Id="rId${n + 1}" Type="${OFFICE}/worksheet" Target="worksheets/sheet${n + 1}.xml"/>`).join("") +
+        "</Relationships>",
+    ],
+    ...sheets.map((xml, n): [string, string] => [`xl/worksheets/sheet${n + 1}.xml`, xml]),
+  ];
+  return files.map(([name, text]) => ({ name, data: utf8(text) }));
+}
+
 /** The smallest .xlsx with two rows of inline text and one merge range: built by hand, as no writer builds such a merge. */
 function workbookWithMerge(range: string): Uint8Array {
-  const files: Record<string, string> = {
-    "[Content_Types].xml":
-      '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
-    "_rels/.rels":
-      '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
-    "xl/workbook.xml":
-      '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    "xl/_rels/workbook.xml.rels":
-      '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
-    "xl/worksheets/sheet1.xml":
-      '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
-      '<row r="1"><c r="A1" t="inlineStr"><is><t>name</t></is></c><c r="B1" t="inlineStr"><is><t>price</t></is></c></row>' +
-      '<row r="2"><c r="A2" t="inlineStr"><is><t>عطر</t></is></c><c r="B2"><v>35000</v></c></row>' +
-      `</sheetData><mergeCells count="1"><mergeCell ref="${range}"/></mergeCells></worksheet>`,
-  };
-  const entries = Object.entries(files).map(([name, text]) => ({ name, data: utf8(text) }));
+  const entries = bookEntries([sheetXml(TWO_ROWS, `<mergeCells count="1"><mergeCell ref="${range}"/></mergeCells>`)]);
   const bytes = zip(entries);
   // The local and central headers carry each entry's CRC, as Excel writes them.
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -227,6 +288,10 @@ function workbookWithMerge(range: string): Uint8Array {
   }
   return bytes;
 }
+
+const CANNOT_OPEN = { ok: false, error: "This .xlsx file could not be opened. Save it again from Excel, or send a CSV." };
+const TOO_BIG = { ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." };
+const UNREADABLE = { ok: false, reason: "unreadable" };
 
 describe("zipUnpacked", () => {
   it("adds up what a workbook really unpacks to, and refuses what is not a zip", async () => {
@@ -251,7 +316,90 @@ describe("zipUnpacked", () => {
   it("refuses a small .xlsx that lies about unpacking past the limit, before the workbook reader opens it", async () => {
     const bomb = zip([{ name: "xl/sharedStrings.xml", data: new Uint8Array(MAX_UNPACKED_BYTES + 1024), stated: 1000 }]);
     expect(bomb.length).toBeLessThan(200 * 1024);
-    expect(await readImportFile(bomb, "bomb.xlsx")).toEqual({ ok: false, error: "This .xlsx file is too big inside. Send a CSV of the products instead." });
+    expect(await readImportFile(bomb, "bomb.xlsx")).toEqual(TOO_BIG);
+  });
+
+  // Audit round 21: the workbook reader reads the entries from the file's
+  // first byte, the count read the directory; 1.6 GB of shared strings the
+  // directory left out took a 4 MB file to 4.2 GB of memory.
+  it("refuses an entry the directory leaves out, wherever it sits, before the workbook reader opens the file", async () => {
+    const book = bookEntries([sheetXml(TWO_ROWS)]);
+    expect(await readImportFile(zip(book), "fine.xlsx")).toMatchObject({ ok: true, file: { headers: ["name", "price"] } });
+    const hidden: ZipEntry = { name: "xl/sharedStrings.xml", data: utf8("<si><t>ab</t></si>".repeat(100_000)), unlisted: true };
+    for (const bytes of [zip([hidden, ...book]), zip([...book.slice(0, 3), hidden, ...book.slice(3)]), zip([...book, hidden])]) {
+      expect(zipUnpacked(bytes)).toEqual(UNREADABLE);
+      expect(await readImportFile(bytes, "hidden.xlsx")).toEqual(CANNOT_OPEN);
+    }
+  });
+
+  it("refuses an entry the directory lists twice, and bytes outside the entries", () => {
+    const book = bookEntries([sheetXml(TWO_ROWS)]);
+    expect(zipUnpacked(zip(book, { listTwice: "xl/workbook.xml" }))).toEqual(UNREADABLE);
+    const bytes = zip(book);
+    expect(zipUnpacked(new Uint8Array([0, ...bytes]))).toEqual(UNREADABLE);
+  });
+
+  it("finds an entry's end as the reader does when its sizes follow in a data descriptor", async () => {
+    const book = bookEntries([sheetXml(TWO_ROWS)]).map((entry) => ({ ...entry, descriptor: true }));
+    expect(zipUnpacked(zip(book))).toMatchObject({ ok: true });
+    expect(await readImportFile(zip(book), "descriptors.xlsx")).toMatchObject({ ok: true, file: { rows: [["عطر", "35000"]] } });
+    // Stored data holding the descriptor's mark: the reader stops there, inside what the directory lists.
+    const marked = new Uint8Array([1, 2, 0x50, 0x4b, 0x07, 0x08, 3, 4]);
+    expect(zipUnpacked(zip([{ name: "xl/a.bin", data: marked, stored: true, descriptor: true }]))).toEqual(UNREADABLE);
+    expect(zipUnpacked(zip([{ name: "xl/a.bin", data: marked, stored: true }]))).toEqual({ ok: true, bytes: 8 });
+  });
+
+  it("holds the parts the reader keeps whole to their own smaller limits", async () => {
+    const strings = PART_LIMITS["xl/sharedStrings.xml"];
+    const styles = PART_LIMITS["xl/styles.xml"];
+    expect(strings).toBe(8 * 1024 * 1024);
+    expect(styles).toBe(2 * 1024 * 1024);
+    const book = bookEntries([sheetXml(TWO_ROWS)]);
+    const withPart = (name: string, size: number) => zip([...book, { name, data: new Uint8Array(size) }]);
+    expect(zipUnpacked(withPart("xl/sharedStrings.xml", strings))).toMatchObject({ ok: true });
+    expect(zipUnpacked(withPart("xl/sharedStrings.xml", strings + 1))).toEqual({ ok: false, reason: "too_big" });
+    expect(zipUnpacked(withPart("xl/styles.xml", styles + 1))).toEqual({ ok: false, reason: "too_big" });
+    expect(await readImportFile(withPart("xl/styles.xml", styles + 1), "styles.xlsx")).toEqual(TOO_BIG);
+    // Any other part only counts toward the whole file's limit.
+    expect(zipUnpacked(withPart("xl/theme/theme1.xml", strings + 1))).toMatchObject({ ok: true });
+  });
+});
+
+describe("the reader's temporary files", () => {
+  let dir = "";
+  const before = process.env.TMPDIR;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "import-read-"));
+    process.env.TMPDIR = dir;
+  });
+  afterEach(() => {
+    process.env.TMPDIR = before;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  // Audit round 21: Excel saves the shared strings after the sheets, so the
+  // reader kept every sheet in a temporary file, and a sheet that broke it
+  // left the files of the sheets after it until the server was recycled.
+  it("reads the sheets as they come, so a sheet that breaks the reader leaves no temporary file", async () => {
+    const broken = sheetXml('<row><c r="A1" t="inlineStr"><is><t>name</t></is></c></row>');
+    const fine = sheetXml(TWO_ROWS);
+    expect(await readImportFile(zip(bookEntries([broken, fine])), "broken.xlsx")).toEqual(CANNOT_OPEN);
+    expect(readdirSync(dir)).toEqual([]);
+    expect(await readImportFile(zip(bookEntries([fine, fine])), "two.xlsx")).toMatchObject({ ok: true, file: { sheet: "Sheet1" } });
+    // As ExcelJS saves it: the sheet, then the shared strings, the workbook last.
+    const saved = await xlsx((sheet) => {
+      sheet.addRow(["name", "price"]);
+      sheet.addRow(["عطر", 35000]);
+    });
+    expect(await readImportFile(saved, "saved.xlsx")).toMatchObject({ ok: true, file: { sheet: "المنتجات", rows: [["عطر", "35000"]] } });
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it("refuses a workbook without its workbook part or its links", async () => {
+    const book = bookEntries([sheetXml(TWO_ROWS)]);
+    for (const name of ["xl/workbook.xml", "xl/_rels/workbook.xml.rels"]) {
+      expect(await readImportFile(zip(book.filter((entry) => entry.name !== name)), "partial.xlsx")).toEqual(CANNOT_OPEN);
+    }
   });
 });
 
