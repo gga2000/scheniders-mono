@@ -28,11 +28,22 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
 
     // Without a previous period there is nothing to compare against: no chip, no verdict.
     const hasBaseline = data.previous.totalOrders > 0;
-    const hasOutcomes = data.previous.deliveredOrders + data.previous.rejectedOrders > 0;
     const relative = (curr: number, prev: number): number | null =>
         prev > 0 ? ((curr - prev) / prev) * 100 : null;
 
-    const metrics = [
+    // A rate or a processing time is null while nothing in that period has finished: the card
+    // shows «—» and no trend, as the KPI row does («ما انتهى أي طلب بعد»), never «0.0%» or «0 ساعة».
+    const metrics: {
+        label: string;
+        icon: typeof Package;
+        current: number | null;
+        previous: number | null;
+        change: number | null;
+        unit?: "pp";
+        format: (v: number) => string;
+        money?: boolean;
+        goodWhenPositive: boolean;
+    }[] = [
         {
             label: t("reports.kpi.total"),
             icon: Package,
@@ -65,7 +76,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             icon: TrendingUp,
             current: data.current.deliveryRate,
             previous: data.previous.deliveryRate,
-            change: hasOutcomes ? data.changes.deliveryRate : null,
+            change: data.changes.deliveryRate,
             unit: "pp",
             format: (v: number) => `${v.toFixed(1)}%`,
             goodWhenPositive: true,
@@ -86,7 +97,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             icon: Clock,
             current: data.current.avgProcessingTime,
             previous: data.previous.avgProcessingTime,
-            change: relative(data.current.avgProcessingTime, data.previous.avgProcessingTime),
+            change: data.changes.avgProcessingTime,
             format: (v: number) => t("reports.unit.hours", { n: v.toFixed(0) }),
             goodWhenPositive: false, // Lower is better
         },
@@ -158,7 +169,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                 <div className="space-y-2">
                                     <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                                         <span className={cn("font-bold text-foreground tabular-nums whitespace-nowrap", metric.money ? "text-lg" : "text-2xl")}>
-                                            <bdi>{metric.format(metric.current)}</bdi>
+                                            <bdi>{metric.current === null ? "—" : metric.format(metric.current)}</bdi>
                                         </span>
                                         {showChip && change !== null && (
                                             <div className={cn(
@@ -173,7 +184,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                     {/* In the page's direction, so Arabic reads «مقابل» before its amount */}
                                     <div dir={dir} className="flex items-center gap-1 text-xs text-muted">
                                         <span>{t("reports.period.vs")}</span>
-                                        <bdi className="font-medium tabular-nums whitespace-nowrap">{metric.format(metric.previous)}</bdi>
+                                        <bdi className="font-medium tabular-nums whitespace-nowrap">{metric.previous === null ? "—" : metric.format(metric.previous)}</bdi>
                                     </div>
                                 </div>
                             </motion.div>

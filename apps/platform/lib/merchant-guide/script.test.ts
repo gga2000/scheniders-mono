@@ -11,6 +11,12 @@ describe("guide script", () => {
         }
     });
 
+    it("Arabic lines write numbers with Latin digits, like the rest of the app", () => {
+        // A caption with «٣» sat under a body with «3» in the Orders bubble (critic r18).
+        const bad = Object.entries(GUIDE_LINES).filter(([, line]) => /[٠-٩۰-۹]/.test(line.ar)).map(([id]) => id);
+        expect(bad).toEqual([]);
+    });
+
     it("only lines that exist can be marked recorded", () => {
         for (const id of RECORDED_LINES) expect(GUIDE_LINES).toHaveProperty(id);
     });

@@ -84,7 +84,7 @@ export const GUIDE_LINES = {
         en: "Here's your shop link. Copy it into your bio and share it on Instagram and TikTok.",
     },
     "fo.offer": {
-        ar: "أول مرة بصفحة الطلبات؟ سوينالك ٣ طلبات تجربة، تعال نمشي بيها سوه.",
+        ar: "أول مرة بصفحة الطلبات؟ سوينالك 3 طلبات تجربة، تعال نمشي بيها سوه.",
         en: "First time on Orders? We made you 3 practice orders. Let's walk through them together.",
     },
     "fo.statuses": {

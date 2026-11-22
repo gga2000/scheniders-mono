@@ -12,5 +12,6 @@ describe("formatDelta", () => {
     it("switches to a multiple past +1000%", () => {
         expect(formatDelta(10100)).toBe("102×");
         expect(formatDelta(1000)).toBe("11×");
+        expect(formatDelta(516_400)).toBe("5,165×");
     });
 });

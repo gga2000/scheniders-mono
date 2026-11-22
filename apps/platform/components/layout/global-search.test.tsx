@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Order } from "@/types/order";
 import { MAX_SEARCH_RESULTS } from "@/lib/order-server-search";
+import { translations } from "@/lib/i18n";
 
 /**
  * The top-bar search is rendered by the root layout on every route, above the
@@ -111,5 +112,15 @@ describe("GlobalSearch without an order book", () => {
 
         await waitFor(() => expect(screen.getByText("#LF-3879 - Zainab")).toBeTruthy(), { timeout: 2000 });
         expect(screen.queryByText("Zainab")).toBeNull();
+    });
+});
+
+describe("the search placeholder", () => {
+    it("ar: fits the bar at 1440 px, so its first word is never cut (critic r18)", () => {
+        // The input is 193 px with the sidebar closed. The old 38-character line needed 226 px
+        // and lost «البحث»; this one measures 180 px in the app's font.
+        const placeholder = translations.ar["search.placeholder"];
+        expect(placeholder.length).toBeLessThanOrEqual(28);
+        expect(placeholder.startsWith("ابحث")).toBe(true);
     });
 });

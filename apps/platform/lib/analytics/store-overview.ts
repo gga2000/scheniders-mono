@@ -85,18 +85,23 @@ export function storeLogStart(raw: StoreOverviewRaw): string | null {
  * Today is compared with yesterday cut off at the same time of day, so a morning
  * is never judged against a whole day. 7 and 30 days are the last N Baghdad days,
  * today included (the rule every dashboard period uses), against the N days
- * before them. All is every day from the log's first activity (at most 60), with
- * no comparison.
+ * before them, when the log already ran on the first of those. All is every day
+ * from the log's first activity (at most 60), with no comparison.
  */
 export function storeOverviewMetrics(raw: StoreOverviewRaw, range: DateRangeKey = "today"): OverviewMetric[] {
     const start = range === "all" ? storeLogStart(raw) : null;
     const days = start ? raw.days.filter((d) => d.day >= start) : raw.days;
     const n = range === "all" ? days.length : PERIOD_DAYS[range];
     const current = range === "today" ? (days[days.length - 1] ?? ZERO) : sum(days.slice(-n));
+    // Only a full run of earlier days that the log covered from its first day is a fair
+    // comparison: a log that began 3 days into the earlier 30 made 15,496 visits read «↑ ×5165»
+    // (critic r18). The RPC pads missing days with zeros, so the length alone can't tell.
+    const earlier = range === "today" || range === "all" ? [] : days.slice(-2 * n, -n);
+    const logStart = storeLogStart(raw);
+    const earlierLogged = earlier.length === n && logStart !== null && earlier[0].day >= logStart;
     const previous = range === "today"
         ? raw.yesterday_same_time
-        // Only a full run of earlier days is a fair comparison.
-        : range !== "all" && days.length >= 2 * n ? sum(days.slice(-2 * n, -n)) : null;
+        : earlierLogged ? sum(earlier) : null;
     const sparkDays = days.slice(-Math.max(range === "today" ? TODAY_SPARK_DAYS : n, 2));
     return OVERVIEW_METRICS.map((key) => {
         const pick = PICK[key];
