@@ -1,4 +1,4 @@
-import { AdminShell } from "@/components/layout/admin-shell";
+import { NotFoundShell } from "@/components/layout/not-found-shell";
 import { ConsoleNotFound } from "@/components/shared/console-not-found";
 
 /**
@@ -14,8 +14,8 @@ export default function NotFound() {
   // once it ran, the tab first read "Admin" or the menu page of the address
   // ("Merchants" under /merchants/<id>/extra), round 18.
   return (
-    <AdminShell pageName="Page not found">
+    <NotFoundShell pageName="Page not found">
       <ConsoleNotFound />
-    </AdminShell>
+    </NotFoundShell>
   );
 }
