@@ -19,7 +19,7 @@ interface ProductRankingProps {
 const FOLD = 8;
 /** The database sends at most this many products. */
 const SERVER_LIMIT = 50;
-const COLUMNS = "grid grid-cols-[52px_minmax(0,1.15fr)_minmax(160px,1fr)_176px_76px] items-center gap-x-3.5";
+const COLUMNS = "grid grid-cols-[52px_minmax(0,1.15fr)_minmax(160px,1fr)_176px_112px] items-center gap-x-3.5";
 
 /**
  * The products of the period, the one that earned most first: picture, full

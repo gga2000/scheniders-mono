@@ -279,7 +279,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                 </span>
             </div>
             {/* Under the net profit: why the figure above may be too high, under one heading, one cause a line,
-                each with what to do where there is something to do, rather than break the subtraction above. */}
+                each with what to do right after its own sentence, rather than break the subtraction above. */}
             {(empty.length > 0 || refundsOpen > 0 || feePending > 0) && (
                 <div className="mt-3 border-t border-[var(--card-border)] pb-1 pt-3 text-[13.5px]" data-testid="statement-too-high">
                     <p className="text-left font-medium text-foreground" dir={dir}>
@@ -287,8 +287,8 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                     </p>
                     <ul className="mt-1.5 space-y-1.5 text-muted">
                         {empty.length > 0 && (
-                            <li className="flex items-center gap-4" data-testid="statement-quiet">
-                                <span className="min-w-0 flex-1 text-left" dir={dir}>
+                            <li className="text-left" dir={dir} data-testid="statement-quiet">
+                                <span>
                                     {t("fin.statement.none", {
                                         // As a sentence ("in «Salaries» or in «Other costs»"), each line by its name on the card.
                                         lines: empty
@@ -299,7 +299,7 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                                 <button
                                     type="button"
                                     onClick={() => onOpenTab("expenses")}
-                                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                    className="ms-2 inline-flex items-center gap-1 whitespace-nowrap align-baseline font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                                 >
                                     {t("fin.statement.addExpense")}
                                     <ArrowUpRight className="size-3.5" aria-hidden="true" />
@@ -307,13 +307,13 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                             </li>
                         )}
                         {refundsOpen > 0 && (
-                            <li className="flex items-center gap-4" data-testid="statement-refunds-open">
-                                <span className="min-w-0 flex-1 text-left" dir={dir}>
+                            <li className="text-left" dir={dir} data-testid="statement-refunds-open">
+                                <span>
                                     {t("fin.statement.refundsOpen", { amount: money(-summary.cash.statement.returns_open) })}
                                 </span>
                                 <a
                                     href={`#${COURIER_PAYMENTS_ID}`}
-                                    className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                    className="ms-2 inline-flex items-center gap-1 whitespace-nowrap align-baseline font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                                 >
                                     {t("fin.alert.refundsOpen.open")}
                                     <ArrowUpRight className="size-3.5" aria-hidden="true" />
@@ -321,14 +321,14 @@ export function ProfitStatement({ summary, statement, previous, onOpenTab }: Pro
                             </li>
                         )}
                         {feePending > 0 && (
-                            <li className="flex items-center gap-4" data-testid="statement-fee-pending">
-                                <span className="min-w-0 flex-1 text-left" dir={dir}>
+                            <li className="text-left" dir={dir} data-testid="statement-fee-pending">
+                                <span>
                                     {t("fin.statement.feePending", { n: formatWhole(feePending), count: feePending })}
                                 </span>
                                 {feePendingListed && (
                                     <a
                                         href={`#${UNPAID_ORDERS_ID}`}
-                                        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
+                                        className="ms-2 inline-flex items-center gap-1 whitespace-nowrap align-baseline font-semibold text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-current"
                                         data-testid="statement-fee-pending-link"
                                     >
                                         {t("fin.alert.refundsOpen.open")}
