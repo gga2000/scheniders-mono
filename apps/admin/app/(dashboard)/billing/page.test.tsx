@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 /*
@@ -143,5 +143,28 @@ describe("Quick Top-Up when the answer is lost or repeated", () => {
     ).toBeTruthy();
     expect(screen.queryByText(/^Added 50,000 IQD/)).toBeNull();
     expect(screen.queryByText(/Wallet now/)).toBeNull();
+  });
+});
+
+/*
+ * Round 22 (R3-10): Wallets re-reads every minute. A failed re-read kept the
+ * last balances and said nothing, so staff read them as now.
+ */
+describe("Wallets after a failed re-read", () => {
+  it("keeps the wallets and says they are from the last read that worked", async () => {
+    let reads = 0;
+    send.mockImplementation(() =>
+      reads++ === 0 ? Promise.resolve(json(BILLING)) : Promise.reject(new TypeError("Failed to fetch")),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(createElement(QueryClientProvider, { client }, createElement(BillingPage)));
+    await screen.findByRole("option", { name: /Kut Perfumes/ });
+    expect(screen.queryByText(/Could not refresh/)).toBeNull();
+
+    await act(() => client.refetchQueries());
+
+    expect(await screen.findByText(/^Could not refresh the wallets\. These numbers are from \d\d:\d\d\.$/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /Kut Perfumes/ })).toBeTruthy();
   });
 });
