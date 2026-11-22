@@ -5,3 +5,4 @@
 20261116093612_admin_income_refunds_and_upgrades.sql
 20261117061603_admin_locked_shops.sql
 20261122192432_admin_last_actors.sql
+20261122201541_admin_last_actors_email.sql

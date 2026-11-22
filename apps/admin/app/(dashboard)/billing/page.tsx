@@ -179,16 +179,16 @@ export default function BillingPage() {
           <p className="text-[13px] text-foreground/70">
             Every shop&apos;s wallet, its top-ups and its charges.
           </p>
-{isError && (
-  <LoadFailedLine
-    what="the wallets"
-    shownFrom={dataUpdatedAt}
-    error={error}
-    onRetry={() => refetch()}
-    retrying={isFetching}
-    className="mt-2"
-  />
-)}
+          {isError && (
+            <LoadFailedLine
+              what="the wallets"
+              shownFrom={dataUpdatedAt}
+              error={error}
+              onRetry={() => refetch()}
+              retrying={isFetching}
+              className="mt-2"
+            />
+          )}
         </div>
         {/* The transactions file needs adjust_balance (api/export). */}
         {can("adjust_balance") && <ExportButton type="transactions" label="Export Transactions" />}
